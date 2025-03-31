@@ -1,50 +1,54 @@
-<!-- markdownlint-disable  MD013 -->
-<!-- wiki-title CA handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) -->
-# CA handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)
+<!-- markdownlint-disable MD013 -->
+<!-- wiki-title CA Handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) -->
+# CA Handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)
 
-This CA handler uses the Microsoft [Windows Client Certificate Enrollment Protocol](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-wcce/446a0fca-7f27-4436-965d-191635518466). The handler is using code from [Certipy](https://github.com/ly4k/Certipy) which is a kind of pentesting tool for AD-CS.
+This CA handler uses the Microsoft [Windows Client Certificate Enrollment Protocol](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-wcce/446a0fca-7f27-4436-965d-191635518466). The handler incorporates code from [Certipy](https://github.com/ly4k/Certipy), a pentesting tool for Active Directory Certificate Services (AD-CS).
 
-When using the handler please be aware of the following limitations:
+## Limitations
 
-- CA certificates cannot be fetched from CA server and must be loaded via `ca_bundle` option configured in `acme_srv.cfg`
-- Revocation operations are not (yet) supported
+Be aware of the following limitations when using this handler:
+
+- CA certificates cannot be fetched from the CA server and must be manually loaded via the `ca_bundle` option in `acme_srv.cfg`.
+- Revocation operations are not yet supported.
 
 ## Preparation
 
-1. Active Directory Certificate Services (AD-CS) must be enabled and configured - of course :-)
-2. The CA handler is using RPC/DCOM to communicate with the CA server. That means that your CA-server must be reachable via TCP port 445.
-3. (optional): In case you are installing from RPM or DEB and plan to use kerberos authentication you need an updated [impacket modules of version 0.11 or higher](https://github.com/fortra/impacket) as older versions have issues with the handling of utf8-encoded passwords. If you have no clue from where to get these packaages feel free to use the one being part of [the a2c github repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs)
-4. You need to have a set of credentials with permissions to access the service and enrollment templates
+1. Active Directory Certificate Services (AD-CS) must be enabled and properly configured.
+2. The CA handler uses RPC/DCOM to communicate with the CA server, so the CA server must be accessible via **TCP port 445**.
+3. *(Optional)*: If installing from RPM or DEB and planning to use Kerberos authentication, ensure you have an updated [Impacket module (version 0.11 or higher)](https://github.com/fortra/impacket), as older versions have issues handling UTF-8 encoded passwords. You can find updated packages in the [A2C GitHub repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs).
+4. You need a set of credentials with sufficient permissions to access the service and enrollment templates.
 
 ## Local Installation
 
-- install the [impacket](https://github.com/fortra/impacket) module
+- Install the [Impacket](https://github.com/fortra/impacket) module.
 
-*IMPORTANT*:
+### **Important:**
 
-Some malware scanners like Microsoft Defender classify the impacket module as hacking-tool (see [forta/impacket#1762](https://github.com/fortra/impacket/issues/1762) or [forta/impacket#1271](https://github.com/fortra/impacket/issues/1271#issuecomment-1058729047)). Main reason for the alarms are not the library itself but rather the example script coming along with it.  To avoid hazzle with your CSIRT team I suggest to install a strip-down version of impacket which which do not contain the scripts flagged by the scanners. Packages for [RH8](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) and [RH9](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel9/python3-impacket-0.11.0-2grindsa.el9.noarch.rpm) can be found in my [SBOM repo](https://github.com/grindsa/sbom/tree/main/rpm-repo)
+Some malware scanners, such as Microsoft Defender, classify Impacket as a hacking tool (see [Fortra Impacket Issue #1762](https://github.com/fortra/impacket/issues/1762) or [Fortra Impacket Issue #1271](https://github.com/fortra/impacket/issues/1271#issuecomment-1058729047)). These alerts are triggered mainly by example scripts included in the package, not the library itself.
 
-In case you install impacket from pip or form sources I suggest to:
+To avoid issues with your security team, consider installing a stripped-down version of Impacket without flagged scripts. Pre-packaged versions are available for [RHEL 8](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel8/python3-impacket-0.11.0-2grindsa.el8.noarch.rpm) and [RHEL 9](https://github.com/grindsa/sbom/raw/main/rpm-repo/RPMs/rhel9/python3-impacket-0.11.0-2grindsa.el9.noarch.rpm) in the [SBOM repository](https://github.com/grindsa/sbom/tree/main/rpm-repo).
 
-- download the impacket package:
+If installing from pip or source, follow these steps:
+
+- Download the Impacket package:
 
 ```bash
 pip3 download impacket --no-deps
 ```
 
-- unpack the archive
+- Unpack the archive:
 
 ```bash
- tar xvfz impacket-0.11.0.tar.gz
+tar xvfz impacket-0.11.0.tar.gz
 ```
 
-- delete all files and subdirectories in `examples` sub-directory
+- Remove all files and subdirectories in the `examples` directory:
 
 ```bash
 rm -rf impacket-0.11.0/examples/*
 ```
 
-- install the package
+- Install the package:
 
 ```bash
 python3 setup.py install
@@ -52,71 +56,74 @@ python3 setup.py install
 
 ## Configuration
 
-- modify the server configuration (acme_srv/acme_srv.cfg) and add the following parameters
+Modify the server configuration (`acme_srv/acme_srv.cfg`) and add the following parameters:
 
-```config
+```ini
 [CAhandler]
 handler_file: examples/ca_handler/mswcce_ca_handler.py
 host: <hostname>
 user: <username>
 password: <password>
-target_domain: <domain name>
-domain_controller: <ip address of domain controller>
-ca_name: <ca name>
+target_domain: <domain_name>
+domain_controller: <IP_of_domain_controller>
+ca_name: <ca_name>
 ca_bundle: <filename>
-template: <template name>
+template: <template_name>
 timeout: 5
 use_kerberos: False
 allowed_domainlist: ["example.com", "*.example2.com"]
 eab_profiling: False
 ```
 
-- host - hostname of the system providing the enrollment service
-- host_variable - *optional* - name of the environment variable containing host address (a configured `host` parameter in acme_srv.cfg takes precedence)
-- user - username used to access the service
-- user_variable - *optional* - name of the environment variable containing the username used for service access (a configured `user` parameter in acme_srv.cfg takes precedence)
-- password - password
-- password_variable - *optional* - name of the environment variable containing the password used for service access (a configured `password` parameter in acme_srv.cfg takes precedence)
-- target_domain - *optional* - ads domain name
-- domain_controller - *optional* - IP Address of the domain controller / dns server.
-- dns_server - *optional* - IP Address of dns server.
-- ca_name - certificate authority name
-- ca_bundle - CA certificate chain in pem format delievered along with the client certificate
-- template - certificate template used for enrollment
-- timeout - *optional* - enrollment timeout (default: 5)
-- use_kerberos - use kerboros for authentication; if set to `False` authentication will be done via NTLM. Considering a [Microsoft accouncement from October 2023](https://techcommunity.microsoft.com/t5/windows-it-pro-blog/the-evolution-of-windows-authentication/ba-p/3926848) the usage of Kerberos should be preferred. Nevertheless, for backwards compatibility reasons the default setting is `False`
-- allowed_domainlist - *optional* - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local]
-- eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
+### Parameter Explanations
 
-## Passing a template from client to server
+- **host** – The hostname of the system providing the enrollment service. Multiple hosts can be specified as `server1, server2, server3`; a random host will be selected.
+- **host_variable** *(optional)* – Environment variable containing the host address (overridden if `host` is set in `acme_srv.cfg`).
+- **ca_name** – Certificate authority name. Multiple CA names can be specified as `ca1, ca2, ca3`; a random entry will be chosen.
+- **user** – Username for accessing the service.
+- **user_variable** *(optional)* – Environment variable containing the username (overridden if `user` is set in `acme_srv.cfg`).
+- **password** – Password for authentication.
+- **password_variable** *(optional)* – Environment variable containing the password (overridden if `password` is set in `acme_srv.cfg`).
+- **target_domain** *(optional)* – Active Directory domain name.
+- **domain_controller** *(optional)* – IP address of the domain controller/DNS server.
+- **dns_server** *(optional)* – IP address of the DNS server.
+- **ca_bundle** – CA certificate chain in PEM format, provided along with the client certificate.
+- **template** – Certificate template used for enrollment.
+- **timeout** *(optional)* – Enrollment timeout in seconds (default: `5`).
+- **use_kerberos** – Use Kerberos for authentication. If `False`, authentication is done via NTLM. Due to Microsoft's [October 2023 announcement](https://techcommunity.microsoft.com/t5/windows-it-pro-blog/the-evolution-of-windows-authentication/ba-p/3926848), Kerberos is recommended, but NTLM remains the default for backward compatibility.
+- **allowed_domainlist** *(optional)* – List of allowed domains for enrollment (JSON format).
+- **eab_profiling** *(optional)* – [Enable EAB profiling](eab_profiling.md) (default: `False`).
+- **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`).
+- **enrollment_config_log_skip_list** *(optional)* – List of enrollment parameters to exclude from logs (JSON format).
 
-The handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a template name to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
+## Passing a Template from Client to Server
 
-```config
+This handler uses the [header_info_list feature](header_info.md), allowing an ACME client to specify a template name for certificate enrollment. To enable this feature, update `acme_srv.cfg`:
+
+```ini
 [Order]
-...
 header_info_list: ["HTTP_USER_AGENT"]
 ```
 
-The acme-client can then specify the temmplate name as part of its user-agent string.
+## Example Usage
 
-Example for acme.sh:
+- **acme.sh**:
 
 ```bash
 docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --standalone --useragent template=foo --debug 3 --output-insecure
 ```
 
-Example for lego:
+- **lego**:
 
 ```bash
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" --user-agent template=foo -d <fqdn> --http run
 ```
 
-# eab profiling
+# EAB Profiling
 
-This handler can use the [eab profiling feture](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activated in `acme_srv.cfg`
+This handler supports [EAB profiling](eab_profiling.md), which allows individual enrollment configurations per ACME account and restricts CN/SANs in the CSR. To enable this feature, update `acme_srv.cfg`:
 
-```cfg
+```ini
 [EABhandler]
 eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: <profile_file>
@@ -125,12 +132,12 @@ key_file: <profile_file>
 eab_profiling: True
 ```
 
-below an example key-file used during regression testing:
+## Example Key File
 
 ```json
 {
   "keyid_00": {
-    "hmac": "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw",
+    "hmac": "example_hmac_value",
     "cahandler": {
       "template": ["WebServerModified", "WebServer"],
       "allowed_domainlist": ["www.example.com", "www.example.org", "*.acme"],
@@ -156,3 +163,5 @@ below an example key-file used during regression testing:
   }
 }
 ```
+
+This setup ensures that individual accounts can have specific enrollment configurations and domain restrictions.

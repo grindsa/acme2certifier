@@ -226,10 +226,17 @@ jobs:
         docker exec alma9-c2 systemctl restart lsyncd
         docker exec alma9-c2 systemctl enable lsyncd
 
+    - name: "Lsync - Sleep for 20s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 20s
+
     - name: "Test syncronisation between cluster nodes"
       run: |
-        docker exec alma9-c1 touch /opt/acme2certifier/volume/lsycd_test.txt
+        docker exec alma9-c1 cp /tmp/acme2certifier/alma9-c1-lsyncd.conf /opt/acme2certifier/volume/lsycd_test.txt
         sleep 20
+        docker exec alma9-c1 ls -la /opt/acme2certifier/volume/
+        docker exec alma9-c2 ls -la /opt/acme2certifier/volume/
         docker exec alma9-c2 ls /opt/acme2certifier/volume/  | grep -i lsycd_test.txt
         docker exec alma9-c2 rm /opt/acme2certifier/volume/lsycd_test.txt
         sleep 20

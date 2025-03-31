@@ -55,7 +55,7 @@ jobs:
         sudo echo "certtype: $ENTRUST_CERTTYPE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cert_validity_days: 10" >> examples/Docker/data/acme_srv.cfg
         sudo echo "request_timeout: 20" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.rm-rf.ninja\", \"bar.local$\"]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.rm-rf.ninja\", \"bar.local\"]" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
         # cd examples/Docker/
@@ -93,7 +93,7 @@ jobs:
         sudo echo "certtype: $ENTRUST_CERTTYPE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "cert_validity_days: 10" >> examples/Docker/data/acme_srv.cfg
         sudo echo "request_timeout: 20" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.rm-rf.ninja\", \"bar.local$\"]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.rm-rf.ninja\", \"bar.local\"]" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
         sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg

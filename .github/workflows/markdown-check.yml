@@ -11,11 +11,25 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
-  markdown-check:
-    runs-on: ubuntu-latest
+  markdown-link-check:
+    # runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@master
+    #- uses: umbrelladocs/action-linkspector@v1
+    #  with:
+    #      github_token: ${{ secrets.github_token }}
+    #      reporter: github-pr-review
+    #      fail_level: any
     - uses: gaurav-nelson/github-action-markdown-link-check@v1
+      with:
+        use-quiet-mode: 'yes'
+        use-verbose-mode: 'yes'
+        config-file: '.github/mlc_config.json'
+    - name: Lint changelog file root
+      uses: avto-dev/markdown-lint@v1
+      with:
+        args: '*.md'
     - name: Lint changelog file root
       uses: avto-dev/markdown-lint@v1
       with:

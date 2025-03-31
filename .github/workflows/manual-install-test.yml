@@ -397,9 +397,6 @@ jobs:
         sudo systemctl start acme2certifier
         sudo systemctl enable acme2certifier
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: curl -f http://127.0.0.1/directory
-
     - name: "Configure ca_handler"
       run: |
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
@@ -419,6 +416,9 @@ jobs:
         sudo sed -i "s/volume\/acme_ca/\/var\/www\/acme2certifier\/volume\/acme_ca/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g"  /var/www/acme2certifier/acme_srv/acme_srv.cfg
         sudo systemctl restart nginx
+
+    - name: "Test http://acme-srv/directory is accessible"
+      run: curl -f http://127.0.0.1:8080/directory
 
     - name: "Create Namespace"
       run: docker network create acme

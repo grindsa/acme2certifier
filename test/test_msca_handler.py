@@ -408,8 +408,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
         self.assertFalse(self.cahandler.krb5_config)
-        self.assertEqual('ADLFAILURE', self.cahandler.allowed_domainlist)
-        self.assertIn('ERROR:test_a2c:CAhandler._config_load(): failed to parse allowed_domainlist: Expecting value: line 1 column 1 (char 0)', lcm.output)
+        self.assertEqual('failed to parse', self.cahandler.allowed_domainlist)
+        self.assertIn('WARNING:test_a2c:loading allowed_domainlist failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.config_eab_profile_load')
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
@@ -540,9 +540,10 @@ class TestACMEHandler(unittest.TestCase):
         mockwrap.return_value = 'mockwrap'
         mock_b2s.side_effect = ['get_chain', 'get_cert']
         mock_p2p.return_value = 'p2p'
+        mock_adc.return_value = False
         self.assertEqual((None, 'get_certp2p', 'get_cert', None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_tmpl.called)
-        self.assertFalse(mock_adc.called)
+        self.assertTrue(mock_adc.called)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.allowed_domainlist_check')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._template_name_get')
@@ -561,7 +562,7 @@ class TestACMEHandler(unittest.TestCase):
         mockresponse = MagicMock()
         mockresponse.get_chain.return_value = "get_chain"
         mockresponse.get_cert.return_value = "get_cert"
-        mock_adc.return_value = True
+        mock_adc.return_value = False
         mock_certserver = mockresponse
         mock_credchk.return_value = True
         mockwrap.return_value = 'mockwrap'
@@ -588,13 +589,13 @@ class TestACMEHandler(unittest.TestCase):
         mockresponse = MagicMock()
         mockresponse.get_chain.return_value = "get_chain"
         mockresponse.get_cert.return_value = "get_cert"
-        mock_adc.return_value = False
+        mock_adc.return_value = 'error'
         mock_certserver = mockresponse
         mock_credchk.return_value = True
         mockwrap.return_value = 'mockwrap'
         mock_b2s.side_effect = ['get_chain', 'get_cert']
         mock_p2p.return_value = 'p2p'
-        self.assertEqual(('SAN/CN check failed', None, None, None), self.cahandler.enroll('csr'))
+        self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_tmpl.called)
         self.assertTrue(mock_adc.called)
 
@@ -615,15 +616,15 @@ class TestACMEHandler(unittest.TestCase):
         mockresponse = MagicMock()
         mockresponse.get_chain.return_value = "get_chain"
         mockresponse.get_cert.return_value = "get_cert"
-        # mock_adc.return_value = False
+        mock_adc.return_value = 'error'
         mock_certserver = mockresponse
         mock_credchk.return_value = True
         mockwrap.return_value = 'mockwrap'
         mock_b2s.side_effect = ['get_chain', 'get_cert']
         mock_p2p.return_value = 'p2p'
-        self.assertEqual(('SAN/CN check failed', None, None, None), self.cahandler.enroll('csr'))
+        self.assertEqual(('error', None, None, None), self.cahandler.enroll('csr'))
         self.assertFalse(mock_tmpl.called)
-        self.assertFalse(mock_adc.called)
+        self.assertTrue(mock_adc.called)
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.eab_profile_header_info_check')
     @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem')
@@ -753,22 +754,51 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(('get_cert', None, None, None), self.cahandler.enroll('csr'))
         self.assertIn('ERROR:test_a2c:ca_server.get_cert() failed with error: get_cert', lcm.output)
 
+    @patch('examples.ca_handler.mscertsrv_ca_handler.enrollment_config_log')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._check_credentials')
+    @patch('certsrv.Certsrv')
+    def test_053_enroll(self, mock_certserver, mock_credchk, mock_ecl):
+        """ enroll credential check failed """
+        self.cahandler.host = 'host'
+        self.cahandler.user = 'user'
+        self.cahandler.password = 'password'
+        self.cahandler.template = 'template'
+        mock_certserver.return_value = 'foo'
+        mock_credchk.return_value = False
+        self.assertEqual(('Connection or Credentialcheck failed.', None, None, None), self.cahandler.enroll('csr'))
+        self.assertFalse(mock_ecl.called)
+
+    @patch('examples.ca_handler.mscertsrv_ca_handler.enrollment_config_log')
+    @patch('examples.ca_handler.mscertsrv_ca_handler.CAhandler._check_credentials')
+    @patch('certsrv.Certsrv')
+    def test_054_enroll(self, mock_certserver, mock_credchk, mock_ecl):
+        """ enroll credential check failed """
+        self.cahandler.host = 'host'
+        self.cahandler.user = 'user'
+        self.cahandler.password = 'password'
+        self.cahandler.template = 'template'
+        self.cahandler.enrollment_config_log = True
+        mock_certserver.return_value = 'foo'
+        mock_credchk.return_value = False
+        self.assertEqual(('Connection or Credentialcheck failed.', None, None, None), self.cahandler.enroll('csr'))
+        self.assertTrue(mock_ecl.called)
+
     @patch('examples.ca_handler.mscertsrv_ca_handler.header_info_get')
-    def test_053_template_name_get(self, mock_header):
+    def test_055_template_name_get(self, mock_header):
         """ test _template_name_get()"""
         mock_header.return_value = [{'header_info': '{"header_field": "template=foo lego-cli/4.14.2 xenolf-acme/4.14.2 (release; linux; amd64)"}'}]
         self.cahandler.header_info_field = 'header_field'
         self.assertEqual('foo', self.cahandler._template_name_get('csr'))
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.header_info_get')
-    def test_054_template_name_get(self, mock_header):
+    def test_056_template_name_get(self, mock_header):
         """ test _template_name_get()"""
         mock_header.return_value = [{'header_info': '{"header_field": "Template=foo lego-cli/4.14.2 xenolf-acme/4.14.2 (release; linux; amd64)"}'}]
         self.cahandler.header_info_field = 'header_field'
         self.assertEqual('foo', self.cahandler._template_name_get('csr'))
 
     @patch('examples.ca_handler.mscertsrv_ca_handler.header_info_get')
-    def test_055_template_name_get(self, mock_header):
+    def test_057_template_name_get(self, mock_header):
         """ test _template_name_get()"""
         mock_header.return_value = [{'header_info': 'header_info'}]
         self.cahandler.header_info_field = 'header_field'
@@ -776,19 +806,19 @@ class TestACMEHandler(unittest.TestCase):
             self.assertFalse(self.cahandler._template_name_get('csr'))
         self.assertIn('ERROR:test_a2c:CAhandler._template_name_get() could not parse template: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
-    def test_056_config_headerinfo_load(self):
+    def test_058_config_headerinfo_load(self):
         """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': '["foo", "bar", "foobar"]'}}
         self.cahandler._config_headerinfo_load(config_dic)
         self.assertEqual( 'foo', self.cahandler.header_info_field)
 
-    def test_057_config_headerinfo_load(self):
+    def test_059_config_headerinfo_load(self):
         """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': '["foo"]'}}
         self.cahandler._config_headerinfo_load(config_dic)
         self.assertEqual( 'foo', self.cahandler.header_info_field)
 
-    def test_058_config_headerinfo_load(self):
+    def test_060_config_headerinfo_load(self):
         """ test config_headerinfo_load()"""
         config_dic = {'Order': {'header_info_list': 'foo'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -796,28 +826,28 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.header_info_field)
         self.assertIn('WARNING:test_a2c:Order._config_orderconfig_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)', lcm.output)
 
-    def test_059__config_url_load(self):
+    def test_061__config_url_load(self):
         """ test _config_url_load()"""
         config_dic = {'CAhandler': {'url': 'foo'}}
         self.cahandler._config_url_load(config_dic)
         self.assertEqual( 'foo', self.cahandler.url)
 
     @patch.dict('os.environ', {'url_variable': 'foo1'})
-    def test_060__config_url_load(self):
+    def test_062__config_url_load(self):
         """ test _config_url_load()"""
         config_dic = {'CAhandler': {'url_variable': 'url_variable'}}
         self.cahandler._config_url_load(config_dic)
         self.assertEqual( 'foo1', self.cahandler.url)
 
     @patch.dict('os.environ', {'url_variable': 'foo1'})
-    def test_061__config_url_load(self):
+    def test_063__config_url_load(self):
         """ test _config_url_load()"""
         config_dic = {'CAhandler': {'url_variable': 'url_variable', 'url': 'foo'}}
         self.cahandler._config_url_load(config_dic)
         self.assertEqual( 'foo', self.cahandler.url)
 
     @patch.dict('os.environ', {'url_variable': 'foo1'})
-    def test_062__config_url_load(self):
+    def test_064__config_url_load(self):
         """ test _config_url_load()"""
         config_dic = {'CAhandler': {'url_variable': 'doesnotexist'}}
         with self.assertLogs('test_a2c', level='INFO') as lcm:

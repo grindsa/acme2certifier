@@ -34,12 +34,14 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.x509 import load_pem_x509_certificate, ocsp
 from OpenSSL import crypto
+import idna
 import requests
 import requests.packages.urllib3.util.connection as urllib3_cn
 from .version import __version__
 
 
 USER_AGENT = f'acme2certifier/{__version__}'
+PARSING_ERR_MSG = 'failed to parse'
 
 
 def b64decode_pad(logger: logging.Logger, string: str) -> bytes:
@@ -106,7 +108,7 @@ def ca_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.impor
     logger.debug('Helper.ca_handler_load()')
 
     if 'CAhandler' not in config_dic:
-        logger.error('Helper.ca_handler_load(): CAhandler configuration missing in config file')
+        logger.error('CAhandler configuration missing in config file')
         return None
 
     if 'handler_file' in config_dic['CAhandler']:
@@ -117,13 +119,13 @@ def ca_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.impor
             spec.loader.exec_module(ca_handler_module)
             return ca_handler_module
         except Exception as err_:
-            logger.critical('Helper.ca_handler_load(): loading CAhandler configured in cfg failed with err: %s', err_)
+            logger.critical('loading CAhandler configured in cfg failed with err: %s', err_)
 
     # if no 'handler_file' provided or loading was unsuccessful, try to load default handler
     try:
         ca_handler_module = importlib.import_module('acme_srv.ca_handler')
     except Exception as err_:
-        logger.critical('Helper.ca_handler_load(): loading default CAhandler failed with err: %s', err_)
+        logger.critical('loading default CAhandler failed with err: %s', err_)
         ca_handler_module = None
 
     return ca_handler_module
@@ -149,7 +151,7 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
     try:
         eab_profiling = config_dic.getboolean('CAhandler', 'eab_profiling', fallback=False)
     except Exception as err:
-        logger.warning('CAhandler._config_eab_profile_load() failed with error: %s', err)
+        logger.warning('loading eabprofile failed with error: %s', err)
         eab_profiling = False
 
     if eab_profiling:
@@ -157,11 +159,11 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
             # load eab_handler according to configuration
             eab_handler_module = eab_handler_load(logger, config_dic)
             if not eab_handler_module:
-                logger.critical('CAhandler._config_load(): EABHandler could not get loaded')
+                logger.critical('EABHandler could not get loaded')
             else:
                 eab_handler = eab_handler_module.EABhandler
         else:
-            logger.critical('CAhandler._config_load(): EABHandler configuration incomplete')
+            logger.critical('EABHandler configuration incomplete')
 
     logger.debug('_config_profile_load() ended')
     return eab_profiling, eab_handler
@@ -176,10 +178,51 @@ def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
         try:
             header_info_field = json.loads(config_dic['Order']['header_info_list'])[0]
         except Exception as err_:
-            logger.warning('Helper.config_headerinfo_load() header_info_list failed with error: %s', err_)
+            logger.warning('header_info_list failed with error: %s', err_)
 
-    logger.debug('config_headerinfo_load() ended')
+    logger.debug('Helper.config_headerinfo_load() ended')
     return header_info_field
+
+
+def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """ load parameters """
+    logger.debug('Helper.config_enroll_config_log_load()')
+
+    enrollment_cfg_log = False
+    enrollment_cfg_log_skip_list = []
+
+    if 'CAhandler' in config_dic:
+        try:
+            enrollment_cfg_log = config_dic.getboolean('CAhandler', 'enrollment_config_log', fallback=False)
+        except Exception as err_:
+            logger.warning('loading enrollment_config_log failed with error: %s', err_)
+
+        if 'enrollment_config_log_skip_list' in config_dic['CAhandler']:
+            try:
+                enrollment_cfg_log_skip_list = json.loads(config_dic['CAhandler']['enrollment_config_log_skip_list'])
+            except Exception as err_:
+                logger.warning('enrollment_config_log_skip_list failed with error: %s', err_)
+                enrollment_cfg_log_skip_list = PARSING_ERR_MSG
+
+    logger.debug('Helper.config_enroll_config_log_load() ended with: %s', enrollment_cfg_log)
+    return enrollment_cfg_log, enrollment_cfg_log_skip_list
+
+
+def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """ load parameters """
+    logger.debug('Helper.config_allowed_domainlist_load()')
+
+    allowed_domainlist = []
+
+    if 'CAhandler' in config_dic and 'allowed_domainlist' in config_dic['CAhandler']:
+        try:
+            allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
+        except Exception as err_:
+            logger.warning('loading allowed_domainlist failed with error: %s', err_)
+            allowed_domainlist = PARSING_ERR_MSG
+
+    logger.debug('Helper.config_allowed_domainlist_load() ended with: %s', allowed_domainlist)
+    return allowed_domainlist
 
 
 def eab_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_module:
@@ -193,21 +236,21 @@ def eab_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.impo
             eab_handler_module = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(eab_handler_module)
         except Exception as err_:
-            logger.critical('Helper.eab_handler_load(): loading EABhandler configured in cfg failed with err: %s', err_)
+            logger.critical('loading EABhandler configured in cfg failed with err: %s', err_)
             try:
                 eab_handler_module = importlib.import_module('acme_srv.eab_handler')
             except Exception as err_:
                 eab_handler_module = None
-                logger.critical('Helper.eab_handler_load(): loading default EABhandler failed with err: %s', err_)
+                logger.critical('loading default EABhandler failed with err: %s', err_)
     else:
         if 'EABhandler' in config_dic:
             try:
                 eab_handler_module = importlib.import_module('acme_srv.eab_handler')
             except Exception as err_:
-                logger.critical('Helper.eab_handler_load(): loading default EABhandler failed with err: %s', err_)
+                logger.critical('loading default EABhandler failed with err: %s', err_)
                 eab_handler_module = None
         else:
-            logger.error('Helper.eab_handler_load(): EABhandler configuration missing in config file')
+            logger.error('EABhandler configuration missing in config file')
             eab_handler_module = None
 
     return eab_handler_module
@@ -1596,68 +1639,103 @@ def ipv6_chk(logger: logging.Logger, address: str) -> bool:
     return result
 
 
-def domainlist_check(logger, entry: str, list_: List[str], toggle: bool = False) -> bool:
-    """ check string against list """
-    logger.debug('Helper.domainlist_check(%s:%s)', entry, toggle)
-    # print(list_)
-    logger.debug('Helper.check against list: %s', list_)
+def encode_domain(logger, domain: str) -> bytes:
+    """ encode domain """
+    logger.debug('Helper.encode_domain(%s)', domain)
 
-    # default setting
-    check_result = False
+    # Handle wildcard input *before* IDNA decoding.
+    if domain.startswith("*."):
+        domain = domain[2:]
 
-    if entry:
-        if list_:
-            for regex in list_:
-                # check entry
-                check_result = domainlist_entry_check(logger, entry, regex, check_result)
-        else:
-            # empty list, flip parameter to make the check successful
-            check_result = True
+    encoded_domain = None
+    try:
+        encoded_domain = idna.encode(domain)
+    except Exception as err:
+        logger.error(f'Invalid domain format in csr: {err}')
 
-    if toggle:
-        # toggle result if this is a blacklist
-        check_result = not check_result
-
-    logger.debug('Helper.domainlist_check() ended with: %s', check_result)
-    return check_result
+    return encoded_domain
 
 
-def domainlist_entry_check(logger, entry: str, regex: str, check_result: bool) -> bool:
-    """ check string against regex """
-    logger.debug('Helper.domainlist_entry_check(%s/%s):', entry, regex)
-
-    if regex.startswith('*.'):
-        regex = regex.replace('*.', '.')
-    regex_compiled = re.compile(regex)
-
-    if bool(regex_compiled.search(entry)):
-        # parameter is in set flag accordingly and stop loop
-        check_result = True
-
-    logger.debug('Helper.domainlist_entry_check() ended with: %s', check_result)
-    return check_result
-
-
-def allowed_domainlist_check(logger: logging.Logger, csr, allowed_domain_list: List[str]) -> bool:
-    """ check if domain is in allowed domain list """
-    logger.debug('Helper.allowed_domainlist_check(%s)')
+def wildcard_domain_check(logger: logging.Logger, domain: str, encoded_domain: str, encoded_pattern_base: str) -> bool:
+    """ compare domain to whitelist returns false if not matching"""
+    logger.debug('Helper.domain_check(%s)', domain)
 
     result = False
-    (san_list, check_list) = sancheck_lists_create(logger, csr)
-
-    # go over the san list and check each entry
-    for san in san_list:
-        check_list.append(domainlist_check(logger, san, allowed_domain_list))
-
-    if check_list:
-        # cover a cornercase with empty checklist (no san, no cn)
-        if False in check_list:
-            result = False
-        else:
+    if domain.startswith("*."):
+        # Both input and pattern are wildcards. Check if input domain base includes the pattern
+        if encoded_domain.endswith(encoded_pattern_base):
             result = True
-
-    logger.debug('Helper.allowed_domainlist_check() ended with: %s', result)
+    else:
+        # Input is not a wildcard, pattern is. Check endswith. Add '.' to pattern base so it's not approving the base domain
+        # for example domain foo.bar shouldn't match with pattern *.foo.bar
+        if encoded_domain.endswith(b"." + encoded_pattern_base):
+            result = True
+    logger.debug('Helper.domain_check() ended with %s', result)
     return result
+
+
+def pattern_check(logger, domain, pattern):
+    """ compare domain to whitelist returns false if not matching"""
+    logger.debug('Helper.pattern_check(%s, %s)', domain, pattern)
+
+    pattern = pattern.lower().strip()
+    encoded_pattern = encode_domain(logger, pattern)
+    encoded_domain = encode_domain(logger, domain)
+
+    result = False
+    if encoded_pattern:
+        if pattern.startswith("*."):
+            result = wildcard_domain_check(logger, domain, encoded_domain, encoded_pattern)
+        else:
+            if not domain.startswith("*.") and encoded_domain == encoded_pattern:
+                result = True
+    else:
+        logger.error(f'Invalid pattern configured in allowed_domainlist: {pattern}')
+
+    logger.debug('Helper.pattern_check() ended with %s', result)
+    return result
+
+
+def is_domain_whitelisted(logger: logging.Logger, domain: str, whitelist: List[str]) -> bool:
+    """ compare domain to whitelist returns false if not matching"""
+    logger.debug('Helper.is_domain_whitelisted(%s)', domain)
+
+    result = False
+    if domain:
+        domain = domain.lower().strip()
+        for pattern in whitelist:
+            # corner-case blank entry
+            if not pattern:
+                logger.error('Invalid pattern configured in allowed_domainlist: empty string')
+                continue
+            result = pattern_check(logger, domain, pattern)
+            if result:
+                break
+
+    logger.debug('Helper.is_domain_whitelisted() ended with %s', result)
+    return result
+
+
+def allowed_domainlist_check(logger: logging.Logger, csr, allowed_domain_list: List[str]) -> str:
+    """ check if domain is in allowed domain list """
+    logger.debug('Helper.allowed_domainlist_check()')
+
+    error = None
+    if allowed_domain_list:
+        (san_list, check_list) = sancheck_lists_create(logger, csr)
+        invalid_domains = []
+
+        # go over the san list and check each entry
+        for san in san_list:
+            if not is_domain_whitelisted(logger, san, allowed_domain_list):
+                invalid_domains.append(san)
+                error = 'Either CN or SANs are not allowed by configuration'
+
+        if check_list:
+            error = f'SAN list parsing failed {check_list}'
+
+        logger.debug(f'Helper._allowed_domainlist_check() ended with {error} for {",".join(invalid_domains)}')
+    return error
 
 
 def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
@@ -1678,7 +1756,7 @@ def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
                 san_list.append(san_value)
             except Exception:
                 # force check to fail as something went wrong during parsing
-                check_list.append(False)
+                check_list.append(san)
                 logger.debug('Helper.sancheck_lists_create(): san_list parsing failed at entry: $s', san)
 
     # get common name and attach it to san_list
@@ -1712,6 +1790,7 @@ def eab_profile_header_info_check(logger: logging.Logger, cahandler, csr: str, h
         hil_value = header_info_lookup(logger, csr, cahandler.header_info_field, handler_hifield)
         if hil_value:
             logger.debug('Helper.eab_profile_header_info_check(): setting %s to %s', handler_hifield, hil_value)
+            logger.info('Received enrollment parameter: %s value: %s via headerinfo field', handler_hifield, hil_value)
             setattr(cahandler, handler_hifield, hil_value)
             error = None
         else:
@@ -1840,7 +1919,14 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
             result = error
     elif key == 'allowed_domainlist':
         # check if csr contains allowed domains
-        error = eab_handler.allowed_domains_check(csr, value)
+        if 'allowed_domains_check' in dir(eab_handler):
+            # execute a function from eab_handler
+            logger.info('Execute allowed_domains_check() from eab handler')
+            error = eab_handler.allowed_domains_check(csr, value)
+        else:
+            # execute default adl function from helper
+            logger.debug('Helper.eab_profile_list_check(): execute default allowed_domainlist_check()')
+            error = allowed_domainlist_check(logger, csr, value)
         if error:
             result = error
     else:
@@ -1899,7 +1985,7 @@ def request_operation(logger: logging.Logger, headers: Dict[str, str] = None, pr
 
 def csr_cn_lookup(logger: logging.Logger, csr: str) -> str:
     """ lookup  CN/ 1st san from CSR """
-    logger.debug('CAhandler._csr_cn_lookup()')
+    logger.debug('Heloer._csr_cn_lookup()')
 
     csr_cn = csr_cn_get(logger, csr)
     if not csr_cn:
@@ -1911,9 +1997,56 @@ def csr_cn_lookup(logger: logging.Logger, csr: str) -> str:
                     csr_cn = san.split(':')[1]
                     break
                 except Exception as err:
-                    logger.error('CAhandler._csr_cn_lookup() split failed: %s', err)
+                    logger.error('SAN split failed: %s', err)
         else:
-            logger.error('CAhandler._csr_cn_lookup() no SANs found in CSR')
+            logger.error('no SANs found in CSR')
 
-    logger.debug('CAhandler._csr_cn_lookup() ended with: %s', csr_cn)
+    logger.debug('Helper._csr_cn_lookup() ended with: %s', csr_cn)
     return csr_cn
+
+
+def enrollment_config_log(logger: logging.Logger, obj: object, handler_skiplist: List[str] = None):
+    """ log enrollment configuration """
+    logger.debug('Helper.enrollment_config_log()')
+
+    skiplist = ['logger', 'session', 'password', 'api_key', 'api_password', 'key', 'secret', 'token']
+
+    if handler_skiplist and isinstance(handler_skiplist, list):
+        skiplist.extend(handler_skiplist)
+
+    if handler_skiplist and PARSING_ERR_MSG in handler_skiplist:
+        logger.error('Enrollment configuration won\'t get logged due to a configuration error.')
+    else:
+        enroll_parameter_list = []
+        for key, value in obj.__dict__.items():
+            if key.startswith('__') or key in skiplist:
+                continue
+            enroll_parameter_list.append(f'{key}: {value}')
+        logger.info('Enrollment configuration: %s', enroll_parameter_list)
+
+
+def radomize_parameter_list(logger: logging.Logger, ca_handler: object, parameter_list: List[str] = None):
+    """ randomize parameter list """
+    logger.debug('Helper.radomize_parameter_list()')
+
+    tmp_dic = {}
+    for parameter in parameter_list:
+        if hasattr(ca_handler, parameter):
+            value = getattr(ca_handler, parameter)
+            if value and ',' in value:
+                values_list = value.split(',')
+                tmp_dic[parameter] = []
+                for ele in values_list:
+                    tmp_dic[parameter].append(ele.strip())
+
+    if tmp_dic:
+        # Find the list with the minimum length in tmp_dic values
+        min_length_list = min(tmp_dic.values(), key=len)
+        # Get the length of that list
+        min_len = len(min_length_list)
+
+        # Calculate random number as index for the parameter list
+        index = random.randint(0, min_len - 1)
+        # set parameter values
+        for parameter, value_list in tmp_dic.items():
+            setattr(ca_handler, parameter, value_list[index])

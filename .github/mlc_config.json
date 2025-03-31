@@ -1,0 +1,18 @@
+{
+  "projectBaseUrl":"${workspaceFolder}",
+  "ignorePatterns": [
+    {
+      "pattern": "^ https://hub.docker.com"
+    }
+  ],
+  "replacementPatterns": [
+    {
+      "pattern": "^/",
+      "replacement": "{{BASEURL}}/"
+    },
+  ],
+  "timeout": "120s",
+  "retryOn429": true,
+  "retryCount": 5,
+  "aliveStatusCodes": [200, 206]
+}

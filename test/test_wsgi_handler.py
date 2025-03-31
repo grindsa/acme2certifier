@@ -213,7 +213,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact2', 'name' : 'name2'}
         self.dbstore.account_add(data_dic)
         mock_datestr.return_value = 'datestr'
-        self.assertEqual({'id': 1, 'name': u'name1', 'jwk': '{"key11": "val11", "key12": "val12"}', 'contact': 'contact1', 'alg': 'alg1', 'created_at': 'datestr', 'eab_kid': 'eab_kid'}, self.dbstore.account_lookup('jwk', '{"key11": "val11", "key12": "val12"}'))
+        self.assertEqual({'id': 1, 'name': u'name1', 'jwk': '{"key11": "val11", "key12": "val12"}', 'contact': 'contact1', 'alg': 'alg1', 'created_at': 'datestr', 'eab_kid': 'eab_kid', 'status_id': 5}, self.dbstore.account_lookup('jwk', '{"key11": "val11", "key12": "val12"}'))
 
     @patch('examples.db_handler.wsgi_handler.datestr_to_date')
     def test_028_account_lookup(self, mock_datestr):
@@ -223,7 +223,7 @@ class TestACMEHandler(unittest.TestCase):
         data_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact2', 'name' : 'name2'}
         self.dbstore.account_add(data_dic)
         mock_datestr.return_value = 'datestr'
-        self.assertEqual({'id': 1, 'name': u'name1', 'jwk': '{"key11": "val11", "key12": "val12"}', 'contact': 'contact1', 'alg': 'alg1', 'created_at': 'datestr', 'eab_kid': ''}, self.dbstore.account_lookup('jwk', '{"key11": "val11", "key12": "val12"}'))
+        self.assertEqual({'id': 1, 'name': u'name1', 'jwk': '{"key11": "val11", "key12": "val12"}', 'contact': 'contact1', 'alg': 'alg1', 'created_at': 'datestr', 'eab_kid': '', 'status_id': 5}, self.dbstore.account_lookup('jwk', '{"key11": "val11", "key12": "val12"}'))
 
     def test_029_account_lookup(self):
         """ test DBstore.account_lookup() for an not existing value"""
@@ -764,7 +764,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(('name2', True), self.dbstore.account_add(data_dic))
         update_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact20', 'name' : 'name2'}
         self.assertEqual(2, self.dbstore.account_update(update_dic))
-        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact20', 'created_at': 'datestr', 'eab_kid': '', 'jwk': 'jwk2'}
+        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact20', 'created_at': 'datestr', 'eab_kid': '', 'jwk': 'jwk2', 'status_id': 5}
         self.assertEqual(result, self.dbstore.account_lookup('name', 'name2'))
 
     @patch('examples.db_handler.wsgi_handler.datestr_to_date')
@@ -777,7 +777,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(('name2', True), self.dbstore.account_add(data_dic))
         update_dic = {'jwk' : 'jwk2', 'contact' : 'contact20', 'name' : 'name2'}
         self.assertEqual(2, self.dbstore.account_update(update_dic))
-        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact20', 'created_at': 'datestr', 'eab_kid': '', 'jwk': 'jwk2'}
+        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact20', 'created_at': 'datestr', 'eab_kid': '', 'jwk': 'jwk2', 'status_id': 5}
         self.assertEqual(result, self.dbstore.account_lookup('name', 'name2'))
 
     @patch('examples.db_handler.wsgi_handler.datestr_to_date')
@@ -790,7 +790,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(('name2', True), self.dbstore.account_add(data_dic))
         update_dic = {'alg' : 'alg2', 'contact' : 'contact20', 'name' : 'name2'}
         self.assertEqual(2, self.dbstore.account_update(update_dic))
-        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact20', 'created_at': 'datestr', 'eab_kid': '', 'jwk': 'jwk2'}
+        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact20', 'created_at': 'datestr', 'eab_kid': '', 'jwk': 'jwk2', 'status_id': 5}
         self.assertEqual(result, self.dbstore.account_lookup('name', 'name2'))
 
     @patch('examples.db_handler.wsgi_handler.datestr_to_date')
@@ -803,7 +803,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(('name2', True), self.dbstore.account_add(data_dic))
         update_dic = {'alg' : 'alg2', 'jwk' : 'jwk20', 'name' : 'name2'}
         self.assertEqual(2, self.dbstore.account_update(update_dic))
-        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact2', 'created_at': 'datestr', 'eab_kid': '', 'jwk': 'jwk20'}
+        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact2', 'created_at': 'datestr', 'eab_kid': '', 'jwk': 'jwk20', 'status_id': 5}
         self.assertEqual(result, self.dbstore.account_lookup('name', 'name2'))
 
     @patch('examples.db_handler.wsgi_handler.datestr_to_date')
@@ -816,7 +816,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(('name2', True), self.dbstore.account_add(data_dic))
         update_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact20', 'name' : 'name2'}
         self.assertEqual(2, self.dbstore.account_update(update_dic))
-        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact20', 'created_at': 'datestr', 'eab_kid': 'eab_kid', 'jwk': 'jwk2'}
+        result = {'id': 2, 'name': 'name2', 'alg': 'alg2', 'contact': 'contact20', 'created_at': 'datestr', 'eab_kid': 'eab_kid', 'jwk': 'jwk2', 'status_id': 5}
         self.assertEqual(result, self.dbstore.account_lookup('name', 'name2'))
 
     def test_092_account_update(self):

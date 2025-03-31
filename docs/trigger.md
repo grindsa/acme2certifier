@@ -1,32 +1,43 @@
-<!-- markdownlint-disable  MD013 -->
-<!-- wiki-title CA trigger -->
-# Ca_handler.trigger()
+<!-- markdownlint-disable MD013 -->
+<!-- wiki-title CA Trigger -->
+# `ca_handler.trigger()`
 
-The ```trigger``` method allows a CA server to invoke certain actions on acme2certifier. The actions to be executed will be
-defined by the respective CA handler. This method as been implemented to cover use-cases in which a CSR goes into pending state and CA server as the ability to trigger scripts
-after CSR approval.
+The `trigger` method allows a **CA server** to invoke specific actions on **acme2certifier**. These actions are defined by the respective **CA handler**.
 
-The CA server needs to send a http-post request to the ```/trigger``` and must send further payload as part the post request.
+This method is particularly useful in scenarios where a **CSR enters a pending state**, and the **CA server has the ability to trigger scripts** after CSR approval.
 
-The data are expected to be send in json format; the payload must be base64 encoded.
+## Triggering a Request
+
+The CA server must send an **HTTP POST request** to the `/trigger` endpoint, including a **base64-encoded payload** in JSON format.
+
+### Example Request
 
 ```bash
 # Modify to match your setup
-BASE64_PAYLOAD=`echo "Hello Payload" | base64`
+BASE64_PAYLOAD=$(echo "Hello Payload" | base64)
 ACME2CERTIFIER_URL="http://10.97.149.146"
 
 # Invoke curl
-curl -X POST -H "Content-Type: application/json" -d "{\"payload\":\"$BASE64_PAYLOAD\"}" "$ACME2CERTIFIER_URL/trigger"
+curl -X POST -H "Content-Type: application/json" -d "{"payload":"$BASE64_PAYLOAD"}" "$ACME2CERTIFIER_URL/trigger"
 ```
 
-The payload will be forwarded extracted from the post-request and forwarded to the ```ca_handler.trigger()``` method for further processing.
+## Processing the Payload
 
-It is expected that ```ca_handler.trigger()``` returns the following values:
+- The payload is **extracted** from the POST request.
+- It is **forwarded** to the `ca_handler.trigger()` method for further processing.
 
-- An error-message (if there is any)
-- The Certificate chain in pem-format
-- The certificate in asn1 (binary) format - base64 encoded - (needed for later revocation)
+## Expected Return Values
 
-In case a valid certificate will be returned,  acme2certifier will update the local database set the status of the order resource to "valid".
-The correlation between certificate and certificate resource will be done by comparing the public keys of certificate and CSR (which should
-already exist in the database)
+The `ca_handler.trigger()` method is expected to return:
+
+- **An error message** (if any).
+- **The certificate chain** in PEM format.
+- **The certificate** in ASN.1 (binary) format, **Base64-encoded** (needed for later revocation).
+
+## Database Update
+
+If a **valid certificate** is returned, **acme2certifier** will:
+
+1. **Update the local database**.
+2. **Set the order resource status to "valid"**.
+3. **Establish correlation** between the certificate and certificate resource by comparing the public keys of the **certificate** and **CSR** (which should already exist in the database).

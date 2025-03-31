@@ -45,7 +45,7 @@ jobs:
         sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
         sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"$DIGICERT_DOMAIN\", \"bar.local$\"]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
@@ -59,6 +59,12 @@ jobs:
       with:
         NAME_SPACE: acme.dynamop.de
         USE_CERTBOT: false
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "EAB - Setup a2c with digicert_ca_handler"
       run: |
@@ -70,7 +76,7 @@ jobs:
         sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
         sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"$DIGICERT_DOMAIN\", \"bar.local$\"]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
@@ -124,7 +130,7 @@ jobs:
 
   digicert_ca_handler_tests_rpm:
     name: "digicert_ca_handler_tests_rpm"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       max-parallel: 1
       fail-fast: false
@@ -155,7 +161,7 @@ jobs:
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/digicert_ca_handler.py" >> data/acme_srv.cfg
         sudo echo "api_key: $DIGICERT_API_KEY" >> data/acme_srv.cfg
         sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"$DIGICERT_DOMAIN\", \"bar.local$\"]" >> data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
       env:
         DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
@@ -173,7 +179,7 @@ jobs:
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
         sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
         sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"$DIGICERT_DOMAIN\", \"bar.local$\"]" >> data/volume/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
       env:
         DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
@@ -191,6 +197,11 @@ jobs:
       with:
         NAME_SPACE: acme.dynamop.de
         USE_CERTBOT: false
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "EAB - Setup a2c with digicert_ca_handler"
       if: matrix.execscript == 'rpm_tester.sh'
@@ -202,7 +213,7 @@ jobs:
         sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/acme_srv.cfg
         sudo echo "api_key: $DIGICERT_API_KEY" >> data/acme_srv.cfg
         sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"$DIGICERT_DOMAIN\", \"bar.local$\"]" >> data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
         sudo echo "eab_profiling: True" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
@@ -235,7 +246,7 @@ jobs:
         sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
         sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
         sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"$DIGICERT_DOMAIN\", \"bar.local$\"]" >> data/volume/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
         sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg

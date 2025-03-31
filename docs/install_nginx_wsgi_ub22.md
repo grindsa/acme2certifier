@@ -1,24 +1,26 @@
-<!-- markdownlint-disable  MD013 MD014 MD029 -->
-<!-- wiki-title Installation on nginx running on Ubuntu 22.04 -->
-# Installation on nginx running on Ubuntu 22.04
+<!-- markdownlint-disable MD013 MD014 MD029 -->
+<!-- wiki-title Installation on Nginx Running on Ubuntu 22.04 -->
+# Installation on Nginx Running on Ubuntu 22.04
 
-A [readymade shell script](../examples/install_scripts/a2c-ubuntu22-nginx.sh) performing the below tasks will can be found in `examples/install_scripts` directory.
+A [ready-made shell script](../examples/install_scripts/a2c-ubuntu22-nginx.sh) performing the tasks below can be found in the `examples/install_scripts` directory.
 
-1. Install nginx and the corresponding wsgi module
+## Steps
+
+### 1. Install Nginx and the Corresponding WSGI Module
 
 ```bash
 sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 curl krb5-user libgssapi-krb5-2 libkrb5-3 python3-gssapi
 ```
 
-2. download the acme2certifier from [Github](https://github.com/grindsa/acme2certifier/archive/refs/heads/master.tar.gz) and unpack it.
+### 2. Download Acme2Certifier from [GitHub](https://github.com/grindsa/acme2certifier/archive/refs/heads/master.tar.gz) and Unpack It
 
-3. install the missing python modules via pip
+### 3. Install the Missing Python Modules via Pip
 
 ```bash
 sudo pip3 install -r requirements.txt
 ```
 
-4. Copy files and directories you need to run acme2certifier
+### 4. Copy the Required Files and Directories
 
 ```bash
 sudo cp examples/acme2certifier_wsgi.py /var/www/acme2certifier/acme2certifier_wsgi.py
@@ -32,7 +34,7 @@ sudo cp -R tools/ /var/www/acme2certifier/tools
 sudo cp examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
 ```
 
-5. Adapt the nginx configuration file (uwsgi socket file is located in `/var/www/acme2certifier`) and activate the configuration
+### 5. Adapt and Activate the Nginx Configuration File
 
 ```bash
 sudo sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv.conf
@@ -40,10 +42,11 @@ sudo cp examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.c
 sudo ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf
 ```
 
-6. A adapt the uwsgi configuration file in place it in `/var/www/acme2certifier`:
-    - uwsgi socket file will be located in `/var/www/acme2certifer`
-    - uwsgi daemon will be run under `www-data` user
-    - uwsgi plugin for python3 must be activated
+### 6. Adapt and Place the uWSGI Configuration File
+
+- The uWSGI socket file will be located in `/var/www/acme2certifier`.
+- The uWSGI daemon will run under the `www-data` user.
+- The uWSGI plugin for Python 3 must be activated.
 
 ```bash
 sudo sed -i "s/\/run\/uwsgi\/acme.sock/acme.sock/g" examples/nginx/acme2certifier.ini
@@ -52,27 +55,36 @@ sudo echo "plugins=python3" >> examples/nginx/acme2certifier.ini
 sudo cp examples/nginx/acme2certifier.ini /var/www/acme2certifier
 ```
 
-7. Pick the correct ca handler from `the examples/ca_handler` directory and copy it to `/var/www/acme2certifier/acme_srv/ca_handler.py`
-8. configure the the ca_handler in `acme_srv.cfg`. [Example for Insta Certifier](certifier.md)
+### 7. Pick the Correct CA Handler and Copy It
 
-9. ensure that the all files and directories under /var/www/acme2certifier are owned by the user running the webserver (www-data is just an example!)
+Select the appropriate CA handler from the `examples/ca_handler` directory and copy it to:
 
 ```bash
-sudo chown -R www-data.www-data /var/www/acme2certifier/
+sudo cp examples/ca_handler/<your_ca_handler>.py /var/www/acme2certifier/acme_srv/ca_handler.py
 ```
 
-10. set correct permissions to acme subdirectory
+### 8. Configure the CA Handler in `acme_srv.cfg`
+
+Refer to the [Example for Insta Certifier](certifier.md).
+
+### 9. Ensure Correct Ownership of Files and Directories
+
+```bash
+sudo chown -R www-data:www-data /var/www/acme2certifier/
+```
+
+### 10. Set Correct Permissions for the `acme_srv` Subdirectory
 
 ```bash
 sudo chmod a+x /var/www/acme2certifier/acme_srv
 ```
 
-11. Create acme2certifier uwsgi service and place it under `/etc/systemd/system/`
+### 11. Create and Install the uWSGI Service for Acme2Certifier
 
 ```bash
 cat <<EOT > acme2certifier.service
 [Unit]
-Description=uWSGI instance to serve acme2certifier
+Description=uWSGI instance to serve Acme2Certifier
 After=network.target
 
 [Service]
@@ -86,27 +98,47 @@ ExecStart=uwsgi --ini acme2certifier.ini
 WantedBy=multi-user.target
 EOT
 
-sudo cp  acme2certifier.service /etc/systemd/system/acme2certifier.service
+sudo cp acme2certifier.service /etc/systemd/system/acme2certifier.service
 ```
 
-12. Start and activate the acme2certifier service
+### 12. Start and Enable the Acme2Certifier Service
 
 ```bash
 sudo systemctl start acme2certifier
 sudo systemctl enable acme2certifier
 ```
 
-13. Restart nginx
+### 13. Restart Nginx
 
 ```bash
 sudo systemctl restart nginx
 ```
 
-14. Check access to the directory resource to verify that nginx and uwsgi services are up and running
+### 14. Verify the Services
+
+Check if Nginx and uWSGI are up and running:
 
 ```bash
 curl http://127.0.0.1/directory
-{"newAccount": "http://127.0.0.1/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://127.0.0.1/acme_srv/key-change", "newNonce": "http://127.0.0.1/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://127.0.0.1/acme_srv/neworders", "revokeCert": "http://127.0.0.1/acme_srv/revokecert"}
 ```
 
-Try to enroll a certificate by using your favorite acme-client. If it fails check the configuration of your ca_handler, logs and enable [debug mode](acme_srv.md) in acme2certifier for further investigation.
+Expected output:
+
+```json
+{
+  "newAccount": "http://127.0.0.1/acme_srv/newaccount",
+  "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417",
+  "keyChange": "http://127.0.0.1/acme_srv/key-change",
+  "newNonce": "http://127.0.0.1/acme_srv/newnonce",
+  "meta": {
+    "home": "https://github.com/grindsa/acme2certifier",
+    "author": "grindsa <grindelsack@gmail.com>"
+  },
+  "newOrder": "http://127.0.0.1/acme_srv/neworders",
+  "revokeCert": "http://127.0.0.1/acme_srv/revokecert"
+}
+```
+
+### 15. Enroll a Certificate
+
+Use your preferred ACME client to enroll a certificate. If it fails, check the CA handler configuration, logs, and enable [debug mode](acme_srv.md) in Acme2Certifier for troubleshooting.
