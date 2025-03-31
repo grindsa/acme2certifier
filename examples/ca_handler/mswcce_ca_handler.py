@@ -17,9 +17,13 @@ from acme_srv.helper import (
     proxy_check,
     build_pem_file,
     header_info_get,
-    allowed_domainlist_check,
     eab_profile_header_info_check,
-    config_eab_profile_load
+    config_eab_profile_load,
+    enrollment_config_log,
+    config_enroll_config_log_load,
+    config_allowed_domainlist_load,
+    allowed_domainlist_check,
+    radomize_parameter_list
 )
 
 
@@ -43,6 +47,8 @@ class CAhandler(object):
         self.timeout = 5
         self.eab_handler = None
         self.eab_profiling = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -121,6 +127,11 @@ class CAhandler(object):
         self.ca_bundle = config_dic.get('CAhandler', 'ca_bundle', fallback=None)
         self.template = config_dic.get('CAhandler', 'template', fallback=None)
 
+        # load enrollment config log
+        self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
+        # load allowed domainlist
+        self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
+
         try:
             self.timeout = config_dic.getint('CAhandler', 'timeout', fallback=5)
         except Exception as err_:
@@ -131,13 +142,6 @@ class CAhandler(object):
             self.use_kerberos = config_dic.getboolean('CAhandler', 'use_kerberos', fallback=False)
         except Exception as err_:
             self.logger.warning('CAhandler._config_load() use_kerberos failed with error: %s', err_)
-
-        if 'allowed_domainlist' in config_dic['CAhandler']:
-            try:
-                self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
-            except Exception as err:
-                self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
-                self.allowed_domainlist = 'ADLFAILURE'
 
         self.logger.debug("CAhandler._config_parameters_load()")
 
@@ -170,6 +174,7 @@ class CAhandler(object):
             self._config_headerinfo_load(config_dic)
 
         self._config_proxy_load(config_dic)
+        radomize_parameter_list(self.logger, self, ['host', 'ca_name', 'ca_bundle'])
 
         self.logger.debug("CAhandler._config_load() ended")
 
@@ -186,6 +191,9 @@ class CAhandler(object):
     def request_create(self) -> Request:
         """create request object """
         self.logger.debug('CAhandler.request_create()')
+
+        if self.enrollment_config_log:
+            enrollment_config_log(self.logger, self, self.enrollment_config_log_skip_list)
 
         target = Target(
             domain=self.target_domain,
@@ -226,22 +234,6 @@ class CAhandler(object):
         self.logger.debug('CAhandler._template_name_get() ended with: %s', template_name)
         return template_name
 
-    def _csr_check(self, csr: str) -> bool:
-        """ check if csr is allowed """
-        self.logger.debug('CAhandler._csr_check()')
-
-        if self.allowed_domainlist:
-            if self.allowed_domainlist != 'ADLFAILURE':
-                # check sans / cn against list of allowed comains from config
-                result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-            else:
-                result = False
-        else:
-            result = True
-
-        self.logger.debug('CAhandler._csr_check() ended with: %s', result)
-        return result
-
     def _enroll(self, csr: str) -> Tuple[str, str, str]:
         """enroll certificate via MS-WCCE"""
         self.logger.debug("CAhandler._enroll(%s)", self.template)
@@ -266,16 +258,16 @@ class CAhandler(object):
             )
             # replace crlf with lf
             cert_raw = cert_raw.replace("\r\n", "\n")
-        except Exception as err_:
+        except Exception as err:
             cert_raw = None
-            self.logger.error("ca_server.get_cert() failed with error: %s", err_)
+            self.logger.error("ca_server.get_cert() failed with error: %s", err)
+            error = 'Could not get certificate from CA server'
 
-        if cert_raw:
+        if not error and cert_raw:
             if ca_pem:
                 cert_bundle = cert_raw + ca_pem
             else:
                 cert_bundle = cert_raw
-
             cert_raw = cert_raw.replace("-----BEGIN CERTIFICATE-----\n", "")
             cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
             cert_raw = cert_raw.replace("\n", "")
@@ -297,10 +289,10 @@ class CAhandler(object):
             self.logger.error("Config incomplete")
             return ("Config incomplete", None, None, None)
 
-        # check if csr is allowed
-        result = self._csr_check(csr)
+        # check for allowed domainlist
+        error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
 
-        if result:
+        if not error:
 
             # check for eab profiling and header_info
             error = eab_profile_header_info_check(self.logger, self, csr, 'template')
@@ -312,8 +304,7 @@ class CAhandler(object):
             else:
                 self.logger.error('EAB profile check failed')
         else:
-            self.logger.error('SAN/CN check failed')
-            error = 'SAN/CN check failed'
+            self.logger.error(error)
 
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, None)

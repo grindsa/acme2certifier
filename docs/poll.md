@@ -1,32 +1,38 @@
-<!-- markdownlint-disable  MD013 -->
-<!-- wiki-title CA polling to check pending enrollment requests -->
-# Ca_handler.poll()
+<!-- markdownlint-disable MD013 -->
+<!-- wiki-title CA Polling to Check Pending Enrollment Requests -->
+# `Ca_handler.poll()`
 
-The ```poll``` method has been implemented to cover use-cases in which certificate issuance needs to be manually approved by the CA administrator.
+The `poll` method has been implemented to support use cases where certificate issuance requires manual approval by the CA administrator.
 
-In such a case the acme2certifier will mark the status of the order-resource as "processing" and returns a "Retry-After" header as part of the
-response to an order status polling request. (like described in RFC 8555 [Section 7.4](https://tools.ietf.org/html/rfc8555#section-7.4)).
+In such cases, **acme2certifier** marks the status of the order resource as **"processing"** and includes a **"Retry-After"** header in the response to an order status polling request, as described in [RFC 8555, Section 7.4](https://tools.ietf.org/html/rfc8555#section-7.4).
 
-It is further assumed that if a CSR gets into “pending” state the CA server sends information as part of the enrollment response which can
-used to lookup the status of the request. This information gets returned by ```ca.handler.enroll()``` method (variable ```poll_identifier)```
-and will be stored in the database along with the CSR (table ```certificate``` field ```poll_identifier```).
+Additionally, when a CSR enters the **"pending"** state, it is assumed that the CA server provides information in the enrollment response that can be used to look up the request's status. This information is returned by the `ca.handler.enroll()` method (stored in the variable `poll_identifier`) and is saved in the database alongside the CSR in the **`certificate`** table under the **`poll_identifier`** field.
 
-There is a script [`cert_poll.py`](../tools/cert_poll.py) in the tools directory which can be called via cron. It scans the ```orders``` table for orders in
-status ```processing (4)``` and passes the poll_identifier along with other information via the ```certificate.poll()``` method.
+## Polling Implementation
 
-```ca_handler.poll()```  checks the status of the CSR on CA server and downloads the certificate (if available). It further builds
-the cert-chain and returns the below information back to certificate.poll() which will update the database.
+The script [`cert_poll.py`](../tools/cert_poll.py) is located in the **tools** directory and can be scheduled via **cron**. It scans the **`orders`** table for orders with status **"processing" (4)** and passes the `poll_identifier`, along with other necessary information, to the `certificate.poll()` method.
 
-- An error-message (if there is any)
-- The Certificate chain in pem-format
-- The certificate in asn1 (binary) format - base64 encoded - this is needed for later revocation
-- An updated poll_identifier
-- An indication (True/False) if the CSR got rejected
+### `ca_handler.poll()` Responsibilities
 
-In parallel the ```order-status``` will be set to "valid" and a URL to ```certificate```-resource will be provided if an acme-client
-polls the ```order```-resource.
-In case a CSR got rejected the order status will be changed to “invalid”.
+The `ca_handler.poll()` method:
 
-The handler for [NCLM/Insta certifier](certifier.md) contains an example implementation.
+1. **Checks the status of the CSR** on the CA server.
+2. **Downloads the certificate** if it is available.
+3. **Builds the certificate chain** and returns the following details to `certificate.poll()`, which then updates the database:
 
-Further, an [example acme_srv.db](../examples/acme_srv.db.example) is available to give a better insight on the expected values especially in the certificate table.
+   - An **error message**, if any.
+   - The **certificate chain** in PEM format.
+   - The **certificate** in ASN.1 (binary) format, Base64-encoded (needed for revocation).
+   - An **updated poll_identifier**.
+   - An indication (`True`/`False`) of whether the CSR was rejected.
+
+### Status Updates
+
+- If the certificate is issued, the **order status** is set to **"valid"**, and a **URL to the `certificate` resource** is provided when an ACME client polls the `order` resource.
+- If the CSR is rejected, the **order status** changes to **"invalid"**.
+
+## Example Implementations
+
+An example implementation is available in the handler for **[NCLM/Insta Certifier](certifier.md)**.
+
+Additionally, an **[example `acme_srv.db`](../examples/acme_srv.db.example)** is provided to give insight into expected values, particularly in the **certificate** table.

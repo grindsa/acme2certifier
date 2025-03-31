@@ -1,26 +1,63 @@
-<!-- markdownlint-disable  MD013 -->
-<!-- wiki-title Containerized installation using apache2 or nginx as webserver and wsgi or django -->
-# Containerized installation using apache2 or nginx as webserver and wsgi or django
+<!-- markdownlint-disable MD013 -->
+<!-- wiki-title Containerized Installation Using Apache2 or Nginx as Web Server with WSGI or Django -->
+# Containerized Installation Using Apache2 or Nginx as Web Server with WSGI or Django
 
-This should be the fastest and most convenient way to deploy acme2certifier. After installation acme2certifier will run inside a minimalized ubunbtu 20.04 container using either apache2 or nginx as webserver.
+This is the **fastest and most convenient** way to deploy **acme2certifier**. After installation, **acme2certifier** will run inside a **minimal Ubuntu 20.04 container**, using either **Apache2** or **Nginx** as the web server.
 
-Acme2certifier needs to store its database (`acme_srv.db`), ca_handler (`ca_handler.py`) and configuration file (`acme_srv.cfg`) on a persistent data-storage. By default those files are attached to data/ folder and will get mounted inside the container to `/var/www/acme2certifier/volume`. The data folder path can be adjusted in [`docker-compose.yml`](https://github.com/grindsa/acme2certifier/blob/master/examples/Docker/docker-compose.yml) to fit your setup.
+## Persistent Storage
 
-By default acme2certifier will run on ports 22280 (http) and 22443 (https optional). These two ports must be exported as ports 80 and 443 to make the a2c-services accessible from outside.
+**acme2certifier** requires persistent storage for:
 
-`.env` contains options to switch between master or devel branch, choose between wsgi or django and to select the webserver (apache2 or nginx)
+- **Database:** `acme_srv.db`
+- **CA Handler:** `ca_handler.py`
+- **Configuration File:** `acme_srv.cfg`
 
-```config
+By default, these files are stored in the **`data/`** folder and mounted inside the container at:
+
+```plaintext
+/var/www/acme2certifier/volume
+```
+
+The **data folder path** can be modified in [`docker-compose.yml`](https://github.com/grindsa/acme2certifier/blob/master/examples/Docker/docker-compose.yml) to match your setup.
+
+## Ports
+
+By default, **acme2certifier** runs on:
+
+- **HTTP:** Port **22280**  
+- **HTTPS:** Port **22443** *(optional)*
+
+To expose these services externally, **map ports 80 and 443** accordingly.
+
+## Configuration via `.env`
+
+The `.env` file allows customization, including:
+
+- **Branch Selection:** `master` or `devel`
+- **Context:** `wsgi` or `django`
+- **Web Server:** `apache2` or `nginx`
+
+Example `.env` file:
+
+```ini
 COMPOSE_PROJECT_NAME=acme2certifier
 BRANCH=master
 CONTEXT=wsgi
 WEBSERVER=apache2
 ```
 
-## Building the docker-compose
+---
+
+## Building the Docker Image
 
 ```bash
-user@docker-host:~/acme2certifier/examples/Docker$ docker-compose build --no-cache
+cd ~/acme2certifier/examples/Docker
+docker-compose build --no-cache
+```
+
+Expected output:
+
+```bash
 Building srv
 Step 1/17 : FROM ubuntu:20.04
  ---> 1d622ef86b13
@@ -30,11 +67,13 @@ Removing intermediate container 03f043052bc9
 ...
 ```
 
-## Setting the timezone
+---
 
-By default containers will use UTC as their timezone. This can be fairly inconvenient when trying to correlate logs. As such you can set the timezone for the container by creating a docker-compose.override.yaml file with the following contents:
+## Setting the Timezone
 
-```yml
+Containers default to **UTC**, which can make log correlation difficult. To set a custom timezone, create a `docker-compose.override.yml` file:
+
+```yaml
 version: '3.2'
 services:
   acme-srv:
@@ -44,34 +83,54 @@ services:
 
 [List of Timezones](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)
 
-## Start acme2certifier
+---
 
-`user@docker-host:~/acme2certifier/examples/Docker$ docker-compose up -d`
-
-Whenever changes in `.env` are made, another build is required:
-
-`user@docker-host:~/acme2certifier/examples/Docker$ docker-compose build --no-cache`
-
-The entry-point script will check during the start process if a configuration file and a ca_handler in data/. If these files do not exist the below examples will be copied to the docker image.
-
-- [acme_srv.cfg file](../../examples/acme_srv.cfg) from the example directory
-- [stub_handler](../../examples/ca_handler/skeleton_ca_handler.py) from the example/ca-handler directory
-
-In case your are running acme2certifer as django project a project specific `settings.py` will be created and also be stored in data/
-
-The container should be visible in the list of active containers
+## Starting acme2certifier
 
 ```bash
-user@docker-host:~/acme2certifier/examples/Docker$ docker-compose ps
+docker-compose up -d
+```
+
+If you modify `.env`, rebuild the image:
+
+```bash
+docker-compose build --no-cache
+```
+
+During startup, the **entry-point script** checks for missing configuration files in `data/`:
+
+- **Configuration file:** [`acme_srv.cfg`](../../examples/acme_srv.cfg)
+- **Stub handler:** [`skeleton_ca_handler.py`](../../examples/ca_handler/skeleton_ca_handler.py)
+
+For **Django-based deployments**, a **project-specific `settings.py`** will also be created in `data/`.
+
+---
+
+## Verifying the Container
+
+Check if the container is running:
+
+```bash
+docker-compose ps
+```
+
+Expected output:
+
+```plaintext
         Name                      Command               State                       Ports
 -------------------------------------------------------------------------------------------------------------
 acme2certifier_srv_1   /docker-entrypoint.sh /usr ...   Up      0.0.0.0:22443->443/tcp, 0.0.0.0:22280->80/tcp
 ```
 
-Its should already be possible to access the directory Resources of our acme2certifer container:
+Test the **ACME directory endpoint**:
 
 ```bash
-user@docker-host:~/acme2certifier/examples/Docker$ docker run -it --rm --network acme curlimages/curl http://acme-srv/directory | python -m json.tool
+docker run -it --rm --network acme curlimages/curl http://acme-srv/directory | python -m json.tool
+```
+
+Expected output:
+
+```json
 {
     "6a01d6abe3a84de2831d24aa5451b3a2": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417",
     "keyChange": "http://acme2certifier_srv_1/acme_srv/key-change",
@@ -89,44 +148,75 @@ user@docker-host:~/acme2certifier/examples/Docker$ docker run -it --rm --network
 }
 ```
 
-Configuration file, ca_handler and (optionally) settings.py must be modified according to your setup.
+### Restarting the Container
 
-To reload the modified files the container should be restarted.
+If you modify `acme_srv.cfg`, `ca_handler.py`, or `settings.py`, restart the container:
 
-`user@docker-host:~/acme2certifier/examples/Docker$ docker-compose restart`
+```bash
+docker-compose restart
+```
 
-Try to enroll a certificate by using your favorite acme-client. If it fails check the configuration of your ca_handler, logs and enable [debug mode](../../docs/acme_srv.md) in acme2certifier for further investigation.
+---
 
-## TLS support when using apache2
+## Enrolling a Certificate
 
-In case you would like to enable TLS-support in acme2certifer please place a file acme2certifier.pem on the volume. This file must contain the following certificate data in pem format:
+Use your preferred **ACME client**. If enrollment fails:
 
-- the private key
-- the end-entity certificate
-- intermediate CA certificates, sorted from leaf to root. The root CA certificate should not be included for security reasons.
+1. **Check the CA handler configuration.**
+2. **Review logs.**
+3. **Enable [debug mode](../../docs/acme_srv.md) in acme2certifier.**
 
-```key
+---
+
+## Enabling TLS (Apache2)
+
+To enable **TLS support**, place `acme2certifier.pem` in the volume. It must contain:
+
+- **Private key**
+- **End-entity certificate**
+- **Intermediate CA certificates** (from **leaf to root**; do **not** include the root CA)
+
+Example:
+
+```pem
 -----BEGIN RSA PRIVATE KEY-----
 ...
 -----END RSA PRIVATE KEY-----
 -----BEGIN CERTIFICATE-----
-end-entity certificate data
+End-entity certificate data
 -----END CERTIFICATE-----
 -----BEGIN CERTIFICATE-----
-ca certificate(s) data
+Intermediate CA certificate(s)
 -----END CERTIFICATE-----
 ```
 
-## TLS support when using nginx
+---
 
-To enable TLS-support in nginx please place two files `acme2certifier_cert.pem` and `acme2certifier_key.pem` on the volume. `acme2certifier_cert.pem` must contain the certificate to be used while `acme2certifier_key.pem` must contain the corresponding private key. Certificate and key must be stored in pem format.
+## Enabling TLS (Nginx)
 
-## Run acme2certifier without using docker-compose
+For **Nginx**, place the following files in the volume:
 
-The below command will run an a2c container and
+- **`acme2certifier_cert.pem`** – Certificate file
+- **`acme2certifier_key.pem`** – Private key
 
-- map internal port 22280 to outside port 80
-- map internal port 22443 to outside port 443
-- mount the directory `/home/grindsa/docker/a2c/data` into the container to store database and configuration files
+Both must be in **PEM format**.
 
-`user@docker-host:~/acme2certifier/examples/Docker$ docker run -d -p 80:22280 -p 443:22443 --rm --name=a2c-srv -v "/home/grindsa/docker/a2c/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi`
+---
+
+## Running acme2certifier Without Docker-Compose
+
+You can run the **container manually** with:
+
+```bash
+docker run -d -p 80:22280 -p 443:22443 --rm --name=a2c-srv   -v "/home/grindsa/docker/a2c/data":/var/www/acme2certifier/volume/   grindsa/acme2certifier:apache2-wsgi
+```
+
+This will:
+
+- **Map internal port 22280** to **external port 80**.
+- **Map internal port 22443** to **external port 443**.
+- **Mount the `data/` directory** for persistent storage.
+
+---
+
+### 🎉 Congratulations! acme2certifier is now running in a containerized environment! 🚀

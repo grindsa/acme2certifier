@@ -61,29 +61,6 @@ class TestACMEHandler(unittest.TestCase):
         """ test polling """
         self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
 
-    @patch('examples.ca_handler.digicert_ca_handler.allowed_domainlist_check')
-    def test_006_allowed_domainlist_check(self, mock_adc):
-        """ test allowed_domainlist_check """
-        self.cahandler.allowed_domainlist = False
-        self.assertFalse(self.cahandler._allowed_domainlist_check('csr'))
-        self.assertFalse(mock_adc.called)
-
-    @patch('examples.ca_handler.digicert_ca_handler.allowed_domainlist_check')
-    def test_007_allowed_domainlist_check(self, mock_adc):
-        """ test allowed_domainlist_check """
-        self.cahandler.allowed_domainlist = ["test.com"]
-        mock_adc.return_value = True
-        self.assertFalse(self.cahandler._allowed_domainlist_check('csr'))
-        self.assertTrue(mock_adc.called)
-
-    @patch('examples.ca_handler.digicert_ca_handler.allowed_domainlist_check')
-    def test_008_allowed_domainlist_check(self, mock_adc):
-        """ test allowed_domainlist_check """
-        self.cahandler.allowed_domainlist = ["test.com"]
-        mock_adc.return_value = False
-        self.assertEqual('Either CN or SANs are not allowed by configuration', self.cahandler._allowed_domainlist_check('csr'))
-        self.assertTrue(mock_adc.called)
-
     @patch.object(requests, 'post')
     def test_009__api_post(self, mock_req):
         """ test _api_post() """
@@ -552,9 +529,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual((500, 'organisation_id is missing'), self.cahandler._order_send('csr', 'cn'))
         self.assertFalse(mock_orgid.called)
 
+    @patch('examples.ca_handler.digicert_ca_handler.enrollment_config_log')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._organiation_id_get')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._api_post')
-    def test_041_order_send(self, mock_post, mock_orgid):
+    def test_041_order_send(self, mock_post, mock_orgid, mock_ecl):
         """ test _order_send() """
         mock_post.return_value = ('code', 'content')
         self.cahandler.api_key = None
@@ -563,10 +541,26 @@ class TestACMEHandler(unittest.TestCase):
         mock_orgid.return_value = 1
         self.assertEqual((500, 'organisation_id is missing'), self.cahandler._order_send('csr', 'cn'))
         self.assertFalse(mock_orgid.called)
+        self.assertFalse(mock_ecl.called)
+
+    @patch('examples.ca_handler.digicert_ca_handler.enrollment_config_log')
+    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._organiation_id_get')
+    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._api_post')
+    def test_042_order_send(self, mock_post, mock_orgid, mock_ecl):
+        """ test _order_send() """
+        mock_post.return_value = ('code', 'content')
+        self.cahandler.api_key = None
+        self.cahandler.organization_name = 'organization_name'
+        self.cahandler.organization_id = None
+        self.cahandler.enrollment_config_log = True
+        mock_orgid.return_value = 1
+        self.assertEqual((500, 'organisation_id is missing'), self.cahandler._order_send('csr', 'cn'))
+        self.assertFalse(mock_orgid.called)
+        self.assertTrue(mock_ecl.called)
 
     @patch('examples.ca_handler.digicert_ca_handler.cert_pem2der')
     @patch('examples.ca_handler.digicert_ca_handler.b64_encode')
-    def test_042_order_response_parse(self, mock_b64, mock_pem2der):
+    def test_043_order_response_parse(self, mock_b64, mock_pem2der):
         """ test _order_parse() """
         content_dic = {'id': 'id', 'certificate_chain': [{'pem': 'pem1'}, {'pem': 'pem2'}, {'pem': 'pem3'}]}
         mock_b64.return_value = 'b64'
@@ -574,7 +568,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.cert_pem2der')
     @patch('examples.ca_handler.digicert_ca_handler.b64_encode')
-    def test_043_order_response_parse(self, mock_b64, mock_pem2der):
+    def test_044_order_response_parse(self, mock_b64, mock_pem2der):
         """ test _order_parse() """
         content_dic = {'id': 'id', 'cert_chain': [{'pem': 'pem1'}, {'pem': 'pem2'}, {'pem': 'pem3'}]}
         mock_b64.return_value = 'b64'
@@ -584,7 +578,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.cert_pem2der')
     @patch('examples.ca_handler.digicert_ca_handler.b64_encode')
-    def test_044_order_response_parse(self, mock_b64, mock_pem2der):
+    def test_045_order_response_parse(self, mock_b64, mock_pem2der):
         """ test _order_parse() """
         content_dic = {'id': 'id', 'certificate_chain': [{'pem': 'pem1'}, {'_pem': 'pem2'}, {'pem': 'pem3'}]}
         mock_b64.return_value = 'b64'
@@ -594,7 +588,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.cert_pem2der')
     @patch('examples.ca_handler.digicert_ca_handler.b64_encode')
-    def test_045_order_response_parse(self, mock_b64, mock_pem2der):
+    def test_046_order_response_parse(self, mock_b64, mock_pem2der):
         """ test _order_parse() """
         content_dic = {'_id': 'id', 'certificate_chain': [{'pem': 'pem1'}, {'pem': 'pem2'}, {'pem': 'pem3'}]}
         mock_b64.return_value = 'b64'
@@ -603,7 +597,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._order_response_parse() polling_identifier generation failed: no id in response', lcm.output)
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._api_get')
-    def test_046_organiation_id_get(self, mock_get):
+    def test_047_organiation_id_get(self, mock_get):
         """ test _organiation_id_get() """
         mock_get.return_value = (500, {'id': 'id'})
         self.cahandler.organization_name = 'organization_name'
@@ -613,22 +607,22 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.organization_id)
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._api_get')
-    def test_047_organiation_id_get(self, mock_get):
+    def test_048_organiation_id_get(self, mock_get):
         """ test _organiation_id_get() """
         mock_get.return_value = (200, {'organizations': [{'name': 'name1', 'id': 'id1'}, {'name': 'name2', 'id': 'id2'}, {'name': 'name3', 'id': 'id3'}]})
         self.cahandler.organization_name = 'name1'
         self.assertEqual('id1', self.cahandler._organiation_id_get())
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._api_get')
-    def test_048_organiation_id_get(self, mock_get):
+    def test_049_organiation_id_get(self, mock_get):
         """ test _organiation_id_get() """
         mock_get.return_value = (200, {'organizations': [{'name': 'name1', 'id': 'id1'}, {'name': 'name2', 'id': 'id2'}, {'name': 'name3', 'id': 'id3'}]})
         self.cahandler.organization_name = 'name2'
         self.assertEqual('id2', self.cahandler._organiation_id_get())
 
     @patch('examples.ca_handler.digicert_ca_handler.eab_profile_header_info_check')
-    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._allowed_domainlist_check')
-    def test_049_csr_check(self, mock_dlchk, mock_ehichk):
+    @patch('examples.ca_handler.digicert_ca_handler.allowed_domainlist_check')
+    def test_050_csr_check(self, mock_dlchk, mock_ehichk):
         """ test _csr_check() """
         mock_dlchk.return_value = 'mock_dlchk'
         mock_ehichk.return_value = 'mock_hichk'
@@ -636,16 +630,16 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('mock_dlchk', self.cahandler._csr_check('csr'))
 
     @patch('examples.ca_handler.digicert_ca_handler.eab_profile_header_info_check')
-    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._allowed_domainlist_check')
-    def test_050_csr_check(self, mock_dlchk, mock_ehichk):
+    @patch('examples.ca_handler.digicert_ca_handler.allowed_domainlist_check')
+    def test_051_csr_check(self, mock_dlchk, mock_ehichk):
         """ test _csr_check() """
         mock_dlchk.return_value = False
         mock_ehichk.return_value = 'mock_hichk'
         self.assertEqual('mock_hichk', self.cahandler._csr_check('csr'))
 
     @patch('examples.ca_handler.digicert_ca_handler.eab_profile_header_info_check')
-    @patch('examples.ca_handler.digicert_ca_handler.CAhandler._allowed_domainlist_check')
-    def test_051_csr_check(self, mock_dlchk, mock_ehichk):
+    @patch('examples.ca_handler.digicert_ca_handler.allowed_domainlist_check')
+    def test_052_csr_check(self, mock_dlchk, mock_ehichk):
         """ test _csr_check() """
         mock_dlchk.return_value = False
         mock_ehichk.return_value = False
@@ -656,7 +650,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.digicert_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
-    def test_052_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
+    def test_053_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
         """ test enroll() """
         mock_cfgchk.return_value = 'mock_cfgchk'
         mock_csrchk.return_value = 'mock_csrchk'
@@ -675,7 +669,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.digicert_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
-    def test_053_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
+    def test_054_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
         """ test enroll() """
         mock_cfgchk.return_value = False
         mock_csrchk.return_value = 'mock_csrchk'
@@ -694,7 +688,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.digicert_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
-    def test_054_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
+    def test_055_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
         """ test enroll() """
         mock_cfgchk.return_value = False
         mock_csrchk.return_value = False
@@ -713,7 +707,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.digicert_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
-    def test_055_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
+    def test_056_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
         """ test enroll() """
         mock_cfgchk.return_value = False
         mock_csrchk.return_value = False
@@ -732,7 +726,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.digicert_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._csr_check')
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._config_check')
-    def test_056_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
+    def test_057_enroll(self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse):
         """ test enroll() """
         mock_cfgchk.return_value = False
         mock_csrchk.return_value = False
@@ -748,7 +742,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._api_put')
     @patch('examples.ca_handler.digicert_ca_handler.cert_serial_get')
-    def test_057_revoke(self, mock_serial, mock_put):
+    def test_058_revoke(self, mock_serial, mock_put):
         """ test revoke() """
         mock_serial.return_value = 'serial'
         mock_put.return_value = ('code', 'content')
@@ -756,7 +750,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._api_put')
     @patch('examples.ca_handler.digicert_ca_handler.cert_serial_get')
-    def test_058_revoke(self, mock_serial, mock_put):
+    def test_059_revoke(self, mock_serial, mock_put):
         """ test revoke() """
         mock_serial.return_value = None
         mock_put.return_value = ('code', 'content')
@@ -764,7 +758,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._api_put')
     @patch('examples.ca_handler.digicert_ca_handler.cert_serial_get')
-    def test_059_revoke(self, mock_serial, mock_put):
+    def test_060_revoke(self, mock_serial, mock_put):
         """ test revoke() """
         mock_serial.return_value = 'serial'
         mock_put.return_value = (204, 'content')

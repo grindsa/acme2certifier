@@ -15,7 +15,7 @@ from cryptography.hazmat.backends import default_backend
 from acme import client, messages
 from acme import errors
 from acme_srv.db_handler import DBstore
-from acme_srv.helper import load_config, b64_url_recode, parse_url, allowed_domainlist_check, config_eab_profile_load, config_headerinfo_load, header_info_field_validate, eab_profile_header_info_check
+from acme_srv.helper import load_config, b64_url_recode, parse_url, config_eab_profile_load, config_headerinfo_load, header_info_field_validate, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check
 
 """
 Config file section:
@@ -50,6 +50,8 @@ class CAhandler(object):
         self.eab_profiling = False
         self.acme_keypath = None
         self.ssl_verify = True
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -80,25 +82,20 @@ class CAhandler(object):
         self.email = config_dic['CAhandler'].get('acme_account_email', None)
 
         if 'ssl_verify' in config_dic['CAhandler']:
-            self.ssl_verify = config_dic.getboolean('CAhandler', 'ssl_verify', fallback=False)
-
+            try:
+                self.ssl_verify = config_dic.getboolean('CAhandler', 'ssl_verify', fallback=False)
+            except Exception as err:
+                self.logger.error('CAhandler._config_load(): failed to parse ssl_verify: %s', err)
         self.logger.debug('CAhandler._config_account_load() ended')
 
     def _config_parameters_load(self, config_dic: Dict[str, str]):
         """" load eab config """
         self.logger.debug('CAhandler._config_eab_load()')
 
-        if 'allowed_domainlist' in config_dic['CAhandler']:
-            try:
-                self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
-            except Exception as err:
-                self.logger.error('CAhandler._config_load(): failed to parse allowed_domainlist: %s', err)
-
         self.path_dic['directory_path'] = config_dic['CAhandler'].get('directory_path', '/directory')
         self.eab_kid = config_dic['CAhandler'].get('eab_kid', None)
         self.eab_hmac_key = config_dic['CAhandler'].get('eab_hmac_key', None)
         self.acme_keypath = config_dic['CAhandler'].get('acme_keypath', None)
-
         self.logger.debug('CAhandler._config_eab_load() ended')
 
     def _config_load(self):
@@ -115,10 +112,14 @@ class CAhandler(object):
         else:
             self.logger.error('CAhandler._config_load() configuration incomplete: "CAhandler" section is missing in config file')
 
+        # load allowed domainlist
+        self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
+        # load enrollment config log
+        self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
 
     def _challenge_filter(self, authzr: messages.AuthorizationResource, chall_type: str = 'http-01') -> messages.ChallengeBody:
         """ filter authorization for challenge """
@@ -238,8 +239,7 @@ class CAhandler(object):
 
     def _order_issue(self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, csr_pem: str) -> Tuple[str, str, str]:
         """ isuse order """
-        self.logger.debug('CAhandler.enroll() issuing signing order')
-        self.logger.debug('CAhandler.enroll() csr: ' + str(csr_pem))
+        self.logger.debug('CAhandler._order_issue() csr: ' + str(csr_pem))
         order = acmeclient.new_order(csr_pem)
 
         error = None
@@ -389,21 +389,6 @@ class CAhandler(object):
         else:
             self.logger.error('CAhandler._zerossl_eab_get() failed: %s', response.text)
 
-    def _allowed_domainlist_check(self, csr: str) -> str:
-        """ check allowed domainlist """
-        self.logger.debug('CAhandler._allowed_domainlist_check()')
-
-        error = None
-        # check CN and SAN against black/whitlist
-        if self.allowed_domainlist:
-            # check sans / cn against list of allowed comains from config
-            result = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-            if not result:
-                error = 'Either CN or SANs are not allowed by configuration'
-
-        self.logger.debug('CAhandler._allowed_domainlist_check() ended with %s', error)
-        return error
-
     def _eab_profile_list_set(self, csr: str, key: str, value: str) -> str:
         self.logger.debug('CAhandler._acme_keyfile_set(): list: key: %s, value: %s', key, value)
 
@@ -437,7 +422,14 @@ class CAhandler(object):
 
         elif key == 'allowed_domainlist':
             # check if csr contains allowed domains
-            error = eab_handler.allowed_domains_check(csr, value)
+            if 'allowed_domains_check' in dir(eab_handler):
+                # execute a function from eab_handler
+                self.logger.info('Execute allowed_domains_check() from eab handler')
+                error = eab_handler.allowed_domains_check(csr, value)
+            else:
+                # execute default adl function from helper
+                self.logger.debug('Helper.eab_profile_list_check(): execute default allowed_domainlist_check()')
+                error = allowed_domainlist_check(self.logger, csr, value)
             if error:
                 result = error
         else:
@@ -490,17 +482,22 @@ class CAhandler(object):
         # pylint: disable=R0915
         self.logger.debug('CAhandler.enroll()')
 
-        csr_pem = f'-----BEGIN CERTIFICATE REQUEST-----\n{textwrap.fill(str(b64_url_recode(self.logger, csr)), 64)}\n-----END CERTIFICATE REQUEST-----\n'
+        csr_pem = f'-----BEGIN CERTIFICATE REQUEST-----\n{textwrap.fill(str(b64_url_recode(self.logger, csr)), 64)}\n-----END CERTIFICATE REQUEST-----\n'.encode('utf-8')
 
         cert_bundle = None
         cert_raw = None
         poll_indentifier = None
         user_key = None
-        error = self._allowed_domainlist_check(csr)
+
+        error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
 
         # check for eab profiling and header_info
         if not error:
             error = eab_profile_header_info_check(self.logger, self, csr, 'acme_url')
+
+        if self.enrollment_config_log:
+            self.enrollment_config_log_skip_list.extend(['dbstore', 'eab_mack_key'])
+            enrollment_config_log(self.logger, self, self.enrollment_config_log_skip_list)
 
         if not error:
             try:
