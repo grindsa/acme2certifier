@@ -51,7 +51,7 @@ style:
 
 - acme2certifier will issue certificates on behalf of the end nodes. This needs to be allowed in OpenXPKI. Please see more info on enroll modes (especially `Signer on Behalf` section) here: [Enrollment Workflow](https://openxpki.readthedocs.io/en/develop/reference/configuration/workflows/enroll.html). For this, you will need to set the client certificate as an `authorized_signer` for your RPC endpoint. You can set this in `config.d/realm.tpl/rpc/enroll.yaml`:
 
-```
+```yaml
 authorized_signer:
     rule1:
         # Full DN
