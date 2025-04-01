@@ -66,7 +66,11 @@ class CAhandler(object):
         if 'CAhandler' in config_dic:
 
             self.api_host = config_dic['CAhandler'].get('api_host', None)
-            self.request_timeout = config_dic['CAhandler'].get('request_timeout', 5)
+            try:
+                self.request_timeout = int(config_dic['CAhandler'].get('request_timeout', 5))
+            except Exception as err:
+                self.logger.error('CAhandler._config_server_load() could not load request_timeout:%s', err)
+                self.request_timeout = 5
             self.ca_bundle = config_dic['CAhandler'].get('ca_bundle', True)
 
         self.logger.debug('CAhandler._config_server_load() ended')
