@@ -88,7 +88,7 @@ class CAhandler(object):
         }
         for attribute in ext.split(','):
             if attribute.strip().lower() in ku_mapping_dic:
-                self.logger.debug('CAhandler._cert_extension_ku_parse(): found {0}'.format(attribute))
+                self.logger.debug('CAhandler._cert_extension_ku_parse(): found %s', attribute)
                 template_dic[ku_mapping_dic[attribute.strip().lower()]] = True
 
         self.logger.debug('CAhandler._cert_extension_ku_parse() ended')
@@ -115,7 +115,7 @@ class CAhandler(object):
         eku_list = []
         for attribute in ext.split(','):
             if attribute.strip().lower() in eku_mapping_dic:
-                self.logger.debug('CAhandler._cert_extension_eku_parse(): found {0}'.format(attribute))
+                self.logger.debug('CAhandler._cert_extension_eku_parse(): found %s', attribute)
                 eku_list.append(eku_mapping_dic[attribute.strip().lower()])
 
         self.logger.debug('CAhandler._cert_extension_eku_parse() ended')
@@ -196,16 +196,16 @@ class CAhandler(object):
         if self.cert_save_path and self.cert_save_path is not None:
             # create cert-store dir if not existing
             if not os.path.isdir(self.cert_save_path):
-                self.logger.debug('create certsavedir {0}'.format(self.cert_save_path))
+                self.logger.debug('create certsavedir %s', self.cert_save_path)
                 os.mkdir(self.cert_save_path)
 
             # determine filename
             if self.save_cert_as_hex:
-                self.logger.info('convert serial to hex: {0}: {1}'.format(serial, '{:X}'.format(serial)))
-                cert_file = '{:X}'.format(serial)
+                self.logger.info('convert serial to hex: %s: %s', serial, f'{serial:X}')
+                cert_file = f'{serial:X}'
             else:
                 cert_file = str(serial)
-            with open('{0}/{1}.pem'.format(self.cert_save_path, cert_file), 'wb') as fso:
+            with open(f'{self.cert_save_path}/{cert_file}.pem', 'wb') as fso:
                 fso.write(cert.public_bytes(serialization.Encoding.PEM))
         else:
             self.logger.error('CAhandler._certificate_store() handler configuration incomplete: cert_save_path is missing')
@@ -219,18 +219,18 @@ class CAhandler(object):
         error = None
         if 'issuing_ca_key' in self.issuer_dict and self.issuer_dict['issuing_ca_key']:
             if not os.path.exists(self.issuer_dict['issuing_ca_key']):
-                error = 'issuing_ca_key {0} does not exist'.format(self.issuer_dict['issuing_ca_key'])
+                error = f"issuing_ca_key {self.issuer_dict['issuing_ca_key']} does not exist"
         else:
             error = 'issuing_ca_key not specfied in config_file'
 
         if not error:
             if 'issuing_ca_cert' in self.issuer_dict and self.issuer_dict['issuing_ca_cert']:
                 if not os.path.exists(self.issuer_dict['issuing_ca_cert']):
-                    error = 'issuing_ca_cert {0} does not exist'.format(self.issuer_dict['issuing_ca_cert'])
+                    error = f"issuing_ca_cert {self.issuer_dict['issuing_ca_cert']} does not exist"
             else:
                 error = 'issuing_ca_cert must be specified in config file'
 
-        self.logger.debug('CAhandler._config_check_issuer() ended with:  {0}'.format(error))
+        self.logger.debug('CAhandler._config_check_issuer() ended with: %s', error)
         return error
 
     def _config_check_crl(self, error: str = None) -> str:
@@ -240,11 +240,11 @@ class CAhandler(object):
         if not error:
             if 'issuing_ca_crl' in self.issuer_dict and self.issuer_dict['issuing_ca_crl']:
                 if not os.path.exists(self.issuer_dict['issuing_ca_crl']):
-                    self.logger.info('CAhandler._config_check_crl(): issuing_ca_crl {0} does not exist.'.format(self.issuer_dict['issuing_ca_crl']))
+                    self.logger.info('CAhandler._config_check_crl(): issuing_ca_crl %s does not exist.', self.issuer_dict['issuing_ca_crl'])
             else:
                 error = 'issuing_ca_crl must be specified in config file'
 
-        self.logger.debug('CAhandler._config_check_crl() ended with:  {0}'.format(error))
+        self.logger.debug('CAhandler._config_check_crl() ended with: %s', error)
         return error
 
     def _config_parameters_check(self, error: str = None) -> str:
@@ -254,17 +254,17 @@ class CAhandler(object):
         if not error:
             if self.cert_save_path:
                 if not os.path.exists(self.cert_save_path):
-                    error = 'cert_save_path {0} does not exist'.format(self.cert_save_path)
+                    error = f'cert_save_path {self.cert_save_path} does not exist'
             else:
                 error = 'cert_save_path must be specified in config file'
 
         if not error and self.openssl_conf and not os.path.exists(self.openssl_conf):
-            error = 'openssl_conf {0} does not exist'.format(self.openssl_conf)
+            error = f'openssl_conf {self.openssl_conf} does not exist'
 
         if not error and not self.ca_cert_chain_list:
             error = 'ca_cert_chain_list must be specified in config file'
 
-        self.logger.debug('CAhandler._config_parameters_check() ended with:  {0}'.format(error))
+        self.logger.debug('CAhandler._config_parameters_check() ended with: %s', error)
         return error
 
     def _config_check(self) -> str:
@@ -277,7 +277,7 @@ class CAhandler(object):
         error = self._config_parameters_check(error)
 
         if error:
-            self.logger.error('CAhandler config error: {0}'.format(error))
+            self.logger.error('CAhandler config error: %s', error)
 
         self.logger.debug('CAhandler._config_check() ended')
         return error
@@ -311,7 +311,7 @@ class CAhandler(object):
             try:
                 self.issuer_dict['passphrase'] = os.environ[config_dic['CAhandler']['issuing_ca_key_passphrase_variable']]
             except Exception as err:
-                self.logger.error('CAhandler._config_load() could not load issuing_ca_key_passphrase_variable:{0}'.format(err))
+                self.logger.error('CAhandler._config_load() could not load issuing_ca_key_passphrase_variable: %s', err)
         if 'issuing_ca_key_passphrase' in config_dic['CAhandler']:
             if 'passphrase' in self.issuer_dict and self.issuer_dict['passphrase']:
                 self.logger.info('CAhandler._config_load() overwrite issuing_ca_key_passphrase_variable')
@@ -382,7 +382,7 @@ class CAhandler(object):
                 except Exception:
                     # force check to fail as something went wrong during parsing
                     check_list.append(False)
-                    self.logger.debug('CAhandler._csr_check(): san_list parsing failed at entry: {0}'.format(san))
+                    self.logger.debug('CAhandler._csr_check(): san_list parsing failed at entry: %s', san)
 
         self.logger.debug('CAhandler._chk_san_lists_get() ended')
         return (san_list, check_list)
@@ -396,7 +396,7 @@ class CAhandler(object):
 
         if not cn_ and san_list:
             enforced_cn = san_list[0]
-            self.logger.info('CAhandler._csr_check(): enforce CN to {0}'.format(enforced_cn))
+            self.logger.info('CAhandler._csr_check(): enforce CN to %s', enforced_cn)
         else:
             enforced_cn = None
 
@@ -407,7 +407,7 @@ class CAhandler(object):
                 self.logger.debug('Ahandler._csr_check(): append cn to san_list')
                 san_list.append(cn_)
 
-        self.logger.debug('CAhandler._cn_add() ended with: {0}'.format(enforced_cn))
+        self.logger.debug('CAhandler._cn_add() ended with: %s', enforced_cn)
         return (san_list, enforced_cn)
 
     def _csr_check(self, csr: str) -> Tuple[bool, str]:
@@ -433,7 +433,7 @@ class CAhandler(object):
         else:
             result = True
 
-        self.logger.debug('CAhandler._csr_check() ended with: {0} enforce_cn: {1}'.format(result, enforced_cn))
+        self.logger.debug('CAhandler._csr_check() ended with: %s enforce_cn: %s', result, enforced_cn)
         return (result, enforced_cn)
 
     def _list_regex_check(self, entry: str, list_: List[str]) -> bool:
@@ -449,13 +449,13 @@ class CAhandler(object):
                 # parameter is in set flag accordingly and stop loop
                 check_result = True
 
-        self.logger.debug('CAhandler._list_regex_check() ended with: {0}'.format(check_result))
+        self.logger.debug('CAhandler._list_regex_check() ended with: %s', check_result)
         return check_result
 
     def _list_check(self, entry: str, list_: List[str], toggle: bool = False) -> bool:
         """ check string against list """
-        self.logger.debug('CAhandler._list_check({0}:{1})'.format(entry, toggle))
-        self.logger.debug('check against list: {0}'.format(list_))
+        self.logger.debug('CAhandler._list_check(%s:%s)', entry, toggle)
+        self.logger.debug('check against list: %s', str(list_))
 
         # default setting
         check_result = False
@@ -471,7 +471,7 @@ class CAhandler(object):
             # toggle result if this is a blocked_domainlist
             check_result = not check_result
 
-        self.logger.debug('CAhandler._list_check() ended with: {0}'.format(check_result))
+        self.logger.debug('CAhandler._list_check() ended with: %s', check_result)
         return check_result
 
     def _pemcertchain_generate(self, ee_cert: str, issuer_cert: str) -> str:
@@ -479,21 +479,21 @@ class CAhandler(object):
         self.logger.debug('CAhandler._pemcertchain_generate()')
 
         if issuer_cert:
-            pem_chain = '{0}{1}'.format(ee_cert, issuer_cert)
+            pem_chain = f'{ee_cert}{issuer_cert}'
         else:
             pem_chain = ee_cert
         for cert in self.ca_cert_chain_list:
             if os.path.exists(cert):
                 with open(cert, 'r', encoding='utf8') as fso:
                     cert_pem = fso.read()
-                pem_chain = '{0}{1}'.format(pem_chain, cert_pem)
+                pem_chain = f'{pem_chain}{cert_pem}'
 
         self.logger.debug('CAhandler._pemcertchain_generate() ended')
         return pem_chain
 
     def _string_wlbl_check(self, entry: str, white_list: List[str], black_list: List[str]) -> bool:
         """ check single against allowed_domainlist and blocked_domainlist """
-        self.logger.debug('CAhandler._string_wlbl_check({0})'.format(entry))
+        self.logger.debug('CAhandler._string_wlbl_check(%s)', entry)
 
         # default setting
         chk_result = False
@@ -501,20 +501,20 @@ class CAhandler(object):
         # check if entry is in white_list
         wl_check = self._list_check(entry, white_list)
         if wl_check:
-            self.logger.debug('{0} in white_list'.format(entry))
+            self.logger.debug('%s in white_list', entry)
             if black_list:
                 # we need to check blocked_domainlist if there is a blocked_domainlist and wl check passed
                 if self._list_check(entry, black_list):
-                    self.logger.debug('{0} in black_list'.format(entry))
+                    self.logger.debug('%s in black_list', entry)
                 else:
-                    self.logger.debug('{0} not in black_list'.format(entry))
+                    self.logger.debug('%s not in black_list', entry)
                     chk_result = True
             else:
                 chk_result = wl_check
         else:
-            self.logger.debug('{0} not in white_list'.format(entry))
+            self.logger.debug('%s not in white_list', entry)
 
-        self.logger.debug('CAhandler._string_wlbl_check({0}) ended with: {1}'.format(entry, chk_result))
+        self.logger.debug('CAhandler._string_wlbl_check(%s) ended with: %s', entry, chk_result)
         return chk_result
 
     def _cert_expiry_get(self, cert):
@@ -544,11 +544,11 @@ class CAhandler(object):
                         ca_cert = x509.load_pem_x509_certificate(fso.read(), backend=default_backend())
                         _tmp_expiry_days = (self._cert_expiry_get(ca_cert) - datetime.datetime.now()).days
                         if not expiry_days or _tmp_expiry_days < expiry_days:
-                            self.logger.debug('CAhandler._cacert_expiry_get(): set expiry_days to {0}'.format(_tmp_expiry_days))
+                            self.logger.debug('CAhandler._cacert_expiry_get(): set expiry_days to %s', _tmp_expiry_days)
                             expiry_days = _tmp_expiry_days
                             cert = ca_cert
                 else:
-                    self.logger.error('CAhandler._cacert_expiry_get(): file {0} does not exist'.format(ca_cert))
+                    self.logger.error('CAhandler._cacert_expiry_get(): file %s does not exist', ca_cert)
 
         self.logger.debug('CAhandler._cacert_expiry_get() ended')
         return expiry_days, cert
@@ -575,7 +575,7 @@ class CAhandler(object):
 
             (ca_cert_validity, cert) = self._cacert_expiry_get()
             if ca_cert_validity < self.cert_validity_days:
-                self.logger.info('CAhandler._certexpiry_date_set(): adjust validity to {0} days.'.format(ca_cert_validity))
+                self.logger.info('CAhandler._certexpiry_date_set(): adjust validity to %s days.', ca_cert_validity)
                 cert_validity = cert.not_valid_after
 
         self.logger.debug('CAhandler._certexpiry_date_set() ended')
@@ -668,7 +668,7 @@ class CAhandler(object):
                     subject = req.subject
 
                     if self.cn_enforce and enforce_cn:
-                        self.logger.info('CAhandler.enroll(): overwrite CN with {0}'.format(enforce_cn))
+                        self.logger.info('CAhandler.enroll(): overwrite CN with %s', enforce_cn)
                         subject = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, enforce_cn)])
 
                     builder = self._cert_signing_prep(ca_cert, req, subject)
@@ -687,7 +687,7 @@ class CAhandler(object):
                     error = 'urn:ietf:params:acme:badCSR'
 
             except Exception as err:
-                self.logger.error('CAhandler.enroll() error: {0}'.format(err))
+                self.logger.error('CAhandler.enroll() error: %s', err)
                 error = 'Unknown exception'
 
         self.logger.debug('CAhandler.enroll() ended')
@@ -709,7 +709,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._crlobject_build()')
 
         if os.path.exists(self.issuer_dict['issuing_ca_crl']):
-            self.logger.info('CAhandler.revoke(): load existing crl {0})'.format(self.issuer_dict['issuing_ca_crl']))
+            self.logger.info('CAhandler.revoke(): load existing crl %s)', self.issuer_dict['issuing_ca_crl'])
             # load  existing CRL
             with open(self.issuer_dict['issuing_ca_crl'], 'rb') as fso:
                 crl_data = fso.read()
@@ -724,7 +724,7 @@ class CAhandler(object):
             ret = crl.get_revoked_certificate_by_serial_number(serial)
 
         else:
-            self.logger.info('CAhandler._crlobject_build(): create new crl {0})'.format(self.issuer_dict['issuing_ca_crl']))
+            self.logger.info('CAhandler._crlobject_build(): create new crl %s)', self.issuer_dict['issuing_ca_crl'])
             builder = x509.CertificateRevocationListBuilder()
             builder = builder.issuer_name(ca_cert.issuer)
             ret = None
@@ -734,7 +734,7 @@ class CAhandler(object):
 
     def revoke(self, cert_pem: str, rev_reason: str = 'unspecified', rev_date: str = None) -> Tuple[int, str, str]:
         """ revoke certificate """
-        self.logger.debug('CAhandler.revoke({0}: {1})'.format(rev_reason, rev_date))
+        self.logger.debug('CAhandler.revoke(%s: %s)', rev_reason, rev_date)
         code = None
         message = None
         detail = None
@@ -796,5 +796,5 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        self.logger.debug('CAhandler.trigger() ended with error: %s', error)
         return (error, cert_bundle, cert_raw)

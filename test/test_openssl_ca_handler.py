@@ -787,7 +787,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
-        self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load issuing_ca_key_passphrase_variable:'does_not_exist'", lcm.output)
+        self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load issuing_ca_key_passphrase_variable: 'does_not_exist'", lcm.output)
 
     @patch.dict('os.environ', {'foo': 'foo_var'})
     @patch('examples.ca_handler.openssl_ca_handler.load_config')
