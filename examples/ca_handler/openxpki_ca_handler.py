@@ -79,8 +79,11 @@ class CAhandler(object):
             if 'endpoint_name' in config_dic['CAhandler']:
                 self.endpoint_name = config_dic['CAhandler']['endpoint_name']
 
-            if 'request_timeout' in config_dic['CAhandler']:
-                self.request_timeout = config_dic['CAhandler']['request_timeout']
+            try:
+                self.request_timeout = int(config_dic['CAhandler'].get('request_timeout', 5))
+            except Exception as err:
+                self.logger.error('CAhandler._config_server_load() could not load request_timeout:%s', err)
+                self.request_timeout = 5
 
             if 'rpc_path' in config_dic['CAhandler']:
                 self.rpc_path = config_dic['CAhandler']['rpc_path']
