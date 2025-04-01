@@ -101,7 +101,11 @@ class CAhandler(object):
             self.cert_type = cfg_dic.get('cert_type', 'ssl_basic')
             self.signature_hash = cfg_dic.get('signature_hash', 'sha256')
             self.order_validity = cfg_dic.get('order_validity', 1)
-            self.request_timeout = cfg_dic.get('request_timeout', 10)
+            try:
+                self.request_timeout = int(cfg_dic.get('request_timeout', 10))
+            except Exception as err:
+                self.logger.error('CAhandler._config_server_load() could not load request_timeout:%s', err)
+                self.request_timeout = 10
             self.organization_id = cfg_dic.get('organization_id', None)
             self.organization_name = cfg_dic.get('organization_name', None)
 
