@@ -240,7 +240,7 @@ class CAhandler(object):
             try:
                 api_response = self.session.get(self.api_host + '/ejbca/ejbca-rest-api/v1/certificate/status', proxies=self.proxy, verify=self.ca_bundle, timeout=self.request_timeout).json()
             except Exception as err_:
-                self.logger.error('CAhandler._ca_get() returned error: %s', str(err_))
+                self.logger.error('CAhandler._status_get() returned error: %s', str(err_))
                 api_response = {'status': 'nok', 'error': str(err_)}
         else:
             self.logger.error('CAhandler._status_get(): api_host parameter is missing in configuration')

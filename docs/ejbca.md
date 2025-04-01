@@ -14,6 +14,8 @@ This handler can be used to enroll certificates from the [Open Source version of
   - a [certificate profile name](https://docs.keyfactor.com/ejbca/latest/certificate-profiles-overview)
   - an [end-entity profile name](https://docs.keyfactor.com/ejbca/latest/end-entity-profiles-overview)
 
+The handler requires the installation of the python [requests_pkcs12](https://github.com/m-click/requests_pkcs12) module. The module can be installed via [pypi](https://pypi.org/project/requests-pkcs12/), RPMs for RH8 can be found in my [rpm-repo](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs)
+
 ## Configuration
 
 - modify the server configuration (`acme_srv.cfg`) and add the following parameters
@@ -21,6 +23,7 @@ This handler can be used to enroll certificates from the [Open Source version of
 ```config
 [CAhandler]
 handler_file: examples/ca_handler/ejbca_ca_handler.py
+api_host: https://<fqdn or ip>:8443
 cert_file: <filename>
 cert_passphrase: <passphrase>
 ca_bundle: <filename>
