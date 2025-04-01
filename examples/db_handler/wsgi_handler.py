@@ -558,7 +558,7 @@ class DBstore(object):
         self.logger.debug('DBStore.account_delete() ended')
         return result
 
-    def account_lookup(self, column: str, string: str, vlist: List = None) -> Dict[str, str]:   # pylint: disable=unused-argument
+    def account_lookup(self, column: str, string: str, vlist: List = None) -> Dict[str, str]:   # NOSONAR # pylint: disable=unused-argument
         """ lookup account table for a certain key/value pair and return id"""
         self.logger.debug('DBStore.account_lookup(column:%s, pattern:%s)', column, string)
         try:
