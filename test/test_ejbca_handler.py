@@ -533,7 +533,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.api_host = 'api_host'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertEqual({'error': 'exc_status_chk', 'status': 'nok'}, self.cahandler._status_get())
-        self.assertIn('ERROR:test_a2c:CAhandler._ca_get() returned error: exc_status_chk', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler._status_get() returned error: exc_status_chk', lcm.output)
 
     @patch('examples.ca_handler.ejbca_ca_handler.CAhandler._api_post')
     def test_052__sign(self, mock_post):
