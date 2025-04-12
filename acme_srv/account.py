@@ -569,11 +569,11 @@ class Account(object):
         """" load config from file """
         self.logger.debug('Account._config_load()')
         config_dic = load_config()
-        if 'Account' in config_dic:
-            self.inner_header_nonce_allow = config_dic.getboolean('Account', 'inner_header_nonce_allow', fallback=False)
-            self.ecc_only = config_dic.getboolean('Account', 'ecc_only', fallback=False)
-            self.tos_check_disable = config_dic.getboolean('Account', 'tos_check_disable', fallback=False)
-            self.contact_check_disable = config_dic.getboolean('Account', 'contact_check_disable', fallback=False)
+
+        self.inner_header_nonce_allow = config_dic.getboolean('Account', 'inner_header_nonce_allow', fallback=False)
+        self.ecc_only = config_dic.getboolean('Account', 'ecc_only', fallback=False)
+        self.tos_check_disable = config_dic.getboolean('Account', 'tos_check_disable', fallback=False)
+        self.contact_check_disable = config_dic.getboolean('Account', 'contact_check_disable', fallback=False)
 
         if 'EABhandler' in config_dic:
             self.logger.debug('Account._config.load(): loading eab_handler')
@@ -586,15 +586,12 @@ class Account(object):
                     # store handler in variable
                     self.eab_handler = eab_handler_module.EABhandler
                 else:
-                    self.logger.critical('Account._config_load(): EABHandler could not get loaded')
+                    self.logger.critical('EABHandler could not get loaded')
             else:
-                self.logger.critical('Account._config_load(): EABHandler configuration incomplete')
+                self.logger.critical('EABHandler configuration incomplete')
 
-        if 'Directory' in config_dic:
-            if 'tos_url' in config_dic['Directory']:
-                self.tos_url = config_dic['Directory']['tos_url']
-            if 'url_prefix' in config_dic['Directory']:
-                self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
+        self.tos_url = config_dic.get('Directory', 'tos_url', fallback=None)
+        self.path_dic = {k: url_prefix + v for k, v in self.path_dic.items()} if (url_prefix := config_dic.get('Directory', 'url_prefix', fallback=None)) else self.path_dic
         self.logger.debug('Account._config_load() ended')
 
     def _lookup(self, value: str, field: str = 'name') -> Dict[str, str]:

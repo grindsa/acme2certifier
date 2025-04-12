@@ -1124,7 +1124,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_116_config_load(self, mock_load_cfg):
         """ test _config_load empty config """
         parser = configparser.ConfigParser()
-        # parser['Account'] = {'foo': 'bar'}
+        parser['foo1'] = {'foo': 'bar'}
         mock_load_cfg.return_value = parser
         self.account._config_load()
         self.assertFalse(self.account.inner_header_nonce_allow)
@@ -1265,7 +1265,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.tos_check_disable)
         self.assertFalse(self.account.contact_check_disable)
         self.assertTrue(self.account.eab_check)
-        self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler could not get loaded', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:EABHandler could not get loaded', lcm.output)
 
 
     @patch('acme_srv.account.eab_handler_load')
@@ -1283,7 +1283,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.account.tos_check_disable)
         self.assertFalse(self.account.contact_check_disable)
         self.assertTrue(self.account.eab_check)
-        self.assertIn('CRITICAL:test_a2c:Account._config_load(): EABHandler configuration incomplete', lcm.output)
+        self.assertIn('CRITICAL:test_a2c:EABHandler configuration incomplete', lcm.output)
 
     @patch('acme_srv.account.eab_handler_load')
     @patch('acme_srv.account.load_config')
