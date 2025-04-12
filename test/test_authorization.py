@@ -308,7 +308,7 @@ class TestACMEHandler(unittest.TestCase):
             self.authorization._config_load()
         self.assertFalse(self.authorization.expiry_check_disable)
         self.assertEqual(86400, self.authorization.validity )
-        self.assertIn('WARNING:test_a2c:Authorization._config_load(): failed to parse validity: foo', lcm.output)
+        self.assertIn('WARNING:test_a2c:Failed to parse validity parameter: foo', lcm.output)
 
     @patch('acme_srv.authorization.load_config')
     def test_028_config_load(self, mock_load_cfg):
