@@ -144,15 +144,14 @@ class Authorization(object):
         self.logger.debug('Authorization._config_load()')
 
         config_dic = load_config()
-        if 'Authorization' in config_dic:
-            self.expiry_check_disable = config_dic.getboolean('Authorization', 'expiry_check_disable', fallback=False)
-            if 'validity' in config_dic['Authorization']:
-                try:
-                    self.validity = int(config_dic['Authorization']['validity'])
-                except Exception:
-                    self.logger.warning('Authorization._config_load(): failed to parse validity: %s', config_dic['Authorization']['validity'])
-        if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
-            self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
+
+        try:
+            self.validity = int(config_dic.get('Authorization', 'validity', fallback=self.validity))
+        except ValueError:
+            self.logger.warning('Failed to parse validity parameter: %s', config_dic.get('Authorization', 'validity'))
+
+        self.expiry_check_disable = config_dic.getboolean('Authorization', 'expiry_check_disable', fallback=False)
+        self.path_dic = {k: url_prefix + v for k, v in self.path_dic.items()} if (url_prefix := config_dic.get('Directory', 'url_prefix', fallback=None)) else self.path_dic
         self.logger.debug('Authorization._config_load() ended.')
 
     def invalidate(self, timestamp: int = None) -> Tuple[List[str], List[str]]:
