@@ -47,7 +47,9 @@ jobs:
         sudo echo "tsg_name: $NCLM_TSG_NAME" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: $NCLM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 45/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "request_timeout: 40" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
       env:
@@ -63,6 +65,12 @@ jobs:
       with:
         HOSTNAME_SUFFIX: -${{ env.UUID }}
         VERIFY_CERT: false
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        cd examples/Docker
+        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "Generate UUID"
       run: |
@@ -110,7 +118,7 @@ jobs:
 
   nclm_handler_tests_rpm:
     name: "nclm_handler_tests_rpm"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -150,6 +158,7 @@ jobs:
         sudo echo "ca_name: $NCLM_CA_NAME" >> data/acme_srv.cfg
         sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> data/acme_srv.cfg
         sudo echo "request_timeout: 40" >> data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 60/g" data/acme_srv.cfg
       env:
         NCLM_API_HOST: ${{ secrets.NCLM_API_HOST }}
@@ -175,6 +184,7 @@ jobs:
         sudo echo "ca_name: $NCLM_CA_NAME" >> data/volume/acme_srv.cfg
         sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> data/volume/acme_srv.cfg
         sudo echo "request_timeout: 40" >> data/volume/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 60/g" data/volume/acme_srv.cfg
       env:
         NCLM_API_HOST: ${{ secrets.NCLM_API_HOST }}
@@ -195,6 +205,11 @@ jobs:
       with:
         HOSTNAME_SUFFIX: -${{ env.UUID }}
         VERIFY_CERT: false
+        TEST_ADL: "true"
+
+    - name: "Verify allowed_domainlist error"
+      run: |
+        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "Generate UUID"
       run: |

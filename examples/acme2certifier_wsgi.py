@@ -182,11 +182,18 @@ def newaccount(environ, start_response):
 def directory(environ, start_response):
     """ directory listing """
     with Directory(DEBUG, get_url(environ), LOGGER) as direct_tory:
-        headers = create_header({'code': 200})
-        start_response('200 OK', headers)
-        # logging
-        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], '')
-        return [json.dumps(direct_tory.directory_get()).encode('utf-8')]
+
+        response_dic = direct_tory.directory_get()
+        if 'error' in response_dic:
+            headers = create_header({'code': 403})
+            start_response(f'403 {HTTP_CODE_DIC[403]}', headers)
+            return [json.dumps({'status': 403, 'message': HTTP_CODE_DIC[403], 'detail': response_dic['error']}).encode('utf-8')]
+        else:
+            headers = create_header({'code': 200})
+            start_response('200 OK', headers)
+            # logging
+            logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], '')
+            return [json.dumps(response_dic).encode('utf-8')]
 
 
 def cert(environ, start_response):

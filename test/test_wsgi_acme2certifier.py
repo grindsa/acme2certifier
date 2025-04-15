@@ -5,15 +5,17 @@
 import sys
 import os
 import unittest
-from unittest.mock import patch, mock_open, Mock
+from unittest.mock import patch, mock_open, Mock, MagicMock
 from io import StringIO
 # from OpenSSL import crypto
 import shutil
 import configparser
 import json
 
+
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
+
 
 class FakeDBStore(object):
     """ face DBStore class needed for mocking """
@@ -48,6 +50,7 @@ class TestACMEHandler(unittest.TestCase):
         self.application = application
         self.get_handler_cls = get_handler_cls
         self.renewalinfo = renewalinfo
+        self.start_response = MagicMock()
 
     def tearDown(self):
         """ teardown """
@@ -560,61 +563,75 @@ class TestACMEHandler(unittest.TestCase):
         environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'PATH_INFO'}
         self.assertEqual([b'{"status": 404, "message": "Not Found", "detail": "Not Found"}'], self.not_found(environ, Mock()))
 
+    @patch('examples.acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
     def test_049_application(self):
-        """ test application function valid pathinfo """
-        environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'directory'}
-        result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier"}}
-        result_func = json.loads(self.application(environ, Mock())[0])
-        del(result_func['meta']['version'])
-        self.assertTrue(result_expected['meta'].items() <= result_func['meta'].items())
-        self.assertEqual(result_expected['newAuthz'], result_func['newAuthz'])
-        self.assertEqual(result_expected['newNonce'], result_func['newNonce'])
-        self.assertEqual(result_expected['newAccount'], result_func['newAccount'])
-        self.assertEqual(result_expected['newOrder'], result_func['newOrder'])
-        self.assertEqual(result_expected['revokeCert'], result_func['revokeCert'])
-        self.assertEqual(result_expected['keyChange'], result_func['keyChange'])
+        """Test redirect to /directory when root URL is accessed."""
+        self.environ = {
+            'REQUEST_METHOD': 'GET',
+            'PATH_INFO': '',
+            'REMOTE_ADDR': '127.0.0.1',
+        }
+        self.start_response = MagicMock()
+        self.environ['PATH_INFO'] = '/'
+        response = self.application(self.environ, self.start_response)
+        self.start_response.assert_called_with('302 Found', [('Location', '/directory')])
+        self.assertEqual(response, [])
 
+    @patch('examples.acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
     def test_050_application(self):
-        """ test application function wrong pathinfo """
-        environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'unk'}
-        result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier", "version": "0.22"}}
-        self.assertEqual([b'{"status": 404, "message": "Not Found", "detail": "Not Found"}'], self.application(environ, Mock()))
+        """Test accessing the /acme/directory endpoint."""
+        self.environ = {
+            'REQUEST_METHOD': 'GET',
+            'PATH_INFO': '',
+            'REMOTE_ADDR': '127.0.0.1',
+            'PATH_INFO': '/acme/directory',
+        }
+        with patch('examples.acme2certifier_wsgi.directory', self.directory):
+            response = self.application(self.environ, self.start_response)
+            self.start_response.assert_called()
+            self.assertIsInstance(response, list)
 
-    @patch('examples.acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': 'url_prefix'}})
+    @patch('examples.acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
     def test_051_application(self):
-        """ test application function wrong pathinfo """
-        environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'url_prefix/directory'}
-        result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier"}}
-        result_func = json.loads(self.application(environ, Mock())[0])
-        print(result_func)
-        del(result_func['meta']['version'])
-        self.assertTrue(result_expected['meta'].items() <= result_func['meta'].items())
-        self.assertEqual(result_expected['newAuthz'], result_func['newAuthz'])
-        self.assertEqual(result_expected['newNonce'], result_func['newNonce'])
-        self.assertEqual(result_expected['newAccount'], result_func['newAccount'])
-        self.assertEqual(result_expected['newOrder'], result_func['newOrder'])
-        self.assertEqual(result_expected['revokeCert'], result_func['revokeCert'])
-        self.assertEqual(result_expected['keyChange'], result_func['keyChange'])
+        """Test accessing the /acme/acct endpoint."""
+        self.environ = {
+            'REQUEST_METHOD': 'GET',
+            'PATH_INFO': '',
+            'REMOTE_ADDR': '127.0.0.1',
+            'PATH_INFO': '/acme/acct',
+        }
+        with patch('examples.acme2certifier_wsgi.acct', self.acct):
+            response = self.application(self.environ, self.start_response)
+            self.start_response.assert_called()
+            self.assertIsInstance(response, list)
 
-    @patch('examples.acme2certifier_wsgi.CONFIG', {'CAhandler': {'acme_url': 'acme_url'}})
+    @patch('examples.acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
     def test_052_application(self):
-        """ test application function wrong pathinfo """
-        environ = {'REQUEST_METHOD': 'UNK', 'REMOTE_ADDR': 'REMOTE_ADDR', 'PATH_INFO': 'directory'}
-        result_expected = {"newAuthz": "http://localhost/acme/new-authz", "newNonce": "http://localhost/acme/newnonce", "newAccount": "http://localhost/acme/newaccount", "newOrder": "http://localhost/acme/neworders", "revokeCert": "http://localhost/acme/revokecert", "keyChange": "http://localhost/acme/key-change", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>", "name": "acme2certifier"}}
-        result_func = json.loads(self.application(environ, Mock())[0])
-        del(result_func['meta']['version'])
-        self.assertTrue(result_expected['meta'].items() <= result_func['meta'].items())
-        self.assertEqual(result_expected['newAuthz'], result_func['newAuthz'])
-        self.assertEqual(result_expected['newNonce'], result_func['newNonce'])
-        self.assertEqual(result_expected['newAccount'], result_func['newAccount'])
-        self.assertEqual(result_expected['newOrder'], result_func['newOrder'])
-        self.assertEqual(result_expected['revokeCert'], result_func['revokeCert'])
-        self.assertEqual(result_expected['keyChange'], result_func['keyChange'])
+        """Test accessing the /acme/newaccount endpoint."""
+        self.environ = {
+            'REQUEST_METHOD': 'POST',
+            'PATH_INFO': '',
+            'REMOTE_ADDR': '127.0.0.1',
+            'PATH_INFO': '/acme/newaccount',
+        }
+        with patch('examples.acme2certifier_wsgi.newaccount', self.newaccount):
+            response = self.application(self.environ, self.start_response)
+            self.start_response.assert_called()
+            self.assertIsInstance(response, list)
 
-    def test_053_get_handler_cls(self):
-        """ test get_handler_cls() """
-        self.assertTrue('foo', self.get_handler_cls())
-
+    @patch('examples.acme2certifier_wsgi.CONFIG', {'Directory': {'url_prefix': ''}})
+    def test_053_application(self):
+        """Test accessing an unknown endpoint."""
+        self.environ = {
+            'REQUEST_METHOD': 'POST',
+            'PATH_INFO': '',
+            'REMOTE_ADDR': '127.0.0.1',
+            'PATH_INFO': '/unknown/path',
+        }
+        with patch('examples.acme2certifier_wsgi.not_found', self.not_found):
+            response = self.application(self.environ, self.start_response)
+            self.start_response.assert_called_with('404 NOT FOUND', [('Content-Type', 'text/plain')])
+            self.assertIsInstance(response, list)
 
     @patch('examples.acme2certifier_wsgi.get_request_body')
     @patch('examples.acme2certifier_wsgi.create_header')

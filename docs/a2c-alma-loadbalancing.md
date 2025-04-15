@@ -2,13 +2,13 @@
 <!-- wiki-title How to build an acme2certifier cluster on Alma Linux 9 -->
 # How to build an acme2certifier cluster on Alma Linux 9
 
-This tutorial describes the configuration of a two-node acme2certifier cluster running in active/active configuration. Although both nodes are active at the same time and provide proxy services via different ip-addresses database, configuration and runtime objects will be replicated among the nodes.
+This tutorial describes the configuration of a two-node acme2certifier cluster running in active/active configuration. Although both nodes are active at the same time and provide proxy services via different IP addresses, the database, configuration and and runtime objects will be replicated among the nodes.
 
 This setup requires the switch to a different database engine as SQLite, which is the default a2c backend, is not designed to handle concurrent write access, which can happen in an active/active setup. Thus, [MariaDB](https://mariadb.org/) will be used. Configuration files and runtime objects will be replicated using [Lsyncd](https://github.com/lsyncd/lsyncd). The following diagram depicts the application stack to be used.
 
 ![architecture](a2c-alma-loadbalancing.png "architecture")
 
-The guide is written for **Alma Linux 9**, however adapting to other Linux distributions ir Redhat derivates should not be difficult. There is also a guide for [Ubuntu 22.04](a2c-ubuntu-loadbalancing.md) available
+The guide is written for **Alma Linux 9**, however adapting to other Linux distributions or Red Hat derivatives should not be difficult. There is also a guide for [Ubuntu 22.04](a2c-ubuntu-loadbalancing.md) available
 
 ## Preparation
 
@@ -21,7 +21,7 @@ cat /etc/hosts
 192.168.14.137 alma9-c2.bar.local alma9-c2
 ```
 
-Furthermore, the EPEL-repository need ot be enabled on both nodes.
+Furthermore, the EPEL-repository need to be enabled on both nodes.
 
 ```bash
 sudo yum install -y epel-release
@@ -54,7 +54,7 @@ sudo systemctl enable mariadb
 sudo systemctl status mariadb
 ```
 
-- modify `/etc/my.cnf.d/mariadb-server.cnf` change the ip-binding and add the follwinng lines
+- Modify `/etc/my.cnf.d/mariadb-server.cnf`, change the IP binding, and add the following lines
 
 ```cfg
 # listen on external address
@@ -69,7 +69,7 @@ log_bin_index          = /var/log/mariadb/mariadb-bin.index
 relay_log              = /var/log/mariadb/relay-bin
 relay_log_index        = /var/log/mariadb/relay-bin.index
 
-# avoiding  primary key collision
+# avoiding primary key collision
 log-slave-updates
 auto_increment_increment=2
 auto_increment_offset=1
@@ -85,13 +85,13 @@ sudo systemctl restart mariadb
 
 ```bash
 ss -plnt
-State    Recv-Q   Send-Q        Local Address:Port       Peer Address:Port   Process
+State Recv-Q Send-Q        Local Address:Port       Peer Address:Port   Process
 ...
 LISTEN   0        80           192.168.14.136:3306            0.0.0.0:*       users:(("mariadbd",pid=815,fd=43))
 ...
 ```
 
-- open the mysql commandclient client
+- open the MySQL command-line client
 
 ```bash
 sudo mysql -u  root
@@ -135,7 +135,7 @@ sudo systemctl enable mariadb
 sudo systemctl status mariadb
 ```
 
-- modify `/etc/my.cnf.d/mariadb-server.cnf` change the ip-binding and add the follwinng lines
+- Modify `/etc/my.cnf.d/mariadb-server.cnf`, change the IP binding, and add the following lines
 
 ```cfg
 # listen on external address
@@ -150,7 +150,7 @@ log_bin_index          = /var/log/mariadb/mariadb-bin.index
 relay_log              = /var/log/mariadb/relay-bin
 relay_log_index        = /var/log/mariadb/relay-bin.index
 
-# avoiding  primary key collision
+# avoiding primary key collision
 log-slave-updates
 auto_increment_increment=2
 auto_increment_offset=2
@@ -169,13 +169,13 @@ ss -plnt
 ```
 
 ```bash
-State    Recv-Q   Send-Q        Local Address:Port       Peer Address:Port   Process
+State Recv-Q Send-Q        Local Address:Port       Peer Address:Port   Process
 ...
 LISTEN   0        80           192.168.14.137:3306            0.0.0.0:*       users:(("mariadbd",pid=841,fd=41))
 ...
 ```
 
-- open the mysql commandclient client
+- open the MySQL command-line client
 
 ```bash
 sudo mysql -u  root
@@ -215,7 +215,7 @@ SHOW SLAVE STATUS\G
 
 ### Configure master-master replication on alma9-c1
 
-- open the mysql commandclient client and create the replication user
+- open the MySQL command-line client and create the replication user
 
 ```bash
 sudo mysql -u  root
@@ -247,7 +247,7 @@ SHOW SLAVE STATUS\G
 
 ### Test master-master replication
 
-#### test on alma9-c1
+#### Test on alma9-c1
 
 - open the mysql commandline client
 
@@ -436,7 +436,7 @@ sudo touch /opt/acme2certifier/volume/test.txt
 
 #### test replication on alma9-c2
 
-- verify that the '/opt/acme2certifier/volume/test.txt' has been syncronized to alma9-c2 (please note that replication can take up to 20s)
+- verify that the '/opt/acme2certifier/volume/test.txt' has been synchronized to alma9-c2 (please note that replication can take up to 20s)
 
 ```bash
 sudo ls -la /opt/acme2certifier/volume
@@ -448,7 +448,7 @@ sudo ls -la /opt/acme2certifier/volume
 sudo rm /opt/acme2certifier/volume/test.txt
 ```
 
-#### verify deletion on alma9-c1
+#### Verify deletion on alma9-c1
 
 - back on alma9-c1 check `/opt/acme2certifier/volume` to make sure that "test.txt" has been deleted (please note that replication can take up to 20s)
 
@@ -468,7 +468,7 @@ In case of problem check the logfiles stored in `/var/log/lsyncd` for errors.
 sudo yum install python3-mysqlclient python3-django3 python3-pyyaml -y
 ```
 
-- Downlaod the [latest rpm package](https://github.com/grindsa/acme2certifier/releases)
+- Download the [latest rpm package](https://github.com/grindsa/acme2certifier/releases)
 - install the package locally and fix permissions
 
 ```bash
@@ -476,7 +476,7 @@ sudo yum localinstall -y ./acme2certifier_<version>-1.0.noarch.rpm
  sudo chown -R nginx /opt/acme2certifier/volume/
 ```
 
-- Copy and activete nginx configuration file
+- Copy and activate nginx configuration file
 
 ```bash
 sudo cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
