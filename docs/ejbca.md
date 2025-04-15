@@ -45,8 +45,10 @@ eab_profiling: <True|False>
 - cert_profile_name - name of the certificate profile
 - ee_profile_name - name of the end entity profile
 - ca_name - name of the CA used to enroll certificates
-- request_timeout - optional - requests timeout in seconds for requests (default: 5s)
 - eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
+- enrollment_config_log - optional - log enrollment parameters (default False)
+- enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: [ "parameter1", "parameter2" ] (default: [])
+- request_timeout - optional - requests timeout in seconds for requests (default: 5s)
 
 You can test the connection by running the following curl command against your EJBCA server.
 
