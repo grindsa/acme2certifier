@@ -18,7 +18,7 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Bandit Scan
         uses: shundor/python-bandit-scan@9cc5aa4a006482b8a7f91134412df6772dbda22c
         with: # optional arguments
@@ -52,6 +52,7 @@ jobs:
 
       - name: Install components
         run: |
+          sudo apt-get update
           sudo DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y \
           libkrb5-dev \
           python3-gssapi \
@@ -63,6 +64,8 @@ jobs:
           pip install pytest
           pip install pytest-cov impacket
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          cp examples/ca_handler/skeleton_ca_handler.py acme_srv/ca_handler.py
+          cp examples/acme_srv.cfg acme_srv/
           pytest --cov=./ --cov-report=xml
 
       - name: Upload coverage to Codecov
@@ -87,6 +90,7 @@ jobs:
 
       - name: Install components
         run: |
+          sudo apt-get update
           sudo DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y \
           libkrb5-dev \
           python3-gssapi \
@@ -96,6 +100,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest coverage impacket
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          cp examples/ca_handler/skeleton_ca_handler.py acme_srv/ca_handler.py
+          cp examples/acme_srv.cfg acme_srv/
 
       - name: run coverage
         run: |

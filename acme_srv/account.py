@@ -648,7 +648,6 @@ class Account(object):
         data = None
         # account deactivation
         if payload['status'].lower() == 'deactivated':
-            # (code, message, detail) = self._delete(account_name)
             (code, message, detail) = self._deactivate(account_name)
             if code == 200:
                 data = payload

@@ -1,21 +1,23 @@
-<!-- markdownlint-disable  MD013 -->
-<!-- wiki-title SOAP CA handler protopype -->
-# SOAP CA handler
+<!-- markdownlint-disable MD013 -->
+<!-- wiki-title SOAP CA Handler Prototype -->
+# SOAP CA Handler
 
-This handler is a proof of concept allowing certificate enrollment from a certificate authority providing an SOAP interface. Certificate signing requests from acme-clients will be added to a PKCS#7 structure and digitally signed. The certificate belonging to the key used for signing will also be added.
+This handler is a **proof of concept** that enables certificate enrollment from a certificate authority that provides a SOAP interface. Certificate Signing Requests (CSRs) from ACME clients are encapsulated within a **PKCS#7** structure and digitally signed. The certificate corresponding to the signing key is also included.
 
-Parts of the code to create the PKCS#7 message are borrowed from [magnuswatn/pkcs7csr](https://github.com/magnuswatn/pkcs7csr)
+Parts of the code used to create the PKCS#7 message are borrowed from [magnuswatn/pkcs7csr](https://github.com/magnuswatn/pkcs7csr).
 
-## Pre-requisites
+## Prerequisites
 
-- Certificate and key (in PEM format) used to sign the PKCS#7 content.
-- CA certificate(s) in pem format allowing to validate the certificate presented by the SOAP server.
+Ensure you have the following:
+
+- A **certificate and private key** (PEM format) used to sign the PKCS#7 content.
+- **CA certificates** (PEM format) required to validate the certificate presented by the SOAP server.
 
 ## Installation and Configuration
 
-- modify the server configuration (`acme_srv/acme_srv.cfg`) and add the following parameters
+Modify the server configuration (`acme_srv/acme_srv.cfg`) and add the following parameters:
 
-```config
+```ini
 [CAhandler]
 handler_file: examples/ca_handler/pkcs7_soap_ca_handler.py
 soap_srv: http[s]://<ip>:<port>
@@ -26,16 +28,18 @@ profilename: <Profile Name>
 email: <email address>
 ```
 
-- soap_srv - URL of the SOAP server
-- signing_key - Private key of the certificate used sign the PKCS#7 structure (/path to/key.pem)
-- signing_cert - Certificate attached to the PKCS#7 message send to SOAP server (/path to/certificate.pem)
-- ca_bundle - CA certificate bundle needed to validate the EST server certificate (/path to/ca_bundle.pem). Setting to False disables the certificate check
-- profilename - Name of the certificate profile to be inserted into SOAP request
-- email - email address to be inserted into SOAP request
+### Parameter Explanations
 
-## SOAP messages
+- **soap_srv** – URL of the SOAP server.
+- **signing_key** – Private key of the certificate used to sign the PKCS#7 structure (`/path/to/key.pem`).
+- **signing_cert** – Certificate attached to the PKCS#7 message sent to the SOAP server (`/path/to/certificate.pem`).
+- **ca_bundle** – CA certificate bundle needed to validate the SOAP server certificate (`/path/to/ca_bundle.pem`). Set to `False` to disable certificate validation.
+- **profilename** – Name of the certificate profile to be inserted into the SOAP request.
+- **email** – Email address to be included in the SOAP request.
 
-### SOAP request send by acme2certifier (NewCertRequest)
+## SOAP Messages
+
+### SOAP Request Sent by acme2certifier (NewCertRequest)
 
 ```xml
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/">
@@ -53,7 +57,7 @@ email: <email address>
 </soapenv:Envelope>
 ```
 
-### SOAP response send by server in case of successful enrollment (NewCertResponse)
+### SOAP Response Sent by Server Upon Successful Enrollment (NewCertResponse)
 
 ```xml
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
@@ -67,14 +71,14 @@ email: <email address>
 </s:Envelope>
 ```
 
-### SOAP reponse send by server in case of a failure
+### SOAP Response Sent by Server in Case of Failure
 
 ```xml
 <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
   <s:Body>
     <s:Fault>
       <faultcode>s:Client</faultcode>
-      <faultstring>Processing RequestCertificate - Error! by request={ProfileName=profilename,CertificateRequestRaw.Length=<lenght>,Email=email,ReturnCertificateCaChain=True}, profile=profilename, pkcs7initials=, ErrorMessage=Cannot parse PKCS7 message!</faultstring>
+      <faultstring>Processing RequestCertificate - Error! by request={ProfileName=profilename,CertificateRequestRaw.Length=<length>,Email=email,ReturnCertificateCaChain=True}, profile=profilename, pkcs7initials=, ErrorMessage=Cannot parse PKCS7 message!</faultstring>
     </s:Fault>
   </s:Body>
 </s:Envelope>

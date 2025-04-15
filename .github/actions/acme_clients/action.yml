@@ -40,6 +40,10 @@ inputs:
     description: "Namespace"
     required: true
     default: "acme"
+  TEST_ADL:
+    description: "Test allowed_domainlist feature"
+    required: true
+    default: "false"
 
 runs:
   using: "composite"
@@ -456,9 +460,43 @@ runs:
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
+    - name: "Allowed domainlist feature - Enroll lego (fail)"
+      continue-on-error: true
+      id: legofail01
+      if: ${{ inputs.TEST_ADL == 'true' }}
+      run: |
+        echo "##### HTTP - Enroll lego to test allowed domainlist feature #####"
+        if [ "$USE_RSA" == "false" ]; then
+          echo "use ECC"
+          docker run -i --rm -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX --tls run
+        else
+          echo "use RSA"
+          docker run -i --rm -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX --tls run
+        fi
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        USE_RSA: ${{ inputs.USE_RSA }}
+        HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Allowed domainlist feature - check  result "
+      if: ${{ (inputs.TEST_ADL == 'true') && steps.legofail01.outcome != 'failure' }}
+      run: |
+        echo "legofail outcome is ${{steps.legofail01.outcome }}"
+        exit 1
+      shell: bash
+
     - name: "Delete acme-sh, letsencypt and lego folders"
       run: |
         sudo rm -rf  lego/*
         sudo rm -rf  acme-sh/*
         sudo rm -rf  certbot/*
       shell: bash
+
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
