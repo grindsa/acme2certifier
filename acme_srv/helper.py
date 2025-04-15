@@ -181,6 +181,28 @@ def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
     logger.debug('Helper.config_headerinfo_load() ended')
     return header_info_field
 
+def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """ load parameters """
+    logger.debug('Helper.config_enroll_config_log_load()')
+
+    enrollment_config_log = False
+    enrollment_config_log_skip_list = []
+
+    if 'CAhandler' in config_dic:
+        try:
+            enrollment_config_log = config_dic.getboolean('CAhandler', 'enrollment_config_log', fallback=False)
+        except Exception as err_:
+            logger.warning('CAhandler._config_load() enrollment_config_log failed with error: %s', err_)
+
+        if 'enrollment_config_log_skip_list' in config_dic['CAhandler']:
+            try:
+                enrollment_config_log_skip_list = json.loads(config_dic['CAhandler']['enrollment_config_log_skip_list'])
+            except Exception as err_:
+                logger.warning('CAhandler._config_load() enrollment_config_log_skip_list failed with error: %s', err_)
+                enrollment_config_log_skip_list = 'ECLSLFAILURE'
+
+    logger.debug('config_enroll_config_log_load() ended with: %s', enrollment_config_log)
+    return enrollment_config_log, enrollment_config_log_skip_list
 
 def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, str]):
     """ load parameters """
@@ -1985,7 +2007,7 @@ def enrollment_config_log(logger: logging.Logger, obj: object, handler_skiplist:
     if handler_skiplist and isinstance(handler_skiplist, list):
         skiplist.extend(handler_skiplist)
 
-    if handler_skiplist and 'failed to parse' in handler_skiplist:
+    if handler_skiplist and 'ECLSLFAILURE' in handler_skiplist:
         logger.error('Enrollment configuration won\'t get logged due to a configuration error.')
     else:
         enroll_parameter_list = []
