@@ -115,7 +115,7 @@ class EABhandler(object):
         self.logger.debug('EABhandler._wllist_check() ended with: {0}'.format(check_result))
         return check_result
 
-    def allowed_domains_check(self, csr: str, domain_list: List[str]) -> str:
+    def _allowed_domains_check(self, csr: str, domain_list: List[str]) -> str:
         """ check allowed domains """
         self.logger.debug('EABhandler.allowed_domains_check()')
 

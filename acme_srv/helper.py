@@ -1668,14 +1668,50 @@ def domainlist_check(logger, entry: str, list_: List[str], toggle: bool = False)
     # default setting
     check_result = False
 
-    if entry:
-        if list_:
-            for regex in list_:
-                # check entry
-                check_result = domainlist_entry_check(logger, entry, regex, check_result)
+    encoded_domain = None
+    try:
+        encoded_domain = idna.encode(domain)
+    except Exception as err:
+        logger.error(f'Invalid domain format in csr: {err}')
+
+    return encoded_domain
+
+
+def wildcard_domain_check(logger: logging.Logger, domain: str, encoded_domain: str, encoded_pattern_base: str) -> bool:
+    """ compare domain to whitelist returns false if not matching"""
+    logger.debug('Helper.domain_check(%s)', domain)
+
+    result = False
+    if domain.startswith("*."):
+        # Both input and pattern are wildcards. Check if input domain base includes the pattern
+        if encoded_domain.endswith(encoded_pattern_base):
+            result = True
+    else:
+        # Input is not a wildcard, pattern is. Check endswith. Add '.' to pattern base so it's not approving the base domain
+        # for example domain foo.bar shouldn't match with pattern *.foo.bar
+        if encoded_domain.endswith(b"." + encoded_pattern_base):
+            result = True
+    logger.debug('Helper.domain_check() ended with %s', result)
+    return result
+
+
+def pattern_check(logger, domain, pattern):
+    """ compare domain to whitelist returns false if not matching"""
+    logger.debug('Helper.pattern_check(%s, %s)', domain, pattern)
+
+    pattern = pattern.lower().strip()
+    encoded_pattern = encode_domain(logger, pattern)
+    encoded_domain = encode_domain(logger, domain)
+
+    result = False
+    if encoded_pattern:
+        if pattern.startswith("*."):
+            result = wildcard_domain_check(logger, domain, encoded_domain, encoded_pattern)
         else:
-            # empty list, flip parameter to make the check successful
-            check_result = True
+            if not domain.startswith("*.") and encoded_domain == encoded_pattern:
+                result = True
+    else:
+        logger.error(f'Invalid pattern configured in allowed_domainlist: {pattern}')
 
     if toggle:
         # toggle result if this is a blacklist
@@ -1703,7 +1739,7 @@ def domainlist_entry_check(logger, entry: str, regex: str, check_result: bool) -
 
 def allowed_domainlist_check(logger: logging.Logger, csr, allowed_domain_list: List[str]) -> bool:
     """ check if domain is in allowed domain list """
-    logger.debug('Helper.allowed_domainlist_check(%s)')
+    logger.debug('Helper.allowed_domainlist_check()')
 
     result = False
     (san_list, check_list) = sancheck_lists_create(logger, csr)
@@ -1719,8 +1755,8 @@ def allowed_domainlist_check(logger: logging.Logger, csr, allowed_domain_list: L
         else:
             result = True
 
-    logger.debug('Helper.allowed_domainlist_check() ended with: %s', result)
-    return result
+        logger.debug(f'CAhandler._allowed_domainlist_check() ended with {error} for {",".join(invalid_domains)}')
+    return error
 
 
 def allowed_domainlist_check_error(logger: logging.Logger, csr: str, allowed_domainlist) -> str:
@@ -1919,7 +1955,14 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
             result = error
     elif key == 'allowed_domainlist':
         # check if csr contains allowed domains
-        error = eab_handler.allowed_domains_check(csr, value)
+        if 'allowed_domains_check' in dir(eab_handler):
+            # execute a function from eab_handler
+            logger.info('Execute allowed_domains_check() from eab handler')
+            error = eab_handler.allowed_domains_check(csr, value)
+        else:
+            # execute default adl function from helper
+            logger.debug('Helper.eab_profile_list_check(): execute default allowed_domainlist_check()')
+            error = allowed_domainlist_check(logger, csr, value)
         if error:
             result = error
     else:
