@@ -61,29 +61,6 @@ class TestACMEHandler(unittest.TestCase):
         """ test polling """
         self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
 
-    @patch('examples.ca_handler.digicert_ca_handler.allowed_domainlist_check')
-    def test_006_allowed_domainlist_check(self, mock_adc):
-        """ test allowed_domainlist_check """
-        self.cahandler.allowed_domainlist = False
-        self.assertFalse(self.cahandler._allowed_domainlist_check('csr'))
-        self.assertFalse(mock_adc.called)
-
-    @patch('examples.ca_handler.digicert_ca_handler.allowed_domainlist_check')
-    def test_007_allowed_domainlist_check(self, mock_adc):
-        """ test allowed_domainlist_check """
-        self.cahandler.allowed_domainlist = ["test.com"]
-        mock_adc.return_value = True
-        self.assertFalse(self.cahandler._allowed_domainlist_check('csr'))
-        self.assertTrue(mock_adc.called)
-
-    @patch('examples.ca_handler.digicert_ca_handler.allowed_domainlist_check')
-    def test_008_allowed_domainlist_check(self, mock_adc):
-        """ test allowed_domainlist_check """
-        self.cahandler.allowed_domainlist = ["test.com"]
-        mock_adc.return_value = False
-        self.assertEqual('Either CN or SANs are not allowed by configuration', self.cahandler._allowed_domainlist_check('csr'))
-        self.assertTrue(mock_adc.called)
-
     @patch.object(requests, 'post')
     def test_009__api_post(self, mock_req):
         """ test _api_post() """
@@ -644,7 +621,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('id2', self.cahandler._organiation_id_get())
 
     @patch('examples.ca_handler.digicert_ca_handler.eab_profile_header_info_check')
+<<<<<<< HEAD
+    @patch('examples.ca_handler.digicert_ca_handler.allowed_domainlist_check_error')
+=======
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._allowed_domainlist_check')
+>>>>>>> ee31c6a4c8b9f3ebdc990f28eef3e7be6495fbba
     def test_050_csr_check(self, mock_dlchk, mock_ehichk):
         """ test _csr_check() """
         mock_dlchk.return_value = 'mock_dlchk'
@@ -653,7 +634,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('mock_dlchk', self.cahandler._csr_check('csr'))
 
     @patch('examples.ca_handler.digicert_ca_handler.eab_profile_header_info_check')
+<<<<<<< HEAD
+    @patch('examples.ca_handler.digicert_ca_handler.allowed_domainlist_check_error')
+=======
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._allowed_domainlist_check')
+>>>>>>> ee31c6a4c8b9f3ebdc990f28eef3e7be6495fbba
     def test_051_csr_check(self, mock_dlchk, mock_ehichk):
         """ test _csr_check() """
         mock_dlchk.return_value = False
@@ -661,7 +646,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('mock_hichk', self.cahandler._csr_check('csr'))
 
     @patch('examples.ca_handler.digicert_ca_handler.eab_profile_header_info_check')
+<<<<<<< HEAD
+    @patch('examples.ca_handler.digicert_ca_handler.allowed_domainlist_check_error')
+=======
     @patch('examples.ca_handler.digicert_ca_handler.CAhandler._allowed_domainlist_check')
+>>>>>>> ee31c6a4c8b9f3ebdc990f28eef3e7be6495fbba
     def test_052_csr_check(self, mock_dlchk, mock_ehichk):
         """ test _csr_check() """
         mock_dlchk.return_value = False
