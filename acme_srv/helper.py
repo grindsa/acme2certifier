@@ -1985,7 +1985,7 @@ def request_operation(logger: logging.Logger, headers: Dict[str, str] = None, pr
 
 def csr_cn_lookup(logger: logging.Logger, csr: str) -> str:
     """ lookup  CN/ 1st san from CSR """
-    logger.debug('Heloer._csr_cn_lookup()')
+    logger.debug('Heloer.csr_cn_lookup()')
 
     csr_cn = csr_cn_get(logger, csr)
     if not csr_cn:
@@ -2001,7 +2001,7 @@ def csr_cn_lookup(logger: logging.Logger, csr: str) -> str:
         else:
             logger.error('no SANs found in CSR')
 
-    logger.debug('Helper._csr_cn_lookup() ended with: %s', csr_cn)
+    logger.debug('Helper.csr_cn_lookup() ended with: %s', csr_cn)
     return csr_cn
 
 
