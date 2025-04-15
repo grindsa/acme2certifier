@@ -3266,6 +3266,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         myclass.password = 'password_val'
         myclass.secret = 'secret_val'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
+<<<<<<< HEAD
             self.assertFalse(self.enrollment_config_log(self.logger, myclass, 'failed to parse'))
         self.assertIn("ERROR:test_a2c:Enrollment configuration won't get logged due to a configuration error.", lcm.output)
 
@@ -3345,6 +3346,11 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
 
 
+=======
+            self.assertFalse(self.enrollment_config_log(self.logger, myclass, 'ECLSLFAILURE'))
+        self.assertIn("ERROR:test_a2c:Enrollment configuration won't get logged due to a configuration error.", lcm.output)
+
+>>>>>>> ee31c6a4c8b9f3ebdc990f28eef3e7be6495fbba
 
 if __name__ == '__main__':
     unittest.main()
