@@ -1078,10 +1078,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_der.called)
         self.assertTrue(mock_enc.called)
 
+    @patch('examples.ca_handler.entrust_ca_handler.enrollment_config_log')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._response_parse')
     @patch('examples.ca_handler.entrust_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_post')
-    def test_083_enroll(self, mock_req, mock_cn, mock_parse):
+    def test_083_enroll(self, mock_req, mock_cn, mock_parse, mock_ecl):
         """ test _enroll() """
         mock_cn.return_value = 'cn'
         mock_req.return_value = (201, 'response')
@@ -1090,6 +1091,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_cn.called)
         self.assertTrue(mock_req.called)
         self.assertTrue(mock_parse.called)
+        self.assertFalse(mock_ecl.called)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._response_parse')
     @patch('examples.ca_handler.entrust_ca_handler.csr_cn_lookup')
@@ -1117,9 +1119,25 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_req.called)
         self.assertFalse(mock_parse.called)
 
+    @patch('examples.ca_handler.entrust_ca_handler.enrollment_config_log')
+    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._response_parse')
+    @patch('examples.ca_handler.entrust_ca_handler.csr_cn_lookup')
+    @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_post')
+    def test_086_enroll(self, mock_req, mock_cn, mock_parse, mock_ecl):
+        """ test _enroll() """
+        mock_cn.return_value = 'cn'
+        mock_req.return_value = (201, 'response')
+        mock_parse.return_value = ('cert_bundle', 'cert_raw', 'poll_indentifier')
+        self.cahandler.enrollment_config_log = True
+        self.assertEqual((None, 'cert_bundle', 'cert_raw', 'poll_indentifier'), self.cahandler._enroll('csr'))
+        self.assertTrue(mock_cn.called)
+        self.assertTrue(mock_req.called)
+        self.assertTrue(mock_parse.called)
+        self.assertTrue(mock_ecl.called)
+
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._enroll')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._enroll_check')
-    def test_086_enroll(self, mock_chk, mock_enroll):
+    def test_087_enroll(self, mock_chk, mock_enroll):
         """ test enroll() """
         mock_chk.return_value = None
         mock_enroll.return_value = ('mock_err', 'mock_bundle', 'mock_raw', 'mock_poll')
@@ -1127,7 +1145,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._enroll')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._enroll_check')
-    def test_087_enroll(self, mock_chk, mock_enroll):
+    def test_088_enroll(self, mock_chk, mock_enroll):
         """ test enroll() """
         mock_chk.return_value = 'mock_chk'
         mock_enroll.return_value = ('mock_err', 'mock_bundle', 'mock_raw', 'mock_poll')
@@ -1135,7 +1153,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._trackingid_get')
-    def test_088_revoke(self, mock_track, mock_req):
+    def test_089_revoke(self, mock_track, mock_req):
         """ test revoke() """
         mock_track.return_value = 'tracking_id'
         mock_req.return_value = (200, 'response')
@@ -1143,7 +1161,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._trackingid_get')
-    def test_089_revoke(self, mock_track, mock_req):
+    def test_090_revoke(self, mock_track, mock_req):
         """ test revoke() """
         mock_track.return_value = 'tracking_id'
         mock_req.return_value = (500, 'response')
@@ -1151,14 +1169,14 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._trackingid_get')
-    def test_090_revoke(self, mock_track, mock_req):
+    def test_091_revoke(self, mock_track, mock_req):
         """ test revoke() """
         mock_track.return_value = None
         mock_req.return_value = (200, 'response')
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'Failed to get tracking id'), self.cahandler.revoke('csr'))
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_091_certificates_get(self, mock_req):
+    def test_092_certificates_get(self, mock_req):
         """ test certificates_get() """
         mock_req.return_value = (500, 'response')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -1166,7 +1184,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler.certificates_get() failed with code: 500', lcm.output)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_092_certificates_get(self, mock_req):
+    def test_093_certificates_get(self, mock_req):
         """ test certificates_get() """
         content = {'certificates': [1, 2, 3, 4], 'summary': {'total': 4}}
         mock_req.return_value = (200, content)
@@ -1175,7 +1193,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:fetching certs offset: 0, limit: 200, total: 1, buffered: 0', lcm.output)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_093_certificates_get(self, mock_req):
+    def test_094_certificates_get(self, mock_req):
         """ test certificates_get() """
         response1 = (200, {'certificates': [1, 2, 3, 4], 'summary': {'total': 8}})
         response2 = (200, {'certificates': [5, 6, 7, 8]})
@@ -1186,7 +1204,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:fetching certs offset: 200, limit: 200, total: 8, buffered: 4', lcm.output)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_094_certificates_get(self, mock_req):
+    def test_095_certificates_get(self, mock_req):
         """ test certificates_get() """
         response1 = (200, {'certificates': [1, 2, 3, 4]})
         response2 = (200, {'certificates': [5, 6, 7, 8]})
@@ -1196,7 +1214,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('Certificates lookup failed: did not get any total value', str(err.exception))
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_095_certificates_get(self, mock_req):
+    def test_096_certificates_get(self, mock_req):
         """ test certificates_get() """
         response1 = (200, {'certificates': [1, 2, 3, 4], 'summary': {'total': 9}})
         response2 = (200, {'certificates': [5, 6, 7, 8]})

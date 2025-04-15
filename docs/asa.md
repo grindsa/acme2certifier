@@ -36,6 +36,9 @@ cert_validity_days: <days>
 - ca_name - name of the CA used to enroll certificates
 - profile_name - profile name
 - cert_validity_days - optional - polling timeout (default: 60s)
+- eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
+- enrollment_config_log - optional - log enrollment parameters (default False)
+- enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: [ "parameter1", "parameter2" ] (default: [])
 
 It is also recommended to increase the enrollment timeout to avoid that acme2certifier is closing the connection to early.
 

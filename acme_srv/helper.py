@@ -181,6 +181,28 @@ def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
     logger.debug('config_headerinfo_load() ended')
     return header_info_field
 
+def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """ load parameters """
+    logger.debug('Helper.config_enroll_config_log_load()')
+
+    enrollment_config_log = False
+    enrollment_config_log_skip_list = []
+
+    if 'CAhandler' in config_dic:
+        try:
+            enrollment_config_log = config_dic.getboolean('CAhandler', 'enrollment_config_log', fallback=False)
+        except Exception as err_:
+            logger.warning('CAhandler._config_load() enrollment_config_log failed with error: %s', err_)
+
+        if 'enrollment_config_log_skip_list' in config_dic['CAhandler']:
+            try:
+                enrollment_config_log_skip_list = json.loads(config_dic['CAhandler']['enrollment_config_log_skip_list'])
+            except Exception as err_:
+                logger.warning('CAhandler._config_load() enrollment_config_log_skip_list failed with error: %s', err_)
+                enrollment_config_log_skip_list = 'ECLSLFAILURE'
+
+    logger.debug('config_enroll_config_log_load() ended with: %s', enrollment_config_log)
+    return enrollment_config_log, enrollment_config_log_skip_list
 
 def eab_handler_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_module:
     """ load and return eab_handler """
@@ -1917,3 +1939,23 @@ def csr_cn_lookup(logger: logging.Logger, csr: str) -> str:
 
     logger.debug('CAhandler._csr_cn_lookup() ended with: %s', csr_cn)
     return csr_cn
+
+
+def enrollment_config_log(logger: logging.Logger, obj: object, handler_skiplist: List[str] = None):
+    """ log enrollment configuration """
+    logger.debug('Helper.enrollment_config_log()')
+
+    skiplist = ['logger', 'session', 'password', 'api_key', 'api_password', 'key', 'secret', 'token']
+
+    if handler_skiplist and isinstance(handler_skiplist, list):
+        skiplist.extend(handler_skiplist)
+
+    if handler_skiplist and 'ECLSLFAILURE' in handler_skiplist:
+        logger.error('Enrollment configuration won\'t get logged due to a configuration error.')
+    else:
+        enroll_parameter_list = []
+        for key, value in obj.__dict__.items():
+            if key.startswith('__') or key in skiplist:
+                continue
+            enroll_parameter_list.append(f'{key}: {value}')
+        logger.info('Enrollment configuration: %s', enroll_parameter_list)
