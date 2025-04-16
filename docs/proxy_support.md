@@ -1,29 +1,48 @@
-<!-- markdownlint-disable  MD013 -->
-<!-- wiki-title Proxy support in  acme2certifier -->
-# Proxy support in  acme2certifier
+<!-- markdownlint-disable MD013 -->
+<!-- wiki-title Proxy Support in acme2certifier -->
+# Proxy Support in acme2certifier
 
-Proxy got introduced along with acme2certifer version 0.18.
+Proxy support was introduced in **acme2certifier** version **0.18**.
 
-As of today both http and socks5 proxies are being supported for:
+Currently, both **HTTP** and **SOCKS5** proxies are supported for:
 
-- validation of http and tls-alpn challenges
-- usage in following ca handlers:
+- **Validation of HTTP and TLS-ALPN challenges**
+- **Usage in the following CA handlers:**
   - `certifier_ca_handler.py`
   - `est_ca_handler.py`  
   - `mscertsrv_ca_handler.py`
 
-Proxies will be configured in `acme_srv/acme_srv.cfg` and need to be set per destination:
+## Configuration
 
-```cfg
+Proxies are configured in `acme_srv/acme_srv.cfg` and must be set **per destination**.
+
+Example configuration:
+
+```ini
 [DEFAULT]
 debug: True
 proxy_server_list: {"bar.local$": "socks5://proxy.dmn:1080", "foo.local$": "socks5://proxy.dmn:1080"}
 ```
 
-Destination can be:
+### Supported Destination Formats
 
-- a tld like `.local`
-- a domain name like `bar.local`
-- an fqdn like `foo.bar.local`
+A **destination** can be defined as:
 
-The usage of wildcards (`host*.bar.local`) and regular expressions (`^hostname.bar.local$`) is also supported. To configure a proxy for all outbound connections please use a single asterisk `{"*": "socks5://proxy.dmn:1080"}`
+- A **TLD** (e.g., `.local`)
+- A **domain name** (e.g., `bar.local`)
+- A **fully qualified domain name (FQDN)** (e.g., `foo.bar.local`)
+
+### Wildcards and Regular Expressions
+
+- Wildcards are supported:  
+  Example: `host*.bar.local`
+- Regular expressions are also supported:  
+  Example: `^hostname.bar.local$`
+
+### Global Proxy Configuration
+
+To configure a proxy for **all outbound connections**, use a **single asterisk (`*`)**:
+
+```ini
+proxy_server_list: {"*": "socks5://proxy.dmn:1080"}
+```

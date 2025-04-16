@@ -3,7 +3,7 @@
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict
-from acme_srv.helper import generate_random_string, validate_email, date_to_datestr, load_config, eab_handler_load, b64decode_pad, error_dic_get
+from acme_srv.helper import generate_random_string, validate_email, date_to_datestr, load_config, eab_handler_load, b64decode_pad, error_dic_get, uts_to_date_utc, uts_now
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.signature import Signature
@@ -236,6 +236,28 @@ class Account(object):
             detail = 'deletion failed'
 
         self.logger.debug('Account._delete() ended with: %s', code)
+        return (code, message, detail)
+
+    def _deactivate(self, aname: str) -> Tuple[int, str, str]:
+        """ deactivate account """
+        self.logger.debug('Account._deactivate(%s)', aname)
+        try:
+            data_dic = {'name': aname, 'status_id': 7, 'jwk': f'DEACTIVATED {uts_to_date_utc(uts_now())}'}
+            result = self.dbstore.account_update(data_dic, active=False)
+        except Exception as err_:
+            self.logger.critical('acme2certifier database error in Account._deactivate(): %s', err_)
+            result = None
+
+        if result:
+            code = 200
+            message = None
+            detail = None
+        else:
+            code = 400
+            message = self.err_msg_dic['accountdoesnotexist']
+            detail = 'deactivation failed'
+
+        self.logger.debug('Account._deactivate() ended with: %s', code)
         return (code, message, detail)
 
     def _eab_jwk_compare(self, protected: Dict[str, str], payload: Dict[str, str]) -> bool:
@@ -626,7 +648,7 @@ class Account(object):
         data = None
         # account deactivation
         if payload['status'].lower() == 'deactivated':
-            (code, message, detail) = self._delete(account_name)
+            (code, message, detail) = self._deactivate(account_name)
             if code == 200:
                 data = payload
         else:

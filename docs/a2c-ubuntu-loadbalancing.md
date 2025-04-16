@@ -1,8 +1,8 @@
 <!-- markdownlint-disable  MD013 -->
-<!-- wiki-title # How to build am acme2certifier cluster on Ubuntu 22.04 -->
-# How to build am acme2certifier cluster on Ubuntu 22.04
+<!-- wiki-title # How to build an acme2certifier cluster on Ubuntu 22.04 -->
+# How to build an acme2certifier cluster on Ubuntu 22.04
 
-This tutorial describes the configuration of a two-node acme2certifier cluster running in active/active configuration. Although both nodes are active at the same time and provide proxy services via different ip-addresses database, configuration and runtime objects will be replicated among the nodes.
+This tutorial describes the configuration of a two-node acme2certifier cluster running in active/active configuration. Although both nodes are active at the same time and provide proxy services via different IP addresses, database, configuration and and runtime objects will be replicated among the nodes.
 
 This setup requires the switch to a different database engine as SQLite, which is the default a2c backend, is not designed to handle concurrent write access, which can happen in an active/active setup. Thus, [MariaDB](https://mariadb.org/) will be used. Configuration files and runtime objects will be replicated using [Lsyncd](https://github.com/lsyncd/lsyncd). The following diagram depicts the application stack to be used.
 
@@ -46,7 +46,7 @@ sudo systemctl is-enabled mariadb
 sudo systemctl status mariadb
 ```
 
-- modify `/etc/mysql/mariadb.conf.d/50-server.cnf` change the ip-binding and add the follwinng lines
+- modify `/etc/mysql/mariadb.conf.d/50-server.cnf` change the ip-binding and add the following lines
 
 ```cfg
 # listen on external address
@@ -61,7 +61,7 @@ log_bin_index          = /var/log/mysql/mariadb-bin.index
 relay_log              = /var/log/mysql/relay-bin
 relay_log_index        = /var/log/mysql/relay-bin.index
 
-# avoiding  primary key collision
+# avoiding primary key collision
 log-slave-updates
 auto_increment_increment=2
 auto_increment_offset=1
@@ -83,7 +83,7 @@ LISTEN   0        80           192.168.14.132:3306            0.0.0.0:*       us
 ...
 ```
 
-- open the mysql commandclient client
+- open the mysql command-line client
 
 ```bash
 sudo mysql -u  root
@@ -127,7 +127,7 @@ sudo systemctl is-enabled mariadb
 sudo systemctl status mariadb
 ```
 
-- modify `/etc/mysql/mariadb.conf.d/50-server.cnf` change the ip-binding and add the follwinng lines
+- modify `/etc/mysql/mariadb.conf.d/50-server.cnf` change the ip-binding and add the following lines
 
 ```cfg
 # listen on external address
@@ -142,7 +142,7 @@ log_bin_index          = /var/log/mysql/mariadb-bin.index
 relay_log              = /var/log/mysql/relay-bin
 relay_log_index        = /var/log/mysql/relay-bin.index
 
-# avoiding  primary key collision
+# avoiding primary key collision
 log-slave-updates
 auto_increment_increment=2
 auto_increment_offset=2
@@ -167,7 +167,7 @@ LISTEN   0        80           192.168.14.133:3306            0.0.0.0:*       us
 ...
 ```
 
-- open the mysql commandclient client
+- open the mysql command-line client
 
 ```bash
 sudo mysql -u  root
@@ -207,13 +207,13 @@ SHOW SLAVE STATUS\G
 
 ### Configure master-master replication on ub2204-c1
 
-- open the mysql commandclient client and create the replication user
+- open the mysql command-line client and create the replication user
 
 ```bash
 sudo mysql -u  root
 ```
 
-- stop the slave and add information about the ub2204-c2 master node as well as the binlog file name and position.
+- stop the slave and add information about the ub2204-c2 master node as well as the binlog filename and position.
 
 ```SQL
 STOP SLAVE;
@@ -425,7 +425,7 @@ sudo systemctl enable lsyncd
 
 ### Test replication
 
-#### test repliasyncronizationtion on ub2204-c1
+#### test repliasynchronizationtion on ub2204-c1
 
 - create a file in `/var/www/acme2certifier/volume` directory
 
@@ -433,9 +433,9 @@ sudo systemctl enable lsyncd
 sudo touch /var/www/acme2certifier/volume/test.txt
 ```
 
-#### test syncronization on ub2204-c2
+#### test synchronization on ub2204-c2
 
-- verify that the '/var/www/acme2certifier/volume/test.txt' has been syncronized to ub2204-c2 (please note that replication can take up to 20s)
+- verify that the '/var/www/acme2certifier/volume/test.txt' has been synchronized to ub2204-c2 (please note that replication can take up to 20s)
 
 ```bash
 sudo ls -la /var/www/acme2certifier/volume
@@ -461,14 +461,14 @@ In case of problem check the logfiles stored in `/var/log/lsyncd` for errors.
 
 ### on both nodes
 
-- Downlaod the [latest deb package](https://github.com/grindsa/acme2certifier/releases)
+- Download the [latest deb package](https://github.com/grindsa/acme2certifier/releases)
 - install the package locally
 
 ```bash
 sudo apt-get install -y ./acme2certifier_<version>-1_all.deb
 ```
 
-- Copy and activete apache2 configuration file
+- Copy and activate apache2 configuration file
 
 ```bash
 sudo cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
@@ -496,7 +496,7 @@ sudo cp /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/a
 sudo cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/
 ```
 
-- move the acme2certifier configuration file `acme_srv.cfg` into the mirrored diectory and create a symbolic link
+- move the acme2certifier configuration file `acme_srv.cfg` into the mirrored directory and create a symbolic link
 
 ```bash
 sudo mv /var/www/acme2certifier/acme_srv/acme_srv.cfg /var/www/acme2certifier/volume/

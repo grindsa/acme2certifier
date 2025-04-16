@@ -66,14 +66,14 @@ sudo apt-get install python3-django python3-psycopg2
 
 ## Install and Configure acme2certifier
 
-- Downlaod the [latest deb package](https://github.com/grindsa/acme2certifier/releases)
+- Download the [latest deb package](https://github.com/grindsa/acme2certifier/releases)
 - Install the package locally
 
 ```bash
 sudo apt-get install -y ./acme2certifier_<version>-1_all.deb
 ```
 
-- Copy and activete Apache2 configuration file
+- Copy and activate Apache2 configuration file
 
 ```bash
 sudo cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
@@ -146,7 +146,7 @@ DATABASES = {
 
 ### Connecting to PostGres
 
-- Modify `/var/www/acme2certifier/acme2certifier/settings.py` and configure your databdatabase connection as below:
+- Modify `/var/www/acme2certifier/acme2certifier/settings.py` and configure your database connection as below:
 
 ```python
 DATABASES = {
@@ -161,9 +161,9 @@ DATABASES = {
 }
 ```
 
-## Finilize acme2cerifier configuration
+## Finalize acme2cerifier configuration
 
-- Create a Django migration set, apply the migrations, and load fixtures: the [configuration file](acme_srv.md) `/var/www/acme2certifier/volume/acme_srv.cfg`according to your needs. If your CA handler needs runtime information (configuration files, keys, certificate bundles, etc.) to be shared between the nodes, ensure they are loaded from `/var/www/acme2certifier/volume`. Below an example for the `[CAhandler]` section of the openssl-handler I use during my tests:
+- Create a Django migration set, apply the migrations, and load fixtures: Modify the [configuration file](acme_srv.md) `/var/www/acme2certifier/volume/acme_srv.cfg`according to your needs. If your CA handler needs runtime information (configuration files, keys, certificate bundles, etc.) to be shared between the nodes, ensure they are loaded from `/var/www/acme2certifier/volume`. Below is an example for the `[CAhandler]` section of the openssl-handler I use during my tests:
 
 ```cfg
 [CAhandler]
@@ -201,7 +201,7 @@ sudo python3 /var/www/acme2certifier/tools/django_update.py
 sudo systemctl restart apache2.service
 ```
 
-- Test the server by accessing the directory ressource
+- Test the server by accessing the directory resource
 
 ```bash
 curl http://ub2204-c1.bar.local/directory
@@ -213,7 +213,7 @@ curl http://ub2204-c1.bar.local/directory
 
 ## Test enrollment
 
-- Try to enroll certificates by using your favorite acme-client. I am using [lego](https://github.com/go-acme/lego).
+- Try to enroll certificates by using your favorite ACME client. I am using [lego](https://github.com/go-acme/lego).
 
 ```bash
  docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://ub2204-c1.bar.local -a --email "lego@example.com" -d lego01.bar.local --http run

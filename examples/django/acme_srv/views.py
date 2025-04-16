@@ -67,7 +67,11 @@ def pretty_request(request):
 def directory(request):
     """ get directory """
     with Directory(DEBUG, get_url(request.META), LOGGER) as cfg_dir:
-        return JsonResponse(cfg_dir.directory_get())
+        response = cfg_dir.directory_get()
+        if 'error' in response:
+            return JsonResponse(status=403, data={'status': 403, 'message': 'Forbidden', 'detail': response['error']})
+        else:
+            return JsonResponse(cfg_dir.directory_get())
 
 
 def newaccount(request):

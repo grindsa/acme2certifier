@@ -1858,7 +1858,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load_cfg.return_value = {}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.certificate._config_load()
-        self.assertIn('ERROR:test_a2c:Helper.ca_handler_load(): CAhandler configuration missing in config file', lcm.output)
+        self.assertIn('ERROR:test_a2c:CAhandler configuration missing in config file', lcm.output)
         self.assertFalse(self.certificate.hooks)
         self.assertFalse(self.certificate.ignore_pre_hook_failure)
         self.assertTrue(self.certificate.ignore_post_hook_failure)

@@ -7,7 +7,7 @@ import json
 from typing import List, Tuple, Dict
 import requests
 # pylint: disable=e0401, r0913
-from acme_srv.helper import load_config, build_pem_file, b64_encode, b64_url_recode, convert_string_to_byte, cert_serial_get, uts_now, parse_url, proxy_check, error_dic_get, uts_to_date_utc, header_info_get, eab_profile_header_info_check, config_eab_profile_load, config_headerinfo_load
+from acme_srv.helper import load_config, build_pem_file, b64_encode, b64_url_recode, convert_string_to_byte, cert_serial_get, uts_now, parse_url, proxy_check, error_dic_get, uts_to_date_utc, header_info_get, eab_profile_header_info_check, config_eab_profile_load, config_headerinfo_load, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check
 
 
 class CAhandler(object):
@@ -31,6 +31,9 @@ class CAhandler(object):
         self.header_info_field = False
         self.eab_handler = None
         self.eab_profiling = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
+        self.allowed_domainlist = []
 
     def __enter__(self):
         """ Makes CAhandler a Context Manager """
@@ -410,10 +413,14 @@ class CAhandler(object):
             self._config_timer_load(config_dic)
 
         self._config_proxy_load(config_dic)
+        # load allowed domainlist
+        self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(self.logger, config_dic)
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
+        # load enrollment config log
+        self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
 
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -437,6 +444,43 @@ class CAhandler(object):
         else:
             self.logger.error('CAhandler._container_id_lookup() no target-system-groups found for filter: %s.', self.container_info_dic['name'])
         self.logger.debug('CAhandler._container_id_lookup() ended with: %s', str(self.container_info_dic['id']))
+
+    def _csr_check(self, csr: str) -> str:
+        """ check csr """
+        self.logger.debug('CAhandler._csr_check()')
+
+        # check for eab profiling and header_info
+        error = eab_profile_header_info_check(self.logger, self, csr, 'profile_id')
+
+        if not error:
+            # check for allowed domainlist
+            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
+
+        self.logger.debug('CAhandler._csr_check() ended with: %s', error)
+        return error
+
+    def _enroll(self, csr: str, ca_id: int) -> Tuple[str, str, str, str]:
+        """ enroll certificate from NCLM """
+        self.logger.debug('CAhandler._enroll()')
+
+        error = None
+        cert_bundle = None
+        cert_raw = None
+        cert_id = None
+
+        if self.enrollment_config_log:
+            self.enrollment_config_log_skip_list.extend(['headers', 'credential_dic'])
+            enrollment_config_log(self.logger, self, self.enrollment_config_log_skip_list)
+
+        if ca_id and self.container_info_dic['id']:
+            # enroll operation
+            (error, cert_bundle, cert_raw, cert_id) = self._cert_enroll(csr, ca_id)
+        else:
+            error = f'Enrollment aborted. ca: {ca_id}, tsg_id: {self.container_info_dic["id"]}'
+            self.logger.error('CAhandler.eroll(): Enrollment aborted. ca_id: %s, container: %s', ca_id, self.container_info_dic['id'])
+
+        self.logger.debug('CAhandler._enroll() ended with: %s', error)
+        return (error, cert_bundle, cert_raw, cert_id)
 
     def _login(self):
         """ _login into NCLM API """
@@ -540,25 +584,6 @@ class CAhandler(object):
 
         self.logger.debug('CAhandler._template_id_lookup() ended with: %s', str(self.template_info_dic['id']))
 
-    def _enroll(self, csr: str, ca_id: int) -> Tuple[str, str, str, str]:
-        """ enroll certificate from NCLM """
-        self.logger.debug('CAhandler._enroll()')
-
-        error = None
-        cert_bundle = None
-        cert_raw = None
-        cert_id = None
-
-        if ca_id and self.container_info_dic['id']:
-            # enroll operation
-            (error, cert_bundle, cert_raw, cert_id) = self._cert_enroll(csr, ca_id)
-        else:
-            error = f'Enrollment aborted. ca: {ca_id}, tsg_id: {self.container_info_dic["id"]}'
-            self.logger.error('CAhandler.eroll(): Enrollment aborted. ca_id: %s, container: %s', ca_id, self.container_info_dic['id'])
-
-        self.logger.debug('CAhandler._enroll() ended with: %s', error)
-        return (error, cert_bundle, cert_raw, cert_id)
-
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """ enroll certificate from NCLM """
         self.logger.debug('CAhandler.enroll()')
@@ -580,8 +605,8 @@ class CAhandler(object):
                 if ca_id and self.template_info_dic['name'] and not self.template_info_dic['id']:
                     self._template_id_lookup(ca_id)
 
-                # check for eab profiling and header_info
-                error = eab_profile_header_info_check(self.logger, self, csr, 'profile_id')
+                error = self._csr_check(csr)
+
                 if not error:
                     (error, cert_bundle, cert_raw, cert_id) = self._enroll(csr, ca_id)
                 else:

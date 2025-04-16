@@ -182,11 +182,18 @@ def newaccount(environ, start_response):
 def directory(environ, start_response):
     """ directory listing """
     with Directory(DEBUG, get_url(environ), LOGGER) as direct_tory:
-        headers = create_header({'code': 200})
-        start_response('200 OK', headers)
-        # logging
-        logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], '')
-        return [json.dumps(direct_tory.directory_get()).encode('utf-8')]
+
+        response_dic = direct_tory.directory_get()
+        if 'error' in response_dic:
+            headers = create_header({'code': 403})
+            start_response(f'403 {HTTP_CODE_DIC[403]}', headers)
+            return [json.dumps({'status': 403, 'message': HTTP_CODE_DIC[403], 'detail': response_dic['error']}).encode('utf-8')]
+        else:
+            headers = create_header({'code': 200})
+            start_response('200 OK', headers)
+            # logging
+            logger_info(LOGGER, environ['REMOTE_ADDR'], environ['PATH_INFO'], '')
+            return [json.dumps(response_dic).encode('utf-8')]
 
 
 def cert(environ, start_response):
@@ -414,14 +421,19 @@ def housekeeping(environ, start_response):
 
 
 def not_found(_environ, start_response):
-    ''' called if no URL matches '''
+    """ called if no URL matches """
     start_response('404 NOT FOUND', [('Content-Type', 'text/plain')])
     return [json.dumps({'status': 404, 'message': HTTP_CODE_DIC[404], 'detail': 'Not Found'}).encode('utf-8')]
 
 
+def redirect(environ, start_response):
+    """ redirect to directory ressource"""
+    start_response('302 Found', [('Location', '/directory')])
+    return []
+
 # map urls to functions
 URLS = [
-    (r'^$', directory),
+    (r'^$', redirect),
     (r'^acme/acct', acct),
     (r'^acme/authz', authz),
     (r'^acme/cert', cert),
