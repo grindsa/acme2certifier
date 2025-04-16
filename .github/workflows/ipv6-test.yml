@@ -122,6 +122,7 @@ jobs:
         mkdir certbot
 
     - name: "Prepare acme_srv.cfg with certifier_ca_handler"
+      if: matrix.execscript == 'rpm_tester.sh'
       uses: ./.github/actions/wf_specific/certifier_ca_handler/certifier_setup_no_profile
       with:
         WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
@@ -134,6 +135,22 @@ jobs:
         NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
         NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
         DATA_PATH: data
+
+    - name: "Prepare acme_srv.cfg with certifier_ca_handler"
+      if: matrix.execscript == 'django_tester.sh'
+      uses: ./.github/actions/wf_specific/certifier_ca_handler/certifier_setup_no_profile
+      with:
+        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
+        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
+        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
+        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        DATA_PATH: data/volume
+
 
     - name: "Execute install scipt"
       run: |
