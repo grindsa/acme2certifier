@@ -26,6 +26,11 @@ jobs:
       run: |
         mkdir lego
 
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
+
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
@@ -55,6 +60,11 @@ jobs:
         ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
         ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
         ASA_PROFILE1: ${{ secrets.ASA_POFILE1 }}
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
 
     - name: "Test http://acme-srv/directory is accessible again"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
@@ -149,6 +159,7 @@ jobs:
         sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
       env:
@@ -162,8 +173,6 @@ jobs:
 
     - name: "${{ secrets.ASA_PROFILE1 }} - enrollment"
       uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_1
-      with:
-        PROFILE: ${{ secrets.ASA_PROFILE1 }}
 
     - name: "Profile ${{ secrets.ASA_PROFILE2 }} - Reconfiguration of a2c with a new profile"
       run: |
@@ -180,6 +189,7 @@ jobs:
         sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "profile_name: $ASA_PROFILE2" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
       env:
@@ -212,6 +222,7 @@ jobs:
         sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
       env:
@@ -357,7 +368,7 @@ jobs:
 
   asa_handler_tests_rpm:
     name: "asa_handler_tests_rpm"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     needs: asa_handler_headerinfo_tests
     strategy:
       fail-fast: false
@@ -397,6 +408,7 @@ jobs:
         sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/acme_srv.cfg
         sudo echo "profile_name: $ASA_PROFILE1" >> data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -429,6 +441,7 @@ jobs:
         sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/acme_srv.cfg
         sudo echo "profile_name: $ASA_PROFILE2" >> data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -462,6 +475,7 @@ jobs:
         sudo echo "profile_name: $ASA_PROFILE1" >> data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
