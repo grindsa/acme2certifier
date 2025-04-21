@@ -173,17 +173,15 @@ class Certificate(object):
         """ load various parameters """
         self.logger.debug('Certificate._config_parameters_load()')
 
-        if 'Certificate' in config_dic:
-            if 'cert_reusage_timeframe' in config_dic['Certificate']:
-                try:
-                    self.cert_reusage_timeframe = int(config_dic['Certificate']['cert_reusage_timeframe'])
-                except Exception as err_:
-                    self.logger.error('acme2certifier Certificate._config_load() cert_reusage_timout parsing error: %s', err_)
-            if 'enrollment_timeout' in config_dic['Certificate']:
-                try:
-                    self.enrollment_timeout = int(config_dic['Certificate']['enrollment_timeout'])
-                except Exception as err_:
-                    self.logger.error('acme2certifier Certificate._config_load() enrollment_timeout parsing error: %s', err_)
+        try:
+            self.cert_reusage_timeframe = int(config_dic.get('Certificate', 'cert_reusage_timeframe', fallback=self.cert_reusage_timeframe))
+        except Exception as err_:
+            self.logger.error('acme2certifier Certificate._config_load() cert_reusage_timout parsing error: %s', err_)
+
+        try:
+            self.enrollment_timeout = int(config_dic.get('Certificate', 'enrollment_timeout', fallback=self.enrollment_timeout))
+        except Exception as err_:
+            self.logger.error('acme2certifier Certificate._config_load() enrollment_timeout parsing error: %s', err_)
 
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}
@@ -194,6 +192,7 @@ class Certificate(object):
         """" load config from file """
         self.logger.debug('Certificate._config_load()')
         config_dic = load_config()
+
         if 'Order' in config_dic:
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
 

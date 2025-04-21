@@ -86,13 +86,13 @@ class CAhandler(object):
 
         if 'user_variable' in config_dic['CAhandler']:
             try:
-                self.user = os.environ[config_dic['CAhandler']['user_variable']]
+                self.user = os.environ[config_dic.get('CAhandler', 'user_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load user_variable:%s', err)
         if 'user' in config_dic['CAhandler']:
             if self.user:
                 self.logger.info('CAhandler._config_load() overwrite user')
-            self.user = config_dic['CAhandler']['user']
+            self.user = config_dic.get('CAhandler', 'user')
 
         self.logger.debug('CAhandler._config_user_load() ended')
 
@@ -102,13 +102,13 @@ class CAhandler(object):
 
         if 'password_variable' in config_dic['CAhandler']:
             try:
-                self.password = os.environ[config_dic['CAhandler']['password_variable']]
+                self.password = os.environ[config_dic.get('CAhandler', 'password_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load password_variable:%s', err)
         if 'password' in config_dic['CAhandler']:
             if self.password:
                 self.logger.info('CAhandler._config_load() overwrite password')
-            self.password = config_dic['CAhandler']['password']
+            self.password = config_dic.get('CAhandler', 'password')
 
         self.logger.debug('CAhandler._config_password_load() ended')
 
@@ -118,25 +118,25 @@ class CAhandler(object):
 
         if 'host_variable' in config_dic['CAhandler']:
             try:
-                self.host = os.environ[config_dic['CAhandler']['host_variable']]
+                self.host = os.environ[config_dic.get('CAhandler', 'host_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load host_variable:%s', err)
         if 'host' in config_dic['CAhandler']:
             if self.host:
                 self.logger.info('CAhandler._config_load() overwrite host')
-            self.host = config_dic['CAhandler']['host']
+            self.host = config_dic.get('CAhandler', 'host')
         self.logger.debug('CAhandler._config_hostname_load() ended')
 
     def _config_url_load(self, config_dic: Dict[str, str]):
         if 'url_variable' in config_dic['CAhandler']:
             try:
-                self.url = os.environ[config_dic['CAhandler']['url_variable']]
+                self.url = os.environ[config_dic.get('CAhandler', 'url_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load url_variable:%s', err)
         if 'url' in config_dic['CAhandler']:
             if self.url:
                 self.logger.info('CAhandler._config_load() overwrite url')
-            self.url = config_dic['CAhandler']['url']
+            self.url = config_dic.get('CAhandler', 'url')
 
         self.logger.debug('CAhandler._config_url_load() ended')
 
@@ -144,16 +144,12 @@ class CAhandler(object):
         """ load hostname """
         self.logger.debug('CAhandler._config_parameters_load()')
 
-        if 'template' in config_dic['CAhandler']:
-            self.template = config_dic['CAhandler']['template']
+        self.template = config_dic.get('CAhandler', 'template', fallback=self.template)
         if 'auth_method' in config_dic['CAhandler'] and config_dic['CAhandler']['auth_method'] in ['basic', 'ntlm', 'gssapi']:
-            self.auth_method = config_dic['CAhandler']['auth_method']
+            self.auth_method = config_dic.get('CAhandler', 'auth_method')
         # check if we get a ca bundle for verification
-        if 'ca_bundle' in config_dic['CAhandler']:
-            self.ca_bundle = config_dic['CAhandler']['ca_bundle']
-        if 'krb5_config' in config_dic['CAhandler']:
-            self.krb5_config = config_dic['CAhandler']['krb5_config']
-
+        self.ca_bundle = config_dic.get('CAhandler', 'ca_bundle', fallback=self.ca_bundle)
+        self.krb5_config = config_dic.get('CAhandler', 'krb5_config', fallback=self.krb5_config)
         self.verify = config_dic.getboolean('CAhandler', 'verify', fallback=True)
 
         # load enrollment config log
@@ -169,7 +165,7 @@ class CAhandler(object):
 
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
             try:
-                proxy_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
+                proxy_list = json.loads(config_dic.get('DEFAULT', 'proxy_server_list'))
                 proxy_server = proxy_check(self.logger, self.host, proxy_list)
                 self.proxy = {'http': proxy_server, 'https': proxy_server}
             except Exception as err_:

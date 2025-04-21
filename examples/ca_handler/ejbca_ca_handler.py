@@ -65,13 +65,16 @@ class CAhandler(object):
 
         if 'CAhandler' in config_dic:
 
-            self.api_host = config_dic['CAhandler'].get('api_host', None)
+            self.api_host = config_dic.get('CAhandler', 'api_host', fallback=None)
             try:
-                self.request_timeout = int(config_dic['CAhandler'].get('request_timeout', 5))
+                self.request_timeout = int(config_dic.get('CAhandler', 'request_timeout', fallback=5))
             except Exception as err:
                 self.logger.error('CAhandler._config_server_load() could not load request_timeout:%s', err)
                 self.request_timeout = 5
-            self.ca_bundle = config_dic['CAhandler'].get('ca_bundle', True)
+
+            self.ca_bundle = config_dic.get('CAhandler', 'ca_bundle', fallback=True)
+            if self.ca_bundle == 'False':
+                self.ca_bundle = False
 
         self.logger.debug('CAhandler._config_server_load() ended')
 
@@ -80,14 +83,14 @@ class CAhandler(object):
         if 'username_variable' in config_dic['CAhandler'] or 'username' in config_dic['CAhandler']:
             if 'username_variable' in config_dic['CAhandler']:
                 try:
-                    self.username = os.environ[config_dic['CAhandler']['username_variable']]
+                    self.username = os.environ[config_dic.get('CAhandler', 'username_variable', fallback=None)]
                 except Exception as err:
                     self.logger.error('CAhandler._config_authuser_load() could not load username_variable:%s', err)
 
             if 'username' in config_dic['CAhandler']:
                 if self.username:
                     self.logger.info('CAhandler._config_load() overwrite username')
-                self.username = config_dic['CAhandler']['username']
+                self.username = config_dic.get('CAhandler', 'username', fallback=None)
         else:
             self.logger.error('CAhandler._config_authuser_load() configuration incomplete: "username" parameter is missing in config file')
 
@@ -98,14 +101,14 @@ class CAhandler(object):
         if 'enrollment_code_variable' in config_dic['CAhandler'] or 'enrollment_code' in config_dic['CAhandler']:
             if 'enrollment_code_variable' in config_dic['CAhandler']:
                 try:
-                    self.enrollment_code = os.environ[config_dic['CAhandler']['enrollment_code_variable']]
+                    self.enrollment_code = os.environ[config_dic.get('CAhandler', 'enrollment_code_variable')]
                 except Exception as err:
                     self.logger.error('CAhandler._config_authuser_load() could not load enrollment_code_variable:%s', err)
 
             if 'enrollment_code' in config_dic['CAhandler']:
                 if self.enrollment_code:
                     self.logger.info('CAhandler._config_load() overwrite enrollment_code')
-                self.enrollment_code = config_dic['CAhandler']['enrollment_code']
+                self.enrollment_code = config_dic.get('CAhandler', 'enrollment_code')
         else:
             self.logger.error('CAhandler._config_authuser_load() configuration incomplete: "enrollment_code" parameter is missing in config file')
 
@@ -117,14 +120,14 @@ class CAhandler(object):
         if 'cert_passphrase_variable' in config_dic['CAhandler'] or 'cert_passphrase' in config_dic['CAhandler']:
             if 'cert_passphrase_variable' in config_dic['CAhandler']:
                 try:
-                    self.cert_passphrase = os.environ[config_dic['CAhandler']['cert_passphrase_variable']]
+                    self.cert_passphrase = os.environ[config_dic.get('CAhandler', 'cert_passphrase_variable', fallback=None)]
                 except Exception as err:
                     self.logger.error('CAhandler._config_authuser_load() could not load cert_passphrase_variable:%s', err)
 
             if 'cert_passphrase' in config_dic['CAhandler']:
                 if self.cert_passphrase:
                     self.logger.info('CAhandler._config_load() overwrite cert_passphrase')
-                self.cert_passphrase = config_dic['CAhandler']['cert_passphrase']
+                self.cert_passphrase = config_dic.get('CAhandler', 'cert_passphrase')
 
         if config_dic and 'cert_file' in config_dic['CAhandler'] and self.cert_passphrase:
             with requests.Session() as self.session:
@@ -151,9 +154,9 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_cainfo_load()')
 
         if 'CAhandler' in config_dic:
-            self.ca_name = config_dic['CAhandler'].get('ca_name', None)
-            self.cert_profile_name = config_dic['CAhandler'].get('cert_profile_name', None)
-            self.ee_profile_name = config_dic['CAhandler'].get('ee_profile_name', None)
+            self.ca_name = config_dic.get('CAhandler', 'ca_name', fallback=self.ca_name)
+            self.cert_profile_name = config_dic.get('CAhandler', 'cert_profile_name', fallback=self.cert_profile_name)
+            self.ee_profile_name = config_dic.get('CAhandler', 'ee_profile_name', fallback=self.ee_profile_name)
 
         self.logger.debug('CAhandler._config_cainfo_load() ended')
 

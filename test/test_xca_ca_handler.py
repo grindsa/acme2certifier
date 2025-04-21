@@ -10,6 +10,7 @@ from unittest.mock import patch, Mock, MagicMock
 import shutil
 from cryptography import x509
 from cryptography.x509 import BasicConstraints, ExtendedKeyUsage, SubjectKeyIdentifier, AuthorityKeyIdentifier, KeyUsage, SubjectAlternativeName
+import configparser
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
@@ -644,7 +645,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.load_config')
     def test_082_config_load(self, mock_load_cfg):
         """ test _config_load - ca_chain is not json format """
-        mock_load_cfg.return_value = {'CAhandler': {'ca_cert_chain_list': '[foo]'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'ca_cert_chain_list': '[foo]'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.ca_cert_chain_list)
@@ -653,35 +656,45 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.load_config')
     def test_083_config_load(self, mock_load_cfg):
         """ test _config_load - load template """
-        mock_load_cfg.return_value = {'CAhandler': {'template_name': 'foo'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'template_name': 'foo'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('foo', self.cahandler.template_name)
 
     @patch('examples.ca_handler.xca_ca_handler.load_config')
     def test_084_config_load(self, mock_load_cfg):
         """ test _config_load - load template """
-        mock_load_cfg.return_value = {'CAhandler': {'xdb_file': 'foo'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'xdb_file': 'foo'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('foo', self.cahandler.xdb_file)
 
     @patch('examples.ca_handler.xca_ca_handler.load_config')
     def test_085_config_load(self, mock_load_cfg):
         """ test _config_load - load template """
-        mock_load_cfg.return_value = {'CAhandler': {'passphrase': 'foo'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'passphrase': 'foo'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('foo', self.cahandler.passphrase)
 
     @patch('examples.ca_handler.xca_ca_handler.load_config')
     def test_086_config_load(self, mock_load_cfg):
         """ test _config_load - load template """
-        mock_load_cfg.return_value = {'CAhandler': {'issuing_ca_name': 'foo'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] =  {'issuing_ca_name': 'foo'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('foo', self.cahandler.issuing_ca_name)
 
     @patch('examples.ca_handler.xca_ca_handler.load_config')
     def test_087_config_load(self, mock_load_cfg):
         """ test _config_load - load template """
-        mock_load_cfg.return_value = {'CAhandler': {'issuing_ca_key': 'foo'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'issuing_ca_key': 'foo'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('foo', self.cahandler.issuing_ca_key)
 
@@ -689,7 +702,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.load_config')
     def test_088_config_load(self, mock_load_cfg):
         """ test _config_load - load template with passphrase variable """
-        mock_load_cfg.return_value = {'CAhandler': {'passphrase_variable': 'foo'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'passphrase_variable': 'foo'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('foo_var', self.cahandler.passphrase)
 
@@ -697,7 +712,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.load_config')
     def test_089_config_load(self, mock_load_cfg):
         """ test _config_load - load template passpharese variable configured but does not exist """
-        mock_load_cfg.return_value = {'CAhandler': {'passphrase_variable': 'does_not_exist'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'passphrase_variable': 'does_not_exist'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.passphrase)
@@ -707,7 +724,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.load_config')
     def test_090_config_load(self, mock_load_cfg):
         """ test _config_load - load template with passphrase variable  - overwritten bei cfg file"""
-        mock_load_cfg.return_value = {'CAhandler': {'passphrase_variable': 'foo', 'passphrase': 'foo_file'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'passphrase_variable': 'foo', 'passphrase': 'foo_file'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertEqual('foo_file', self.cahandler.passphrase)
@@ -1520,7 +1539,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_193_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_adl, mock_db):
+    def test_183_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_adl, mock_db):
         """ test enroll() """
         mock_db.return_value = 'mock_db'
         mock_chk.return_value = None
@@ -1548,7 +1567,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_183_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_adl, mock_db):
+    def test_184_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_adl, mock_db):
         """ test enroll() """
         mock_db.return_value = None
         mock_chk.return_value = None
@@ -1576,7 +1595,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_184_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_adl, mock_db):
+    def test_185_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_adl, mock_db):
         """ test enroll() """
         mock_db.return_value = None
         mock_chk.return_value = None
@@ -1603,7 +1622,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_185_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
+    def test_186_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
         """ test enroll() """
         mock_db.return_value = None
         mock_chk.return_value = None
@@ -1628,7 +1647,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_186_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
+    def test_187_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
         """ test enroll() """
         mock_db.return_value = None
         mock_chk.return_value = None
@@ -1654,7 +1673,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_187_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
+    def test_188_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
         """ test enroll() """
         mock_db.return_value = None
         mock_chk.return_value = None
@@ -1680,7 +1699,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_188_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
+    def test_189_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
         """ test enroll() """
         mock_db.return_value = None
         mock_chk.return_value = None
@@ -1706,7 +1725,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_189_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
+    def test_190_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
         """ test enroll() """
         mock_db.return_value = None
         mock_chk.return_value = None
@@ -1733,7 +1752,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._csr_import')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._requestname_get')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._config_check')
-    def test_190_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
+    def test_191_enroll(self, mock_chk, mock_reqname, mock_csr, mock_b64, mock_build, mock_ca, mock_sign, mock_prof, mock_db):
         """ test enroll() """
         mock_db.return_value = None
         mock_chk.return_value = None
@@ -1762,7 +1781,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.x509.load_pem_x509_csr')
     @patch('examples.ca_handler.xca_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._template_load')
-    def test_191_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder, mock_ecl):
+    def test_192_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder, mock_ecl):
         """ test cert sign """
         ca_cert = Mock()
         ca_cert.subject = 'subject'
@@ -1794,7 +1813,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.x509.load_pem_x509_csr')
     @patch('examples.ca_handler.xca_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._template_load')
-    def test_192_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder, mock_ecl):
+    def test_193_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder, mock_ecl):
         """ test cert sign """
         ca_cert = Mock()
         ca_cert.subject = 'subject'
@@ -1828,7 +1847,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.x509.load_pem_x509_csr')
     @patch('examples.ca_handler.xca_ca_handler.convert_string_to_byte')
     @patch('examples.ca_handler.xca_ca_handler.CAhandler._template_load')
-    def test_193_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder):
+    def test_194_cert_sign(self, mock_teml_load, mock_str2byte, mock_load, mock_extlist, mock_hash, mock_store, mock_chain, mock_cvt, mock_b64, mock_builder):
         """ test cert sign """
         ca_cert = Mock()
         ca_cert.subject = 'subject'
@@ -1859,7 +1878,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_194_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_195_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'foo': 'bar'}
@@ -1891,7 +1910,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_195_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_196_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'foo': 'bar'}
@@ -1923,7 +1942,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_196_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_197_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'crlDist': 'crlDist'}
@@ -1956,7 +1975,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_197_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_198_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'ca': '1', 'bcCritical': True}
@@ -1989,7 +2008,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_198_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_199_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'ca': '1', 'bcCritical': False}
@@ -2022,7 +2041,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_199_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_200_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'ca': '1', 'bcCritical': 'aa'}
@@ -2055,7 +2074,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_200_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_201_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'ca': '2', 'bcCritical': 'aa'}
@@ -2088,7 +2107,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.KeyUsage')
     @patch('examples.ca_handler.xca_ca_handler.AuthorityKeyIdentifier')
     @patch('examples.ca_handler.xca_ca_handler.SubjectKeyIdentifier')
-    def test_201_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
+    def test_202_xca_template_process(self, mock_ski, mock_aki, mock_ku, mock_eku, mock_crl, mock_bc, mock_kug, mock_cdp, mock_ekug):
         """ test _xca_template_process() """
         csr_extensions_dic = {}
         template_dic = {'ca': '1'}
@@ -2116,7 +2135,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.oct')
     @patch('os.access')
     @patch('os.stat')
-    def test_202_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+    def test_203_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
         """ test _db_check() """
         self.cahandler.xdb_file = 'xdb_file'
         mock_stat.return_value.st_mode = 2222
@@ -2129,7 +2148,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.oct')
     @patch('os.access')
     @patch('os.stat')
-    def test_203_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+    def test_204_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
         """ test _db_check() """
         self.cahandler.xdb_file = 'xdb_file'
         mock_stat.return_value.st_mode = 2222
@@ -2143,7 +2162,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.oct')
     @patch('os.access')
     @patch('os.stat')
-    def test_204_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+    def test_205_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
         """ test _db_check() """
         self.cahandler.xdb_file = 'xdb_file'
         mock_stat.return_value.st_mode = 2222
@@ -2157,7 +2176,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.oct')
     @patch('os.access')
     @patch('os.stat')
-    def test_205_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+    def test_206_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
         """ test _db_check() """
         self.cahandler.xdb_file = 'xdb_file'
         mock_stat.return_value.st_mode = 2222
@@ -2170,7 +2189,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.oct')
     @patch('os.access')
     @patch('os.stat')
-    def test_206_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+    def test_207_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
         """ test _db_check() """
         self.cahandler.xdb_file = 'xdb_file'
         mock_stat.return_value.st_mode = 2222
@@ -2188,7 +2207,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.oct')
     @patch('os.access')
     @patch('os.stat')
-    def test_207_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+    def test_208_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
         """ test _db_check() """
         self.cahandler.xdb_file = 'xdb_file'
         mock_stat.return_value.st_mode = 2222
@@ -2206,7 +2225,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.xca_ca_handler.oct')
     @patch('os.access')
     @patch('os.stat')
-    def test_208_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
+    def test_209_db_check(self, mock_stat, mock_access, mock_oct, mock_load):
         """ test _db_check() """
         self.cahandler.xdb_file = 'xdb_file'
         mock_stat.return_value.st_mode = 2222

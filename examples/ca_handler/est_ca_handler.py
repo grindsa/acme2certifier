@@ -88,13 +88,13 @@ class CAhandler(object):
 
         if 'est_host_variable' in config_dic['CAhandler']:
             try:
-                self.est_host = os.environ[config_dic['CAhandler']['est_host_variable']] + '/.well-known/est'
+                self.est_host = os.environ[config_dic.get('CAhandler', 'est_host_variable')] + '/.well-known/est'
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load est_host_variable:%s', err)
         if 'est_host' in config_dic['CAhandler']:
             if self.est_host:
                 self.logger.info('CAhandler._config_load() overwrite est_host')
-            self.est_host = config_dic['CAhandler']['est_host'] + '/.well-known/est'
+            self.est_host = config_dic.get('CAhandler', 'est_host') + '/.well-known/est'
         if not self.est_host:
             self.logger.error('CAhandler._config_load(): missing "est_host" parameter')
 
@@ -105,13 +105,13 @@ class CAhandler(object):
         self.logger.debug('CAhandler._cert_passphrase_load()')
         if 'cert_passphrase_variable' in config_dic['CAhandler']:
             try:
-                self.cert_passphrase = os.environ[config_dic['CAhandler']['cert_passphrase_variable']]
+                self.cert_passphrase = os.environ[config_dic.get('CAhandler', 'cert_passphrase_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_authuser_load() could not load cert_passphrase_variable:%s', err)
         if 'cert_passphrase' in config_dic['CAhandler']:
             if self.cert_passphrase:
                 self.logger.info('CAhandler._config_load() overwrite cert_passphrase')
-            self.cert_passphrase = config_dic['CAhandler']['cert_passphrase']
+            self.cert_passphrase = config_dic.get('CAhandler', 'cert_passphrase')
         self.logger.debug('CAhandler._cert_passphrase_load() ended')
 
     def _config_clientauth_load(self, config_dic: Dict[str, str]):
@@ -122,13 +122,13 @@ class CAhandler(object):
         if 'est_client_cert' in config_dic['CAhandler']:
             if 'est_client_key' in config_dic['CAhandler']:
                 self.logger.debug('CAhandler._config_clientauth_load(): load pem')
-                self.est_client_cert = config_dic['CAhandler']['est_client_cert']
-                self.session.cert = (config_dic['CAhandler']['est_client_cert'], config_dic['CAhandler']['est_client_key'])
+                self.est_client_cert = config_dic.get('CAhandler', 'est_client_cert', fallback=self.est_client_cert)
+                self.session.cert = (config_dic.get('CAhandler', 'est_client_cert'), config_dic.get('CAhandler', 'est_client_key'))
             elif 'cert_passphrase' in config_dic['CAhandler'] or 'cert_passphrase_variable' in config_dic['CAhandler']:
                 self.logger.debug('CAhandler._config_clientauth_load(): load pkcs12')
-                self.est_client_cert = config_dic['CAhandler']['est_client_cert']
+                self.est_client_cert = config_dic.get('CAhandler', 'est_client_cert')
                 self._cert_passphrase_load(config_dic)
-                self.session.mount(self.est_host, Pkcs12Adapter(pkcs12_filename=config_dic['CAhandler']['est_client_cert'], pkcs12_password=self.cert_passphrase))
+                self.session.mount(self.est_host, Pkcs12Adapter(pkcs12_filename=config_dic.get('CAhandler', 'est_client_cert'), pkcs12_password=self.cert_passphrase))
             else:
                 self.logger.error('ERROR:test_a2c:CAhandler._config_load() clientauth configuration incomplete: either "est_client_key or "cert_passphrase" parameter is missing in config file')
 
@@ -140,13 +140,13 @@ class CAhandler(object):
 
         if 'est_user_variable' in config_dic['CAhandler']:
             try:
-                self.est_user = os.environ[config_dic['CAhandler']['est_user_variable']]
+                self.est_user = os.environ[config_dic.get('CAhandler', 'est_user_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load est_user_variable:%s', err)
         if 'est_user' in config_dic['CAhandler']:
             if self.est_user:
                 self.logger.info('CAhandler._config_load() overwrite est_user')
-            self.est_user = config_dic['CAhandler']['est_user']
+            self.est_user = config_dic.get('CAhandler', 'est_user')
 
         self.logger.debug('CAhandler._config_userauth_load() ended')
 
@@ -156,13 +156,13 @@ class CAhandler(object):
 
         if 'est_password_variable' in config_dic['CAhandler']:
             try:
-                self.est_password = os.environ[config_dic['CAhandler']['est_password_variable']]
+                self.est_password = os.environ[config_dic.get('CAhandler', 'est_password_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load est_password:%s', err)
         if 'est_password' in config_dic['CAhandler']:
             if self.est_password:
                 self.logger.info('CAhandler._config_load() overwrite est_password')
-            self.est_password = config_dic['CAhandler']['est_password']
+            self.est_password = config_dic.get('CAhandler', 'est_password')
 
         if (self.est_user and not self.est_password) or (self.est_password and not self.est_user):
             self.logger.error('CAhandler._config_load() configuration incomplete: either "est_user" or "est_password" parameter is missing in config file')
@@ -174,18 +174,15 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_load()')
 
         # check if we get a ca bundle for verification
-        if 'ca_bundle' in config_dic['CAhandler']:
-            try:
-                self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
-            except Exception:
-                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+        try:
+            self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
+        except Exception:
+            self.ca_bundle = config_dic.get('CAhandler', 'ca_bundle', fallback=self.ca_bundle)
 
-        if 'request_timeout' in config_dic['CAhandler']:
-            try:
-                self.request_timeout = int(config_dic['CAhandler']['request_timeout'])
-            except Exception:
-                self.logger.error('CAhandler._config_load() could not load request_timeout:%s', config_dic['CAhandler']['request_timeout'])
-                self.request_timeout = 20
+        try:
+            self.request_timeout = int(config_dic.get('CAhandler', 'request_timeout', fallback=self.request_timeout))
+        except Exception:
+            self.logger.error('CAhandler._config_load() could not load request_timeout:%s', config_dic.get('CAhandler', 'request_timeout'))
 
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -195,7 +192,7 @@ class CAhandler(object):
 
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
             try:
-                proxy_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
+                proxy_list = json.loads(config_dic.get('DEFAULT', 'proxy_server_list'))
                 url_dic = parse_url(self.logger, self.est_host)
                 if 'host' in url_dic:
                     (fqdn, _port) = url_dic['host'].split(':')

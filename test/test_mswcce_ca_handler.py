@@ -32,7 +32,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mswcce_ca_handler.load_config')
     def test_002_config_load(self, mock_load_cfg):
         """ test _config_load no cahandler section """
-        mock_load_cfg.return_value = {}
+        parser = configparser.ConfigParser()
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)

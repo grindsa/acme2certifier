@@ -335,15 +335,15 @@ class CAhandler(object):
 
         if 'CAhandler' in config_dic:
             cfg_dic = dict(config_dic['CAhandler'])
-            self.xdb_file = cfg_dic.get('xdb_file', None)
-            self.xdb_permission = cfg_dic.get('xdb_permission', '660')
-            self.issuing_ca_name = cfg_dic.get('issuing_ca_name', None)
-            self.issuing_ca_key = cfg_dic.get('issuing_ca_key', None)
-            self.template_name = cfg_dic.get('template_name', None)
+            self.xdb_file = config_dic.get('CAhandler', 'xdb_file', fallback=self.xdb_file)
+            self.xdb_permission = config_dic.get('CAhandler', 'xdb_permission', fallback=self.xdb_permission)
+            self.issuing_ca_name = config_dic.get('CAhandler', 'issuing_ca_name', fallback=self.issuing_ca_name)
+            self.issuing_ca_key = config_dic.get('CAhandler', 'issuing_ca_key', fallback=self.issuing_ca_key)
+            self.template_name = config_dic.get('CAhandler', 'template_name', fallback=self.template_name)
 
         if 'passphrase_variable' in config_dic['CAhandler']:
             try:
-                self.passphrase = os.environ[config_dic['CAhandler']['passphrase_variable']]
+                self.passphrase = os.environ[config_dic.get('CAhandler', 'passphrase_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load passphrase_variable:%s', err)
 
@@ -351,11 +351,11 @@ class CAhandler(object):
             # overwrite passphrase specified in variable
             if self.passphrase:
                 self.logger.info('CAhandler._config_load() overwrite passphrase_variable')
-            self.passphrase = config_dic['CAhandler']['passphrase']
+            self.passphrase = config_dic.get('CAhandler', 'passphrase')
 
         if 'ca_cert_chain_list' in config_dic['CAhandler']:
             try:
-                self.ca_cert_chain_list = json.loads(config_dic['CAhandler']['ca_cert_chain_list'])
+                self.ca_cert_chain_list = json.loads(config_dic.get('CAhandler', 'ca_cert_chain_list'))
             except Exception:
                 self.logger.error('CAhandler._config_load(): parameter "ca_cert_chain_list" cannot be loaded')
 
