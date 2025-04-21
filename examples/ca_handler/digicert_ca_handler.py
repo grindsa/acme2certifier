@@ -95,19 +95,22 @@ class CAhandler(object):
 
         config_dic = load_config(self.logger, 'CAhandler')
         if 'CAhandler' in config_dic:
-            cfg_dic = dict(config_dic['CAhandler'])
-            self.api_url = cfg_dic.get('api_url', 'https://www.digicert.com/services/v2/')
-            self.api_key = cfg_dic.get('api_key', None)
-            self.cert_type = cfg_dic.get('cert_type', 'ssl_basic')
-            self.signature_hash = cfg_dic.get('signature_hash', 'sha256')
-            self.order_validity = cfg_dic.get('order_validity', 1)
+            self.api_url = config_dic.get('CAhandler', 'api_url', fallback='https://www.digicert.com/services/v2/')
+            self.api_key = config_dic.get('CAhandler', 'api_key', fallback=self.api_key)
+            self.cert_type = config_dic.get('CAhandler', 'cert_type', fallback='ssl_basic')
+            self.signature_hash = config_dic.get('CAhandler', 'signature_hash', fallback='sha256')
             try:
-                self.request_timeout = int(cfg_dic.get('request_timeout', 10))
+                self.order_validity = int(config_dic.get('CAhandler', 'order_validity', fallback=1))
+            except Exception as err:
+                self.logger.error('CAhandler._config_server_load() could not load order_validity:%s', err)
+
+            try:
+                self.request_timeout = int(config_dic.get('CAhandler', 'request_timeout', fallback=10))
             except Exception as err:
                 self.logger.error('CAhandler._config_server_load() could not load request_timeout:%s', err)
                 self.request_timeout = 10
-            self.organization_id = cfg_dic.get('organization_id', None)
-            self.organization_name = cfg_dic.get('organization_name', None)
+            self.organization_id = config_dic.get('CAhandler', 'organization_id', fallback=self.organization_id)
+            self.organization_name = config_dic.get('CAhandler', 'organization_name', fallback=self.organization_name)
 
         # load allowed domainlist
         self.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)

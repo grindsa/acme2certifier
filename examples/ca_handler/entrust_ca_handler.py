@@ -134,21 +134,20 @@ class CAhandler(object):
 
         config_dic = load_config(self.logger, 'CAhandler')
         if 'CAhandler' in config_dic:
-            cfg_dic = dict(config_dic['CAhandler'])
-            self.api_url = cfg_dic.get('api_url', 'https://api.entrust.net/enterprise/v2')
+            self.api_url = config_dic.get('CAhandler', 'api_url', fallback='https://api.entrust.net/enterprise/v2')
             try:
-                self.request_timeout = int(cfg_dic.get('request_timeout', 10))
+                self.request_timeout = int(config_dic.get('CAhandler', 'request_timeout', fallback=self.request_timeout))
             except Exception as err:
                 self.logger.error('CAhandler._config_load(): failed to parse request_timeout %s', err)
             try:
-                self.cert_validity_days = int(cfg_dic.get('cert_validity_days', 365))
+                self.cert_validity_days = int(config_dic.get('CAhandler', 'cert_validity_days', fallback=self.cert_validity_days))
             except Exception as err:
                 self.logger.error('CAhandler._config_load(): failed to parse cert_validity_days %s', err)
 
-            self.username = cfg_dic.get('username', None)
-            self.password = cfg_dic.get('password', None)
-            self.organization_name = cfg_dic.get('organization_name', None)
-            self.certtype = cfg_dic.get('certtype', 'STANDARD_SSL')
+            self.username = config_dic.get('CAhandler', 'username', fallback=self.username)
+            self.password = config_dic.get('CAhandler', 'password', fallback=self.password)
+            self.organization_name = config_dic.get('CAhandler', 'organization_name', fallback=self.organization_name)
+            self.certtype = config_dic.get('CAhandler', 'certtype', fallback='STANDARD_SSL')
             self._config_session_load(config_dic)
 
             # load root CA
@@ -172,7 +171,7 @@ class CAhandler(object):
             if 'cert_passphrase_variable' in config_dic['CAhandler']:
                 self.logger.debug('CAhandler._config_passphrase_load(): load passphrase from environment variable')
                 try:
-                    self.cert_passphrase = os.environ[config_dic['CAhandler']['cert_passphrase_variable']]
+                    self.cert_passphrase = os.environ[config_dic.get('CAhandler', 'cert_passphrase_variable', fallback=self.cert_passphrase)]
                 except Exception as err:
                     self.logger.error('CAhandler._config_passphrase_load() could not load cert_passphrase_variable:%s', err)
 
@@ -180,7 +179,7 @@ class CAhandler(object):
                 self.logger.debug('CAhandler._config_passphrase_load(): load passphrase from config file')
                 if self.cert_passphrase:
                     self.logger.info('CAhandler._config_load() overwrite cert_passphrase')
-                self.cert_passphrase = config_dic['CAhandler']['cert_passphrase']
+                self.cert_passphrase = config_dic.get('CAhandler', 'cert_passphrase', fallback=self.cert_passphrase)
         self.logger.debug('CAhandler._config_passphrase_load() ended')
 
     def _config_root_load(self, config_dic: Dict[str, str]):
@@ -189,7 +188,7 @@ class CAhandler(object):
         if 'entrust_root_cert' in config_dic['CAhandler']:
             if os.path.isfile(config_dic['CAhandler']['entrust_root_cert']):
                 self.logger.debug('CAhandler._config_root_load(): load root CA from config file')
-                with open(config_dic['CAhandler']['entrust_root_cert'], 'r', encoding='utf8') as ca_file:
+                with open(config_dic.get('CAhandler', 'entrust_root_cert'), 'r', encoding='utf8') as ca_file:
                     self.entrust_root_cert = ca_file.read()
             else:
                 self.logger.error('CAhandler._config_root_load(): root CA file configured but not not found. Using default one.')
@@ -204,13 +203,13 @@ class CAhandler(object):
             # client auth via pem files
             if 'client_cert' in config_dic['CAhandler'] and 'client_key' in config_dic['CAhandler']:
                 self.logger.debug('CAhandler._config_session_load() cert and key in pem format')
-                self.session.cert = (config_dic['CAhandler']['client_cert'], config_dic['CAhandler']['client_key'])
+                self.session.cert = (config_dic.get('CAhandler', 'client_cert'), config_dic.get('CAhandler', 'client_key'))
 
             else:
                 self._config_passphrase_load(config_dic)
                 if 'client_cert' in config_dic['CAhandler'] and self.cert_passphrase:
                     self.logger.debug('CAhandler._config_session_load() cert and passphrase')
-                    self.session.mount(self.api_url, Pkcs12Adapter(pkcs12_filename=config_dic['CAhandler']['client_cert'], pkcs12_password=self.cert_passphrase))
+                    self.session.mount(self.api_url, Pkcs12Adapter(pkcs12_filename=config_dic.get('CAhandler', 'client_cert'), pkcs12_password=self.cert_passphrase))
                 else:
                     self.logger.warning('CAhandler._config_load() configuration might be incomplete: "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file')
             self.session.auth = (self.username, self.password)

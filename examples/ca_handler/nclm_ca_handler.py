@@ -317,13 +317,13 @@ class CAhandler(object):
 
         if 'api_user_variable' in config_dic['CAhandler']:
             try:
-                self.credential_dic['api_user'] = os.environ[config_dic['CAhandler']['api_user_variable']]
+                self.credential_dic['api_user'] = os.environ[config_dic.get('CAhandler', 'api_user_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load user_variable:%s', err)
         if 'api_user' in config_dic['CAhandler']:
             if self.credential_dic['api_user']:
                 self.logger.info('CAhandler._config_load() overwrite api_user')
-            self.credential_dic['api_user'] = config_dic['CAhandler']['api_user']
+            self.credential_dic['api_user'] = config_dic.get('CAhandler', 'api_user')
 
         self.logger.debug('CAhandler._config_api_user_load() ended.')
 
@@ -333,13 +333,13 @@ class CAhandler(object):
 
         if 'api_password_variable' in config_dic['CAhandler']:
             try:
-                self.credential_dic['api_password'] = os.environ[config_dic['CAhandler']['api_password_variable']]
+                self.credential_dic['api_password'] = os.environ[config_dic.get('CAhandler', 'api_password_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load password_variable:%s', err)
         if 'api_password' in config_dic['CAhandler']:
             if self.credential_dic['api_password']:
                 self.logger.info('CAhandler._config_load() overwrite api_password')
-            self.credential_dic['api_password'] = config_dic['CAhandler']['api_password']
+            self.credential_dic['api_password'] = config_dic.get('CAhandler', 'api_password')
 
         self.logger.debug('CAhandler._config_api_password_load() ended')
 
@@ -347,20 +347,15 @@ class CAhandler(object):
         """ load names from config"""
         self.logger.debug('CAhandler._config_names_load()')
 
-        if 'api_host' in config_dic['CAhandler']:
-            self.api_host = config_dic['CAhandler']['api_host']
-
-        if 'ca_name' in config_dic['CAhandler']:
-            self.ca_name = config_dic['CAhandler']['ca_name']
-
-        if 'tsg_name' in config_dic['CAhandler']:
-            self.container_info_dic['name'] = config_dic['CAhandler']['tsg_name']
-
+        self.api_host = config_dic.get('CAhandler', 'api_host', fallback=self.api_host)
+        self.ca_name = config_dic.get('CAhandler', 'ca_name', fallback=self.ca_name)
+        self.template_info_dic['name'] = config_dic.get('CAhandler', 'template_name', fallback=None)
         if 'container_name' in config_dic['CAhandler']:
-            self.container_info_dic['name'] = config_dic['CAhandler']['container_name']
-
-        if 'template_name' in config_dic['CAhandler']:
-            self.template_info_dic['name'] = config_dic['CAhandler']['template_name']
+            self.container_info_dic['name'] = config_dic.get('CAhandler', 'container_name', fallback=None)
+        elif 'tsg_name' in config_dic['CAhandler']:
+            # for backwards compatibility
+            self.logger.warning('CAhandler._config_names_load() tsg_name is deprecated. Use container_name instead.')
+            self.container_info_dic['name'] = config_dic.get('CAhandler', 'tsg_name', fallback=None)
 
         self.logger.debug('CAhandler._config_names_load() ended')
 
@@ -370,7 +365,7 @@ class CAhandler(object):
 
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
             try:
-                proxy_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
+                proxy_list = json.loads(config_dic.get('DEFAULT', 'proxy_server_list'))
                 url_dic = parse_url(self.logger, self.api_host)
                 if 'host' in url_dic:
                     (fqdn, _port) = url_dic['host'].split(':')
@@ -390,11 +385,11 @@ class CAhandler(object):
             try:
                 self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
             except Exception:
-                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+                self.ca_bundle = config_dic.get('CAhandler', 'ca_bundle', fallback=self.ca_bundle)
 
         if 'request_timeout' in config_dic['CAhandler']:
             try:
-                self.request_timeout = int(config_dic['CAhandler']['request_timeout'])
+                self.request_timeout = int(config_dic.get('CAhandler', 'request_timeout', fallback=self.request_timeout))
             except Exception:
                 self.request_timeout = 20
 

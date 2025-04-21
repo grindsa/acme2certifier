@@ -27,8 +27,7 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_load()')
 
         config_dic = load_config(self.logger, 'CAhandler')
-        if 'CAhandler' in config_dic and 'parameter' in config_dic['CAhandler']:
-            self.parameter = config_dic['CAhandler']['parameter']
+        self.parameter = config_dic.get('CAhandler', 'parameter', fallback=self.parameter)
 
         self.logger.debug('CAhandler._config_load() ended')
 
@@ -51,11 +50,23 @@ class CAhandler(object):
         qset = header_info_get(self.logger, csr=csr)
         if qset:
             self.logger.info(qset[-1]['header_info'])
-
+        # this is a stub function, replace with actual implementation
         self._stub_func(csr)
+
         self.logger.debug('Certificate.enroll() ended')
 
         return (error, cert_bundle, cert_raw, poll_indentifier)
+
+    def handler_check(self):
+        """ check if handler is ready """
+        self.logger.debug('CAhandler.check()')
+
+        # check if CA is reachable and the CA handler configured correctly
+        # this is a stub function, replace with actual implementation
+        error = self._stub_func('text')
+
+        self.logger.debug('CAhandler.handler_check() ended with %s', error)
+        return error
 
     def poll(self, cert_name: str, poll_identifier: str, _csr: str) -> Tuple[str, str, str, str, bool]:
         """ poll status of pending CSR and download certificates """

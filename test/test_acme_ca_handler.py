@@ -61,7 +61,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_004__config_load(self, mock_load_cfg):
         """ test _config_load empty cahandler section """
-        mock_load_cfg.return_value = {'CAhandler': {}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.acme_keyfile)
@@ -78,7 +80,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_005__config_load(self, mock_load_cfg):
         """ test _config_load unknown values """
-        mock_load_cfg.return_value = {'CAhandler': {'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.acme_keyfile)
@@ -95,7 +99,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_006__config_load(self, mock_load_cfg):
         """ test _config_load key_file value """
-        mock_load_cfg.return_value = {'CAhandler': {'acme_keyfile': 'key_file'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'acme_keyfile': 'key_file'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertEqual('key_file', self.cahandler.acme_keyfile)
@@ -111,7 +117,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_007__config_load(self, mock_load_cfg):
         """ test _config_load key_file value """
-        mock_load_cfg.return_value = {'CAhandler': {'acme_keyfile': 'key_file', 'acme_keypath': 'acme_keypath'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'acme_keyfile': 'key_file', 'acme_keypath': 'acme_keypath'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertEqual('key_file', self.cahandler.acme_keyfile)
@@ -127,7 +135,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_008__config_load(self, mock_load_cfg):
         """ test _config_load url value """
-        mock_load_cfg.return_value = {'CAhandler': {'acme_url': 'url'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'acme_url': 'url'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.acme_keyfile)
@@ -143,7 +153,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_009__config_load(self, mock_load_cfg):
         """ test _config_load account values """
-        mock_load_cfg.return_value = {'CAhandler': {'acme_account': 'acme_account'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'acme_account': 'acme_account'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.acme_keyfile)
@@ -160,7 +172,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_010__config_load(self, mock_load_cfg):
         """ test _config_load key_size """
-        mock_load_cfg.return_value = {'CAhandler': {'acme_account_keysize': 'acme_account_keysize'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'acme_account_keysize': 'acme_account_keysize'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.acme_keyfile)
@@ -177,7 +191,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_011__config_load(self, mock_load_cfg):
         """ test _config_load email """
-        mock_load_cfg.return_value = {'CAhandler': {'acme_account_email': 'acme_account_email'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'acme_account_email': 'acme_account_email'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.acme_keyfile)
@@ -194,7 +210,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_012__config_load(self, mock_load_cfg):
         """ test _config_load email """
-        mock_load_cfg.return_value = {'CAhandler': {'directory_path': 'directory_path'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'directory_path': 'directory_path'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.acme_keyfile)
@@ -211,7 +229,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_013__config_load(self, mock_load_cfg):
         """ test _config_load email """
-        mock_load_cfg.return_value = {'CAhandler': {'account_path': 'account_path'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'account_path': 'account_path'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.acme_keyfile)
@@ -228,7 +248,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_014__config_load(self, mock_load_cfg):
         """ test _config_load allowlist """
-        mock_load_cfg.return_value = {'CAhandler': {'allowed_domainlist': '["foo", "bar"]'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'allowed_domainlist': '["foo", "bar"]'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.acme_keyfile)
@@ -246,7 +268,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_015__config_load(self, mock_load_cfg):
         """ test _config_load allowlist - failed json parse """
-        mock_load_cfg.return_value = {'CAhandler': {'allowed_domainlist': 'foo'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'allowed_domainlist': 'foo'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.acme_keyfile)
@@ -267,7 +291,6 @@ class TestACMEHandler(unittest.TestCase):
         """ test _config_load allowlist - failed json parse """
         parser = configparser.ConfigParser()
         parser['CAhandler'] = {'ssl_verify': False}
-
         mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
@@ -329,7 +352,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_019__config_load(self, mock_load_cfg):
         """ test _config_load allowlist - failed json parse """
-        mock_load_cfg.return_value = {'CAhandler': {'eab_kid': 'eab_kid'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'eab_kid': 'eab_kid'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.acme_keyfile)
@@ -349,7 +374,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.acme_ca_handler.load_config')
     def test_020__config_load(self, mock_load_cfg):
         """ test _config_load allowlist - failed json parse """
-        mock_load_cfg.return_value = {'CAhandler': {'eab_hmac_key': 'eab_hmac_key'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] =  {'eab_hmac_key': 'eab_hmac_key'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.acme_keyfile)
