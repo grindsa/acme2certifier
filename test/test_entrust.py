@@ -9,6 +9,7 @@ from unittest.mock import patch, mock_open, Mock, MagicMock
 import requests
 import base64
 from OpenSSL import crypto
+import configparser
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
@@ -61,7 +62,7 @@ class TestACMEHandler(unittest.TestCase):
         """ test polling """
         self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
 
-    def test_009__api_post(self):
+    def test_006__api_post(self):
         """ test _api_post() """
         mockresponse = Mock()
         mockresponse2 = Mock()
@@ -73,7 +74,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.session = mockresponse
         self.assertEqual(('status_code', {'foo': 'bar'}), self.cahandler._api_post('url', 'data'))
 
-    def test_010__api_post(self):
+    def test_007__api_post(self):
         """ test _api_post() """
         mockresponse2 = Mock()
         mockresponse2.status_code = 'status_code'
@@ -86,7 +87,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(('status_code', 'ex_json'), self.cahandler._api_post('url', 'data'))
         self.assertIn('ERROR:test_a2c:request_operation returned error during json parsing: ex_json', lcm.output)
 
-    def test_011__api_post(self):
+    def test_008__api_post(self):
         """ test _api_post() """
         mockresponse2 = Mock()
         mockresponse2.status_code = 'status_code'
@@ -97,7 +98,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.session = mockresponse
         self.assertEqual(('status_code', None), self.cahandler._api_post('url', 'data'))
 
-    def test_012__api_post(self):
+    def test_009__api_post(self):
         """ test _api_post(= """
         mockresponse = Mock()
         mockresponse.post.side_effect = [Exception('exc_api_post')]
@@ -106,7 +107,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual((500, 'exc_api_post'), self.cahandler._api_post('url', 'data'))
         self.assertIn('ERROR:test_a2c:request_operation returned error: exc_api_post', lcm.output)
 
-    def test_013__api_get(self):
+    def test_010__api_get(self):
         """ test _api_get() """
         mockresponse2 = Mock()
         mockresponse2.status_code = 'status_code'
@@ -117,7 +118,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.session = mockresponse
         self.assertEqual(('status_code', {'foo': 'bar'}), self.cahandler._api_get('url'))
 
-    def test_014__api_get(self):
+    def test_011__api_get(self):
         """ test _api_get() """
         mockresponse2 = Mock()
         mockresponse2.status_code = 'status_code'
@@ -130,7 +131,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(('status_code', 'ex_json'), self.cahandler._api_get('url'))
         self.assertIn('ERROR:test_a2c:request_operation returned error during json parsing: ex_json', lcm.output)
 
-    def test_015__api_get(self):
+    def test_012__api_get(self):
         """ test _api_get() """
         mockresponse = Mock()
         mockresponse.get.side_effect = [Exception('exc_api_get')]
@@ -139,7 +140,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual((500, 'exc_api_get'), self.cahandler._api_get('url'))
         self.assertIn('ERROR:test_a2c:request_operation returned error: exc_api_get', lcm.output)
 
-    def test_016__api_put(self):
+    def test_013__api_put(self):
         """ test _api_put() """
         mockresponse = Mock()
         mockresponse2 = Mock()
@@ -151,7 +152,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.session = mockresponse
         self.assertEqual(('status_code', {'foo': 'bar'}), self.cahandler._api_put('url', 'data'))
 
-    def test_017__api_put(self):
+    def test_014__api_put(self):
         """ test _api_put() """
         mockresponse2 = Mock()
         mockresponse2.status_code = 'status_code'
@@ -164,7 +165,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(('status_code', 'ex_json'), self.cahandler._api_put('url', 'data'))
         self.assertIn('ERROR:test_a2c:request_operation returned error during json parsing: ex_json', lcm.output)
 
-    def test_018__api_put(self):
+    def test_015__api_put(self):
         """ test _api_put() """
         mockresponse2 = Mock()
         mockresponse2.status_code = 'foo'
@@ -175,7 +176,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.session = mockresponse
         self.assertEqual(('foo', None), self.cahandler._api_put('url', 'data'))
 
-    def test_019__api_put(self):
+    def test_016__api_put(self):
         """ test _api_put() """
         mockresponse = Mock()
         mockresponse.put.side_effect = Exception('exc_api_put')
@@ -185,13 +186,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:request_operation returned error: exc_api_put', lcm.output)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_020_certificates_get_from_serial(self, mock_api):
+    def test_017_certificates_get_from_serial(self, mock_api):
         """ test certificates_get_from_serial """
         mock_api.return_value = (200, {'certificates': ['foo', 'bar']})
         self.assertEqual(['foo', 'bar'], self.cahandler._certificates_get_from_serial('serial'))
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_021_certificates_get_from_serial(self, mock_api):
+    def test_018_certificates_get_from_serial(self, mock_api):
         """ test certificates_get_from_serial """
         mock_api.return_value = (300, {'certificates': ['foo', 'bar']})
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -199,7 +200,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._certificates_get_from_serial() for serial failed with code: 300', lcm.output)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_022_certificates_get_from_serial(self, mock_api):
+    def test_019_certificates_get_from_serial(self, mock_api):
         """ test certificates_get_from_serial """
         mock_api.return_value = (200, {'certificates1': ['foo', 'bar']})
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -207,7 +208,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._certificates_get_from_serial() for serial failed with code: 200', lcm.output)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_023_certificates_get_from_serial(self, mock_api):
+    def test_020_certificates_get_from_serial(self, mock_api):
         """ test certificates_get_from_serial """
         mock_api.return_value = (200, {'certificates': ['foo', 'bar']})
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -219,9 +220,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_session_load')
     @patch('examples.ca_handler.entrust_ca_handler.load_config')
-    def test_024_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
+    def test_021_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
         """ test load_config() """
-        mock_load.return_value = {'foo': 'bar'}
+        parser = configparser.ConfigParser()
+        # parser['CAhandler'] = {'foo': 'bar'}
+        mock_load.return_value = parser
         mock_eab.return_value = (True, 'handler')
         mock_header.return_value = 'hil'
         self.cahandler._config_load()
@@ -246,9 +249,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_session_load')
     @patch('examples.ca_handler.entrust_ca_handler.load_config')
-    def test_025_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
+    def test_022_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
         """ test load_config() """
-        mock_load.return_value = {'CAhandler': {'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load.return_value = parser
         mock_eab.return_value = (True, 'handler')
         mock_header.return_value = 'hil'
         self.cahandler._config_load()
@@ -273,9 +278,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_session_load')
     @patch('examples.ca_handler.entrust_ca_handler.load_config')
-    def test_026_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
+    def test_023_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
         """ test load_config() """
-        mock_load.return_value = {'CAhandler': {'api_url': 'api_url', 'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'api_url': 'api_url', 'foo': 'bar'}
+        mock_load.return_value = parser
         mock_eab.return_value = (True, 'handler')
         mock_header.return_value = 'hil'
         self.cahandler._config_load()
@@ -300,9 +307,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_session_load')
     @patch('examples.ca_handler.entrust_ca_handler.load_config')
-    def test_027_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
+    def test_024_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
         """ test load_config() """
-        mock_load.return_value = {'CAhandler': {'request_timeout': '15', 'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'request_timeout': '15', 'foo': 'bar'}
+        mock_load.return_value = parser
         mock_eab.return_value = (True, 'handler')
         mock_header.return_value = 'hil'
         self.cahandler._config_load()
@@ -327,9 +336,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_session_load')
     @patch('examples.ca_handler.entrust_ca_handler.load_config')
-    def test_028_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
+    def test_025_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
         """ test load_config() """
-        mock_load.return_value = {'CAhandler': {'request_timeout': 'aa', 'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'request_timeout': 'aa', 'foo': 'bar'}
+        mock_load.return_value = parser
         mock_eab.return_value = (True, 'handler')
         mock_header.return_value = 'hil'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -356,9 +367,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_session_load')
     @patch('examples.ca_handler.entrust_ca_handler.load_config')
-    def test_029_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
+    def test_026_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
         """ test load_config() """
-        mock_load.return_value = {'CAhandler': {'cert_validity_days': '10', 'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_validity_days': '10', 'foo': 'bar'}
+        mock_load.return_value = parser
         mock_eab.return_value = (True, 'handler')
         mock_header.return_value = 'hil'
         self.cahandler._config_load()
@@ -383,9 +396,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_session_load')
     @patch('examples.ca_handler.entrust_ca_handler.load_config')
-    def test_030_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
+    def test_027_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
         """ test load_config() """
-        mock_load.return_value = {'CAhandler': {'cert_validity_days': 'aa', 'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_validity_days': 'aa', 'foo': 'bar'}
+        mock_load.return_value = parser
         mock_eab.return_value = (True, 'handler')
         mock_header.return_value = 'hil'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -412,9 +427,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_session_load')
     @patch('examples.ca_handler.entrust_ca_handler.load_config')
-    def test_031_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
+    def test_028_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
         """ test load_config() """
-        mock_load.return_value = {'CAhandler': {'username': 'username', 'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'username': 'username', 'foo': 'bar'}
+        mock_load.return_value = parser
         mock_eab.return_value = (True, 'handler')
         mock_header.return_value = 'hil'
         self.cahandler._config_load()
@@ -439,9 +456,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_session_load')
     @patch('examples.ca_handler.entrust_ca_handler.load_config')
-    def test_032_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
+    def test_029_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
         """ test load_config() """
-        mock_load.return_value = {'CAhandler': {'password': 'password', 'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'password': 'password', 'foo': 'bar'}
+        mock_load.return_value = parser
         mock_eab.return_value = (True, 'handler')
         mock_header.return_value = 'hil'
         self.cahandler._config_load()
@@ -466,9 +485,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_session_load')
     @patch('examples.ca_handler.entrust_ca_handler.load_config')
-    def test_033_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
+    def test_030_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
         """ test load_config() """
-        mock_load.return_value = {'CAhandler': {'organization_name': 'organization_name', 'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'organization_name': 'organization_name', 'foo': 'bar'}
+        mock_load.return_value = parser
         mock_eab.return_value = (True, 'handler')
         mock_header.return_value = 'hil'
         self.cahandler._config_load()
@@ -493,9 +514,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_session_load')
     @patch('examples.ca_handler.entrust_ca_handler.load_config')
-    def test_034_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
+    def test_031_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
         """ test load_config() """
-        mock_load.return_value = {'CAhandler': {'certtype': 'certtype', 'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'certtype': 'certtype', 'foo': 'bar'}
+        mock_load.return_value = parser
         mock_eab.return_value = (True, 'handler')
         mock_header.return_value = 'hil'
         self.cahandler._config_load()
@@ -520,9 +543,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_session_load')
     @patch('examples.ca_handler.entrust_ca_handler.load_config')
-    def test_035_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
+    def test_032_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
         """ test load_config() """
-        mock_load.return_value = {'CAhandler': {'allowed_domainlist': '["foo", "bar"]', 'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'allowed_domainlist': '["foo", "bar"]', 'foo': 'bar'}
+        mock_load.return_value = parser
         mock_eab.return_value = (True, 'handler')
         mock_header.return_value = 'hil'
         self.cahandler._config_load()
@@ -547,9 +572,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_root_load')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_session_load')
     @patch('examples.ca_handler.entrust_ca_handler.load_config')
-    def test_036_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
+    def test_033_config_load(self, mock_load, mock_session, mock_root, mock_eab, mock_header):
         """ test load_config() """
-        mock_load.return_value = {'CAhandler': {'allowed_domainlist': 'bar', 'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'allowed_domainlist': 'bar', 'foo': 'bar'}
+        mock_load.return_value = parser
         mock_eab.return_value = (True, 'handler')
         mock_header.return_value = 'hil'
         self.cahandler._config_load()
@@ -570,76 +597,84 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('hil', self.cahandler.header_info_field)
 
     @patch.dict('os.environ', {'cert_passphrase_var': 'user_var'})
-    def test_037_config_passphrase_load(self):
+    def test_034_config_passphrase_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'cert_passphrase_variable': 'cert_passphrase_var'}}
-        self.cahandler._config_passphrase_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_passphrase_variable': 'cert_passphrase_var'}
+        self.cahandler._config_passphrase_load(parser)
         self.assertEqual('user_var', self.cahandler.cert_passphrase)
 
     @patch.dict('os.environ', {'cert_passphrase_var': 'user_var'})
-    def test_038_config_passphrase_load(self):
+    def test_035_config_passphrase_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'cert_passphrase_variable': 'does_not_exist'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_passphrase_variable': 'does_not_exist'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_passphrase_load(config_dic)
+            self.cahandler._config_passphrase_load(parser)
         self.assertFalse(self.cahandler.cert_passphrase)
         self.assertIn("ERROR:test_a2c:CAhandler._config_passphrase_load() could not load cert_passphrase_variable:'does_not_exist'", lcm.output)
 
     @patch.dict('os.environ', {'cert_passphrase_var': 'user_var'})
-    def test_039_config_passphrase_load(self):
+    def test_036_config_passphrase_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'cert_passphrase_variable': 'cert_passphrase_var', 'cert_passphrase': 'cert_passphrase'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_passphrase_variable': 'cert_passphrase_var', 'cert_passphrase': 'cert_passphrase'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_passphrase_load(config_dic)
+            self.cahandler._config_passphrase_load(parser)
         self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite cert_passphrase', lcm.output)
         self.assertEqual('cert_passphrase', self.cahandler.cert_passphrase)
 
     @patch("builtins.open", mock_open(read_data='cert'), create=True)
     @patch('os.path.isfile')
-    def test_040_config_root_load(self, mock_file):
+    def test_037_config_root_load(self, mock_file):
         """ _config_root_load() """
         mock_file.return_value = True
-        config_dic = {'CAhandler': {'entrust_root_cert': 'root_cert'}}
-        self.cahandler._config_root_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'entrust_root_cert': 'root_cert'}
+        self.cahandler._config_root_load(parser)
         self.assertEqual('cert', self.cahandler.entrust_root_cert)
 
     @patch("builtins.open", mock_open(read_data='cert'), create=True)
     @patch('os.path.isfile')
-    def test_041_config_root_load(self, mock_file):
+    def test_038_config_root_load(self, mock_file):
         """ _config_root_load() """
         mock_file.return_value = False
-        config_dic = {'CAhandler': {'entrust_root_cert': 'root_cert'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'entrust_root_cert': 'root_cert'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_root_load(config_dic)
+            self.cahandler._config_root_load(parser)
         self.assertIn('ERROR:test_a2c:CAhandler._config_root_load(): root CA file configured but not not found. Using default one.', lcm.output)
         self.assertIn('290IENlcnRpZmljYXRpb24g', self.cahandler.entrust_root_cert)
 
     @patch("builtins.open", mock_open(read_data='cert'), create=True)
     @patch('os.path.isfile')
-    def test_042_config_root_load(self, mock_file):
+    def test_039_config_root_load(self, mock_file):
         """ _config_root_load() """
         mock_file.return_value = False
-        config_dic = {'CAhandler': {'unk': 'root_cert'}}
-        self.cahandler._config_root_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'unk': 'root_cert'}
+        self.cahandler._config_root_load(parser)
         self.assertIn('290IENlcnRpZmljYXRpb24g', self.cahandler.entrust_root_cert)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_passphrase_load')
-    def test_043_config_session_load(self, mock_sl):
+    def test_040_config_session_load(self, mock_sl):
         """ _config_session_load() """
-        config_dic = {'CAhandler': {'client_cert': 'client_cert', 'client_key': 'client_key'}}
-        self.cahandler._config_session_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'client_cert': 'client_cert', 'client_key': 'client_key'}
+        self.cahandler._config_session_load(parser)
         self.assertFalse(mock_sl.called)
         self.assertTrue(self.cahandler.session)
 
     @patch('examples.ca_handler.entrust_ca_handler.requests.Session')
     @patch('examples.ca_handler.entrust_ca_handler.Pkcs12Adapter')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_passphrase_load')
-    def test_044_config_session_load(self, mock_sl, mock_pkcs12, mock_session):
+    def test_041_config_session_load(self, mock_sl, mock_pkcs12, mock_session):
         """ _config_session_load() """
-        config_dic = {'CAhandler': {'client_cert': 'client_cert'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'client_cert': 'client_cert'}
         mock_session.return_value.__enter__.return_value = Mock()
         self.cahandler.cert_passphrase = 'cert_passphrase'
-        self.cahandler._config_session_load(config_dic)
+        self.cahandler._config_session_load(parser)
         self.assertTrue(mock_sl.called)
         self.assertTrue(self.cahandler.session)
         self.assertTrue(mock_pkcs12.called)
@@ -647,11 +682,12 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.requests.Session')
     @patch('examples.ca_handler.entrust_ca_handler.Pkcs12Adapter')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_passphrase_load')
-    def test_045_config_session_load(self, mock_sl, mock_pkcs12, mock_session):
+    def test_042_config_session_load(self, mock_sl, mock_pkcs12, mock_session):
         """ _config_session_load() """
-        config_dic = {'CAhandler': {'foo': 'client_cert'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'client_cert'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_session_load(config_dic)
+            self.cahandler._config_session_load(parser)
         self.assertTrue(mock_sl.called)
         self.assertTrue(self.cahandler.session)
         self.assertIn('WARNING:test_a2c:CAhandler._config_load() configuration might be incomplete: "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file', lcm.output)
@@ -659,7 +695,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._domains_get')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._organizations_get')
-    def test_046_org_domain_cfg_check(self, mock_org, mock_domain):
+    def test_043_org_domain_cfg_check(self, mock_org, mock_domain):
         """ test _org_domain_cfg_check()"""
         mock_org.return_value = []
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -669,7 +705,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._domains_get')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._organizations_get')
-    def test_047_org_domain_cfg_check(self, mock_org, mock_domain):
+    def test_044_org_domain_cfg_check(self, mock_org, mock_domain):
         """ test _org_domain_cfg_check()"""
         mock_org.return_value = {'foo': 1, 'bar': 2}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -679,7 +715,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._domains_get')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._organizations_get')
-    def test_048_org_domain_cfg_check(self, mock_org, mock_domain):
+    def test_045_org_domain_cfg_check(self, mock_org, mock_domain):
         """ test _org_domain_cfg_check()"""
         mock_org.return_value = {'foo': 1, 'bar': 2}
         mock_domain.return_value = ['foo1', 'foo2']
@@ -691,7 +727,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._domains_get')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._organizations_get')
-    def test_049_org_domain_cfg_check(self, mock_org, mock_domain):
+    def test_046_org_domain_cfg_check(self, mock_org, mock_domain):
         """ test _org_domain_cfg_check()"""
         mock_org.return_value = {'foo': 1, 'bar': 2}
         mock_domain.return_value = ['foo1', 'foo2']
@@ -703,7 +739,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._domains_get')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._organizations_get')
-    def test_050_org_domain_cfg_check(self, mock_org, mock_domain):
+    def test_047_org_domain_cfg_check(self, mock_org, mock_domain):
         """ test _org_domain_cfg_check()"""
         mock_org.return_value = {'foo': 1, 'bar': 2}
         mock_domain.return_value = ['foo1', 'foo2']
@@ -715,7 +751,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(['foo3', 'foo4'], self.cahandler.allowed_domainlist)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_051__organizations_get(self, mock_api):
+    def test_048__organizations_get(self, mock_api):
         """ test _organizations_get() """
         mock_api.return_value = (500, 'foo')
         self.cahandler.organization_name = 'organization_name'
@@ -724,7 +760,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._organizations_get(): malformed response', lcm.output)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_052__organizations_get(self, mock_api):
+    def test_049__organizations_get(self, mock_api):
         """ test _organizations_get() """
         input_dic = {'organizations': [{'verificationStatus': 'APPROVED', 'name': 'foo', 'clientId': 1}, {'verificationStatus': 'APPROVED', 'name': 'bar', 'clientId': 2}]}
         mock_api.return_value = (200, input_dic)
@@ -732,7 +768,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'foo': 1, 'bar': 2}, self.cahandler._organizations_get())
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_053__organizations_get(self, mock_api):
+    def test_050__organizations_get(self, mock_api):
         """ test _organizations_get() """
         input_dic = {'organizations': [{'verificationStatus': 'NOTAPPROVED', 'name': 'foo', 'clientId': 1}, {'verificationStatus': 'APPROVED', 'name': 'bar', 'clientId': 2}]}
         mock_api.return_value = (200, input_dic)
@@ -740,7 +776,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'bar': 2}, self.cahandler._organizations_get())
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_054__organizations_get(self, mock_api):
+    def test_051__organizations_get(self, mock_api):
         """ test _organizations_get() """
         input_dic = {'organizations': [{'name': 'foo', 'clientId': 1}, {'verificationStatus': 'APPROVED', 'name': 'bar', 'clientId': 2}]}
         mock_api.return_value = (200, input_dic)
@@ -748,7 +784,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'bar': 2}, self.cahandler._organizations_get())
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_055__organizations_get(self, mock_api):
+    def test_052__organizations_get(self, mock_api):
         """ test _organizations_get() """
         input_dic = {'organizations': [{'verificationStatus': 'APPROVED', '_name': 'foo', '_clientId': 1}, {'verificationStatus': 'APPROVED', 'name': 'bar', 'clientId': 2}]}
         mock_api.return_value = (200, input_dic)
@@ -756,7 +792,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({'bar': 2}, self.cahandler._organizations_get())
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_056__domains_get(self, mock_api):
+    def test_053__domains_get(self, mock_api):
         """ test _organizations_get() """
         mock_api.return_value = (500, 'foo')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -764,14 +800,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler._domains_get(): malformed response', lcm.output)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_057__domains_get(self, mock_api):
+    def test_054__domains_get(self, mock_api):
         """ test _organizations_get() """
         input_dic = {'domains': [{'verificationStatus': 'APPROVED', 'domainName': 'foo.bar', 'clientId': 1}, {'verificationStatus': 'APPROVED', 'domainName': 'bar.foo', 'clientId': 2}]}
         mock_api.return_value = (200, input_dic)
         self.assertEqual(['foo.bar', 'bar.foo'], self.cahandler._domains_get(1))
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_058__domains_get(self, mock_api):
+    def test_055__domains_get(self, mock_api):
         """ test _organizations_get() """
         input_dic = {'domains': [{'verificationStatus': 'NOTAPPROVED', 'domainName': 'foo.bar', 'clientId': 1}, {'verificationStatus': 'APPROVED', 'domainName': 'bar.foo', 'clientId': 2}]}
         mock_api.return_value = (200, input_dic)
@@ -779,46 +815,46 @@ class TestACMEHandler(unittest.TestCase):
 
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_059__domains_get(self, mock_api):
+    def test_056__domains_get(self, mock_api):
         """ test _organizations_get() """
         input_dic = {'domains': [{'Status': 'APPROVED', 'domainName': 'foo.bar', 'clientId': 1}, {'verificationStatus': 'APPROVED', 'domainName': 'bar.foo', 'clientId': 2}]}
         mock_api.return_value = (200, input_dic)
         self.assertEqual(['bar.foo'], self.cahandler._domains_get(1))
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_060__domains_get(self, mock_api):
+    def test_057__domains_get(self, mock_api):
         """ test _organizations_get() """
         input_dic = {'domains': [{'verificationStatus': 'APPROVED', 'Name': 'foo.bar', 'clientId': 1}, {'verificationStatus': 'APPROVED', 'domainName': 'bar.foo', 'clientId': 2}]}
         mock_api.return_value = (200, input_dic)
         self.assertEqual(['bar.foo'], self.cahandler._domains_get(1))
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_061_credential_check(self, mock_api):
+    def test_058_credential_check(self, mock_api):
         """ test _organizations_get() """
         mock_api.return_value = (500, 'foo')
         self.assertEqual('Connection to Entrust API failed: foo', self.cahandler.credential_check())
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_062_credential_check(self, mock_api):
+    def test_059_credential_check(self, mock_api):
         """ test _organizations_get() """
         mock_api.return_value = (200, 'foo')
         self.assertFalse(self.cahandler.credential_check())
 
-    def test_063_oonfig_check(self):
+    def test_060_oonfig_check(self):
         """ test _config_check() """
         self.cahandler.api_url = None
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_check()
         self.assertIn('ERROR:test_a2c:CAhandler._config_check() ended with error: api_url parameter in missing in config file', lcm.output)
 
-    def test_064_oonfig_check(self):
+    def test_061_oonfig_check(self):
         """ test _config_check() """
         self.cahandler.api_url = 'api_url'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_check()
         self.assertIn('ERROR:test_a2c:CAhandler._config_check() ended with error: username parameter in missing in config file', lcm.output)
 
-    def test_065_oonfig_check(self):
+    def test_062_oonfig_check(self):
         """ test _config_check() """
         self.cahandler.api_url = 'api_url'
         self.cahandler.username = 'username'
@@ -826,7 +862,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_check()
         self.assertIn('ERROR:test_a2c:CAhandler._config_check() ended with error: password parameter in missing in config file', lcm.output)
 
-    def test_066_oonfig_check(self):
+    def test_063_oonfig_check(self):
         """ test _config_check() """
         self.cahandler.api_url = 'api_url'
         self.cahandler.username = 'username'
@@ -835,7 +871,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_check()
         self.assertIn('ERROR:test_a2c:CAhandler._config_check() ended with error: organization_name parameter in missing in config file', lcm.output)
 
-    def test_067_oonfig_check(self):
+    def test_064_oonfig_check(self):
         """ test _config_check() """
         self.cahandler.api_url = 'api_url'
         self.cahandler.username = 'username'
@@ -848,7 +884,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.entrust_ca_handler.eab_profile_header_info_check')
-    def test_068_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
+    def test_065_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
         """ test _enroll_check() """
         mock_eab.return_value = 'mock_eab_error'
         mock_config.return_value = 'mock_config_error'
@@ -867,7 +903,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.entrust_ca_handler.eab_profile_header_info_check')
-    def test_069_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
+    def test_066_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
         """ test _enroll_check() """
         mock_eab.return_value = False
         mock_config.return_value = 'mock_config_error'
@@ -886,7 +922,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.entrust_ca_handler.eab_profile_header_info_check')
-    def test_070_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
+    def test_067_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
         """ test _enroll_check() """
         mock_eab.return_value = False
         mock_config.return_value = False
@@ -905,7 +941,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.entrust_ca_handler.eab_profile_header_info_check')
-    def test_071_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
+    def test_068_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
         """ test _enroll_check() """
         mock_eab.return_value = False
         mock_config.return_value = False
@@ -924,7 +960,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler.credential_check')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._config_check')
     @patch('examples.ca_handler.entrust_ca_handler.eab_profile_header_info_check')
-    def test_072_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
+    def test_069_enroll_check(self, mock_eab, mock_config, mock_credential, mock_org, mock_domain):
         """ test _enroll_check() """
         mock_eab.return_value = False
         mock_config.return_value = False
@@ -941,7 +977,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._certificates_get_from_serial')
     @patch('examples.ca_handler.entrust_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.entrust_ca_handler.header_info_get')
-    def test_073__trackingid_get(self, mock_header, mock_serial, mock_cert):
+    def test_070__trackingid_get(self, mock_header, mock_serial, mock_cert):
         """ test _trackingid_get() """
         mock_header.return_value = [{'poll_identifier': 'tracking_id'}, {'poll_identifier': 'tracking_id2'}]
         self.assertEqual('tracking_id', self.cahandler._trackingid_get('csr'))
@@ -952,7 +988,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._certificates_get_from_serial')
     @patch('examples.ca_handler.entrust_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.entrust_ca_handler.header_info_get')
-    def test_074__trackingid_get(self, mock_header, mock_serial, mock_cert):
+    def test_071__trackingid_get(self, mock_header, mock_serial, mock_cert):
         """ test _trackingid_get() """
         mock_header.return_value = [{'identifier': 'tracking_id1'}, {'poll_identifier': 'tracking_id2'}]
         self.assertEqual('tracking_id2', self.cahandler._trackingid_get('csr'))
@@ -962,7 +998,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._certificates_get_from_serial')
     @patch('examples.ca_handler.entrust_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.entrust_ca_handler.header_info_get')
-    def test_075__trackingid_get(self, mock_header, mock_serial, mock_cert):
+    def test_072__trackingid_get(self, mock_header, mock_serial, mock_cert):
         """ test _trackingid_get() """
         mock_header.return_value = []
         mock_serial.return_value = 'serial'
@@ -974,7 +1010,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._certificates_get_from_serial')
     @patch('examples.ca_handler.entrust_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.entrust_ca_handler.header_info_get')
-    def test_076__trackingid_get(self, mock_header, mock_serial, mock_cert):
+    def test_073__trackingid_get(self, mock_header, mock_serial, mock_cert):
         """ test _trackingid_get() """
         mock_header.return_value = []
         mock_serial.return_value = 'serial'
@@ -986,7 +1022,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._certificates_get_from_serial')
     @patch('examples.ca_handler.entrust_ca_handler.cert_serial_get')
     @patch('examples.ca_handler.entrust_ca_handler.header_info_get')
-    def test_077__trackingid_get(self, mock_header, mock_serial, mock_cert):
+    def test_074__trackingid_get(self, mock_header, mock_serial, mock_cert):
         """ test _trackingid_get() """
         mock_header.return_value = []
         mock_serial.return_value = 'serial'
@@ -997,7 +1033,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.b64_encode')
     @patch('examples.ca_handler.entrust_ca_handler.cert_pem2der')
-    def test_078_response_parse(self, mock_der, mock_enc):
+    def test_075_response_parse(self, mock_der, mock_enc):
         """ test _rsponse_parse() """
         mock_der.return_value = 'cert_data'
         mock_enc.return_value = 'mock_enc'
@@ -1009,7 +1045,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.b64_encode')
     @patch('examples.ca_handler.entrust_ca_handler.cert_pem2der')
-    def test_079_response_parse(self, mock_der, mock_enc):
+    def test_076_response_parse(self, mock_der, mock_enc):
         """ test _rsponse_parse() """
         mock_der.return_value = 'cert_data'
         mock_enc.return_value = 'mock_enc'
@@ -1021,7 +1057,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.b64_encode')
     @patch('examples.ca_handler.entrust_ca_handler.cert_pem2der')
-    def test_080_response_parse(self, mock_der, mock_enc):
+    def test_077_response_parse(self, mock_der, mock_enc):
         """ test _rsponse_parse() """
         mock_der.return_value = 'cert_data'
         mock_enc.return_value = 'mock_enc'
@@ -1033,7 +1069,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.b64_encode')
     @patch('examples.ca_handler.entrust_ca_handler.cert_pem2der')
-    def test_081_response_parse(self, mock_der, mock_enc):
+    def test_078_response_parse(self, mock_der, mock_enc):
         """ test _rsponse_parse() """
         mock_der.return_value = 'cert_data'
         mock_enc.return_value = 'mock_enc'
@@ -1045,7 +1081,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.b64_encode')
     @patch('examples.ca_handler.entrust_ca_handler.cert_pem2der')
-    def test_082_response_parse(self, mock_der, mock_enc):
+    def test_079_response_parse(self, mock_der, mock_enc):
         """ test _rsponse_parse() """
         mock_der.return_value = 'cert_data'
         mock_enc.return_value = 'mock_enc'
@@ -1059,7 +1095,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._response_parse')
     @patch('examples.ca_handler.entrust_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_post')
-    def test_083_enroll(self, mock_req, mock_cn, mock_parse, mock_ecl):
+    def test_080_enroll(self, mock_req, mock_cn, mock_parse, mock_ecl):
         """ test _enroll() """
         mock_cn.return_value = 'cn'
         mock_req.return_value = (201, 'response')
@@ -1073,7 +1109,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._response_parse')
     @patch('examples.ca_handler.entrust_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_post')
-    def test_084_enroll(self, mock_req, mock_cn, mock_parse):
+    def test_081_enroll(self, mock_req, mock_cn, mock_parse):
         """ test _enroll() """
         mock_cn.return_value = 'cn'
         mock_req.return_value = (404, 'response')
@@ -1086,7 +1122,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._response_parse')
     @patch('examples.ca_handler.entrust_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_post')
-    def test_085_enroll(self, mock_req, mock_cn, mock_parse):
+    def test_082_enroll(self, mock_req, mock_cn, mock_parse):
         """ test _enroll() """
         mock_cn.return_value = 'cn'
         mock_req.return_value = (404, {'errors': 'response, response2'})
@@ -1100,7 +1136,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._response_parse')
     @patch('examples.ca_handler.entrust_ca_handler.csr_cn_lookup')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_post')
-    def test_086_enroll(self, mock_req, mock_cn, mock_parse, mock_ecl):
+    def test_083_enroll(self, mock_req, mock_cn, mock_parse, mock_ecl):
         """ test _enroll() """
         mock_cn.return_value = 'cn'
         mock_req.return_value = (201, 'response')
@@ -1114,7 +1150,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._enroll')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._enroll_check')
-    def test_087_enroll(self, mock_chk, mock_enroll):
+    def test_084_enroll(self, mock_chk, mock_enroll):
         """ test enroll() """
         mock_chk.return_value = None
         mock_enroll.return_value = ('mock_err', 'mock_bundle', 'mock_raw', 'mock_poll')
@@ -1122,7 +1158,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._enroll')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._enroll_check')
-    def test_088_enroll(self, mock_chk, mock_enroll):
+    def test_085_enroll(self, mock_chk, mock_enroll):
         """ test enroll() """
         mock_chk.return_value = 'mock_chk'
         mock_enroll.return_value = ('mock_err', 'mock_bundle', 'mock_raw', 'mock_poll')
@@ -1130,7 +1166,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._trackingid_get')
-    def test_089_revoke(self, mock_track, mock_req):
+    def test_086_revoke(self, mock_track, mock_req):
         """ test revoke() """
         mock_track.return_value = 'tracking_id'
         mock_req.return_value = (200, 'response')
@@ -1138,7 +1174,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._trackingid_get')
-    def test_090_revoke(self, mock_track, mock_req):
+    def test_087_revoke(self, mock_track, mock_req):
         """ test revoke() """
         mock_track.return_value = 'tracking_id'
         mock_req.return_value = (500, 'response')
@@ -1146,14 +1182,14 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_post')
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._trackingid_get')
-    def test_091_revoke(self, mock_track, mock_req):
+    def test_088_revoke(self, mock_track, mock_req):
         """ test revoke() """
         mock_track.return_value = None
         mock_req.return_value = (200, 'response')
         self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'Failed to get tracking id'), self.cahandler.revoke('csr'))
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_092_certificates_get(self, mock_req):
+    def test_089_certificates_get(self, mock_req):
         """ test certificates_get() """
         mock_req.return_value = (500, 'response')
         with self.assertLogs('test_a2c', level='INFO') as lcm:
@@ -1161,7 +1197,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('ERROR:test_a2c:CAhandler.certificates_get() failed with code: 500', lcm.output)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_093_certificates_get(self, mock_req):
+    def test_090_certificates_get(self, mock_req):
         """ test certificates_get() """
         content = {'certificates': [1, 2, 3, 4], 'summary': {'total': 4}}
         mock_req.return_value = (200, content)
@@ -1170,7 +1206,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:fetching certs offset: 0, limit: 200, total: 1, buffered: 0', lcm.output)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_094_certificates_get(self, mock_req):
+    def test_091_certificates_get(self, mock_req):
         """ test certificates_get() """
         response1 = (200, {'certificates': [1, 2, 3, 4], 'summary': {'total': 8}})
         response2 = (200, {'certificates': [5, 6, 7, 8]})
@@ -1181,7 +1217,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn('INFO:test_a2c:fetching certs offset: 200, limit: 200, total: 8, buffered: 4', lcm.output)
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_095_certificates_get(self, mock_req):
+    def test_092_certificates_get(self, mock_req):
         """ test certificates_get() """
         response1 = (200, {'certificates': [1, 2, 3, 4]})
         response2 = (200, {'certificates': [5, 6, 7, 8]})
@@ -1191,7 +1227,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('Certificates lookup failed: did not get any total value', str(err.exception))
 
     @patch('examples.ca_handler.entrust_ca_handler.CAhandler._api_get')
-    def test_096_certificates_get(self, mock_req):
+    def test_093_certificates_get(self, mock_req):
         """ test certificates_get() """
         response1 = (200, {'certificates': [1, 2, 3, 4], 'summary': {'total': 9}})
         response2 = (200, {'certificates': [5, 6, 7, 8]})

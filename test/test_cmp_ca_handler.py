@@ -34,7 +34,8 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_002_config_load(self, mock_load_cfg):
         """ test _config_load no cahandler section """
-        mock_load_cfg.return_value = {}
+        parser = configparser.ConfigParser()
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         odict = {'cmd': 'ir', 'popo': 0}
         self.assertEqual(odict, self.cahandler.config_dic)
@@ -42,7 +43,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_003_config_load(self, mock_load_cfg):
         """ test _config_load wrong cahandler section """
-        mock_load_cfg.return_value = {'CAhandler': 'foo'}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         odict = {'cmd': 'ir', 'popo': 0}
         self.assertEqual(odict, self.cahandler.config_dic)
@@ -50,7 +53,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_004_config_load(self, mock_load_cfg):
         """ test _config_load cmd predefined in cahandler """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_cmd': 'foo'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_cmd': 'foo'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         odict = {'cmd': 'foo', 'popo': 0}
         self.assertEqual(odict, self.cahandler.config_dic)
@@ -58,23 +63,29 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_005_config_load(self, mock_load_cfg):
         """ test _config_load popo predefined in cahandler  """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_popo': 1}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_popo': 'pop'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'popo': 1}
+        odict = {'cmd': 'ir', 'popo': 'pop'}
         self.assertEqual(odict, self.cahandler.config_dic)
 
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_006_config_load(self, mock_load_cfg):
         """ test _config_load cmd and popo predefined in cahandler  """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_cmd': 'foo', 'cmp_popo': 1}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_cmd': 'foo', 'cmp_popo': 'popo'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'foo', 'popo': 1}
+        odict = {'cmd': 'foo', 'popo': 'popo'}
         self.assertEqual(odict, self.cahandler.config_dic)
 
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_007_config_load(self, mock_load_cfg):
         """ test _config_load - cmp_openssl_bin parameter"""
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_openssl_bin': 'foo'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_openssl_bin': 'foo'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         odict = {'cmd': 'ir', 'popo': 0}
         self.assertEqual(odict, self.cahandler.config_dic)
@@ -83,7 +94,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_008_config_load(self, mock_load_cfg):
         """ test _config_load - cmp_recipient-dir parameter """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_recipient': 'foo'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_recipient': 'foo'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         odict = {'cmd': 'ir', 'popo': 0, 'recipient': '/foo'}
         self.assertEqual(odict, self.cahandler.config_dic)
@@ -91,7 +104,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_009_config_load(self, mock_load_cfg):
         """ test _config_load - cmd_tmp-cmp_recipient startwith '/' """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_recipient': '/foo'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_recipient': '/foo'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         odict = {'cmd': 'ir', 'popo': 0, 'recipient': '/foo'}
         self.assertEqual(odict, self.cahandler.config_dic)
@@ -99,7 +114,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_010_config_load(self, mock_load_cfg):
         """ test _config_load - cmd_tmp-cmp_recipient contains , """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_recipient': 'fo,o'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_recipient': 'fo,o'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         odict = {'cmd': 'ir', 'popo': 0, 'recipient': '/fo/o'}
         self.assertEqual(odict, self.cahandler.config_dic)
@@ -107,7 +124,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_011_config_load(self, mock_load_cfg):
         """ test _config_load - cmd_tmp-cmp_recipient contains ,blank """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_recipient': 'fo, o'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_recipient': 'fo, o'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         odict = {'cmd': 'ir', 'popo': 0, 'recipient': '/fo/o'}
         self.assertEqual(odict, self.cahandler.config_dic)
@@ -115,7 +134,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_012_config_load(self, mock_load_cfg):
         """ test _config_load - cmd_tmp-cmp_recipient contains ,blank and ,"""
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_recipient': 'foo, bar,doo'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_recipient': 'foo, bar,doo'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         odict = {'cmd': 'ir', 'popo': 0, 'recipient': '/foo/bar/doo'}
         self.assertEqual(odict, self.cahandler.config_dic)
@@ -123,7 +144,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_013_config_load(self, mock_load_cfg):
         """ test _config_load - cmd_tmp-cmp_recipient contains ,blank and ,"""
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_recipient': 'foo, bar, doo,bar,doo'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_recipient': 'foo, bar, doo,bar,doo'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         odict = {'cmd': 'ir', 'popo': 0, 'recipient': '/foo/bar/doo/bar/doo'}
         self.assertEqual(odict, self.cahandler.config_dic)
@@ -131,7 +154,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_014_config_load(self, mock_load_cfg):
         """ test _config_load - any parameter string """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_foo': 'bar'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         odict = {'cmd': 'ir', 'foo': 'bar', 'popo': 0}
         self.assertEqual(odict, self.cahandler.config_dic)
@@ -139,23 +164,29 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_015_config_load(self, mock_load_cfg):
         """ test _config_load - any parameter int """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_foo': 1}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_foo': '1'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'foo': 1, 'popo': 0}
+        odict = {'cmd': 'ir', 'foo': '1', 'popo': 0}
         self.assertEqual(odict, self.cahandler.config_dic)
 
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_016_config_load(self, mock_load_cfg):
         """ test _config_load - any parameter float """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_foo': 0.1}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_foo': 0.1}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'foo': 0.1, 'popo': 0}
+        odict = {'cmd': 'ir', 'foo': '0.1', 'popo': 0}
         self.assertEqual(odict, self.cahandler.config_dic)
 
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_017_config_load(self, mock_load_cfg):
         """  test _config_load - cmp_openssl_bin not configured """
-        mock_load_cfg.return_value = {}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertIn('WARNING:test_a2c:CAhandler config error: "cmp_openssl_bin" parameter not in config_file. Using default (/usr/bin/openssl)', lcm.output)
@@ -163,7 +194,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_018_config_load(self, mock_load_cfg):
         """  test _config_load - cmp_recipient not configured """
-        mock_load_cfg.return_value = {}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertIn('ERROR:test_a2c:CAhandler config error: "cmp_recipient" is missing in config_file.', lcm.output)
@@ -172,7 +205,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_019_config_load(self, mock_load_cfg):
         """ test _config_load - load template with ref variable """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_ref_variable': 'cmp_ref'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_ref_variable': 'cmp_ref'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('cmp_ref', self.cahandler.ref)
 
@@ -180,7 +215,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_020_config_load(self, mock_load_cfg):
         """ test _config_load - load template with not existing ref variable """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_ref_variable': 'does_not_exist'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_ref_variable': 'does_not_exist'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.ref)
@@ -190,7 +227,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_021_config_load(self, mock_load_cfg):
         """ test _config_load - load template overwrite ref variable """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_ref_variable': 'cmp_ref', 'cmp_ref': 'cmp_ref_local'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_ref_variable': 'cmp_ref', 'cmp_ref': 'cmp_ref_local'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertEqual('cmp_ref_local', self.cahandler.ref)
@@ -200,7 +239,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_022_config_load(self, mock_load_cfg):
         """ test _config_load - load template with secret variable """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_secret_variable': 'cmp_secret'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_secret_variable': 'cmp_secret'}
+        mock_load_cfg.return_value = parser
         self.cahandler._config_load()
         self.assertEqual('cmp_secret', self.cahandler.secret)
 
@@ -208,7 +249,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_023_config_load(self, mock_load_cfg):
         """ test _config_load - load template with not existing secret variable """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_secret_variable': 'does_not_exist'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_secret_variable': 'does_not_exist'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.secret)
@@ -218,7 +261,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.cmp_ca_handler.load_config')
     def test_024_config_load(self, mock_load_cfg):
         """ test _config_load - load template overwrite ref variable """
-        mock_load_cfg.return_value = {'CAhandler': {'cmp_secret_variable': 'cmp_secret', 'cmp_secret': 'cmp_secret_local'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cmp_secret_variable': 'cmp_secret', 'cmp_secret': 'cmp_secret_local'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertEqual('cmp_secret_local', self.cahandler.secret)

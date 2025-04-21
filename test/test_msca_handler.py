@@ -68,7 +68,8 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.mscertsrv_ca_handler.load_config')
     def test_007_config_load(self, mock_load_cfg):
         """ test _config_load no cahandler section """
-        mock_load_cfg.return_value = {}
+        parser = configparser.ConfigParser()
+        # parser['CAhandler'] = {'foo': 'bar'}
         self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
@@ -828,30 +829,34 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_061__config_url_load(self):
         """ test _config_url_load()"""
-        config_dic = {'CAhandler': {'url': 'foo'}}
-        self.cahandler._config_url_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'url': 'foo'}
+        self.cahandler._config_url_load(parser)
         self.assertEqual( 'foo', self.cahandler.url)
 
     @patch.dict('os.environ', {'url_variable': 'foo1'})
     def test_062__config_url_load(self):
         """ test _config_url_load()"""
-        config_dic = {'CAhandler': {'url_variable': 'url_variable'}}
-        self.cahandler._config_url_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'url_variable': 'url_variable'}
+        self.cahandler._config_url_load(parser)
         self.assertEqual( 'foo1', self.cahandler.url)
 
     @patch.dict('os.environ', {'url_variable': 'foo1'})
     def test_063__config_url_load(self):
         """ test _config_url_load()"""
-        config_dic = {'CAhandler': {'url_variable': 'url_variable', 'url': 'foo'}}
-        self.cahandler._config_url_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'url_variable': 'url_variable', 'url': 'foo'}
+        self.cahandler._config_url_load(parser)
         self.assertEqual( 'foo', self.cahandler.url)
 
     @patch.dict('os.environ', {'url_variable': 'foo1'})
     def test_064__config_url_load(self):
         """ test _config_url_load()"""
-        config_dic = {'CAhandler': {'url_variable': 'doesnotexist'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] =  {'url_variable': 'doesnotexist'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_url_load(config_dic)
+            self.cahandler._config_url_load(parser)
         self.assertFalse(self.cahandler.url)
         self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load url_variable:'doesnotexist'", lcm.output)
 

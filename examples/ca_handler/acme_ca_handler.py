@@ -65,21 +65,18 @@ class CAhandler(object):
     def _config_account_load(self, config_dic: Dict[str, str]):
         self.logger.debug('CAhandler._config_account_load()')
 
-        if 'acme_keyfile' in config_dic['CAhandler']:
-            self.acme_keyfile = config_dic['CAhandler'].get('acme_keyfile')
-        else:
-            self.logger.error('CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file')
+        self.acme_keyfile = config_dic.get('CAhandler', 'acme_keyfile', fallback=None)
+        self.acme_url = config_dic.get('CAhandler', 'acme_url', fallback=None)
+        self.acme_url_dic = parse_url(self.logger, self.acme_url)
 
-        if 'acme_url' in config_dic['CAhandler']:
-            self.acme_url = config_dic['CAhandler'].get('acme_url')
-            self.acme_url_dic = parse_url(self.logger, self.acme_url)
-        else:
-            self.logger.error('CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file')
+        for ele in ('acme_keyfile', 'acme_url'):
+            if not getattr(self, ele):
+                self.logger.error('CAhandler._config_load() configuration incomplete: "%s" parameter is missing in config file', ele)
 
         self.path_dic['acct_path'] = config_dic['CAhandler'].get('account_path', '/acme/acct/')
-        self.key_size = config_dic['CAhandler'].get('acme_account_keysize', 2048)
-        self.account = config_dic['CAhandler'].get('acme_account', None)
-        self.email = config_dic['CAhandler'].get('acme_account_email', None)
+        self.key_size = config_dic.get('CAhandler', 'acme_account_keysize', fallback=2048)
+        self.account = config_dic.get('CAhandler', 'acme_account', fallback=None)
+        self.email = config_dic.get('CAhandler', 'acme_account_email', fallback=None)
 
         if 'ssl_verify' in config_dic['CAhandler']:
             try:
@@ -92,10 +89,10 @@ class CAhandler(object):
         """" load eab config """
         self.logger.debug('CAhandler._config_eab_load()')
 
-        self.path_dic['directory_path'] = config_dic['CAhandler'].get('directory_path', '/directory')
-        self.eab_kid = config_dic['CAhandler'].get('eab_kid', None)
-        self.eab_hmac_key = config_dic['CAhandler'].get('eab_hmac_key', None)
-        self.acme_keypath = config_dic['CAhandler'].get('acme_keypath', None)
+        self.path_dic['directory_path'] = config_dic.get('CAhandler', 'directory_path', fallback='/directory')
+        self.eab_kid = config_dic.get('CAhandler', 'eab_kid', fallback=None)
+        self.eab_hmac_key = config_dic.get('CAhandler', 'eab_hmac_key', fallback=None)
+        self.acme_keypath = config_dic.get('CAhandler', 'acme_keypath', fallback=None)
         self.logger.debug('CAhandler._config_eab_load() ended')
 
     def _config_load(self):

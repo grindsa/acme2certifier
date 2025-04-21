@@ -6,6 +6,7 @@ import unittest
 import sys
 import os
 from unittest.mock import patch, Mock
+import configparser
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
@@ -27,8 +28,9 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_002__config_server_load(self):
         """ test _config_server_load() """
-        config_dic = {}
-        self.cahandler._config_server_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['foo'] = {'foo': 'bar'}
+        self.cahandler._config_server_load(parser)
         self.assertFalse(self.cahandler.api_host)
         self.assertEqual(5, self.cahandler.request_timeout)
         self.assertTrue(self.cahandler.ca_bundle)
@@ -43,41 +45,46 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_004__config_server_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'foo': 'bar'}}
-        self.cahandler._config_server_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        self.cahandler._config_server_load(parser)
         self.assertFalse(self.cahandler.api_host)
         self.assertEqual(5, self.cahandler.request_timeout)
         self.assertTrue(self.cahandler.ca_bundle)
 
     def test_005__config_server_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'api_host': 'api_host'}}
-        self.cahandler._config_server_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'api_host': 'api_host'}
+        self.cahandler._config_server_load(parser)
         self.assertEqual('api_host', self.cahandler.api_host)
         self.assertEqual(5, self.cahandler.request_timeout)
         self.assertTrue(self.cahandler.ca_bundle)
 
     def test_006__config_server_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'request_timeout': 10}}
-        self.cahandler._config_server_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'request_timeout': 10}
+        self.cahandler._config_server_load(parser)
         self.assertFalse(self.cahandler.api_host)
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertTrue(self.cahandler.ca_bundle)
 
     def test_007__config_server_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'request_timeout': '20'}}
-        self.cahandler._config_server_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'request_timeout': '20'}
+        self.cahandler._config_server_load(parser)
         self.assertFalse(self.cahandler.api_host)
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertTrue(self.cahandler.ca_bundle)
 
     def test_008__config_server_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'request_timeout': 'aa'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'request_timeout': 'aa'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_server_load(config_dic)
+            self.cahandler._config_server_load(parser)
         self.assertIn("ERROR:test_a2c:CAhandler._config_server_load() could not load request_timeout:invalid literal for int() with base 10: 'aa'", lcm.output)
         self.assertFalse(self.cahandler.api_host)
         self.assertEqual(5, self.cahandler.request_timeout)
@@ -85,25 +92,28 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_009__config_server_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'ca_bundle': 'ca_bundle'}}
-        self.cahandler._config_server_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'ca_bundle': 'ca_bundle'}
+        self.cahandler._config_server_load(parser)
         self.assertFalse(self.cahandler.api_host)
         self.assertEqual(5, self.cahandler.request_timeout)
         self.assertEqual('ca_bundle', self.cahandler.ca_bundle)
 
     def test_010__config_server_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'ca_bundle': False}}
-        self.cahandler._config_server_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'ca_bundle': False}
+        self.cahandler._config_server_load(parser)
         self.assertFalse(self.cahandler.api_host)
         self.assertEqual(5, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.ca_bundle)
 
     def test_011__config_auth_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_auth_load(config_dic)
+            self.cahandler._config_auth_load(parser)
         self.assertFalse(self.cahandler.username)
         self.assertFalse(self.cahandler.enrollment_code)
         self.assertFalse(self.cahandler.session)
@@ -111,9 +121,10 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_012__config_auth_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'username': 'username'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'username': 'username'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_auth_load(config_dic)
+            self.cahandler._config_auth_load(parser)
         self.assertEqual('username', self.cahandler.username)
         self.assertFalse(self.cahandler.enrollment_code)
         self.assertFalse(self.cahandler.session)
@@ -121,9 +132,10 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_013__config_auth_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'enrollment_code': 'enrollment_code'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'enrollment_code': 'enrollment_code'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_auth_load(config_dic)
+            self.cahandler._config_auth_load(parser)
         self.assertEqual('enrollment_code', self.cahandler.enrollment_code)
         self.assertFalse(self.cahandler.username)
         self.assertFalse(self.cahandler.session)
@@ -131,9 +143,10 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_014__config_auth_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'cert_passphrase': 'cert_passphrase'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_passphrase': 'cert_passphrase'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_auth_load(config_dic)
+            self.cahandler._config_auth_load(parser)
         self.assertFalse(self.cahandler.username)
         self.assertFalse(self.cahandler.enrollment_code)
         self.assertFalse(self.cahandler.session)
@@ -141,9 +154,10 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_015__config_auth_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'cert_file': 'cert_file'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_file': 'cert_file'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_auth_load(config_dic)
+            self.cahandler._config_auth_load(parser)
         self.assertFalse(self.cahandler.username)
         self.assertFalse(self.cahandler.enrollment_code)
         self.assertFalse(self.cahandler.session)
@@ -152,43 +166,48 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.requests.Session')
     def test_016__config_auth_load(self, mock_sess):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'cert_file': 'cert_file', 'cert_passphrase': 'cert_passphrase'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_file': 'cert_file', 'cert_passphrase': 'cert_passphrase'}
         mock_sess.return_value = Mock()
         mock_sess.return_value.__enter__= Mock()
         mock_sess.return_value.__exit__= Mock()
-        self.cahandler._config_auth_load(config_dic)
+        self.cahandler._config_auth_load(parser)
         self.assertFalse(self.cahandler.username)
         self.assertFalse(self.cahandler.enrollment_code)
         self.assertTrue(self.cahandler.session)
 
     def test_017__config_cainfo_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'foo': 'bar'}}
-        self.cahandler._config_cainfo_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        self.cahandler._config_cainfo_load(parser)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.cert_profile_name)
         self.assertFalse(self.cahandler.ee_profile_name)
 
     def test_018__config_cainfo_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'ca_name': 'ca_name'}}
-        self.cahandler._config_cainfo_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'ca_name': 'ca_name'}
+        self.cahandler._config_cainfo_load(parser)
         self.assertEqual('ca_name', self.cahandler.ca_name)
         self.assertFalse(self.cahandler.cert_profile_name)
         self.assertFalse(self.cahandler.ee_profile_name)
 
     def test_019__config_cainfo_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'cert_profile_name': 'cert_profile_name'}}
-        self.cahandler._config_cainfo_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_profile_name': 'cert_profile_name'}
+        self.cahandler._config_cainfo_load(parser)
         self.assertFalse(self.cahandler.ca_name)
         self.assertEqual('cert_profile_name', self.cahandler.cert_profile_name)
         self.assertFalse(self.cahandler.ee_profile_name)
 
     def test_020__config_cainfo_load(self):
         """ test _config_server_load() """
-        config_dic = {'CAhandler': {'ee_profile_name': 'ee_profile_name'}}
-        self.cahandler._config_cainfo_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'ee_profile_name': 'ee_profile_name'}
+        self.cahandler._config_cainfo_load(parser)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.cert_profile_name)
         self.assertEqual('ee_profile_name', self.cahandler.ee_profile_name)
@@ -199,7 +218,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.load_config')
     def test_021_config_load(self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load):
         """ load config """
-        mock_load_cfg.return_value = {'foo': 'bar'}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
         self.assertTrue(mock_cainfo.called)
@@ -218,7 +239,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.load_config')
     def test_022_config_load(self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load):
         """ load config """
-        mock_load_cfg.return_value = {'foo': 'bar'}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         self.cahandler.api_host = 'api_host'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
@@ -237,7 +260,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.load_config')
     def test_023_config_load(self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load):
         """ load config """
-        mock_load_cfg.return_value = {'foo': 'bar'}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         self.cahandler.cert_profile_name = 'cert_profile_name'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
@@ -256,7 +281,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.load_config')
     def test_024_config_load(self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load):
         """ load config """
-        mock_load_cfg.return_value = {'foo': 'bar'}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         self.cahandler.ee_profile_name = 'ee_profile_name'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
@@ -275,7 +302,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.load_config')
     def test_025_config_load(self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load):
         """ load config """
-        mock_load_cfg.return_value = {'foo': 'bar'}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         self.cahandler.ca_name = 'ca_name'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
@@ -294,7 +323,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.load_config')
     def test_026_config_load(self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load):
         """ load config """
-        mock_load_cfg.return_value = {'foo': 'bar'}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         self.cahandler.username = 'username'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
@@ -313,7 +344,9 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.load_config')
     def test_027_config_load(self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load):
         """ load config """
-        mock_load_cfg.return_value = {'foo': 'bar'}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         self.cahandler.enrollment_code = 'enrollment_code'
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.cahandler._config_load()
@@ -329,31 +362,35 @@ class TestACMEHandler(unittest.TestCase):
     @patch.dict('os.environ', {'username_var': 'user_var'})
     def test_028_config_authuser_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'username_variable': 'username_var'}}
-        self.cahandler._config_authuser_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'username_variable': 'username_var'}
+        self.cahandler._config_authuser_load(parser)
         self.assertEqual('user_var', self.cahandler.username)
 
     @patch.dict('os.environ', {'username_var': 'user_var'})
     def test_029_config_authuser_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'username_variable': 'does_not_exist'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'username_variable': 'does_not_exist'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_authuser_load(config_dic)
+            self.cahandler._config_authuser_load(parser)
         self.assertFalse(self.cahandler.username)
         self.assertIn("ERROR:test_a2c:CAhandler._config_authuser_load() could not load username_variable:'does_not_exist'", lcm.output)
 
     @patch.dict('os.environ', {'username_var': 'user_var'})
     def test_030_config_authuser_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'username_variable': 'username_var', 'username': 'username'}}
-        self.cahandler._config_authuser_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'username_variable': 'username_var', 'username': 'username'}
+        self.cahandler._config_authuser_load(parser)
         self.assertEqual('username', self.cahandler.username)
 
     @patch.dict('os.environ', {'foo': 'bar'})
     def test_031_config_authuser_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'foo': 'bar', 'foo1': 'bar1'}}
-        self.cahandler._config_authuser_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar', 'foo1': 'bar1'}
+        self.cahandler._config_authuser_load(parser)
         # with self.assertLogs('test_a2c', level='INFO') as lcm:
         self.assertFalse(self.cahandler.username)
         # self.assertIn("foo", lcm.output)
@@ -361,31 +398,35 @@ class TestACMEHandler(unittest.TestCase):
     @patch.dict('os.environ', {'enrollment_code_var': 'user_var'})
     def test_032_config_enrollmentcode_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'enrollment_code_variable': 'enrollment_code_var'}}
-        self.cahandler._config_enrollmentcode_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'enrollment_code_variable': 'enrollment_code_var'}
+        self.cahandler._config_enrollmentcode_load(parser)
         self.assertEqual('user_var', self.cahandler.enrollment_code)
 
     @patch.dict('os.environ', {'enrollment_code_var': 'user_var'})
     def test_033_config_enrollmentcode_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'enrollment_code_variable': 'does_not_exist'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'enrollment_code_variable': 'does_not_exist'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_enrollmentcode_load(config_dic)
+            self.cahandler._config_enrollmentcode_load(parser)
         self.assertFalse(self.cahandler.enrollment_code)
         self.assertIn("ERROR:test_a2c:CAhandler._config_authuser_load() could not load enrollment_code_variable:'does_not_exist'", lcm.output)
 
     @patch.dict('os.environ', {'enrollment_code_var': 'user_var'})
     def test_034_config_enrollmentcode_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'enrollment_code_variable': 'enrollment_code_var', 'enrollment_code': 'enrollment_code'}}
-        self.cahandler._config_enrollmentcode_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'enrollment_code_variable': 'enrollment_code_var', 'enrollment_code': 'enrollment_code'}
+        self.cahandler._config_enrollmentcode_load(parser)
         self.assertEqual('enrollment_code', self.cahandler.enrollment_code)
 
     @patch.dict('os.environ', {'foo': 'bar'})
     def test_035_config_enrollmentcode_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'foo': 'bar', 'foo1': 'bar1'}}
-        self.cahandler._config_enrollmentcode_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar', 'foo1': 'bar1'}
+        self.cahandler._config_enrollmentcode_load(parser)
         # with self.assertLogs('test_a2c', level='INFO') as lcm:
         self.assertFalse(self.cahandler.enrollment_code)
         # self.assertIn("foo", lcm.output)
@@ -393,42 +434,47 @@ class TestACMEHandler(unittest.TestCase):
     @patch.dict('os.environ', {'cert_passphrase_var': 'user_var'})
     def test_036_config_session_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'cert_passphrase_variable': 'cert_passphrase_var'}}
-        self.cahandler._config_session_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_passphrase_variable': 'cert_passphrase_var'}
+        self.cahandler._config_session_load(parser)
         self.assertEqual('user_var', self.cahandler.cert_passphrase)
 
     @patch.dict('os.environ', {'cert_passphrase_var': 'user_var'})
     def test_037_config_session_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'cert_passphrase_variable': 'does_not_exist'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_passphrase_variable': 'does_not_exist'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_session_load(config_dic)
+            self.cahandler._config_session_load(parser)
         self.assertFalse(self.cahandler.cert_passphrase)
         self.assertIn("ERROR:test_a2c:CAhandler._config_authuser_load() could not load cert_passphrase_variable:'does_not_exist'", lcm.output)
 
     @patch.dict('os.environ', {'cert_passphrase_var': 'user_var'})
     def test_038_config_session_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'cert_passphrase_variable': 'cert_passphrase_var', 'cert_passphrase': 'cert_passphrase'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_passphrase_variable': 'cert_passphrase_var', 'cert_passphrase': 'cert_passphrase'}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_session_load(config_dic)
+            self.cahandler._config_session_load(parser)
         self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite cert_passphrase', lcm.output)
         self.assertEqual('cert_passphrase', self.cahandler.cert_passphrase)
 
     @patch.dict('os.environ', {'foo': 'bar'})
     def test_039_config_session_load(self):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'foo': 'bar', 'foo1': 'bar1'}}
-        self.cahandler._config_session_load(config_dic)
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'foo': 'bar', 'foo1': 'bar1'}
+        self.cahandler._config_session_load(parser)
         self.assertFalse(self.cahandler.cert_passphrase)
 
     @patch('requests.Session')
     @patch('examples.ca_handler.ejbca_ca_handler.Pkcs12Adapter')
     def test_040_config_session_load(self, mock_pkcs12, mock_session):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'cert_file': 'cert_file', 'cert_passphrase': 'cert_passphrase'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_file': 'cert_file', 'cert_passphrase': 'cert_passphrase'}
         mock_session.return_value.__enter__.return_value = Mock()
-        self.cahandler._config_session_load(config_dic)
+        self.cahandler._config_session_load(parser)
         self.assertEqual('cert_passphrase', self.cahandler.cert_passphrase)
         self.assertTrue(mock_pkcs12.called)
         self.assertTrue(mock_session.called)
@@ -437,10 +483,11 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.ca_handler.ejbca_ca_handler.Pkcs12Adapter')
     def test_041_config_session_load(self, mock_pkcs12, mock_session):
         """ test _config_load - load template with user variable """
-        config_dic = {'CAhandler': {'cert_passphrase': 'cert_passphrase'}}
+        parser = configparser.ConfigParser()
+        parser['CAhandler'] = {'cert_passphrase': 'cert_passphrase'}
         mock_session.return_value.__enter__.return_value = Mock()
         with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.cahandler._config_session_load(config_dic)
+            self.cahandler._config_session_load(parser)
         self.assertIn('ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.', lcm.output)
         self.assertEqual('cert_passphrase', self.cahandler.cert_passphrase)
         self.assertFalse(mock_pkcs12.called)

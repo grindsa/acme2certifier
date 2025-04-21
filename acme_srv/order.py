@@ -127,16 +127,14 @@ class Order(object):
             self.tnauthlist_support = config_dic.getboolean('Order', 'tnauthlist_support', fallback=False)
             self.expiry_check_disable = config_dic.getboolean('Order', 'expiry_check_disable', fallback=False)
 
-            if 'retry_after_timeout' in config_dic['Order']:
-                try:
-                    self.retry_after = int(config_dic['Order']['retry_after_timeout'])
-                except Exception:
-                    self.logger.warning('Order._config_load(): failed to parse retry_after: %s', config_dic['Order']['retry_after_timeout'])
-            if 'validity' in config_dic['Order']:
-                try:
-                    self.validity = int(config_dic['Order']['validity'])
-                except Exception:
-                    self.logger.warning('Order._config_load(): failed to parse validity: %s', config_dic['Order']['validity'])
+            try:
+                self.retry_after = int(config_dic.get('Order', 'retry_after_timeout', fallback=self.retry_after))
+            except Exception:
+                self.logger.warning('Order._config_load(): failed to parse retry_after: %s', config_dic['Order']['retry_after_timeout'])
+            try:
+                self.validity = int(config_dic.get('Order', 'validity', fallback=self.validity))
+            except Exception:
+                self.logger.warning('Order._config_load(): failed to parse validity: %s', config_dic['Order']['validity'])
             try:
                 self.identifier_limit = int(config_dic.get('Order', 'identifier_limit', fallback=20))
             except Exception:
@@ -154,11 +152,10 @@ class Order(object):
         self._config_headerinfo_config_load(config_dic)
 
         if 'Authorization' in config_dic:
-            if 'validity' in config_dic['Authorization']:
-                try:
-                    self.authz_validity = int(config_dic['Authorization']['validity'])
-                except Exception:
-                    self.logger.warning('Order._config_load(): failed to parse authz validity: %s', config_dic['Authorization']['validity'])
+            try:
+                self.authz_validity = int(config_dic.get('Authorization', 'validity', fallback=self.authz_validity))
+            except Exception:
+                self.logger.warning('Order._config_load(): failed to parse authz validity: %s', config_dic['Authorization']['validity'])
 
         if 'Directory' in config_dic and 'url_prefix' in config_dic['Directory']:
             self.path_dic = {k: config_dic['Directory']['url_prefix'] + v for k, v in self.path_dic.items()}

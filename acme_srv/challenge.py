@@ -208,12 +208,10 @@ class Challenge(object):
         if 'Challenge' in config_dic:
             self.challenge_validation_disable = config_dic.getboolean('Challenge', 'challenge_validation_disable', fallback=False)
             self.sectigo_sim = config_dic.getboolean('Challenge', 'sectigo_sim', fallback=False)
-
-            if 'challenge_validation_timeout' in config_dic['Challenge']:
-                try:
-                    self.challenge_validation_timeout = int(config_dic['Challenge']['challenge_validation_timeout'])
-                except Exception as err_:
-                    self.logger.warning('Challenge._config_load() failed to load challenge_validation_timeout: %s', err_)
+            try:
+                self.challenge_validation_timeout = int(config_dic.get('Challenge', 'challenge_validation_timeout', fallback=self.challenge_validation_timeout))
+            except Exception as err_:
+                self.logger.warning('Challenge._config_load() failed to load challenge_validation_timeout: %s', err_)
 
         self.logger.debug('Challenge._config_challenge_load() ended')
 

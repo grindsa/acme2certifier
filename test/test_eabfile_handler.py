@@ -8,6 +8,7 @@ import os
 from OpenSSL import crypto
 from unittest.mock import patch, Mock, MagicMock, mock_open
 import requests
+import configparser
 
 sys.path.insert(0, '.')
 sys.path.insert(1, '..')
@@ -39,28 +40,35 @@ class TestACMEHandler(unittest.TestCase):
     @patch('examples.eab_handler.file_handler.load_config')
     def test_003_config_load(self, mock_load_cfg):
         """ test _config_load - empty dictionary """
-        mock_load_cfg.return_value = {}
+        parser = configparser.ConfigParser()
+        mock_load_cfg.return_value = parser
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
     @patch('examples.eab_handler.file_handler.load_config')
     def test_004_config_load(self, mock_load_cfg):
-        """ test _config_load - bogus values """
-        mock_load_cfg.return_value = {'foo': 'bar'}
+        """ test _config_load - no values """
+        parser = configparser.ConfigParser()
+        parser['foo'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
     @patch('examples.eab_handler.file_handler.load_config')
     def test_005_config_load(self, mock_load_cfg):
         """ test _config_load - bogus values """
-        mock_load_cfg.return_value = {'EABhandler': {'foo': 'bar'}}
+        parser = configparser.ConfigParser()
+        parser['EABhandler'] = {'foo': 'bar'}
+        mock_load_cfg.return_value = parser
         self.eabhandler._config_load()
         self.assertFalse(self.eabhandler.key_file)
 
     @patch('examples.eab_handler.file_handler.load_config')
     def test_006_config_load(self, mock_load_cfg):
         """ test _config_load - bogus values """
-        mock_load_cfg.return_value = {'EABhandler': {'key_file': 'key_file'}}
+        parser = configparser.ConfigParser()
+        parser['EABhandler'] = {'key_file': 'key_file'}
+        mock_load_cfg.return_value = parser
         self.eabhandler._config_load()
         self.assertEqual('key_file', self.eabhandler.key_file)
 
