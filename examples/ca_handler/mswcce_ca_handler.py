@@ -77,13 +77,13 @@ class CAhandler(object):
 
         if 'host_variable' in config_dic['CAhandler']:
             try:
-                self.host = os.environ[config_dic['CAhandler']['host_variable']]
+                self.host = os.environ[config_dic.get('CAhandler', 'host_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load host_variable:%s', err)
         if 'host' in config_dic['CAhandler']:
             if self.host:
                 self.logger.info('CAhandler._config_load() overwrite host')
-            self.host = config_dic['CAhandler']['host']
+            self.host = config_dic.get('CAhandler', 'host')
 
         self.logger.debug("CAhandler._config_host_load() ended")
 
@@ -93,23 +93,23 @@ class CAhandler(object):
 
         if 'user_variable' in config_dic['CAhandler']:
             try:
-                self.user = os.environ[config_dic['CAhandler']['user_variable']]
+                self.user = os.environ[config_dic.get('CAhandler', 'user_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load user_variable:%s', err)
         if 'user' in config_dic['CAhandler']:
             if self.user:
                 self.logger.info('CAhandler._config_load() overwrite user')
-            self.user = config_dic['CAhandler']['user']
+            self.user = config_dic.get('CAhandler', 'user')
 
         if 'password_variable' in config_dic['CAhandler']:
             try:
-                self.password = os.environ[config_dic['CAhandler']['password_variable']]
+                self.password = os.environ[config_dic.get('CAhandler', 'password_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load password_variable:%s', err)
         if 'password' in config_dic['CAhandler']:
             if self.password:
                 self.logger.info('CAhandler._config_load() overwrite password')
-            self.password = config_dic['CAhandler']['password']
+            self.password = config_dic.get('CAhandler', 'password')
 
         self.logger.debug("CAhandler._config_credentials_load() ended")
 
@@ -118,9 +118,9 @@ class CAhandler(object):
         self.logger.debug("CAhandler._config_parameters_load()")
 
         if 'domain_controller' in config_dic['CAhandler']:
-            self.domain_controller = config_dic['CAhandler']['domain_controller']
+            self.domain_controller = config_dic.get('CAhandler', 'domain_controller')
         elif 'dns_server' in config_dic['CAhandler']:
-            self.domain_controller = config_dic['CAhandler']['dns_server']
+            self.domain_controller = config_dic.get('CAhandler', 'dns_server')
 
         self.target_domain = config_dic.get('CAhandler', 'target_domain', fallback=None)
         self.ca_name = config_dic.get('CAhandler', 'ca_name', fallback=None)
@@ -151,7 +151,7 @@ class CAhandler(object):
 
         if 'DEFAULT' in config_dic and 'proxy_server_list' in config_dic['DEFAULT']:
             try:
-                proxy_list = json.loads(config_dic['DEFAULT']['proxy_server_list'])
+                proxy_list = json.loads(config_dic.get('DEFAULT', 'proxy_server_list'))
                 proxy_server = proxy_check(self.logger, self.host, proxy_list)
                 self.proxy = {'http': proxy_server, 'https': proxy_server}
             except Exception as err_:

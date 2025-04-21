@@ -285,37 +285,38 @@ class CAhandler(object):
     def _config_domainlists_load(self, config_dic: Dict[str, str]):
         """" load config from file """
         self.logger.debug('CAhandler._config_domainlists_load()')
-        if 'openssl_conf' in config_dic['CAhandler']:
-            self.openssl_conf = config_dic['CAhandler']['openssl_conf']
+
+        self.openssl_conf = config_dic.get('CAhandler', 'openssl_conf', fallback=self.openssl_conf)
         if 'allowed_domainlist' in config_dic['CAhandler']:
-            self.allowed_domainlist = json.loads(config_dic['CAhandler']['allowed_domainlist'])
+            self.allowed_domainlist = json.loads(config_dic.get('CAhandler', 'allowed_domainlist'))
         if 'blocked_domainlist' in config_dic['CAhandler']:
-            self.blocked_domainlist = json.loads(config_dic['CAhandler']['blocked_domainlist'])
+            self.blocked_domainlist = json.loads(config_dic.get('CAhandler', 'blocked_domainlist'))
+
         if 'whitelist' in config_dic['CAhandler']:
-            self.allowed_domainlist = json.loads(config_dic['CAhandler']['whitelist'])
+            self.allowed_domainlist = json.loads(config_dic.get('CAhandler', 'whitelist'))
             self.logger.error('CAhandler._config_load() found "whitelist" parameter in configfile which should be renamed to "allowed_domainlist"')
         if 'blacklist' in config_dic['CAhandler']:
-            self.blocked_domainlist = json.loads(config_dic['CAhandler']['blacklist'])
+            self.blocked_domainlist = json.loads(config_dic.get('CAhandler', 'blacklist'))
             self.logger.error('CAhandler._config_load() found "blacklist" parameter in configfile which should be renamed to "blocked_domainlist"')
+
         self.logger.debug('CAhandler._config_domainlists_load() ended')
 
     def _config_credentials_load(self, config_dic: Dict[str, str]):
         """ load credential config """
         self.logger.debug('CAhandler._config_credentials_load()')
 
-        if 'issuing_ca_key' in config_dic['CAhandler']:
-            self.issuer_dict['issuing_ca_key'] = config_dic['CAhandler']['issuing_ca_key']
-        if 'issuing_ca_cert' in config_dic['CAhandler']:
-            self.issuer_dict['issuing_ca_cert'] = config_dic['CAhandler']['issuing_ca_cert']
+        self.issuer_dict['issuing_ca_key'] = config_dic.get('CAhandler', 'issuing_ca_key', fallback=None)
+        self.issuer_dict['issuing_ca_cert'] = config_dic.get('CAhandler', 'issuing_ca_cert', fallback=None)
+
         if 'issuing_ca_key_passphrase_variable' in config_dic['CAhandler']:
             try:
-                self.issuer_dict['passphrase'] = os.environ[config_dic['CAhandler']['issuing_ca_key_passphrase_variable']]
+                self.issuer_dict['passphrase'] = os.environ[config_dic.get('CAhandler', 'issuing_ca_key_passphrase_variable')]
             except Exception as err:
                 self.logger.error('CAhandler._config_load() could not load issuing_ca_key_passphrase_variable: %s', err)
         if 'issuing_ca_key_passphrase' in config_dic['CAhandler']:
             if 'passphrase' in self.issuer_dict and self.issuer_dict['passphrase']:
                 self.logger.info('CAhandler._config_load() overwrite issuing_ca_key_passphrase_variable')
-            self.issuer_dict['passphrase'] = config_dic['CAhandler']['issuing_ca_key_passphrase']
+            self.issuer_dict['passphrase'] = config_dic.get('CAhandler', 'issuing_ca_key_passphrase')
 
         # convert passphrase
         if 'passphrase' in self.issuer_dict:
@@ -327,14 +328,13 @@ class CAhandler(object):
         """ load certificate policy """
         self.logger.debug('CAhandler._config_policy_load()')
 
+        self.cert_save_path = config_dic.get('CAhandler', 'cert_save_path', fallback=self.cert_save_path)
+        self.issuer_dict['issuing_ca_crl'] = config_dic.get('CAhandler', 'issuing_ca_crl', fallback=None)
+
         if 'ca_cert_chain_list' in config_dic['CAhandler']:
             self.ca_cert_chain_list = json.loads(config_dic['CAhandler']['ca_cert_chain_list'])
         if 'cert_validity_days' in config_dic['CAhandler']:
             self.cert_validity_days = int(config_dic['CAhandler']['cert_validity_days'])
-        if 'cert_save_path' in config_dic['CAhandler']:
-            self.cert_save_path = config_dic['CAhandler']['cert_save_path']
-        if 'issuing_ca_crl' in config_dic['CAhandler']:
-            self.issuer_dict['issuing_ca_crl'] = config_dic['CAhandler']['issuing_ca_crl']
         try:
             self.cn_enforce = config_dic.getboolean('CAhandler', 'cn_enforce', fallback=False)
         except Exception:

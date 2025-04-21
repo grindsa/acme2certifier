@@ -38,18 +38,14 @@ class Renewalinfo(object):
         if 'Renewalinfo' in config_dic:
 
             self.renewal_force = config_dic.getboolean('Renewalinfo', 'renewal_force', fallback=False)
-
-            if 'renewaltreshold_pctg' in config_dic['Renewalinfo']:
-                try:
-                    self.renewaltreshold_pctg = float(config_dic['Renewalinfo']['renewaltreshold_pctg'])
-                except Exception as err_:
-                    self.logger.error('acme2certifier Renewalinfo._config_load() renewaltreshold_pctg parsing error: %s', err_)
-
-            if 'retry_after_timeout' in config_dic['Renewalinfo']:
-                try:
-                    self.retry_after_timeout = int(config_dic['Renewalinfo']['retry_after_timeout'])
-                except Exception as err_:
-                    self.logger.error('acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: %s', err_)
+            try:
+                self.renewaltreshold_pctg = float(config_dic.get('Renewalinfo', 'renewaltreshold_pctg', fallback=self.renewaltreshold_pctg))
+            except Exception as err_:
+                self.logger.error('acme2certifier Renewalinfo._config_load() renewaltreshold_pctg parsing error: %s', err_)
+            try:
+                self.retry_after_timeout = int(config_dic.get('Renewalinfo', 'retry_after_timeout', fallback=self.retry_after_timeout))
+            except Exception as err_:
+                self.logger.error('acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: %s', err_)
 
     def _cert_dic_lookup(self, renewalinfo_string: str) -> Dict[str, str]:
         """ lookup certificate based on renewalinfo string """

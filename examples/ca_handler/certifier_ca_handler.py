@@ -216,13 +216,13 @@ class CAhandler(object):
         if 'api_user' in config_dic['CAhandler'] or 'api_user_variable' in config_dic['CAhandler']:
             if 'api_user_variable' in config_dic['CAhandler']:
                 try:
-                    self.api_user = os.environ[config_dic['CAhandler']['api_user_variable']]
+                    self.api_user = os.environ[config_dic.get('CAhandler', 'api_user_variable')]
                 except Exception as err:
                     self.logger.error('CAhandler._config_load() could not load user_variable:%s', err)
             if 'api_user' in config_dic['CAhandler']:
                 if self.api_user:
                     self.logger.info('CAhandler._config_load() overwrite api_user')
-                self.api_user = config_dic['CAhandler']['api_user']
+                self.api_user = config_dic.get('CAhandler', 'api_user', fallback=self.api_user)
         else:
             self.logger.error('CAhandler._config_load() configuration incomplete: "api_user" parameter is missing in config file')
 
@@ -235,13 +235,13 @@ class CAhandler(object):
         if 'api_password' in config_dic['CAhandler'] or 'api_password_variable' in config_dic['CAhandler']:
             if 'api_password_variable' in config_dic['CAhandler']:
                 try:
-                    self.api_password = os.environ[config_dic['CAhandler']['api_password_variable']]
+                    self.api_password = os.environ[config_dic.get('CAhandler', 'api_password_variable')]
                 except Exception as err:
                     self.logger.error('CAhandler._config_load() could not load passphrase_variable:%s', err)
             if 'api_password' in config_dic['CAhandler']:
                 if self.api_password:
                     self.logger.info('CAhandler._config_load() overwrite api_password_variable')
-                self.api_password = config_dic['CAhandler']['api_password']
+                self.api_password = config_dic.get('CAhandler', 'api_password')
         else:
             self.logger.error('CAhandler._config_load() configuration incomplete: "api_password" parameter is missing in config file')
 
@@ -252,31 +252,32 @@ class CAhandler(object):
         self.logger.debug('_config_parameter_load()')
 
         if 'ca_name' in config_dic['CAhandler']:
-            self.ca_name = config_dic['CAhandler']['ca_name']
+            self.ca_name = config_dic.get('CAhandler', 'ca_name', fallback=self.ca_name)
         else:
             self.logger.error('CAhandler._config_load() configuration incomplete: "ca_name" parameter is missing in config file')
 
-        if 'polling_timeout' in config_dic['CAhandler']:
-            self.polling_timeout = int(config_dic['CAhandler']['polling_timeout'])
+        try:
+            self.polling_timeout = int(config_dic.get('CAhandler', 'polling_timeout', fallback=self.polling_timeout))
+        except Exception:
+            self.logger.warning('CAhandler._config_load() polling_timeout is not an integer, using default value: %s', self.polling_timeout)
 
-        if 'request_timeout' in config_dic['CAhandler']:
-            try:
-                self.request_timeout = int(config_dic['CAhandler']['request_timeout'])
-            except Exception:
-                self.request_timeout = 20
+        try:
+            self.request_timeout = int(config_dic.get('CAhandler', 'request_timeout', fallback=self.request_timeout))
+        except Exception:
+            self.logger.warning('CAhandler._config_load() request_timeout is not an integer, using default value: %s', self.request_timeout)
 
         # load enrollment config log
         self.enrollment_config_log, self.enrollment_config_log_skip_list = config_enroll_config_log_load(self.logger, config_dic)
 
         # load profile_id
-        self.profile_id = config_dic['CAhandler'].get('profile_id', None)
+        self.profile_id = config_dic.get('CAhandler', 'profile_id', fallback=None)
 
         # check if we get a ca bundle for verification
         if 'ca_bundle' in config_dic['CAhandler']:
             try:
                 self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
             except Exception:
-                self.ca_bundle = config_dic['CAhandler']['ca_bundle']
+                self.ca_bundle = config_dic.get('CAhandler', 'ca_bundle', fallback=self.ca_bundle)
 
         self.logger.debug('_config_parameter_load() ended')
 
@@ -304,7 +305,7 @@ class CAhandler(object):
         config_dic = load_config(self.logger, 'CAhandler')
         if 'CAhandler' in config_dic:
             if 'api_host' in config_dic['CAhandler']:
-                self.api_host = config_dic['CAhandler']['api_host']
+                self.api_host = config_dic.get('CAhandler', 'api_host', fallback=self.api_host)
             else:
                 self.logger.error('CAhandler._config_load() configuration incomplete: "api_host" parameter is missing in config file')
 

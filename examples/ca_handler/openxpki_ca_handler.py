@@ -73,53 +73,49 @@ class CAhandler(object):
         self.logger.debug('CAhandler._config_auth_load()')
 
         if 'CAhandler' in config_dic:
-            if 'host' in config_dic['CAhandler']:
-                self.host = config_dic['CAhandler']['host']
 
-            if 'endpoint_name' in config_dic['CAhandler']:
-                self.endpoint_name = config_dic['CAhandler']['endpoint_name']
+            self.host = config_dic.get('CAhandler', 'host', fallback=self.host)
+            self.endpoint_name = config_dic.get('CAhandler', 'endpoint_name', fallback=self.endpoint_name)
+            self.rpc_path = config_dic.get('CAhandler', 'rpc_path', fallback=self.rpc_path)
 
             try:
-                self.request_timeout = int(config_dic['CAhandler'].get('request_timeout', 5))
+                self.request_timeout = int(config_dic.get('CAhandler', 'request_timeout', fallback=self.request_timeout))
             except Exception as err:
                 self.logger.error('CAhandler._config_server_load() could not load request_timeout:%s', err)
                 self.request_timeout = 5
-
-            if 'rpc_path' in config_dic['CAhandler']:
-                self.rpc_path = config_dic['CAhandler']['rpc_path']
 
         self.logger.debug('CAhandler._config_server_load() ended')
 
     def _config_ca_load(self, config_dic):
         """ load ca information """
         self.logger.debug('CAhandler._config_ca_load()')
-        if 'CAhandler' in config_dic:
 
+        if 'CAhandler' in config_dic:
+            self.cert_profile_name = config_dic.get('CAhandler', 'cert_profile_name', fallback=self.cert_profile_name)
             if 'ca_bundle' in config_dic['CAhandler']:
                 try:
                     self.ca_bundle = config_dic.getboolean('CAhandler', 'ca_bundle')
                 except Exception as err:
                     self.logger.debug('CAhandler._config_server_load(): failed to load ca_bundle option: %s', err)
-                    self.ca_bundle = config_dic['CAhandler']['ca_bundle']
-
-            if 'cert_profile_name' in config_dic['CAhandler']:
-                self.cert_profile_name = config_dic['CAhandler']['cert_profile_name']
+                    self.ca_bundle = config_dic.get('CAhandler', 'ca_bundle')
 
             if 'polling_timeout' in config_dic['CAhandler']:
                 try:
-                    self.polling_timeout = int(config_dic['CAhandler']['polling_timeout'])
+                    self.polling_timeout = int(config_dic.get('CAhandler', 'polling_timeout'))
                 except Exception as err:
                     self.logger.error('CAhandler._config_server_load(): failed to load polling_timeout option: %s', err)
-                    self.polling_timeout = 0
+
+        self.logger.debug('CAhandler._config_ca_load() ended')
 
     def _config_passphrase_load(self, config_dic: Dict[str, str]):
         """ load passphrase """
         self.logger.debug('CAhandler._config_passphrase_load()')
+
         if 'cert_passphrase_variable' in config_dic['CAhandler'] or 'cert_passphrase' in config_dic['CAhandler']:
             if 'cert_passphrase_variable' in config_dic['CAhandler']:
                 self.logger.debug('CAhandler._config_passphrase_load(): load passphrase from environment variable')
                 try:
-                    self.cert_passphrase = os.environ[config_dic['CAhandler']['cert_passphrase_variable']]
+                    self.cert_passphrase = os.environ[config_dic.get('CAhandler', 'cert_passphrase_variable')]
                 except Exception as err:
                     self.logger.error('CAhandler._config_passphrase_load() could not load cert_passphrase_variable:%s', err)
 
@@ -127,7 +123,8 @@ class CAhandler(object):
                 self.logger.debug('CAhandler._config_passphrase_load(): load passphrase from config file')
                 if self.cert_passphrase:
                     self.logger.info('CAhandler._config_load() overwrite cert_passphrase')
-                self.cert_passphrase = config_dic['CAhandler']['cert_passphrase']
+                self.cert_passphrase = config_dic.get('CAhandler', 'cert_passphrase')
+
         self.logger.debug('CAhandler._config_passphrase_load() ended')
 
     def _config_session_load(self, config_dic: Dict[str, str]):
@@ -138,7 +135,7 @@ class CAhandler(object):
             # client auth via pem files
             if 'client_cert' in config_dic['CAhandler'] and 'client_key' in config_dic['CAhandler']:
                 self.logger.debug('CAhandler._config_session_load() cert and key in pem format')
-                self.session.cert = (config_dic['CAhandler']['client_cert'], config_dic['CAhandler']['client_key'])
+                self.session.cert = (config_dic.get('CAhandler', 'client_cert'), config_dic.get('CAhandler', 'client_key'))
 
             else:
                 self._config_passphrase_load(config_dic)
