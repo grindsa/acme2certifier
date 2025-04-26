@@ -590,7 +590,8 @@ class Account(object):
                 self.logger.critical('EABHandler configuration incomplete')
 
         self.tos_url = config_dic.get('Directory', 'tos_url', fallback=None)
-        self.path_dic = {k: url_prefix + v for k, v in self.path_dic.items()} if (url_prefix := config_dic.get('Directory', 'url_prefix', fallback=None)) else self.path_dic
+        if config_dic.get('Directory','url_prefix', fallback=None):
+            self.path_dic = {k: config_dic.get('Directory','url_prefix') + v for k, v in self.path_dic.items()}
         self.logger.debug('Account._config_load() ended')
 
     def _lookup(self, value: str, field: str = 'name') -> Dict[str, str]:
