@@ -1,8 +1,9 @@
 #!/bin/bash
 
 echo "install missing packages"
-yum install -y sudo checkpolicy python3-pip procps rsyslog
-systemctl start rsyslog
+yum -y install epel-release
+yum install -y sudo checkpolicy python3-pip procps syslog-ng
+systemctl start syslog-ng
 
 cd /tmp/acme2certifier
 
