@@ -11,7 +11,7 @@ on:
 jobs:
   async_enrollment_cert_reusage:
     name: async_enrollment_cert_reusage
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       # max-parallel: 1
       fail-fast: false
@@ -73,7 +73,7 @@ jobs:
 
   rpm_wsgi_async_enrollment_cert_reusage:
     name: "rpm_wsgi_async_enrollment_cert_reusage"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       # max-parallel: 1
       fail-fast: false
@@ -134,7 +134,7 @@ jobs:
 
   rpm_django_async_enrollment_cert_reusage:
     name: "rpm_django_async_enrollment_cert_reusage"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       # max-parallel: 1
       fail-fast: false

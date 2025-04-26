@@ -83,7 +83,7 @@ jobs:
 
   est_handler_tests_rpm:
     name: "est_handler_tests_rpm"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       max-parallel: 1
       fail-fast: false

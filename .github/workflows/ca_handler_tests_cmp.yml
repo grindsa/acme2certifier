@@ -222,7 +222,7 @@ jobs:
 
   rpm_cmp_handler_tests_keycert:
     name: "rpm_cmp_handler_tests_keycert"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -356,7 +356,7 @@ jobs:
 
   rpm_cmp_handler_tests_refpsk:
     name: "rpm_cmp_handler_tests_refpsk"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4

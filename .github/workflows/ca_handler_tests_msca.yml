@@ -793,7 +793,7 @@ jobs:
 
   mscertsrv_handler_tests_rpm:
     name: "mscertsrv_handler_tests_rpm"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: rpm_build_and_upload
     strategy:
       # max-parallel: 1
@@ -955,7 +955,7 @@ jobs:
 
   mscertsrv_handler_eab_profile_tests_rpm:
     name: "mscertsrv_handler_eab_profile_tests_rpm"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: mscertsrv_handler_tests_rpm
     strategy:
       # max-parallel: 1
@@ -1082,7 +1082,7 @@ jobs:
 
   mswcce_handler_tests_rpm:
     name: "mswcce_handler_tests_rpm"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: mscertsrv_handler_tests_rpm
     strategy:
       # max-parallel: 1
@@ -1283,7 +1283,7 @@ jobs:
 
   mswcce_handler_eab_profile_tests_rpm:
     name: "mswcce_handler_eab_profile_tests_rpm"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: mscertsrv_handler_tests_rpm
     strategy:
       # max-parallel: 1
