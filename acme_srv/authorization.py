@@ -151,7 +151,8 @@ class Authorization(object):
             self.logger.warning('Failed to parse validity parameter: %s', config_dic.get('Authorization', 'validity'))
 
         self.expiry_check_disable = config_dic.getboolean('Authorization', 'expiry_check_disable', fallback=False)
-        self.path_dic = {k: url_prefix + v for k, v in self.path_dic.items()} if (url_prefix := config_dic.get('Directory', 'url_prefix', fallback=None)) else self.path_dic
+        if config_dic.get('Directory','url_prefix', fallback=None):
+            self.path_dic = {k: config_dic.get('Directory','url_prefix') + v for k, v in self.path_dic.items()}
         self.logger.debug('Authorization._config_load() ended.')
 
     def invalidate(self, timestamp: int = None) -> Tuple[List[str], List[str]]:
