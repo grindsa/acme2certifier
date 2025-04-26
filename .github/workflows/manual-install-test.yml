@@ -11,7 +11,7 @@ on:
 jobs:
   apache2_wsgi:
     name: "apache2_wsgi"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -71,7 +71,7 @@ jobs:
 
   nginx_wsgi:
     name: "nginx_wsgi"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -131,7 +131,7 @@ jobs:
 
   alma_nginx_wsgi:
     name: "alma_nginx_wsgi"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -180,7 +180,7 @@ jobs:
 
   alma_nginx_wsgi_rpm:
     name: "alma_nginx_wsgi_rpm"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -231,7 +231,7 @@ jobs:
 
   deb_build:
     name: "deb_build"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
 
     - name: "checkout GIT"
@@ -242,7 +242,7 @@ jobs:
 
   deb_apache2:
     name: "deb_apache2"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: deb_build
     steps:
     - name: "checkout GIT"
@@ -326,7 +326,7 @@ jobs:
 
   deb_nginx:
     name: "deb_nginx"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: deb_build
     steps:
     - name: "checkout GIT"
