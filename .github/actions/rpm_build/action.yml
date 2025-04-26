@@ -38,4 +38,3 @@ runs:
 
     - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
       shell: bash
-

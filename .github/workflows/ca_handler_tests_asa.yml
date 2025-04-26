@@ -615,4 +615,3 @@ jobs:
       with:
         name: asa_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-

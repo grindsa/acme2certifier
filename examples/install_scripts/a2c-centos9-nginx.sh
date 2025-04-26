@@ -89,4 +89,3 @@ EOT
 sudo checkmodule -M -m -o acme2certifier.mod acme2certifier.te
 sudo semodule_package -o acme2certifier.pp -m acme2certifier.mod
 sudo semodule -i acme2certifier.pp
-
