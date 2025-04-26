@@ -3,6 +3,7 @@ A Python client for the Microsoft AD Certificate Services web page.
 
 https://github.com/magnuswatn/certsrv
 """
+
 # pylint: disable=C0209, C0415, R1720, R1705
 import os
 import re
@@ -17,7 +18,9 @@ logger = logging.getLogger(__name__)
 
 TIMEOUT = 30
 UNKOWN_ERR_MSG = "An unknown error occured"
-DEPRECATIONWARNING = "This function is deprecated. Use the method on the Certsrv class instead"
+DEPRECATIONWARNING = (
+    "This function is deprecated. Use the method on the Certsrv class instead"
+)
 
 
 class RequestDeniedException(Exception):
@@ -72,9 +75,20 @@ class Certsrv(object):
         the username parameter should be the path to a certificate, and
         the password parameter the path to a (unencrypted) private key.
     """
+
     # pylint: disable=r0913
-    def __init__(self, server, url, username, password, auth_method="basic",
-                 cafile=None, verify=True, timeout=TIMEOUT, proxies=None):
+    def __init__(
+        self,
+        server,
+        url,
+        username,
+        password,
+        auth_method="basic",
+        cafile=None,
+        verify=True,
+        timeout=TIMEOUT,
+        proxies=None,
+    ):
 
         self.server = server
         self.url = url
@@ -114,7 +128,8 @@ class Certsrv(object):
         elif self.auth_method == "gssapi":
             from requests_gssapi import HTTPSPNEGOAuth
             import gssapi
-            oid = '1.3.6.1.5.5.2'  # SPNEGO
+
+            oid = "1.3.6.1.5.5.2"  # SPNEGO
             # pylint: disable=e1101
             cred = gssapi.raw.acquire_cred_with_password(
                 gssapi.Name(username, gssapi.NameType.user),
@@ -122,16 +137,22 @@ class Certsrv(object):
                 mechs=[gssapi.OID.from_int_seq(oid)],
                 usage="initiate",
             )
-            self.session.auth = HTTPSPNEGOAuth(creds=cred.creds, mech=gssapi.OID.from_int_seq(oid))
+            self.session.auth = HTTPSPNEGOAuth(
+                creds=cred.creds, mech=gssapi.OID.from_int_seq(oid)
+            )
         else:
             self.session.auth = (username, password)
 
     def _post(self, url, **kwargs):
-        response = self.session.post(url, timeout=self.timeout, proxies=self.proxies, **kwargs)
+        response = self.session.post(
+            url, timeout=self.timeout, proxies=self.proxies, **kwargs
+        )
         return self._handle_response(response)
 
     def _get(self, url, **kwargs):
-        response = self.session.get(url, timeout=self.timeout, proxies=self.proxies, **kwargs)
+        response = self.session.get(
+            url, timeout=self.timeout, proxies=self.proxies, **kwargs
+        )
         return self._handle_response(response)
 
     @staticmethod
@@ -302,9 +323,7 @@ class Certsrv(object):
         response = self._get(cert_url, params=params)
 
         if response.headers["Content-Type"] != "application/pkix-cert":
-            raise CouldNotRetrieveCertificateException(
-                UNKOWN_ERR_MSG, response.content
-            )
+            raise CouldNotRetrieveCertificateException(UNKOWN_ERR_MSG, response.content)
 
         return response.content
 
@@ -389,10 +408,10 @@ def _get_ca_bundle():
     """Tries to find the platform ca bundle for the system (on linux systems)"""
     ca_bundles = [
         # list taken from https://golang.org/src/crypto/x509/root_linux.go
-        "/etc/ssl/certs/ca-certificates.crt",                 # Debian/Ubuntu/Gentoo etc.
-        "/etc/pki/tls/certs/ca-bundle.crt",                   # Fedora/RHEL 6
-        "/etc/ssl/ca-bundle.pem",                             # OpenSUSE
-        "/etc/pki/tls/cacert.pem",                            # OpenELEC
+        "/etc/ssl/certs/ca-certificates.crt",  # Debian/Ubuntu/Gentoo etc.
+        "/etc/pki/tls/certs/ca-bundle.crt",  # Fedora/RHEL 6
+        "/etc/ssl/ca-bundle.pem",  # OpenSUSE
+        "/etc/pki/tls/cacert.pem",  # OpenELEC
         "/etc/pki/ca-trust/extracted/pem/tls-ca-bundle.pem",  # CentOS/RHEL 7
     ]
     for ca_bundle in ca_bundles:

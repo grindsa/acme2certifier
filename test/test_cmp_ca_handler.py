@@ -1,484 +1,655 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-""" unittests for openssl_ca_handler """
+"""unittests for openssl_ca_handler"""
 # pylint: disable=C0415, R0904, R0913, W0212
 import sys
 import os
 import unittest
 from unittest.mock import patch, mock_open, Mock
+
 # from OpenSSL import crypto
 import shutil
 import configparser
 
-sys.path.insert(0, '.')
-sys.path.insert(1, '..')
+sys.path.insert(0, ".")
+sys.path.insert(1, "..")
+
 
 class TestACMEHandler(unittest.TestCase):
-    """ test class for generica cmp_handler """
+    """test class for generica cmp_handler"""
+
     def setUp(self):
-        """ setup unittest """
+        """setup unittest"""
         import logging
         from examples.ca_handler.cmp_ca_handler import CAhandler
+
         logging.basicConfig(level=logging.CRITICAL)
-        self.logger = logging.getLogger('test_a2c')
+        self.logger = logging.getLogger("test_a2c")
         self.cahandler = CAhandler(False, self.logger)
 
     def tearDown(self):
-        """ teardown """
+        """teardown"""
         pass
 
     def test_001_default(self):
-        """ default test which always passes """
-        self.assertEqual('foo', 'foo')
+        """default test which always passes"""
+        self.assertEqual("foo", "foo")
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_002_config_load(self, mock_load_cfg):
-        """ test _config_load no cahandler section """
+        """test _config_load no cahandler section"""
         parser = configparser.ConfigParser()
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'popo': 0}
+        odict = {"cmd": "ir", "popo": 0}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_003_config_load(self, mock_load_cfg):
-        """ test _config_load wrong cahandler section """
+        """test _config_load wrong cahandler section"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'foo': 'bar'}
+        parser["CAhandler"] = {"foo": "bar"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'popo': 0}
+        odict = {"cmd": "ir", "popo": 0}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_004_config_load(self, mock_load_cfg):
-        """ test _config_load cmd predefined in cahandler """
+        """test _config_load cmd predefined in cahandler"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_cmd': 'foo'}
+        parser["CAhandler"] = {"cmp_cmd": "foo"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'foo', 'popo': 0}
+        odict = {"cmd": "foo", "popo": 0}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_005_config_load(self, mock_load_cfg):
-        """ test _config_load popo predefined in cahandler  """
+        """test _config_load popo predefined in cahandler"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_popo': 'pop'}
+        parser["CAhandler"] = {"cmp_popo": "pop"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'popo': 'pop'}
+        odict = {"cmd": "ir", "popo": "pop"}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_006_config_load(self, mock_load_cfg):
-        """ test _config_load cmd and popo predefined in cahandler  """
+        """test _config_load cmd and popo predefined in cahandler"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_cmd': 'foo', 'cmp_popo': 'popo'}
+        parser["CAhandler"] = {"cmp_cmd": "foo", "cmp_popo": "popo"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'foo', 'popo': 'popo'}
+        odict = {"cmd": "foo", "popo": "popo"}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_007_config_load(self, mock_load_cfg):
-        """ test _config_load - cmp_openssl_bin parameter"""
+        """test _config_load - cmp_openssl_bin parameter"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_openssl_bin': 'foo'}
+        parser["CAhandler"] = {"cmp_openssl_bin": "foo"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'popo': 0}
+        odict = {"cmd": "ir", "popo": 0}
         self.assertEqual(odict, self.cahandler.config_dic)
-        self.assertEqual('foo', self.cahandler.openssl_bin)
+        self.assertEqual("foo", self.cahandler.openssl_bin)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_008_config_load(self, mock_load_cfg):
-        """ test _config_load - cmp_recipient-dir parameter """
+        """test _config_load - cmp_recipient-dir parameter"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_recipient': 'foo'}
+        parser["CAhandler"] = {"cmp_recipient": "foo"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'popo': 0, 'recipient': '/foo'}
+        odict = {"cmd": "ir", "popo": 0, "recipient": "/foo"}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_009_config_load(self, mock_load_cfg):
-        """ test _config_load - cmd_tmp-cmp_recipient startwith '/' """
+        """test _config_load - cmd_tmp-cmp_recipient startwith '/'"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_recipient': '/foo'}
+        parser["CAhandler"] = {"cmp_recipient": "/foo"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'popo': 0, 'recipient': '/foo'}
+        odict = {"cmd": "ir", "popo": 0, "recipient": "/foo"}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_010_config_load(self, mock_load_cfg):
-        """ test _config_load - cmd_tmp-cmp_recipient contains , """
+        """test _config_load - cmd_tmp-cmp_recipient contains ,"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_recipient': 'fo,o'}
+        parser["CAhandler"] = {"cmp_recipient": "fo,o"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'popo': 0, 'recipient': '/fo/o'}
+        odict = {"cmd": "ir", "popo": 0, "recipient": "/fo/o"}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_011_config_load(self, mock_load_cfg):
-        """ test _config_load - cmd_tmp-cmp_recipient contains ,blank """
+        """test _config_load - cmd_tmp-cmp_recipient contains ,blank"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_recipient': 'fo, o'}
+        parser["CAhandler"] = {"cmp_recipient": "fo, o"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'popo': 0, 'recipient': '/fo/o'}
+        odict = {"cmd": "ir", "popo": 0, "recipient": "/fo/o"}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_012_config_load(self, mock_load_cfg):
-        """ test _config_load - cmd_tmp-cmp_recipient contains ,blank and ,"""
+        """test _config_load - cmd_tmp-cmp_recipient contains ,blank and ,"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_recipient': 'foo, bar,doo'}
+        parser["CAhandler"] = {"cmp_recipient": "foo, bar,doo"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'popo': 0, 'recipient': '/foo/bar/doo'}
+        odict = {"cmd": "ir", "popo": 0, "recipient": "/foo/bar/doo"}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_013_config_load(self, mock_load_cfg):
-        """ test _config_load - cmd_tmp-cmp_recipient contains ,blank and ,"""
+        """test _config_load - cmd_tmp-cmp_recipient contains ,blank and ,"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_recipient': 'foo, bar, doo,bar,doo'}
+        parser["CAhandler"] = {"cmp_recipient": "foo, bar, doo,bar,doo"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'popo': 0, 'recipient': '/foo/bar/doo/bar/doo'}
+        odict = {"cmd": "ir", "popo": 0, "recipient": "/foo/bar/doo/bar/doo"}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_014_config_load(self, mock_load_cfg):
-        """ test _config_load - any parameter string """
+        """test _config_load - any parameter string"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_foo': 'bar'}
+        parser["CAhandler"] = {"cmp_foo": "bar"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'foo': 'bar', 'popo': 0}
+        odict = {"cmd": "ir", "foo": "bar", "popo": 0}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_015_config_load(self, mock_load_cfg):
-        """ test _config_load - any parameter int """
+        """test _config_load - any parameter int"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_foo': '1'}
+        parser["CAhandler"] = {"cmp_foo": "1"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'foo': '1', 'popo': 0}
+        odict = {"cmd": "ir", "foo": "1", "popo": 0}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_016_config_load(self, mock_load_cfg):
-        """ test _config_load - any parameter float """
+        """test _config_load - any parameter float"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_foo': 0.1}
+        parser["CAhandler"] = {"cmp_foo": 0.1}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        odict = {'cmd': 'ir', 'foo': '0.1', 'popo': 0}
+        odict = {"cmd": "ir", "foo": "0.1", "popo": 0}
         self.assertEqual(odict, self.cahandler.config_dic)
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_017_config_load(self, mock_load_cfg):
-        """  test _config_load - cmp_openssl_bin not configured """
+        """test _config_load - cmp_openssl_bin not configured"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'foo': 'bar'}
+        parser["CAhandler"] = {"foo": "bar"}
         mock_load_cfg.return_value = parser
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
-        self.assertIn('WARNING:test_a2c:CAhandler config error: "cmp_openssl_bin" parameter not in config_file. Using default (/usr/bin/openssl)', lcm.output)
+        self.assertIn(
+            'WARNING:test_a2c:CAhandler config error: "cmp_openssl_bin" parameter not in config_file. Using default (/usr/bin/openssl)',
+            lcm.output,
+        )
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_018_config_load(self, mock_load_cfg):
-        """  test _config_load - cmp_recipient not configured """
+        """test _config_load - cmp_recipient not configured"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'foo': 'bar'}
+        parser["CAhandler"] = {"foo": "bar"}
         mock_load_cfg.return_value = parser
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
-        self.assertIn('ERROR:test_a2c:CAhandler config error: "cmp_recipient" is missing in config_file.', lcm.output)
+        self.assertIn(
+            'ERROR:test_a2c:CAhandler config error: "cmp_recipient" is missing in config_file.',
+            lcm.output,
+        )
 
-    @patch.dict('os.environ', {'cmp_ref': 'cmp_ref'})
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch.dict("os.environ", {"cmp_ref": "cmp_ref"})
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_019_config_load(self, mock_load_cfg):
-        """ test _config_load - load template with ref variable """
+        """test _config_load - load template with ref variable"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_ref_variable': 'cmp_ref'}
+        parser["CAhandler"] = {"cmp_ref_variable": "cmp_ref"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        self.assertEqual('cmp_ref', self.cahandler.ref)
+        self.assertEqual("cmp_ref", self.cahandler.ref)
 
-    @patch.dict('os.environ', {'cmp_ref': 'user_var'})
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch.dict("os.environ", {"cmp_ref": "user_var"})
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_020_config_load(self, mock_load_cfg):
-        """ test _config_load - load template with not existing ref variable """
+        """test _config_load - load template with not existing ref variable"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_ref_variable': 'does_not_exist'}
+        parser["CAhandler"] = {"cmp_ref_variable": "does_not_exist"}
         mock_load_cfg.return_value = parser
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.ref)
-        self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load cmp_ref:'does_not_exist'", lcm.output)
+        self.assertIn(
+            "ERROR:test_a2c:CAhandler._config_load() could not load cmp_ref:'does_not_exist'",
+            lcm.output,
+        )
 
-    @patch.dict('os.environ', {'cmp_ref': 'cmp_ref'})
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch.dict("os.environ", {"cmp_ref": "cmp_ref"})
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_021_config_load(self, mock_load_cfg):
-        """ test _config_load - load template overwrite ref variable """
+        """test _config_load - load template overwrite ref variable"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_ref_variable': 'cmp_ref', 'cmp_ref': 'cmp_ref_local'}
+        parser["CAhandler"] = {
+            "cmp_ref_variable": "cmp_ref",
+            "cmp_ref": "cmp_ref_local",
+        }
         mock_load_cfg.return_value = parser
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
-        self.assertEqual('cmp_ref_local', self.cahandler.ref)
-        self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite cmp_ref variable', lcm.output)
+        self.assertEqual("cmp_ref_local", self.cahandler.ref)
+        self.assertIn(
+            "INFO:test_a2c:CAhandler._config_load() overwrite cmp_ref variable",
+            lcm.output,
+        )
 
-    @patch.dict('os.environ', {'cmp_secret': 'cmp_secret'})
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch.dict("os.environ", {"cmp_secret": "cmp_secret"})
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_022_config_load(self, mock_load_cfg):
-        """ test _config_load - load template with secret variable """
+        """test _config_load - load template with secret variable"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_secret_variable': 'cmp_secret'}
+        parser["CAhandler"] = {"cmp_secret_variable": "cmp_secret"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        self.assertEqual('cmp_secret', self.cahandler.secret)
+        self.assertEqual("cmp_secret", self.cahandler.secret)
 
-    @patch.dict('os.environ', {'cmp_secret': 'cmp_secret'})
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch.dict("os.environ", {"cmp_secret": "cmp_secret"})
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_023_config_load(self, mock_load_cfg):
-        """ test _config_load - load template with not existing secret variable """
+        """test _config_load - load template with not existing secret variable"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_secret_variable': 'does_not_exist'}
+        parser["CAhandler"] = {"cmp_secret_variable": "does_not_exist"}
         mock_load_cfg.return_value = parser
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.secret)
-        self.assertIn("ERROR:test_a2c:CAhandler._config_load() could not load cmp_secret_variable:'does_not_exist'", lcm.output)
+        self.assertIn(
+            "ERROR:test_a2c:CAhandler._config_load() could not load cmp_secret_variable:'does_not_exist'",
+            lcm.output,
+        )
 
-    @patch.dict('os.environ', {'cmp_secret': 'cmp_secret'})
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch.dict("os.environ", {"cmp_secret": "cmp_secret"})
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_024_config_load(self, mock_load_cfg):
-        """ test _config_load - load template overwrite ref variable """
+        """test _config_load - load template overwrite ref variable"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_secret_variable': 'cmp_secret', 'cmp_secret': 'cmp_secret_local'}
+        parser["CAhandler"] = {
+            "cmp_secret_variable": "cmp_secret",
+            "cmp_secret": "cmp_secret_local",
+        }
         mock_load_cfg.return_value = parser
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
-        self.assertEqual('cmp_secret_local', self.cahandler.secret)
-        self.assertIn('INFO:test_a2c:CAhandler._config_load() overwrite cmp_secret variable', lcm.output)
+        self.assertEqual("cmp_secret_local", self.cahandler.secret)
+        self.assertIn(
+            "INFO:test_a2c:CAhandler._config_load() overwrite cmp_secret variable",
+            lcm.output,
+        )
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_025__config_load(self, mock_load_cfg):
-        """ config load enforce cmp_boolean True """
+        """config load enforce cmp_boolean True"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_bool': 'True'}
+        parser["CAhandler"] = {"cmp_bool": "True"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        self.assertEqual({'bool': True, 'cmd': 'ir', 'popo': 0}, self.cahandler.config_dic)
+        self.assertEqual(
+            {"bool": True, "cmd": "ir", "popo": 0}, self.cahandler.config_dic
+        )
 
-    @patch('examples.ca_handler.cmp_ca_handler.load_config')
+    @patch("examples.ca_handler.cmp_ca_handler.load_config")
     def test_026__config_load(self, mock_load_cfg):
-        """ config load enforce cmp_boolean False """
+        """config load enforce cmp_boolean False"""
         parser = configparser.ConfigParser()
-        parser['CAhandler'] = {'cmp_bool': 'False'}
+        parser["CAhandler"] = {"cmp_bool": "False"}
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
-        self.assertEqual({'bool': False, 'cmd': 'ir', 'popo': 0}, self.cahandler.config_dic)
+        self.assertEqual(
+            {"bool": False, "cmd": "ir", "popo": 0}, self.cahandler.config_dic
+        )
 
     def test_027_poll(self):
-        """ test trigger """
-        self.assertEqual(('Method not implemented.', None, None, 'poll_identifier', False), self.cahandler.poll('cert_name', 'poll_identifier', 'csr'))
+        """test trigger"""
+        self.assertEqual(
+            ("Method not implemented.", None, None, "poll_identifier", False),
+            self.cahandler.poll("cert_name", "poll_identifier", "csr"),
+        )
 
     def test_028_trigger(self):
-        """ test trigger """
-        self.assertEqual(('Method not implemented.', None, None), self.cahandler.trigger('payload'))
+        """test trigger"""
+        self.assertEqual(
+            ("Method not implemented.", None, None), self.cahandler.trigger("payload")
+        )
 
     def test_029_revoke(self):
-        """ test revoke """
-        self.assertEqual((500, 'urn:ietf:params:acme:error:serverInternal', 'Revocation is not supported.'), self.cahandler.revoke('cert', 'rev_reason', 'rev_date'))
+        """test revoke"""
+        self.assertEqual(
+            (
+                500,
+                "urn:ietf:params:acme:error:serverInternal",
+                "Revocation is not supported.",
+            ),
+            self.cahandler.revoke("cert", "rev_reason", "rev_date"),
+        )
 
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._config_load')
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._config_load")
     def test_030__enter__(self, mock_load):
-        """ test enter """
+        """test enter"""
         self.cahandler.__enter__()
         self.assertTrue(mock_load.called)
 
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._config_load')
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._config_load")
     def test_031__enter__(self, mock_load):
-        """ test enter """
-        self.cahandler.openssl_bin = 'openssl_bin'
+        """test enter"""
+        self.cahandler.openssl_bin = "openssl_bin"
         self.cahandler.__enter__()
         self.assertFalse(mock_load.called)
 
-    @patch('shutil.rmtree')
-    @patch('os.path.exists')
+    @patch("shutil.rmtree")
+    @patch("os.path.exists")
     def test_032_tmp_dir_delete(self, mock_exists, mock_remove):
-        """ test files_delete if file exists """
+        """test files_delete if file exists"""
         mock_exists.return_value = True
         self.cahandler._tmp_dir_delete()
         self.assertTrue(mock_remove.called)
 
-    @patch('shutil.rmtree')
-    @patch('os.path.exists')
+    @patch("shutil.rmtree")
+    @patch("os.path.exists")
     def test_033_tmp_dir_delete(self, mock_exists, mock_remove):
-        """ test files_delete if file exists """
+        """test files_delete if file exists"""
         mock_exists.return_value = False
         self.cahandler._tmp_dir_delete()
         self.assertFalse(mock_remove.called)
 
-    @patch("builtins.open", mock_open(read_data='foo'), create=True)
-    @patch('os.path.isfile')
+    @patch("builtins.open", mock_open(read_data="foo"), create=True)
+    @patch("os.path.isfile")
     def test_034_certs_bundle(self, mock_exists):
-        """ certs bundle if no file exists """
+        """certs bundle if no file exists"""
         mock_exists.return_value = False
         self.assertEqual((None, None), self.cahandler._certs_bundle())
 
-    @patch("builtins.open", mock_open(read_data='foo'), create=True)
-    @patch('os.path.isfile')
+    @patch("builtins.open", mock_open(read_data="foo"), create=True)
+    @patch("os.path.isfile")
     def test_035_certs_bundle(self, mock_exists):
-        """ certs bundle if no file exists """
+        """certs bundle if no file exists"""
         mock_exists.return_value = False
         self.assertEqual((None, None), self.cahandler._certs_bundle())
 
-    @patch("builtins.open", mock_open(read_data='foo'), create=True)
-    @patch('os.path.isfile')
+    @patch("builtins.open", mock_open(read_data="foo"), create=True)
+    @patch("os.path.isfile")
     def test_036_certs_bundle(self, mock_exists):
-        """ certs bundle if only capubs exists """
+        """certs bundle if only capubs exists"""
         mock_exists.side_effect = (True, False)
         self.assertEqual((None, None), self.cahandler._certs_bundle())
 
-    @patch("builtins.open", mock_open(read_data='foo'), create=True)
-    @patch('os.path.isfile')
+    @patch("builtins.open", mock_open(read_data="foo"), create=True)
+    @patch("os.path.isfile")
     def test_037_certs_bundle(self, mock_exists):
-        """ certs bundle if only cert exists """
+        """certs bundle if only cert exists"""
         mock_exists.side_effect = (False, True)
-        self.assertEqual(('foo', 'foo'), self.cahandler._certs_bundle())
+        self.assertEqual(("foo", "foo"), self.cahandler._certs_bundle())
 
-    @patch("builtins.open", mock_open(read_data='foo'), create=True)
-    @patch('os.path.isfile')
+    @patch("builtins.open", mock_open(read_data="foo"), create=True)
+    @patch("os.path.isfile")
     def test_038_certs_bundle(self, mock_exists):
-        """ certs bundle if all exists """
+        """certs bundle if all exists"""
         mock_exists.side_effect = (True, True)
-        self.assertEqual(('foofoo', 'foo'), self.cahandler._certs_bundle())
+        self.assertEqual(("foofoo", "foo"), self.cahandler._certs_bundle())
 
-    @patch("builtins.open", mock_open(read_data='-----BEGIN CERTIFICATE-----\nfoo'), create=True)
-    @patch('os.path.isfile')
+    @patch(
+        "builtins.open",
+        mock_open(read_data="-----BEGIN CERTIFICATE-----\nfoo"),
+        create=True,
+    )
+    @patch("os.path.isfile")
     def test_039_certs_bundle(self, mock_exists):
-        """ certs bundle if cert exists replace begin tag """
+        """certs bundle if cert exists replace begin tag"""
         mock_exists.side_effect = (False, True)
-        self.assertEqual(('-----BEGIN CERTIFICATE-----\nfoo', 'foo'), self.cahandler._certs_bundle())
+        self.assertEqual(
+            ("-----BEGIN CERTIFICATE-----\nfoo", "foo"), self.cahandler._certs_bundle()
+        )
 
-    @patch("builtins.open", mock_open(read_data='-----BEGIN CERTIFICATE-----\nfoo-----END CERTIFICATE-----\n'), create=True)
-    @patch('os.path.isfile')
+    @patch(
+        "builtins.open",
+        mock_open(
+            read_data="-----BEGIN CERTIFICATE-----\nfoo-----END CERTIFICATE-----\n"
+        ),
+        create=True,
+    )
+    @patch("os.path.isfile")
     def test_040_certs_bundle(self, mock_exists):
-        """ certs bundle if cert exists replace end tag """
+        """certs bundle if cert exists replace end tag"""
         mock_exists.side_effect = (False, True)
-        self.assertEqual(('-----BEGIN CERTIFICATE-----\nfoo-----END CERTIFICATE-----\n', 'foo'), self.cahandler._certs_bundle())
+        self.assertEqual(
+            ("-----BEGIN CERTIFICATE-----\nfoo-----END CERTIFICATE-----\n", "foo"),
+            self.cahandler._certs_bundle(),
+        )
 
-    @patch("builtins.open", mock_open(read_data='foo\n'), create=True)
-    @patch('os.path.isfile')
+    @patch("builtins.open", mock_open(read_data="foo\n"), create=True)
+    @patch("os.path.isfile")
     def test_041_certs_bundle(self, mock_exists):
-        """ certs bundle if cert exists replace end tag """
+        """certs bundle if cert exists replace end tag"""
         mock_exists.side_effect = (False, True)
-        self.assertEqual(('foo\n', 'foo'), self.cahandler._certs_bundle())
+        self.assertEqual(("foo\n", "foo"), self.cahandler._certs_bundle())
 
     def test_042_opensslcmd_build(self):
         """test _openssl_cmd_build()"""
-        self.cahandler.openssl_bin = 'openssl_bin'
-        self.cahandler.tmp_dir = '/tmp'
-        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
-        self.cahandler.cert_file = '/tmp/cert.pem'
-        result = ['openssl_bin', 'cmp', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-msg_timeout', '5', '-total_timeout', '10']
+        self.cahandler.openssl_bin = "openssl_bin"
+        self.cahandler.tmp_dir = "/tmp"
+        self.cahandler.ca_pubs_file = "/tmp/capubs.pem"
+        self.cahandler.cert_file = "/tmp/cert.pem"
+        result = [
+            "openssl_bin",
+            "cmp",
+            "-csr",
+            "/tmp/csr.pem",
+            "-extracertsout",
+            "/tmp/capubs.pem",
+            "-certout",
+            "/tmp/cert.pem",
+            "-msg_timeout",
+            "5",
+            "-total_timeout",
+            "10",
+        ]
         self.assertEqual(result, self.cahandler._opensslcmd_build())
 
     def test_043_opensslcmd_build(self):
         """test _openssl_cmd_build() with option including in config dic"""
-        self.cahandler.openssl_bin = 'openssl_bin'
-        self.cahandler.tmp_dir = '/tmp'
-        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
-        self.cahandler.cert_file = '/tmp/cert.pem'
-        self.cahandler.config_dic = {'foo1': 'bar1', 'foo2': 'bar2'}
-        result = ['openssl_bin', 'cmp', '-foo1', 'bar1', '-foo2', 'bar2', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-msg_timeout', '5', '-total_timeout', '10']
+        self.cahandler.openssl_bin = "openssl_bin"
+        self.cahandler.tmp_dir = "/tmp"
+        self.cahandler.ca_pubs_file = "/tmp/capubs.pem"
+        self.cahandler.cert_file = "/tmp/cert.pem"
+        self.cahandler.config_dic = {"foo1": "bar1", "foo2": "bar2"}
+        result = [
+            "openssl_bin",
+            "cmp",
+            "-foo1",
+            "bar1",
+            "-foo2",
+            "bar2",
+            "-csr",
+            "/tmp/csr.pem",
+            "-extracertsout",
+            "/tmp/capubs.pem",
+            "-certout",
+            "/tmp/cert.pem",
+            "-msg_timeout",
+            "5",
+            "-total_timeout",
+            "10",
+        ]
         self.assertEqual(result, self.cahandler._opensslcmd_build())
 
     def test_044_opensslcmd_build(self):
         """test _openssl_cmd_build() - customized msg_timeout"""
-        self.cahandler.openssl_bin = 'openssl_bin'
-        self.cahandler.tmp_dir = '/tmp'
-        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
-        self.cahandler.cert_file = '/tmp/cert.pem'
-        self.cahandler.config_dic = {'msg_timeout': 10}
-        result = ['openssl_bin', 'cmp', '-msg_timeout', '10', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-total_timeout', '10']
+        self.cahandler.openssl_bin = "openssl_bin"
+        self.cahandler.tmp_dir = "/tmp"
+        self.cahandler.ca_pubs_file = "/tmp/capubs.pem"
+        self.cahandler.cert_file = "/tmp/cert.pem"
+        self.cahandler.config_dic = {"msg_timeout": 10}
+        result = [
+            "openssl_bin",
+            "cmp",
+            "-msg_timeout",
+            "10",
+            "-csr",
+            "/tmp/csr.pem",
+            "-extracertsout",
+            "/tmp/capubs.pem",
+            "-certout",
+            "/tmp/cert.pem",
+            "-total_timeout",
+            "10",
+        ]
         self.assertEqual(result, self.cahandler._opensslcmd_build())
 
     def test_045_opensslcmd_build(self):
         """test _openssl_cmd_build()"""
-        self.cahandler.openssl_bin = 'openssl_bin'
-        self.cahandler.tmp_dir = '/tmp'
-        self.cahandler.config_dic = {'total_timeout': 20}
-        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
-        self.cahandler.cert_file = '/tmp/cert.pem'
-        result = ['openssl_bin', 'cmp', '-total_timeout', '20', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-msg_timeout', '5']
+        self.cahandler.openssl_bin = "openssl_bin"
+        self.cahandler.tmp_dir = "/tmp"
+        self.cahandler.config_dic = {"total_timeout": 20}
+        self.cahandler.ca_pubs_file = "/tmp/capubs.pem"
+        self.cahandler.cert_file = "/tmp/cert.pem"
+        result = [
+            "openssl_bin",
+            "cmp",
+            "-total_timeout",
+            "20",
+            "-csr",
+            "/tmp/csr.pem",
+            "-extracertsout",
+            "/tmp/capubs.pem",
+            "-certout",
+            "/tmp/cert.pem",
+            "-msg_timeout",
+            "5",
+        ]
         self.assertEqual(result, self.cahandler._opensslcmd_build())
 
     def test_046_opensslcmd_build(self):
         """test _openssl_cmd_build() with secret"""
-        self.cahandler.openssl_bin = 'openssl_bin'
-        self.cahandler.secret = 'secret'
-        self.cahandler.tmp_dir = '/tmp'
-        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
-        self.cahandler.cert_file = '/tmp/cert.pem'
-        self.cahandler.config_dic = {'total_timeout': 20}
-        result = ['openssl_bin', 'cmp', '-total_timeout', '20', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-msg_timeout', '5']
+        self.cahandler.openssl_bin = "openssl_bin"
+        self.cahandler.secret = "secret"
+        self.cahandler.tmp_dir = "/tmp"
+        self.cahandler.ca_pubs_file = "/tmp/capubs.pem"
+        self.cahandler.cert_file = "/tmp/cert.pem"
+        self.cahandler.config_dic = {"total_timeout": 20}
+        result = [
+            "openssl_bin",
+            "cmp",
+            "-total_timeout",
+            "20",
+            "-csr",
+            "/tmp/csr.pem",
+            "-extracertsout",
+            "/tmp/capubs.pem",
+            "-certout",
+            "/tmp/cert.pem",
+            "-msg_timeout",
+            "5",
+        ]
         self.assertEqual(result, self.cahandler._opensslcmd_build())
 
     def test_047_opensslcmd_build(self):
-        """test _openssl_cmd_build() with ref """
-        self.cahandler.openssl_bin = 'openssl_bin'
-        self.cahandler.ref = 'ref'
-        self.cahandler.tmp_dir = '/tmp'
-        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
-        self.cahandler.cert_file = '/tmp/cert.pem'
-        self.cahandler.config_dic = {'total_timeout': 20}
-        result = ['openssl_bin', 'cmp', '-total_timeout', '20', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-msg_timeout', '5']
+        """test _openssl_cmd_build() with ref"""
+        self.cahandler.openssl_bin = "openssl_bin"
+        self.cahandler.ref = "ref"
+        self.cahandler.tmp_dir = "/tmp"
+        self.cahandler.ca_pubs_file = "/tmp/capubs.pem"
+        self.cahandler.cert_file = "/tmp/cert.pem"
+        self.cahandler.config_dic = {"total_timeout": 20}
+        result = [
+            "openssl_bin",
+            "cmp",
+            "-total_timeout",
+            "20",
+            "-csr",
+            "/tmp/csr.pem",
+            "-extracertsout",
+            "/tmp/capubs.pem",
+            "-certout",
+            "/tmp/cert.pem",
+            "-msg_timeout",
+            "5",
+        ]
         self.assertEqual(result, self.cahandler._opensslcmd_build())
 
     def test_048_opensslcmd_build(self):
-        """test _openssl_cmd_build() with ref and secret """
-        self.cahandler.openssl_bin = 'openssl_bin'
-        self.cahandler.ref = 'ref'
-        self.cahandler.secret = 'secret'
-        self.cahandler.tmp_dir = '/tmp'
-        self.cahandler.ca_pubs_file = '/tmp/capubs.pem'
-        self.cahandler.cert_file = '/tmp/cert.pem'
-        self.cahandler.config_dic = {'total_timeout': 20}
-        result = ['openssl_bin', 'cmp', '-total_timeout', '20', '-csr', '/tmp/csr.pem', '-extracertsout', '/tmp/capubs.pem', '-certout', '/tmp/cert.pem', '-msg_timeout', '5', '-ref', 'ref', '-secret', 'secret']
+        """test _openssl_cmd_build() with ref and secret"""
+        self.cahandler.openssl_bin = "openssl_bin"
+        self.cahandler.ref = "ref"
+        self.cahandler.secret = "secret"
+        self.cahandler.tmp_dir = "/tmp"
+        self.cahandler.ca_pubs_file = "/tmp/capubs.pem"
+        self.cahandler.cert_file = "/tmp/cert.pem"
+        self.cahandler.config_dic = {"total_timeout": 20}
+        result = [
+            "openssl_bin",
+            "cmp",
+            "-total_timeout",
+            "20",
+            "-csr",
+            "/tmp/csr.pem",
+            "-extracertsout",
+            "/tmp/capubs.pem",
+            "-certout",
+            "/tmp/cert.pem",
+            "-msg_timeout",
+            "5",
+            "-ref",
+            "ref",
+            "-secret",
+            "secret",
+        ]
         self.assertEqual(result, self.cahandler._opensslcmd_build())
 
     def test_049_enroll(self):
-        """ test enroll without openssl_bin """
-        self.assertEqual(('Config incomplete', None, None, None), self.cahandler.enroll('csr'))
+        """test enroll without openssl_bin"""
+        self.assertEqual(
+            ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
+        )
 
-    @patch('examples.ca_handler.cmp_ca_handler.allowed_domainlist_check')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._tmp_dir_delete')
-    @patch('os.path.isfile')
-    @patch('subprocess.call')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._file_save')
-    def test_050_enroll(self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle, mock_adl):
-        """ test enroll subprocess.call returns 0 """
-        self.cahandler.openssl_bin = 'openssl_bin'
+    @patch("examples.ca_handler.cmp_ca_handler.allowed_domainlist_check")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._tmp_dir_delete")
+    @patch("os.path.isfile")
+    @patch("subprocess.call")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._file_save")
+    def test_050_enroll(
+        self,
+        mock_save,
+        mock_build,
+        mock_call,
+        mock_exists,
+        mock_del,
+        mock_bundle,
+        mock_adl,
+    ):
+        """test enroll subprocess.call returns 0"""
+        self.cahandler.openssl_bin = "openssl_bin"
         mock_save.return_value = True
-        mock_build.return_value = 'opensslcmd'
+        mock_build.return_value = "opensslcmd"
         mock_call.return_value = 0
         mock_exists.return_value = True
-        mock_bundle.return_value = ('cert_bundle', 'cert_raw')
+        mock_bundle.return_value = ("cert_bundle", "cert_raw")
         mock_del.return_value = True
         mock_adl.return_value = None
-        self.assertEqual((None, 'cert_bundle', 'cert_raw', None), self.cahandler.enroll('csr'))
+        self.assertEqual(
+            (None, "cert_bundle", "cert_raw", None), self.cahandler.enroll("csr")
+        )
         self.assertTrue(mock_save.called)
         self.assertTrue(mock_build.called)
         self.assertTrue(mock_call.called)
@@ -487,24 +658,33 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_bundle.called)
         self.assertTrue(mock_adl.called)
 
-    @patch('examples.ca_handler.cmp_ca_handler.allowed_domainlist_check')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._tmp_dir_delete')
-    @patch('os.path.isfile')
-    @patch('subprocess.call')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._file_save')
-    def test_051_enroll(self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle, mock_adl):
-        """ test enroll subprocess.call returns 0 """
-        self.cahandler.openssl_bin = 'openssl_bin'
+    @patch("examples.ca_handler.cmp_ca_handler.allowed_domainlist_check")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._tmp_dir_delete")
+    @patch("os.path.isfile")
+    @patch("subprocess.call")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._file_save")
+    def test_051_enroll(
+        self,
+        mock_save,
+        mock_build,
+        mock_call,
+        mock_exists,
+        mock_del,
+        mock_bundle,
+        mock_adl,
+    ):
+        """test enroll subprocess.call returns 0"""
+        self.cahandler.openssl_bin = "openssl_bin"
         mock_save.return_value = True
-        mock_build.return_value = 'opensslcmd'
+        mock_build.return_value = "opensslcmd"
         mock_call.return_value = 0
         mock_exists.return_value = True
-        mock_bundle.return_value = ('cert_bundle', 'cert_raw')
+        mock_bundle.return_value = ("cert_bundle", "cert_raw")
         mock_del.return_value = True
-        mock_adl.return_value = 'mock_adl'
-        self.assertEqual(('mock_adl', None, None, None), self.cahandler.enroll('csr'))
+        mock_adl.return_value = "mock_adl"
+        self.assertEqual(("mock_adl", None, None, None), self.cahandler.enroll("csr"))
         self.assertFalse(mock_save.called)
         self.assertFalse(mock_build.called)
         self.assertFalse(mock_call.called)
@@ -513,24 +693,29 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_bundle.called)
         self.assertTrue(mock_adl.called)
 
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._tmp_dir_delete')
-    @patch('os.path.isfile')
-    @patch('subprocess.call')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._file_save')
-    def test_052_enroll(self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle):
-        """ test enroll subprocess.call returns other than 0 """
-        self.cahandler.openssl_bin = 'openssl_bin'
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._tmp_dir_delete")
+    @patch("os.path.isfile")
+    @patch("subprocess.call")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._file_save")
+    def test_052_enroll(
+        self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle
+    ):
+        """test enroll subprocess.call returns other than 0"""
+        self.cahandler.openssl_bin = "openssl_bin"
         mock_save.return_value = True
-        mock_build.return_value = 'opensslcmd'
+        mock_build.return_value = "opensslcmd"
         mock_call.return_value = 25
         mock_exists.return_value = True
-        mock_bundle.return_value = ('cert_bundle', 'cert_raw')
+        mock_bundle.return_value = ("cert_bundle", "cert_raw")
         mock_del.return_value = True
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('rc from enrollment not 0', 'cert_bundle', 'cert_raw', None), self.cahandler.enroll('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): failed: 25', lcm.output)
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                ("rc from enrollment not 0", "cert_bundle", "cert_raw", None),
+                self.cahandler.enroll("csr"),
+            )
+        self.assertIn("ERROR:test_a2c:CAhandler.enroll(): failed: 25", lcm.output)
         self.assertTrue(mock_save.called)
         self.assertTrue(mock_build.called)
         self.assertTrue(mock_call.called)
@@ -538,24 +723,28 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_del.called)
         self.assertTrue(mock_bundle.called)
 
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._tmp_dir_delete')
-    @patch('os.path.isfile')
-    @patch('subprocess.call')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build')
-    @patch('examples.ca_handler.cmp_ca_handler.CAhandler._file_save')
-    def test_053_enroll(self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle):
-        """ test enroll tmp_dir does not exists """
-        self.cahandler.openssl_bin = 'openssl_bin'
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._certs_bundle")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._tmp_dir_delete")
+    @patch("os.path.isfile")
+    @patch("subprocess.call")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._opensslcmd_build")
+    @patch("examples.ca_handler.cmp_ca_handler.CAhandler._file_save")
+    def test_053_enroll(
+        self, mock_save, mock_build, mock_call, mock_exists, mock_del, mock_bundle
+    ):
+        """test enroll tmp_dir does not exists"""
+        self.cahandler.openssl_bin = "openssl_bin"
         mock_save.return_value = True
-        mock_build.return_value = 'opensslcmd'
+        mock_build.return_value = "opensslcmd"
         mock_call.return_value = 25
         mock_exists.return_value = False
-        mock_bundle.return_value = ('cert_bundle', 'cert_raw')
+        mock_bundle.return_value = ("cert_bundle", "cert_raw")
         mock_del.return_value = True
-        with self.assertLogs('test_a2c', level='INFO') as lcm:
-            self.assertEqual(('Enrollment failed', None, None, None), self.cahandler.enroll('csr'))
-        self.assertIn('ERROR:test_a2c:CAhandler.enroll(): failed: 25', lcm.output)
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                ("Enrollment failed", None, None, None), self.cahandler.enroll("csr")
+            )
+        self.assertIn("ERROR:test_a2c:CAhandler.enroll(): failed: 25", lcm.output)
         self.assertTrue(mock_save.called)
         self.assertTrue(mock_build.called)
         self.assertTrue(mock_call.called)
@@ -565,10 +754,11 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("builtins.open")
     def test_054__file_save(self, mock_op):
-        """ test file save """
-        self.assertFalse(self.cahandler._file_save('filename', 'content'))
+        """test file save"""
+        self.assertFalse(self.cahandler._file_save("filename", "content"))
         self.assertTrue(mock_op.called)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
 
     unittest.main()

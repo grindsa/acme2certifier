@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
-""" model for acme django database """
+"""model for acme django database"""
 from __future__ import unicode_literals
 from django.db import models
 
 
 # Create your models here.
 class Nonce(models.Model):
-    """ nonce table """
+    """nonce table"""
+
     nonce = models.CharField(max_length=50)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -15,7 +16,8 @@ class Nonce(models.Model):
 
 
 class Status(models.Model):
-    """ order status """
+    """order status"""
+
     name = models.CharField(max_length=15, unique=True)
 
     def __unicode__(self):
@@ -23,7 +25,8 @@ class Status(models.Model):
 
 
 class Account(models.Model):
-    """ account table """
+    """account table"""
+
     name = models.CharField(max_length=15, unique=True)
     jwk = models.TextField(blank=True)
     alg = models.CharField(max_length=10)
@@ -37,7 +40,8 @@ class Account(models.Model):
 
 
 class Cliaccount(models.Model):
-    """ account table """
+    """account table"""
+
     name = models.CharField(max_length=15, unique=True)
     jwk = models.TextField(blank=True)
     contact = models.CharField(max_length=255)
@@ -48,7 +52,8 @@ class Cliaccount(models.Model):
 
 
 class Order(models.Model):
-    """ order table """
+    """order table"""
+
     name = models.CharField(max_length=15, unique=True)
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     notbefore = models.IntegerField(default=0)
@@ -63,7 +68,8 @@ class Order(models.Model):
 
 
 class Authorization(models.Model):
-    """ order table """
+    """order table"""
+
     name = models.CharField(max_length=15, unique=True)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     type = models.CharField(max_length=5)
@@ -78,7 +84,8 @@ class Authorization(models.Model):
 
 
 class Challenge(models.Model):
-    """ order table """
+    """order table"""
+
     name = models.CharField(max_length=15, unique=True)
     authorization = models.ForeignKey(Authorization, on_delete=models.CASCADE)
     type = models.CharField(max_length=15)
@@ -94,7 +101,8 @@ class Challenge(models.Model):
 
 
 class Certificate(models.Model):
-    """ order table """
+    """order table"""
+
     name = models.CharField(max_length=15, unique=True)
     order = models.ForeignKey(Order, on_delete=models.CASCADE)
     csr = models.TextField(null=True, blank=True)  # NOSONAR
@@ -116,15 +124,17 @@ class Certificate(models.Model):
 
 
 class Housekeeping(models.Model):
-    """ housekeeping """
+    """housekeeping"""
+
     name = models.CharField(max_length=30, unique=True)
     value = models.CharField(max_length=30, blank=True)
-    modified_at = models.DateTimeField('value', auto_now_add=True, null=True)
+    modified_at = models.DateTimeField("value", auto_now_add=True, null=True)
 
 
 class Cahandler(models.Model):
-    """ housekeeping """
+    """housekeeping"""
+
     name = models.CharField(max_length=50, unique=True)
     value1 = models.CharField(max_length=250, blank=True)
     value2 = models.CharField(max_length=250, blank=True)
-    created_at = models.DateTimeField('value', auto_now_add=True, null=True)
+    created_at = models.DateTimeField("value", auto_now_add=True, null=True)
