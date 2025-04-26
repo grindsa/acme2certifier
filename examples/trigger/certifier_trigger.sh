@@ -1,10 +1,10 @@
-#!/bin/bash 
+#!/bin/bash
 # trigger script for Insta Certifier / NCM
 # we expect the path to certificate submitted as $1
 # commandline for publishing method "/usr/local/certifier/bin/trigger.sh %cert"
 # import certificate format must be changed to PEM to interwork with certifier_ca_handler.py
 
-# URL to acme2certifier 
+# URL to acme2certifier
 ACME2CERTIFIER_URL='http://192.168.14.1/trigger'
 
 # thats the relative path to cert

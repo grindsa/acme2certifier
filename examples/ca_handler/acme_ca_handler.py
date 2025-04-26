@@ -17,17 +17,6 @@ from acme import errors
 from acme_srv.db_handler import DBstore
 from acme_srv.helper import load_config, b64_url_recode, parse_url, config_eab_profile_load, config_headerinfo_load, header_info_field_validate, eab_profile_header_info_check, config_enroll_config_log_load, enrollment_config_log, config_allowed_domainlist_load, allowed_domainlist_check
 
-"""
-Config file section:
-
-[CAhandler]
-# CA specific options
-acme_url: https://some.acme/endpoint
-acme_account: <account-id>
-acme_keyfile: /path/to/privkey.json
-
-"""
-
 
 class CAhandler(object):
     """ EST CA  handler """

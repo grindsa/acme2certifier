@@ -407,4 +407,3 @@ jobs:
       with:
         name: ha_django_mariadb_tests.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-

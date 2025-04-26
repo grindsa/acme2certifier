@@ -151,4 +151,3 @@ jobs:
       with:
         name: entrust_handler_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-

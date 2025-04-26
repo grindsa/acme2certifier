@@ -568,4 +568,3 @@ jobs:
       with:
         name: certifier_ca_handler_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-
