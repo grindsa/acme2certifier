@@ -350,8 +350,9 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.revoke(cert),
         )
 
+    @patch("examples.ca_handler.openssl_ca_handler.cert_serial_get")
     @patch("examples.ca_handler.openssl_ca_handler.CAhandler._ca_load")
-    def test_028_revocation(self, mock_ca_load):
+    def test_028_revocation(self, mock_ca_load, mock_serial):
         """revocation cert no CA key"""
         with open(self.dir_path + "/ca/sub-ca-client.txt", "r") as fso:
             cert = fso.read()
@@ -362,13 +363,15 @@ class TestACMEHandler(unittest.TestCase):
             "issuing_ca_crl": self.dir_path + "/ca/foo-ca-crl.pem",
         }
         mock_ca_load.return_value = (None, "ca_cert")
+        mock_serial.return_value = "serial"
         self.assertEqual(
             (400, "urn:ietf:params:acme:error:serverInternal", "configuration error"),
             self.cahandler.revoke(cert),
         )
 
+    @patch("examples.ca_handler.openssl_ca_handler.cert_serial_get")
     @patch("examples.ca_handler.openssl_ca_handler.CAhandler._ca_load")
-    def test_029_revocation(self, mock_ca_load):
+    def test_029_revocation(self, mock_ca_load, mock_serial):
         """revocation cert no CA cert"""
         with open(self.dir_path + "/ca/sub-ca-client.txt", "r") as fso:
             cert = fso.read()
@@ -379,6 +382,7 @@ class TestACMEHandler(unittest.TestCase):
             "issuing_ca_crl": self.dir_path + "/ca/foo-ca-crl.pem",
         }
         mock_ca_load.return_value = ("ca_key", None)
+        mock_serial.return_value = "serial"
         self.assertEqual(
             (400, "urn:ietf:params:acme:error:serverInternal", "configuration error"),
             self.cahandler.revoke(cert),
