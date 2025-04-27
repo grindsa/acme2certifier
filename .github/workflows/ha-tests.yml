@@ -56,16 +56,16 @@ jobs:
 
     - name: "Prepare almalinux instances"
       run: |
-        docker exec alma9-c1 yum -y install openssh-server openssh-clients procps rsyslog
+        docker exec alma9-c1 yum -y install epel-release
+        docker exec alma9-c1 yum -y install openssh-server openssh-clients procps syslog-ng
         docker exec alma9-c1 systemctl enable sshd
         docker exec alma9-c1 systemctl start sshd
-        docker exec alma9-c1 systemctl start rsyslog
-        docker exec alma9-c1 yum install -y epel-release
-        docker exec alma9-c2 yum -y install openssh-server openssh-clients procps rsyslog
-        docker exec alma9-c2 systemctl enable sshd
-        docker exec alma9-c2 systemctl start rsyslog
-        docker exec alma9-c2 systemctl start sshd
+        docker exec alma9-c1 systemctl start syslog-ng
         docker exec alma9-c2 yum install -y epel-release
+        docker exec alma9-c2 yum -y install openssh-server openssh-clients procps syslog-ng
+        docker exec alma9-c2 systemctl enable sshd
+        docker exec alma9-c2 systemctl start syslog-ng
+        docker exec alma9-c2 systemctl start sshd
 
     - name: "Prepare ssh users"
       run: |

@@ -12,7 +12,7 @@ This renaming was done to **avoid naming conflicts** with [acme-python](https://
 
 If you are using the **prebuilt Django containers** running on **Apache2** or **NGINX**, the necessary modifications will be **applied automatically** when deploying the updated containers:
 
-[acme2certifier Django Containers](https://hub.docker.com/repository/docker/grindsa/acme2certifier/tags?page=1&ordering=last_updated)
+[acme2certifier Django Containers](https://hub.docker.com/repository/docker/grindsa/acme2certifier/)
 
 ### Manual Upgrade for Custom Django Deployments
 
