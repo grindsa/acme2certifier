@@ -1347,10 +1347,10 @@ class CAhandler(object):
         if not error:
             error = self._db_check()
 
+        # fmt: off
         if not error:
-            error = eab_profile_header_info_check(
-                self.logger, self, csr, "template_name"
-            )
+            error = eab_profile_header_info_check(self.logger, self, csr, "template_name")
+        # fmt: on
 
         if not error:
             # check for allowed domainlist

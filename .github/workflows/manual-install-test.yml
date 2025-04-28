@@ -153,8 +153,7 @@ jobs:
 
     - name: "Almalinux instance"
       run: |
-        cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-        docker run -d -id --privileged --network acme --name=acme-srv -v "$(pwd)/":/tmp/acme2certifier almalinux-systemd
+        docker run -d -id --rm --privileged --network acme --name=acme-srv -v "$(pwd)/":/tmp/acme2certifier almalinux/9-init
 
     - name: "Execute install scipt"
       run: |
