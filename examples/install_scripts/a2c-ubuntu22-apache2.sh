@@ -7,7 +7,7 @@
 
 # 1 install needed packages
 sudo apt-get update
-sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data curl krb5-user libgssapi-krb5-2 libkrb5-3 python3-gssapi
+sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data curl krb5-user libgssapi-krb5-2 libkrb5-3 python3-gssapi python3-jwcrypto
 
 # 2 check if mod wsgi got activated
 apache2ctl -M | grep -i wsgi

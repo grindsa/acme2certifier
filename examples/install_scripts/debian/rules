@@ -16,7 +16,7 @@ export DH_VERBOSE = 1
 %:
 	dh $@
 
-build: 
+build:
 	cp examples/db_handler/wsgi_handler.py acme_srv/db_handler.py
 # dh_make generated override targets
 # This is example for Cmake (See https://bugs.debian.org/641051 )
