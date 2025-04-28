@@ -368,7 +368,7 @@ jobs:
 
   asa_handler_tests_rpm:
     name: "asa_handler_tests_rpm"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     needs: asa_handler_headerinfo_tests
     strategy:
       fail-fast: false
@@ -615,4 +615,3 @@ jobs:
       with:
         name: asa_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-

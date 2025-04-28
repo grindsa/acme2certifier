@@ -11,7 +11,7 @@ runs:
 
     - name: Retrieve Version from version.py
       run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       shell: bash
 
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
