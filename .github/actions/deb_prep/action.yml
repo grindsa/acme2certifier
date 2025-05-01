@@ -79,7 +79,3 @@ runs:
       uses: ./.github/actions/psql_prep
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-
-
-

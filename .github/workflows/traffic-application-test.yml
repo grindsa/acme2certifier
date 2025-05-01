@@ -93,4 +93,3 @@ jobs:
       with:
         name: traffic-${{ matrix.challenge_type }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-

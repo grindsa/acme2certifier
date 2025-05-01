@@ -155,4 +155,3 @@ jobs:
       with:
         name: rpm_ipv6-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-

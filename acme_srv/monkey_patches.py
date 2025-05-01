@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-""" Monkey patches class """
+"""Monkey patches class"""
 # pylint: disable=c0413, c0415, e0401, e1121
 from django.db import DEFAULT_DB_ALIAS
 from django.db import transaction
 
 
 def django_sqlite_atomic():  # NOSONAR
-    """ monkey patch for django deployments fixing database lock issues """
+    """monkey patch for django deployments fixing database lock issues"""
 
     def atomic(using: str = None, savepoint: bool = True, immediate: bool = False):
         # Bare decorator: @atomic -- although the first argument is called
@@ -21,7 +21,7 @@ def django_sqlite_atomic():  # NOSONAR
         return atomic_
 
     def __enter__(self):
-        """ enter function """
+        """enter function"""
         connection = transaction.get_connection(self.using)
         if not connection.in_atomic_block:
             # Reset state when entering an outermost atomic block.
@@ -47,10 +47,12 @@ def django_sqlite_atomic():  # NOSONAR
         else:
             if self.immediate:
                 connection.set_autocommit(False)
-                connection.cursor().execute('BEGIN IMMEDIATE')
+                connection.cursor().execute("BEGIN IMMEDIATE")
 
             else:
-                connection.set_autocommit(False, force_begin_transaction_with_broken_autocommit=True)
+                connection.set_autocommit(
+                    False, force_begin_transaction_with_broken_autocommit=True
+                )
 
             connection.in_atomic_block = True
 

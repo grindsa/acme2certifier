@@ -145,4 +145,3 @@ jobs:
       with:
         name: ip_wsgi_rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-

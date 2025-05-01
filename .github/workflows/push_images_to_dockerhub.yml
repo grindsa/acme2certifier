@@ -69,7 +69,7 @@ jobs:
       - name: "Retrieve version from version.py"
         run: |
           echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
           echo BUILD_NAME=${{ matrix.websrv }}-${{ matrix.dbhandler }} >> $GITHUB_ENV
 
       - name: "Retrieve 2nd last release tag"
@@ -216,7 +216,7 @@ jobs:
 
       - name: "Retrieve Version from version.py"
         run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
 
       - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
@@ -373,7 +373,7 @@ jobs:
 
       - name: "Retrieve Version from version.py"
         run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
           echo UUID=$(uuidgen) >> $GITHUB_ENV
 
       - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
