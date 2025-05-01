@@ -12,14 +12,14 @@ jobs:
 
   ha_django_mariadb_tests:
     name: "ha_django_mariadb_tests"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
     - name: Retrieve Version from version.py
       run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
     - name: update version number in spec file
@@ -49,30 +49,30 @@ jobs:
 
     - name: "Bring up Almalinux instance"
       run: |
-        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
-        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-        docker run -d -id --rm --privileged --network acme --name=alma9-c1 -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
-        docker run -d -id --rm --privileged --network acme --name=alma9-c2 -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+        docker run -d -id --rm --privileged --network acme --name=alma9-c1 -v "$(pwd)/data":/tmp/acme2certifier almalinux/9-init
+        docker run -d -id --rm --privileged --network acme --name=alma9-c2 -v "$(pwd)/data":/tmp/acme2certifier almalinux/9-init
 
     - name: "Prepare almalinux instances"
       run: |
-        docker exec alma9-c1 yum -y install openssh-server openssh-clients procps rsyslog
+        docker exec alma9-c1 yum -y install epel-release
+        docker exec alma9-c1 yum -y install openssh-server openssh-clients procps syslog-ng
+        docker exec alma9-c1 sed -i "s#UsePAM yes#UsePAM no#g" /etc/ssh/sshd_config.d/50-redhat.conf
         docker exec alma9-c1 systemctl enable sshd
         docker exec alma9-c1 systemctl start sshd
-        docker exec alma9-c1 systemctl start rsyslog
-        docker exec alma9-c1 yum install -y epel-release
-        docker exec alma9-c2 yum -y install openssh-server openssh-clients procps rsyslog
-        docker exec alma9-c2 systemctl enable sshd
-        docker exec alma9-c2 systemctl start rsyslog
-        docker exec alma9-c2 systemctl start sshd
+        docker exec alma9-c1 systemctl start syslog-ng
         docker exec alma9-c2 yum install -y epel-release
+        docker exec alma9-c2 yum -y install openssh-server openssh-clients procps syslog-ng
+        docker exec alma9-c2 sed -i "s#UsePAM yes#UsePAM no#g" /etc/ssh/sshd_config.d/50-redhat.conf
+        docker exec alma9-c2 systemctl enable sshd
+        docker exec alma9-c2 systemctl start syslog-ng
+        docker exec alma9-c2 systemctl start sshd
 
     - name: "Prepare ssh users"
       run: |
-        ssh-keygen -t rsa -N '' -f data/id_lsyncd_alma9-c1
-        ssh-keygen -t rsa -N '' -f data/id_lsyncd_alma9-c2
+        sudo ssh-keygen -t rsa -N '' -f data/id_lsyncd_alma9-c1
+        sudo ssh-keygen -t rsa -N '' -f data/id_lsyncd_alma9-c2
 
-        docker exec alma9-c1 rm /run/nologin
+        # docker exec alma9-c1 rm /run/nologin
         docker exec alma9-c1 mkdir -p /root/.ssh
         docker exec alma9-c1 chmod 700 /root/.ssh
         docker exec alma9-c1 cp /tmp/acme2certifier/id_lsyncd_alma9-c1 /root/.ssh/id_lsyncd
@@ -81,7 +81,7 @@ jobs:
         docker exec alma9-c1 chmod 600 /root/.ssh/id_lsyncd
         docker exec alma9-c1 chmod 600 /root/.ssh/authorized_keys
 
-        docker exec alma9-c2 rm /run/nologin
+        # docker exec alma9-c2 rm /run/nologin
         docker exec alma9-c2 mkdir -p /root/.ssh
         docker exec alma9-c2 chmod 700 /root/.ssh
         docker exec alma9-c2 cp /tmp/acme2certifier/id_lsyncd_alma9-c2 /root/.ssh/id_lsyncd
@@ -173,7 +173,7 @@ jobs:
 
     - name: "Configure Lcynd"
       run: |
-        cat <<EOF > data/alma9-c1-lsyncd.conf
+        sudo cat <<EOF > alma9-c1-lsyncd.conf
         settings {
           logfile = "/var/log/lsyncd/lsyncd.log",
           statusFile = "/var/log/lsyncd/lsyncd.status",
@@ -196,7 +196,7 @@ jobs:
         }
         EOF
 
-        cat <<EOF > data/alma9-c2-lsyncd.conf
+        cat <<EOF > alma9-c2-lsyncd.conf
         settings {
           logfile = "/var/log/lsyncd/lsyncd.log",
           statusFile = "/var/log/lsyncd/lsyncd.status",
@@ -218,6 +218,7 @@ jobs:
         }
         }
         EOF
+        sudo mv alma*.conf data/
         docker exec alma9-c1 cp /tmp/acme2certifier/alma9-c1-lsyncd.conf /etc/lsyncd.conf
         docker exec alma9-c2 cp /tmp/acme2certifier/alma9-c2-lsyncd.conf /etc/lsyncd.conf
 
@@ -300,18 +301,18 @@ jobs:
         docker exec alma9-c1 mysql -u root -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY 'a2cpasswd';"
         docker exec alma9-c1 mysql -u root -e"FLUSH PRIVILEGES;"
 
-        cp .github/django_settings_mariadb.py data/alma9-c1-settings.py
+        sudo cp .github/django_settings_mariadb.py data/alma9-c1-settings.py
         sudo sed -i "s/mariadbsrv.acme/alma9-c1.acme/g" data/alma9-c1-settings.py
         sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/alma9-c1-settings.py
-        sudo sed -i "s/'PASSWORD': '1mmSvDFl'/'PASSWORD': 'a2cpasswd'/g" data/alma9-c1-settings.py
+        sudo sed -i "s/\"PASSWORD\": \"1mmSvDFl\"/\"PASSWORD\": \"a2cpasswd\"/g" data/alma9-c1-settings.py
         docker exec alma9-c1 cp /tmp/acme2certifier/alma9-c1-settings.py /opt/acme2certifier/acme2certifier/settings.py
         docker exec alma9-c1 sh -c "cd /opt/acme2certifier/ && python3 manage.py makemigrations && python3 manage.py migrate && python3 manage.py loaddata acme_srv/fixture/status.yaml"
         docker exec alma9-c1 systemctl restart acme2certifier.service
 
-        cp .github/django_settings_mariadb.py data/alma9-c2-settings.py
+        sudo cp .github/django_settings_mariadb.py data/alma9-c2-settings.py
         sudo sed -i "s/mariadbsrv.acme/alma9-c2.acme/g" data/alma9-c2-settings.py
         sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/alma9-c2-settings.py
-        sudo sed -i "s/'PASSWORD': '1mmSvDFl'/'PASSWORD': 'a2cpasswd'/g" data/alma9-c2-settings.py
+        sudo sed -i "s/\"PASSWORD\": \"1mmSvDFl\"/\"PASSWORD\": \"a2cpasswd\"/g" data/alma9-c2-settings.py
         docker exec alma9-c2 cp /tmp/acme2certifier/alma9-c2-settings.py /opt/acme2certifier/acme2certifier/settings.py
         docker exec alma9-c2 systemctl restart acme2certifier.service
 
@@ -407,4 +408,3 @@ jobs:
       with:
         name: ha_django_mariadb_tests.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-

@@ -66,7 +66,7 @@ template_name: XCA template to be applied to CSRs
 
 - **Certificate validity** (`validN`/`validM`)
 - **Basic Constraints** (`ca`)
-- **Key Usage Attributes** (`keyUse`) – Defaults to:  
+- **Key Usage Attributes** (`keyUse`) – Defaults to:
   `digitalSignature, nonRepudiation, keyEncipherment, keyAgreement` if not specified.
 - **Extended Key Usage Attributes** (`eKeyUse`)
 - **CRL Distribution Points** (`crlDist`)

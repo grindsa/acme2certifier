@@ -1,4 +1,4 @@
-# workflow to run the acme2certifier unittest suite
+# workflow to run the acme2certifier markdown link checker and linter
 
 name: Markdown check
 
@@ -13,19 +13,10 @@ on:
 jobs:
   markdown-link-check:
     # runs-on: ubuntu-latest
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
-    #- uses: umbrelladocs/action-linkspector@v1
-    #  with:
-    #      github_token: ${{ secrets.github_token }}
-    #      reporter: github-pr-review
-    #      fail_level: any
-    - uses: gaurav-nelson/github-action-markdown-link-check@v1
-      with:
-        use-quiet-mode: 'yes'
-        use-verbose-mode: 'yes'
-        config-file: '.github/mlc_config.json'
+    - uses: umbrelladocs/action-linkspector@v1
     - name: Lint changelog file root
       uses: avto-dev/markdown-lint@v1
       with:

@@ -11,7 +11,7 @@ on:
 jobs:
   header_info_tests:
     name: "header_info_tests"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -38,7 +38,7 @@ jobs:
       run: |
         sudo cp examples/ca_handler/xca_ca_handler.py examples/Docker/data/ca_handler.py
         sudo chmod 777 examples/Docker/data/ca_handler.py
-        sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, 'template_name')/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('header_info: %s', qset[-1]['header_info'])/g" examples/Docker/data/ca_handler.py
+        sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, \"template_name\")/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" examples/Docker/data/ca_handler.py
         sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/xca
         sudo chmod -R 777 examples/Docker/data/xca
@@ -88,7 +88,7 @@ jobs:
     - name: "check header info"
       run: |
         cd examples/Docker/
-        docker-compose logs | grep foo-bar-doo
+        docker-compose logs | grep foo-bar-doo | grep customized
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -109,7 +109,7 @@ jobs:
 
   header_info_tests_rpm:
     name: "header_info_tests_rpm"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
@@ -140,7 +140,7 @@ jobs:
 
         sudo cp examples/ca_handler/xca_ca_handler.py data/acme_ca/ca_handler.py
         sudo chmod 777 data/acme_ca/ca_handler.py
-        sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, 'template_name')/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('header_info: %s', qset[-1]['header_info'])/g" data/acme_ca/ca_handler.py
+        sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, \"template_name\")/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" data/acme_ca/ca_handler.py
         sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" data/acme_ca/ca_handler.py
 
         sudo touch data/acme_srv.cfg
@@ -159,7 +159,7 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
-    - name: "DJango - Setup acme_srv.cfg with xca_ca_handler"
+    - name: "Django - Setup acme_srv.cfg with xca_ca_handler"
       if: matrix.execscript == 'django_tester.sh'
       run: |
         mkdir -p data/volume/acme_ca/certs
@@ -168,7 +168,7 @@ jobs:
 
         sudo cp examples/ca_handler/xca_ca_handler.py data/volume/ca_handler.py
         sudo chmod 777 data/volume/ca_handler.py
-        sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, 'template_name')/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
+        sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, \"template_name\")/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
         sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" data/volume/ca_handler.py
 
         sudo touch data/volume/acme_srv.cfg
@@ -217,7 +217,7 @@ jobs:
 
     - name: "check header info"
       run: |
-        docker exec acme-srv grep foo-bar-doo /var/log/messages
+        docker exec acme-srv grep foo-bar-doo /var/log/messages | grep customized
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}

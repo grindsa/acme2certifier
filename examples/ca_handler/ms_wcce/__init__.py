@@ -20,4 +20,4 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-""" Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) adapted from https://github.com/ly4k/Certipy """
+"""Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) adapted from https://github.com/ly4k/Certipy"""

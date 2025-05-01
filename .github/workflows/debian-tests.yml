@@ -50,7 +50,7 @@ jobs:
 
     - name: "Retrieve Version from version.py"
       run: |
-        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
 
     - name: Download debian package
       uses: actions/download-artifact@v4
@@ -98,4 +98,3 @@ jobs:
       with:
         name: deb_test-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-

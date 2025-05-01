@@ -1,4 +1,5 @@
-""" rpc.py """
+"""rpc.py"""
+
 # pylint: disable=C0209, C0415, E0401, R0913, W1201
 import logging
 from impacket import uuid
@@ -13,9 +14,9 @@ def get_dce_rpc_from_string_binding(
     target_ip: str = None,
     remote_name: str = None,
     auth_level: int = rpcrt.RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
-    do_kerberos=False
+    do_kerberos=False,
 ) -> rpcrt.DCERPC_v5:
-    """ get dce from rpc """
+    """get dce from rpc"""
     if target_ip is None:
         target_ip = target.target_ip
     if remote_name is None:
@@ -50,7 +51,7 @@ def get_dce_rpc_from_string_binding(
 
 
 def get_dynamic_endpoint(interface: bytes, target: str, timeout: int = 5):
-    """ get endpoint """
+    """get endpoint"""
     string_binding = r"ncacn_ip_tcp:%s[135]" % target
     rpctransport = transport.DCERPCTransportFactory(string_binding)
     rpctransport.set_connect_timeout(timeout)
@@ -88,10 +89,15 @@ def get_dce_rpc(
     auth_level_np: int = rpcrt.RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
     auth_level_dyn: int = rpcrt.RPC_C_AUTHN_LEVEL_PKT_PRIVACY,
 ) -> rpcrt.DCERPC_v5:
-    """ get dce rpc """
+    """get dce rpc"""
+
     def _try_binding(string_binding: str, auth_level: int) -> rpcrt.DCERPC_v5:
         dce = get_dce_rpc_from_string_binding(
-            string_binding, target, timeout, auth_level=auth_level, do_kerberos=do_kerberos
+            string_binding,
+            target,
+            timeout,
+            auth_level=auth_level,
+            do_kerberos=do_kerberos,
         )
         logging.debug("Trying to connect to endpoint: %s" % string_binding)
         try:
