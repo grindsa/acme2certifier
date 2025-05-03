@@ -87,10 +87,7 @@ runs:
 
     - name: "Spin-up alma instance"
       run: |
-        sudo cp examples/Docker/almalinux-systemd/Dockerfile data
-        sudo sed -i "s/FROM almalinux:9/FROM almalinux:$RH_VERSION/g" data/Dockerfile
-        cat data/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-        docker run -d -id --privileged --network $NAME_SPACE -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+        docker run -d -id --privileged --network $NAME_SPACE -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux/$RH_VERSION-init
       env:
         RH_VERSION: ${{ inputs.RH_VERSION }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}

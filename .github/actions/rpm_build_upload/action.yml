@@ -23,4 +23,3 @@ runs:
     with:
       name: acme2certifier-${{ github.run_id }}.noarch.rpm
       path: ${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch/
-

@@ -359,4 +359,3 @@ runs:
       #  docker exec acme-srv grep "failed for: \['countryName'\]" /var/log/messages
       fi
     shell: bash
-

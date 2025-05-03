@@ -18,11 +18,10 @@ case "$1" in
 
   *)
     echo "install missing packages"
-    yum install -y procps rsyslog
-
-    systemctl start rsyslog.service
-
     yum -y install epel-release
+    yum install -y procps syslog-ng
+    systemctl start syslog-ng.service
+
     yum -y localinstall /tmp/acme2certifier/*.rpm
     cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
     cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d

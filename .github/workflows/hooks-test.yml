@@ -730,5 +730,3 @@ jobs:
       with:
         name: hooks-rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-
-

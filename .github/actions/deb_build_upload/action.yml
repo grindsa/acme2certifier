@@ -23,5 +23,3 @@ runs:
     with:
       name: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
       path: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
-
-

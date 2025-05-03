@@ -4,7 +4,7 @@
 
 ## Upgrade to Version 0.17
 
-In **acme2certifier v0.17**, the `acme` module (which implements ACME server functionality) has been **renamed** to `acme_srv`.  
+In **acme2certifier v0.17**, the `acme` module (which implements ACME server functionality) has been **renamed** to `acme_srv`.
 
 This renaming was done to **avoid naming conflicts** with [acme-python](https://acme-python.readthedocs.io/en/stable/) and affects **acme2certifier deployments running as Django projects**, as the Django application must be renamed, and the **database schema** must be updated.
 
@@ -12,7 +12,7 @@ This renaming was done to **avoid naming conflicts** with [acme-python](https://
 
 If you are using the **prebuilt Django containers** running on **Apache2** or **NGINX**, the necessary modifications will be **applied automatically** when deploying the updated containers:
 
-[acme2certifier Django Containers](https://hub.docker.com/repository/docker/grindsa/acme2certifier/tags?page=1&ordering=last_updated)
+[acme2certifier Django Containers](https://hub.docker.com/repository/docker/grindsa/acme2certifier/)
 
 ### Manual Upgrade for Custom Django Deployments
 

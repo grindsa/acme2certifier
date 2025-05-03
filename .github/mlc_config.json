@@ -9,7 +9,7 @@
     {
       "pattern": "^/",
       "replacement": "{{BASEURL}}/"
-    },
+    }
   ],
   "timeout": "120s",
   "retryOn429": true,

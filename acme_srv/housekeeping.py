@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-""" Housekeeping class """
+"""Housekeeping class"""
 from __future__ import print_function
 import csv
 import json
@@ -9,12 +9,20 @@ from acme_srv.authorization import Authorization
 from acme_srv.certificate import Certificate
 from acme_srv.message import Message
 from acme_srv.order import Order
-from acme_srv.helper import load_config, uts_to_date_utc, cert_dates_get, cert_serial_get, uts_now, error_dic_get
+from acme_srv.helper import (
+    load_config,
+    uts_to_date_utc,
+    cert_dates_get,
+    cert_serial_get,
+    uts_now,
+    error_dic_get,
+)
 from acme_srv.version import __version__
 
 
 class Housekeeping(object):
-    """ Housekeeping class """
+    """Housekeeping class"""
+
     def __init__(self, debug: bool = False, logger: object = None):
         self.logger = logger
         self.dbstore = DBstore(debug, self.logger)
@@ -23,125 +31,170 @@ class Housekeeping(object):
         self.debug = debug
 
     def __enter__(self):
-        """ Makes ACMEHandler a Context Manager """
+        """Makes ACMEHandler a Context Manager"""
         self._config_load()
         return self
 
     def __exit__(self, *args):
-        """ cose the connection at the end of the context """
+        """cose the connection at the end of the context"""
 
     def _accountlist_get(self) -> Dict[str, str]:
-        """ get list of certs from database """
-        self.logger.debug('Housekeeping._certlist_get()')
+        """get list of certs from database"""
+        self.logger.debug("Housekeeping._certlist_get()")
         try:
             result = self.dbstore.accountlist_get()
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Housekeeping._accountlist_get(): %s', err_)
+            self.logger.critical(
+                "acme2certifier database error in Housekeeping._accountlist_get(): %s",
+                err_,
+            )
             result = None
         return result
 
     def _certificatelist_get(self) -> Dict[str, str]:
-        """ get list of certs from database """
-        self.logger.debug('Housekeeping._certlist_get()')
+        """get list of certs from database"""
+        self.logger.debug("Housekeeping._certlist_get()")
         try:
             result = self.dbstore.certificatelist_get()
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Housekeeping.certificatelist_get(): %s', err_)
+            self.logger.critical(
+                "acme2certifier database error in Housekeeping.certificatelist_get(): %s",
+                err_,
+            )
             result = None
         return result
 
     def _cliconfig_check(self, config_dic: Dict[str, str]) -> bool:
-        """ verify config """
-        self.logger.debug('config_check()')
+        """verify config"""
+        self.logger.debug("config_check()")
 
         check_result = True
-        if 'list' not in config_dic and 'jwkname' not in config_dic and 'jwk' not in config_dic:
-            self.logger.error('Error: cliuser_mgmt.py config_check() failed: Either jwkname or jwk must be specified')
+        if (
+            "list" not in config_dic
+            and "jwkname" not in config_dic
+            and "jwk" not in config_dic
+        ):
+            self.logger.error(
+                "Error: cliuser_mgmt.py config_check() failed: Either jwkname or jwk must be specified"
+            )
             check_result = False
 
         return check_result
 
     def _cliaccounts_list(self, silent: bool = True) -> Dict[str, str]:
-        """ list cli accounts """
-        self.logger.debug('Housekeeping._cliaccounts_list()')
+        """list cli accounts"""
+        self.logger.debug("Housekeeping._cliaccounts_list()")
         try:
             result = self.dbstore.cliaccountlist_get()
         except Exception as err_:
-            self.logger.critical('acme2certifier database error in Housekeeping._cliaccounts_list(): %s', err_)
+            self.logger.critical(
+                "acme2certifier database error in Housekeeping._cliaccounts_list(): %s",
+                err_,
+            )
             result = None
         if result and not silent:
             self._cliaccounts_format(result)
         return result
 
     def _cliaccounts_format(self, result_list: List[str]):
-        """ format cliaccount report """
-        self.logger.debug('Housekeeping._cliaccounts_format()')
+        """format cliaccount report"""
+        self.logger.debug("Housekeeping._cliaccounts_format()")
         try:
-            print(f"\n{'Name'.ljust(15)}|{'Contact'.ljust(20)}|{'cliadm'.ljust(6)}|{'repadm'.ljust(6)}|{'certadm'.ljust(7)}|{'Created at'.ljust(20)}")
-            print('-' * 78)
-            for account in sorted(result_list, key=lambda k: k['id']):
-                print(f"{account['name'][:15].ljust(15)}|{account['contact'][:20].ljust(20)}|{str(bool(account['cliadmin'])).ljust(6)}|{str(bool(account['reportadmin'])).ljust(6)}|{str(bool(account['certificateadmin'])).ljust(7)}|{account['created_at'].ljust(20)}")
-            print('\n')
+            print(
+                f"\n{'Name'.ljust(15)}|{'Contact'.ljust(20)}|{'cliadm'.ljust(6)}|{'repadm'.ljust(6)}|{'certadm'.ljust(7)}|{'Created at'.ljust(20)}"
+            )
+            print("-" * 78)
+            for account in sorted(result_list, key=lambda k: k["id"]):
+                print(
+                    f"{account['name'][:15].ljust(15)}|{account['contact'][:20].ljust(20)}|{str(bool(account['cliadmin'])).ljust(6)}|{str(bool(account['reportadmin'])).ljust(6)}|{str(bool(account['certificateadmin'])).ljust(7)}|{account['created_at'].ljust(20)}"
+                )
+            print("\n")
         except Exception as err:
-            self.logger.error('acme2certifier error in Housekeeping._cliaccounts_format()')
-            self.logger.error('acme2certifier error in Housekeeping._cliaccounts_format(): %s', err)
+            self.logger.error(
+                "acme2certifier error in Housekeeping._cliaccounts_format()"
+            )
+            self.logger.error(
+                "acme2certifier error in Housekeeping._cliaccounts_format(): %s", err
+            )
 
-    def _report_get(self, payload: Dict[str, str]) -> Tuple[Dict[str, str], int, str, str]:
-        """ create report """
-        self.logger.debug('Housekeeping._report_get()')
+    def _report_get(
+        self, payload: Dict[str, str]
+    ) -> Tuple[Dict[str, str], int, str, str]:
+        """create report"""
+        self.logger.debug("Housekeeping._report_get()")
 
         message = None
         detail = None
         response_dic = {}
 
-        if 'name' in payload['data'] and payload['data']['name'] in ('certificates', 'accounts'):
-            if 'format' in payload['data'] and payload['data']['format'] in ('csv', 'json'):
-                if payload['data']['name'] == 'certificates':
-                    response_dic['data'] = self.certreport_get(report_format=payload['data']['format'])
-                elif payload['data']['name'] == 'accounts':
-                    response_dic['data'] = self.accountreport_get(report_format=payload['data']['format'])
+        if "name" in payload["data"] and payload["data"]["name"] in (
+            "certificates",
+            "accounts",
+        ):
+            if "format" in payload["data"] and payload["data"]["format"] in (
+                "csv",
+                "json",
+            ):
+                if payload["data"]["name"] == "certificates":
+                    response_dic["data"] = self.certreport_get(
+                        report_format=payload["data"]["format"]
+                    )
+                elif payload["data"]["name"] == "accounts":
+                    response_dic["data"] = self.accountreport_get(
+                        report_format=payload["data"]["format"]
+                    )
                 code = 200
             else:
                 code = 400
-                message = self.error_msg_dic['malformed']
-                detail = 'unknown report format'
+                message = self.error_msg_dic["malformed"]
+                detail = "unknown report format"
         else:
             code = 400
-            message = self.error_msg_dic['malformed']
-            detail = 'unknown report type'
+            message = self.error_msg_dic["malformed"]
+            detail = "unknown report type"
 
-        self.logger.debug('Housekeeping._report_get() ended')
+        self.logger.debug("Housekeeping._report_get() ended")
         return (response_dic, code, message, detail)
 
-    def _clireport_get(self, payload: Dict[str, str], permissions_dic: Dict[str, str]) -> Tuple[int, str, str, Dict[str, str]]:
-        """ get reports for CLI """
-        self.logger.debug('Housekeeping._clireport_get()')
+    def _clireport_get(
+        self, payload: Dict[str, str], permissions_dic: Dict[str, str]
+    ) -> Tuple[int, str, str, Dict[str, str]]:
+        """get reports for CLI"""
+        self.logger.debug("Housekeeping._clireport_get()")
 
         response_dic = {}
         message = None
         detail = None
 
-        if 'reportadmin' in permissions_dic and permissions_dic['reportadmin']:
+        if "reportadmin" in permissions_dic and permissions_dic["reportadmin"]:
             # create reports as we have permissions to do so
             (response_dic, code, message, detail) = self._report_get(payload)
         else:
             code = 403
-            message = self.error_msg_dic['unauthorized']
-            detail = 'No permissions to download reports'
+            message = self.error_msg_dic["unauthorized"]
+            detail = "No permissions to download reports"
 
-        self.logger.debug('Housekeeping._clireport_get() returned with: %s/%s', code, detail)
+        self.logger.debug(
+            "Housekeeping._clireport_get() returned with: %s/%s", code, detail
+        )
         return (code, message, detail, response_dic)
 
     def _config_load(self):
-        """ load config from file """
-        self.logger.debug('Housekeeping._config_load()')
+        """load config from file"""
+        self.logger.debug("Housekeeping._config_load()")
         config_dic = load_config()
-        if 'Housekeeping' in config_dic:
-            self.logger.debug('Housekeeping._config_load()')
+        if "Housekeeping" in config_dic:
+            self.logger.debug("Housekeeping._config_load()")
 
-    def _uts_fields_set(self, cert: Dict[str, str], cert_raw_field: str, cert_issue_date_field: 0, cert_expire_date_field: 0) -> Dict[str, str]:
-        """ set uts to 0 if we do not have them in dictionary """
-        self.logger.debug('Housekeeping._zero_uts_fields()')
+    def _uts_fields_set(
+        self,
+        cert: Dict[str, str],
+        cert_raw_field: str,
+        cert_issue_date_field: 0,
+        cert_expire_date_field: 0,
+    ) -> Dict[str, str]:
+        """set uts to 0 if we do not have them in dictionary"""
+        self.logger.debug("Housekeeping._zero_uts_fields()")
 
         if cert_issue_date_field not in cert or cert_expire_date_field not in cert:
             cert[cert_issue_date_field] = 0
@@ -151,55 +204,67 @@ class Housekeeping(object):
         if cert[cert_issue_date_field] == 0 or cert[cert_expire_date_field] == 0:
             # cover cases without certificate in dict
             if cert_raw_field in cert:
-                (issue_uts, expire_uts) = cert_dates_get(self.logger, cert[cert_raw_field])
+                (issue_uts, expire_uts) = cert_dates_get(
+                    self.logger, cert[cert_raw_field]
+                )
                 cert[cert_issue_date_field] = issue_uts
                 cert[cert_expire_date_field] = expire_uts
             else:
                 cert[cert_issue_date_field] = 0
                 cert[cert_expire_date_field] = 0
 
-        self.logger.debug('Housekeeping._uts_fields_set() ended.')
+        self.logger.debug("Housekeeping._uts_fields_set() ended.")
         return cert
 
     def _cert_serial_add(self, cert_raw: str) -> str:
-        """ add serial number form cert """
-        self.logger.debug('Housekeeping._cert_serial_add()')
+        """add serial number form cert"""
+        self.logger.debug("Housekeeping._cert_serial_add()")
 
         try:
             serial = cert_serial_get(self.logger, cert_raw)
         except Exception:
-            serial = ''
+            serial = ""
 
-        self.logger.debug('Housekeeping._cert_serial_add() ended')
+        self.logger.debug("Housekeeping._cert_serial_add() ended")
         return serial
 
     def _convert_data(self, cert_list: List[str]) -> List[str]:
-        """ convert data from uts to real date """
-        self.logger.debug('Housekeeping._convert_dates()')
+        """convert data from uts to real date"""
+        self.logger.debug("Housekeeping._convert_dates()")
 
-        cert_serial_field = 'certificate.serial'
-        cert_issue_date_field = 'certificate.issue_uts'
-        cert_issue_dateh_field = 'certificate.issue_date'
-        cert_expire_date_field = 'certificate.expire_uts'
-        cert_expire_dateh_field = 'certificate.expire_date'
-        cert_raw_field = 'certificate.cert_raw'
-        date_format = '%Y-%m-%d %H:%M:%S'
+        cert_serial_field = "certificate.serial"
+        cert_issue_date_field = "certificate.issue_uts"
+        cert_issue_dateh_field = "certificate.issue_date"
+        cert_expire_date_field = "certificate.expire_uts"
+        cert_expire_dateh_field = "certificate.expire_date"
+        cert_raw_field = "certificate.cert_raw"
+        date_format = "%Y-%m-%d %H:%M:%S"
 
         for cert in cert_list:
-            expire_list = ('order.expires', 'authorization.expires', 'challenge.expires')
+            expire_list = (
+                "order.expires",
+                "authorization.expires",
+                "challenge.expires",
+            )
             for ele in expire_list:
                 if ele in cert and cert[ele]:
                     cert[ele] = uts_to_date_utc(cert[ele], date_format)
 
             # set timestamps for issue and expiry dates
-            cert = self._uts_fields_set(cert, cert_raw_field, cert_issue_date_field, cert_expire_date_field)
+            cert = self._uts_fields_set(
+                cert, cert_raw_field, cert_issue_date_field, cert_expire_date_field
+            )
 
             if cert[cert_issue_date_field] > 0 and cert[cert_expire_date_field] > 0:
-                cert[cert_issue_dateh_field] = uts_to_date_utc(cert[cert_issue_date_field], date_format)
-                cert[cert_expire_dateh_field] = uts_to_date_utc(cert[cert_expire_date_field], date_format)
+                cert[cert_issue_dateh_field] = uts_to_date_utc(
+                    cert[cert_issue_date_field], date_format
+                )
+                cert[cert_expire_dateh_field] = uts_to_date_utc(
+                    cert[cert_expire_date_field], date_format
+                )
             else:
-                cert[cert_issue_dateh_field] = ''
-                cert[cert_expire_dateh_field] = ''
+                cert[cert_issue_dateh_field] = ""
+                cert[cert_expire_dateh_field] = ""
 
             # add serial number
             if cert_raw_field in cert:
@@ -208,76 +273,85 @@ class Housekeeping(object):
         return cert_list
 
     def _csv_dump(self, filename: str, content: List[str]):
-        """ dump content csv file """
-        self.logger.debug('Housekeeping._csv_dump()')
-        with open(filename, 'w', encoding='utf8', newline='') as file_:
-            writer = csv.writer(file_, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONNUMERIC)
+        """dump content csv file"""
+        self.logger.debug("Housekeeping._csv_dump()")
+        with open(filename, "w", encoding="utf8", newline="") as file_:
+            writer = csv.writer(
+                file_, delimiter=",", quotechar='"', quoting=csv.QUOTE_NONNUMERIC
+            )
             writer.writerows(content)
 
     def _data_dic_create(self, config_dic: Dict[str, str]) -> Dict[str, str]:
-        """ create dictionalry """
-        self.logger.debug('Housekeeping._data_dic_create()')
+        """create dictionalry"""
+        self.logger.debug("Housekeeping._data_dic_create()")
 
         data_dic = {}
-        if 'jwkname' in config_dic:
-            data_dic['name'] = config_dic['jwkname']
+        if "jwkname" in config_dic:
+            data_dic["name"] = config_dic["jwkname"]
         else:
-            if 'jwk' in config_dic and 'kid' in config_dic['jwk']:
-                data_dic['name'] = config_dic['jwk']['kid']
+            if "jwk" in config_dic and "kid" in config_dic["jwk"]:
+                data_dic["name"] = config_dic["jwk"]["kid"]
 
-        self.logger.debug('Housekeeping._data_dic_create() ended')
+        self.logger.debug("Housekeeping._data_dic_create() ended")
         return data_dic
 
     def _data_dic_build(self, config_dic: Dict[str, str]) -> Dict[str, str]:
-        """ cli user manager """
-        self.logger.debug('Housekeeping._data_dic_build()')
+        """cli user manager"""
+        self.logger.debug("Housekeeping._data_dic_build()")
 
         data_dic = self._data_dic_create(config_dic)
-        if 'delete' not in config_dic or not config_dic['delete']:
+        if "delete" not in config_dic or not config_dic["delete"]:
 
-            if 'permissions' in config_dic:
+            if "permissions" in config_dic:
                 try:
-                    data_dic.update(config_dic['permissions'])
+                    data_dic.update(config_dic["permissions"])
                 except Exception as err:
-                    self.logger.error('acme2certifier  error in Housekeeping._data_dic_build(): %s', err)
+                    self.logger.error(
+                        "acme2certifier  error in Housekeeping._data_dic_build(): %s",
+                        err,
+                    )
 
-            if 'jwk' in config_dic:
-                data_dic['jwk'] = json.dumps(config_dic['jwk'])
+            if "jwk" in config_dic:
+                data_dic["jwk"] = json.dumps(config_dic["jwk"])
 
-            if 'email' in config_dic:
-                data_dic['contact'] = config_dic['email']
+            if "email" in config_dic:
+                data_dic["contact"] = config_dic["email"]
 
-        self.logger.debug('Housekeeping._data_dic_build() ended')
+        self.logger.debug("Housekeeping._data_dic_build() ended")
         return data_dic
 
     def _json_dump(self, filename: str, data_: Dict[str, str]):
-        """ dump content json file """
-        self.logger.debug('Housekeeping._json_dump()')
+        """dump content json file"""
+        self.logger.debug("Housekeeping._json_dump()")
         jdump = json.dumps(data_, ensure_ascii=False, indent=4, default=str)
-        with open(filename, 'w', encoding='utf8', newline='') as file_:
+        with open(filename, "w", encoding="utf8", newline="") as file_:
             file_.write(jdump)  # lgtm [py/clear-text-storage-sensitive-data]
 
-    def _fieldlist_normalize(self, field_list: List[str], prefix: str) -> Dict[str, str]:
-        """ normalize field_list """
-        self.logger.debug('Housekeeping._fieldlist_normalize()')
+    def _fieldlist_normalize(
+        self, field_list: List[str], prefix: str
+    ) -> Dict[str, str]:
+        """normalize field_list"""
+        self.logger.debug("Housekeeping._fieldlist_normalize()")
         field_dic = {}
         for field in field_list:
-            f_list = field.split('__')
+            f_list = field.split("__")
             # items from selected list which do not have a table reference get prefix added
             if len(f_list) == 1:
-                new_field = f'{prefix}.{field}'
-            elif f_list[-2] == 'status' and len(f_list) >= 3:
+                new_field = f"{prefix}.{field}"
+            elif f_list[-2] == "status" and len(f_list) >= 3:
                 # status fields have one reference more
-                new_field = f'{f_list[-3]}.{f_list[-2]}.{f_list[-1]}'
+                new_field = f"{f_list[-3]}.{f_list[-2]}.{f_list[-1]}"
             else:
-                new_field = f'{f_list[-2]}.{f_list[-1]}'
+                new_field = f"{f_list[-2]}.{f_list[-1]}"
             field_dic[field] = new_field
 
         return field_dic
 
-    def _lists_normalize(self, field_list: List[str], value_list: List[str], prefix: str) -> Tuple[List[str], List[str]]:
-        """ normalize list """
-        self.logger.debug('Housekeeping._list_normalize()')
+    def _lists_normalize(
+        self, field_list: List[str], value_list: List[str], prefix: str
+    ) -> Tuple[List[str], List[str]]:
+        """normalize list"""
+        self.logger.debug("Housekeeping._list_normalize()")
 
         field_dic = self._fieldlist_normalize(field_list, prefix)
 
@@ -297,66 +371,110 @@ class Housekeeping(object):
         return field_list, new_list
 
     def _account_list_convert(self, tmp_json: List[str]) -> List[str]:
-        """ create account list """
-        self.logger.debug('Housekeeping._account_list_convert()')
+        """create account list"""
+        self.logger.debug("Housekeeping._account_list_convert()")
 
         account_list = []
         for account in tmp_json:
-            tmp_json[account]['orders'] = []
-            for order in tmp_json[account]['orders_dic']:
-                tmp_json[account]['orders_dic'][order]['authorizations'] = []
-                for authorization in tmp_json[account]['orders_dic'][order]['authorizations_dic']:
-                    tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges'] = []
+            tmp_json[account]["orders"] = []
+            for order in tmp_json[account]["orders_dic"]:
+                tmp_json[account]["orders_dic"][order]["authorizations"] = []
+                for authorization in tmp_json[account]["orders_dic"][order][
+                    "authorizations_dic"
+                ]:
+                    tmp_json[account]["orders_dic"][order]["authorizations_dic"][
+                        authorization
+                    ]["challenges"] = []
                     # build list from challenges and delete dictionary
-                    for _name, challenge in tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges_dic'].items():
-                        tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges'].append(challenge)
-                    del tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization]['challenges_dic']
+                    for _name, challenge in tmp_json[account]["orders_dic"][order][
+                        "authorizations_dic"
+                    ][authorization]["challenges_dic"].items():
+                        tmp_json[account]["orders_dic"][order]["authorizations_dic"][
+                            authorization
+                        ]["challenges"].append(challenge)
+                    del tmp_json[account]["orders_dic"][order]["authorizations_dic"][
+                        authorization
+                    ]["challenges_dic"]
                     # build list from authorizations
-                    tmp_json[account]['orders_dic'][order]['authorizations'].append(tmp_json[account]['orders_dic'][order]['authorizations_dic'][authorization])
+                    tmp_json[account]["orders_dic"][order]["authorizations"].append(
+                        tmp_json[account]["orders_dic"][order]["authorizations_dic"][
+                            authorization
+                        ]
+                    )
                 # delete authorization dictionary
-                del tmp_json[account]['orders_dic'][order]['authorizations_dic']
+                del tmp_json[account]["orders_dic"][order]["authorizations_dic"]
                 # build list of orders
-                tmp_json[account]['orders'].append(tmp_json[account]['orders_dic'][order])
-            del tmp_json[account]['orders_dic']
+                tmp_json[account]["orders"].append(
+                    tmp_json[account]["orders_dic"][order]
+                )
+            del tmp_json[account]["orders_dic"]
 
             # add entry to output list
             account_list.append(tmp_json[account])
 
-        self.logger.debug('Housekeeping._account_list_convert() ended')
+        self.logger.debug("Housekeeping._account_list_convert() ended")
         return account_list
 
-    def _dicstructure_create(self, tmp_json: Dict[str, str], ele: str, account_field: str, order_field: str, authz_field: str, chall_field: str) -> Dict[str, str]:
+    def _dicstructure_create(
+        self,
+        tmp_json: Dict[str, str],
+        ele: str,
+        account_field: str,
+        order_field: str,
+        authz_field: str,
+        chall_field: str,
+    ) -> Dict[str, str]:
         # pylint: disable=r0913
-        """ create dictionary structure """
-        self.logger.debug('Housekeeping._dicstructure_create()')
+        """create dictionary structure"""
+        self.logger.debug("Housekeeping._dicstructure_create()")
 
         # create account entry in case it does not exist
         if ele[account_field] not in tmp_json:
             tmp_json[ele[account_field]] = {}
-            tmp_json[ele[account_field]]['orders_dic'] = {}
+            tmp_json[ele[account_field]]["orders_dic"] = {}
 
-        if ele[order_field] not in tmp_json[ele[account_field]]['orders_dic']:
-            tmp_json[ele[account_field]]['orders_dic'][ele[order_field]] = {}
-            tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'] = {}
+        if ele[order_field] not in tmp_json[ele[account_field]]["orders_dic"]:
+            tmp_json[ele[account_field]]["orders_dic"][ele[order_field]] = {}
+            tmp_json[ele[account_field]]["orders_dic"][ele[order_field]][
+                "authorizations_dic"
+            ] = {}
 
-        if ele[authz_field] not in tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic']:
-            tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]] = {}
-            tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic'] = {}
+        if (
+            ele[authz_field]
+            not in tmp_json[ele[account_field]]["orders_dic"][ele[order_field]][
+                "authorizations_dic"
+            ]
+        ):
+            tmp_json[ele[account_field]]["orders_dic"][ele[order_field]][
+                "authorizations_dic"
+            ][ele[authz_field]] = {}
+            tmp_json[ele[account_field]]["orders_dic"][ele[order_field]][
+                "authorizations_dic"
+            ][ele[authz_field]]["challenges_dic"] = {}
 
-        if ele[chall_field] not in tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic']:
-            tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic'][ele[chall_field]] = {}
+        if (
+            ele[chall_field]
+            not in tmp_json[ele[account_field]]["orders_dic"][ele[order_field]][
+                "authorizations_dic"
+            ][ele[authz_field]]["challenges_dic"]
+        ):
+            tmp_json[ele[account_field]]["orders_dic"][ele[order_field]][
+                "authorizations_dic"
+            ][ele[authz_field]]["challenges_dic"][ele[chall_field]] = {}
 
-        self.logger.debug('Housekeeping._dicstructure_create() ended')
+        self.logger.debug("Housekeeping._dicstructure_create() ended")
         return tmp_json
 
-    def _account_dic_create(self, account_list: List[str]) -> Tuple[Dict[str, str], List[str]]:
-        """ account list create """
-        self.logger.debug('Housekeeping._account_dic_create()')
+    def _account_dic_create(
+        self, account_list: List[str]
+    ) -> Tuple[Dict[str, str], List[str]]:
+        """account list create"""
+        self.logger.debug("Housekeeping._account_dic_create()")
 
-        account_field = 'account.name'
-        order_field = 'order.name'
-        authz_field = 'authorization.name'
-        chall_field = 'challenge.name'
+        account_field = "account.name"
+        order_field = "order.name"
+        authz_field = "authorization.name"
+        chall_field = "challenge.name"
 
         tmp_json = {}
         error_list = []
@@ -367,28 +485,40 @@ class Housekeeping(object):
             if ele.keys() >= {account_field, order_field, authz_field, chall_field}:
 
                 # create dictionary structure (if needed)
-                tmp_json = self._dicstructure_create(tmp_json, ele, account_field, order_field, authz_field, chall_field)
+                tmp_json = self._dicstructure_create(
+                    tmp_json, ele, account_field, order_field, authz_field, chall_field
+                )
 
                 # dump data in
                 for value in ele:
-                    if value.startswith('account.'):
+                    if value.startswith("account."):
                         tmp_json[ele[account_field]][value] = ele[value]
-                    elif value.startswith('order.'):
-                        tmp_json[ele[account_field]]['orders_dic'][ele[order_field]][value] = ele[value]
-                    elif value.startswith('authorization.'):
-                        tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]][value] = ele[value]
-                    elif value.startswith('challenge'):
-                        tmp_json[ele[account_field]]['orders_dic'][ele[order_field]]['authorizations_dic'][ele[authz_field]]['challenges_dic'][ele[chall_field]][value] = ele[value]
+                    elif value.startswith("order."):
+                        tmp_json[ele[account_field]]["orders_dic"][ele[order_field]][
+                            value
+                        ] = ele[value]
+                    elif value.startswith("authorization."):
+                        tmp_json[ele[account_field]]["orders_dic"][ele[order_field]][
+                            "authorizations_dic"
+                        ][ele[authz_field]][value] = ele[value]
+                    elif value.startswith("challenge"):
+                        tmp_json[ele[account_field]]["orders_dic"][ele[order_field]][
+                            "authorizations_dic"
+                        ][ele[authz_field]]["challenges_dic"][ele[chall_field]][
+                            value
+                        ] = ele[
+                            value
+                        ]
 
             else:
                 error_list.append(ele)
 
-        self.logger.debug('Housekeeping._account_dic_create() ended')
+        self.logger.debug("Housekeeping._account_dic_create() ended")
         return (tmp_json, error_list)
 
     def _to_acc_json(self, account_list: List[str]) -> List[str]:
-        """ stack list to json """
-        self.logger.debug('Housekeeping._to_acc_json()')
+        """stack list to json"""
+        self.logger.debug("Housekeeping._to_acc_json()")
 
         # create main dictionary and errorlist
         (tmp_json, error_list) = self._account_dic_create(account_list)
@@ -398,13 +528,13 @@ class Housekeeping(object):
 
         # add errors
         if error_list:
-            account_list.append({'error_list': error_list})
+            account_list.append({"error_list": error_list})
 
         return account_list
 
     def _to_list(self, field_list: List[str], cert_list: List[str]) -> List[str]:
-        """ convert query to csv format """
-        self.logger.debug('Housekeeping._to_list()')
+        """convert query to csv format"""
+        self.logger.debug("Housekeeping._to_list()")
         csv_list = []
 
         # attach fieldlist as first row
@@ -418,91 +548,109 @@ class Housekeeping(object):
                 if field in cert:
                     try:
                         # we need to deal with some errors from past
-                        value = cert[field].replace('\r\n', '\n')
-                        value = value.replace('\r', '')
-                        value = value.replace('\n', '')
+                        value = cert[field].replace("\r\n", "\n")
+                        value = value.replace("\r", "")
+                        value = value.replace("\n", "")
                         tmp_list.append(value)
                     except Exception:
                         tmp_list.append(cert[field])
                 else:
-                    tmp_list.append('')
+                    tmp_list.append("")
 
             # append list to output
             csv_list.append(tmp_list)
-        self.logger.debug('Housekeeping._to_list() ended with %s entries', len(csv_list))
+        self.logger.debug(
+            "Housekeeping._to_list() ended with %s entries", len(csv_list)
+        )
         return csv_list
 
-    def accountreport_get(self, report_format: str = 'csv', report_name: str = None, nested: bool = False) -> List[str]:
-        """ get account report """
-        self.logger.debug('Housekeeping.accountreport_get()')
+    def accountreport_get(
+        self, report_format: str = "csv", report_name: str = None, nested: bool = False
+    ) -> List[str]:
+        """get account report"""
+        self.logger.debug("Housekeeping.accountreport_get()")
         (field_list, account_list) = self._accountlist_get()
 
         # normalize lists
-        (field_list, account_list) = self._lists_normalize(field_list, account_list, 'account')
+        (field_list, account_list) = self._lists_normalize(
+            field_list, account_list, "account"
+        )
 
         # convert dates into human readable format
         account_list = self._convert_data(account_list)
 
         if account_list:
-            self.logger.debug('output to dump: %s.%s', report_name, report_format)
-            if report_format == 'csv':
-                self.logger.debug('Housekeeping.certreport_get() dump in csv-format')
+            self.logger.debug("output to dump: %s.%s", report_name, report_format)
+            if report_format == "csv":
+                self.logger.debug("Housekeeping.certreport_get() dump in csv-format")
                 csv_list = self._to_list(field_list, account_list)
                 account_list = csv_list
                 if report_name:
-                    self._csv_dump(f'{report_name}.{report_format}', csv_list)
-            elif report_format == 'json':
+                    self._csv_dump(f"{report_name}.{report_format}", csv_list)
+            elif report_format == "json":
                 if nested:
                     account_list = self._to_acc_json(account_list)
                 if report_name:
-                    self._json_dump(f'{report_name}.{report_format}', account_list)
+                    self._json_dump(f"{report_name}.{report_format}", account_list)
 
         return account_list
 
-    def certreport_get(self, report_format: str = 'csv', report_name: str = None) -> List[str]:
-        """ get certificate report """
-        self.logger.debug('Housekeeping.certreport_get()')
+    def certreport_get(
+        self, report_format: str = "csv", report_name: str = None
+    ) -> List[str]:
+        """get certificate report"""
+        self.logger.debug("Housekeeping.certreport_get()")
 
         (field_list, cert_list) = self._certificatelist_get()
 
         # normalize lists
-        (field_list, cert_list) = self._lists_normalize(field_list, cert_list, 'certificate')
+        (field_list, cert_list) = self._lists_normalize(
+            field_list, cert_list, "certificate"
+        )
 
         # convert dates into human readable format
         cert_list = self._convert_data(cert_list)
 
         # extend list by additional fields to have the fileds in output
-        field_list.insert(2, 'certificate.serial')
-        field_list.insert(7, 'certificate.issue_date')
-        field_list.insert(8, 'certificate.expire_date')
+        field_list.insert(2, "certificate.serial")
+        field_list.insert(7, "certificate.issue_date")
+        field_list.insert(8, "certificate.expire_date")
 
         if cert_list:
-            self.logger.debug('Prepare output in: %s format', report_format)
-            if report_format == 'csv':
-                self.logger.debug('Housekeeping.certreport_get(): Dump in csv-format')
+            self.logger.debug("Prepare output in: %s format", report_format)
+            if report_format == "csv":
+                self.logger.debug("Housekeeping.certreport_get(): Dump in csv-format")
                 csv_list = self._to_list(field_list, cert_list)
                 cert_list = csv_list
                 if report_name:
-                    self._csv_dump(f'{report_name}.{report_format}', csv_list)
-            elif report_format == 'json':
-                self.logger.debug('Housekeeping.certreport_get(): Dump in json-format')
+                    self._csv_dump(f"{report_name}.{report_format}", csv_list)
+            elif report_format == "json":
+                self.logger.debug("Housekeeping.certreport_get(): Dump in json-format")
                 if report_name:
-                    self._json_dump(f'{report_name}.{report_format}', cert_list)
+                    self._json_dump(f"{report_name}.{report_format}", cert_list)
             else:
-                self.logger.info('Housekeeping.certreport_get(): No dump just return report')
+                self.logger.info(
+                    "Housekeeping.certreport_get(): No dump just return report"
+                )
 
         return cert_list
 
     def certificate_dates_update(self):
-        """ scan certificates and update issue/expiry date """
-        self.logger.debug('Housekeeping.certificate_dates_update()')
+        """scan certificates and update issue/expiry date"""
+        self.logger.debug("Housekeeping.certificate_dates_update()")
 
         with Certificate(self.debug, None, self.logger) as certificate:
             certificate.dates_update()
 
-    def certificates_cleanup(self, uts: int = None, purge: bool = False, report_format: str = 'csv', report_name: str = None) -> List[str]:
-        """ database cleanuip certificate-table """
-        self.logger.debug('Housekeeping.certificates_cleanup()')
+    def certificates_cleanup(
+        self,
+        uts: int = None,
+        purge: bool = False,
+        report_format: str = "csv",
+        report_name: str = None,
+    ) -> List[str]:
+        """database cleanuip certificate-table"""
+        self.logger.debug("Housekeeping.certificates_cleanup()")
         if not uts:
             uts = uts_now()
 
@@ -515,147 +663,208 @@ class Housekeeping(object):
             if report_name:
                 if cert_list:
                     # dump report to file
-                    if report_format == 'csv':
-                        self.logger.debug('Housekeeping.certificates_cleanup(): Dump in csv-format')
+                    if report_format == "csv":
+                        self.logger.debug(
+                            "Housekeeping.certificates_cleanup(): Dump in csv-format"
+                        )
                         csv_list = self._to_list(field_list, cert_list)
-                        self._csv_dump(f'{report_name}.{report_format}', csv_list)
-                    elif report_format == 'json':
-                        self.logger.debug('Housekeeping.certificates_cleanup(): Dump in json-format')
-                        self._json_dump(f'{report_name}.{report_format}', cert_list)
+                        self._csv_dump(f"{report_name}.{report_format}", csv_list)
+                    elif report_format == "json":
+                        self.logger.debug(
+                            "Housekeeping.certificates_cleanup(): Dump in json-format"
+                        )
+                        self._json_dump(f"{report_name}.{report_format}", cert_list)
                     else:
-                        self.logger.debug('Housekeeping.certificates_cleanup():  No dump just return report')
+                        self.logger.debug(
+                            "Housekeeping.certificates_cleanup():  No dump just return report"
+                        )
                 else:
-                    self.logger.debug('Housekeeping.certificates_cleanup(): No certificates to dump')
+                    self.logger.debug(
+                        "Housekeeping.certificates_cleanup(): No certificates to dump"
+                    )
 
         return cert_list
 
     def cli_usermgr(self, config_dic: Dict[str, str]) -> int:
-        """ cli usermanager """
-        self.logger.debug('Housekeeping.cli_usermgr()')
+        """cli usermanager"""
+        self.logger.debug("Housekeeping.cli_usermgr()")
         check_result = self._cliconfig_check(config_dic)
 
         # default silence
-        if 'silent' not in config_dic:
-            config_dic['silent'] = True
+        if "silent" not in config_dic:
+            config_dic["silent"] = True
 
         result = None
         if check_result:
             data_dic = self._data_dic_build(config_dic)
             try:
-                if 'name' in data_dic:
-                    if 'delete' in config_dic and config_dic['delete']:
+                if "name" in data_dic:
+                    if "delete" in config_dic and config_dic["delete"]:
                         self.dbstore.cliaccount_delete(data_dic)
-                    elif 'list' in config_dic and config_dic['list']:
-                        self._cliaccounts_list(silent=config_dic['silent'])
+                    elif "list" in config_dic and config_dic["list"]:
+                        self._cliaccounts_list(silent=config_dic["silent"])
                     else:
                         result = self.dbstore.cliaccount_add(data_dic)
                 else:
-                    self.logger.error('acme2certifier error in Housekeeping.cli_usermgr(): data incomplete')
+                    self.logger.error(
+                        "acme2certifier error in Housekeeping.cli_usermgr(): data incomplete"
+                    )
 
             except Exception as err_:
-                self.logger.critical('acme2certifier database error in Housekeeping.cli_usermgr(): %s', err_)
+                self.logger.critical(
+                    "acme2certifier database error in Housekeeping.cli_usermgr(): %s",
+                    err_,
+                )
 
         return result
 
-    def authorizations_invalidate(self, uts: int = uts_now(), report_format: str = 'csv', report_name: str = None):
-        """ authorizations cleanup based on expiry date """
-        self.logger.debug('Housekeeping.authorization_invalidate(%s)', uts)
+    def authorizations_invalidate(
+        self, uts: int = uts_now(), report_format: str = "csv", report_name: str = None
+    ):
+        """authorizations cleanup based on expiry date"""
+        self.logger.debug("Housekeeping.authorization_invalidate(%s)", uts)
 
         with Authorization(self.debug, None, self.logger) as authorization:
             # get expired orders
             (field_list, authorization_list) = authorization.invalidate(timestamp=uts)
             # normalize lists
-            (field_list, authorization_list) = self._lists_normalize(field_list, authorization_list, 'authorization')
+            (field_list, authorization_list) = self._lists_normalize(
+                field_list, authorization_list, "authorization"
+            )
             # convert dates into human readable format
             authorization_list = self._convert_data(authorization_list)
 
             if report_name:
                 if authorization_list:
                     # dump report to file
-                    if report_format == 'csv':
-                        self.logger.debug('Housekeeping.authorizations_invalidate(): Dump in csv-format')
+                    if report_format == "csv":
+                        self.logger.debug(
+                            "Housekeeping.authorizations_invalidate(): Dump in csv-format"
+                        )
                         csv_list = self._to_list(field_list, authorization_list)
-                        self._csv_dump(f'{report_name}.{report_format}', csv_list)
-                    elif report_format == 'json':
-                        self.logger.debug('Housekeeping.authorizations_invalidate(): Dump in json-format')
-                        self._json_dump(f'{report_name}.{report_format}', authorization_list)
+                        self._csv_dump(f"{report_name}.{report_format}", csv_list)
+                    elif report_format == "json":
+                        self.logger.debug(
+                            "Housekeeping.authorizations_invalidate(): Dump in json-format"
+                        )
+                        self._json_dump(
+                            f"{report_name}.{report_format}", authorization_list
+                        )
                     else:
-                        self.logger.debug('Housekeeping.authorizations_invalidate():  No dump just return report')
+                        self.logger.debug(
+                            "Housekeeping.authorizations_invalidate():  No dump just return report"
+                        )
                 else:
-                    self.logger.debug('Housekeeping.authorizations_invalidate(): No authorizations to dump')
+                    self.logger.debug(
+                        "Housekeeping.authorizations_invalidate(): No authorizations to dump"
+                    )
 
     def dbversion_check(self, version: str = None):
-        """ check database version """
-        self.logger.debug('Housekeeping.dbversion_check(%s)', version)
+        """check database version"""
+        self.logger.debug("Housekeeping.dbversion_check(%s)", version)
 
         if version:
             try:
                 (result, script_name) = self.dbstore.dbversion_get()
             except Exception as err_:
-                self.logger.critical('acme2certifier database error in Housekeeping.dbversion_check(): %s', err_)
+                self.logger.critical(
+                    "acme2certifier database error in Housekeeping.dbversion_check(): %s",
+                    err_,
+                )
                 result = None
-                script_name = 'handler specific migration'
+                script_name = "handler specific migration"
             if result != version:
-                self.logger.critical('acme2certifier database version mismatch in: version is %s but should be %s. Please run the "%s" script', result, version, script_name)
+                self.logger.critical(
+                    'acme2certifier database version mismatch in: version is %s but should be %s. Please run the "%s" script',
+                    result,
+                    version,
+                    script_name,
+                )
             else:
-                self.logger.debug('acme2certifier database version: %s is upto date', version)
+                self.logger.debug(
+                    "acme2certifier database version: %s is upto date", version
+                )
         else:
-            self.logger.critical('acme2certifier database version could not be verified in Housekeeping.dbversion_check()')
+            self.logger.critical(
+                "acme2certifier database version could not be verified in Housekeeping.dbversion_check()"
+            )
 
-    def orders_invalidate(self, uts: int = uts_now(), report_format: str = 'csv', report_name: str = None) -> List[str]:
-        """ orders cleanup based on expiry date"""
-        self.logger.debug('Housekeeping.orders_invalidate(%s)', uts)
+    def orders_invalidate(
+        self, uts: int = uts_now(), report_format: str = "csv", report_name: str = None
+    ) -> List[str]:
+        """orders cleanup based on expiry date"""
+        self.logger.debug("Housekeeping.orders_invalidate(%s)", uts)
 
         with Order(self.debug, None, self.logger) as order:
             # get expired orders
             (field_list, order_list) = order.invalidate(timestamp=uts)
             # normalize lists
-            (field_list, order_list) = self._lists_normalize(field_list, order_list, 'order')
+            (field_list, order_list) = self._lists_normalize(
+                field_list, order_list, "order"
+            )
             # convert dates into human readable format
             order_list = self._convert_data(order_list)
 
             if report_name:
                 if order_list:
                     # dump report to file
-                    if report_format == 'csv':
-                        self.logger.debug('Housekeeping.orders_invalidate(): Dump in csv-format')
+                    if report_format == "csv":
+                        self.logger.debug(
+                            "Housekeeping.orders_invalidate(): Dump in csv-format"
+                        )
                         csv_list = self._to_list(field_list, order_list)
-                        self._csv_dump(f'{report_name}.{report_format}', csv_list)
-                    elif report_format == 'json':
-                        self.logger.debug('Housekeeping.orders_invalidate(): Dump in json-format')
-                        self._json_dump(f'{report_name}.{report_format}', order_list)
+                        self._csv_dump(f"{report_name}.{report_format}", csv_list)
+                    elif report_format == "json":
+                        self.logger.debug(
+                            "Housekeeping.orders_invalidate(): Dump in json-format"
+                        )
+                        self._json_dump(f"{report_name}.{report_format}", order_list)
                     else:
-                        self.logger.debug('Housekeeping.orders_invalidate():  No dump just return report')
+                        self.logger.debug(
+                            "Housekeeping.orders_invalidate():  No dump just return report"
+                        )
                 else:
-                    self.logger.debug('Housekeeping.orders_invalidate(): No orders to dump')
+                    self.logger.debug(
+                        "Housekeeping.orders_invalidate(): No orders to dump"
+                    )
 
         return order_list
 
     def parse(self, content: str) -> Dict[str, str]:
-        """ new oder request """
-        self.logger.debug('Housekeeping.parse()')
+        """new oder request"""
+        self.logger.debug("Housekeeping.parse()")
 
         # def certreport_get(self, report_format='csv', report_name=None):
         # check message
-        (code, message, detail, _protected, payload, _account_name, permissions_dic) = self.message.cli_check(content)
+        (
+            code,
+            message,
+            detail,
+            _protected,
+            payload,
+            _account_name,
+            permissions_dic,
+        ) = self.message.cli_check(content)
 
         response_dic = {}
         if code == 200:
-            if 'type' in payload and 'data' in payload:
-                if payload['type'] == 'report':
-                    (code, message, detail, response_dic) = self._clireport_get(payload, permissions_dic)
+            if "type" in payload and "data" in payload:
+                if payload["type"] == "report":
+                    (code, message, detail, response_dic) = self._clireport_get(
+                        payload, permissions_dic
+                    )
                 else:
                     code = 400
-                    message = 'urn:ietf:params:acme:error:malformed'
-                    detail = 'unknown type value'
+                    message = "urn:ietf:params:acme:error:malformed"
+                    detail = "unknown type value"
             else:
                 code = 400
-                message = 'urn:ietf:params:acme:error:malformed'
-                detail = 'either type field or data field is missing in payload'
+                message = "urn:ietf:params:acme:error:malformed"
+                detail = "either type field or data field is missing in payload"
 
         # prepare/enrich response
-        status_dic = {'code': code, 'type': message, 'detail': detail}
+        status_dic = {"code": code, "type": message, "detail": detail}
         response_dic = self.message.prepare_response(response_dic, status_dic, False)
-        self.logger.debug('Housekeeping.parse() returned something.')
+        self.logger.debug("Housekeeping.parse() returned something.")
 
         return response_dic
