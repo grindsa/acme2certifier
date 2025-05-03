@@ -7,12 +7,13 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
+TBR = "TO BE REPLACED"
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.11/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "TO BE REPLACED"
+SECRET_KEY = TBR
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
@@ -71,8 +72,8 @@ DATABASES = {
         "ENGINE": "django.db.backends.mysql",
         "NAME": "acme2certifier",
         "USER": "acme2certifier",
-        "PASSWORD": "TO BE REPLACED",
-        "HOST": "TO BE REPLACED",
+        "PASSWORD": TBR,
+        "HOST": TBR,
         "OPTIONS": {
             "init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1",
             "charset": "utf8mb4",
