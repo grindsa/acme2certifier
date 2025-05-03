@@ -292,15 +292,16 @@ class CAhandler(object):
                 proxies=self.proxy,
                 timeout=self.request_timeout,
             ).json()
-            if "status" in response and response["status"] == "done":
-                if "entities" in response and len(response["entities"]) > 0:
-                    if (
-                        "ref" in response["entities"][0]
-                        and response["entities"][0]["ref"].lower() == "certificate"
-                    ):
-                        cert_id = response["entities"][0]["url"].replace(
-                            "/v2/certificates/", ""
-                        )
+            if response.get("status", None) == "done":
+                if (
+                    len(response.get("entities", [])) > 0
+                    and "ref" in response["entities"][0]
+                    and response["entities"][0]["ref"].lower() == "certificate"
+                    and "url" in response["entities"][0]
+                ):
+                    cert_id = response["entities"][0]["url"].replace(
+                        "/v2/certificates/", ""
+                    )
                 break
             time.sleep(self.wait_interval)
 
@@ -386,20 +387,16 @@ class CAhandler(object):
             self.logger.error('"api_host" to be set in config file')
             self.error = "api_host to be set in config file"
 
-        if not self.error:
-            if not (
-                "api_user" in self.credential_dic and self.credential_dic["api_user"]
-            ):
-                self.logger.error('"api_user" to be set in config file')
-                self.error = "api_user to be set in config file"
+        if not self.error and not self.credential_dic.get("api_user"):
+            self.logger.error('"api_user" to be set in config file')
+            self.error = "api_user to be set in config file"
 
-        if not self.error:
-            if not (
-                "api_password" in self.credential_dic
-                and self.credential_dic["api_password"]
-            ):
-                self.logger.error('"api_password" to be set in config file')
-                self.error = "api_password to be set in config file"
+        if not self.error and not (
+            "api_password" in self.credential_dic
+            and self.credential_dic["api_password"]
+        ):
+            self.logger.error('"api_password" to be set in config file')
+            self.error = "api_password to be set in config file"
 
         self.logger.debug("CAhandler._config_api_access_check() ended")
 
@@ -408,9 +405,8 @@ class CAhandler(object):
         self.logger.debug("CAhandler._config_names_check()")
 
         if not self.error:
-            if not bool(
-                "name" in self.container_info_dic
-                and bool(self.container_info_dic["name"])
+            if not (
+                "name" in self.container_info_dic and self.container_info_dic["name"]
             ):
                 self.logger.error('"tsg_name" to be set in config file')
                 self.error = "tsg_name to be set in config file"
@@ -796,10 +792,10 @@ class CAhandler(object):
             if (
                 "name" in template
                 and template["name"] == self.template_info_dic["name"]
+                and "id" in template
             ):
-                if "id" in template:
-                    self.template_info_dic["id"] = template["id"]
-                    break
+                self.template_info_dic["id"] = template["id"]
+                break
 
     def _template_id_lookup(self, ca_id: int):
         """get template id based on name"""

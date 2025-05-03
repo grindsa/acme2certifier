@@ -451,7 +451,6 @@ class CAhandler(object):
         config_dic = load_config(self.logger, "CAhandler")
 
         if "CAhandler" in config_dic:
-            cfg_dic = dict(config_dic["CAhandler"])
             self.xdb_file = config_dic.get(
                 "CAhandler", "xdb_file", fallback=self.xdb_file
             )
