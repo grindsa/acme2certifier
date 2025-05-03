@@ -380,9 +380,10 @@ class CAhandler(object):
                 if (
                     "verificationStatus" in org
                     and org["verificationStatus"] == "APPROVED"
+                    and "name" in org
+                    and "clientId" in org
                 ):
-                    if "name" in org and "clientId" in org:
-                        org_dic[org["name"]] = org["clientId"]
+                    org_dic[org["name"]] = org["clientId"]
         else:
             self.logger.error("CAhandler._organizations_get(): malformed response")
 
@@ -400,12 +401,10 @@ class CAhandler(object):
             self.logger.debug("CAhandler._domains_get() ended with code: 200")
 
             for domain in content["domains"]:
-                if (
-                    "verificationStatus" in domain
-                    and domain["verificationStatus"] == "APPROVED"
+                if domain.get("verificationStatus", None) == "APPROVED" and domain.get(
+                    "domainName", None
                 ):
-                    if "domainName" in domain:
-                        api_domain_list.append(domain["domainName"])
+                    api_domain_list.append(domain.get("domainName"))
         else:
             self.logger.error("CAhandler._domains_get(): malformed response")
 

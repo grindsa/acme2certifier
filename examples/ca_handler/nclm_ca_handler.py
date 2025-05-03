@@ -387,17 +387,16 @@ class CAhandler(object):
             self.error = "api_host to be set in config file"
 
         if not self.error:
-            if not bool(
-                "api_user" in self.credential_dic
-                and bool(self.credential_dic["api_user"])
+            if not (
+                "api_user" in self.credential_dic and self.credential_dic["api_user"]
             ):
                 self.logger.error('"api_user" to be set in config file')
                 self.error = "api_user to be set in config file"
 
         if not self.error:
-            if not bool(
+            if not (
                 "api_password" in self.credential_dic
-                and bool(self.credential_dic["api_password"])
+                and self.credential_dic["api_password"]
             ):
                 self.logger.error('"api_password" to be set in config file')
                 self.error = "api_password to be set in config file"
