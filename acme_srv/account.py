@@ -126,14 +126,12 @@ class Account(object):
             payload
             and "externalaccountbinding" in payload
             and payload["externalaccountbinding"]
+            and "protected" in payload["externalaccountbinding"]
         ):
-            if "protected" in payload["externalaccountbinding"]:
-                eab_kid = self._eab_kid_get(
-                    payload["externalaccountbinding"]["protected"]
-                )
-                self.logger.info("add eab_kid: %s to data_dic", eab_kid)
-                if eab_kid:
-                    data_dic["eab_kid"] = eab_kid
+            eab_kid = self._eab_kid_get(payload["externalaccountbinding"]["protected"])
+            self.logger.info("add eab_kid: %s to data_dic", eab_kid)
+            if eab_kid:
+                data_dic["eab_kid"] = eab_kid
 
         self.logger.debug("Account.account._account_eab_add()")
         return data_dic

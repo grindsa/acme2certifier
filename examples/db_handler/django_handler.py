@@ -117,8 +117,10 @@ class DBstore(object):
         return result
 
     def account_update(
-        self, data_dic: Dict[str, str], active: bool = True
-    ) -> int:  # NOSONAR # pylint: disable=unused-argument
+        self,
+        data_dic: Dict[str, str],
+        active: bool = True,  # NOSONAR # pylint: disable=unused-argument
+    ) -> int:
         """update existing account"""
         self.logger.debug("DBStore.account_update(%s)", data_dic)
         obj, _created = Account.objects.update_or_create(
