@@ -273,17 +273,15 @@ class CAhandler(object):
                 )  # lgtm [py/unused-local-variable]
                 authz_valid = True
             else:
-                if isinstance(challenge_content, dict):
-                    if (
-                        "type" in challenge_content
-                        and challenge_content["type"] == "sectigo-email-01"
-                        and "status" in challenge_content
-                        and challenge_content["status"] == "valid"
-                    ):
-                        self.logger.debug(
-                            "CAhandler._order_authorization(): sectigo-email-01 challenge detected"
-                        )
-                        authz_valid = True
+                if (
+                    isinstance(challenge_content, dict)
+                    and challenge_content.get("type", None) == "sectigo-email-01"
+                    and challenge_content.get("status", None) == "valid"
+                ):
+                    self.logger.debug(
+                        "CAhandler._order_authorization(): sectigo-email-01 challenge detected"
+                    )
+                    authz_valid = True
 
         self.logger.debug(
             "CAhandler._order_authorization() ended with: %s", authz_valid

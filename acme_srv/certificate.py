@@ -199,13 +199,12 @@ class Certificate(object):
                     certificate["cert_raw"]
                     and certificate["cert"]
                     and uts - self.cert_reusage_timeframe <= uts_create
+                    and uts <= certificate["expire_uts"]
                 ):
-                    # exclude expired certificates
-                    if uts <= certificate["expire_uts"]:
-                        cert = certificate["cert"]
-                        cert_raw = certificate["cert_raw"]
-                        message = f'reused certificate from id: {certificate["id"]}'
-                        break
+                    cert = certificate["cert"]
+                    cert_raw = certificate["cert_raw"]
+                    message = f'reused certificate from id: {certificate["id"]}'
+                    break
 
         self.logger.debug("Certificate._cert_reusage_check() ended with {%s", message)
         return (None, cert, cert_raw, message)
@@ -618,13 +617,13 @@ class Certificate(object):
 
         if cert_type and cert_value:
             for identifier in identifiers:
-                if "type" in identifier:
-                    if (
-                        identifier["type"].lower() == cert_type
-                        and identifier["value"].lower() == cert_value
-                    ):
-                        san_is_in = True
-                        break
+                if (
+                    "type" in identifier
+                    and identifier["type"].lower() == cert_type
+                    and identifier["value"].lower() == cert_value
+                ):
+                    san_is_in = True
+                    break
 
         self.logger.debug("Certificate._identifier_chk(%s)", san_is_in)
         return san_is_in
