@@ -404,12 +404,9 @@ class CAhandler(object):
         """check config for consitency"""
         self.logger.debug("CAhandler._config_names_check()")
 
-        if not self.error:
-            if not (
-                "name" in self.container_info_dic and self.container_info_dic["name"]
-            ):
-                self.logger.error('"tsg_name" to be set in config file')
-                self.error = "tsg_name to be set in config file"
+        if not self.error and not self.container_info_dic.get("name"):
+            self.logger.error('"tsg_name" to be set in config file')
+            self.error = "tsg_name to be set in config file"
 
         if not self.error and not self.ca_name:
             self.logger.error('"ca_name" to be set in config file')
