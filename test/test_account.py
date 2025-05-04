@@ -24,6 +24,7 @@ class TestACMEHandler(unittest.TestCase):
 
     acme = None
 
+    @patch.dict("os.environ", {"ACME_SRV_CONFIGFILE": "ACME_SRV_CONFIGFILE"})
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
