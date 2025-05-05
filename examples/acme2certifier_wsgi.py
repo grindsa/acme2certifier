@@ -47,6 +47,7 @@ except Exception:
 
 URL_PREFIX = CONFIG.get("Directory", "url_prefix", fallback=None)
 
+
 def err_wrong_request_mothod(start_response):
     """ this is the error response for a wrong reqest method """
     start_response(f'405 {HTTP_CODE_DIC[405]}', [('Content-Type', CONTENT_TYPE_JSON)])
