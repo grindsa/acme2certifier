@@ -57,10 +57,10 @@ class DBstore(object):
         try:
             if active:
                 pre_statement = (
-                    f"SELECT * from account WHERE {column} LIKE ? AND status_id = 5"
+                    f"SELECT * from account WHERE [{column}] LIKE ? AND status_id = 5"
                 )
             else:
-                pre_statement = f"SELECT * from account WHERE {column} LIKE ?"
+                pre_statement = f"SELECT * from account WHERE [{column}] LIKE ?"
             self.cursor.execute(pre_statement, [string])
             result = self.cursor.fetchone()
         except Exception as err:
