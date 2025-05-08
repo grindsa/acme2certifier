@@ -60,13 +60,10 @@ class DBstore(object):
     def _account_search(self, column: str, string: str, active: bool = True) -> List[str]:
         """ search account table for a certain key/value pair """
         self.logger.debug('DBStore._account_search(column:%s, pattern:%s)', column, string)
-
         column_list = self._columns_get('account')
         result = None
         self._db_open()
-        if column not in column_list:
-            self.logger.error('column: %s not in account table', column)
-        else:
+        if column in column_list:
             try:
                 if active:
                     pre_statement = f"SELECT * from account WHERE {column} LIKE ? AND status_id = 5"
@@ -76,8 +73,9 @@ class DBstore(object):
                 result = self.cursor.fetchone()
             except Exception as err:
                 self.logger.error('DBStore._account_search(column:%s, pattern:%s) failed with err: %s', column, string, err)
-            self._db_close()
-
+        else:
+            self.logger.warning('column: %s not in account table', column)
+        self._db_close()
         self.logger.debug('DBStore._account_search() ended with: %s', bool(result))
         return result
 
@@ -577,7 +575,7 @@ class DBstore(object):
         self.logger.debug('DBStore.account_delete() ended')
         return result
 
-    def account_lookup(self, column: str, string: str, vlist: List = None) -> Dict[str, str]:   # pylint: disable=unused-argument #NOSONAR
+    def account_lookup(self, column: str, string: str, vlist: List = None) -> Dict[str, str]:   # pylint: disable=unused-argument NOSONAR
         """ lookup account table for a certain key/value pair and return id"""
         self.logger.debug('DBStore.account_lookup(column:%s, pattern:%s)', column, string)
         try:
