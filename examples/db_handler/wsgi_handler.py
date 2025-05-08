@@ -45,31 +45,41 @@ class DBstore(object):
         if not os.path.exists(self.db_name):
             self._db_create()
 
-    def _account_search(
-        self, column: str, string: str, active: bool = True
-    ) -> List[str]:
-        """search account table for a certain key/value pair"""
-        self.logger.debug(
-            "DBStore._account_search(column:%s, pattern:%s)", column, string
-        )
+    def _columns_get(self, table: str) -> List[str]:
+        """ get columns of a table """
+        self.logger.debug('DBStore.columns_get(%s)', table)
+
         self._db_open()
-        result = None
-        try:
-            if active:
-                pre_statement = f"SELECT * from account WHERE [{column}] LIKE ? AND status_id = 5"
-            else:
-                pre_statement = f"SELECT * from account WHERE [{column}] LIKE ?"
-            self.cursor.execute(pre_statement, [string])
-            result = self.cursor.fetchone()
-        except Exception as err:
-            self.logger.error(
-                "DBStore._account_search(column:%s, pattern:%s) failed with err: %s",
-                column,
-                string,
-                err,
-            )
+        pre_statement = f'SELECT * from {table}'
+        self.cursor.execute(pre_statement)
+        result = [column[0] for column in self.cursor.description]
         self._db_close()
-        self.logger.debug("DBStore._account_search() ended with: %s", bool(result))
+
+        self.logger.debug('DBStore.columns_get() ended with: %s elements', len(result))
+        return result
+
+    def _account_search(self, column: str, string: str, active: bool = True) -> List[str]:
+        """ search account table for a certain key/value pair """
+        self.logger.debug('DBStore._account_search(column:%s, pattern:%s)', column, string)
+
+        column_list = self._columns_get('account')
+        result = None
+        self._db_open()
+        if column not in column_list:
+            self.logger.error('column: %s not in account table', column)
+        else:
+            try:
+                if active:
+                    pre_statement = f"SELECT * from account WHERE {column} LIKE ? AND status_id = 5"
+                else:
+                    pre_statement = f"SELECT * from account WHERE {column} LIKE ?"
+                self.cursor.execute(pre_statement, [string])
+                result = self.cursor.fetchone()
+            except Exception as err:
+                self.logger.error('DBStore._account_search(column:%s, pattern:%s) failed with err: %s', column, string, err)
+            self._db_close()
+
+        self.logger.debug('DBStore._account_search() ended with: %s', bool(result))
         return result
 
     def _authorization_search(self, column: str, string: str) -> List[str]:
@@ -716,16 +726,9 @@ class DBstore(object):
         self.logger.debug("DBStore.account_delete() ended")
         return result
 
-    def account_lookup(
-        self,
-        column: str,
-        string: str,
-        vlist: List = None,  # NOSONAR # pylint: disable=unused-argument
-    ) -> Dict[str, str]:
-        """lookup account table for a certain key/value pair and return id"""
-        self.logger.debug(
-            "DBStore.account_lookup(column:%s, pattern:%s)", column, string
-        )
+    def account_lookup(self, column: str, string: str, vlist: List = None) -> Dict[str, str]:   # pylint: disable=unused-argument #NOSONAR
+        """ lookup account table for a certain key/value pair and return id"""
+        self.logger.debug('DBStore.account_lookup(column:%s, pattern:%s)', column, string)
         try:
             result = dict_from_row(self._account_search(column, string))
         except Exception as _err:
