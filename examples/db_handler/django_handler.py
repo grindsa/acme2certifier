@@ -94,7 +94,7 @@ class DBstore(object):
         result = Account.objects.filter(name=aname).delete()
         return result
 
-    def account_update(self, data_dic: Dict[str, str], active: bool = True) -> int:
+    def account_update(self, data_dic: Dict[str, str], active: bool = True) -> int: #NOSONAR
         """ update existing account """
         self.logger.debug('DBStore.account_update(%s)', data_dic)
         obj, _created = Account.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
