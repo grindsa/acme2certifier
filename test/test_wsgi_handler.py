@@ -239,7 +239,9 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.account_add(data_dic)
         data_dic = {'alg' : 'alg2', 'jwk' : 'jwk2', 'contact' : 'contact2', 'name' : 'name2'}
         self.dbstore.account_add(data_dic)
-        self.assertFalse(self.dbstore.account_lookup('nam', 'name3'))
+        with self.assertLogs('test_a2c', level='INFO') as lcm:
+            self.assertFalse(self.dbstore.account_lookup('non_existing_key', 'name3'))
+        self.assertIn('WARNING:test_a2c:column: non_existing_key not in account table', lcm.output)
 
     def test_031_order_add(self):
         """ test DBstore.order_add() method for a new entry """
