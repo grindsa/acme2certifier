@@ -3179,8 +3179,9 @@ class TestACMEHandler(unittest.TestCase):
     def test_151_status_search_invalid(self):
         """test DBstore.status_search() method (unsuccesful)"""
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(
-                self.dbstore._status_search("invalid_field", "invalid_status")
+            self.assertEqual(
+                ("", None),
+                self.dbstore._status_search("invalid_field", "invalid_status"),
             )
         self.assertIn(
             "WARNING:test_a2c:column: invalid_field not in status table", lcm.output
