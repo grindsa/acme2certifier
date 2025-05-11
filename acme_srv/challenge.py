@@ -461,9 +461,9 @@ class Challenge(object):
         challenge_dic = {}
         if chid:
             challenge_dic["type"] = mtype
-            challenge_dic["url"] = (
-                f'{self.server_name}{self.path_dic["chall_path"]}{challenge_name}'
-            )
+            challenge_dic[
+                "url"
+            ] = f'{self.server_name}{self.path_dic["chall_path"]}{challenge_name}'
             challenge_dic["token"] = token
             challenge_dic["status"] = "pending"
             if mtype == "tkauth-01":
