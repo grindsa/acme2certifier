@@ -44,7 +44,7 @@ class DBstore(object):
         if not os.path.exists(self.db_name):
             self._db_create()
 
-    def _columns_get(self, table: str) -> List[str]:
+    def _columnnames_get(self, table: str) -> List[str]:
         """ get columns of a table """
         self.logger.debug('DBStore.columns_get(%s)', table)
 
@@ -57,24 +57,42 @@ class DBstore(object):
         self.logger.debug('DBStore.columns_get() ended with: %s elements', len(result))
         return result
 
+    def _identifier_check(self, table: str, identifier: str) -> bool:
+        """ check if identifier is in table """
+        self.logger.debug('DBStore._identifier_check(%s, %s)', identifier, table)
+        if '.' in identifier:
+            # we have a table.column name
+            table, identifier = identifier.split('.', 1)
+            self.logger.debug('DBStore._identifier_check(): modified table/identifier to %s/%s', table, identifier)
+        elif '__' in identifier:
+            # we have a table__column name
+            table, identifier = identifier.split('__', 1)
+            self.logger.debug('DBStore._identifier_check(): modified table/identifier to %s/%s', table, identifier)
+        if table == 'order':
+            table = 'orders'
+            self.logger.debug('DBStore._identifier_check(): modified table to %s', table)
+        columnname_list = self._columnnames_get(table)
+        result = True if identifier in columnname_list else False
+        self.logger.debug('DBStore._identifier_check() ended with: %s', result)
+        return result
+
     def _account_search(self, column: str, string: str, active: bool = True) -> List[str]:
         """ search account table for a certain key/value pair """
         self.logger.debug('DBStore._account_search(column:%s, pattern:%s)', column, string)
-        column_list = self._columns_get('account')
-        result = None
-        self._db_open()
-        if column in column_list:
-            try:
-                if active:
-                    pre_statement = f"SELECT * from account WHERE {column} LIKE ? AND status_id = 5"
-                else:
-                    pre_statement = f"SELECT * from account WHERE {column} LIKE ?"
-                self.cursor.execute(pre_statement, [string])
-                result = self.cursor.fetchone()
-            except Exception as err:
-                self.logger.error('DBStore._account_search(column:%s, pattern:%s) failed with err: %s', column, string, err)
-        else:
+        if not self._identifier_check('account', column):
             self.logger.warning('column: %s not in account table', column)
+            return []
+        self._db_open()
+        try:
+            if active:
+                pre_statement = f"SELECT * from account WHERE {column} LIKE ? AND status_id = 5"
+            else:
+                pre_statement = f"SELECT * from account WHERE {column} LIKE ?"
+            self.cursor.execute(pre_statement, [string])
+            result = self.cursor.fetchone()
+        except Exception as err:
+            self.logger.error('DBStore._account_search(column:%s, pattern:%s) failed with err: %s', column, string, err)
+            result = []
         self._db_close()
         self.logger.debug('DBStore._account_search() ended with: %s', bool(result))
         return result
@@ -82,6 +100,9 @@ class DBstore(object):
     def _authorization_search(self, column: str, string: str) -> List[str]:
         """ search account table for a certain key/value pair """
         self.logger.debug('DBStore._authorization_search(column:%s, pattern:%s)', column, string)
+        if not self._identifier_check('authorization', column):
+            self.logger.warning('column: %s not in authorization table', column)
+            return []
         if column == 'name':
             self.logger.debug('rename name to authorization.name')
             column = 'authorization.name'
@@ -110,6 +131,9 @@ class DBstore(object):
     def _cahandler_search(self, column: str, string: str) -> List[str]:
         """ search cahandler table for a certain key/value pair """
         self.logger.debug('DBStore._cahandler_search(column:%s, pattern:%s)', column, string)
+        if not self._identifier_check('cahandler', column):
+            self.logger.warning('column: %s not in cahandler table', column)
+            return []
         self._db_open()
         pre_statement = f'''SELECT cahandler.* from cahandler WHERE {column} LIKE ?'''
         try:
@@ -186,11 +210,13 @@ class DBstore(object):
     def _certificate_search(self, column: str, string: str) -> Dict[str, str]:
         """ search certificate table for a certain key/value pair """
         self.logger.debug('DBStore._certificate_search(column:%s, pattern:%s)', column, string)
+        if not self._identifier_check('certificate', column):
+            self.logger.warning('column: %s not in certificate table', column)
+            return {}
         self._db_open()
         if column != 'order__name':
             column = f'certificate.{column}'
             self.logger.debug(f'modified column to {column}')
-
         pre_statement = f'''SELECT certificate.*,
                             orders.id as order__id,
                             orders.name as order__name,
@@ -210,6 +236,9 @@ class DBstore(object):
     def _challenge_search(self, column: str, string: str) -> List[str]:
         """ search challenge table for a certain key/value pair """
         self.logger.debug('DBStore._challenge_search(column:%s, pattern:%s)', column, string)
+        if not self._identifier_check('challenge', column):
+            self.logger.warning('column: %s not in challenge table', column)
+            return []
         self._db_open()
         pre_statement = f'''
             SELECT
@@ -241,6 +270,9 @@ class DBstore(object):
     def _cliaccount_search(self, column: str, string: str) -> Dict[str, str]:
         """ search account table for a certain key/value pair """
         self.logger.debug('DBStore._cliaccount_search(column:%s, pattern:%s)', column, string)
+        if not self._identifier_check('cliaccount', column):
+            self.logger.warning('column: %s not in authorization table', column)
+            return {}
         self._db_open()
         try:
             pre_statement = f'SELECT * from cliaccount WHERE {column} LIKE ?'
@@ -503,8 +535,10 @@ class DBstore(object):
     def _order_search(self, column: str, string: str) -> List[str]:
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore._order_search(column:%s, pattern:%s)', column, string)
+        if not self._identifier_check('orders', column):
+            self.logger.warning('column: %s not in orders table', column)
+            return []
         self._db_open()
-
         pre_statement = f'''
                     SELECT
                         orders.*,
@@ -528,6 +562,9 @@ class DBstore(object):
     def _status_search(self, column: str, string: str) -> Tuple[str, bool]:
         """ search status table for a certain key/value pair """
         self.logger.debug('DBStore._status_search(column:%s, pattern:%s)', column, string)
+        if not self._identifier_check('status', column):
+            self.logger.warning('column: %s not in status table', column)
+            return []
         self._db_open()
         pre_statement = f'SELECT * from status WHERE status.{column} LIKE ?'
         self.cursor.execute(pre_statement, [string])
@@ -718,6 +755,9 @@ class DBstore(object):
     def authorizations_expired_search(self, column: str, string: str, vlist: List[str] = ('id', 'name', 'expires', 'value', 'created_at', 'token', 'status__id', 'status__name', 'order__id', 'order__name'), operant='LIKE') -> List[str]:
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore.authorizations_expired_search(column:%s, pattern:%s)', column, string)
+        if not self._identifier_check('authorization', column):
+            self.logger.warning('column: %s not in authorization table', column)
+            return []
         self._db_open()
         pre_statement = f'''SELECT
                                 authorization.*,
@@ -996,8 +1036,11 @@ class DBstore(object):
     def certificates_search(self, column: str, string: str, vlist: List[str] = ('name', 'csr', 'cert', 'order__name'), operant='LIKE') -> List[str]:
         """ search certificate table for a certain key/value pair """
         self.logger.debug('DBStore.certificates_search(column:%s, pattern:%s)', column, string)
-        self._db_open()
+        if not self._identifier_check('certificate', column):
+            self.logger.warning('column: %s not in certificate table', column)
+            return []
 
+        self._db_open()
         if column == 'order__status_id':
             column = 'orders.status_id'
             self.logger.debug('modified column to %s', column)
@@ -1031,8 +1074,11 @@ class DBstore(object):
     def challenges_search(self, column: str, string: str, vlist: List[str] = ('name', 'type', 'status__name', 'token')) -> List[str]:
         """ search challenge table for a certain key/value pair """
         self.logger.debug('DBStore._challenge_search(column:%s, pattern:%s)', column, string)
-        self._db_open()
+        if not self._identifier_check('challenge', column):
+            self.logger.warning('column: %s not in challenge table', column)
+            return []
 
+        self._db_open()
         pre_statement = f'''
             SELECT
                 challenge.*,
@@ -1053,7 +1099,6 @@ class DBstore(object):
             WHERE {column} LIKE ?'''
         self.cursor.execute(pre_statement, [string])
         rows = self.cursor.fetchall()
-
         challenge_list = []
         for row in rows:
             lookup = dict_from_row(row)
@@ -1064,7 +1109,6 @@ class DBstore(object):
                     if ele == 'status__name':
                         result['status'] = lookup[ele]
             challenge_list.append(result)
-
         self._db_close()
         self.logger.debug('DBStore._challenge_search() ended')
         return challenge_list
@@ -1349,8 +1393,11 @@ class DBstore(object):
     def orders_invalid_search(self, column: str, string: str, vlist: List[str] = ('id', 'name', 'expires', 'identifiers', 'created_at', 'status__id', 'status__name', 'account__id', 'account__name', 'account__contact'), operant='LIKE') -> List[str]:
         """ search order table for a certain key/value pair """
         self.logger.debug('DBStore.orders_invalid_search(column:%s, pattern:%s)', column, string)
-        self._db_open()
+        if not self._identifier_check('orders', column):
+            self.logger.warning('column: %s not in orders table', column)
+            return []
 
+        self._db_open()
         pre_statement = f'''SELECT
                                 orders.*,
                                 status.name as status__name,
@@ -1362,10 +1409,8 @@ class DBstore(object):
                             LEFT JOIN status on status.id = orders.status_id
                             LEFT JOIN account on account.id = orders.account_id
                             WHERE orders.status_id > 1 AND orders.{column} {operant} ?'''
-
         self.cursor.execute(pre_statement, [string])
         rows = self.cursor.fetchall()
-
         order_list = []
         for row in rows:
             lookup = dict_from_row(row)
