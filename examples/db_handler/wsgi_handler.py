@@ -780,7 +780,10 @@ class DBstore(object):
         return result
 
     def account_lookup(
-        self, column: str, string: str, vlist: List = None # pylint: disable=unused-argument NOSONAR
+        self,
+        column: str,
+        string: str,
+        vlist: List = None,  # pylint: disable=unused-argument NOSONAR
     ) -> Dict[str, str]:
         """lookup account table for a certain key/value pair and return id"""
         self.logger.debug(
