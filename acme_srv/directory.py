@@ -136,9 +136,9 @@ class Directory(object):
                 d_dic["meta"]["db_check"] = "NOK"
 
         # generate random key in json as recommended by LE
-        d_dic[
-            uuid.uuid4().hex
-        ] = "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417"
+        d_dic[uuid.uuid4().hex] = (
+            "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417"
+        )
 
         self.logger.debug("Directory._directory_get() ended")
         return d_dic
