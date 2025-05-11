@@ -725,7 +725,7 @@ class DBstore(object):
 
         if not self._identifier_check("status", column):
             self.logger.warning(COLUMN_NOT_IN_TABLE_MSG, column, "status")
-            return []
+            return ("", None)
         self._db_open()
         pre_statement = f"SELECT * from status WHERE status.{column} LIKE ?"
         self.cursor.execute(pre_statement, [string])
@@ -780,8 +780,8 @@ class DBstore(object):
         return result
 
     def account_lookup(
-        self, column: str, string: str, vlist: List = None
-    ) -> Dict[str, str]:  # pylint: disable=unused-argument NOSONAR
+        self, column: str, string: str, vlist: List = None # pylint: disable=unused-argument NOSONAR
+    ) -> Dict[str, str]:
         """lookup account table for a certain key/value pair and return id"""
         self.logger.debug(
             "DBStore.account_lookup(column:%s, pattern:%s)", column, string
