@@ -53,7 +53,6 @@ class DBstore(object):
             "DBStore._account_search(column:%s, pattern:%s)", column, string
         )
         self._db_open()
-        result = None
         try:
             if active:
                 pre_statement = (
@@ -1355,7 +1354,6 @@ class DBstore(object):
             WHERE {column} LIKE ?"""
         self.cursor.execute(pre_statement, [string])
         rows = self.cursor.fetchall()
-
         challenge_list = []
         for row in rows:
             lookup = dict_from_row(row)
@@ -1366,7 +1364,6 @@ class DBstore(object):
                     if ele == "status__name":
                         result["status"] = lookup[ele]
             challenge_list.append(result)
-
         self._db_close()
         self.logger.debug("DBStore._challenge_search() ended")
         return challenge_list
@@ -1739,7 +1736,6 @@ class DBstore(object):
 
         self.cursor.execute(pre_statement, [string])
         rows = self.cursor.fetchall()
-
         order_list = []
         for row in rows:
             lookup = dict_from_row(row)
