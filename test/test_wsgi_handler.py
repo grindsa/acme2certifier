@@ -20,7 +20,10 @@ def _cleanup(dir_path):
     """ cleanup function """
     # remove old db
     if os.path.exists(dir_path + '/acme_test.db'):
-         os.remove(dir_path + '/acme_test.db')
+        try:
+            os.remove(dir_path + '/acme_test.db')
+        except:
+            print('failed removal')
 
 class TestACMEHandler(unittest.TestCase):
     """ test class for cgi_handler """
@@ -1184,14 +1187,16 @@ class TestACMEHandler(unittest.TestCase):
         result = {'name': 'name1', 'value1': 'value1', 'value2': ''}
         self.assertIn(('name1'), self.dbstore._cahandler_search('name', 'name1'))
 
+    @patch('examples.db_handler.wsgi_handler.DBstore._identifier_check')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
-    def test_122_cahandler_search(self, mock_open, mock_close):
+    def test_122_cahandler_search(self, mock_open, mock_close, idchk):
         """ test DBstore.cahandler_lookup() triggers exception  """
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchone =Exception('foo')
         mock_open.return_value = Mock()
         mock_close.return_value = Mock()
+        idchk.return_value = True
         result = {'name': 'name1', 'value1': 'value1', 'value2': ''}
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.dbstore._cahandler_search('name', 'name1'))
@@ -1299,13 +1304,15 @@ class TestACMEHandler(unittest.TestCase):
         cli_account_list = self.dbstore._cliaccount_search('name', 'name1')
         self.assertTrue(set(result.items()).issubset( set(dict(cli_account_list).items())))
 
+    @patch('examples.db_handler.wsgi_handler.DBstore._identifier_check')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_close')
     @patch('examples.db_handler.wsgi_handler.DBstore._db_open')
-    def test_136__cliaccount_search(self, mock_open, mock_close):
+    def test_136__cliaccount_search(self, mock_open, mock_close, idchk):
         self.dbstore.cursor = Mock()
         self.dbstore.cursor.fetchone =Exception('foo')
         mock_open.return_value = Mock()
         mock_close.return_value = Mock()
+        idchk.return_value = True
         with self.assertLogs('test_a2c', level='INFO') as lcm:
             self.assertFalse(self.dbstore._cliaccount_search('name', 'name2'))
         self.assertIn("ERROR:test_a2c:DBStore._cliaccount_search(column:name, pattern:name2) failed with err: 'Exception' object is not callable", lcm.output)
