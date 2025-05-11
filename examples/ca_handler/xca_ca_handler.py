@@ -738,9 +738,9 @@ class CAhandler(object):
         csr_extensions_dic = {}
         if csr_extensions_list:
             for ext in csr_extensions_list:
-                csr_extensions_dic[
-                    convert_byte_to_string(ext.oid._name)
-                ] = ext  # pylint: disable=W0212
+                csr_extensions_dic[convert_byte_to_string(ext.oid._name)] = (
+                    ext  # pylint: disable=W0212
+                )
 
         if template_dic:
             # prcoess xca template
@@ -927,7 +927,10 @@ class CAhandler(object):
         if not request_name:
             san_list = csr_san_get(self.logger, csr)
             try:
-                (_identifiier, request_name,) = san_list[
+                (
+                    _identifiier,
+                    request_name,
+                ) = san_list[
                     0
                 ].split(":")
             except Exception:
