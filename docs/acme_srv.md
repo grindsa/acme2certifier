@@ -23,6 +23,7 @@
 | `Challenge` | `dns_validation_pause_timer` | pause interval in seconds after failed validation of a dns challenge | 10 | 0.5 |
 | `Challenge` | `sectigo_sim` | provide `sectigo-email-01` challenges - Only for development and testing! | True/False | False |
 | `DBhandler` | `dbfile` | path and name of database file. If not specified `acme_srv/acme_srv.db` will be used. Parameter is only available for a wsgi handler and will be ignored if django handler is getting used | 'acme/database.db' | `acme_srv/acme_srv.db`|
+| `Directory` | `caaidentities` | ACME server hostname[s] for CAA record validation as defined in [RFC6844](https://www.rfc-editor.org/rfc/rfc6844)  | 'string' | None|
 | `Directory` | `db_check` | check database connection compare schemes and report as OK/NOK in meta information  | True/False | False|
 | `Directory` | `home` | homepage string to be shown when fetching the directory ressource  | 'string' | 'https://github.com/grindsa/acme2certifier' |
 | `Directory` | `supress_product_information` | Do not show product name, author and version when fetching the directory resource | True/False | False|
