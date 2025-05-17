@@ -59,6 +59,7 @@ class Order(models.Model):
     notbefore = models.IntegerField(default=0)
     notafter = models.IntegerField(default=0)
     identifiers = models.TextField()
+    profile = models.TextField(blank=True)
     status = models.ForeignKey(Status, default=2, on_delete=models.CASCADE)
     expires = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
