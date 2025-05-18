@@ -151,6 +151,22 @@ def config_check(logger: logging.Logger, config_dic: Dict):
                 )
 
 
+def config_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """load parameters"""
+    logger.debug("Helper.config_profile_load()")
+
+    # load profiles
+    profiles = {}
+    if "Order" in config_dic and "profiles" in config_dic["Order"]:
+        try:
+            profiles = json.loads(config_dic["Order"]["profiles"])
+        except Exception as err_:
+            logger.warning("loading profiles failed with error: %s", err_)
+
+    logger.debug("Helper.config_profile_load() ended")
+    return profiles
+
+
 def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
     """load parameters"""
     logger.debug("Helper.config_eab_profile_load()")
@@ -1257,23 +1273,23 @@ def error_dic_get(logger: logging.Logger) -> Dict[str, str]:
     logger.debug("Helper.error_dict_get()")
     # this is the main dictionary
     error_dic = {
-        "badcsr": "urn:ietf:params:acme:error:badCSR",
-        "malformed": "urn:ietf:params:acme:error:malformed",
-        "invalidcontact": "urn:ietf:params:acme:error:invalidContact",
         "accountdoesnotexist": "urn:ietf:params:acme:error:accountDoesNotExist",
-        "unauthorized": "urn:ietf:params:acme:error:unauthorized",
-        "externalaccountrequired": "urn:ietf:params:acme:error:externalAccountRequired",
-        "badpubkey": "urn:ietf:params:acme:error:badPublicKey",
-        "useractionrequired": "urn:ietf:params:acme:error:userActionRequired",
         "alreadyrevoked": "urn:ietf:params:acme:error:alreadyRevoked",
-        "serverinternal": "urn:ietf:params:acme:error:serverInternal",
-        "unsupportedidentifier": "urn:ietf:params:acme:error:unsupportedIdentifier",
+        "badcsr": "urn:ietf:params:acme:error:badCSR",
+        "badpubkey": "urn:ietf:params:acme:error:badPublicKey",
+        "badrevocationreason": "urn:ietf:params:acme:error:badRevocationReason",
+        "externalaccountrequired": "urn:ietf:params:acme:error:externalAccountRequired",
+        "invalidcontact": "urn:ietf:params:acme:error:invalidContact",
+        "invalidprofile": "urn:ietf:params:acme:error:invalidProfile",
+        "malformed": "urn:ietf:params:acme:error:malformed",
         "ordernotready": "urn:ietf:params:acme:error:orderNotReady",
         "ratelimited": "urn:ietf:params:acme:error:rateLimited",
-        "badrevocationreason": "urn:ietf:params:acme:error:badRevocationReason",
         "rejectedidentifier": "urn:ietf:params:acme:error:rejectedIdentifier",
+        "serverinternal": "urn:ietf:params:acme:error:serverInternal",
+        "unauthorized": "urn:ietf:params:acme:error:unauthorized",
+        "unsupportedidentifier": "urn:ietf:params:acme:error:unsupportedIdentifier",
+        "useractionrequired": "urn:ietf:params:acme:error:userActionRequired",
     }
-
     return error_dic
 
 
