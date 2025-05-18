@@ -37,6 +37,7 @@ from acme_srv.helper import (
     error_dic_get,
     config_headerinfo_load,
     config_eab_profile_load,
+    config_profile_load,
     eab_profile_header_info_check,
     config_enroll_config_log_load,
     enrollment_config_log,
@@ -73,6 +74,7 @@ class CAhandler(object):
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
         self.allowed_domainlist = []
+        self.profiles = {}
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -333,6 +335,8 @@ class CAhandler(object):
                 self.logger, self, self.enrollment_config_log_skip_list
             )
 
+
+        raise('stop')
         # load template if configured
         if self.template_name:
             (dn_dic, template_dic) = self._template_load()
@@ -504,8 +508,13 @@ class CAhandler(object):
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
         )
+
+        # load profiles
+        self.profiles = config_profile_load(self.logger, config_dic)
+
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
+
         # load enrollment config log
         (
             self.enrollment_config_log,
