@@ -1644,12 +1644,15 @@ class DBstore(object):
         if "notafter" not in data_dic:
             data_dic["notafter"] = ""
 
+        if "profile" not in data_dic:
+            data_dic["profile"] = ""
+
         account = self.account_lookup("name", data_dic["account"])
         if account:
             data_dic["account"] = account["id"]
             self._db_open()
             self.cursor.execute(
-                """INSERT INTO orders(name, identifiers, account_id, status_id, expires, notbefore, notafter) VALUES(:name, :identifiers, :account, :status, :expires, :notbefore, :notafter )""",
+                """INSERT INTO orders(name, identifiers, account_id, status_id, expires, notbefore, notafter, profile) VALUES(:name, :identifiers, :account, :status, :expires, :notbefore, :notafter, :profile )""",
                 data_dic,
             )
             rid = self.cursor.lastrowid

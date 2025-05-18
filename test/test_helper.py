@@ -119,6 +119,7 @@ class TestACMEHandler(unittest.TestCase):
             header_info_lookup,
             config_eab_profile_load,
             config_headerinfo_load,
+            config_profile_load,
             allowed_domainlist_check,
             eab_profile_string_check,
             eab_profile_list_check,
@@ -246,6 +247,7 @@ class TestACMEHandler(unittest.TestCase):
         self.is_domain_whitelisted = is_domain_whitelisted
         self.allowed_domainlist_check = allowed_domainlist_check
         self.radomize_parameter_list = radomize_parameter_list
+        self.config_profile_load = config_profile_load
 
     def test_001_helper_b64decode_pad(self):
         """test b64decode_pad() method with a regular base64 encoded string"""
@@ -4382,6 +4384,25 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.radomize_parameter_list(self.logger, myclass, ["foo1", "bar"])
         self.assertEqual("foo1", myclass.foo)
         self.assertEqual("bar1", myclass.bar)
+
+    def test_414_config_profile_load(self):
+        """test _config_load with unknown values config"""
+        parser = configparser.ConfigParser()
+        parser["Order"] = {"profiles": '{"foo": "bar", "bar": "foo"}'}
+        self.assertEqual(
+            {"foo": "bar", "bar": "foo"}, self.config_profile_load(self.logger, parser)
+        )
+
+    def test_415_config_profile_load(self):
+        """test _config_load with unknown values config"""
+        parser = configparser.ConfigParser()
+        parser["Order"] = {"profiles": "foo"}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.config_profile_load(self.logger, parser))
+        self.assertIn(
+            "WARNING:test_a2c:loading profiles failed with error: Expecting value: line 1 column 1 (char 0)",
+            lcm.output,
+        )
 
 
 if __name__ == "__main__":
