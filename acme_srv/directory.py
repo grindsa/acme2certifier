@@ -6,7 +6,7 @@ import uuid
 import json
 from typing import Dict
 from .version import __version__, __dbversion__
-from .helper import load_config, ca_handler_load
+from .helper import load_config, ca_handler_load, config_profile_load
 from .db_handler import DBstore
 
 
@@ -31,6 +31,7 @@ class Directory(object):
         self.eab = False
         self.url_prefix = ""
         self.caaidentities = []
+        self.profiles = {}
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -85,6 +86,9 @@ class Directory(object):
                         err_,
                     )
 
+        # load allowed profiles
+        self.profiles = config_profile_load(self.logger, config_dic)
+
         # load ca_handler according to configuration
         ca_handler_module = ca_handler_load(self.logger, config_dic)
         if ca_handler_module:
@@ -128,6 +132,9 @@ class Directory(object):
 
         if self.caaidentities:
             d_dic["meta"]["caaIdentities"] = self.caaidentities
+
+        if self.profiles:
+            d_dic["meta"]["profiles"] = self.profiles
 
         # indicate eab requirement
         if self.eab:
