@@ -2003,6 +2003,25 @@ def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
     return (san_list, check_list)
 
 
+def profile_lookup(logger: logging.Logger, csr: str) -> str:
+    """get profile name from csr"""
+    logger.debug("Helper.profile_lookup()")
+
+    from acme_srv.db_handler import DBstore  # pylint: disable=c0415
+
+    dbstore = DBstore(logger=logger)
+    vlist: List[str] = ("id", "order_id", "order__profile")
+    result = dbstore.certificates_search("csr", csr, vlist)
+    if result:
+        # we have a match - get profile name
+        profile_name = result[0]["order__profile"]
+    else:
+        profile_name = None
+
+    logger.debug("Helper.profile_lookup() ended with: %s", profile_name)
+    return profile_name
+
+
 def eab_profile_header_info_check(
     logger: logging.Logger,
     cahandler,
@@ -2013,7 +2032,7 @@ def eab_profile_header_info_check(
     logger.debug("Helper.eab_profile_header_info_check()")
 
     if cahandler.eab_profiling:
-
+        # eab profiling - check if we have a handler
         if cahandler.eab_handler:
             # profiling enabled - check profile
             error = eab_profile_check(logger, cahandler, csr, handler_hifield)
@@ -2022,6 +2041,17 @@ def eab_profile_header_info_check(
                 "eab_profile_header_info_check(): eab_profiling enabled but no handler defined"
             )
             error = "Eab_profiling enabled but no handler defined"
+
+    elif cahandler.profiles:
+        # acme profiling - acme profiling will always be preferred
+        profile = profile_lookup(logger, csr)
+        logger.debug(
+            "Helper.profile_lookup(): setting %s to %s",
+            handler_hifield,
+            profile,
+        )
+        setattr(cahandler, handler_hifield, profile)
+        error = None
 
     elif cahandler.header_info_field:
         # no profiling - parse profileid from http_header
