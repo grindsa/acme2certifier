@@ -1308,6 +1308,7 @@ class DBstore(object):
         pre_statement = f"""SELECT certificate.*,
                             orders.id as order__id,
                             orders.name as order__name,
+                            orders.profile as order__profile,
                             orders.status_id as order__status_id,
                             account.name as order__account__name
                             from certificate
