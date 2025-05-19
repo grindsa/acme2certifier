@@ -905,27 +905,35 @@ def get_url(environ: Dict[str, str], include_path: bool = False) -> str:
     return result
 
 
-def header_info_field_validate(
-    logger, csr: str, header_info_field: str, value: str, value_list: List[str]
+def client_parameter_validate(
+    logger, csr: str, cahandler, value: str, value_list: List[str]
 ) -> Tuple[str, str]:
     """select value from list"""
-    logger.debug("Helper.header_info_field_validate(%s)", value)
+    logger.debug("Helper.client_parameter_validate(%s)", value)
 
     value_to_set = None
     error = None
-    # get header info
-    header_info_value = header_info_lookup(logger, csr, header_info_field, value)
-    if header_info_value:
-        if header_info_value in value_list:
-            value_to_set = header_info_value
+    if cahandler.profiles:
+        logger.debug("Helper.client_parameter_validate(): using profile")
+        # get profile info
+        client_parameter = profile_lookup(logger, csr)
+    else:
+        logger.debug("Helper.client_parameter_validate(): using header info")
+        # get header info
+        client_parameter = header_info_lookup(
+            logger, csr, cahandler.header_info_field, value
+        )
+    if client_parameter:
+        if client_parameter in value_list:
+            value_to_set = client_parameter
         else:
-            error = f'{value} "{header_info_value}" is not allowed'
+            error = f'{value} "{client_parameter}" is not allowed'
     else:
         # header not set, use first value from list
         value_to_set = value_list[0]
 
     logger.debug(
-        "Helper.header_info_field_validate(%s) ended with %s/%s",
+        "Helper.client_parameter_validate(%s) ended with %s/%s",
         value,
         value_to_set,
         error,
@@ -2011,8 +2019,12 @@ def profile_lookup(logger: logging.Logger, csr: str) -> str:
 
     dbstore = DBstore(logger=logger)
     vlist: List[str] = ("id", "order_id", "order__profile")
-    result = dbstore.certificates_search("csr", csr, vlist)
-    if result:
+    try:
+        result = dbstore.certificates_search("csr", csr, vlist)
+    except Exception as err:
+        logger.error("Helper.profile_lookup() failed with: %s", err)
+        result = None
+    if result and "order__profile" in result[0]:
         # we have a match - get profile name
         profile_name = result[0]["order__profile"]
     else:
@@ -2045,12 +2057,13 @@ def eab_profile_header_info_check(
     elif cahandler.profiles:
         # acme profiling - acme profiling will always be preferred
         profile = profile_lookup(logger, csr)
-        logger.debug(
-            "Helper.profile_lookup(): setting %s to %s",
-            handler_hifield,
-            profile,
-        )
-        setattr(cahandler, handler_hifield, profile)
+        if profile:
+            logger.debug(
+                "Helper.profile_lookup(): setting %s to %s",
+                handler_hifield,
+                profile,
+            )
+            setattr(cahandler, handler_hifield, profile)
         error = None
 
     elif cahandler.header_info_field:
@@ -2228,9 +2241,7 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
 
     result = None
     if hasattr(cahandler, key) and key != "allowed_domainlist":
-        new_value, error = header_info_field_validate(
-            logger, csr, cahandler.header_info_field, key, value
-        )
+        new_value, error = client_parameter_validate(logger, csr, cahandler, key, value)
         if new_value:
             logger.debug(
                 "Helper.eab_profile_list_check(): setting attribute: %s to %s",
