@@ -335,8 +335,6 @@ class CAhandler(object):
                 self.logger, self, self.enrollment_config_log_skip_list
             )
 
-
-        raise('stop')
         # load template if configured
         if self.template_name:
             (dn_dic, template_dic) = self._template_load()
