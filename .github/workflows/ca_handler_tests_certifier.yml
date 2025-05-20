@@ -283,7 +283,7 @@ jobs:
 
   certifier_handler_tests_rpm:
     name: "certifier_handler_tests_rpm"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     # needs: certifier_handler_tests
     strategy:
       fail-fast: false
@@ -568,4 +568,3 @@ jobs:
       with:
         name: certifier_ca_handler_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-
