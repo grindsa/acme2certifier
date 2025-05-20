@@ -24,7 +24,7 @@ The **data folder path** can be modified in [`docker-compose.yml`](https://githu
 
 By default, **acme2certifier** runs on:
 
-- **HTTP:** Port **22280**  
+- **HTTP:** Port **22280**
 - **HTTPS:** Port **22443** *(optional)*
 
 To expose these services externally, **map ports 80 and 443** accordingly.
