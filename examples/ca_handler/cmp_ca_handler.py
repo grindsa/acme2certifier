@@ -31,6 +31,7 @@ class CAhandler(object):
         self.ca_pubs_file = None
         self.cert_file = None
         self.allowed_domainlist = []
+        self.profiles = {}
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""

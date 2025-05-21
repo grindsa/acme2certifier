@@ -51,6 +51,7 @@ class CAhandler(object):
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
         self.allowed_domainlist = []
+        self.profiles = {}
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""

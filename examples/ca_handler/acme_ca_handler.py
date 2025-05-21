@@ -54,6 +54,7 @@ class CAhandler(object):
         self.ssl_verify = True
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
+        self.profiles = {}
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""

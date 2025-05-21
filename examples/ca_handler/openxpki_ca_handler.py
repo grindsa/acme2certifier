@@ -40,6 +40,7 @@ class CAhandler(object):
         self.err_msg_dic = error_dic_get(self.logger)
         self.dbstore = DBstore(False, self.logger)
         self.allowed_domainlist = []
+        self.profiles = {}
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
