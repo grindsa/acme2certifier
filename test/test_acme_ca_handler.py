@@ -1899,7 +1899,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.header_info_field_validate")
+    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
     def test_086_eab_profile_list_check(self, mock_hiv):
         """test eab_profile_list_check"""
         mock_hiv.return_value = ("http://acme_url", None)
@@ -1912,7 +1912,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual("acme_keypath/acme_url.json", self.cahandler.acme_keyfile)
 
-    @patch("examples.ca_handler.acme_ca_handler.header_info_field_validate")
+    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
     def test_087_eab_profile_list_check(self, mock_hiv):
         """test eab_profile_list_check"""
         mock_hiv.return_value = (None, "error")
@@ -1926,7 +1926,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual("acme_keyfile", self.cahandler.acme_keyfile)
 
-    @patch("examples.ca_handler.acme_ca_handler.header_info_field_validate")
+    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
     def test_088_eab_profile_list_check(self, mock_hiv):
         """test eab_profile_list_check"""
         mock_hiv.return_value = ("http://acme_url", None)
@@ -1940,7 +1940,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("acme_keyfile", self.cahandler.acme_keyfile)
 
     @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.acme_ca_handler.header_info_field_validate")
+    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
     def test_089_eab_profile_list_check(self, mock_hiv, mock_chk):
         """test eab_profile_list_check"""
         mock_hiv.return_value = ("http://acme_url", None)
@@ -1958,7 +1958,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_chk.called)
 
     @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.acme_ca_handler.header_info_field_validate")
+    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
     def test_090_eab_profile_list_check(self, mock_hiv, mock_chk):
         """test eab_profile_list_check"""
         mock_hiv.return_value = ("http://acme_url", None)
@@ -1977,7 +1977,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_chk.called)
 
     @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.acme_ca_handler.header_info_field_validate")
+    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
     def test_091_eab_profile_list_check(self, mock_hiv, mock_chk):
         """test eab_profile_list_check"""
         mock_hiv.return_value = ("http://acme_url", None)
@@ -1997,7 +1997,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(eab_handler.allowed_domains_check.called)
 
     @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.acme_ca_handler.header_info_field_validate")
+    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
     def test_092_eab_profile_list_check(self, mock_hiv, mock_chk):
         """test eab_profile_list_check"""
         mock_hiv.return_value = ("http://acme_url", None)

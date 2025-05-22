@@ -22,6 +22,7 @@ from acme_srv.helper import (
     enrollment_config_log,
     config_enroll_config_log_load,
     config_allowed_domainlist_load,
+    config_profile_load,
     allowed_domainlist_check,
     radomize_parameter_list,
 )
@@ -205,6 +206,8 @@ class CAhandler(object):
             self.eab_profiling, self.eab_handler = config_eab_profile_load(
                 self.logger, config_dic
             )
+            # load profiles
+            self.profiles = config_profile_load(self.logger, config_dic)
             self._config_headerinfo_load(config_dic)
 
         self._config_proxy_load(config_dic)

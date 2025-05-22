@@ -17,6 +17,7 @@ from acme_srv.helper import (
     error_dic_get,
     config_allowed_domainlist_load,
     allowed_domainlist_check,
+    config_profile_load,
 )
 from acme_srv.db_handler import DBstore
 
@@ -232,6 +233,8 @@ class CAhandler(object):
         self._config_server_load(config_dic)
         self._config_ca_load(config_dic)
         self._config_session_load(config_dic)
+        # load profiles
+        self.profiles = config_profile_load(self.logger, config_dic)
         # load allowed domainlist
         self.allowed_domainlist = config_allowed_domainlist_load(
             self.logger, config_dic
@@ -245,7 +248,8 @@ class CAhandler(object):
             self.logger.error(
                 "CAhandler._config_load() configuration wrong: client authentication requires a ca_bundle."
             )
-
+            # load profiles
+            self.profiles = config_profile_load(self.logger, config_dic)
         # check configuration for completeness
         variable_dic = self.__dict__
         for ele in ["host", "cert_profile_name", "endpoint_name"]:

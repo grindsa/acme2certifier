@@ -14,6 +14,7 @@ from acme_srv.helper import (
     cert_serial_get,
     config_eab_profile_load,
     config_headerinfo_load,
+    config_profile_load,
     request_operation,
     csr_cn_lookup,
     config_enroll_config_log_load,
@@ -175,6 +176,8 @@ class CAhandler(object):
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
         )
+        # load profiles
+        self.profiles = config_profile_load(self.logger, config_dic)
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
         # load enrollment config log

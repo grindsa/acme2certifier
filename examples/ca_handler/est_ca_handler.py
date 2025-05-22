@@ -43,7 +43,6 @@ class CAhandler(object):
         self.request_timeout = 20
         self.session = None
         self.allowed_domainlist = []
-        self.profiles = {}
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
