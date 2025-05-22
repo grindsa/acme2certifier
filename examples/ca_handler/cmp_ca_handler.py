@@ -12,6 +12,7 @@ from acme_srv.helper import (
     load_config,
     build_pem_file,
     b64_url_recode,
+    config_profile_load,
     config_allowed_domainlist_load,
     allowed_domainlist_check,
 )
@@ -191,7 +192,8 @@ class CAhandler(object):
         self.allowed_domainlist = config_allowed_domainlist_load(
             self.logger, config_dic
         )
-
+        # load profiles
+        self.profiles = config_profile_load(self.logger, config_dic)
         self.logger.debug("CAhandler._config_load() ended")
 
     def _opensslcmd_build(self) -> List[str]:

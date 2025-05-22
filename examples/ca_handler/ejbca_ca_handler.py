@@ -18,6 +18,7 @@ from acme_srv.helper import (
     encode_url,
     config_eab_profile_load,
     config_headerinfo_load,
+    config_profile_load,
     eab_profile_header_info_check,
     config_enroll_config_log_load,
     enrollment_config_log,
@@ -262,6 +263,8 @@ class CAhandler(object):
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
         )
+        # load profiles
+        self.profiles = config_profile_load(self.logger, config_dic)
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
 

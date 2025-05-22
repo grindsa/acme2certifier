@@ -22,7 +22,8 @@ from acme_srv.helper import (
     parse_url,
     config_eab_profile_load,
     config_headerinfo_load,
-    header_info_field_validate,
+    config_profile_load,
+    client_parameter_validate,
     eab_profile_header_info_check,
     config_enroll_config_log_load,
     enrollment_config_log,
@@ -135,6 +136,8 @@ class CAhandler(object):
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
         )
+        # load profiles
+        self.profiles = config_profile_load(self.logger, config_dic)
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
         # load enrollment config log
@@ -523,7 +526,7 @@ class CAhandler(object):
         )
 
         result = None
-        new_value, error = header_info_field_validate(
+        new_value, error = client_parameter_validate(
             self.logger, csr, self.header_info_field, key, value
         )
         if new_value:
