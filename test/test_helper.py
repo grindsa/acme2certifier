@@ -3035,7 +3035,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         mock_lookup.return_value = "value2"
         mock_profile.return_value = "value1"
         cahandler = FakeDBStore()
-        cahandler.profiles = {'foo': 'bar'}
+        cahandler.profiles = {"foo": "bar"}
         self.assertEqual(
             ("value1", None),
             self.client_parameter_validate(
@@ -3446,7 +3446,9 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme_srv.helper.profile_lookup")
     @patch("acme_srv.helper.eab_profile_check")
     @patch("acme_srv.helper.header_info_lookup")
-    def test_337_eab_profile_header_info_check(self, mock_lookup, mock_eab, mock_profile):
+    def test_337_eab_profile_header_info_check(
+        self, mock_lookup, mock_eab, mock_profile
+    ):
         """test eab_profile_header_info_check()"""
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
@@ -3463,7 +3465,9 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme_srv.helper.profile_lookup")
     @patch("acme_srv.helper.eab_profile_check")
     @patch("acme_srv.helper.header_info_lookup")
-    def test_338_eab_profile_header_info_check(self, mock_lookup, mock_eab, mock_profile):
+    def test_338_eab_profile_header_info_check(
+        self, mock_lookup, mock_eab, mock_profile
+    ):
         """test eab_profile_header_info_check()"""
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
@@ -3483,7 +3487,9 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme_srv.helper.profile_lookup")
     @patch("acme_srv.helper.eab_profile_check")
     @patch("acme_srv.helper.header_info_lookup")
-    def test_339_eab_profile_header_info_check(self, mock_lookup, mock_eab, mock_profile):
+    def test_339_eab_profile_header_info_check(
+        self, mock_lookup, mock_eab, mock_profile
+    ):
         """test eab_profile_header_info_check()"""
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False
@@ -3504,7 +3510,9 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme_srv.helper.profile_lookup")
     @patch("acme_srv.helper.eab_profile_check")
     @patch("acme_srv.helper.header_info_lookup")
-    def test_340_eab_profile_header_info_check(self, mock_lookup, mock_eab, mock_profile):
+    def test_340_eab_profile_header_info_check(
+        self, mock_lookup, mock_eab, mock_profile
+    ):
         """test eab_profile_header_info_check()"""
         cahandler = FakeDBStore()
         cahandler.eab_profiling = False

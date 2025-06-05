@@ -20,6 +20,8 @@ runs:
     - name: "Build docker-compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
       run: |
+        sudo apt-get update
+        #  sudo apt-get upgrade -y
         sudo apt-get install -y docker-compose
         sed -i "s/wsgi/$DB_HANDLER/g" .env
         sed -i "s/apache2/$WEB_SRV/g" .env

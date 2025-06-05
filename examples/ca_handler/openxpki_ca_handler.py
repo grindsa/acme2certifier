@@ -18,6 +18,11 @@ from acme_srv.helper import (
     config_allowed_domainlist_load,
     allowed_domainlist_check,
     config_profile_load,
+    config_eab_profile_load,
+    config_headerinfo_load,
+    config_enroll_config_log_load,
+    eab_profile_header_info_check,
+    enrollment_config_log,
 )
 from acme_srv.db_handler import DBstore
 
@@ -42,6 +47,11 @@ class CAhandler(object):
         self.dbstore = DBstore(False, self.logger)
         self.allowed_domainlist = []
         self.profiles = {}
+        self.header_info_field = False
+        self.eab_handler = None
+        self.eab_profiling = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -233,8 +243,24 @@ class CAhandler(object):
         self._config_server_load(config_dic)
         self._config_ca_load(config_dic)
         self._config_session_load(config_dic)
+
+        # load enrollment config log
+        (
+            self.enrollment_config_log,
+            self.enrollment_config_log_skip_list,
+        ) = config_enroll_config_log_load(self.logger, config_dic)
+
+        # load profiling
+        self.eab_profiling, self.eab_handler = config_eab_profile_load(
+            self.logger, config_dic
+        )
+
         # load profiles
         self.profiles = config_profile_load(self.logger, config_dic)
+
+        # load header info
+        # self.header_info_field = config_headerinfo_load(self.logger, config_dic)
+
         # load allowed domainlist
         self.allowed_domainlist = config_allowed_domainlist_load(
             self.logger, config_dic
@@ -270,6 +296,12 @@ class CAhandler(object):
         poll_indentifier = None
         poll_cnt = math.ceil(self.polling_timeout / 10) + 1
         break_loop = False
+
+        if self.enrollment_config_log:
+            self.enrollment_config_log_skip_list.extend(["cert_passphrase"])
+            enrollment_config_log(
+                self.logger, self, self.enrollment_config_log_skip_list
+            )
 
         cnt = 1
         while cnt <= poll_cnt:
@@ -389,8 +421,16 @@ class CAhandler(object):
 
         if self.host:
 
-            # check for allowed domainlist
-            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
+            # check for eab profiling and header_info
+            error = eab_profile_header_info_check(
+                self.logger, self, csr, "cert_profile_name"
+            )
+
+            if not error:
+                # check for allowed domainlist
+                error = allowed_domainlist_check(
+                    self.logger, csr, self.allowed_domainlist
+                )
 
             if not error:
                 # prepare the CSR to be signed
