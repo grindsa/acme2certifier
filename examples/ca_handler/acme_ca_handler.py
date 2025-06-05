@@ -56,6 +56,7 @@ class CAhandler(object):
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
+        self.profile = None
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -110,6 +111,8 @@ class CAhandler(object):
         self.eab_kid = config_dic.get("CAhandler", "eab_kid", fallback=None)
         self.eab_hmac_key = config_dic.get("CAhandler", "eab_hmac_key", fallback=None)
         self.acme_keypath = config_dic.get("CAhandler", "acme_keypath", fallback=None)
+        self.profile = config_dic.get("CAhandler", "profile", fallback=None)
+
         self.logger.debug("CAhandler._config_eab_load() ended")
 
     def _config_load(self):
@@ -297,7 +300,24 @@ class CAhandler(object):
     ) -> Tuple[str, str, str]:
         """isuse order"""
         self.logger.debug("CAhandler._order_issue() csr: " + str(csr_pem))
-        order = acmeclient.new_order(csr_pem)
+
+        try:
+            if self.profile:
+                # profile is set
+                self.logger.debug(
+                    "CAhandler._order_issue() adding profile: %s", self.profile
+                )
+                order = acmeclient.new_order(csr_pem=csr_pem, profile=self.profile)
+            else:
+                # no profile set
+                self.logger.debug("CAhandler._order_issue() no profile set")
+                order = acmeclient.new_order(csr_pem=csr_pem)
+        except Exception as err:
+            self.logger.error(
+                "CAhandler._order_issue() failed to create order: %s. Try without profile information.",
+                err,
+            )
+            order = acmeclient.new_order(csr_pem=csr_pem)
 
         error = None
         cert_bundle = None
@@ -526,12 +546,10 @@ class CAhandler(object):
         )
 
         result = None
-        new_value, error = client_parameter_validate(
-            self.logger, csr, self.header_info_field, key, value
-        )
+        new_value, error = client_parameter_validate(self.logger, csr, self, key, value)
         if new_value:
             self.logger.debug(
-                "CAhandler._eab_profile_list_check(): setting attribute: %s to %s",
+                "CAhandler._eab_profile_list_set(): setting attribute: %s to %s",
                 key,
                 new_value,
             )
@@ -540,7 +558,7 @@ class CAhandler(object):
                 if not self.acme_keypath:
                     result = "acme_keypath is missing in config"
                     self.logger.error(
-                        "CAhandler._eab_profile_list_check(): acme_keypath is missing in config"
+                        "CAhandler._eab_profile_list_set(): acme_keypath is missing in config"
                     )
                 else:
                     self.acme_url_dic = parse_url(self.logger, new_value)
@@ -645,6 +663,16 @@ class CAhandler(object):
                     "CAhandler._registration_lookup(): found existing account: %s",
                     regr.uri,
                 )
+            else:
+                self.logger.error(
+                    "CAhandler._registration_lookup(): account lookup failed. Account %s not found. Trying to register new account.",
+                    self.account,
+                )
+                regr = self._account_register(acmeclient, user_key, directory)
+                if hasattr(regr, "uri"):
+                    self.logger.info(
+                        "CAhandler._registration_lookup(): new account: %s", regr.uri
+                    )
         else:
             # new account or existing account with missing account id
             regr = self._account_register(acmeclient, user_key, directory)
@@ -674,10 +702,10 @@ class CAhandler(object):
 
         # check for eab profiling and header_info
         if not error:
-            error = eab_profile_header_info_check(self.logger, self, csr, "acme_url")
+            error = eab_profile_header_info_check(self.logger, self, csr, "profile")
 
         if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["dbstore", "eab_mack_key"])
+            self.enrollment_config_log_skip_list.extend(["dbstore", "eab_mac_key"])
             enrollment_config_log(
                 self.logger, self, self.enrollment_config_log_skip_list
             )
