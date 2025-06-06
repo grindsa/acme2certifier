@@ -8,9 +8,9 @@ Support for the **TNAuthList** identifier and **tkauth-01** challenges is curren
 
 The current implementation follows these specifications:
 
-- [draft-ietf-acme-authority-token-tnauthlist-08](https://datatracker.ietf.org/doc/html/draft-ietf-acme-authority-token-tnauthlist-08)
-- [draft-ietf-acme-authority-token-07](https://tools.ietf.org/html/draft-ietf-acme-authority-token-tnauthlist-07)
-- **ATIS-1000080**
+- [RFC 9447 - Automated Certificate Management Environment (ACME) Challenges Using an Authority Token](https://www.rfc-editor.org/rfc/rfc9447)
+- [RFC 9448 - TNAuthList Profile of Automated Certificate Management Environment (ACME) Authority Token](https://www.rfc-editor.org/rfc/rfc9448.html)
+- [ATIS-1000080](https://access.atis.org/higherlogic/ws/public/download/69428)
 
 ## Enabling TNAuthList Support
 

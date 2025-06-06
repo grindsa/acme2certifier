@@ -91,3 +91,87 @@ polling_timeout: <seconds>
 ## Certificate Enrollment
 
 Use your preferred ACME client for certificate enrollment. A list of clients used in our regression testing is available in the [disclaimer section of our README](../README.md).
+
+## Passing a profile_id from client to server
+
+acme2certifier supports the the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a `cert_profile_name` parameter to be submitted to the CA server.
+
+The list of supported profiles must be configured in `acme_srv.cfg`
+
+```config
+[Order]
+profiles: {"profile1": "http://foo.bar/profile1", "profile2": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+```
+
+Once enabled, a client can specify the cert_profile_name to be used as part of an order request. Below an example for lego:
+
+```bash
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile profile2
+```
+
+Further, this handler makes use of the [header_info_list feature](header_info.md) allowing an ACME client to specify a certificate profile to be used during certificate enrollment. This feature is disabled by default and must be activated in `acme_srv.cfg` as shown below
+
+```config
+[Order]
+...
+header_info_list: ["HTTP_USER_AGENT"]
+```
+
+The ACME client can then specify the profileID as part of its user-agent string.
+
+Example for acme.sh:
+
+```bash
+docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --standalone --useragent cert_profile_name=acme_clt --debug 3 --output-insecure
+```
+
+Example for lego:
+
+```bash
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" --user-agent cert_profile_name=acme_clt -d <fqdn> --http run
+```
+
+## eab profiling
+
+This handler can use the [eab profiling feature](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activatedd in `acme_srv.cfg`
+
+```cfg
+[EABhandler]
+eab_handler_file: examples/eab_handler/kid_profile_handler.py
+key_file: <profile_file>
+
+[CAhandler]
+eab_profiling: True
+```
+
+Below is an example key file used during regression testing:
+
+```json
+{
+  "keyid_00": {
+    "hmac": "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw",
+    "cahandler": {
+      "cert_profile_name": ["acmeca2", "acmeca1"],
+      "allowed_domainlist": ["www.example.com", "www.example.org", "*.acme"]
+    }
+  },
+  "keyid_01": {
+    "hmac": "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg",
+    "cahandler": {
+      "cert_profile_name": "acmeca2",
+      "allowed_domainlist": ["www.example.com", "www.example.org", "*.acme"],
+      "ca_name": "acmeca"
+    }
+  },
+  "keyid_02": {
+    "hmac": "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM",
+    "cahandler": {
+      "allowed_domainlist": ["www.example.com", "www.example.org"]
+    }
+  },
+  "keyid_03": {
+    "hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr"
+  }
+}
+```
+
