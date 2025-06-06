@@ -1,8 +1,10 @@
 <!-- markdownlint-disable MD013 MD014 -->
+
 <!-- wiki-title CA Handler for Microsoft Certification Authority Web Enrollment Service -->
+
 # CA Handler for Microsoft Certification Authority Web Enrollment Service
 
-This CA handler uses Microsoft's [Certification Authority Web Enrollment Service](https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/hh831649(v=ws.11)) for certificate enrollment. It also utilizes a modified version of the Python library [magnuswatn](https://github.com/magnuswatn/)/[certsrv](https://github.com/magnuswatn/certsrv) to communicate with the enrollment service.
+This CA handler uses Microsoft's [Certification Authority Web Enrollment Service](<https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/hh831649(v=ws.11)>) for certificate enrollment. It also utilizes a modified version of the Python library [magnuswatn](https://github.com/magnuswatn/)/[certsrv](https://github.com/magnuswatn/certsrv) to communicate with the enrollment service.
 
 ## Limitations
 
@@ -15,10 +17,10 @@ Be aware of the following limitations when using this handler:
 ## Preparation
 
 1. Microsoft Certification Authority Web Enrollment Service must be enabled and configured.
-2. You need a set of credentials with permission to access the service and enrollment templates.
-3. The authentication method (basic or NTLM) must be configured correctly.
-4. *(Optional)*: If installing from RPM and using NTLM authentication, you need two additional Python modules: [python3-requests-ntlm](https://pypi.org/project/requests_ntlm/) and [python3-ntlm-auth](https://pypi.org/project/ntlm-auth/). These are not part of the standard or EPEL repositories. You can find them in the [A2C GitHub repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs).
-5. *(Optional)*: If installing from RPM and using GSSAPI authentication, you need two additional Python modules: [python3-requests-gssapi](https://pypi.org/project/requests-gssapi/) and [gssapi](https://pypi.org/project/gssapi/). These are also available in the [A2C GitHub repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs).
+1. You need a set of credentials with permission to access the service and enrollment templates.
+1. The authentication method (basic or NTLM) must be configured correctly.
+1. *(Optional)*: If installing from RPM and using NTLM authentication, you need two additional Python modules: [python3-requests-ntlm](https://pypi.org/project/requests_ntlm/) and [python3-ntlm-auth](https://pypi.org/project/ntlm-auth/). These are not part of the standard or EPEL repositories. You can find them in the [A2C GitHub repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs).
+1. *(Optional)*: If installing from RPM and using GSSAPI authentication, you need two additional Python modules: [python3-requests-gssapi](https://pypi.org/project/requests-gssapi/) and [gssapi](https://pypi.org/project/gssapi/). These are also available in the [A2C GitHub repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs).
 
 ### Verifying Service Access
 
