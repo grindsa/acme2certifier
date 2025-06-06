@@ -1895,7 +1895,7 @@ class TestACMEHandler(unittest.TestCase):
                 ),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._eab_profile_list_check(): acme_keypath is missing in config",
+            "ERROR:test_a2c:CAhandler._eab_profile_list_set(): acme_keypath is missing in config",
             lcm.output,
         )
 
