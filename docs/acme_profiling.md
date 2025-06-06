@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD013 -->
+
 <!-- wiki-title: Support for ACME profiling -->
 
 # Support for ACME Profiles Extension
@@ -30,17 +31,17 @@ profiles_check_disable: True
 
 Depending on the CA-handler the profile value replaces a certain value in the CA-handler configuration. The below table provides an overview about the individual paramters:
 
-| CA-handler | configuration parameter |
-|------------|---------------|
-| [ACME Handler](docs/acme_ca.md) | profile |
-| [DigiCert® CertCentral](docs/digicert.md) | cert_type |
-| [EJBCA](docs/ejbca.md) | cert_profile_name |
-| [Insta ActiveCMS](docs/asa.md) | profile_name |
-| [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md) | template |
-| [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)](docs/mswcce.md) | template |
-| [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md) | profile_id |
-| [OpenXPKI](docs/openxpki.md) | cert_profile_name |
-| [XCA](docs/xca.md) | template_name |
+| CA-handler                                                                           | configuration parameter |
+| ------------------------------------------------------------------------------------ | ----------------------- |
+| [ACME Handler](docs/acme_ca.md)                                                      | profile                 |
+| [DigiCert® CertCentral](docs/digicert.md)                                            | cert_type               |
+| [EJBCA](docs/ejbca.md)                                                               | cert_profile_name       |
+| [Insta ActiveCMS](docs/asa.md)                                                       | profile_name            |
+| [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)                   | template                |
+| [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)](docs/mswcce.md) | template                |
+| [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md)                    | profile_id              |
+| [OpenXPKI](docs/openxpki.md)                                                         | cert_profile_name       |
+| [XCA](docs/xca.md)                                                                   | template_name           |
 
 The profile value will be added to the `profile` column of the orders table. A CA handler can obtail the value using the `eab_profile_header_info_check()` function from `helper.py`.
 
@@ -76,4 +77,3 @@ class CAHandler(object):
 
         return (error, cert_bundle, cert_raw, poll_identifier)
 ```
-

@@ -1,5 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
+
 <!-- wiki-title CA handler for Entrust ECS Enterprise -->
+
 # Connecting to Entrust ECS Enterprise
 
 This handler can be used to enroll certificates from Entrust ECS Enterprise API.

@@ -1,5 +1,7 @@
 <!-- markdownlint-disable MD013 -->
+
 <!-- wiki-title CA Polling to Check Pending Enrollment Requests -->
+
 # `Ca_handler.poll()`
 
 The `poll` method has been implemented to support use cases where certificate issuance requires manual approval by the CA administrator.
@@ -17,8 +19,10 @@ The script [`cert_poll.py`](../tools/cert_poll.py) is located in the **tools** d
 The `ca_handler.poll()` method:
 
 1. **Checks the status of the CSR** on the CA server.
-2. **Downloads the certificate** if it is available.
-3. **Builds the certificate chain** and returns the following details to `certificate.poll()`, which then updates the database:
+
+1. **Downloads the certificate** if it is available.
+
+1. **Builds the certificate chain** and returns the following details to `certificate.poll()`, which then updates the database:
 
    - An **error message**, if any.
    - The **certificate chain** in PEM format.

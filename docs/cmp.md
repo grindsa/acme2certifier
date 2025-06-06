@@ -1,5 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
+
 <!-- wiki-title CA handler using CMPv2 protocol -->
+
 # Generic CMPv2 Protocol Handler
 
 The CMPv2 protocol handler is not bound to a specific CA server. Certificate enrollment is done using the [CMP application from OpenSSL 3.x](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html).
@@ -22,22 +24,22 @@ In my setup, acme2certifier authenticates via Refnum/Secret towards the CMPv2 se
 grindsa@ub-22:~/a2c$ openssl.exe cmp -cmd ir -server 192.168.14.137:8080 -path pkix/ -ref 1234 -secret pass:xxx -recipient "/C=DE/CN=tst_sub_ca" -cert ra_cert.pem -trusted capubs.pem -popo 0 -ignore_keyusage -extracertsout ca_certs.pem -certout test-cert.pem -csr csr.pem
 ```
 
-| Parameter | Value | Description |
-| :-------  | :---- | :---------- |
-| -cmd | ir | Request type "initial request" |
-| -server | 192.168.14.137:8080 | Address and port of the CMPv2 server |
-| -path | pkix/ | Path on the CMPv2 server |
-| -ref | 1234 | Reference number used for authentication towards the CMPv2 server |
-| -ref_variable | CMPV2_REF | Name of the environment variable containing the reference number used for authentication (a configured `ref` parameter in `acme_srv.cfg` takes precedence) |
-| -secret | pass:xxx | Secret used for authentication towards the CMPv2 server |
-| -secret_variable | CMPV2_SECRET | Name of the environment variable containing the authentication secret (a configured `secret` parameter in `acme_srv.cfg` takes precedence) |
-| -recipient | "/C=DE/CN=tst_sub_ca" | DN of the issuing CA |
-| -cert | ra_cert.pem | Public key of the local registration authority |
-| -trusted | capubs.pem | CA certificate bundle needed to verify the CMPv2 server certificate |
-| -popo | 0 | Set the RA verified Set Proof-of-Possession (POPO) method to "RA verified" |
-| -extracertsout | ca_certs.pem | File containing the CA certificates extracted from the CMPv2 response |
-| -certout | test-cert.pem | File containing the certificate returned from the CA server |
-| -csr | csr.pem | CSR to be imported |
+| Parameter        | Value                 | Description                                                                                                                                                |
+| :--------------- | :-------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| -cmd             | ir                    | Request type "initial request"                                                                                                                             |
+| -server          | 192.168.14.137:8080   | Address and port of the CMPv2 server                                                                                                                       |
+| -path            | pkix/                 | Path on the CMPv2 server                                                                                                                                   |
+| -ref             | 1234                  | Reference number used for authentication towards the CMPv2 server                                                                                          |
+| -ref_variable    | CMPV2_REF             | Name of the environment variable containing the reference number used for authentication (a configured `ref` parameter in `acme_srv.cfg` takes precedence) |
+| -secret          | pass:xxx              | Secret used for authentication towards the CMPv2 server                                                                                                    |
+| -secret_variable | CMPV2_SECRET          | Name of the environment variable containing the authentication secret (a configured `secret` parameter in `acme_srv.cfg` takes precedence)                 |
+| -recipient       | "/C=DE/CN=tst_sub_ca" | DN of the issuing CA                                                                                                                                       |
+| -cert            | ra_cert.pem           | Public key of the local registration authority                                                                                                             |
+| -trusted         | capubs.pem            | CA certificate bundle needed to verify the CMPv2 server certificate                                                                                        |
+| -popo            | 0                     | Set the RA verified Set Proof-of-Possession (POPO) method to "RA verified"                                                                                 |
+| -extracertsout   | ca_certs.pem          | File containing the CA certificates extracted from the CMPv2 response                                                                                      |
+| -certout         | test-cert.pem         | File containing the certificate returned from the CA server                                                                                                |
+| -csr             | csr.pem               | CSR to be imported                                                                                                                                         |
 
 The latest version of the documentation for the OpenSSL CMP application can be found [here](https://www.openssl.org/docs/manmaster/man1/openssl-cmp.html).
 

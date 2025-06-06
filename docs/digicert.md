@@ -1,5 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
+
 <!-- wiki-title CA handler for Digicert CertCentral -->
+
 # Connecting to DigiCert CertCentral
 
 This handler can be used to enroll certificates from [DigiCert CertCentral](https://dev.digicert.com/en/certcentral-apis.html).
@@ -66,7 +68,6 @@ Once enabled, a client can specify the cert_type to be used as part of an order 
 ```bash
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile ssl_securesite_pro
 ```
-
 
 Further, this handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a [certificate type](https://dev.digicert.com/en/certcentral-apis/services-api/orders.html) to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
 

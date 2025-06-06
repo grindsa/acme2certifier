@@ -1,5 +1,7 @@
 <!-- markdownlint-disable MD013 -->
+
 <!-- wiki-title CA Handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) -->
+
 # CA Handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)
 
 This CA handler uses the Microsoft [Windows Client Certificate Enrollment Protocol](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-wcce/446a0fca-7f27-4436-965d-191635518466). The handler incorporates code from [Certipy](https://github.com/ly4k/Certipy), a pentesting tool for Active Directory Certificate Services (AD-CS).
@@ -14,9 +16,9 @@ Be aware of the following limitations when using this handler:
 ## Preparation
 
 1. Active Directory Certificate Services (AD-CS) must be enabled and properly configured.
-2. The CA handler uses RPC/DCOM to communicate with the CA server, so the CA server must be accessible via **TCP port 445**.
-3. *(Optional)*: If installing from RPM or DEB and planning to use Kerberos authentication, ensure you have an updated [Impacket module (version 0.11 or higher)](https://github.com/fortra/impacket), as older versions have issues handling UTF-8 encoded passwords. You can find updated packages in the [A2C GitHub repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs).
-4. You need a set of credentials with sufficient permissions to access the service and enrollment templates.
+1. The CA handler uses RPC/DCOM to communicate with the CA server, so the CA server must be accessible via **TCP port 445**.
+1. *(Optional)*: If installing from RPM or DEB and planning to use Kerberos authentication, ensure you have an updated [Impacket module (version 0.11 or higher)](https://github.com/fortra/impacket), as older versions have issues handling UTF-8 encoded passwords. You can find updated packages in the [A2C GitHub repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs).
+1. You need a set of credentials with sufficient permissions to access the service and enrollment templates.
 
 ## Local Installation
 
