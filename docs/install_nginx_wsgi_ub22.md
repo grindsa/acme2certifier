@@ -1,5 +1,7 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
+
 <!-- wiki-title Installation on Nginx Running on Ubuntu 22.04 -->
+
 # Installation on Nginx Running on Ubuntu 22.04
 
 A [ready-made shell script](../examples/install_scripts/a2c-ubuntu22-nginx.sh) performing the tasks below can be found in the `examples/install_scripts` directory.
