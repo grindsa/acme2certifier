@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD013 -->
+
 # acme2certifier
 
 ![GitHub release](https://img.shields.io/github/release/grindsa/acme2certifier.svg)
@@ -24,35 +25,35 @@ The project consists of two main libraries:
 
 ## Supported CA Handlers
 
-| Feature Support | Enrollment (E) | Revocation (R) | [EAB Profiling (P)](docs/eab_profiling.md) |
-|----------------|---------------|---------------|---------------|
-| [DigiCert® CertCentral](docs/digicert.md) | ✅ | ✅ | ✅ |
-| [Entrust ECS Enterprise](docs/entrust.md) | ✅ | ✅ | ✅ |
-| [EJBCA](docs/ejbca.md) | ✅ | ✅ | ✅ |
-| [Generic ACME Handler](docs/acme_ca.md) (LetsEncrypt, BuyPass.com, ZeroSSL) | ❌ | ❌ | ✅ |
-| [Generic CMPv2 Handler](docs/cmp.md) | ✅ | ❌ | ❌ |
-| [Generic EST Handler](docs/est.md) | ✅ | ❌ | ❌ |
-| [Insta ActiveCMS](docs/asa.md) | ✅ | ✅ | ✅ |
-| [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md) | ✅ | ❌ | ✅ |
-| [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)](docs/mswcce.md) | ✅ | ❌ | ✅ |
-| [NetGuard Certificate Lifecycle Manager](docs/nclm.md) | ✅ | ✅ | ❌ |
-| [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md) | ✅ | ✅ | ✅ |
-| [OpenSSL](docs/openssl.md) | ✅ | ✅ | ❌ |
-| [OpenXPKI](docs/openxpki.md) | ✅ | ✅ | ❌ |
-| [XCA](docs/xca.md) | ✅ | ✅ | ✅ |
-| [acme2dfn](https://github.com/pfisterer/acme2dfn) (ACME proxy for [German research network's PKI](https://www.pki.dfn.de/ueberblick-dfn-pki/)) | ✅ | ❌ | ❌ |
+| Feature Support                                                                                                                                | Enrollment (E) | Revocation (R) | [EAB Profiling (P)](docs/eab_profiling.md) |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------- | -------------- | ------------------------------------------ |
+| [DigiCert® CertCentral](docs/digicert.md)                                                                                                      | ✅             | ✅             | ✅                                         |
+| [Entrust ECS Enterprise](docs/entrust.md)                                                                                                      | ✅             | ✅             | ✅                                         |
+| [EJBCA](docs/ejbca.md)                                                                                                                         | ✅             | ✅             | ✅                                         |
+| [Generic ACME Handler](docs/acme_ca.md) (LetsEncrypt, BuyPass.com, ZeroSSL)                                                                    | ❌             | ❌             | ✅                                         |
+| [Generic CMPv2 Handler](docs/cmp.md)                                                                                                           | ✅             | ❌             | ❌                                         |
+| [Generic EST Handler](docs/est.md)                                                                                                             | ✅             | ❌             | ❌                                         |
+| [Insta ActiveCMS](docs/asa.md)                                                                                                                 | ✅             | ✅             | ✅                                         |
+| [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)                                                                             | ✅             | ❌             | ✅                                         |
+| [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)](docs/mswcce.md)                                                           | ✅             | ❌             | ✅                                         |
+| [NetGuard Certificate Lifecycle Manager](docs/nclm.md)                                                                                         | ✅             | ✅             | ❌                                         |
+| [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md)                                                                              | ✅             | ✅             | ✅                                         |
+| [OpenSSL](docs/openssl.md)                                                                                                                     | ✅             | ✅             | ❌                                         |
+| [OpenXPKI](docs/openxpki.md)                                                                                                                   | ✅             | ✅             | ❌                                         |
+| [XCA](docs/xca.md)                                                                                                                             | ✅             | ✅             | ✅                                         |
+| [acme2dfn](https://github.com/pfisterer/acme2dfn) (ACME proxy for [German research network's PKI](https://www.pki.dfn.de/ueberblick-dfn-pki/)) | ✅             | ❌             | ❌                                         |
 
 For the latest updates and additional documentation, visit the project's homepage:
 [**acme2certifier on GitHub**](https://github.com/grindsa/acme2certifier)
 
----
+______________________________________________________________________
 
 ## 📌 ChangeLog
 
 Release notes and changelogs are available at:
 [**GitHub Releases**](https://github.com/grindsa/acme2certifier/releases)
 
----
+______________________________________________________________________
 
 ## 🛠 ACME Client Compatibility
 
@@ -73,7 +74,7 @@ If you test additional ACME clients, feel free to raise an [issue](https://githu
 
 [List of command-line parameters used for testing](docs/acme-clients.md)
 
----
+______________________________________________________________________
 
 ## 🚀 Features
 
@@ -81,8 +82,9 @@ If you test additional ACME clients, feel free to raise an [issue](https://githu
   - [RFC 8737](https://www.rfc-editor.org/rfc/rfc8737.html) – **TLS ALPN-01 Challenge**
   - [RFC 8738](https://www.rfc-editor.org/rfc/rfc8738.html) – **IP Address Certificates**
   - [Renewal Information (ARI)](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/)
+  - [ACME Profiles Extension](docs/acme_profiling.md)
   - **TNAuthList identifiers** ([TNAuthList Profile](docs/tnauthlist.md))
-  - **tkauth-01 Challenge** ([Authority Token](https://datatracker.ietf.org/doc/html/draft-ietf-acme-authority-token-09))
+  - [RFC 9447 - Automated Certificate Management Environment (ACME) Challenges Using an Authority Token](https://www.rfc-editor.org/rfc/rfc9447)
   - [Certificate Polling](docs/poll.md) and [Callbacks](docs/trigger.md) for CA servers.
 
 Supported challenge types:
@@ -90,9 +92,9 @@ Supported challenge types:
 - [http-01](https://tools.ietf.org/html/rfc8555#section-8.3)
 - [dns-01](https://tools.ietf.org/html/rfc8555#section-8.4)
 - [tls-alpn-01](https://tools.ietf.org/html/rfc8737)
-- [tkauth-01](https://tools.ietf.org/html/draft-ietf-acme-authority-token-05)
+- [tkauth-01](https://www.rfc-editor.org/rfc/rfc9447)
 
----
+______________________________________________________________________
 
 ## 📦 Installation
 
@@ -114,7 +116,7 @@ Installation guides:
 
 ## Software Bill Of Material
 
- [SBOMs](https://www.linuxfoundation.org/blog/blog/what-is-an-sbom) for all containers will be automatically created during build process and stored in [my SBOM repository](https://github.com/grindsa/sbom/tree/main/sbom/acme2certifier)
+[SBOMs](https://www.linuxfoundation.org/blog/blog/what-is-an-sbom) for all containers will be automatically created during build process and stored in [my SBOM repository](https://github.com/grindsa/sbom/tree/main/sbom/acme2certifier)
 
 ## Contributing
 
