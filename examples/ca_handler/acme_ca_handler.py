@@ -5,30 +5,34 @@ from __future__ import print_function
 # pylint: disable= e0401, w0105, w0212
 import json
 import textwrap
-import base64
 import os.path
 from typing import Tuple, Dict
 import requests
 import josepy
-from OpenSSL import crypto
 from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from acme import client, messages
 from acme import errors
 from acme_srv.db_handler import DBstore
 from acme_srv.helper import (
     load_config,
+    allowed_domainlist_check,
+    b64_decode,
+    b64_encode,
     b64_url_recode,
-    parse_url,
+    client_parameter_validate,
+    config_allowed_domainlist_load,
     config_eab_profile_load,
     config_headerinfo_load,
-    config_profile_load,
-    client_parameter_validate,
-    eab_profile_header_info_check,
     config_enroll_config_log_load,
+    config_profile_load,
+    eab_profile_header_info_check,
     enrollment_config_log,
-    config_allowed_domainlist_load,
-    allowed_domainlist_check,
+    parse_url,
+    cert_pem2der,
+    uts_now,
+    uts_to_date_utc,
 )
 
 
@@ -333,14 +337,11 @@ class CAhandler(object):
             if order.fullchain_pem:
                 self.logger.debug("CAhandler.enroll() successful")
                 cert_bundle = str(order.fullchain_pem)
-                cert_raw = str(
-                    base64.b64encode(
-                        crypto.dump_certificate(
-                            crypto.FILETYPE_ASN1,
-                            crypto.load_certificate(crypto.FILETYPE_PEM, cert_bundle),
-                        )
-                    ),
-                    "utf-8",
+                # Split the chain into individual certificates
+                certs = cert_bundle.strip().split("-----END CERTIFICATE-----")
+                # The first certificate is the end-entity certificate
+                cert_raw = b64_encode(
+                    self.logger, cert_pem2der(certs[0] + "-----END CERTIFICATE-----")
                 )
             else:
                 self.logger.error(
@@ -759,7 +760,10 @@ class CAhandler(object):
         return (error, cert_bundle, cert_raw, poll_identifier, rejected)
 
     def revoke(
-        self, _cert: str, _rev_reason: str, _rev_date: str
+        self,
+        _cert: str,
+        _rev_reason: str = "unspecified",
+        _rev_date: str = uts_to_date_utc(uts_now()),
     ) -> Tuple[int, str, str]:
         """revoke certificate"""
         self.logger.debug("CAhandler.revoke()")
@@ -770,11 +774,9 @@ class CAhandler(object):
         detail = None
 
         try:
-            certpem = f"-----BEGIN CERTIFICATE-----\n{textwrap.fill(str(b64_url_recode(self.logger, _cert)), 64)}\n-----END CERTIFICATE-----\n"
-            cert = josepy.ComparableX509(
-                crypto.load_certificate(crypto.FILETYPE_PEM, certpem)
+            cert = x509.load_der_x509_certificate(
+                b64_decode(self.logger, _cert), backend=default_backend()
             )
-
             if os.path.exists(self.acme_keyfile):
                 user_key = self._user_key_load()
             net = client.ClientNetwork(user_key)
