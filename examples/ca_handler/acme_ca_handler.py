@@ -12,15 +12,15 @@ import josepy
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
-from acme import client, messages
-from acme import errors
+from OpenSSL import crypto
+from acme import client, messages, errors
 from acme_srv.db_handler import DBstore
 from acme_srv.helper import (
     load_config,
     allowed_domainlist_check,
-    b64_decode,
     b64_encode,
     b64_url_recode,
+    b64_url_decode,
     client_parameter_validate,
     config_allowed_domainlist_load,
     config_eab_profile_load,
@@ -299,29 +299,41 @@ class CAhandler(object):
         )
         return authz_valid
 
+    def _order_new(
+        self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, csr_pem: str
+    ) -> messages.OrderResource:
+        """create new order"""
+        self.logger.debug("CAhandler._order_new()")
+
+        order = None
+        try:
+            if self.profile:
+                # profile is set
+                self.logger.debug(
+                    "CAhandler._order_new() adding profile: %s", self.profile
+                )
+                order = acmeclient.new_order(csr_pem=csr_pem, profile=self.profile)
+            else:
+                # no profile set
+                self.logger.debug("CAhandler._order_new() no profile set")
+                order = acmeclient.new_order(csr_pem=csr_pem)
+        except Exception as err:
+            self.logger.error(
+                "CAhandler._order_new() failed to create order: %s. Try without profile information.",
+                err,
+            )
+            order = acmeclient.new_order(csr_pem=csr_pem)
+        self.logger.debug("CAhandler._order_new() ended with: %s", bool(order))
+        return order
+
     def _order_issue(
         self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, csr_pem: str
     ) -> Tuple[str, str, str]:
         """isuse order"""
         self.logger.debug("CAhandler._order_issue() csr: " + str(csr_pem))
 
-        try:
-            if self.profile:
-                # profile is set
-                self.logger.debug(
-                    "CAhandler._order_issue() adding profile: %s", self.profile
-                )
-                order = acmeclient.new_order(csr_pem=csr_pem, profile=self.profile)
-            else:
-                # no profile set
-                self.logger.debug("CAhandler._order_issue() no profile set")
-                order = acmeclient.new_order(csr_pem=csr_pem)
-        except Exception as err:
-            self.logger.error(
-                "CAhandler._order_issue() failed to create order: %s. Try without profile information.",
-                err,
-            )
-            order = acmeclient.new_order(csr_pem=csr_pem)
+        # create new order
+        order = self._order_new(acmeclient, user_key, csr_pem)
 
         error = None
         cert_bundle = None
@@ -685,6 +697,28 @@ class CAhandler(object):
         self.logger.debug("CAhandler._registration_lookup() ended with: %s", bool(regr))
         return regr
 
+    def _revoke_or_fallback(self, acmeclient = None, cert: str = None):
+        """revoke certificate or fallback to pre-4.0 method"""
+        self.logger.debug("CAhandler._revoke_or_fallback()")
+
+        try:
+            cert_obj = x509.load_der_x509_certificate(
+                b64_url_decode(self.logger, cert), backend=default_backend()
+            )
+            acmeclient.revoke(cert_obj, 1)
+        except Exception as err:
+            self.logger.error(
+                "CAhandler.revoke(): error: %s. Fallback to pre-4.0 method",
+                err,
+            )
+            cert_obj = josepy.ComparableX509(
+                crypto.load_certificate(
+                    crypto.FILETYPE_ASN1,
+                    b64_url_decode(self.logger, cert_obj),
+                )
+            )
+            acmeclient.revoke(cert, 1)
+
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """enroll certificate"""
         # pylint: disable=R0915
@@ -774,18 +808,17 @@ class CAhandler(object):
         detail = None
 
         try:
-            cert = x509.load_der_x509_certificate(
-                b64_decode(self.logger, _cert), backend=default_backend()
-            )
             if os.path.exists(self.acme_keyfile):
                 user_key = self._user_key_load()
-            net = client.ClientNetwork(user_key)
 
             if user_key:
+                net = client.ClientNetwork(user_key)
+
                 directory = messages.Directory.from_json(
                     net.get(f"{self.acme_url}{self.path_dic['directory_path']}").json()
                 )
                 acmeclient = client.ClientV2(directory, net=net)
+
                 reg = messages.NewRegistration.from_data(
                     key=user_key,
                     email=self.email,
@@ -808,8 +841,9 @@ class CAhandler(object):
 
                     if regr.body.status == "valid":
                         self.logger.debug("CAhandler.revoke() issuing revocation order")
-                        acmeclient.revoke(cert, 1)
-                        self.logger.debug("CAhandler.revoke() successfull")
+                        # revoke certificate
+                        self._revoke_or_fallback(acmeclient, _cert)
+                        self.logger.debug("CAhandler.revoke() successful")
                         code = 200
                         message = None
                     else:
@@ -830,7 +864,7 @@ class CAhandler(object):
                 detail = "Internal Error"
 
         except Exception as err:
-            self.logger.error("CAhandler.enroll: error: %s", err)
+            self.logger.error("CAhandler.revoke: error: %s", err)
             detail = str(err)
 
         finally:
