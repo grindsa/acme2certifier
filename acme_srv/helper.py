@@ -84,6 +84,17 @@ def b64_url_recode(logger: logging.Logger, string: str) -> str:
     return result
 
 
+def b64_url_decode(logger: logging.Logger, string: str) -> str:
+    """decode base64url encoded string"""
+    logger.debug("Helper.b64_url_decode()")
+    # Remove whitespace
+    string = string.strip()
+    # Add padding if missing
+    pad = "=" * (-len(string) % 4)
+    string_padded = string + pad
+    return convert_byte_to_string(base64.urlsafe_b64decode(string_padded))
+
+
 def build_pem_file(logger: logging.Logger, existing, certificate, wrap, csr=False):
     """construct pem_file"""
     logger.debug("Helper.build_pem_file()")

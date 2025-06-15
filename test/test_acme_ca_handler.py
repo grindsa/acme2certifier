@@ -1727,7 +1727,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler.revoke("cert", "reason", "date"),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll: error: ex_user_key_load", lcm.output
+            "ERROR:test_a2c:CAhandler.revoke: error: ex_user_key_load", lcm.output
         )
 
     @patch("requests.post")
@@ -2088,6 +2088,44 @@ class TestACMEHandler(unittest.TestCase):
         path_dic = {"foo": "bar"}
         self.assertEqual(
             "/foo/foo", self.cahandler._accountname_get(url, acme_url, path_dic)
+        )
+
+    def test_102_order_new(self):
+        """test order_new"""
+        acmeclient = Mock()
+        acmeclient.new_order = Mock(return_value="new_order")
+        csr = "csr"
+        self.assertEqual(
+            "new_order", self.cahandler._order_new(acmeclient, "user_key", "csr")
+        )
+        self.assertTrue(acmeclient.new_order.called)
+        acmeclient.new_order.assert_called_with(csr_pem="csr")
+
+    def test_103_order_new(self):
+        """test order_new"""
+        acmeclient = Mock()
+        acmeclient.new_order = Mock(return_value="new_order")
+        csr = "csr"
+        self.cahandler.profile = "profile"
+        self.assertEqual(
+            "new_order", self.cahandler._order_new(acmeclient, "user_key", "csr")
+        )
+        self.assertTrue(acmeclient.new_order.called)
+        acmeclient.new_order.assert_called_with(csr_pem="csr", profile="profile")
+
+    def test_102_order_new(self):
+        """test order_new"""
+        acmeclient = Mock()
+        acmeclient.new_order.side_effect = [Exception("mock_new"), "new_order"]
+        csr = "csr"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                "new_order",
+                self.cahandler._order_new(acmeclient, "user_key", "csr_pem"),
+            )
+        self.assertIn(
+            "ERROR:test_a2c:CAhandler._order_new() failed to create order: mock_new. Try without profile information.",
+            lcm.output,
         )
 
 

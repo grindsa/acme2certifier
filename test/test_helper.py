@@ -40,6 +40,7 @@ class TestACMEHandler(unittest.TestCase):
             b64_encode,
             b64_url_encode,
             b64_url_recode,
+            b64_url_decode,
             convert_string_to_byte,
             convert_byte_to_string,
             decode_message,
@@ -252,6 +253,7 @@ class TestACMEHandler(unittest.TestCase):
         self.radomize_parameter_list = radomize_parameter_list
         self.config_profile_load = config_profile_load
         self.profile_lookup = profile_lookup
+        self.b64_url_decode = b64_url_decode
 
     def test_001_helper_b64decode_pad(self):
         """test b64decode_pad() method with a regular base64 encoded string"""
@@ -4528,6 +4530,31 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         self.assertIn(
             "ERROR:test_a2c:Helper.profile_lookup() failed with: mock_search",
             lcm.output,
+        )
+
+    def test_422_b64_url_decode(self):
+        """test b64_url_decode()"""
+        self.assertEqual("foo", self.b64_url_decode(self.logger, "Zm9v"))
+
+    def test_423_b64_url_decode(self):
+        """test b64_url_decode()"""
+        self.assertEqual(
+            "thisisateststring",
+            self.b64_url_decode(self.logger, "dGhpc2lzYXRlc3RzdHJpbmc"),
+        )
+
+    def test_424_b64_url_decode(self):
+        """test b64_url_decode()"""
+        self.assertEqual(
+            "thisisateststring",
+            self.b64_url_decode(self.logger, "dGhpc2lzYXRlc3RzdHJpbmc="),
+        )
+
+    def test_425_b64_url_decode(self):
+        """test b64_url_decode()"""
+        self.assertEqual(
+            "thisisateststring",
+            self.b64_url_decode(self.logger, "dGhpc2lzYXRlc3RzdHJpbmc    "),
         )
 
 
