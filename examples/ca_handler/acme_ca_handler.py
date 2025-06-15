@@ -714,10 +714,10 @@ class CAhandler(object):
             cert_obj = josepy.ComparableX509(
                 crypto.load_certificate(
                     crypto.FILETYPE_ASN1,
-                    b64_url_decode(self.logger, cert_obj),
+                    b64_url_decode(self.logger, cert),
                 )
             )
-            acmeclient.revoke(cert, 1)
+            acmeclient.revoke(cert_obj, 1)
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """enroll certificate"""
