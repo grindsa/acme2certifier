@@ -4,11 +4,10 @@
 # pylint: disable=C0415, R0904, R0913, W0212
 import sys
 import os
+import josepy
 import unittest
 from unittest.mock import patch, mock_open, Mock, MagicMock
 import configparser
-
-# from OpenSSL import crypto
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
@@ -1651,7 +1650,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.revoke("cert", "reason", "date"),
         )
         self.assertTrue(mock_key.called)
-        self.assertTrue(mock_load.called)
+        self.assertFalse(mock_load.called)
         self.assertTrue(mock_nw.called)
         self.assertFalse(mock_revoke.called)
 
@@ -1681,7 +1680,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_lookup.called)
         self.assertTrue(mock_key.called)
-        self.assertTrue(mock_load.called)
+        self.assertFalse(mock_load.called)
         self.assertTrue(mock_nw.called)
 
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_lookup")
@@ -1716,10 +1715,12 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("builtins.open", mock_open(read_data="mock_open"), create=True)
-    @patch("cryptography.x509.load_der_x509_certificate")
-    def test_074_revoke(self, mock_load):
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("os.path.exists")
+    def test_074_revoke(self, mock_exists, mock_load):
         """test revoke exception during processing"""
         self.cahandler.acme_keyfile = "keyfile"
+        mock_exists.return_value = True
         mock_load.side_effect = Exception("ex_user_key_load")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
@@ -2113,7 +2114,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(acmeclient.new_order.called)
         acmeclient.new_order.assert_called_with(csr_pem="csr", profile="profile")
 
-    def test_102_order_new(self):
+    def test_104_order_new(self):
         """test order_new"""
         acmeclient = Mock()
         acmeclient.new_order.side_effect = [Exception("mock_new"), "new_order"]
@@ -2127,6 +2128,34 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:CAhandler._order_new() failed to create order: mock_new. Try without profile information.",
             lcm.output,
         )
+
+    @patch("examples.ca_handler.acme_ca_handler.b64_url_decode")
+    @patch("OpenSSL.crypto.load_certificate")
+    @patch("cryptography.x509.load_der_x509_certificate")
+    def test_105_revoke_or_fallback(self, mock_cry_load, mock_ossl_load, mock_b64):
+        """test _revoke_or_fallback without fallback to OpenSSL crypto load"""
+        acmeclient = Mock()
+        self.assertFalse(self.cahandler._revoke_or_fallback(acmeclient, "cert"))
+        self.assertTrue(mock_b64.called)
+        self.assertTrue(mock_cry_load.called)
+        self.assertFalse(mock_ossl_load.called)
+
+    @patch.object(josepy, "ComparableX509", create=True)
+    @patch("examples.ca_handler.acme_ca_handler.b64_url_decode")
+    @patch("OpenSSL.crypto.load_certificate")
+    @patch("cryptography.x509.load_der_x509_certificate")
+    def test_106_revoke_or_fallback(
+        self, mock_cry_load, mock_ossl_load, mock_b64, mock_comparable
+    ):
+        """test _revoke_or_fallback with fallbnack to OpenSSL crypto load"""
+        mock_comparable.return_value = "comparable_cert"
+        acmeclient = Mock()
+        acmeclient.revoke = Mock(side_effect=[Exception("mock_revoke"), "foo"])
+        self.assertFalse(self.cahandler._revoke_or_fallback(acmeclient, "cert"))
+        self.assertTrue(mock_b64.called)
+        self.assertTrue(mock_cry_load.called)
+        self.assertTrue(mock_ossl_load.called)
+        self.assertTrue(mock_comparable.called)
 
 
 if __name__ == "__main__":

@@ -697,7 +697,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._registration_lookup() ended with: %s", bool(regr))
         return regr
 
-    def _revoke_or_fallback(self, acmeclient = None, cert: str = None):
+    def _revoke_or_fallback(self, acmeclient=None, cert: str = None):
         """revoke certificate or fallback to pre-4.0 method"""
         self.logger.debug("CAhandler._revoke_or_fallback()")
 
