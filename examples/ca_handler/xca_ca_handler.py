@@ -46,7 +46,9 @@ from acme_srv.helper import (
 )
 
 
+# Define constants
 DEFAULT_DATE_FORMAT = "%Y%m%d%H%M%SZ"
+COLUMN_NOT_IN_TABLE_MSG = "column: %s not in %s table"
 
 
 def dict_from_row(row):
@@ -273,6 +275,10 @@ class CAhandler(object):
         """load ca key from database"""
         self.logger.debug("CAhandler._cert_search({%s:%s)", column, value)
 
+        if not self._identifier_check("items", column):
+            self.logger.warning(COLUMN_NOT_IN_TABLE_MSG, column, "items")
+            return {}
+
         # query database for key
         self._db_open()
         pre_statement = f"""SELECT * from items WHERE type == 3 and {column} LIKE ?"""
@@ -418,6 +424,21 @@ class CAhandler(object):
 
         self.logger.debug("Certificate._cert_sign() ended.")
         return (cert_bundle, cert_raw)
+
+    def _columnnames_get(self, table: str) -> List[str]:
+        """get columns of a table"""
+        self.logger.debug("CAhandler.columns_get(%s)", table)
+
+        self._db_open()
+        pre_statement = f"SELECT * from {table}"
+        self.cursor.execute(pre_statement)
+        result = [column[0] for column in self.cursor.description]
+        self._db_close()
+
+        self.logger.debug(
+            "CAhandler.columns_get() ended with: %s elements", len(result)
+        )
+        return result
 
     def _config_check(self) -> str:
         """check config for consitency"""
@@ -579,6 +600,10 @@ class CAhandler(object):
     def _csr_search(self, column: str, value: str) -> Dict[str, str]:
         """load ca key from database"""
         self.logger.debug("CAhandler._csr_search()")
+
+        if not self._identifier_check("view_requests", column):
+            self.logger.warning(COLUMN_NOT_IN_TABLE_MSG, column, "view_requests")
+            return {}
 
         # query database for key
         self._db_open()
@@ -775,6 +800,37 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._extension_list_generate() ended")
         return extension_list
+
+    def _identifier_check(self, table: str, identifier: str) -> bool:
+        """check if identifier is in table"""
+        self.logger.debug("CAhandler._identifier_check(%s, %s)", identifier, table)
+        if "." in identifier:
+            # we have a table.column name
+            table, identifier = identifier.split(".", 1)
+            self.logger.debug(
+                "CAhandler._identifier_check(): modified table/identifier to %s/%s",
+                table,
+                identifier,
+            )
+        elif "__" in identifier:
+            # we have a table__column name
+            table, identifier = identifier.split("__", 1)
+            self.logger.debug(
+                "CAhandler._identifier_check(): modified table/identifier to %s/%s",
+                table,
+                identifier,
+            )
+        if self._table_check(table):
+            columnname_list = self._columnnames_get(table)
+            result = True if identifier in columnname_list else False
+        else:
+            self.logger.warning(
+                "CAhandler._identifier_check(): table %s does not exist", table
+            )
+            result = False
+
+        self.logger.debug("CAhandler._identifier_check() ended with: %s", result)
+        return result
 
     def _item_insert(self, item_dic: Dict[str, str] = None) -> int:
         """insert new entry to item_table"""
@@ -1018,6 +1074,10 @@ class CAhandler(object):
     def _revocation_search(self, column: str, value: str) -> Dict[str, str]:
         """load ca key from database"""
         self.logger.debug("CAhandler._revocation_search()")
+
+        if not self._identifier_check("revocations", column):
+            self.logger.warning(COLUMN_NOT_IN_TABLE_MSG, column, "revocations")
+            return {}
         # query database for key
         self._db_open()
         pre_statement = f"""SELECT * from revocations WHERE {column} LIKE ?"""
@@ -1151,6 +1211,20 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._subject_modify() ended")
         return subject
+
+    def _table_check(self, table: str) -> bool:
+        """get all tables in db"""
+        self.logger.debug("DBStore.tables_get()")
+        self._db_open()
+        pre_statement = (
+            "SELECT name FROM sqlite_master WHERE type='table' or type == 'view'"
+        )
+        self.cursor.execute(pre_statement)
+        tables_list = [row[0] for row in self.cursor.fetchall()]
+        self._db_close()
+        result = True if table in tables_list else False
+        self.logger.debug("DBStore._table_check() ended with: %s", result)
+        return result
 
     def _template_load(self) -> Tuple[Dict[str, str], Dict[str, str]]:
         """load template from database"""
