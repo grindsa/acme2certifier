@@ -2225,6 +2225,41 @@ class TestACMEHandler(unittest.TestCase):
         self.dbstore.certificate_delete("name", "certname1")
         self.assertFalse(self.dbstore.certificate_lookup("name", "certname1"))
 
+    def test_105_certificate_delete(self):
+        """test DBstore.certificate_delete() method (succesful)"""
+        data_dic = {
+            "alg": "alg1",
+            "jwk": '{"key11": "val11", "key12": "val12"}',
+            "contact": "contact1",
+            "name": "name1",
+        }
+        self.dbstore.account_add(data_dic)
+        data_dic = {
+            "name": "name",
+            "identifiers": "identifiers",
+            "account": "name1",
+            "status": 1,
+            "expires": "25",
+        }
+        self.dbstore.order_add(data_dic)
+        data_dic = {"name": "certname1", "csr": "csr1", "order": "name"}
+        self.dbstore.certificate_add(data_dic)
+        result = {
+            "name": "certname1",
+            "csr": "csr1",
+            "order": "name",
+            "order__name": "name",
+            "cert": None,
+        }
+        self.assertEqual(result, self.dbstore.certificate_lookup("name", "certname1"))
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.dbstore.certificate_delete("nam_e", "certname1")
+        self.assertIn(
+            "WARNING:test_a2c:column: nam_e not in certificate table",
+            lcm.output,
+        )
+        self.assertTrue(self.dbstore.certificate_lookup("name", "certname1"))
+
     def test_105_certificatelist_get(self):
         """test DBstore.certificatelist_get()"""
         data_dic = {
@@ -3196,6 +3231,39 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertIn(
             "WARNING:test_a2c:column: invalid_field not in status table", lcm.output
+        )
+
+    def test_153_table_check(self):
+        """test DBstore.table_check() method"""
+        self.assertTrue(self.dbstore._table_check("account"))
+        self.assertFalse(self.dbstore._table_check("accounts"))
+
+    def test_154_identifier_check(self):
+        """test DBstore._identifier_check() method"""
+        self.assertTrue(self.dbstore._identifier_check("account", "contact"))
+        self.assertFalse(self.dbstore._identifier_check("account", "unkown"))
+        self.assertTrue(self.dbstore._identifier_check("order", "name"))
+        self.assertFalse(self.dbstore._identifier_check("order", "name1"))
+        self.assertTrue(self.dbstore._identifier_check("account", "order.profile"))
+        self.assertFalse(self.dbstore._identifier_check("account", "order.profile1"))
+        self.assertTrue(self.dbstore._identifier_check("account", "order__profile"))
+        self.assertFalse(self.dbstore._identifier_check("account", "order__profile1"))
+
+    @patch("examples.db_handler.wsgi_handler.DBstore._table_check")
+    def test_155_identifier_check(self, mock_tg):
+        """test DBstore._identifier_check() method"""
+        mock_tg.return_value = True
+        self.assertTrue(self.dbstore._identifier_check("account", "contact"))
+
+    @patch("examples.db_handler.wsgi_handler.DBstore._table_check")
+    def test_156_identifier_check(self, mock_tg):
+        """test DBstore._identifier_check() method"""
+        mock_tg.return_value = False
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.dbstore._identifier_check("account", "contact"))
+        self.assertIn(
+            "WARNING:test_a2c:DBStore._identifier_check(): table account does not exist",
+            lcm.output,
         )
 
 

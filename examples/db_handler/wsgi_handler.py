@@ -62,6 +62,18 @@ class DBstore(object):
         self.logger.debug("DBStore.columns_get() ended with: %s elements", len(result))
         return result
 
+    def _table_check(self, table: str) -> bool:
+        """get all tables in db"""
+        self.logger.debug("DBStore.tables_get()")
+        self._db_open()
+        pre_statement = "SELECT name FROM sqlite_master WHERE type='table'"
+        self.cursor.execute(pre_statement)
+        tables_list = [row[0] for row in self.cursor.fetchall()]
+        self._db_close()
+        result = True if table in tables_list else False
+        self.logger.debug("DBStore._table_check() ended with: %s", result)
+        return result
+
     def _identifier_check(self, table: str, identifier: str) -> bool:
         """check if identifier is in table"""
         self.logger.debug("DBStore._identifier_check(%s, %s)", identifier, table)
@@ -86,8 +98,15 @@ class DBstore(object):
             self.logger.debug(
                 "DBStore._identifier_check(): modified table to %s", table
             )
-        columnname_list = self._columnnames_get(table)
-        result = True if identifier in columnname_list else False
+        if self._table_check(table):
+            columnname_list = self._columnnames_get(table)
+            result = True if identifier in columnname_list else False
+        else:
+            self.logger.warning(
+                "DBStore._identifier_check(): table %s does not exist", table
+            )
+            result = False
+
         self.logger.debug("DBStore._identifier_check() ended with: %s", result)
         return result
 
@@ -1193,6 +1212,7 @@ class DBstore(object):
     def cliaccount_delete(self, data_dic: Dict[str, str]):
         """add cli user"""
         self.logger.debug("DBStore.cliaccount_delete(%s)", data_dic["name"])
+
         exists = self._cliaccount_search("name", data_dic["name"])
         if exists:
             self._db_open()
@@ -1265,6 +1285,10 @@ class DBstore(object):
     def certificate_delete(self, mkey: str, string: str) -> Tuple[List[str], List[str]]:
         """delete certificate from table"""
         self.logger.debug("DBStore.certificate_delete(%s:%s)", mkey, string)
+
+        if not self._identifier_check("certificate", mkey):
+            self.logger.warning(COLUMN_NOT_IN_TABLE_MSG, mkey, "certificate")
+            return []
         self._db_open()
         pre_statement = f"""DELETE from certificate WHERE {mkey} = ?"""
         self.cursor.execute(pre_statement, [string])
