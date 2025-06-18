@@ -24,6 +24,8 @@ from acme_srv.helper import (
     enrollment_config_log,
     config_allowed_domainlist_load,
     allowed_domainlist_check,
+    csr_cn_get,
+    csr_san_get,
 )
 
 
@@ -41,6 +43,7 @@ class CAhandler(object):
         self.ca_name = None
         self.session = None
         self.username = None
+        self.username_append_cn = False
         self.enrollment_code = None
         self.cert_passphrase = None
         self.header_info_field = False
@@ -137,6 +140,17 @@ class CAhandler(object):
             self.logger.error(
                 'CAhandler._config_authuser_load() configuration incomplete: "username" parameter is missing in config file'
             )
+
+        # check if we need to add the common name of a certificate to the username
+        try:
+            self.username_append_cn = config_dic.getboolean(
+                "CAhandler", "username_append_cn", fallback=False
+            )
+        except Exception as err:
+            self.logger.error(
+                "CAhandler._config_authuser_load() could not load username_append_cn parameter, using default value: False"
+            )
+            self.username_append_cn = False
 
         self.logger.debug("CAhandler._config_auth_load() ended")
 
@@ -333,11 +347,6 @@ class CAhandler(object):
         error = None
         cert_raw = None
 
-        # prepare the CSR to be signed
-        csr = build_pem_file(
-            self.logger, None, b64_url_recode(self.logger, csr), None, True
-        )
-
         if self.enrollment_config_log:
             enrollment_config_log(
                 self.logger, self, self.enrollment_config_log_skip_list
@@ -387,15 +396,51 @@ class CAhandler(object):
         self.logger.debug("CAhandler._status_get() ended")
         return api_response
 
+    def _csr_cn_get(self, csr: str) -> str:
+        """get CN from csr"""
+        self.logger.debug("CAhandler._csr_cn_get()")
+
+        cn = csr_cn_get(self.logger, csr)
+
+        if not cn:
+            self.logger.info("CAhandler._csr_cn_get(): CN not found in CSR")
+            san_list = csr_san_get(self.logger, csr)
+            if san_list:
+                (_type, san_value) = san_list[0].split(":")
+                cn = san_value
+                self.logger.info(
+                    "CAhandler._csr_cn_get(): CN not found in CSR. Using first SAN entry as CN: %s",
+                    san_value,
+                )
+            else:
+                self.logger.error(
+                    "CAhandler._csr_cn_get(): CN not found in CSR. No SAN entries found"
+                )
+
+        self.logger.debug("CAhandler._csr_cn_get() ended with: %s", cn)
+        return cn
+
     def _sign(self, csr: str) -> Dict[str, str]:
         """submit CSR for signing"""
         self.logger.debug("CAhandler._sign()")
+
+        if self.username_append_cn:
+            username = f"{self.username}-{self._csr_cn_get(csr)}"
+        else:
+            username = self.username
+        self.logger.debug("CAhandler._sign() username: %s", username)
+
+        # prepare the CSR to be signed
+        csr = build_pem_file(
+            self.logger, None, b64_url_recode(self.logger, csr), None, True
+        )
+
         data_dic = {
             "certificate_request": csr,
             "certificate_profile_name": self.cert_profile_name,
             "end_entity_profile_name": self.ee_profile_name,
             "certificate_authority_name": self.ca_name,
-            "username": self.username,
+            "username": username,
             "password": self.enrollment_code,
             "include_chain": True,
         }
