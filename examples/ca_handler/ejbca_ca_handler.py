@@ -7,25 +7,25 @@ from requests_pkcs12 import Pkcs12Adapter
 
 # pylint: disable=e0401
 from acme_srv.helper import (
-    load_config,
+    allowed_domainlist_check,
     build_pem_file,
+    b64_decode,
     b64_url_recode,
     cert_der2pem,
-    b64_decode,
-    convert_byte_to_string,
-    cert_serial_get,
     cert_issuer_get,
-    encode_url,
+    cert_serial_get,
+    config_allowed_domainlist_load,
     config_eab_profile_load,
+    config_enroll_config_log_load,
     config_headerinfo_load,
     config_profile_load,
-    eab_profile_header_info_check,
-    config_enroll_config_log_load,
-    enrollment_config_log,
-    config_allowed_domainlist_load,
-    allowed_domainlist_check,
+    convert_byte_to_string,
     csr_cn_get,
     csr_san_get,
+    eab_profile_header_info_check,
+    encode_url,
+    enrollment_config_log,
+    load_config,
 )
 
 
@@ -33,26 +33,26 @@ class CAhandler(object):
     """ejbca rest handler class"""
 
     def __init__(self, _debug: bool = False, logger: object = None):
-        self.logger = logger
+        self.allowed_domainlist = []
         self.api_host = None
         self.ca_bundle = True
+        self.ca_name = None
+        self.cert_passphrase = None
+        self.cert_profile_name = None
+        self.eab_handler = None
+        self.eab_profiling = False
+        self.ee_profile_name = None
+        self.enrollment_code = None
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
+        self.header_info_field = False
+        self.logger = logger
+        self.profiles = {}
         self.proxy = None
         self.request_timeout = 5
-        self.cert_profile_name = None
-        self.ee_profile_name = None
-        self.ca_name = None
         self.session = None
         self.username = None
         self.username_append_cn = False
-        self.enrollment_code = None
-        self.cert_passphrase = None
-        self.header_info_field = False
-        self.eab_handler = None
-        self.eab_profiling = False
-        self.enrollment_config_log = False
-        self.enrollment_config_log_skip_list = []
-        self.allowed_domainlist = []
-        self.profiles = {}
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -62,6 +62,23 @@ class CAhandler(object):
 
     def __exit__(self, *args):
         """cose the connection at the end of the context"""
+
+    def _api_put(self, url: str) -> Dict[str, str]:
+        """generic wrapper for an API put call"""
+        self.logger.debug("_api_put(%s)", url)
+
+        try:
+            api_response = self.session.put(
+                url,
+                proxies=self.proxy,
+                verify=self.ca_bundle,
+                timeout=self.request_timeout,
+            ).json()
+        except Exception as err_:
+            self.logger.error("CAhandler._api_put() returned error: %s", err_)
+            api_response = str(err_)
+
+        return api_response
 
     def _cert_status_check(self, issuer_dn: str, cert_serial: str) -> Dict[str, str]:
         """check certificate status"""
@@ -146,7 +163,7 @@ class CAhandler(object):
             self.username_append_cn = config_dic.getboolean(
                 "CAhandler", "username_append_cn", fallback=False
             )
-        except Exception as err:
+        except Exception:
             self.logger.error(
                 "CAhandler._config_authuser_load() could not load username_append_cn parameter, using default value: False"
             )
@@ -323,22 +340,29 @@ class CAhandler(object):
 
         return api_response
 
-    def _api_put(self, url: str) -> Dict[str, str]:
-        """generic wrapper for an API put call"""
-        self.logger.debug("_api_put(%s)", url)
+    def _csr_cn_get(self, csr: str) -> str:
+        """get CN from csr"""
+        self.logger.debug("CAhandler._csr_cn_get()")
 
-        try:
-            api_response = self.session.put(
-                url,
-                proxies=self.proxy,
-                verify=self.ca_bundle,
-                timeout=self.request_timeout,
-            ).json()
-        except Exception as err_:
-            self.logger.error("CAhandler._api_put() returned error: %s", err_)
-            api_response = str(err_)
+        cn = csr_cn_get(self.logger, csr)
 
-        return api_response
+        if not cn:
+            self.logger.info("CAhandler._csr_cn_get(): CN not found in CSR")
+            san_list = csr_san_get(self.logger, csr)
+            if san_list:
+                (_type, san_value) = san_list[0].split(":")
+                cn = san_value
+                self.logger.info(
+                    "CAhandler._csr_cn_get(): CN not found in CSR. Using first SAN entry as CN: %s",
+                    san_value,
+                )
+            else:
+                self.logger.error(
+                    "CAhandler._csr_cn_get(): CN not found in CSR. No SAN entries found"
+                )
+
+        self.logger.debug("CAhandler._csr_cn_get() ended with: %s", cn)
+        return cn
 
     def _enroll(self, csr: str) -> Tuple[str, str, str]:
         """enroll certificate"""
@@ -395,30 +419,6 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._status_get() ended")
         return api_response
-
-    def _csr_cn_get(self, csr: str) -> str:
-        """get CN from csr"""
-        self.logger.debug("CAhandler._csr_cn_get()")
-
-        cn = csr_cn_get(self.logger, csr)
-
-        if not cn:
-            self.logger.info("CAhandler._csr_cn_get(): CN not found in CSR")
-            san_list = csr_san_get(self.logger, csr)
-            if san_list:
-                (_type, san_value) = san_list[0].split(":")
-                cn = san_value
-                self.logger.info(
-                    "CAhandler._csr_cn_get(): CN not found in CSR. Using first SAN entry as CN: %s",
-                    san_value,
-                )
-            else:
-                self.logger.error(
-                    "CAhandler._csr_cn_get(): CN not found in CSR. No SAN entries found"
-                )
-
-        self.logger.debug("CAhandler._csr_cn_get() ended with: %s", cn)
-        return cn
 
     def _sign(self, csr: str) -> Dict[str, str]:
         """submit CSR for signing"""
