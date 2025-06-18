@@ -123,6 +123,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.username)
         self.assertFalse(self.cahandler.enrollment_code)
         self.assertFalse(self.cahandler.session)
+        self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
             'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
             lcm.output,
@@ -137,6 +138,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("username", self.cahandler.username)
         self.assertFalse(self.cahandler.enrollment_code)
         self.assertFalse(self.cahandler.session)
+        self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
             'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
             lcm.output,
@@ -151,6 +153,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("enrollment_code", self.cahandler.enrollment_code)
         self.assertFalse(self.cahandler.username)
         self.assertFalse(self.cahandler.session)
+        self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
             'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
             lcm.output,
@@ -159,18 +162,51 @@ class TestACMEHandler(unittest.TestCase):
     def test_014__config_auth_load(self):
         """test _config_server_load()"""
         parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"username_append_cn": True}
+        self.cahandler._config_auth_load(parser)
+        self.assertFalse(self.cahandler.username)
+        self.assertFalse(self.cahandler.session)
+        self.assertTrue(self.cahandler.username_append_cn)
+
+    def test_015__config_auth_load(self):
+        """test _config_server_load()"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"username_append_cn": False}
+        self.cahandler._config_auth_load(parser)
+        self.assertFalse(self.cahandler.username)
+        self.assertFalse(self.cahandler.session)
+        self.assertFalse(self.cahandler.username_append_cn)
+
+    def test_016__config_auth_load(self):
+        """test _config_server_load()"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"username_append_cn": "aa"}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_auth_load(parser)
+        self.assertFalse(self.cahandler.username)
+        self.assertFalse(self.cahandler.session)
+        self.assertFalse(self.cahandler.username_append_cn)
+        self.assertIn(
+            "ERROR:test_a2c:CAhandler._config_authuser_load() could not load username_append_cn parameter, using default value: False",
+            lcm.output,
+        )
+
+    def test_017__config_auth_load(self):
+        """test _config_server_load()"""
+        parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_passphrase": "cert_passphrase"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_auth_load(parser)
         self.assertFalse(self.cahandler.username)
         self.assertFalse(self.cahandler.enrollment_code)
         self.assertFalse(self.cahandler.session)
+        self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
             'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
             lcm.output,
         )
 
-    def test_015__config_auth_load(self):
+    def test_018__config_auth_load(self):
         """test _config_server_load()"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_file": "cert_file"}
@@ -179,13 +215,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.username)
         self.assertFalse(self.cahandler.enrollment_code)
         self.assertFalse(self.cahandler.session)
+        self.assertFalse(self.cahandler.username_append_cn)
         self.assertIn(
             'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.',
             lcm.output,
         )
 
     @patch("examples.ca_handler.ejbca_ca_handler.requests.Session")
-    def test_016__config_auth_load(self, mock_sess):
+    def test_019__config_auth_load(self, mock_sess):
         """test _config_server_load()"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -196,11 +233,12 @@ class TestACMEHandler(unittest.TestCase):
         mock_sess.return_value.__enter__ = Mock()
         mock_sess.return_value.__exit__ = Mock()
         self.cahandler._config_auth_load(parser)
+        self.assertFalse(self.cahandler.username_append_cn)
         self.assertFalse(self.cahandler.username)
         self.assertFalse(self.cahandler.enrollment_code)
         self.assertTrue(self.cahandler.session)
 
-    def test_017__config_cainfo_load(self):
+    def test_020__config_cainfo_load(self):
         """test _config_server_load()"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"foo": "bar"}
@@ -209,7 +247,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.cert_profile_name)
         self.assertFalse(self.cahandler.ee_profile_name)
 
-    def test_018__config_cainfo_load(self):
+    def test_021__config_cainfo_load(self):
         """test _config_server_load()"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"ca_name": "ca_name"}
@@ -218,7 +256,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.cert_profile_name)
         self.assertFalse(self.cahandler.ee_profile_name)
 
-    def test_019__config_cainfo_load(self):
+    def test_022__config_cainfo_load(self):
         """test _config_server_load()"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_profile_name": "cert_profile_name"}
@@ -227,7 +265,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("cert_profile_name", self.cahandler.cert_profile_name)
         self.assertFalse(self.cahandler.ee_profile_name)
 
-    def test_020__config_cainfo_load(self):
+    def test_023__config_cainfo_load(self):
         """test _config_server_load()"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"ee_profile_name": "ee_profile_name"}
@@ -240,7 +278,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
     @patch("examples.ca_handler.ejbca_ca_handler.load_config")
-    def test_021_config_load(
+    def test_024_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
         """load config"""
@@ -281,7 +319,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
     @patch("examples.ca_handler.ejbca_ca_handler.load_config")
-    def test_022_config_load(
+    def test_025_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
         """load config"""
@@ -319,7 +357,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
     @patch("examples.ca_handler.ejbca_ca_handler.load_config")
-    def test_023_config_load(
+    def test_026_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
         """load config"""
@@ -357,7 +395,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
     @patch("examples.ca_handler.ejbca_ca_handler.load_config")
-    def test_024_config_load(
+    def test_027_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
         """load config"""
@@ -395,7 +433,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
     @patch("examples.ca_handler.ejbca_ca_handler.load_config")
-    def test_025_config_load(
+    def test_028_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
         """load config"""
@@ -433,7 +471,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
     @patch("examples.ca_handler.ejbca_ca_handler.load_config")
-    def test_026_config_load(
+    def test_029_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
         """load config"""
@@ -471,7 +509,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_auth_load")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_cainfo_load")
     @patch("examples.ca_handler.ejbca_ca_handler.load_config")
-    def test_027_config_load(
+    def test_030_config_load(
         self, mock_load_cfg, mock_cainfo, mock_auth_load, mock_server_load
     ):
         """load config"""
@@ -506,7 +544,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"username_var": "user_var"})
-    def test_028_config_authuser_load(self):
+    def test_031_config_authuser_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"username_variable": "username_var"}
@@ -514,7 +552,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("user_var", self.cahandler.username)
 
     @patch.dict("os.environ", {"username_var": "user_var"})
-    def test_029_config_authuser_load(self):
+    def test_032_config_authuser_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"username_variable": "does_not_exist"}
@@ -527,7 +565,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"username_var": "user_var"})
-    def test_030_config_authuser_load(self):
+    def test_033_config_authuser_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -538,7 +576,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("username", self.cahandler.username)
 
     @patch.dict("os.environ", {"foo": "bar"})
-    def test_031_config_authuser_load(self):
+    def test_034_config_authuser_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"foo": "bar", "foo1": "bar1"}
@@ -548,7 +586,7 @@ class TestACMEHandler(unittest.TestCase):
         # self.assertIn("foo", lcm.output)
 
     @patch.dict("os.environ", {"enrollment_code_var": "user_var"})
-    def test_032_config_enrollmentcode_load(self):
+    def test_035_config_enrollmentcode_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"enrollment_code_variable": "enrollment_code_var"}
@@ -556,7 +594,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("user_var", self.cahandler.enrollment_code)
 
     @patch.dict("os.environ", {"enrollment_code_var": "user_var"})
-    def test_033_config_enrollmentcode_load(self):
+    def test_036_config_enrollmentcode_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"enrollment_code_variable": "does_not_exist"}
@@ -569,7 +607,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"enrollment_code_var": "user_var"})
-    def test_034_config_enrollmentcode_load(self):
+    def test_037_config_enrollmentcode_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -580,7 +618,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("enrollment_code", self.cahandler.enrollment_code)
 
     @patch.dict("os.environ", {"foo": "bar"})
-    def test_035_config_enrollmentcode_load(self):
+    def test_038_config_enrollmentcode_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"foo": "bar", "foo1": "bar1"}
@@ -590,7 +628,7 @@ class TestACMEHandler(unittest.TestCase):
         # self.assertIn("foo", lcm.output)
 
     @patch.dict("os.environ", {"cert_passphrase_var": "user_var"})
-    def test_036_config_session_load(self):
+    def test_039_config_session_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_passphrase_variable": "cert_passphrase_var"}
@@ -598,7 +636,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("user_var", self.cahandler.cert_passphrase)
 
     @patch.dict("os.environ", {"cert_passphrase_var": "user_var"})
-    def test_037_config_session_load(self):
+    def test_040_config_session_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_passphrase_variable": "does_not_exist"}
@@ -611,7 +649,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch.dict("os.environ", {"cert_passphrase_var": "user_var"})
-    def test_038_config_session_load(self):
+    def test_041_config_session_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -627,7 +665,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("cert_passphrase", self.cahandler.cert_passphrase)
 
     @patch.dict("os.environ", {"foo": "bar"})
-    def test_039_config_session_load(self):
+    def test_042_config_session_load(self):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"foo": "bar", "foo1": "bar1"}
@@ -636,7 +674,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("requests.Session")
     @patch("examples.ca_handler.ejbca_ca_handler.Pkcs12Adapter")
-    def test_040_config_session_load(self, mock_pkcs12, mock_session):
+    def test_043_config_session_load(self, mock_pkcs12, mock_session):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {
@@ -651,7 +689,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("requests.Session")
     @patch("examples.ca_handler.ejbca_ca_handler.Pkcs12Adapter")
-    def test_041_config_session_load(self, mock_pkcs12, mock_session):
+    def test_044_config_session_load(self, mock_pkcs12, mock_session):
         """test _config_load - load template with user variable"""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"cert_passphrase": "cert_passphrase"}
@@ -666,7 +704,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_pkcs12.called)
         self.assertFalse(mock_session.called)
 
-    def test_042__api_post(self):
+    def test_045__api_post(self):
         """test _api_post successful run"""
         mockresponse2 = Mock()
         mockresponse2.json = lambda: {"foo": "bar"}
@@ -675,7 +713,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.session = mockresponse
         self.assertEqual({"foo": "bar"}, self.cahandler._api_post("url", "data"))
 
-    def test_043__api_post(self):
+    def test_046__api_post(self):
         """CAhandler._api_post() returns an http error"""
         mockresponse = Mock()
         mockresponse.post.side_effect = [Exception("exc_api_post")]
@@ -687,7 +725,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_044__api_put(self):
+    def test_047__api_put(self):
         """test _api_put successful run"""
         mockresponse2 = Mock()
         mockresponse2.json = lambda: {"foo": "bar"}
@@ -696,7 +734,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.session = mockresponse
         self.assertEqual({"foo": "bar"}, self.cahandler._api_put("url"))
 
-    def test_045__api_put(self):
+    def test_048__api_put(self):
         """CAhandler._api_put() returns an http error"""
         mockresponse = Mock()
         mockresponse.put.side_effect = [Exception("exc_api_put")]
@@ -709,19 +747,19 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_load")
-    def test_046__enter(self, mock_cfgload):
+    def test_049__enter(self, mock_cfgload):
         """CAhandler._enter() with config load"""
         self.cahandler.__enter__()
         self.assertTrue(mock_cfgload.called)
 
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._config_load")
-    def test_047__enter(self, mock_cfgload):
+    def test_050__enter(self, mock_cfgload):
         """CAhandler._enter() with config load"""
         self.cahandler.api_host = "api_host"
         self.cahandler.__enter__()
         self.assertFalse(mock_cfgload.called)
 
-    def test_048__cert_status_check(self):
+    def test_051__cert_status_check(self):
         """test _cert_status_check  successful run"""
         mockresponse = Mock()
         mockresponse.json = lambda: {"foo": "bar"}
@@ -733,7 +771,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._cert_status_check("issuer_dn", "cert_serial"),
         )
 
-    def test_049__cert_status_check(self):
+    def test_052__cert_status_check(self):
         """test _cert_status_check no api host"""
         mockresponse = Mock()
         mockresponse.json = lambda: {"foo": "bar"}
@@ -746,7 +784,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_050__cert_status_check(self):
+    def test_053__cert_status_check(self):
         """test _cert_status_check exception"""
         mockresponse = Mock()
         mockresponse.get.side_effect = [Exception("exc_cert_chk")]
@@ -762,7 +800,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_051__status_get(self):
+    def test_054__status_get(self):
         """test _status_get  successful run"""
         mockresponse = Mock()
         mockresponse.json = lambda: {"foo": "bar"}
@@ -771,7 +809,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.api_host = "api_host"
         self.assertEqual({"foo": "bar"}, self.cahandler._status_get())
 
-    def test_052__status_get(self):
+    def test_055__status_get(self):
         """test _status_get  no api host"""
         mockresponse = Mock()
         mockresponse.json = lambda: {"foo": "bar"}
@@ -784,7 +822,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_053__status_get(self):
+    def test_056__status_get(self):
         """test _cert_status_check exception"""
         mockresponse = Mock()
         mockresponse.get.side_effect = [Exception("exc_status_chk")]
@@ -800,15 +838,27 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
+    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._csr_cn_get")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_post")
-    def test_054__sign(self, mock_post):
+    def test_057__sign(self, mock_post, mock_cn):
         """test _sign"""
         self.cahandler.api_host = "foo"
         mock_post.return_value = "foo"
         self.assertEqual("foo", self.cahandler._sign("csr"))
+        self.assertFalse(mock_cn.called)
+
+    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._csr_cn_get")
+    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_post")
+    def test_058__sign(self, mock_post, mock_cn):
+        """test _sign"""
+        self.cahandler.api_host = "foo"
+        mock_post.return_value = "foo"
+        self.cahandler.username_append_cn = True
+        self.assertEqual("foo", self.cahandler._sign("csr"))
+        self.assertTrue(mock_cn.called)
 
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_post")
-    def test_055__sign(self, mock_post):
+    def test_059__sign(self, mock_post):
         """test _sign"""
         mock_post.return_value = "foo"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -818,21 +868,21 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_056_poll(self):
+    def test_060_poll(self):
         """test polling"""
         self.assertEqual(
             ("Method not implemented.", None, None, "poll_identifier", False),
             self.cahandler.poll("cert_name", "poll_identifier", "csr"),
         )
 
-    def test_057_trigger(self):
+    def test_061_trigger(self):
         """test polling"""
         self.assertEqual(
             ("Method not implemented.", None, None), self.cahandler.trigger("payload")
         )
 
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_058_enroll(self, mock_status):
+    def test_062_enroll(self, mock_status):
         """test enrollment"""
         mock_status.return_value = {"foo": "bar"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -842,7 +892,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("ERROR:test_a2c:CAhandler.enroll(): Unknown error", lcm.output)
 
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_059_enroll(self, mock_status):
+    def test_063_enroll(self, mock_status):
         """test enrollment"""
         mock_status.return_value = {"status": "nok"}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -852,7 +902,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("ERROR:test_a2c:CAhandler.enroll(): Unknown error", lcm.output)
 
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_060_enroll(self, mock_status):
+    def test_064_enroll(self, mock_status):
         """test enrollment"""
         mock_status.return_value = {"status": "nok", "error": "error_msg"}
         self.assertEqual(("error_msg", None, None, None), self.cahandler.enroll("csr"))
@@ -860,16 +910,12 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
     @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_url_recode")
-    @patch("examples.ca_handler.ejbca_ca_handler.build_pem_file")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_061_enroll(
+    def test_065_enroll(
         self,
         mock_status,
         mock_sign,
-        mock_pem,
-        mock_recode,
         mock_decode,
         mock_d2p,
         mock_b2s,
@@ -884,8 +930,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn(
             "ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response: {}", lcm.output
         )
-        self.assertTrue(mock_recode.called)
-        self.assertTrue(mock_pem.called)
         self.assertTrue(mock_sign.called)
         self.assertFalse(mock_decode.called)
         self.assertFalse(mock_d2p.called)
@@ -894,16 +938,12 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
     @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_url_recode")
-    @patch("examples.ca_handler.ejbca_ca_handler.build_pem_file")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_062_enroll(
+    def test_066_enroll(
         self,
         mock_status,
         mock_sign,
-        mock_pem,
-        mock_recode,
         mock_decode,
         mock_d2p,
         mock_b2s,
@@ -919,8 +959,6 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response: {'certificate': 'certificate'}",
             lcm.output,
         )
-        self.assertTrue(mock_recode.called)
-        self.assertTrue(mock_pem.called)
         self.assertTrue(mock_sign.called)
         self.assertFalse(mock_decode.called)
         self.assertFalse(mock_d2p.called)
@@ -930,16 +968,12 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
     @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_url_recode")
-    @patch("examples.ca_handler.ejbca_ca_handler.build_pem_file")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_063_enroll(
+    def test_067_enroll(
         self,
         mock_status,
         mock_sign,
-        mock_pem,
-        mock_recode,
         mock_decode,
         mock_d2p,
         mock_b2s,
@@ -956,8 +990,6 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response: {'certificate_chain': 'certificate_chain'}",
             lcm.output,
         )
-        self.assertTrue(mock_recode.called)
-        self.assertTrue(mock_pem.called)
         self.assertTrue(mock_sign.called)
         self.assertFalse(mock_decode.called)
         self.assertFalse(mock_d2p.called)
@@ -968,16 +1000,12 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
     @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_url_recode")
-    @patch("examples.ca_handler.ejbca_ca_handler.build_pem_file")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_064_enroll(
+    def test_068_enroll(
         self,
         mock_status,
         mock_sign,
-        mock_pem,
-        mock_recode,
         mock_decode,
         mock_d2p,
         mock_b2s,
@@ -995,8 +1023,6 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response: {'certificate_chain': 'certificate_chain'}",
             lcm.output,
         )
-        self.assertTrue(mock_recode.called)
-        self.assertTrue(mock_pem.called)
         self.assertTrue(mock_sign.called)
         self.assertFalse(mock_decode.called)
         self.assertFalse(mock_d2p.called)
@@ -1008,16 +1034,12 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
     @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_url_recode")
-    @patch("examples.ca_handler.ejbca_ca_handler.build_pem_file")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_065_enroll(
+    def test_069_enroll(
         self,
         mock_status,
         mock_sign,
-        mock_pem,
-        mock_recode,
         mock_decode,
         mock_d2p,
         mock_b2s,
@@ -1039,8 +1061,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(
             (None, "foo1foo2", "certificate", None), self.cahandler.enroll("csr")
         )
-        self.assertTrue(mock_recode.called)
-        self.assertTrue(mock_pem.called)
         self.assertTrue(mock_sign.called)
         self.assertTrue(mock_decode.called)
         self.assertTrue(mock_d2p.called)
@@ -1051,17 +1071,13 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.eab_profile_header_info_check")
     @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_url_recode")
     @patch("examples.ca_handler.ejbca_ca_handler.build_pem_file")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_066_enroll(
+    def test_070_enroll(
         self,
         mock_status,
         mock_sign,
-        mock_pem,
-        mock_recode,
         mock_decode,
         mock_d2p,
         mock_b2s,
@@ -1081,8 +1097,6 @@ class TestACMEHandler(unittest.TestCase):
         profile_header_info_check.return_value = False
         mock_adl.return_value = "mock_adl"
         self.assertEqual(("mock_adl", None, None, None), self.cahandler.enroll("csr"))
-        self.assertFalse(mock_recode.called)
-        self.assertFalse(mock_pem.called)
         self.assertFalse(mock_sign.called)
         self.assertFalse(mock_decode.called)
         self.assertFalse(mock_d2p.called)
@@ -1093,16 +1107,12 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
     @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_url_recode")
-    @patch("examples.ca_handler.ejbca_ca_handler.build_pem_file")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_067_enroll(
+    def test_071_enroll(
         self,
         mock_status,
         mock_sign,
-        mock_pem,
-        mock_recode,
         mock_decode,
         mock_d2p,
         mock_b2s,
@@ -1120,8 +1130,6 @@ class TestACMEHandler(unittest.TestCase):
         ]
         profile_header_info_check.return_value = "error"
         self.assertEqual(("error", None, None, None), self.cahandler.enroll("csr"))
-        self.assertFalse(mock_recode.called)
-        self.assertFalse(mock_pem.called)
         self.assertFalse(mock_sign.called)
         self.assertFalse(mock_decode.called)
         self.assertFalse(mock_d2p.called)
@@ -1130,16 +1138,12 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
     @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
-    @patch("examples.ca_handler.ejbca_ca_handler.b64_url_recode")
-    @patch("examples.ca_handler.ejbca_ca_handler.build_pem_file")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_068_enroll(
+    def test_072_enroll(
         self,
         mock_status,
         mock_sign,
-        mock_pem,
-        mock_recode,
         mock_decode,
         mock_d2p,
         mock_b2s,
@@ -1154,8 +1158,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(
             (None, "foo1foo2foo3", "certificate", None), self.cahandler.enroll("csr")
         )
-        self.assertTrue(mock_recode.called)
-        self.assertTrue(mock_pem.called)
         self.assertTrue(mock_sign.called)
         self.assertTrue(mock_decode.called)
         self.assertTrue(mock_d2p.called)
@@ -1166,7 +1168,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
-    def test_069_revoke(
+    def test_073_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
         """test revoke operation malformed api response"""
@@ -1183,7 +1185,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
-    def test_070_revoke(
+    def test_074_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
         """test revoke operation cert already revoked"""
@@ -1204,7 +1206,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
-    def test_071_revoke(
+    def test_075_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
         """test revoke operation - revocation response malformed"""
@@ -1225,7 +1227,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
-    def test_072_revoke(
+    def test_076_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
         """test revoke operation - revocation unsuccessful"""
@@ -1246,7 +1248,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
-    def test_073_revoke(
+    def test_077_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
         """test revoke operation - revocation unsuccessful"""
@@ -1258,6 +1260,49 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_issuer.called)
         self.assertTrue(mock_encode.called)
         self.assertTrue(mock_put.called)
+
+    @patch("examples.ca_handler.ejbca_ca_handler.csr_san_get")
+    @patch("examples.ca_handler.ejbca_ca_handler.csr_cn_get")
+    def test_078__csr_cn_get(self, mock_cn, mock_san):
+        """test _csr_cn_get()"""
+        mock_cn.return_value = "cn"
+        mock_san.return_value = ["san0", "san1"]
+        self.assertEqual("cn", self.cahandler._csr_cn_get("csr"))
+        self.assertFalse(mock_san.called)
+
+    @patch("examples.ca_handler.ejbca_ca_handler.csr_san_get")
+    @patch("examples.ca_handler.ejbca_ca_handler.csr_cn_get")
+    def test_079__csr_cn_get(self, mock_cn, mock_san):
+        """test _csr_cn_get()"""
+        mock_cn.return_value = None
+        mock_san.return_value = ["dns:san0", "dns:san1"]
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual("san0", self.cahandler._csr_cn_get("csr"))
+        self.assertIn(
+            "INFO:test_a2c:CAhandler._csr_cn_get(): CN not found in CSR", lcm.output
+        )
+        self.assertIn(
+            "INFO:test_a2c:CAhandler._csr_cn_get(): CN not found in CSR. Using first SAN entry as CN: san0",
+            lcm.output,
+        )
+        self.assertTrue(mock_san.called)
+
+    @patch("examples.ca_handler.ejbca_ca_handler.csr_san_get")
+    @patch("examples.ca_handler.ejbca_ca_handler.csr_cn_get")
+    def test_080__csr_cn_get(self, mock_cn, mock_san):
+        """test _csr_cn_get()"""
+        mock_cn.return_value = None
+        mock_san.return_value = None
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(None, self.cahandler._csr_cn_get("csr"))
+        self.assertIn(
+            "INFO:test_a2c:CAhandler._csr_cn_get(): CN not found in CSR", lcm.output
+        )
+        self.assertIn(
+            "ERROR:test_a2c:CAhandler._csr_cn_get(): CN not found in CSR. No SAN entries found",
+            lcm.output,
+        )
+        self.assertTrue(mock_san.called)
 
 
 if __name__ == "__main__":
