@@ -61,8 +61,8 @@ Below is an example configuration to be used for [Insta Certifier](certifier.md)
 ```
 
 - ACME accounts created with keyid "keyid_00" will always use profile-id "profile_1" and specific api-user credentials for enrollment from certificate authority "non_default_ca". Further, the SANs/Common Names to be used in enrollment requests are restricted to the domains "example.com", "example.org" and "example.fi".
-- ACME accounts created with keyid "keyid_01" and can specify 3 different profile_ids by using the [header_info feature](header_info.md). Enrollment requests having other profile_ids will be rejected. In case no profile_id get specified the first profile_id in the list ("profile_1") will be used. SAN/CNs to be used are restricted to "example.fi" and ".local" All other enrollment parameters will be taken from acme_srv.cfg. Furthermore the challenge validation got disabled for this user which means that acme2certifer will accept any CN/SAN matching the pattern "*.example.fi" or "*.acme".
-- ACME accounts created with keyid "keyid_02" do not have any restriction. Enrolment parameters will be taken from the [CAhandler] section in ´acme_srv.cfg\`
+- ACME accounts created with keyid "keyid_01" and can specify 3 different profile_ids by using the [header_info feature](header_info.md). Enrollment requests having other profile_ids will be rejected. In case no profile_id get specified the first profile_id in the list ("profile_1") will be used. SAN/CNs to be used are restricted to "example.fi" and ".local" All other enrollment parameters will be taken from acme_srv.cfg. Furthermore the challenge validation got disabled for this user which means that acme2certifier will accept any CN/SAN matching the pattern "*.example.fi" or "*.acme".
+- ACME accounts created with keyid "keyid_02" do not have any restriction. Enrolment parameters will be taken from the [CAhandler] section in ´acme_srv.cfg´
 
 Starting from v0.36 acme2certifier does support profile configuration in yaml format. Below a configuration example providing the same level of functionality as the above JSON configuration
 
