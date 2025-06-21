@@ -103,7 +103,7 @@ Attribute names must follow [RFC3039](https://www.rfc-editor.org/rfc/rfc3039.htm
 
 - string - attribute in CSR DN must match this value
 - list - attribute in CSR DN must match one of the list entries
-- "\*" - any value matches as long as the attribute is present
+- "*" - any value matches as long as the attribute is present
 
 The below example configuration will only allow CSR matching the following criteria:
 
