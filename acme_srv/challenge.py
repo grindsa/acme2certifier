@@ -400,7 +400,7 @@ class Challenge(object):
         )
         self.logger.debug("Challenge._config_load() ended.")
 
-    def _cvd_via_eabprofile_check(self, challenge_name: str) -> str:
+    def _cvd_via_eabprofile_check(self, challenge_name: str) -> bool:
         """parse challenge profile"""
         self.logger.debug("Challenge._cvd_via_eabprofile_check(%s)", challenge_name)
 
