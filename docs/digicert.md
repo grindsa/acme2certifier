@@ -54,7 +54,7 @@ Use your favorite acme client for certificate enrollment. A list of clients used
 
 ## Passing a cert_type from client to server
 
-acme2certifier supports the the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a [cert_type](https://dev.digicert.com/en/certcentral-apis/services-api/orders.html) parameter to be submitted to the CA server.
+acme2certifier supports the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a [cert_type](https://dev.digicert.com/en/certcentral-apis/services-api/orders.html) parameter to be submitted to the CA server.
 
 The list of supported profiles must be configured in `acme_srv.cfg`
 
