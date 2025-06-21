@@ -3180,7 +3180,7 @@ class TestACMEHandler(unittest.TestCase):
         """test DBstore.status_search() method (unsuccesful)"""
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
-                ("", None),
+                (None, None),
                 self.dbstore._status_search("invalid_field", "invalid_status"),
             )
         self.assertIn(
