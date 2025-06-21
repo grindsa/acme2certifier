@@ -696,7 +696,7 @@ class DBstore(object):
         if "profile" not in order_column_list:
             self.logger.info("alter challenge orders - add profile")
             self.cursor.execute(
-                """ALTER TABLE orders ADD profile eab_kid varchar(64) DEFAULT \'\'"""
+                """ALTER TABLE orders ADD COLUMN profile varchar(64) DEFAULT \'\'"""
             )
 
     def _db_update_status(self):
