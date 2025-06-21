@@ -32,11 +32,13 @@ class DBstore(object):
 
     def __init__(self, debug: bool = False, logger: object = None, db_name: str = None):
         """init"""
+        self._column_cache = {}
         self.db_name = db_name
         self.debug = debug
-        self.logger = logger
         self.dbs = None
         self.cursor = None
+        self.logger = logger
+
         if not self.db_name:
             cfg = load_config()
             if "DBhandler" in cfg and "dbfile" in cfg["DBhandler"]:
@@ -50,14 +52,19 @@ class DBstore(object):
             self._db_create()
 
     def _columnnames_get(self, table: str) -> List[str]:
-        """get columns of a table"""
+        """get columns of a table, with caching"""
         self.logger.debug("DBStore.columns_get(%s)", table)
+
+        if table in self._column_cache:
+            self.logger.debug("DBStore.columns_get(): cache hit for table %s", table)
+            return self._column_cache[table]
 
         self._db_open()
         pre_statement = f"SELECT * from {table}"
         self.cursor.execute(pre_statement)
         result = [column[0] for column in self.cursor.description]
         self._db_close()
+        self._column_cache[table] = result  # Cache the result
 
         self.logger.debug("DBStore.columns_get() ended with: %s elements", len(result))
         return result
@@ -747,13 +754,13 @@ class DBstore(object):
         self.logger.debug("DBStore._order_search() ended")
         return result
 
-    def _status_search(self, column: str, string: str) -> Tuple[str, bool]:
+    def _status_search(self, column: str, string: str) -> Tuple[int, str]:
         """search status table for a certain key/value pair"""
         self.logger.debug("DBStore._status_search(%s, %s)", column, string)
 
         if not self._identifier_check("status", column):
             self.logger.warning(COLUMN_NOT_IN_TABLE_MSG, column, "status")
-            return ("", None)
+            return (None, None)
         self._db_open()
         pre_statement = f"SELECT * from status WHERE status.{column} LIKE ?"
         self.cursor.execute(pre_statement, [string])
