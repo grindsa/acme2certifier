@@ -59,8 +59,8 @@ except Exception:
 
 
 
-def err_wrong_request_mothod(start_response):
-    """this is the error response for a wrong reqest method"""
+def err_wrong_request_method(start_response):
+    """this is the error response for a wrong request method"""
     start_response(f"405 {HTTP_CODE_DIC[405]}", [("Content-Type", CONTENT_TYPE_JSON)])
 
 
@@ -173,7 +173,7 @@ def authz(environ, start_response):
             )
             return [json.dumps(response_dic["data"]).encode("utf-8")]
     else:
-        err_wrong_request_mothod(start_response)
+        err_wrong_request_method(start_response)
         return [WRT_ERROR_MSG]
 
 
@@ -198,7 +198,7 @@ def newaccount(environ, start_response):
             return [json.dumps(response_dic["data"]).encode("utf-8")]
 
     else:
-        err_wrong_request_mothod(start_response)
+        err_wrong_request_method(start_response)
         return [WRT_ERROR_MSG]
 
 
@@ -263,7 +263,7 @@ def cert(environ, start_response):
             return [response_dic["data"]]
 
         else:
-            err_wrong_request_mothod(start_response)
+            err_wrong_request_method(start_response)
             return [WRT_ERROR_MSG]
 
 
@@ -306,7 +306,7 @@ def chall(environ, start_response):
             return [json.dumps(response_dic["data"]).encode("utf-8")]
 
         else:
-            err_wrong_request_mothod(start_response)
+            err_wrong_request_method(start_response)
             return [WRT_ERROR_MSG]
 
 
@@ -322,7 +322,7 @@ def newnonce(environ, start_response):
         start_response(status, headers)
         return []
     else:
-        err_wrong_request_mothod(start_response)
+        err_wrong_request_method(start_response)
         return [
             json.dumps(
                 {
@@ -354,7 +354,7 @@ def neworders(environ, start_response):
             return [json.dumps(response_dic["data"]).encode("utf-8")]
 
     else:
-        err_wrong_request_mothod(start_response)
+        err_wrong_request_method(start_response)
         return [WRT_ERROR_MSG]
 
 
@@ -378,7 +378,7 @@ def order(environ, start_response):
             return [json.dumps(response_dic["data"]).encode("utf-8")]
 
     else:
-        err_wrong_request_mothod(start_response)
+        err_wrong_request_method(start_response)
         return [WRT_ERROR_MSG]
 
 
@@ -422,7 +422,7 @@ def renewalinfo(environ, start_response):
                 return []
 
         else:
-            err_wrong_request_mothod(start_response)
+            err_wrong_request_method(start_response)
             return [WRT_ERROR_MSG]
 
 
@@ -448,7 +448,7 @@ def revokecert(environ, start_response):
             else:
                 return []
     else:
-        err_wrong_request_mothod(start_response)
+        err_wrong_request_method(start_response)
         return [WRT_ERROR_MSG]
 
 
@@ -475,7 +475,7 @@ def trigger(environ, start_response):
             else:
                 return []
     else:
-        err_wrong_request_mothod(start_response)
+        err_wrong_request_method(start_response)
         return [WRT_ERROR_MSG]
 
 
@@ -500,7 +500,7 @@ def housekeeping(environ, start_response):
             else:
                 return []
     else:
-        err_wrong_request_mothod(start_response)
+        err_wrong_request_method(start_response)
         return [WRT_ERROR_MSG]
 
 
