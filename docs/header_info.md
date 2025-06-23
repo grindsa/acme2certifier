@@ -17,9 +17,10 @@ The headers will be added to the `header_info` column of the certificates table.
 ```python
 class CAHandler(object):
     ...
+
     def enroll(self, csr):
         """Enroll certificate"""
-        self.logger.debug('CAHandler.enroll()')
+        self.logger.debug("CAHandler.enroll()")
 
         cert_bundle = None
         error = None
@@ -29,10 +30,10 @@ class CAHandler(object):
         # Lookup HTTP header information from request
         qset = header_info_get(self.logger, csr=csr)
         if qset:
-            self.logger.info('Header info: {0}'.format(qset[-1]['header_info']))
+            self.logger.info("Header info: {0}".format(qset[-1]["header_info"]))
             # Perform additional processing with the header information...
         ...
-        self.logger.debug('Certificate.enroll() ended')
+        self.logger.debug("Certificate.enroll() ended")
 
         return (error, cert_bundle, cert_raw, poll_identifier)
 ```
