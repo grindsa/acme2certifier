@@ -31,10 +31,10 @@ eab_profiling: <True|False>
 - api_password_variable - *optional* - name of the environment variable containing the password for the REST user (a configured `api_password` parameter in acme_srv.cfg takes precedence)
 - ca_bundle - optional - certificate bundle needed to validate the server certificate - can be True/False or a filename (default: True)
 - ca_name - name of the CA used to enroll certificates
-- allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] (default: [])
+- allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: \["bar.local$, bar.foo.local\] (default: \[\])
 - eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
 - enrollment_config_log - optional - log enrollment parameters (default False)
-- enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: [ "parameter1", "parameter2" ] (default: [])
+- enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: \[ "parameter1", "parameter2" \] (default: \[\])
 - profile_id - optional - profileId
 - polling_timeout - optional - polling timeout (default: 60s)
 
