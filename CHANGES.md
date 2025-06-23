@@ -5,6 +5,27 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+# Changes in 0.38
+
+**Upgrade notes**:
+
+- database scheme gets updated. Please run either
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django_handler
+
+**Features and Improvements**:
+
+- Support of [Automated Certificate Management Environment (ACME) Profiles Extension](https://datatracker.ietf.org/doc/draft-aaron-acme-profiles/)
+- [#227](https://github.com/grindsa/acme2certifier/issues/227) - Possibility to disable challenge validation by using the [eab profiling feature](docs/eab_profiling.md)
+- [#226](https://github.com/grindsa/acme2certifier/issues/226) - Configuration option to add CN or 1st SAN to ejbca username
+- support of [caaIdentities attribute](https://datatracker.ietf.org/doc/html/rfc8555/#section-7.1.1) in the directory object
+
+**Bug fixes**:
+
+- address Bandit warnings related to potentical sql injection
+- code formatting using [black](https://github.com/psf/black)
+- md-linting using [mdformat](https://mdformat.readthedocs.io/en/stable/#)
+
 # Changes in 0.37.1
 
 **Bug fixes**:
