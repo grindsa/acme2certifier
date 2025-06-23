@@ -1,14 +1,16 @@
 <!-- markdownlint-disable  MD013 -->
+
 <!-- wiki-title Security Policy -->
+
 # Security Policy
 
 ## Supported Versions
 
 | Version | Supported          |
 | ------- | ------------------ |
+| 0.38.x  | :white_check_mark: |
 | 0.37.x  | :white_check_mark: |
-| 0.36.x  | :white_check_mark: |
-| < 0.36  | :x:  |
+| \< 0.37  | :x:  |
 
 ## Reporting a Vulnerability
 
