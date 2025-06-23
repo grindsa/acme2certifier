@@ -110,38 +110,38 @@ Below is an example of the class structure:
 
 ```python
 class EABhandler(object):
-    """ EAB file handler """
+    """EAB file handler"""
 
     def __init__(self, logger=None):
         self.logger = logger
         self.key = None
 
     def __enter__(self):
-        """ Makes EABhandler a Context Manager """
+        """Makes EABhandler a Context Manager"""
         if not self.key_file:
             self._config_load()
         return self
 
     def __exit__(self, *args):
-        """ Close the connection at the end of the context """
+        """Close the connection at the end of the context"""
 
     def _config_load(self):
-        """ Load additional configuration parameters from acme_srv.cfg """
-        self.logger.debug('EABhandler._config_load()')
-        config_dic = load_config(self.logger, 'EABhandler')
-        if 'key' in config_dic['EABhandler']:
-            self.key = config_dic['EABhandler']['key']
-        self.logger.debug('EABhandler._config_load() ended')
+        """Load additional configuration parameters from acme_srv.cfg"""
+        self.logger.debug("EABhandler._config_load()")
+        config_dic = load_config(self.logger, "EABhandler")
+        if "key" in config_dic["EABhandler"]:
+            self.key = config_dic["EABhandler"]["key"]
+        self.logger.debug("EABhandler._config_load() ended")
 
     def allowed_domains_check(self, csr, value) -> str:
-        """ Check allowed domains """
-        self.logger.debug('EABhandler.allowed_domains_check(%s, %s)', csr, value)
+        """Check allowed domains"""
+        self.logger.debug("EABhandler.allowed_domains_check(%s, %s)", csr, value)
         error = None  # Return an error message if applicable
         return error
 
     def mac_key_get(self, kid=None):
-        """ Check external account binding """
-        self.logger.debug('EABhandler.mac_key_get({})'.format(kid))
+        """Check external account binding"""
+        self.logger.debug("EABhandler.mac_key_get({})".format(kid))
         mac_key = None  # Implement logic to look up the mac_key
         return mac_key
 ```

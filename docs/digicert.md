@@ -36,17 +36,17 @@ eab_profiling: <True|False>
 
 - api_key - required - API key to access the API
 - organization_name - required - Organization name as specified in DigiCert CertCentral
-- allowed_domainlist: list of domain-names allowed for enrollment in json format (example: ["bar.local$, bar.foo.local])
+- allowed_domainlist: list of domain-names allowed for enrollment in json format (example: \["bar.local$, bar.foo.local\])
 - api_url - optional - URL of the CertCentral API
 - organization_id - optional - organization id - configuration prevents additional rest-lookups
 - cert_type - optional - [certificte type](https://dev.digicert.com/en/certcentral-apis/services-api/orders.html) to be isused. (default: ssl_basic)
 - signature_hash - optional - hash algorithm used for certificate signing - (default: sha256)
 - order_validity - optional - oder validity (default: 1 year)
 - request_timeout - optional - requests timeout in seconds for requests (default: 5s)
-- allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] (default: [])
+- allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: \["bar.local$, bar.foo.local\] (default: \[\])
 - eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
 - enrollment_config_log - optional - log enrollment parameters (default False)
-- enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: [ "parameter1", "parameter2" ] (default: [])
+- enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: \[ "parameter1", "parameter2" \] (default: \[\])
 
 Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found in the [disclaimer section of our README file](../README.md)
 
