@@ -334,7 +334,7 @@ and pick the appropriate release branch.
 - link updates in [README.md](README.md)
 - attribute type in error responses [#92](https://github.com/grindsa/acme2certifier/issues/92)
 
-### Changes in 0.21
+## Changes in 0.21
 
 **Features and Improvements**:
 
@@ -348,7 +348,7 @@ and pick the appropriate release branch.
 
 - RFC compliant content-type in error responses
 
-### Changes in 0.20
+## Changes in 0.20
 
 **Features and Improvements**:
 
@@ -363,7 +363,7 @@ and pick the appropriate release branch.
 - remove duplicated certificate extension in openssl_ca_handler.py
 - change challenge status to 'invalid' in case enrollment fails
 
-### Changes in 0.19.3
+## Changes in 0.19.3
 
 **Features and Improvements**:
 
@@ -372,7 +372,7 @@ and pick the appropriate release branch.
 - Changed encoding detection library from chardet to charset_normalizer
 - [lgtm](https://lgtm.com/projects/g/grindsa/acme2certifier/context:python) conformance
 
-### Changes in 0.19.2
+## Changes in 0.19.2
 
 **Features and Improvements**:
 
@@ -380,7 +380,7 @@ and pick the appropriate release branch.
 - workflow for application testing using win-acme
 - additional linting and pep8 conformance checks
 
-### Changes in 0.19.1
+## Changes in 0.19.1
 
 **Features and Improvements**:
 
@@ -388,7 +388,7 @@ and pick the appropriate release branch.
 - time adjustments in certmanager and django workflows
 - addressing code-scanning alerts from bandit and CodeQL
 
-### Changes in 0.19
+## Changes in 0.19
 
 **Bugfixes**:
 
@@ -399,13 +399,13 @@ and pick the appropriate release branch.
 
 - [RFC compliant Wildcard handling](https://github.com/grindsa/acme2certifier/issues/76)
 
-### Changes in 0.18.2
+## Changes in 0.18.2
 
 **Bugfixes**:
 
 - [Fix the disabling of SSL validation in http-01 challenge](https://github.com/grindsa/acme2certifier/pull/75)
 
-### Changes in 0.18.1
+## Changes in 0.18.1
 
 **Features and Improvements**:
 
@@ -415,7 +415,7 @@ and pick the appropriate release branch.
 
 - fixed race condition in push_to_docker workflow
 
-### Changes in 0.18
+## Changes in 0.18
 
 **Upgrade notes**:
 
@@ -435,13 +435,13 @@ and pick the appropriate release branch.
 - [xca_ca_handler](docs/xca.md):
   - `cn_enforce` parameter to enforce setting a common name in certificate
 
-### Changes in 0.17.1
+## Changes in 0.17.1
 
 **Bugfixes**:
 
 - python request module - version pinning to 2.25.1
 
-### Changes in 0.17
+## Changes in 0.17
 
 **Upgrade notes**:
 
@@ -462,7 +462,7 @@ and pick the appropriate release branch.
 - allow GET method for newnonce
 - don't verify SSL certificate during http-01 challenge validation
 
-### Changes in 0.16
+## Changes in 0.16
 
 **Features**:
 
@@ -492,7 +492,7 @@ and pick the appropriate release branch.
 - Regression test-cases for django deployments using either mariadb or postgres backends
 - experimental CLI framework (not yet useable)
 
-### Changes in 0.15.3
+## Changes in 0.15.3
 
 **Upgrade notes**:
 
@@ -504,20 +504,20 @@ and pick the appropriate release branch.
 
 - fix for `type` field length in `Challenge` table
 
-### Changes in 0.15.2
+## Changes in 0.15.2
 
 **Bugfixes**:
 
 - additional fixes for dns-01 challenge validation (handling for \*.foo.bar and foo.bar in the same csr)
 
-### Changes in 0.15.1
+## Changes in 0.15.1
 
 **Bugfixes**:
 
 - fixes for dns-01 challenge validation
 - default ku settings when using xca templates
 
-### Changes in 0.15
+## Changes in 0.15
 
 **Upgrade notes**:
 
@@ -532,7 +532,7 @@ and pick the appropriate release branch.
 
 - database scheme versioning
 
-### Changes in 0.14
+## Changes in 0.14
 
 **Upgrade notes**:
 
@@ -546,7 +546,7 @@ and pick the appropriate release branch.
 
 - `acme2certifier_wsgi.py`- newaccount() - initialize `Account()` class as context handler
 
-### Changes in 0.13.1
+## Changes in 0.13.1
 
 **Upgrade notes**:
 
@@ -557,7 +557,7 @@ and pick the appropriate release branch.
 - `helper.py`- fqdn_resolve() - resolve AAAA records
 - `helper.py`- url_gete() - ipv4 fallback during http challenge validation
 
-### Changes in 0.13
+## Changes in 0.13
 
 **Features**:
 
@@ -573,7 +573,7 @@ and pick the appropriate release branch.
   - ca_handler tests
   - phonito security scans
 
-### Changes in 0.12.1
+## Changes in 0.12.1
 
 **Upgrade notes**:
 
@@ -583,7 +583,7 @@ and pick the appropriate release branch.
 
 - `helper.py`- fqdn_resolve() - resolve AAAA records
 
-### Changes in 0.12
+## Changes in 0.12
 
 **Upgrade notes**:
 
@@ -607,7 +607,7 @@ and pick the appropriate release branch.
   - tnauth functionality
   - image creation and dockerhub upload
 
-### Changes in 0.11.1
+## Changes in 0.11.1
 
 **Bugfixes**:
 
@@ -617,7 +617,7 @@ and pick the appropriate release branch.
 - `wiki-update.yml` - checkout from `grindsa/github-wiki-publish-action@customize_wiki_title`
 - `*.md` - meta tag "wiki-name" added
 
-### Changes in 0.11
+## Changes in 0.11
 
 **Upgrade notes**:
 
@@ -647,7 +647,7 @@ and pick the appropriate release branch.
 - Base64 encoding `certifier_trigger.sh` (removed blanks by using `-w 0`)
 - improved exception handling in case of database-errors
 
-### Changes in 0.10
+## Changes in 0.10
 
 **Upgrade notes**:
 
@@ -669,7 +669,7 @@ and pick the appropriate release branch.
 - [#35 rfc608  compliant contact checking](https://github.com/grindsa/acme2certifier/issues/35)
 - xca_handler: [#38 - prevent error message leakage to client](https://github.com/grindsa/acme2certifier/issues/38)
 
-### Changes in 0.9
+## Changes in 0.9
 
 **Features**:
 
@@ -693,7 +693,7 @@ and pick the appropriate release branch.
 - harmonization of apache config files
 - migration support for docker_django deployment
 
-### Changes in 0.8
+## Changes in 0.8
 
 **Features**:
 
@@ -704,7 +704,7 @@ and pick the appropriate release branch.
 - Container deployments
 - Django project with mysql as backend database
 
-### Changes in 0.7
+## Changes in 0.7
 
 **Features**:
 
@@ -712,19 +712,19 @@ and pick the appropriate release branch.
 - key update and key roll-over support
 - generic CMPv2 handler
 
-### Changes in 0.6
+## Changes in 0.6
 
 **Features**:
 
 - EST and certsrv support
 
-### Changes in 0.5
+## Changes in 0.5
 
 **Features**:
 
 - CSR validation against order identifiers
 
-### Changes in 0.4
+## Changes in 0.4
 
 **Features**:
 
