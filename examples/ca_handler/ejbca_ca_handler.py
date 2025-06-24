@@ -425,7 +425,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._sign()")
 
         if self.username_append_cn:
-            username = f"{self.username}-{self._csr_cn_get(csr)}"
+            username = f"{self.username}{self._csr_cn_get(csr)}"
         else:
             username = self.username
         self.logger.debug("CAhandler._sign() username: %s", username)
