@@ -40,7 +40,7 @@ runs:
       sed -i "s/approval_points: 1/approval_points: 0/g" openxpki-config/config.d/realm/democa/rpc/enroll.yaml
       sed -i "s/export_certificate: chain/export_certificate: fullchain/g" openxpki-config/config.d/realm/democa/rpc/enroll.yaml
       sed -i "s/dn: CN=\[\% CN.0 \%\],DC=Test Deployment,DC=OpenXPKI,DC=org/dn: CN=\[\% SAN_DNS.0 \%\]/g" openxpki-config/config.d/realm.tpl/profile/tls_server.yaml
-      cp contrib/wait_on_init.yaml  openxpki-config/config.d/system/local.yam
+      # cp contrib/wait_on_init.yaml  openxpki-config/config.d/system/local.yam
       docker-compose up &
     shell: bash
 
