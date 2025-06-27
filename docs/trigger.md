@@ -1,5 +1,7 @@
 <!-- markdownlint-disable MD013 -->
+
 <!-- wiki-title CA Trigger -->
+
 # `ca_handler.trigger()`
 
 The `trigger` method allows a **CA server** to invoke specific actions on **acme2certifier**. These actions are defined by the respective **CA handler**.
@@ -39,5 +41,5 @@ The `ca_handler.trigger()` method is expected to return:
 If a **valid certificate** is returned, **acme2certifier** will:
 
 1. **Update the local database**.
-2. **Set the order resource status to "valid"**.
-3. **Establish correlation** between the certificate and certificate resource by comparing the public keys of the **certificate** and **CSR** (which should already exist in the database).
+1. **Set the order resource status to "valid"**.
+1. **Establish correlation** between the certificate and certificate resource by comparing the public keys of the **certificate** and **CSR** (which should already exist in the database).

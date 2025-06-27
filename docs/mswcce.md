@@ -1,5 +1,7 @@
 <!-- markdownlint-disable MD013 -->
+
 <!-- wiki-title CA Handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) -->
+
 # CA Handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)
 
 This CA handler uses the Microsoft [Windows Client Certificate Enrollment Protocol](https://docs.microsoft.com/en-us/openspecs/windows_protocols/ms-wcce/446a0fca-7f27-4436-965d-191635518466). The handler incorporates code from [Certipy](https://github.com/ly4k/Certipy), a pentesting tool for Active Directory Certificate Services (AD-CS).
@@ -14,9 +16,9 @@ Be aware of the following limitations when using this handler:
 ## Preparation
 
 1. Active Directory Certificate Services (AD-CS) must be enabled and properly configured.
-2. The CA handler uses RPC/DCOM to communicate with the CA server, so the CA server must be accessible via **TCP port 445**.
-3. *(Optional)*: If installing from RPM or DEB and planning to use Kerberos authentication, ensure you have an updated [Impacket module (version 0.11 or higher)](https://github.com/fortra/impacket), as older versions have issues handling UTF-8 encoded passwords. You can find updated packages in the [A2C GitHub repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs).
-4. You need a set of credentials with sufficient permissions to access the service and enrollment templates.
+1. The CA handler uses RPC/DCOM to communicate with the CA server, so the CA server must be accessible via **TCP port 445**.
+1. *(Optional)*: If installing from RPM or DEB and planning to use Kerberos authentication, ensure you have an updated [Impacket module (version 0.11 or higher)](https://github.com/fortra/impacket), as older versions have issues handling UTF-8 encoded passwords. You can find updated packages in the [A2C GitHub repository](https://github.com/grindsa/sbom/tree/main/rpm-repo/RPMs).
+1. You need a set of credentials with sufficient permissions to access the service and enrollment templates.
 
 ## Local Installation
 
@@ -98,7 +100,22 @@ eab_profiling: False
 
 ## Passing a Template from Client to Server
 
-This handler uses the [header_info_list feature](header_info.md), allowing an ACME client to specify a template name for certificate enrollment. To enable this feature, update `acme_srv.cfg`:
+acme2certifier supports the the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a `template` parameter to be submitted to the CA server.
+
+The list of supported profiles must be configured in `acme_srv.cfg`
+
+```config
+[Order]
+profiles: {"template1": "http://foo.bar/template1", "template2": "http://foo.bar/template2", "template3": "http://foo.bar/template3"}
+```
+
+Once enabled, a client can specify the template to be used as part of an order request. Below an example for lego:
+
+```bash
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile template2
+```
+
+Further, this handler uses the [header_info_list feature](header_info.md), allowing an ACME client to specify a template name for certificate enrollment. To enable this feature, update `acme_srv.cfg`:
 
 ```ini
 [Order]
