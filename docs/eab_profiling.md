@@ -28,7 +28,9 @@ eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: volume/kid_profiles.json
 ```
 
-The `key_file` allows the specification enrollment parameters per (external) acme-account. Main identifier is the key_id to be used during account registration. Any parameter used in the [CAhandler] configuration section of a handler can be customized. Below is an example configuration to be used for [Insta Certifier](certifier.md) with some explanation:
+The `key_file` allows the specification enrollment parameters per (external) acme-account. Main identifier is the key_id to be used during account registration. Any parameter used in the [CAhandler] configuration section of a handler can be customized. Starting from acme2certifier v0.38 challenge validation can be disabled for a specific eab-user.
+
+Below is an example configuration to be used for [Insta Certifier](certifier.md) with some explanation:
 
 ```json
 {
@@ -47,6 +49,9 @@ The `key_file` allows the specification enrollment parameters per (external) acm
     "cahandler": {
       "profile_id": ["profile_1", "profile_2", "profile_3"],
       "allowed_domainlist": ["*.example.fi", "*.acme"]
+    },
+    "challenge": {
+      "challenge_validation_disable": "True"
     }
   },
   "keyid_02": {
@@ -56,8 +61,8 @@ The `key_file` allows the specification enrollment parameters per (external) acm
 ```
 
 - ACME accounts created with keyid "keyid_00" will always use profile-id "profile_1" and specific api-user credentials for enrollment from certificate authority "non_default_ca". Further, the SANs/Common Names to be used in enrollment requests are restricted to the domains "example.com", "example.org" and "example.fi".
-- ACME accounts created with keyid "keyid_01" and can specify 3 different profile_ids by using the [header_info feature](header_info.md). Enrollment requests having other profile_ids will be rejected. In case no profile_id get specified the first profile_id in the list ("profile_1") will be used. SAN/CNs to be used are restricted to "example.fi" and ".local" All other enrollment parameters will be taken from acme_srv.cfg
-- ACME accounts created with keyid "keyid_02" do not have any restriction. Enrolment parameters will be taken from the [CAhandler] section in ´acme_srv.cfg\`
+- ACME accounts created with keyid "keyid_01" and can specify 3 different profile_ids by using the [header_info feature](header_info.md). Enrollment requests having other profile_ids will be rejected. In case no profile_id get specified the first profile_id in the list ("profile_1") will be used. SAN/CNs to be used are restricted to "example.fi" and ".local" All other enrollment parameters will be taken from acme_srv.cfg. Furthermore the challenge validation got disabled for this user which means that acme2certifier will accept any CN/SAN matching the pattern "*.example.fi" or "*.acme".
+- ACME accounts created with keyid "keyid_02" do not have any restriction. Enrolment parameters will be taken from the [CAhandler] section in ´acme_srv.cfg´
 
 Starting from v0.36 acme2certifier does support profile configuration in yaml format. Below a configuration example providing the same level of functionality as the above JSON configuration
 

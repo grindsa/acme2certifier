@@ -1,31 +1,32 @@
+# pylint: disable=c0302, r0913
 # -*- coding: utf-8 -*-
 """Challenge class"""
-# pylint: disable=r0913
 from __future__ import print_function
 import json
 import time
 from typing import List, Tuple, Dict
 from acme_srv.helper import (
-    generate_random_string,
-    parse_url,
-    load_config,
-    jwk_thumbprint_get,
-    url_get,
-    sha256_hash,
-    sha256_hash_hex,
     b64_encode,
     b64_url_encode,
-    txt_get,
+    cert_extensions_get,
+    cert_san_get,
+    config_eab_profile_load,
+    error_dic_get,
+    fqdn_in_san_check,
     fqdn_resolve,
+    generate_random_string,
+    ip_validate,
+    jwk_thumbprint_get,
+    load_config,
+    parse_url,
+    proxy_check,
+    servercert_get,
+    sha256_hash,
+    sha256_hash_hex,
+    txt_get,
+    url_get,
     uts_now,
     uts_to_date_utc,
-    servercert_get,
-    cert_san_get,
-    cert_extensions_get,
-    fqdn_in_san_check,
-    proxy_check,
-    error_dic_get,
-    ip_validate,
 )
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
@@ -42,20 +43,22 @@ class Challenge(object):
         logger: object = None,
         expiry: int = 3600,
     ):
-        self.server_name = srv_name
-        self.logger = logger
-        self.dbstore = DBstore(debug, self.logger)
-        self.message = Message(debug, self.server_name, self.logger)
-        self.path_dic = {"chall_path": "/acme/chall/", "authz_path": "/acme/authz/"}
-        self.err_msg_dic = error_dic_get(self.logger)
-        self.expiry = expiry
         self.challenge_validation_disable = False
         self.challenge_validation_timeout = 10
-        self.dns_validation_pause_timer = 0.5
-        self.tnauthlist_support = False
-        self.sectigo_sim = False
         self.dns_server_list = None
+        self.dns_validation_pause_timer = 0.5
+        self.eab_handler = None
+        self.eab_profiling = False
+        self.expiry = expiry
+        self.logger = logger
+        self.path_dic = {"chall_path": "/acme/chall/", "authz_path": "/acme/authz/"}
         self.proxy_server_list = {}
+        self.sectigo_sim = False
+        self.server_name = srv_name
+        self.tnauthlist_support = False
+        self.dbstore = DBstore(debug, self.logger)
+        self.err_msg_dic = error_dic_get(self.logger)
+        self.message = Message(debug, self.server_name, self.logger)
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -391,8 +394,60 @@ class Challenge(object):
 
         # load proxy config from config
         self._config_proxy_load(config_dic)
-
+        # load profiling
+        self.eab_profiling, self.eab_handler = config_eab_profile_load(
+            self.logger, config_dic
+        )
         self.logger.debug("Challenge._config_load() ended.")
+
+    def _cvd_via_eabprofile_check(self, challenge_name: str) -> bool:
+        """parse challenge profile"""
+        self.logger.debug("Challenge._cvd_via_eabprofile_check(%s)", challenge_name)
+
+        challenge_validation_disable = False
+        if self.eab_profiling and self.eab_handler:
+            try:
+                challenge_dic = self.dbstore.challenge_lookup(
+                    "name",
+                    challenge_name,
+                    [
+                        "status__name",
+                        "authorization__order__account__name",
+                        "authorization__order__account__eab_kid",
+                    ],
+                )
+            except Exception as err_:
+                self.logger.critical(
+                    "acme2certifier database error in Challenge._cvd_via_eabprofile_check(): %s",
+                    err_,
+                )
+                challenge_dic = {}
+
+            if (
+                "authorization__order__account__eab_kid" in challenge_dic
+                and challenge_dic["authorization__order__account__eab_kid"]
+            ):
+                # if eab_kid is set, we need to return the profile
+                eab_kid = challenge_dic["authorization__order__account__eab_kid"]
+
+                with self.eab_handler(self.logger) as eab_handler:
+                    profile_dic = eab_handler.key_file_load()
+                    if eab_kid in profile_dic:
+                        if (
+                            "challenge" in profile_dic[eab_kid]
+                            and "challenge_validation_disable"
+                            in profile_dic[eab_kid]["challenge"]
+                        ):
+                            challenge_validation_disable = (
+                                profile_dic.get(eab_kid, {})
+                                .get("challenge", {})
+                                .get("challenge_validation_disable", False)
+                            )
+
+        self.logger.debug(
+            "Challenge._profile_parse() ended with: %s", challenge_validation_disable
+        )
+        return challenge_validation_disable
 
     def _extensions_validate(self, cert: str, extension_value: str, fqdn: str) -> bool:
         """validate extension"""
@@ -577,10 +632,23 @@ class Challenge(object):
 
         # change state to processing
         self._update({"name": challenge_name, "status": "processing"})
-        if self.challenge_validation_disable:
-            self.logger.debug(
-                "CHALLENGE VALIDATION DISABLED. SETTING challenge status to valid"
-            )
+
+        challenge_validation_disable_eab_profile = self._cvd_via_eabprofile_check(
+            challenge_name
+        )
+
+        if (
+            self.challenge_validation_disable
+            or challenge_validation_disable_eab_profile
+        ):
+            if self.challenge_validation_disable:
+                self.logger.warning(
+                    "CHALLENGE VALIDATION DISABLED. Setting challenge status to valid."
+                )
+            else:
+                self.logger.info(
+                    "Challenge validation disabled via eab profile. Setting challenge status to valid."
+                )
             challenge_check = True
             invalid = False
         else:
