@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
+
 <!-- wiki-title: DEB Installation on Ubuntu 22.04 -->
 
 # DEB Installation on Ubuntu 22.04
@@ -8,7 +9,7 @@ The Debian package is generic and supports running `acme2certifier` with either 
 ## Installation with Apache2
 
 1. Download the latest [DEB package](https://github.com/grindsa/acme2certifier/releases).
-2. Install `acme2certifier` and Apache2 packages:
+1. Install `acme2certifier` and Apache2 packages:
 
 ```bash
 sudo apt-get install -y apache2 apache2-data libapache2-mod-wsgi-py3
@@ -30,10 +31,12 @@ sudo a2ensite acme2certifier_ssl
 ```
 
 5. Create a configuration file `acme_srv.cfg` in `/var/www/acme2certifier/acme_srv/`, or use the example stored in the `examples` directory.
-6. Modify the [configuration file](acme_srv.md) according to your needs.
-7. Configure the CA handler as needed. [Example for Insta Certifier](certifier.md).
 
-8. Enable and start the Apache2 service:
+1. Modify the [configuration file](acme_srv.md) according to your needs.
+
+1. Configure the CA handler as needed. [Example for Insta Certifier](certifier.md).
+
+1. Enable and start the Apache2 service:
 
 ```bash
 sudo systemctl enable apache2.service
@@ -68,7 +71,7 @@ Expected response:
 ## Installation with Nginx
 
 1. Download the latest [DEB package](https://github.com/grindsa/acme2certifier/releases).
-2. Install `acme2certifier` and Nginx packages:
+1. Install `acme2certifier` and Nginx packages:
 
 ```bash
 sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3
