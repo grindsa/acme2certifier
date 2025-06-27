@@ -1,8 +1,10 @@
 <!-- markdownlint-disable  MD013 -->
+
 <!-- wiki-title Enrollment profiling via external account binding -->
+
 # Enrollment profiling via external account binding
 
-Starting with  version 0.34 acme2certifier supports the configuration of account specific enrollment configuration. Depending on the handler to be used the feature allows the definition of individual authentication credentials, enrollment profiles or certificate authorities.
+Starting with version 0.34 acme2certifier supports the configuration of account specific enrollment configuration. Depending on the handler to be used the feature allows the definition of individual authentication credentials, enrollment profiles or certificate authorities.
 
 Currently the following ca-handlers have been modified and support this feature:
 
@@ -47,6 +49,9 @@ Below is an example configuration to be used for [Insta Certifier](certifier.md)
     "cahandler": {
       "profile_id": ["profile_1", "profile_2", "profile_3"],
       "allowed_domainlist": ["*.example.fi", "*.acme"]
+    },
+    "challenge": {
+      "challenge_validation_disable": "True"
     }
   },
   "keyid_02": {

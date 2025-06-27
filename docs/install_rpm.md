@@ -1,5 +1,7 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
+
 <!-- wiki-title RPM Installation on AlmaLinux 9 -->
+
 # RPM Installation on AlmaLinux/Red Hat EL/CentOS Stream 9
 
 ## 1. Download the Latest RPM Package

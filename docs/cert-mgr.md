@@ -1,5 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
+
 <!-- wiki-title Using cert manager to enroll certificate in Kubernetes environments -->
+
 # Using cert-manager to enroll certificate in Kubernetes environments
 
 I do not really have a full Kubernetes environment. Thus, I was using [https://microk8s.io/](https://microk8s.io/) for testing.
@@ -61,7 +63,7 @@ grindsa@ub-20:~$ microk8s.kubectl apply -f acme2certifier.yaml
 
 - the enrollment status can be checked via `microk8s.kubectl describe certificate -n cert-manager-acme`
 
-``` bash
+```bash
 grindsa@ub-20:~$ microk8s.kubectl describe certificate -n cert-manager-acme
 Name:         acme-cert
 Namespace:    cert-manager-acme

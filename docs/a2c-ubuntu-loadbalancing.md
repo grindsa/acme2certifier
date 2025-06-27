@@ -1,5 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
+
 <!-- wiki-title # How to build an acme2certifier cluster on Ubuntu 22.04 -->
+
 # How to build an acme2certifier cluster on Ubuntu 22.04
 
 This tutorial describes the configuration of a two-node acme2certifier cluster running in active/active configuration. Although both nodes are active at the same time and provide proxy services via different IP addresses, database, configuration and and runtime objects will be replicated among the nodes.
@@ -181,7 +183,7 @@ GRANT REPLICATION SLAVE ON *.* TO 'replusr'@'%';
 FLUSH PRIVILEGES;
 ```
 
-- stop the slave and add information about the ub2204-c1 master node as well as the binlog file name ("mariadb-bin.000001") and position  ("773") from ub2204-c1.
+- stop the slave and add information about the ub2204-c1 master node as well as the binlog file name ("mariadb-bin.000001") and position ("773") from ub2204-c1.
 
 ```SQL
 STOP SLAVE;
@@ -312,7 +314,7 @@ SHOW DATABASES;
 
 The following instructions are based on [an existing tutorial](https://docs.rackspace.com/docs/set-up-lsyncd-locally-and-over-ssh-to-sync-directories).
 
-To accomplish a remote synchronization using Lsyncd, each node must have password-less SSH access to its peer. Further, it is recommended to use the root-user for synchronization  to ensure that permissions, ownership, and group information of the synchronized objects will be preserved.
+To accomplish a remote synchronization using Lsyncd, each node must have password-less SSH access to its peer. Further, it is recommended to use the root-user for synchronization to ensure that permissions, ownership, and group information of the synchronized objects will be preserved.
 
 ### on both nodes to be executed as root-user
 

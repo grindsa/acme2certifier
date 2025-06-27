@@ -1877,7 +1877,87 @@ class TestACMEHandler(unittest.TestCase):
         mock_update.return_value = True
         mock_aupdate.return_value = True
         self.challenge.challenge_validation_disable = True
-        self.assertTrue(self.challenge._validate(challenge_name, payload))
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertTrue(self.challenge._validate(challenge_name, payload))
+        self.assertIn(
+            "WARNING:test_a2c:CHALLENGE VALIDATION DISABLED. Setting challenge status to valid.",
+            lcm.output,
+        )
+        self.assertTrue(mock_update.called)
+        self.assertTrue(mock_aupdate.called)
+
+    @patch("acme_srv.challenge.Challenge._cvd_via_eabprofile_check")
+    @patch("acme_srv.challenge.Challenge._update_authz")
+    @patch("acme_srv.challenge.Challenge._update")
+    def test_213__validate(self, mock_update, mock_aupdate, mock_cvd_check):
+        """test validate"""
+        challenge_name = "challenge_name"
+        payload = "payload"
+        mock_update.return_value = True
+        mock_aupdate.return_value = True
+        mock_cvd_check.return_value = True
+        self.challenge.challenge_validation_disable = False
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertTrue(self.challenge._validate(challenge_name, payload))
+        self.assertIn(
+            "INFO:test_a2c:Challenge validation disabled via eab profile. Setting challenge status to valid.",
+            lcm.output,
+        )
+        self.assertTrue(mock_update.called)
+        self.assertTrue(mock_aupdate.called)
+
+    @patch("acme_srv.challenge.Challenge._cvd_via_eabprofile_check")
+    @patch("acme_srv.challenge.Challenge._update_authz")
+    @patch("acme_srv.challenge.Challenge._update")
+    def test_214__validate(self, mock_update, mock_aupdate, mock_cvd_check):
+        """test validate"""
+        challenge_name = "challenge_name"
+        payload = "payload"
+        mock_update.return_value = True
+        mock_aupdate.return_value = True
+        mock_cvd_check.return_value = False
+        self.challenge.challenge_validation_disable = True
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertTrue(self.challenge._validate(challenge_name, payload))
+        self.assertIn(
+            "WARNING:test_a2c:CHALLENGE VALIDATION DISABLED. Setting challenge status to valid.",
+            lcm.output,
+        )
+        self.assertTrue(mock_update.called)
+        self.assertTrue(mock_aupdate.called)
+
+    @patch("acme_srv.challenge.Challenge._cvd_via_eabprofile_check")
+    @patch("acme_srv.challenge.Challenge._update_authz")
+    @patch("acme_srv.challenge.Challenge._update")
+    def test_215__validate(self, mock_update, mock_aupdate, mock_cvd_check):
+        """test validate"""
+        challenge_name = "challenge_name"
+        payload = "payload"
+        mock_update.return_value = True
+        mock_aupdate.return_value = True
+        mock_cvd_check.return_value = False
+        self.challenge.challenge_validation_disable = False
+        self.assertFalse(self.challenge._validate(challenge_name, payload))
+        self.assertTrue(mock_update.called)
+        self.assertFalse(mock_aupdate.called)
+
+    @patch("acme_srv.challenge.Challenge._cvd_via_eabprofile_check")
+    @patch("acme_srv.challenge.Challenge._update_authz")
+    @patch("acme_srv.challenge.Challenge._update")
+    def test_216__validate(self, mock_update, mock_aupdate, mock_cvd_check):
+        """test validate"""
+        challenge_name = "challenge_name"
+        payload = "payload"
+        mock_update.return_value = True
+        mock_aupdate.return_value = True
+        mock_cvd_check.return_value = True
+        self.challenge.challenge_validation_disable = True
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertTrue(self.challenge._validate(challenge_name, payload))
+        self.assertIn(
+            "WARNING:test_a2c:CHALLENGE VALIDATION DISABLED. Setting challenge status to valid.",
+            lcm.output,
+        )
         self.assertTrue(mock_update.called)
         self.assertTrue(mock_aupdate.called)
 
@@ -1993,6 +2073,118 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(mock_set.called)
         self.assertFalse(mock_val.called)
+
+    def test_122_cvd_via_eabprofile_check(self):
+        """test _cvd_via_eabprofile_check with profiling disabled"""
+        self.challenge.eab_profiling = False
+        self.challenge.eab_handler = None
+        self.challenge.dbstore.challenge_lookup.return_value = {"foo": "bar"}
+        self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
+
+    def test_123_cvd_via_eabprofile_check(self):
+        """test _cvd_via_eabprofile_check with no handler"""
+        self.challenge.eab_profiling = True
+        self.challenge.eab_handler = None
+        self.challenge.dbstore.challenge_lookup.return_value = {"foo": "bar"}
+        self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
+
+    def test_124_cvd_via_eabprofile_check(self):
+        """test _cvd_via_eabprofile_check with handler but profiling disabled"""
+        self.challenge.eab_profiling = False
+        self.challenge.eab_handler = MagicMock()
+        self.challenge.dbstore.challenge_lookup.return_value = {"foo": "bar"}
+        self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
+
+    def test_125_cvd_via_eabprofile_check(self):
+        """test _cvd_via_eabprofile_check enabled but no useful data returned"""
+        self.challenge.eab_profiling = True
+        self.challenge.eab_handler = MagicMock()
+        self.challenge.dbstore.challenge_lookup.return_value = {"foo": "bar"}
+        self.challenge.dbstore.challenge_lookup.side_effect = None
+        self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
+
+    def test_126_cvd_via_eabprofile_check(self):
+        """test _cvd_via_eabprofile_check enabled but exception during db lookup"""
+        self.challenge.eab_profiling = True
+        self.challenge.eab_handler = MagicMock()
+        self.challenge.dbstore.challenge_lookup.side_effect = Exception(
+            "exc_chall_info"
+        )
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
+        self.assertIn(
+            "CRITICAL:test_a2c:acme2certifier database error in Challenge._cvd_via_eabprofile_check(): exc_chall_info",
+            lcm.output,
+        )
+
+    def test_127_cvd_via_eabprofile_check(self):
+        """test _cvd_via_eabprofile_check enabled cvd True"""
+        self.challenge.eab_profiling = True
+        self.challenge.eab_handler = MagicMock()
+        self.challenge.eab_handler.return_value.__enter__.return_value.key_file_load.return_value = {
+            "eab_kid": {
+                "foo": "bar",
+                "challenge": {"challenge_validation_disable": True},
+            }
+        }
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "foo": "bar",
+            "authorization__order__account__eab_kid": "eab_kid",
+        }
+        self.challenge.dbstore.challenge_lookup.side_effect = None
+        self.assertTrue(self.challenge._cvd_via_eabprofile_check("challenge_name"))
+
+    def test_128_cvd_via_eabprofile_check(self):
+        """test _cvd_via_eabprofile_check enabled cvd False"""
+        self.challenge.eab_profiling = True
+        self.challenge.eab_handler = MagicMock()
+        self.challenge.eab_handler.return_value.__enter__.return_value.key_file_load.return_value = {
+            "eab_kid": {
+                "foo": "bar",
+                "challenge": {"challenge_validation_disable": False},
+            }
+        }
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "foo": "bar",
+            "authorization__order__account__eab_kid": "eab_kid",
+        }
+        self.challenge.dbstore.challenge_lookup.side_effect = None
+        self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
+
+    def test_129_cvd_via_eabprofile_check(self):
+        """test _cvd_via_eabprofile_check enabled cvd True"""
+        self.challenge.eab_profiling = True
+        self.challenge.eab_handler = MagicMock()
+        self.challenge.eab_handler.return_value.__enter__.return_value.key_file_load.return_value = {
+            "another_kid": {
+                "foo": "bar",
+                "challenge": {"challenge_validation_disable": True},
+            }
+        }
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "foo": "bar",
+            "authorization__order__account__eab_kid": "eab_kid",
+        }
+        self.challenge.dbstore.challenge_lookup.side_effect = None
+        self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
+
+    def test_130_cvd_via_eabprofile_check(self):
+        """test _cvd_via_eabprofile_check enabled cvd True"""
+        self.challenge.eab_profiling = True
+        self.challenge.eab_handler = MagicMock()
+        self.challenge.eab_handler.return_value.__enter__.return_value.key_file_load.return_value = {
+            "eab_kid": {"foo": "bar"},
+            "another_kid": {
+                "foo": "bar",
+                "challenge": {"challenge_validation_disable": True},
+            },
+        }
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "foo": "bar",
+            "authorization__order__account__eab_kid": "eab_kid",
+        }
+        self.challenge.dbstore.challenge_lookup.side_effect = None
+        self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
 
 
 if __name__ == "__main__":
