@@ -100,7 +100,22 @@ eab_profiling: False
 
 ## Passing a Template from Client to Server
 
-This handler uses the [header_info_list feature](header_info.md), allowing an ACME client to specify a template name for certificate enrollment. To enable this feature, update `acme_srv.cfg`:
+acme2certifier supports the the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a `template` parameter to be submitted to the CA server.
+
+The list of supported profiles must be configured in `acme_srv.cfg`
+
+```config
+[Order]
+profiles: {"template1": "http://foo.bar/template1", "template2": "http://foo.bar/template2", "template3": "http://foo.bar/template3"}
+```
+
+Once enabled, a client can specify the template to be used as part of an order request. Below an example for lego:
+
+```bash
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile template2
+```
+
+Further, this handler uses the [header_info_list feature](header_info.md), allowing an ACME client to specify a template name for certificate enrollment. To enable this feature, update `acme_srv.cfg`:
 
 ```ini
 [Order]
