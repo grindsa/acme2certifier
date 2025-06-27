@@ -775,7 +775,7 @@ class Account(object):
         self.logger.debug("Account._parse_deactivation(%s)", account_name)
         data = None
         # account deactivation
-        if payload["status"].lower() == "deactivated":
+        if payload['status'].lower() == 'deactivated':
             (code, message, detail) = self._deactivate(account_name)
             if code == 200:
                 data = payload
