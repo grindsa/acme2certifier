@@ -1,11 +1,39 @@
 <!-- markdownlint-disable  MD013 -->
+
 # Acme2certifier changelog
 
 This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
-# Changes in 0.37
+## Changes in 0.38
+
+**Upgrade notes**:
+
+- database scheme gets updated. Please run either
+  - `tools/db_update.py` when using the wsgi_handler or
+  - `tools/django_update.py` in case you are using the django_handler
+
+**Features and Improvements**:
+
+- Support of [Automated Certificate Management Environment (ACME) Profiles Extension](https://datatracker.ietf.org/doc/draft-aaron-acme-profiles/)
+- [#227](https://github.com/grindsa/acme2certifier/issues/227) - Challenge validation can now be disabled using the [EAB profiling feature](docs/eab_profiling.md)
+- [#226](https://github.com/grindsa/acme2certifier/issues/226) - A configuration option has been added to append the Common Name (CN) or the first Subject Alternative Name (SAN) to the eJBCA username.
+- Added support for the [caaIdentities attribute](https://datatracker.ietf.org/doc/html/rfc8555/#section-7.1.1) in the directory object
+
+**Bug fixes**:
+
+- Addressed Bandit warnings related to potential SQL injection vulnerabilities
+- Code formatting improved using [black](https://github.com/psf/black)
+- Markdown linting performed using [mdformat](https://mdformat.readthedocs.io/en/stable/#)
+
+## Changes in 0.37.1
+
+**Bug fixes**:
+
+- [#221](https://github.com/grindsa/acme2certifier/issues/221) - /directory redirection is broken if "url prefix" is configured
+
+## Changes in 0.37
 
 **Upgrade notes**:
 
@@ -38,7 +66,7 @@ and pick the appropriate release branch.
 - Improved logging in `message.py`.
 - Resolved various linting issues.
 
-# Changes in 0.36
+## Changes in 0.36
 
 **Features and Improvements**:
 
@@ -61,7 +89,7 @@ and pick the appropriate release branch.
 - detect and handle django installations on Debian/Ubuntu systems
 - automated schema updates in case of RPM updates
 
-# Changes in 0.35
+## Changes in 0.35
 
 **Features and Improvements**:
 
@@ -80,7 +108,7 @@ and pick the appropriate release branch.
 - apache2_wsgi docker image will be tagged with `latest`
 - [#166](https://github.com/grindsa/acme2certifier/issues/166) workaround for failed account lookups on smallstep-ca
 
-# Changes in 0.34
+## Changes in 0.34
 
 **Features and Improvements**:
 
@@ -98,14 +126,14 @@ and pick the appropriate release branch.
 - updated [eab-example files](https://github.com/grindsa/acme2certifier/tree/master/examples/eab_handler) as hmac must be longer than 256bits
 - identifier sanitizing
 
-# Changes in 0.33.3
+## Changes in 0.33.3
 
 **Features and Improvements**:
 
 - some smaller modifications run flawless on Redhat8 and derivates
 - Workflows to test rpm-deployment on RHEL8 and RHEL9
 
-# Changes in 0.33.2
+## Changes in 0.33.2
 
 **Upgrade notes**:
 
@@ -118,13 +146,13 @@ and pick the appropriate release branch.
 - [134](https://github.com/grindsa/acme2certifier/issues/134) - acme_srv_housekeeping" -> value too long for "name" field
 - [135](https://github.com/grindsa/acme2certifier/issues/134) - acme_srv_housekeeping dbversion ist set back to 0.23.1 after container restart
 
-# Changes in 0.33.1
+## Changes in 0.33.1
 
 **Bugfixes**:
 
 - [132](https://github.com/grindsa/acme2certifier/issues/132) - returning serial numbers in hex-format with leading zero
 
-# Changes in 0.33
+## Changes in 0.33
 
 **Upgrade notes**:
 
@@ -140,24 +168,25 @@ and pick the appropriate release branch.
 - better logging to ease troubleshootnig of eab
 - code refactoring to improve [f-string handling](https://pylint.pycqa.org/en/latest/user_guide/messages/convention/consider-using-f-string.html)
 
-# Changes in 0.32
+## Changes in 0.32
 
 **Features and Improvements**:
 
 - [#114](https://github.com/grindsa/acme2certifier/issues/114) `cert_validity_adjust` parameter in openssl_ca_handler.py to limit certificate validity so that a certificate is never valid longer than any ca certificate in the certificate chain
 
-# Changes in 0.31
+## Changes in 0.31
 
 **Features and Improvements**:
 
 - refactor `opennssl_ca_handler.py` and `xca_ca_handler.py` to replace pyopenssl
 - type hints for large parts of the project
 
-# Changes in 0.30
+## Changes in 0.30
 
 **Upgrade notes**:
 
 - database scheme gets updated. Please run either
+
   - `tools/db_update.py` when using the wsgi_handler or
   - `tools/django_update.py` in case you are using the django_handler
 
@@ -168,7 +197,7 @@ and pick the appropriate release branch.
   - [Kerberos support](https://github.com/grindsa/acme2certifier/issues/119#issuecomment-1763851071) in `mswcce_ca_handler.py`
   - [#122](https://github.com/grindsa/acme2certifier/issues/122) support of `sectigo-email-01` challenges
 
-# Changes in 0.29.2
+## Changes in 0.29.2
 
 **Bugfixes**:
 
@@ -176,11 +205,11 @@ and pick the appropriate release branch.
 - adding `python3-requests-ntlm` dependency in control file for debian packages
 - multiple smaller fixes in workflow files
 
-# Changes to 0.29.1
+## Changes to 0.29.1
 
 - withdrawn as released by mistake
 
-# Changes in 0.29
+## Changes in 0.29
 
 **Upgrade notes**:
 
@@ -194,7 +223,7 @@ and pick the appropriate release branch.
 - Support [draft-ietf-acme-ari-01](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/01): Renewal Information (ARI) Extension
 - Interoperability testing with [Caddy](https://caddyserver.com/docs/automatic-https) as part of regular regression
 
-# Changes in 0.28
+## Changes in 0.28
 
 **Features and Improvements**:
 
@@ -207,7 +236,7 @@ and pick the appropriate release branch.
 - [#111](https://github.com/grindsa/acme2certifier/issues/111) - Nonce handling in error responses
 - [#112](https://github.com/grindsa/acme2certifier/issues/112) - Keyrollover in Posh-ACME
 
-# Changes in 0.27
+## Changes in 0.27
 
 **Features and Improvements**:
 
@@ -223,7 +252,7 @@ and pick the appropriate release branch.
 - support existing acme-accounts in `acme_ca_hander.py`
 - address codesmells in dockerfiles
 
-# Changes in 0.26
+## Changes in 0.26
 
 **Features and Improvements**:
 
@@ -234,13 +263,13 @@ and pick the appropriate release branch.
 
 - #104 - conffile support in debian package to avoid overriding configuration files
 
-# Changes in 0.25.1
+## Changes in 0.25.1
 
 **Bugfixes**:
 
 - replace obsoleted `dns.resolver.query()` with `dns.resolver.resolve()`
 
-# Changes in 0.25
+## Changes in 0.25
 
 **Features and Improvements**:
 
@@ -252,7 +281,7 @@ and pick the appropriate release branch.
 - adding missing python modules to RPM spec file
 - add revocation operations to CA handler regression test suite
 
-# Changes in 0.24
+## Changes in 0.24
 
 **Features and Improvements**:
 
@@ -266,19 +295,19 @@ and pick the appropriate release branch.
 - rpm and deb package generatation as part of [create release workflow](.github/workflows/create_release.yml)
 - nginx django test workflows
 
-# Changes in 0.23.2
+## Changes in 0.23.2
 
 **Features and Improvements**:
 
 - [rpm](docs/install_rpm.md) and [deb](docs/install_deb.md) packages
 
-# Changes in 0.23.1
+## Changes in 0.23.1
 
 **Bugfixes**:
 
 - [#99 - Authorization.value max_length too short for SAN entries](https://github.com/grindsa/acme2certifier/issues/99)
 
-# Changes in 0.23
+## Changes in 0.23
 
 **Features and Improvements**:
 
@@ -291,7 +320,7 @@ and pick the appropriate release branch.
 - workflow django psql workflow
 - some more linting
 
-# Changes in 0.22
+## Changes in 0.22
 
 **Features and Improvements**:
 
@@ -479,7 +508,7 @@ and pick the appropriate release branch.
 
 **Bugfixes**:
 
-- additional fixes for dns-01 challenge validation (handling for *.foo.bar and foo.bar in the same csr)
+- additional fixes for dns-01 challenge validation (handling for \*.foo.bar and foo.bar in the same csr)
 
 ## Changes in 0.15.1
 
@@ -613,7 +642,7 @@ and pick the appropriate release branch.
 - method to remove expired certificates from database. Check the `certificate_cleanup` method [docs/housekeeping.md](docs/housekeeping.md) for further information
 - database versioning and error logging in case of version mismatch
 
-**Bugfixes***:
+**Bugfixes**\*:
 
 - Base64 encoding `certifier_trigger.sh` (removed blanks by using `-w 0`)
 - improved exception handling in case of database-errors
