@@ -23,6 +23,7 @@ from acme_srv.helper import (
     config_headerinfo_load,
     eab_profile_header_info_check,
     config_enroll_config_log_load,
+    config_profile_load,
     enrollment_config_log,
     config_allowed_domainlist_load,
     allowed_domainlist_check,
@@ -51,6 +52,7 @@ class CAhandler(object):
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
         self.allowed_domainlist = []
+        self.profiles = {}
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -284,14 +286,15 @@ class CAhandler(object):
         )
 
         self._auth_set()
-
-        # load header info
-        self.header_info_field = config_headerinfo_load(self.logger, config_dic)
-        # load enrollment config log
         (
             self.enrollment_config_log,
             self.enrollment_config_log_skip_list,
         ) = config_enroll_config_log_load(self.logger, config_dic)
+        # load profiles
+        self.profiles = config_profile_load(self.logger, config_dic)
+        # load header info
+        self.header_info_field = config_headerinfo_load(self.logger, config_dic)
+        # load enrollment config log
         # load allowed domainlist
         self.allowed_domainlist = config_allowed_domainlist_load(
             self.logger, config_dic

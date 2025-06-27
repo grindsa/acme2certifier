@@ -5,12 +5,13 @@ import json
 from typing import List, Tuple, Dict
 from acme_srv.helper import (
     b64_url_recode,
+    config_profile_load,
+    error_dic_get,
     generate_random_string,
     load_config,
     parse_url,
     uts_to_date_utc,
     uts_now,
-    error_dic_get,
     validate_identifier,
 )
 from acme_srv.certificate import Certificate
@@ -41,6 +42,9 @@ class Order(object):
         self.sectigo_sim = False
         self.identifier_limit = 20
         self.header_info_list = []
+        self.profiles = {}
+        # turn off check by default
+        self.profiles_check_disable = True
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -81,6 +85,28 @@ class Order(object):
         self.logger.debug("Order._auth_add() ended with %s", error)
         return error
 
+    def _profile_check(self, profile: str) -> str:
+        """check if profile is valid"""
+        self.logger.debug("Order._profile_check(%s)", profile)
+
+        error = self.error_msg_dic["invalidprofile"]
+        if self.profiles_check_disable:
+            self.logger.debug("Order._profile_check(): profile check disabled")
+            error = None
+        else:
+            # profie check is enabled
+            if profile in self.profiles:
+                # check if profile is valid
+                error = None
+            else:
+                # profile is not valid
+                self.logger.warning(
+                    "Order._profile_check(): profile '%s' is not valid", profile
+                )
+
+        self.logger.debug("Order._profile_check() ended with %s", error)
+        return error
+
     def _add(
         self, payload: Dict[str, str], aname: str
     ) -> Tuple[str, str, Dict[str, str], int]:
@@ -101,6 +127,21 @@ class Order(object):
 
             # check identifiers
             error = self._identifiers_check(payload["identifiers"])
+
+            if "profile" in payload:
+                # check if profile is valid
+                error = self._profile_check(payload["profile"])
+                if not error:
+                    if self.profiles:
+                        # add profile to order
+                        data_dic["profile"] = payload["profile"]
+                    else:
+                        # profile check is enabled but no profiles are configured
+                        self.logger.warning(
+                            "Order._add(): ignore submitted profile '%s' as no profiles are configured",
+                            payload["profile"],
+                        )
+
             # change order status if needed
             if error:
                 data_dic["status"] = 1
@@ -216,6 +257,17 @@ class Order(object):
                 k: config_dic["Directory"]["url_prefix"] + v
                 for k, v in self.path_dic.items()
             }
+
+        # load profile
+        if "Order" in config_dic and "profiles" in config_dic["Order"]:
+            # we have a profile configuration turn on check
+            self.logger.debug("Order._config_load(): profile check enabled")
+            self.profiles_check_disable = False
+            self.profiles = config_profile_load(self.logger, config_dic)
+            # disable profile check if configured
+            self.profiles_check_disable = config_dic.getboolean(
+                "Order", "profiles_check_disable", fallback=False
+            )
 
         self.logger.debug("Order._config_load() ended.")
 
@@ -611,6 +663,7 @@ class Order(object):
         (code, message, detail, _protected, payload, account_name) = self.message.check(
             content
         )
+
         if code == 200:
             (error, order_name, auth_dic, expires) = self._add(payload, account_name)
             if not error:

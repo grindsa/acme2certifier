@@ -416,7 +416,7 @@ class DBstore(object):
         self.logger.debug("create orders")
         self.cursor.execute(
             """
-            CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "profile" varchar(64), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         """
         )
         self.logger.debug("create authorization")
@@ -660,12 +660,14 @@ class DBstore(object):
         """alter orders table"""
         self.logger.debug("DBStore._db_update_orders()")
 
+        order_column_list = []
         # change identifier field to text to remove length restriction
         self.cursor.execute("""PRAGMA table_info(orders)""")
         for column in self.cursor.fetchall():
+            order_column_list.append(column[1])
             if column[1] == "identifiers" and "varchar" in column[2].lower():
                 self.logger.info(
-                    "alter order table - change identifier field type to TEXT"
+                    "alter orders table - change identifier field type to TEXT"
                 )
                 self.cursor.execute("""ALTER TABLE orders RENAME TO tmp""")
                 self.cursor.execute(
@@ -677,6 +679,12 @@ class DBstore(object):
                     """INSERT INTO orders(id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at) SELECT id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at  FROM tmp"""
                 )
                 self.cursor.execute("""DROP TABLE tmp""")
+
+        if "profile" not in order_column_list:
+            self.logger.info("alter challenge orders - add profile")
+            self.cursor.execute(
+                """ALTER TABLE orders ADD COLUMN profile varchar(64) DEFAULT \'\'"""
+            )
 
     def _db_update_status(self):
         """update status table"""
@@ -1380,6 +1388,7 @@ class DBstore(object):
         pre_statement = f"""SELECT certificate.*,
                             orders.id as order__id,
                             orders.name as order__name,
+                            orders.profile as order__profile,
                             orders.status_id as order__status_id,
                             account.name as order__account__name
                             from certificate
@@ -1717,12 +1726,15 @@ class DBstore(object):
         if "notafter" not in data_dic:
             data_dic["notafter"] = ""
 
+        if "profile" not in data_dic:
+            data_dic["profile"] = ""
+
         account = self.account_lookup("name", data_dic["account"])
         if account:
             data_dic["account"] = account["id"]
             self._db_open()
             self.cursor.execute(
-                """INSERT INTO orders(name, identifiers, account_id, status_id, expires, notbefore, notafter) VALUES(:name, :identifiers, :account, :status, :expires, :notbefore, :notafter )""",
+                """INSERT INTO orders(name, identifiers, account_id, status_id, expires, notbefore, notafter, profile) VALUES(:name, :identifiers, :account, :status, :expires, :notbefore, :notafter, :profile )""",
                 data_dic,
             )
             rid = self.cursor.lastrowid
