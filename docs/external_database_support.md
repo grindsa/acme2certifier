@@ -123,8 +123,8 @@ python3 /var/www/acme2certifier/tools/django_secret_keygen.py
   - Configure a connection to mariadb as shown below
 
 ```python
-SECRET_KEY = '+%*lei)yj9b841=2d5(u)a&7*uwi@l99$(*&ong@g*p1%q)g$e'
-ALLOWED_HOSTS = ['192.168.14.132', 'ub2204-c1.bar.local']
+SECRET_KEY = "+%*lei)yj9b841=2d5(u)a&7*uwi@l99$(*&ong@g*p1%q)g$e"
+ALLOWED_HOSTS = ["192.168.14.132", "ub2204-c1.bar.local"]
 (...)
 ```
 
@@ -134,15 +134,18 @@ ALLOWED_HOSTS = ['192.168.14.132', 'ub2204-c1.bar.local']
 
 ```python
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'acme2certifier',
-        'USER': 'acme2certifier',
-        'PASSWORD': 'a2cpasswd',
-        'HOST': "ub2204-c1",
-        'OPTIONS': {"init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1","charset": "utf8mb4", "use_unicode": True},
+    "default": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "acme2certifier",
+        "USER": "acme2certifier",
+        "PASSWORD": "a2cpasswd",
+        "HOST": "ub2204-c1",
+        "OPTIONS": {
+            "init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1",
+            "charset": "utf8mb4",
+            "use_unicode": True,
+        },
     },
-
 }
 ```
 
@@ -152,13 +155,13 @@ DATABASES = {
 
 ```python
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql_psycopg2',
-        'NAME': 'acme2certifier',
-        'USER': 'acme2certifier',
-        'PASSWORD': 'a2cpasswd',
-        'HOST': 'postgresdbsrv',
-        'PORT': '',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql_psycopg2",
+        "NAME": "acme2certifier",
+        "USER": "acme2certifier",
+        "PASSWORD": "a2cpasswd",
+        "HOST": "postgresdbsrv",
+        "PORT": "",
     }
 }
 ```

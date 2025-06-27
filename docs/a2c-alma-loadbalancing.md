@@ -542,21 +542,24 @@ python3 /opt/acme2certifier/tools/django_secret_keygen.py
   - configure a connection to mariadb as shown below
 
 ```python
-SECRET_KEY = '+%*lei)yj9b841=2d5(u)a&7*uwi@l99$(*&ong@g*p1%q)g$e'
+SECRET_KEY = "+%*lei)yj9b841=2d5(u)a&7*uwi@l99$(*&ong@g*p1%q)g$e"
 ...
-ALLOWED_HOSTS = ['192.168.14.136', 'alma9-c1.bar.local']
+ALLOWED_HOSTS = ["192.168.14.136", "alma9-c1.bar.local"]
 ...
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'acme2certifier',
-        'USER': 'acme2certifier',
-        'PASSWORD': 'a2cpasswd',
-        'HOST': "alma9-c1",
-        'OPTIONS': {"init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1","charset": "utf8mb4", "use_unicode": True},
+    "default": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "acme2certifier",
+        "USER": "acme2certifier",
+        "PASSWORD": "a2cpasswd",
+        "HOST": "alma9-c1",
+        "OPTIONS": {
+            "init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1",
+            "charset": "utf8mb4",
+            "use_unicode": True,
+        },
     },
-
 }
 ```
 
@@ -623,21 +626,24 @@ python3 /opt/acme2certifier/tools/django_secret_keygen.py
   - configure a connection to mariadb as shown below
 
 ```python
-SECRET_KEY = '5@@wlvvi!hb(6qc%*77j55@jt8ib4^f1o&+pz-^z*#v3e7u3o!'
+SECRET_KEY = "5@@wlvvi!hb(6qc%*77j55@jt8ib4^f1o&+pz-^z*#v3e7u3o!"
 ...
-ALLOWED_HOSTS = ['192.168.14.137', 'alma9-c2.bar.local']
+ALLOWED_HOSTS = ["192.168.14.137", "alma9-c2.bar.local"]
 ...
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'acme2certifier',
-        'USER': 'acme2certifier',
-        'PASSWORD': 'a2cpasswd',
-        'HOST': "alma9-c2",
-        'OPTIONS': {"init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1","charset": "utf8mb4", "use_unicode": True},
+    "default": {
+        "ENGINE": "django.db.backends.mysql",
+        "NAME": "acme2certifier",
+        "USER": "acme2certifier",
+        "PASSWORD": "a2cpasswd",
+        "HOST": "alma9-c2",
+        "OPTIONS": {
+            "init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1",
+            "charset": "utf8mb4",
+            "use_unicode": True,
+        },
     },
-
 }
 ```
 
