@@ -3,9 +3,10 @@
 # pylint: disable=e0401, r0913
 from __future__ import print_function
 import uuid
+import json
 from typing import Dict
 from .version import __version__, __dbversion__
-from .helper import load_config, ca_handler_load
+from .helper import load_config, ca_handler_load, config_profile_load
 from .db_handler import DBstore
 
 
@@ -29,6 +30,8 @@ class Directory(object):
         self.db_check = False
         self.eab = False
         self.url_prefix = ""
+        self.caaidentities = []
+        self.profiles = {}
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -70,6 +73,22 @@ class Directory(object):
                 err_,
             )
 
+        tmp_caaidentities = config_dic.get("Directory", "caaidentities", fallback=None)
+        if tmp_caaidentities:
+            try:
+                self.caaidentities = json.loads(tmp_caaidentities)
+            except Exception as err_:
+                if "[" not in tmp_caaidentities and '"' not in tmp_caaidentities:
+                    self.caaidentities = [tmp_caaidentities]
+                else:
+                    self.logger.error(
+                        "Directory._config_load() error in caaIdentities: %s",
+                        err_,
+                    )
+
+        # load allowed profiles
+        self.profiles = config_profile_load(self.logger, config_dic)
+
         # load ca_handler according to configuration
         ca_handler_module = ca_handler_load(self.logger, config_dic)
         if ca_handler_module:
@@ -110,6 +129,12 @@ class Directory(object):
         # add terms of service
         if self.tos_url:
             d_dic["meta"]["termsOfService"] = self.tos_url
+
+        if self.caaidentities:
+            d_dic["meta"]["caaIdentities"] = self.caaidentities
+
+        if self.profiles:
+            d_dic["meta"]["profiles"] = self.profiles
 
         # indicate eab requirement
         if self.eab:

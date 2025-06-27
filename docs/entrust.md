@@ -1,5 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
+
 <!-- wiki-title CA handler for Entrust ECS Enterprise -->
+
 # Connecting to Entrust ECS Enterprise
 
 This handler can be used to enroll certificates from Entrust ECS Enterprise API.
@@ -20,7 +22,7 @@ This handler can be used to enroll certificates from Entrust ECS Enterprise API.
 handler_file: examples/ca_handler/entrust_ca_handler.py
 username: <Username>
 password: <Password>
-certtype: <certificate type>
+cert_type: <certificate type>
 organization_name: <organization name>
 
 client_cert: <client file>
@@ -50,7 +52,22 @@ Use your favorite acme client for certificate enrollment. A list of clients used
 
 ## Passing a cert_type from client to server
 
-The handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a certificate type to be used during certificate enrollment. This feature is disabled by default and must be activated in `acme_srv.cfg` as shown below
+acme2certifier supports the the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a `cert_type` parameter to be submitted to the CA server.
+
+The list of supported profiles must be configured in `acme_srv.cfg`
+
+```config
+[Order]
+profiles: {"STANDARD_SSL": "http://foo.bar/STANDARD_SSL", "ADVANTAGE_SSL": "http://foo.bar/ADVANTAGE_SSL"}
+```
+
+Once enabled, a client can specify the cert_type to be used as part of an order request. Below an example for lego:
+
+```bash
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile ADVANTAGE_SSL
+```
+
+Further, this handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a certificate type to be used during certificate enrollment. This feature is disabled by default and must be activated in `acme_srv.cfg` as shown below
 
 ```config
 [Order]
@@ -72,7 +89,7 @@ Example for lego:
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" --user-agent cert_type=ADVANTAGE_SSL -d <fqdn> --http run
 ```
 
-# eab profiling
+## eab profiling
 
 This handler can use the [EAB profiling feature](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activatedd in `acme_srv.cfg`
 
