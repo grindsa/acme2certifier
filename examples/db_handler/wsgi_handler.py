@@ -321,7 +321,8 @@ class DBstore(object):
                 authorization.value as authorization__value,
                 authorization.token as authorization__token,
                 orders.name as authorization__order__name,
-                account.name as authorization__order__account__name
+                account.name as authorization__order__account__name,
+                account.eab_kid as authorization__order__account__eab_kid
             from challenge
             INNER JOIN status on status.id = challenge.status_id
             INNER JOIN authorization on authorization.id = challenge.authorization_id
