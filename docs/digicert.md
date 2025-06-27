@@ -1,5 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
+
 <!-- wiki-title CA handler for Digicert CertCentral -->
+
 # Connecting to DigiCert CertCentral
 
 This handler can be used to enroll certificates from [DigiCert CertCentral](https://dev.digicert.com/en/certcentral-apis.html).
@@ -34,17 +36,17 @@ eab_profiling: <True|False>
 
 - api_key - required - API key to access the API
 - organization_name - required - Organization name as specified in DigiCert CertCentral
-- allowed_domainlist: list of domain-names allowed for enrollment in json format (example: ["bar.local$, bar.foo.local])
+- allowed_domainlist: list of domain-names allowed for enrollment in json format (example: \["bar.local$, bar.foo.local\])
 - api_url - optional - URL of the CertCentral API
 - organization_id - optional - organization id - configuration prevents additional rest-lookups
 - cert_type - optional - [certificte type](https://dev.digicert.com/en/certcentral-apis/services-api/orders.html) to be isused. (default: ssl_basic)
 - signature_hash - optional - hash algorithm used for certificate signing - (default: sha256)
 - order_validity - optional - oder validity (default: 1 year)
 - request_timeout - optional - requests timeout in seconds for requests (default: 5s)
-- allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: ["bar.local$, bar.foo.local] (default: [])
+- allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: \["bar.local$, bar.foo.local\] (default: \[\])
 - eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
 - enrollment_config_log - optional - log enrollment parameters (default False)
-- enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: [ "parameter1", "parameter2" ] (default: [])
+- enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: \[ "parameter1", "parameter2" \] (default: \[\])
 
 Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found in the [disclaimer section of our README file](../README.md)
 
@@ -52,7 +54,22 @@ Use your favorite acme client for certificate enrollment. A list of clients used
 
 ## Passing a cert_type from client to server
 
-The handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a [certificate type](https://dev.digicert.com/en/certcentral-apis/services-api/orders.html) to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
+acme2certifier supports the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a [cert_type](https://dev.digicert.com/en/certcentral-apis/services-api/orders.html) parameter to be submitted to the CA server.
+
+The list of supported profiles must be configured in `acme_srv.cfg`
+
+```config
+[Order]
+profiles: {"profile1": "http://foo.bar/ssl_basic", "profile2": "http://foo.bar/ssl_securesite_pro", "profile3": "http://foo.bar/ssl_secure"}
+```
+
+Once enabled, a client can specify the cert_type to be used as part of an order request. Below an example for lego:
+
+```bash
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile ssl_securesite_pro
+```
+
+Further, this handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a [certificate type](https://dev.digicert.com/en/certcentral-apis/services-api/orders.html) to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
 
 ```config
 [Order]

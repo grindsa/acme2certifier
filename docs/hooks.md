@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD013 -->
+
 <!-- wiki-title: Hooks -->
 
 # Hooks
@@ -24,22 +25,30 @@ The following code describes the different input parameters provided by `acme2ce
 
 ```python
 class Hooks:
-    """ EAB file handler """
+    """EAB file handler"""
 
     def __init__(self, logger) -> None:
         self.logger = logger
 
     def pre_hook(self, certificate_name, order_name, csr) -> None:
-        """ Run before obtaining any certificates """
-        self.logger.debug('Hook.pre_hook()')
+        """Run before obtaining any certificates"""
+        self.logger.debug("Hook.pre_hook()")
 
     def post_hook(self, certificate_name, order_name, csr, error) -> None:
-        """ Run after *attempting* to obtain/renew certificates """
-        self.logger.debug('Hook.post_hook()')
+        """Run after *attempting* to obtain/renew certificates"""
+        self.logger.debug("Hook.post_hook()")
 
-    def success_hook(self, certificate_name, order_name, csr, certificate, certificate_raw, poll_identifier) -> None:
-        """ Run after each successful certificate enrollment/renewal """
-        self.logger.debug('Hook.success_hook()')
+    def success_hook(
+        self,
+        certificate_name,
+        order_name,
+        csr,
+        certificate,
+        certificate_raw,
+        poll_identifier,
+    ) -> None:
+        """Run after each successful certificate enrollment/renewal"""
+        self.logger.debug("Hook.success_hook()")
 ```
 
 ### Input Parameters

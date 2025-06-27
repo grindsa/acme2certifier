@@ -1,5 +1,7 @@
 <!-- markdownlint-disable MD013 -->
+
 <!-- wiki-title ACME CA handler -->
+
 # ACME CA Handler
 
 Using `acme2certifier` to proxy requests towards ACME endpoints sounds like a silly idea?
@@ -40,21 +42,21 @@ Again, it is important to mention that the handler validates challenges over HTT
 
 The handler must be configured via `acme_srv`.
 
-| Option | Description | Mandatory | Default |
-| :------ | :---------- | :--------: | :------ |
-| handler_file | Path to CA handler file | Yes | None |
-| account_path | Path to account resource on CA server | No | `/acme/acct` |
-| acme_url | URL of the ACME endpoint | Yes | None |
-| acme_account | ACME account name. If not specified, `acme2certifier` will try to look up the account name based on the key file | No | None |
-| acme_keyfile | Path to private key (JSON format). If specified in config but not existing on the file system, `acme2certifier` will generate a new key and try to register it | No | None |
-| acme_keypath | Path to private key directory. If specified in config, `acme2certifier` stores new keys in this directory | No | None |
-| acme_account_email | Email address used to register a new account | No | None |
-| allowed_domainlist | List of domain names allowed for enrollment in JSON format, e.g., `["bar.local", "bar.foo.local"]` | No | `[]` |
-| directory_path | Path to directory resource on CA server | No | `/directory` |
-| eab_profiling | Enable EAB profiling | No | `False` |
-| enrollment_config_log | Log enrollment parameters | No | `False` |
-| enrollment_config_log_skip_list | List of enrollment parameters not to be logged in JSON format, e.g., `["parameter1", "parameter2"]` | No | `[]` |
-| ssl_verify | Verify certificates on SSL connections | No | `True` |
+| Option                          | Description                                                                                                                                                    | Mandatory | Default      |
+| :------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------: | :----------- |
+| handler_file                    | Path to CA handler file                                                                                                                                        |    Yes    | None         |
+| account_path                    | Path to account resource on CA server                                                                                                                          |    No     | `/acme/acct` |
+| acme_url                        | URL of the ACME endpoint                                                                                                                                       |    Yes    | None         |
+| acme_account                    | ACME account name. If not specified, `acme2certifier` will try to look up the account name based on the key file                                               |    No     | None         |
+| acme_keyfile                    | Path to private key (JSON format). If specified in config but not existing on the file system, `acme2certifier` will generate a new key and try to register it |    No     | None         |
+| acme_keypath                    | Path to private key directory. If specified in config, `acme2certifier` stores new keys in this directory                                                      |    No     | None         |
+| acme_account_email              | Email address used to register a new account                                                                                                                   |    No     | None         |
+| allowed_domainlist              | List of domain names allowed for enrollment in JSON format, e.g., `["bar.local", "bar.foo.local"]`                                                             |    No     | `[]`         |
+| directory_path                  | Path to directory resource on CA server                                                                                                                        |    No     | `/directory` |
+| eab_profiling                   | Enable EAB profiling                                                                                                                                           |    No     | `False`      |
+| enrollment_config_log           | Log enrollment parameters                                                                                                                                      |    No     | `False`      |
+| enrollment_config_log_skip_list | List of enrollment parameters not to be logged in JSON format, e.g., `["parameter1", "parameter2"]`                                                            |    No     | `[]`         |
+| ssl_verify                      | Verify certificates on SSL connections                                                                                                                         |    No     | `True`       |
 
 Modify the server configuration (`acme_srv/acme_srv.cfg`) and add at least the following parameters:
 
