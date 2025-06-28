@@ -237,7 +237,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.message.check(message, skip_nonce_check=True),
             )
         self.assertIn(
-            "INFO:test_a2c:skip nonce check of inner payload during keyrollover",
+            "INFO:test_a2c:Skip nonce check of inner payload during keyrollover",
             lcm.output,
         )
 

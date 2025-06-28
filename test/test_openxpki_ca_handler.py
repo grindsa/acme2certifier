@@ -381,7 +381,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_passphrase_load(parser)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite cert_passphrase",
+            "INFO:test_a2c:Overwrite cert_passphrase",
             lcm.output,
         )
         self.assertEqual("cert_passphrase", self.cahandler.cert_passphrase)
@@ -653,7 +653,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._enroll({"foo": "bar"}),
             )
         self.assertIn(
-            "INFO:test_a2c:CAhandler.enroll(): Request pending. Transaction_id: transaction_id Workflow_id: id",
+            "INFO:test_a2c:Request pending. Transaction_id: transaction_id Workflow_id: id",
             lcm.output,
         )
         self.assertFalse(mock_create.called)
@@ -704,7 +704,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._enroll({"foo": "bar"}),
             )
         self.assertIn(
-            "INFO:test_a2c:CAhandler.enroll(): Request pending. Transaction_id: transaction_id Workflow_id: id",
+            "INFO:test_a2c:Request pending. Transaction_id: transaction_id Workflow_id: id",
             lcm.output,
         )
         self.assertFalse(mock_create.called)
@@ -740,7 +740,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._enroll({"foo": "bar"}),
             )
         self.assertIn(
-            "INFO:test_a2c:CAhandler.enroll(): Request pending. Transaction_id: transaction_id Workflow_id: id",
+            "INFO:test_a2c:Request pending. Transaction_id: transaction_id Workflow_id: id",
             lcm.output,
         )
         self.assertTrue(mock_create.called)

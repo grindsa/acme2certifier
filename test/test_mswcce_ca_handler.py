@@ -132,9 +132,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite host", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite host", lcm.output)
         self.assertFalse(self.cahandler.use_kerberos)
         self.assertFalse(self.cahandler.allowed_domainlist)
 
@@ -196,7 +194,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load user_variable:'unk'",
+            "ERROR:test_a2c:Could not load user_variable:'unk'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.use_kerberos)
@@ -220,9 +218,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite user", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite user", lcm.output)
         self.assertFalse(self.cahandler.use_kerberos)
         self.assertFalse(self.cahandler.allowed_domainlist)
 
@@ -284,7 +280,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load password_variable:'unk'",
+            "ERROR:test_a2c:Could not load password_variable:'unk'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.use_kerberos)
@@ -311,9 +307,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite password", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite password", lcm.output)
         self.assertFalse(self.cahandler.use_kerberos)
         self.assertFalse(self.cahandler.allowed_domainlist)
 

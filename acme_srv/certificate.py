@@ -410,7 +410,7 @@ class Certificate(object):
                     poll_identifier,
                 ) = ca_handler.enroll(csr)
         else:
-            self.logger.info("Certificate._enroll(): reuse existing certificate")
+            self.logger.info("Reuse existing certificate")
 
         self.logger.debug("Certificate._enroll() ended")
         return (error, certificate, certificate_raw, poll_identifier)

@@ -309,13 +309,13 @@ class CAhandler(object):
                     )
             if "api_user" in config_dic["CAhandler"]:
                 if self.api_user:
-                    self.logger.info("CAhandler._config_load() overwrite api_user")
+                    self.logger.info("Overwrite api_user")
                 self.api_user = config_dic.get(
                     "CAhandler", "api_user", fallback=self.api_user
                 )
         else:
             self.logger.error(
-                'CAhandler._config_load() configuration incomplete: "api_user" parameter is missing in config file'
+                'Configuration incomplete: "api_user" parameter is missing in config file'
             )
 
         self.logger.debug("_config_user_load() ended")
@@ -340,13 +340,11 @@ class CAhandler(object):
                     )
             if "api_password" in config_dic["CAhandler"]:
                 if self.api_password:
-                    self.logger.info(
-                        "CAhandler._config_load() overwrite api_password_variable"
-                    )
+                    self.logger.info("Overwrite api_password_variable")
                 self.api_password = config_dic.get("CAhandler", "api_password")
         else:
             self.logger.error(
-                'CAhandler._config_load() configuration incomplete: "api_password" parameter is missing in config file'
+                'Configuration incomplete: "api_password" parameter is missing in config file'
             )
 
         self.logger.debug("_config_password_load() ended")

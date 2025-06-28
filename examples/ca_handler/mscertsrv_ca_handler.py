@@ -123,7 +123,7 @@ class CAhandler(object):
                 )
         if "user" in config_dic["CAhandler"]:
             if self.user:
-                self.logger.info("CAhandler._config_load() overwrite user")
+                self.logger.info("Overwrite user")
             self.user = config_dic.get("CAhandler", "user")
 
         self.logger.debug("CAhandler._config_user_load() ended")
@@ -143,7 +143,7 @@ class CAhandler(object):
                 )
         if "password" in config_dic["CAhandler"]:
             if self.password:
-                self.logger.info("CAhandler._config_load() overwrite password")
+                self.logger.info("Overwrite password")
             self.password = config_dic.get("CAhandler", "password")
 
         self.logger.debug("CAhandler._config_password_load() ended")
@@ -161,7 +161,7 @@ class CAhandler(object):
                 )
         if "host" in config_dic["CAhandler"]:
             if self.host:
-                self.logger.info("CAhandler._config_load() overwrite host")
+                self.logger.info("Overwrite host")
             self.host = config_dic.get("CAhandler", "host")
         self.logger.debug("CAhandler._config_hostname_load() ended")
 
@@ -175,7 +175,7 @@ class CAhandler(object):
                 )
         if "url" in config_dic["CAhandler"]:
             if self.url:
-                self.logger.info("CAhandler._config_load() overwrite url")
+                self.logger.info("Overwrite url")
             self.url = config_dic.get("CAhandler", "url")
 
         self.logger.debug("CAhandler._config_url_load() ended")
@@ -342,9 +342,7 @@ class CAhandler(object):
     def _parameter_overwrite(self, _csr: str):
         """overwrite overwrite krb5.conf or user-template"""
         if self.krb5_config:
-            self.logger.info(
-                "CAhandler.enroll(): load krb5config from %s", self.krb5_config
-            )
+            self.logger.info("Load krb5config from %s", self.krb5_config)
             os.environ["KRB5_CONFIG"] = self.krb5_config
 
     def _enroll(self, csr: str) -> Tuple[str, str, str]:

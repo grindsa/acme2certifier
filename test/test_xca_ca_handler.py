@@ -1027,7 +1027,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("foo_file", self.cahandler.passphrase)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite passphrase_variable",
+            "INFO:test_a2c:Overwrite passphrase_variable",
             lcm.output,
         )
 
@@ -1117,7 +1117,7 @@ class TestACMEHandler(unittest.TestCase):
                 ({"foo1": "bar1"}), self.cahandler._utf_stream_parse(utf_stream)
             )
         self.assertIn(
-            "INFO:test_a2c:_utf_stream_parse(): hack to skip template with empty eku - maybe a bug in xca...",
+            "INFO:test_a2c:Hack to skip template with empty eku - maybe a bug in xca...",
             lcm.output,
         )
 
@@ -1406,7 +1406,9 @@ class TestACMEHandler(unittest.TestCase):
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup))
-        self.assertIn("INFO:test_a2c:CAhandler._kue_generate() with 23", lcm.output)
+        self.assertIn(
+            "INFO:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
+        )
 
     def test_130__kue_generate(self):
         """CAhandler._kue_generate() - kup '0' defaulting to 23"""
@@ -1424,7 +1426,9 @@ class TestACMEHandler(unittest.TestCase):
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup))
-        self.assertIn("INFO:test_a2c:CAhandler._kue_generate() with 23", lcm.output)
+        self.assertIn(
+            "INFO:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
+        )
 
     def test_131__kue_generate(self):
         """CAhandler._kue_generate() - kup cannot get converted to int"""
@@ -1442,7 +1446,9 @@ class TestACMEHandler(unittest.TestCase):
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup))
-        self.assertIn("INFO:test_a2c:CAhandler._kue_generate() with 23", lcm.output)
+        self.assertIn(
+            "INFO:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
+        )
 
     def test_132__kue_generate(self):
         """CAhandler._kue_generate() - kup none"""
@@ -1460,7 +1466,9 @@ class TestACMEHandler(unittest.TestCase):
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup))
-        self.assertIn("INFO:test_a2c:CAhandler._kue_generate() with 23", lcm.output)
+        self.assertIn(
+            "INFO:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
+        )
 
     def test_133__kue_generate(self):
         """CAhandler._kue_generate() - kup none but csr_extensions"""
@@ -1468,7 +1476,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("ku_csr", self.cahandler._kue_generate(kup, "ku_csr"))
         self.assertIn(
-            "INFO:test_a2c:CAhandler._kue_generate() with data from csr", lcm.output
+            "INFO:test_a2c:Generate KeyUsage Extension with data from csr", lcm.output
         )
 
     def test_134__kue_generate(self):
@@ -1488,7 +1496,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup, "ku_csr"))
         self.assertIn(
-            "INFO:test_a2c:CAhandler._kue_generate() with data from template",
+            "INFO:test_a2c:Generate KeyUsage Extension with data from template",
             lcm.output,
         )
 
@@ -1498,7 +1506,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("ku_csr", self.cahandler._kue_generate(kup, "ku_csr"))
         self.assertIn(
-            "INFO:test_a2c:CAhandler._kue_generate() with data from csr", lcm.output
+            "INFO:test_a2c:Generate KeyUsage Extension with data from csr", lcm.output
         )
 
     @patch("examples.ca_handler.xca_ca_handler.CAhandler._kue_generate")
@@ -2101,7 +2109,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 "mock_name", self.cahandler._subject_modify("subject", dn_dic)
             )
-        self.assertIn("INFO:test_a2c:rewrite OU to organizationalUnitName", lcm.output)
+        self.assertIn("INFO:test_a2c:Rewrite OU to organizationalUnitName", lcm.output)
 
     @patch("examples.ca_handler.xca_ca_handler.x509.Name")
     @patch("examples.ca_handler.xca_ca_handler.x509.NameAttribute")
@@ -2114,7 +2122,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 "mock_name", self.cahandler._subject_modify("subject", dn_dic)
             )
-        self.assertIn("INFO:test_a2c:rewrite O to organizationName", lcm.output)
+        self.assertIn("INFO:test_a2c:Rewrite O to organizationName", lcm.output)
 
     @patch("examples.ca_handler.xca_ca_handler.x509.Name")
     @patch("examples.ca_handler.xca_ca_handler.x509.NameAttribute")
@@ -2127,7 +2135,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 "mock_name", self.cahandler._subject_modify("subject", dn_dic)
             )
-        self.assertIn("INFO:test_a2c:rewrite L to localityName", lcm.output)
+        self.assertIn("INFO:test_a2c:Rewrite L to localityName", lcm.output)
 
     @patch("examples.ca_handler.xca_ca_handler.x509.Name")
     @patch("examples.ca_handler.xca_ca_handler.x509.NameAttribute")
@@ -2140,7 +2148,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 "mock_name", self.cahandler._subject_modify("subject", dn_dic)
             )
-        self.assertIn("INFO:test_a2c:rewrite ST to stateOrProvinceName", lcm.output)
+        self.assertIn("INFO:test_a2c:Rewrite ST to stateOrProvinceName", lcm.output)
 
     @patch("examples.ca_handler.xca_ca_handler.x509.Name")
     @patch("examples.ca_handler.xca_ca_handler.x509.NameAttribute")
@@ -2153,7 +2161,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 "mock_name", self.cahandler._subject_modify("subject", dn_dic)
             )
-        self.assertIn("INFO:test_a2c:rewrite C to countryName", lcm.output)
+        self.assertIn("INFO:test_a2c:Rewrite C to countryName", lcm.output)
 
     @patch("examples.ca_handler.xca_ca_handler.eab_profile_header_info_check")
     @patch("examples.ca_handler.xca_ca_handler.CAhandler._cert_sign")

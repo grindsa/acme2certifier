@@ -192,9 +192,7 @@ class CAhandler(object):
                     "CAhandler._config_passphrase_load(): load passphrase from config file"
                 )
                 if self.cert_passphrase:
-                    self.logger.info(
-                        "CAhandler._config_load() overwrite cert_passphrase"
-                    )
+                    self.logger.info("Overwrite cert_passphrase")
                 self.cert_passphrase = config_dic.get("CAhandler", "cert_passphrase")
 
         self.logger.debug("CAhandler._config_passphrase_load() ended")
@@ -326,7 +324,7 @@ class CAhandler(object):
                 # request to be approved by operator
                 poll_indentifier = sign_response["result"]["data"]["transaction_id"]
                 self.logger.info(
-                    "CAhandler.enroll(): Request pending. Transaction_id: %s Workflow_id: %s",
+                    "Request pending. Transaction_id: %s Workflow_id: %s",
                     poll_indentifier,
                     sign_response["result"]["id"],
                 )

@@ -316,7 +316,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._cert_subject_generate()")
 
         if not bool(req.subject):
-            self.logger.info("rewrite CN to %s", request_name)
+            self.logger.info("Rewrite CN to %s", request_name)
             subject = x509.Name(
                 [x509.NameAttribute(x509.NameOID.COMMON_NAME, request_name)]
             )
@@ -354,7 +354,7 @@ class CAhandler(object):
         # set cert_validity
         if "validity" in template_dic:
             self.logger.info(
-                "take validity from template: %s", template_dic["validity"]
+                "Take validity from template: %s", template_dic["validity"]
             )
             # take validity from template
             cert_validity = template_dic["validity"]
@@ -504,9 +504,7 @@ class CAhandler(object):
         if "passphrase" in config_dic["CAhandler"]:
             # overwrite passphrase specified in variable
             if self.passphrase:
-                self.logger.info(
-                    "CAhandler._config_load() overwrite passphrase_variable"
-                )
+                self.logger.info("Overwrite passphrase_variable")
             self.passphrase = config_dic.get("CAhandler", "passphrase")
 
         if "ca_cert_chain_list" in config_dic["CAhandler"]:
@@ -785,7 +783,7 @@ class CAhandler(object):
         # add subjectAltName(s)
         if "subjectAltName" in csr_extensions_dic:
             # pylint: disable=C2801
-            self.logger.info(
+            self.logger.debug(
                 "CAhandler._extension_list_generate(): adding subAltNames: %s",
                 csr_extensions_dic["subjectAltName"].__str__(),
             )
@@ -906,21 +904,21 @@ class CAhandler(object):
                 kuval = int(kuval)
             except Exception:
                 self.logger.error(
-                    "CAhandler._kue_generate(): convert to int failed defaulting ku_val to 0"
+                    "Keyusage conversion to int failed defaulting ku_val to 0"
                 )
                 kuval = 0
 
         if kuval:
             # we have a key-usage value from template
-            self.logger.info("CAhandler._kue_generate() with data from template")
+            self.logger.info("Generate KeyUsage Extension with data from template")
             ku_dic = self._ku_dict_generate(kuval)
         elif ku_csr:
             # no data from template but data from csr
-            self.logger.info("CAhandler._kue_generate() with data from csr")
+            self.logger.info("Generate KeyUsage Extension with data from csr")
             ku_dic = ku_csr
         else:
             # no data from template no data from csr - default (23)
-            self.logger.info("CAhandler._kue_generate() with 23")
+            self.logger.info("Generate KeyUsage Extension with value 23")
             ku_dic = self._ku_dict_generate(23)
 
         self.logger.debug("CAhandler._kue_generate() ended with: %s", ku_dic)
@@ -1174,7 +1172,7 @@ class CAhandler(object):
         subject_name_list = []
 
         if "organizationalUnitName" in dn_dic and dn_dic["organizationalUnitName"]:
-            self.logger.info("rewrite OU to %s", dn_dic["organizationalUnitName"])
+            self.logger.info("Rewrite OU to %s", dn_dic["organizationalUnitName"])
             subject_name_list.append(
                 x509.NameAttribute(
                     x509.NameOID.ORGANIZATIONAL_UNIT_NAME,
@@ -1182,26 +1180,26 @@ class CAhandler(object):
                 )
             )
         if "organizationName" in dn_dic and dn_dic["organizationName"]:
-            self.logger.info("rewrite O to %s", dn_dic["organizationName"])
+            self.logger.info("Rewrite O to %s", dn_dic["organizationName"])
             subject_name_list.append(
                 x509.NameAttribute(
                     x509.NameOID.ORGANIZATION_NAME, dn_dic["organizationName"]
                 )
             )
         if "localityName" in dn_dic and dn_dic["localityName"]:
-            self.logger.info("rewrite L to %s", dn_dic["localityName"])
+            self.logger.info("Rewrite L to %s", dn_dic["localityName"])
             subject_name_list.append(
                 x509.NameAttribute(x509.NameOID.LOCALITY_NAME, dn_dic["localityName"])
             )
         if "stateOrProvinceName" in dn_dic and dn_dic["stateOrProvinceName"]:
-            self.logger.info("rewrite ST to %s", dn_dic["stateOrProvinceName"])
+            self.logger.info("Rewrite ST to %s", dn_dic["stateOrProvinceName"])
             subject_name_list.append(
                 x509.NameAttribute(
                     x509.NameOID.STATE_OR_PROVINCE_NAME, dn_dic["stateOrProvinceName"]
                 )
             )
         if "countryName" in dn_dic and dn_dic["countryName"]:
-            self.logger.info("rewrite C to %s", dn_dic["countryName"])
+            self.logger.info("Rewrite C to %s", dn_dic["countryName"])
             subject_name_list.append(
                 x509.NameAttribute(x509.NameOID.COUNTRY_NAME, dn_dic["countryName"])
             )
@@ -1292,7 +1290,7 @@ class CAhandler(object):
                     ele = ele[1:]
                 if ele == b"eKeyUse\xff\xff\xff\xff":
                     self.logger.info(
-                        "_utf_stream_parse(): hack to skip template with empty eku - maybe a bug in xca..."
+                        "Hack to skip template with empty eku - maybe a bug in xca..."
                     )
                 else:
                     parameter_list.append(ele.decode("utf-8"))

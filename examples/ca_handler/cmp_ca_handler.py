@@ -82,13 +82,11 @@ class CAhandler(object):
 
         if "CAhandler" in config_dic and "cmp_ref" in config_dic["CAhandler"]:
             if self.ref:
-                self.logger.info("CAhandler._config_load() overwrite cmp_ref variable")
+                self.logger.info("Overwrite cmp_ref variable")
             self.ref = config_dic["CAhandler"]["cmp_ref"]
         if "CAhandler" in config_dic and "cmp_secret" in config_dic["CAhandler"]:
             if self.secret:
-                self.logger.info(
-                    "CAhandler._config_load() overwrite cmp_secret variable"
-                )
+                self.logger.info("Overwrite cmp_secret variable")
             self.secret = config_dic["CAhandler"]["cmp_secret"]
 
         self.logger.debug("CAhandler._config_refsecret_load() ended")
@@ -155,7 +153,7 @@ class CAhandler(object):
                 self.secret = os.environ[config_dic["CAhandler"]["cmp_secret_variable"]]
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load() could not load cmp_secret_variable:%s",
+                    "Could not load cmp_secret_variable:%s",
                     err,
                 )
         elif ele in ("cmp_secret", "cmp_ref"):

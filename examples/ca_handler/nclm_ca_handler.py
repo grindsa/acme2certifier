@@ -373,9 +373,7 @@ class CAhandler(object):
 
         if not cert_id:
             # lookup through NCLM API
-            self.logger.info(
-                "CAhandler._cert_id_lookup(): cert_id not found in database. Lookup trough NCLM API"
-            )
+            self.logger.info("Cert_id not found in database. Lookup trough NCLM API")
             cert_id = self._certid_get_from_serial(cert_raw)
 
         self.logger.debug("CAhandler._cert_id_lookup() ended with %s", cert_id)
@@ -445,7 +443,7 @@ class CAhandler(object):
                 )
         if "api_user" in config_dic["CAhandler"]:
             if self.credential_dic["api_user"]:
-                self.logger.info("CAhandler._config_load() overwrite api_user")
+                self.logger.info("Overwrite api_user")
             self.credential_dic["api_user"] = config_dic.get("CAhandler", "api_user")
 
         self.logger.debug("CAhandler._config_api_user_load() ended.")
@@ -460,12 +458,10 @@ class CAhandler(object):
                     config_dic.get("CAhandler", "api_password_variable")
                 ]
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._config_load() could not load password_variable:%s", err
-                )
+                self.logger.error("Could not load password_variable:%s", err)
         if "api_password" in config_dic["CAhandler"]:
             if self.credential_dic["api_password"]:
-                self.logger.info("CAhandler._config_load() overwrite api_password")
+                self.logger.info("Overwrite api_password")
             self.credential_dic["api_password"] = config_dic.get(
                 "CAhandler", "api_password"
             )

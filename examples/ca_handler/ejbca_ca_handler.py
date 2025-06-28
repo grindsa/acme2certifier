@@ -151,7 +151,7 @@ class CAhandler(object):
 
             if "username" in config_dic["CAhandler"]:
                 if self.username:
-                    self.logger.info("CAhandler._config_load() overwrite username")
+                    self.logger.info("Overwrite username parameter")
                 self.username = config_dic.get("CAhandler", "username", fallback=None)
         else:
             self.logger.error(
@@ -190,9 +190,7 @@ class CAhandler(object):
 
             if "enrollment_code" in config_dic["CAhandler"]:
                 if self.enrollment_code:
-                    self.logger.info(
-                        "CAhandler._config_load() overwrite enrollment_code"
-                    )
+                    self.logger.info("Overwrite enrollment_code")
                 self.enrollment_code = config_dic.get("CAhandler", "enrollment_code")
         else:
             self.logger.error(
@@ -347,19 +345,17 @@ class CAhandler(object):
         cn = csr_cn_get(self.logger, csr)
 
         if not cn:
-            self.logger.info("CAhandler._csr_cn_get(): CN not found in CSR")
+            self.logger.info("CN not found in CSR")
             san_list = csr_san_get(self.logger, csr)
             if san_list:
                 (_type, san_value) = san_list[0].split(":")
                 cn = san_value
                 self.logger.info(
-                    "CAhandler._csr_cn_get(): CN not found in CSR. Using first SAN entry as CN: %s",
+                    "CN not found in CSR. Using first SAN entry as CN: %s",
                     san_value,
                 )
             else:
-                self.logger.error(
-                    "CAhandler._csr_cn_get(): CN not found in CSR. No SAN entries found"
-                )
+                self.logger.error("CN not found in CSR. No SAN entries found")
 
         self.logger.debug("CAhandler._csr_cn_get() ended with: %s", cn)
         return cn

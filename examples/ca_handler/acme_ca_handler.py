@@ -239,9 +239,7 @@ class CAhandler(object):
                 # check if account_name is stored in keyfile
                 if "account" in user_key_dic:
                     self.account = user_key_dic["account"]
-                    self.logger.info(
-                        "CAhandler.enroll() account %s found in keyfile", self.account
-                    )
+                    self.logger.info("Account %s found in keyfile", self.account)
                     del user_key_dic["account"]
                 user_key = josepy.JWKRSA.fields_from_json(user_key_dic)
         else:
@@ -374,9 +372,7 @@ class CAhandler(object):
         regr = acmeclient._regr_from_response(response)
         regr = acmeclient.query_registration(regr)
         if regr:
-            self.logger.info(
-                "CAhandler._account_lookup: found existing account: %s", regr.uri
-            )
+            self.logger.info("Found existing account: %s", regr.uri)
             self.account = regr.uri
             if self.acme_url:
                 # remove url from string
@@ -673,26 +669,22 @@ class CAhandler(object):
             regr = acmeclient.query_registration(regr)
             if hasattr(regr, "uri"):
                 self.logger.info(
-                    "CAhandler._registration_lookup(): found existing account: %s",
+                    "Found existing account: %s",
                     regr.uri,
                 )
             else:
                 self.logger.error(
-                    "CAhandler._registration_lookup(): account lookup failed. Account %s not found. Trying to register new account.",
+                    "Account lookup failed. Account %s not found. Trying to register new account.",
                     self.account,
                 )
                 regr = self._account_register(acmeclient, user_key, directory)
                 if hasattr(regr, "uri"):
-                    self.logger.info(
-                        "CAhandler._registration_lookup(): new account: %s", regr.uri
-                    )
+                    self.logger.info("New account: %s", regr.uri)
         else:
             # new account or existing account with missing account id
             regr = self._account_register(acmeclient, user_key, directory)
             if hasattr(regr, "uri"):
-                self.logger.info(
-                    "CAhandler._registration_lookup(): new account: %s", regr.uri
-                )
+                self.logger.info("New account: %s", regr.uri)
 
         self.logger.debug("CAhandler._registration_lookup() ended with: %s", bool(regr))
         return regr

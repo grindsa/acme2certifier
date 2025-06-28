@@ -156,9 +156,7 @@ class CAhandler(object):
 
         # for some reason entrust custs leading zeros from serial number
         if cert_serial.startswith("0"):
-            self.logger.info(
-                "CAhandler._certificates_get_from_serial() remove leading zeros from serial number"
-            )
+            self.logger.info("Remove leading zeros from serial number")
             cert_serial = cert_serial.lstrip("0")
 
         code, content = self._api_get(
@@ -273,7 +271,7 @@ class CAhandler(object):
                     ]
                 except Exception as err:
                     self.logger.error(
-                        "CAhandler._config_passphrase_load() could not load cert_passphrase_variable:%s",
+                        "Could not load cert_passphrase_variable:%s",
                         err,
                     )
 
@@ -282,9 +280,7 @@ class CAhandler(object):
                     "CAhandler._config_passphrase_load(): load passphrase from config file"
                 )
                 if self.cert_passphrase:
-                    self.logger.info(
-                        "CAhandler._config_load() overwrite cert_passphrase"
-                    )
+                    self.logger.info("Overwrite cert_passphrase")
                 self.cert_passphrase = config_dic.get(
                     "CAhandler", "cert_passphrase", fallback=self.cert_passphrase
                 )
@@ -365,7 +361,7 @@ class CAhandler(object):
             domain_list = self._domains_get(org_dic[self.organization_name])
             if not self.allowed_domainlist:
                 self.logger.info(
-                    "CAhandler._organizations_check(): allowed_domainlist is empty, using domains from Entrust API"
+                    "Allowed_domainlist is empty, using domains from Entrust API"
                 )
                 self.allowed_domainlist = domain_list
 
@@ -488,7 +484,7 @@ class CAhandler(object):
         if not tracking_id:
             # lookup through Entrust API
             self.logger.info(
-                "CAhandler._trackingid_get(): tracking_id not found in database. Lookup trough Entrust API"
+                "Tracking_id not found in database. Lookup trough Entrust API"
             )
             cert_serial = cert_serial_get(self.logger, cert_raw, hexformat=True)
             certificate_list = self._certificates_get_from_serial(cert_serial)

@@ -130,7 +130,7 @@ class CAhandler(object):
                 )
         if "est_host" in config_dic["CAhandler"]:
             if self.est_host:
-                self.logger.info("CAhandler._config_load() overwrite est_host")
+                self.logger.info("Overwrite est_host")
             self.est_host = config_dic.get("CAhandler", "est_host") + "/.well-known/est"
         if not self.est_host:
             self.logger.error('CAhandler._config_load(): missing "est_host" parameter')
@@ -152,7 +152,7 @@ class CAhandler(object):
                 )
         if "cert_passphrase" in config_dic["CAhandler"]:
             if self.cert_passphrase:
-                self.logger.info("CAhandler._config_load() overwrite cert_passphrase")
+                self.logger.info("Overwrite cert_passphrase")
             self.cert_passphrase = config_dic.get("CAhandler", "cert_passphrase")
         self.logger.debug("CAhandler._cert_passphrase_load() ended")
 
@@ -227,7 +227,7 @@ class CAhandler(object):
                 )
         if "est_password" in config_dic["CAhandler"]:
             if self.est_password:
-                self.logger.info("CAhandler._config_load() overwrite est_password")
+                self.logger.info("Overwrite est_password")
             self.est_password = config_dic.get("CAhandler", "est_password")
 
         if (self.est_user and not self.est_password) or (
