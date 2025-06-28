@@ -1466,7 +1466,7 @@ class TestACMEHandler(unittest.TestCase):
                 (201, "randowm_string", None),
                 self.account._add(content, payload, "foo@example.com"),
             )
-        self.assertIn("INFO:test_a2c:add eab_kid: eab_kid to data_dic", lcm.output)
+        self.assertIn("INFO:test_a2c:Add eab_kid: eab_kid to data_dic", lcm.output)
 
     @patch("acme_srv.nonce.Nonce.generate_and_add")
     @patch("acme_srv.message.Message.check")

@@ -1520,7 +1520,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._account_lookup(acmeclient, "reg", directory)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._account_lookup: found existing account: urluriacc_info",
+            "INFO:test_a2c:Found existing account: urluriacc_info",
             lcm.output,
         )
         self.assertEqual("urluriacc_info", self.cahandler.account)
@@ -1538,7 +1538,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._account_lookup(acmeclient, "reg", directory)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._account_lookup: found existing account: urluriacc_info",
+            "INFO:test_a2c:Found existing account: urluriacc_info",
             lcm.output,
         )
         self.assertEqual("uriacc_info", self.cahandler.account)
@@ -1556,7 +1556,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._account_lookup(acmeclient, "reg", directory)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._account_lookup: found existing account: urluriacc_info",
+            "INFO:test_a2c:Found existing account: urluriacc_info",
             lcm.output,
         )
         self.assertEqual("urluri", self.cahandler.account)
@@ -1575,7 +1575,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._account_lookup(acmeclient, "reg", directory)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._account_lookup: found existing account: urluriacc_info",
+            "INFO:test_a2c:Found existing account: urluriacc_info",
             lcm.output,
         )
         self.assertEqual("uri", self.cahandler.account)

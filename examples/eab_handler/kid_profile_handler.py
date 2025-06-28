@@ -56,9 +56,7 @@ class EABhandler(object):
                     # force check to fail as something went wrong during parsing
                     check_list.append(False)
                     self.logger.info(
-                        "EABhandler._csr_check(): san_list parsing failed at entry: {0}".format(
-                            san
-                        )
+                        "SAN list parsing failed at entry: {0}".format(san)
                     )
 
         self.logger.debug("EABhandler._chk_san_lists_get() ended")

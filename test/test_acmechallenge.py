@@ -55,7 +55,7 @@ class TestACMEHandler(unittest.TestCase):
         self.acmechallenge.dbstore.cahandler_lookup.return_value = "lookup"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.acmechallenge.lookup(path_info))
-        self.assertIn("INFO:test_a2c:Acmechallenge.lookup() token: foo", lcm.output)
+        self.assertIn("INFO:test_a2c:Lookup token: foo", lcm.output)
 
     def test_005_lookup(self):
         """test lookup strange token rest replace"""
@@ -63,7 +63,7 @@ class TestACMEHandler(unittest.TestCase):
         self.acmechallenge.dbstore.cahandler_lookup.return_value = "lookup"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.acmechallenge.lookup(path_info))
-        self.assertIn("INFO:test_a2c:Acmechallenge.lookup() token: foo1", lcm.output)
+        self.assertIn("INFO:test_a2c:Lookup token: foo1", lcm.output)
 
     def test_006_lookup(self):
         """test lookup strange token rest replace"""
@@ -73,7 +73,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("key_authorization", self.acmechallenge.lookup(path_info))
-        self.assertIn("INFO:test_a2c:Acmechallenge.lookup() token: foo", lcm.output)
+        self.assertIn("INFO:test_a2c:Lookup token: foo", lcm.output)
 
 
 if __name__ == "__main__":

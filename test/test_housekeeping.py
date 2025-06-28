@@ -1074,7 +1074,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_list.called)
         self.assertFalse(mock_dump.called)
         self.assertIn(
-            "INFO:test_a2c:Housekeeping.certreport_get(): No dump just return report",
+            "INFO:test_a2c:No dump just return report",
             lcm.output,
         )
 

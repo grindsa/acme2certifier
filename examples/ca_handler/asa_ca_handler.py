@@ -152,7 +152,7 @@ class CAhandler(object):
         api_host = config_dic.get("api_host")
         if api_host:
             if self.api_host:
-                self.logger.info("CAhandler._config_host_load() overwrite api_host")
+                self.logger.info("Overwrite api_host parameter")
             self.api_host = api_host
 
         self.logger.debug("_config_host_load() ended")
@@ -182,7 +182,7 @@ class CAhandler(object):
         api_key = config_dic.get("api_key")
         if api_key:
             if self.api_key:
-                self.logger.info("CAhandler._config_key_load() overwrite api_key")
+                self.logger.info("Overwrite api_key parameter")
             self.api_key = api_key
 
         self.logger.debug("_config_key_load() ended")
@@ -202,9 +202,7 @@ class CAhandler(object):
         api_password = config_dic.get("api_password")
         if api_password:
             if self.api_password:
-                self.logger.info(
-                    "CAhandler._config_password_load() overwrite api_password"
-                )
+                self.logger.info("Overwrite api_password parameter")
             self.api_password = api_password
 
         self.logger.debug("_config_password_load() ended")
@@ -224,7 +222,7 @@ class CAhandler(object):
         api_user = config_dic.get("api_user")
         if api_user:
             if self.api_user:
-                self.logger.info("CAhandler._config_user_load() overwrite api_user")
+                self.logger.info("Overwrite api_user parameter")
             self.api_user = api_user
 
         self.logger.debug("_config_user_load() ended")
@@ -308,19 +306,17 @@ class CAhandler(object):
         cn = csr_cn_get(self.logger, csr)
 
         if not cn:
-            self.logger.info("CAhandler._csr_cn_get(): CN not found in CSR")
+            self.logger.info("CN not found in CSR")
             san_list = csr_san_get(self.logger, csr)
             if san_list:
                 (_type, san_value) = san_list[0].split(":")
                 cn = san_value
                 self.logger.info(
-                    "CAhandler._csr_cn_get(): CN not found in CSR. Using first SAN entry as CN: %s",
+                    "CN not found in CSR. Using first SAN entry as CN: %s",
                     san_value,
                 )
             else:
-                self.logger.error(
-                    "CAhandler._csr_cn_get(): CN not found in CSR. No SAN entries found"
-                )
+                self.logger.error("CN not found in CSR. No SAN entries found")
 
         self.logger.debug("CAhandler._csr_cn_get() ended with: %s", cn)
         return cn

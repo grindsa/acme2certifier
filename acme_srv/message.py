@@ -208,7 +208,7 @@ class Message(object):
                     "**** NONCE CHECK DISABLED!!! Severe security issue ****"
                 )
             else:
-                self.logger.info("skip nonce check of inner payload during keyrollover")
+                self.logger.info("Skip nonce check of inner payload during keyrollover")
             code = 200
             message = None
             detail = None

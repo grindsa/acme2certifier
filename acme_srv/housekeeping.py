@@ -629,9 +629,7 @@ class Housekeeping(object):
                 if report_name:
                     self._json_dump(f"{report_name}.{report_format}", cert_list)
             else:
-                self.logger.info(
-                    "Housekeeping.certreport_get(): No dump just return report"
-                )
+                self.logger.info("No dump just return report")
 
         return cert_list
 

@@ -150,7 +150,7 @@ class CAhandler(object):
                 )
             )
             if extension == "subjectKeyIdentifier":
-                self.logger.info("_certificate_extensions_add(): subjectKeyIdentifier")
+                self.logger.info("Adding subjectKeyIdentifier extension")
                 _tmp_list.append(
                     crypto.X509Extension(
                         convert_string_to_byte(extension),
@@ -162,7 +162,7 @@ class CAhandler(object):
                     )
                 )
             elif "subject" in cert_extension_dic[extension]:
-                self.logger.info("_certificate_extensions_add(): subject")
+                self.logger.info("Adding subject extension")
                 _tmp_list.append(
                     crypto.X509Extension(
                         convert_string_to_byte(extension),
@@ -174,7 +174,7 @@ class CAhandler(object):
                     )
                 )
             elif "issuer" in cert_extension_dic[extension]:
-                self.logger.info("_certificate_extensions_add(): issuer")
+                self.logger.info("Adding issuer")
                 _tmp_list.append(
                     crypto.X509Extension(
                         convert_string_to_byte(extension),
@@ -249,7 +249,7 @@ class CAhandler(object):
             # determine filename
             if self.save_cert_as_hex:
                 self.logger.info(
-                    "convert serial to hex: {0}: {1}".format(
+                    "Convert serial to hex: {0}: {1}".format(
                         serial, "{:X}".format(serial)
                     )
                 )
@@ -352,9 +352,7 @@ class CAhandler(object):
                 )
         if "issuing_ca_key_passphrase" in config_dic["CAhandler"]:
             if "passphrase" in self.issuer_dict and self.issuer_dict["passphrase"]:
-                self.logger.info(
-                    "CAhandler._config_load() overwrite issuing_ca_key_passphrase_variable"
-                )
+                self.logger.info("Overwrite issuing_ca_key_passphrase_variable")
             self.issuer_dict["passphrase"] = config_dic["CAhandler"][
                 "issuing_ca_key_passphrase"
             ]

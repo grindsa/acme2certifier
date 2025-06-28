@@ -164,12 +164,12 @@ class CAhandler(object):
             _tmp_dic = {"critical": ext["critical"]}
 
             if ext_name.lower() == "basicconstraints":
-                self.logger.info(
+                self.logger.debug(
                     "CAhandler.cert_extesion_dic_parse(): basicConstraints"
                 )
                 _tmp_dic["name"] = BasicConstraints(ca=False, path_length=None)
             elif ext_name.lower() == "subjectkeyidentifier":
-                self.logger.info(
+                self.logger.debug(
                     "CAhandler.cert_extesion_dic_parse(): subjectKeyIdentifier"
                 )
                 _tmp_dic["name"] = SubjectKeyIdentifier.from_public_key(
@@ -177,19 +177,19 @@ class CAhandler(object):
                 )
                 _tmp_dic["critical"] = False
             elif ext_name.lower() == "authoritykeyidentifier":
-                self.logger.info(
+                self.logger.debug(
                     "CAhandler.cert_extesion_dic_parse(): authorityKeyIdentifier"
                 )
                 _tmp_dic["name"] = AuthorityKeyIdentifier.from_issuer_public_key(
                     ca_cert.public_key()
                 )
             elif ext_name.lower() == "keyusage":
-                self.logger.info("CAhandler.cert_extesion_dic_parse(): keyUsage")
+                self.logger.debug("CAhandler.cert_extesion_dic_parse(): keyUsage")
                 _tmp_dic["name"] = KeyUsage(
                     **self._cert_extension_ku_parse(ext["value"])
                 )
             elif ext_name.lower() == "extendedkeyusage":
-                self.logger.info(
+                self.logger.debug(
                     "CAhandler.cert_extesion_dic_parse(): extendedKeyUsage"
                 )
                 _tmp_dic["name"] = ExtendedKeyUsage(
@@ -251,7 +251,7 @@ class CAhandler(object):
 
             # determine filename
             if self.save_cert_as_hex:
-                self.logger.info("convert serial to hex: %s: %s", serial, f"{serial:X}")
+                self.logger.info("Convert serial to hex: %s: %s", serial, f"{serial:X}")
                 cert_file = f"{serial:X}"
             else:
                 cert_file = str(serial)
@@ -299,7 +299,7 @@ class CAhandler(object):
             ):
                 if not os.path.exists(self.issuer_dict["issuing_ca_crl"]):
                     self.logger.info(
-                        "CAhandler._config_check_crl(): issuing_ca_crl %s does not exist.",
+                        "Issuing_ca_crl %s does not exist.",
                         self.issuer_dict["issuing_ca_crl"],
                     )
             else:
@@ -399,9 +399,7 @@ class CAhandler(object):
                 )
         if "issuing_ca_key_passphrase" in config_dic["CAhandler"]:
             if "passphrase" in self.issuer_dict and self.issuer_dict["passphrase"]:
-                self.logger.info(
-                    "CAhandler._config_load() overwrite issuing_ca_key_passphrase_variable"
-                )
+                self.logger.info("Overwrite issuing_ca_key_passphrase_variable")
             self.issuer_dict["passphrase"] = config_dic.get(
                 "CAhandler", "issuing_ca_key_passphrase"
             )
@@ -505,7 +503,7 @@ class CAhandler(object):
 
         if not cn_ and san_list:
             enforced_cn = san_list[0]
-            self.logger.info("CAhandler._csr_check(): enforce CN to %s", enforced_cn)
+            self.logger.info("Enforce CN to %s", enforced_cn)
         else:
             enforced_cn = None
 
@@ -707,7 +705,7 @@ class CAhandler(object):
             (ca_cert_validity, cert) = self._cacert_expiry_get()
             if ca_cert_validity < self.cert_validity_days:
                 self.logger.info(
-                    "CAhandler._certexpiry_date_set(): adjust validity to %s days.",
+                    "Adjust validity to %s days.",
                     ca_cert_validity,
                 )
                 cert_validity = cert.not_valid_after
@@ -844,9 +842,7 @@ class CAhandler(object):
                     subject = req.subject
 
                     if self.cn_enforce and enforce_cn:
-                        self.logger.info(
-                            "CAhandler.enroll(): overwrite CN with %s", enforce_cn
-                        )
+                        self.logger.info("Overwrite CN with %s", enforce_cn)
                         subject = x509.Name(
                             [x509.NameAttribute(NameOID.COMMON_NAME, enforce_cn)]
                         )
@@ -909,7 +905,7 @@ class CAhandler(object):
 
         if os.path.exists(self.issuer_dict["issuing_ca_crl"]):
             self.logger.info(
-                "CAhandler.revoke(): load existing crl %s)",
+                "Load existing crl %s)",
                 self.issuer_dict["issuing_ca_crl"],
             )
             # load  existing CRL
@@ -927,7 +923,7 @@ class CAhandler(object):
 
         else:
             self.logger.info(
-                "CAhandler._crlobject_build(): create new crl %s)",
+                "Create new crl %s)",
                 self.issuer_dict["issuing_ca_crl"],
             )
             builder = x509.CertificateRevocationListBuilder()

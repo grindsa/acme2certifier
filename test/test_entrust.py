@@ -262,7 +262,7 @@ class TestACMEHandler(unittest.TestCase):
                 ["foo", "bar"], self.cahandler._certificates_get_from_serial("0serial")
             )
         self.assertIn(
-            "INFO:test_a2c:CAhandler._certificates_get_from_serial() remove leading zeros from serial number",
+            "INFO:test_a2c:Remove leading zeros from serial number",
             lcm.output,
         )
 
@@ -720,7 +720,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_passphrase_load(parser)
         self.assertFalse(self.cahandler.cert_passphrase)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_passphrase_load() could not load cert_passphrase_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load cert_passphrase_variable:'does_not_exist'",
             lcm.output,
         )
 
@@ -735,7 +735,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_passphrase_load(parser)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite cert_passphrase",
+            "INFO:test_a2c:Overwrite cert_passphrase",
             lcm.output,
         )
         self.assertEqual("cert_passphrase", self.cahandler.cert_passphrase)

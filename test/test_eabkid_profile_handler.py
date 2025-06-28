@@ -237,7 +237,7 @@ class TestACMEHandler(unittest.TestCase):
                 (["foo.bar"], [False]), self.eabhandler._chk_san_lists_get(csr)
             )
         self.assertIn(
-            "INFO:test_a2c:EABhandler._csr_check(): san_list parsing failed at entry: bar.foo",
+            "INFO:test_a2c:SAN list parsing failed at entry: bar.foo",
             lcm.output,
         )
 

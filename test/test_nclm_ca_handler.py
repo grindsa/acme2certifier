@@ -367,9 +367,7 @@ class TestACMEHandler(unittest.TestCase):
             {"api_user": "api_user", "api_password": None},
             self.cahandler.credential_dic,
         )
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite api_user", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite api_user", lcm.output)
 
     @patch.dict("os.environ", {"api_password_var": "password_var"})
     @patch("examples.ca_handler.nclm_ca_handler.load_config")
@@ -399,7 +397,7 @@ class TestACMEHandler(unittest.TestCase):
             {"api_user": None, "api_password": None}, self.cahandler.credential_dic
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load password_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load password_variable:'does_not_exist'",
             lcm.output,
         )
 
@@ -420,9 +418,7 @@ class TestACMEHandler(unittest.TestCase):
             {"api_password": "api_password", "api_user": None},
             self.cahandler.credential_dic,
         )
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite api_password", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite api_password", lcm.output)
 
     @patch("examples.ca_handler.nclm_ca_handler.parse_url")
     @patch("json.loads")

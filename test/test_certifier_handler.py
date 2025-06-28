@@ -112,7 +112,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "api_user" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration incomplete: "api_user" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -137,7 +137,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "api_password" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration incomplete: "api_password" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -397,7 +397,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("api_password", self.cahandler.api_password)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite api_password_variable",
+            "INFO:test_a2c:Overwrite api_password_variable",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)

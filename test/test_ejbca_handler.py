@@ -1278,11 +1278,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_san.return_value = ["dns:san0", "dns:san1"]
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("san0", self.cahandler._csr_cn_get("csr"))
+        self.assertIn("INFO:test_a2c:CN not found in CSR", lcm.output)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._csr_cn_get(): CN not found in CSR", lcm.output
-        )
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._csr_cn_get(): CN not found in CSR. Using first SAN entry as CN: san0",
+            "INFO:test_a2c:CN not found in CSR. Using first SAN entry as CN: san0",
             lcm.output,
         )
         self.assertTrue(mock_san.called)
@@ -1295,11 +1293,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_san.return_value = None
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._csr_cn_get("csr"))
+        self.assertIn("INFO:test_a2c:CN not found in CSR", lcm.output)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._csr_cn_get(): CN not found in CSR", lcm.output
-        )
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler._csr_cn_get(): CN not found in CSR. No SAN entries found",
+            "ERROR:test_a2c:CN not found in CSR. No SAN entries found",
             lcm.output,
         )
         self.assertTrue(mock_san.called)

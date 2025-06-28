@@ -187,9 +187,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_host_load(parser)
         self.assertEqual("foo_host_loc/.well-known/est", self.cahandler.est_host)
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite est_host", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite est_host", lcm.output)
         self.assertEqual(20, self.cahandler.request_timeout)
 
     def test_009_config_host_load(self):
@@ -296,7 +294,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._cert_passphrase_load(parser)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite cert_passphrase",
+            "INFO:test_a2c:Overwrite cert_passphrase",
             lcm.output,
         )
         self.assertEqual("cert_passphrase", self.cahandler.cert_passphrase)
@@ -395,9 +393,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_password_load(parser)
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite est_password", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite est_password", lcm.output)
         self.assertEqual("est_password", self.cahandler.est_password)
 
     def test_026_config_password_load(self):

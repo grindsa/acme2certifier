@@ -286,9 +286,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertEqual("host_local", self.cahandler.host)
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite host", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite host", lcm.output)
 
     @patch.dict("os.environ", {"user_variable": "user"})
     @patch("examples.ca_handler.mscertsrv_ca_handler.load_config")
@@ -325,9 +323,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertEqual("user_local", self.cahandler.user)
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite user", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite user", lcm.output)
 
     @patch.dict("os.environ", {"password_variable": "password"})
     @patch("examples.ca_handler.mscertsrv_ca_handler.load_config")
@@ -368,9 +364,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertEqual("password_local", self.cahandler.password)
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite password", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite password", lcm.output)
         self.assertFalse, (self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mscertsrv_ca_handler.proxy_check")
@@ -794,7 +788,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(("error", None, None, None), self.cahandler.enroll("csr"))
         self.assertIn(
-            "INFO:test_a2c:CAhandler.enroll(): load krb5config from krb5_config",
+            "INFO:test_a2c:Load krb5config from krb5_config",
             lcm.output,
         )
         self.assertTrue(mock_eab.called)

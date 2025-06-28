@@ -95,7 +95,7 @@ class CAhandler(object):
                 )
         if "host" in config_dic["CAhandler"]:
             if self.host:
-                self.logger.info("CAhandler._config_load() overwrite host")
+                self.logger.info("Overwrite host")
             self.host = config_dic.get("CAhandler", "host")
 
         self.logger.debug("CAhandler._config_host_load() ended")
@@ -108,12 +108,10 @@ class CAhandler(object):
             try:
                 self.user = os.environ[config_dic.get("CAhandler", "user_variable")]
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._config_load() could not load user_variable:%s", err
-                )
+                self.logger.error("Could not load user_variable:%s", err)
         if "user" in config_dic["CAhandler"]:
             if self.user:
-                self.logger.info("CAhandler._config_load() overwrite user")
+                self.logger.info("Overwrite user")
             self.user = config_dic.get("CAhandler", "user")
 
         if "password_variable" in config_dic["CAhandler"]:
@@ -122,12 +120,10 @@ class CAhandler(object):
                     config_dic.get("CAhandler", "password_variable")
                 ]
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._config_load() could not load password_variable:%s", err
-                )
+                self.logger.error("Could not load password_variable:%s", err)
         if "password" in config_dic["CAhandler"]:
             if self.password:
-                self.logger.info("CAhandler._config_load() overwrite password")
+                self.logger.info("Overwrite password")
             self.password = config_dic.get("CAhandler", "password")
 
         self.logger.debug("CAhandler._config_credentials_load() ended")
