@@ -65,28 +65,28 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.nonce.generate_and_add()
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Nonce.generate_and_add(): exc_nonce_add",
+            "CRITICAL:test_a2c:Database error: failed to add new nonce: exc_nonce_add",
             lcm.output,
         )
 
     def test_007_nonce__check_and_delete(self):
-        """test Nonce._add() if dbstore.nonce_add raises an exception"""
+        """test Nonce._check_and_delete() if dbstore.nonce_delete raises an exception"""
         self.nonce.dbstore.nonce_check.return_value = True
         self.nonce.dbstore.nonce_delete.side_effect = Exception("exc_nonce_delete")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.nonce._check_and_delete("nonce")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error during nonce_delete() in Nonce._check_and_delete(): exc_nonce_delete",
+            "CRITICAL:test_a2c:Database error: failed to delete nonce: exc_nonce_delete",
             lcm.output,
         )
 
     def test_008_nonce__check_and_delete(self):
-        """test Nonce._add() if dbstore.nonce_add raises an exception"""
+        """test Nonce._check_and_delete() if dbstore.nonce_check raises an exception"""
         self.nonce.dbstore.nonce_check.side_effect = Exception("exc_nonce_check")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.nonce._check_and_delete("nonce")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error during nonce_check() in Nonce._check_and_delete(): exc_nonce_check",
+            "CRITICAL:test_a2c:Database error: failed to check nonce: exc_nonce_check",
             lcm.output,
         )
 

@@ -2284,7 +2284,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.ca_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:loading default CAhandler failed with err: exc_mock_imp",
+            "CRITICAL:test_a2c:Loading default CAhandler failed with err: exc_mock_imp",
             lcm.output,
         )
 
@@ -2312,7 +2312,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("foo", self.ca_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:loading CAhandler configured in cfg failed with err: exc_mock_util",
+            "CRITICAL:test_a2c:Loading CAhandler configured in cfg failed with err: exc_mock_util",
             lcm.output,
         )
 
@@ -2326,7 +2326,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.ca_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:loading default CAhandler failed with err: exc_mock_imp",
+            "CRITICAL:test_a2c:Loading default CAhandler failed with err: exc_mock_imp",
             lcm.output,
         )
 
@@ -2347,7 +2347,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eab_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:loading default EABhandler failed with err: exc_mock_imp",
+            "CRITICAL:test_a2c:Loading default EABhandler failed with err: exc_mock_imp",
             lcm.output,
         )
 
@@ -2375,7 +2375,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("foo", self.eab_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:loading EABhandler configured in cfg failed with err: exc_mock_util",
+            "CRITICAL:test_a2c:Loading EABhandler configured in cfg failed with err: exc_mock_util",
             lcm.output,
         )
 
@@ -2389,7 +2389,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eab_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:loading default EABhandler failed with err: exc_mock_imp",
+            "CRITICAL:test_a2c:Loading default EABhandler failed with err: exc_mock_imp",
             lcm.output,
         )
 
@@ -2420,7 +2420,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.hooks_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:Helper.hooks_load(): loading Hooks configured in cfg failed with err: 'Exception' object is not callable",
+            "CRITICAL:test_a2c:Loading Hooks configured in cfg failed with err: 'Exception' object is not callable",
             lcm.output,
         )
 

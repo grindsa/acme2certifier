@@ -445,7 +445,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.renewalinfo._draft01_lookup("certid_hex"))
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Renewalinfo._draft01_lookup(): cert_lookup",
+            "CRITICAL:test_a2c:Database error: failed to look up certificate for renewal info (draft01): cert_lookup",
             lcm.output,
         )
 
@@ -500,7 +500,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.renewalinfo._cert_table_update())
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Renewalinfo._cert_table_update(): certificates_search",
+            "CRITICAL:test_a2c:Database error: failed to retrieve certificate list for renewal info update: certificates_search",
             lcm.output,
         )
         self.assertFalse(mock_serial.called)
@@ -517,7 +517,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.renewalinfo._draft02_lookup("serial", "aki03"))
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Renewalinfo._draft02_lookup(): certificates_search",
+            "CRITICAL:test_a2c:Database error: failed to look up certificate for renewal info (draft02): certificates_search",
             lcm.output,
         )
 
@@ -529,7 +529,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.renewalinfo._draft02_lookup("serial", "aki03"))
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Renewalinfo._draft02_lookup(): certificates_search",
+            "CRITICAL:test_a2c:Database error: failed to look up certificate for renewal info (draft02): certificates_search",
             lcm.output,
         )
 

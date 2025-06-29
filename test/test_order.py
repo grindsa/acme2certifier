@@ -1766,7 +1766,7 @@ class TestACMEHandler(unittest.TestCase):
                 "aname",
             )
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._add() authz: exc_order_add",
+            "CRITICAL:test_a2c:Database error: failed to add authorization: exc_order_add",
             lcm.output,
         )
 
@@ -1778,7 +1778,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order._add({"foo": "bar", "identifiers": "identifiers"}, "aname")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._add() order: exc_order_add",
+            "CRITICAL:test_a2c:Database error: failed to add order: exc_order_add",
             lcm.output,
         )
 
@@ -1788,7 +1788,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order._info("oname")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._info(): exc_order_info",
+            "CRITICAL:test_a2c:Database error: failed to look up order: exc_order_info",
             lcm.output,
         )
 
@@ -1800,7 +1800,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order._process("oname", {"url": "url"}, "payload")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._process(): exc_order_process",
+            "CRITICAL:test_a2c:Database error: Certificate lookup failed: exc_order_process",
             lcm.output,
         )
 
@@ -1810,7 +1810,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order._update({"url": "url"})
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._update(): exc_order_upd",
+            "CRITICAL:test_a2c:Database error: failed to update order: exc_order_upd",
             lcm.output,
         )
 
@@ -1824,7 +1824,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order._lookup("oname")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._authz_list_lookup(): exc_authz_lookup",
+            "CRITICAL:test_a2c:Database error: failed to look up authorization list: exc_authz_lookup",
             lcm.output,
         )
 
@@ -1836,7 +1836,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order.invalidate(timestamp)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._invalidate() upd: exc_order_upd",
+            "CRITICAL:test_a2c:Database error: failed to update order status to invalid: exc_order_upd",
             lcm.output,
         )
 
@@ -1849,7 +1849,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order.invalidate(timestamp)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._invalidate() search: exc_order_search",
+            "CRITICAL:test_a2c:Database error: failed to search for expired orders: exc_order_search",
             lcm.output,
         )
 

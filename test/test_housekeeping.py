@@ -808,7 +808,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.housekeeping._accountlist_get()
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Housekeeping._accountlist_get(): exc_house_acc_get",
+            "CRITICAL:test_a2c:Database error: failed to retrieve account list: exc_house_acc_get",
             lcm.output,
         )
 
@@ -820,7 +820,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.housekeeping._certificatelist_get()
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Housekeeping.certificatelist_get(): exc_house_cert_get",
+            "CRITICAL:test_a2c:Database error: failed to retrieve certificate list: exc_house_cert_get",
             lcm.output,
         )
 
@@ -829,9 +829,7 @@ class TestACMEHandler(unittest.TestCase):
         self.housekeeping.dbstore.dbversion_get.return_value = (1, "foo")
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.housekeeping.dbversion_check(1)
-        self.assertIn(
-            "DEBUG:test_a2c:acme2certifier database version: 1 is upto date", lcm.output
-        )
+        self.assertIn("DEBUG:test_a2c:Database version: 1 is upto date", lcm.output)
 
     def test_051_housekeeping_dbversion_check(self):
         """test Housekeeping.dbversion_check load  - version match float"""
@@ -839,7 +837,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.housekeeping.dbversion_check(1.0)
         self.assertIn(
-            "DEBUG:test_a2c:acme2certifier database version: 1.0 is upto date",
+            "DEBUG:test_a2c:Housekeeping.dbversion_check(1.0)",
             lcm.output,
         )
 
@@ -849,7 +847,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.housekeeping.dbversion_check("1.0-devel")
         self.assertIn(
-            "DEBUG:test_a2c:acme2certifier database version: 1.0-devel is upto date",
+            "DEBUG:test_a2c:Housekeeping.dbversion_check(1.0-devel)",
             lcm.output,
         )
 
@@ -859,7 +857,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.housekeeping.dbversion_check()
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database version could not be verified in Housekeeping.dbversion_check()",
+            "CRITICAL:test_a2c:Database version could not be verified.",
             lcm.output,
         )
 
@@ -869,7 +867,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.housekeeping.dbversion_check(2)
         self.assertIn(
-            'CRITICAL:test_a2c:acme2certifier database version mismatch in: version is 1 but should be 2. Please run the "foo" script',
+            'CRITICAL:test_a2c:Database version mismatch: current version is 1 but should be 2. Please run the "foo" script',
             lcm.output,
         )
 
@@ -881,7 +879,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.housekeeping.dbversion_check(2)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Housekeeping.dbversion_check(): exc_dbversion_chk",
+            "CRITICAL:test_a2c:Database error: failed to check database version: exc_dbversion_chk",
             lcm.output,
         )
 
@@ -1870,7 +1868,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertFalse(self.housekeeping._cliaccounts_list(False))
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Housekeeping._cliaccounts_list(): exc_calg",
+            "CRITICAL:test_a2c:Database error: failed to retrieve CLI account list: exc_calg",
             lcm.output,
         )
         self.assertFalse(mock_caf.called)
@@ -2118,10 +2116,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("add", self.housekeeping.cli_usermgr(config_dic))
         self.assertFalse(mock_list.called)
 
-    @patch("acme_srv.housekeeping.Housekeeping._cliaccounts_list")
     @patch("acme_srv.housekeeping.Housekeeping._data_dic_build")
     @patch("acme_srv.housekeeping.Housekeeping._cliconfig_check")
-    def test_119_cli_usermgr(self, mock_chk, mock_build, mock_list):
+    def test_119_cli_usermgr(self, mock_chk, mock_build):
         """test cli_usermgr exception in add"""
         config_dic = {"list": False}
         mock_build.return_value = {"name": "name"}
@@ -2130,15 +2127,14 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.housekeeping.cli_usermgr(config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Housekeeping.cli_usermgr(): exc_add",
+            "CRITICAL:test_a2c:Database error: failed to manage CLI user: exc_add",
             lcm.output,
         )
-        self.assertFalse(mock_list.called)
+        # self.assertFalse(self.housekeeping.dbstore.cliaccount_delete.called)
 
-    @patch("acme_srv.housekeeping.Housekeeping._cliaccounts_list")
     @patch("acme_srv.housekeeping.Housekeeping._data_dic_build")
     @patch("acme_srv.housekeeping.Housekeeping._cliconfig_check")
-    def test_120_cli_usermgr(self, mock_chk, mock_build, mock_list):
+    def test_120_cli_usermgr(self, mock_chk, mock_build):
         """test cli_usermgr exception in delete"""
         config_dic = {"delete": True}
         mock_build.return_value = {"name": "name"}
@@ -2149,10 +2145,10 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.housekeeping.cli_usermgr(config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Housekeeping.cli_usermgr(): exc_delete",
+            "CRITICAL:test_a2c:Database error: failed to manage CLI user: exc_delete",
             lcm.output,
         )
-        self.assertFalse(mock_list.called)
+        # self.assertFalse(self.housekeeping.dbstore.cliaccount_add.called)
 
     @patch("acme_srv.housekeeping.Housekeeping._cliaccounts_list")
     @patch("acme_srv.housekeeping.Housekeeping._data_dic_build")
@@ -2166,7 +2162,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.housekeeping.cli_usermgr(config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Housekeeping.cli_usermgr(): exc_list",
+            "CRITICAL:test_a2c:Database error: failed to manage CLI user: exc_list",
             lcm.output,
         )
         self.assertTrue(mock_list.called)

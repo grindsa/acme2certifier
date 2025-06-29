@@ -29,7 +29,7 @@ class Nonce(object):
             nonce_chk_result = self.dbstore.nonce_check(nonce)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error during nonce_check() in Nonce._check_and_delete(): %s",
+                "Database error: failed to check nonce: %s",
                 err_,
             )
             nonce_chk_result = False
@@ -39,7 +39,7 @@ class Nonce(object):
                 self.dbstore.nonce_delete(nonce)
             except Exception as err_:
                 self.logger.critical(
-                    "acme2certifier database error during nonce_delete() in Nonce._check_and_delete(): %s",
+                    "Database error: failed to delete nonce: %s",
                     err_,
                 )
             code = 200
@@ -78,8 +78,6 @@ class Nonce(object):
         try:
             _id = self.dbstore.nonce_add(nonce)  # lgtm [py/unused-local-variable]
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Nonce.generate_and_add(): %s", err_
-            )
+            self.logger.critical("Database error: failed to add new nonce: %s", err_)
         self.logger.debug("Nonce.generate_and_add() ended with:%s", nonce)
         return nonce
