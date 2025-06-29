@@ -51,7 +51,7 @@ class Authorization(object):
             )
         except Exception as err_:
             self.logger.error(
-                "acme2certifier database error in Authorization._expiry_update(%s) update: %s",
+                "acme2certifier database error during Authorzisation update (%s): update: %s",
                 authz_name,
                 err_,
             )

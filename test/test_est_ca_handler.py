@@ -95,7 +95,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() configuration incomplete: either user or client authentication must be configured.",
+            "ERROR:test_a2c:Configuration incomplete: either user or client authentication must be configured.",
             lcm.output,
         )
         self.assertTrue(mock_load_cfg.called)
@@ -132,7 +132,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() configuration wrong: user and client authentication cannot be configured together.",
+            "ERROR:test_a2c:Configuration error: user and client authentication cannot be configured together.",
             lcm.output,
         )
         self.assertTrue(mock_load_cfg.called)
@@ -170,7 +170,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_host_load(parser)
         self.assertFalse(self.cahandler.est_host)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load est_host_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load est_host_variable:'does_not_exist'",
             lcm.output,
         )
         self.assertEqual(20, self.cahandler.request_timeout)
@@ -197,7 +197,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_host_load(parser)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load(): missing "est_host" parameter',
+            'ERROR:test_a2c:Missing "est_host" parameter',
             lcm.output,
         )
         self.assertEqual(20, self.cahandler.request_timeout)
@@ -216,7 +216,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() configuration wrong: client authentication requires a ca_bundle.",
+            "ERROR:test_a2c:Configuration error: client authentication requires a ca_bundle.",
             lcm.output,
         )
         self.assertEqual("foo_host/.well-known/est", self.cahandler.est_host)
@@ -232,7 +232,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_clientauth_load(parser)
         self.assertFalse(self.cahandler.est_client_cert)
         self.assertIn(
-            'ERROR:test_a2c:ERROR:test_a2c:CAhandler._config_load() clientauth configuration incomplete: either "est_client_key or "cert_passphrase" parameter is missing in config file',
+            'ERROR:test_a2c:Clientauth configuration incomplete: either "est_client_key or "cert_passphrase" parameter is missing in config file',
             lcm.output,
         )
         self.assertEqual(20, self.cahandler.request_timeout)
@@ -307,7 +307,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._cert_passphrase_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_authuser_load() could not load cert_passphrase_variable:'cert_passphrase_variable'",
+            "ERROR:test_a2c:Could not load cert_passphrase_variable:'cert_passphrase_variable'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.cert_passphrase)
@@ -335,7 +335,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_userauth_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load est_user_variable:'est_user_var'",
+            "ERROR:test_a2c:Could not load est_user_variable:'est_user_var'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.est_user)
@@ -378,7 +378,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_password_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load est_password:'est_password_var'",
+            "ERROR:test_a2c:Could not load est_password:'est_password_var'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.est_password)
@@ -404,7 +404,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_password_load(parser)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: either "est_user" or "est_password" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration incomplete: either "est_user" or "est_password" parameter is missing in config file',
             lcm.output,
         )
 
@@ -416,7 +416,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_password_load(parser)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: either "est_user" or "est_password" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration incomplete: either "est_user" or "est_password" parameter is missing in config file',
             lcm.output,
         )
 
@@ -467,7 +467,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_parameters_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load request_timeout:aa",
+            "ERROR:test_a2c:Could not load request_timeout:aa",
             lcm.output,
         )
         self.assertTrue(self.cahandler.ca_bundle)
@@ -597,7 +597,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((None, None), self.cahandler._cacerts_get())
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._cacerts_get() configuration incomplete: "est_host" parameter is missing',
+            'ERROR:test_a2c:Configuration incomplete: "est_host" parameter is missing',
             lcm.output,
         )
 
@@ -613,7 +613,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._cacerts_get()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._cacerts_get() returned an error: exc_cacerts_get",
+            "ERROR:test_a2c:Error while getting the CA certificates: exc_cacerts_get",
             lcm.output,
         )
 
@@ -645,7 +645,7 @@ class TestACMEHandler(unittest.TestCase):
                 ("exc_simple_enroll", None), self.cahandler._simpleenroll("csr")
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._simpleenroll() returned an error: exc_simple_enroll",
+            "ERROR:test_a2c:Enrollment error: exc_simple_enroll",
             lcm.output,
         )
 
@@ -665,7 +665,7 @@ class TestACMEHandler(unittest.TestCase):
                 ("exc_simple_enroll", None), self.cahandler._simpleenroll("csr")
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._simpleenroll() returned an error: exc_simple_enroll",
+            "ERROR:test_a2c:Enrollment error: exc_simple_enroll",
             lcm.output,
         )
 
@@ -677,7 +677,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(("Error", None, None, None), self.cahandler.enroll("csr"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll() _cacerts_get error: Error", lcm.output
+            "ERROR:test_a2c:Error while fetching the CA certificates: Error", lcm.output
         )
 
     @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
@@ -690,9 +690,7 @@ class TestACMEHandler(unittest.TestCase):
                 ("no CA certificates found", None, None, None),
                 self.cahandler.enroll("csr"),
             )
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll(): no CA certificates found", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:No CA certificates found", lcm.output)
 
     @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")
     @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
@@ -704,9 +702,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.est_user = "est_usr"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(("Error", None, None, None), self.cahandler.enroll("csr"))
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll() _simpleenroll error: Error", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:Simpleenroll error: Error", lcm.output)
 
     @patch("examples.ca_handler.est_ca_handler.allowed_domainlist_check")
     @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")

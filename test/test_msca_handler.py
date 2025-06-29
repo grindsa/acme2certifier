@@ -272,7 +272,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load host_variable:'doesnotexist'",
+            "ERROR:test_a2c:Could not load host_variable from environment: 'doesnotexist'",
             lcm.output,
         )
 
@@ -309,7 +309,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.user)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load user_variable:'doesnotexist'",
+            "ERROR:test_a2c:Could not load user_variable from environment: 'doesnotexist'",
             lcm.output,
         )
 
@@ -346,7 +346,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.password)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load password_variable:'doesnotexist'",
+            "ERROR:test_a2c:Could not load password_variable from environment: 'doesnotexist'",
             lcm.output,
         )
         self.assertFalse, (self.cahandler.allowed_domainlist)
@@ -847,14 +847,22 @@ class TestACMEHandler(unittest.TestCase):
         mock_p2p.return_value = "p2p"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
-                ("cert bundling failed", None, "get_cert", None),
+                (
+                    "Certificate bundling failed: missing CA certificate or issued certificate.",
+                    None,
+                    "get_cert",
+                    None,
+                ),
                 self.cahandler.enroll("csr"),
             )
         self.assertIn(
-            "ERROR:test_a2c:ca_server.get_chain() failed with error: exc_get_chain",
+            "ERROR:test_a2c:Failed to get CA certificate chain: exc_get_chain",
             lcm.output,
         )
-        self.assertIn("ERROR:test_a2c:cert bundling failed", lcm.output)
+        self.assertIn(
+            "ERROR:test_a2c:Failed to bundle certificates: missing ca_pem or cert_raw.",
+            lcm.output,
+        )
 
     @patch("examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")
     @patch("examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string")
@@ -882,7 +890,7 @@ class TestACMEHandler(unittest.TestCase):
                 ("get_cert", None, None, None), self.cahandler.enroll("csr")
             )
         self.assertIn(
-            "ERROR:test_a2c:ca_server.get_cert() failed with error: get_cert",
+            "ERROR:test_a2c:Failed to enroll certificate from CA: get_cert",
             lcm.output,
         )
 
@@ -951,7 +959,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._template_name_get("csr"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._template_name_get() could not parse template: Expecting value: line 1 column 1 (char 0)",
+            "ERROR:test_a2c:Failed to parse template from header_info: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 
@@ -1010,7 +1018,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_url_load(parser)
         self.assertFalse(self.cahandler.url)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load url_variable:'doesnotexist'",
+            "ERROR:test_a2c:Could not load url_variable from environment: 'doesnotexist'",
             lcm.output,
         )
 

@@ -1263,7 +1263,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.certificate.enroll_and_store(certificate_name, csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:acme2certifier database error in Certificate.enroll_and_store(): split of unexpected failed with err: too many values to unpack (expected 3)",
+            "ERROR:test_a2c:Enrollment error message split of unexpected failed with err: too many values to unpack (expected 3)",
             lcm.output,
         )
 
@@ -1292,9 +1292,7 @@ class TestACMEHandler(unittest.TestCase):
                 (None, "urn:ietf:params:acme:error:serverInternal", None),
                 self.certificate._enroll_and_store(certificate_name, csr),
             )
-        self.assertIn(
-            "ERROR:test_a2c:acme2certifier enrollment error: error", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:Enrollment error: error", lcm.output)
         self.assertFalse(mock_chk.called)
         self.assertTrue(mock_oupd.called)
         self.assertTrue(mock_store_err.called)
@@ -1325,9 +1323,7 @@ class TestACMEHandler(unittest.TestCase):
                 (None, "error", "poll_identifier"),
                 self.certificate._enroll_and_store(certificate_name, csr),
             )
-        self.assertIn(
-            "ERROR:test_a2c:acme2certifier enrollment error: error", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:Enrollment error: error", lcm.output)
         self.assertFalse(mock_chk.called)
         self.assertFalse(mock_oupd.called)
         self.assertTrue(mock_store_err.called)
@@ -1362,9 +1358,7 @@ class TestACMEHandler(unittest.TestCase):
             "CRITICAL:test_a2c:acme2certifier database error in Certificate._enrollerror_handler() _store_cert_error: ex_cert_error_store",
             lcm.output,
         )
-        self.assertIn(
-            "ERROR:test_a2c:acme2certifier enrollment error: error", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:Enrollment error: error", lcm.output)
         self.assertFalse(mock_chk.called)
         self.assertFalse(mock_oupd.called)
         self.assertTrue(mock_store_err.called)
@@ -1717,7 +1711,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.certificate._enroll_and_store(certificate_name, csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:Certificate._pre_hooks_process(): pre_hook exception: ex_pre_hook",
+            "ERROR:test_a2c:Exception during pre_hook execution: ex_pre_hook",
             lcm.output,
         )
         self.assertFalse(mock_chk.called)
@@ -1763,10 +1757,9 @@ class TestACMEHandler(unittest.TestCase):
                 self.certificate._enroll_and_store(certificate_name, csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:Certificate._pre_hooks_process(): pre_hook exception: ex_pre_hook",
+            "ERROR:test_a2c:Exception during pre_hook execution: ex_pre_hook",
             lcm.output,
         )
-        self.assertIn("ERROR:test_a2c:Certificate._store()", lcm.output)
         self.assertFalse(mock_chk.called)
         self.assertTrue(mock_dates.called)
         self.assertTrue(mock_store.called)
@@ -1810,7 +1803,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.certificate._enroll_and_store(certificate_name, csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:Certificate._pre_hooks_process(): pre_hook exception: ex_pre_hook",
+            "ERROR:test_a2c:Exception during pre_hook execution: ex_pre_hook",
             lcm.output,
         )
         self.assertFalse(mock_chk.called)
@@ -1857,7 +1850,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.certificate._enroll_and_store(certificate_name, csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:Certificate._store: success_hook exception: ex_success_hook",
+            "ERROR:test_a2c:Exception during success_hook execution: ex_success_hook",
             lcm.output,
         )
         self.assertFalse(mock_chk.called)
@@ -1905,7 +1898,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.certificate._enroll_and_store(certificate_name, csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:Certificate._store: success_hook exception: ex_success_hook",
+            "ERROR:test_a2c:Exception during success_hook execution: ex_success_hook",
             lcm.output,
         )
         self.assertFalse(mock_chk.called)
@@ -1953,7 +1946,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.certificate._enroll_and_store(certificate_name, csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:Certificate._store: success_hook exception: ex_success_hook",
+            "ERROR:test_a2c:Exception during success_hook execution: ex_success_hook",
             lcm.output,
         )
         self.assertFalse(mock_chk.called)
@@ -1998,7 +1991,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.certificate._enroll_and_store(certificate_name, csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:Certificate._post_hooks_process(): post_hook exception: ex_post_hook",
+            "ERROR:test_a2c:Exception during post_hook execution: ex_post_hook",
             lcm.output,
         )
         self.assertFalse(mock_chk.called)
@@ -2044,7 +2037,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.certificate._enroll_and_store(certificate_name, csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:Certificate._post_hooks_process(): post_hook exception: ex_post_hook",
+            "ERROR:test_a2c:Exception during post_hook execution: ex_post_hook",
             lcm.output,
         )
         self.assertFalse(mock_chk.called)
@@ -2090,7 +2083,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.certificate._enroll_and_store(certificate_name, csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:Certificate._post_hooks_process(): post_hook exception: ex_post_hook",
+            "ERROR:test_a2c:Exception during post_hook execution: ex_post_hook",
             lcm.output,
         )
         self.assertFalse(mock_chk.called)
@@ -2720,7 +2713,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.certificate._cert_reusage_check("csr"),
             )
             self.assertIn(
-                "ERROR:test_a2c:acme2certifier date_to_uts_utc() error in Certificate._cert_reusage_check(): id:3/created_at:",
+                "ERROR:test_a2c:Date conversion error during certificate reusage check: id:3/created_at:",
                 lcm.output,
             )
 
@@ -3082,7 +3075,7 @@ class TestACMEHandler(unittest.TestCase):
             self.certificate._config_load()
         self.assertFalse(self.certificate.cert_reusage_timeframe)
         self.assertIn(
-            "ERROR:test_a2c:acme2certifier Certificate._config_load() cert_reusage_timout parsing error: invalid literal for int() with base 10: 'aaa'",
+            "ERROR:test_a2c:cert_reusage_timout parsing error: invalid literal for int() with base 10: 'aaa'",
             lcm.output,
         )
         self.assertFalse(self.certificate.hooks)
@@ -3117,7 +3110,7 @@ class TestACMEHandler(unittest.TestCase):
             self.certificate._config_load()
         self.assertEqual(5, self.certificate.enrollment_timeout)
         self.assertIn(
-            "ERROR:test_a2c:acme2certifier Certificate._config_load() enrollment_timeout parsing error: invalid literal for int() with base 10: 'aaa'",
+            "ERROR:test_a2c:enrollment_timeout parsing error: invalid literal for int() with base 10: 'aaa'",
             lcm.output,
         )
         self.assertFalse(self.certificate.hooks)

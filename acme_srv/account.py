@@ -365,7 +365,7 @@ class Account(object):
                 code = 403
                 message = self.err_msg_dic["unauthorized"]
                 detail = "eab signature verification failed"
-                self.logger.error("Account._eab_check() returned error: %s", error)
+                self.logger.error("EAB verification returned an error: %s", error)
         else:
             code = 403
             message = self.err_msg_dic["unauthorized"]

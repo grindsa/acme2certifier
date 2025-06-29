@@ -188,7 +188,7 @@ class Certificate(object):
                     uts_create = date_to_uts_utc(certificate["created_at"])
                 except Exception as _err:
                     self.logger.error(
-                        "acme2certifier date_to_uts_utc() error in Certificate._cert_reusage_check(): id:%s/created_at:%s",
+                        "Date conversion error during certificate reusage check: id:%s/created_at:%s",
                         certificate["id"],
                         certificate["created_at"],
                     )
@@ -250,7 +250,7 @@ class Certificate(object):
             )
         except Exception as err_:
             self.logger.error(
-                "acme2certifier Certificate._config_load() cert_reusage_timout parsing error: %s",
+                "cert_reusage_timout parsing error: %s",
                 err_,
             )
 
@@ -264,7 +264,7 @@ class Certificate(object):
             )
         except Exception as err_:
             self.logger.error(
-                "acme2certifier Certificate._config_load() enrollment_timeout parsing error: %s",
+                "enrollment_timeout parsing error: %s",
                 err_,
             )
 
@@ -417,7 +417,7 @@ class Certificate(object):
 
     def _renewal_info_get(self, certificate: str) -> str:
         """get renewal info"""
-        self.logger.error("Certificate._renewal_info_get()")
+        self.logger.debug("Certificate._renewal_info_get()")
 
         certificate_list = pembundle_to_list(self.logger, certificate)
 
@@ -440,7 +440,7 @@ class Certificate(object):
         csr: str,
     ) -> Tuple[int, str]:
         """store  certificate"""
-        self.logger.error("Certificate._store()")
+        self.logger.debug("Certificate._store()")
 
         error = None
         (issue_uts, expire_uts) = cert_dates_get(self.logger, certificate_raw)
@@ -468,7 +468,7 @@ class Certificate(object):
                     self.logger.debug("Certificate._store: success_hook successful")
                 except Exception as err:
                     self.logger.error(
-                        "Certificate._store: success_hook exception: %s", err
+                        "Exception during success_hook execution: %s", err
                     )
                     if not self.ignore_success_hook_failure:
                         error = (None, "success_hook_error", str(err))
@@ -479,7 +479,7 @@ class Certificate(object):
                 "acme2certifier database error in Certificate._store(): %s", err_
             )
 
-        self.logger.error("Certificate._store() ended")
+        self.logger.debug("Certificate._store() ended")
         return (result, error)
 
     def _enrollerror_handler(
@@ -529,9 +529,7 @@ class Certificate(object):
                     "Certificate._pre_hooks_process(): pre_hook successful"
                 )
             except Exception as err:
-                self.logger.error(
-                    "Certificate._pre_hooks_process(): pre_hook exception: %s", err
-                )
+                self.logger.error("Exception during pre_hook execution: %s", err)
                 if not self.ignore_pre_hook_failure:
                     hook_error = (None, "pre_hook_error", str(err))
 
@@ -553,9 +551,7 @@ class Certificate(object):
                     "Certificate._post_hooks_process(): post_hook successful"
                 )
             except Exception as err:
-                self.logger.error(
-                    "Certificate._post_hooks_process(): post_hook exception: %s", err
-                )
+                self.logger.error("Exception during post_hook execution: %s", err)
                 if not self.ignore_post_hook_failure:
                     hook_error = (None, "post_hook_error", str(err))
 
@@ -595,7 +591,7 @@ class Certificate(object):
             if error:
                 return error
         else:
-            self.logger.error("acme2certifier enrollment error: %s", error)
+            self.logger.error("Enrollment error: %s", error)
             (result, error, detail) = self._enrollerror_handler(
                 error, poll_identifier, order_name, certificate_name
             )
@@ -1124,7 +1120,7 @@ class Certificate(object):
                     (result, error, detail) = enroll_result
                 except Exception as err_:
                     self.logger.error(
-                        "acme2certifier database error in Certificate.enroll_and_store(): split of %s failed with err: %s",
+                        "Enrollment error message split of %s failed with err: %s",
                         enroll_result,
                         err_,
                     )

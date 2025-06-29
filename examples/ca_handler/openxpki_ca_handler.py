@@ -83,7 +83,7 @@ class CAhandler(object):
         else:
             error = "Malformed response"
             self.logger.error(
-                "CAhandler._cert_bundle_create() returned malformed response: %s",
+                "Certificate bundle creation failed: malformed response from CA: %s",
                 response,
             )
 
@@ -127,7 +127,7 @@ class CAhandler(object):
                 )
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_server_load() could not load request_timeout:%s",
+                    "Could not load request_timeout from config: %s",
                     err,
                 )
                 self.request_timeout = 5
@@ -159,10 +159,9 @@ class CAhandler(object):
                     )
                 except Exception as err:
                     self.logger.error(
-                        "CAhandler._config_server_load(): failed to load polling_timeout option: %s",
+                        "Failed to load polling_timeout from config: %s",
                         err,
                     )
-
         self.logger.debug("CAhandler._config_ca_load() ended")
 
     def _config_passphrase_load(self, config_dic: Dict[str, str]):
@@ -183,7 +182,7 @@ class CAhandler(object):
                     ]
                 except Exception as err:
                     self.logger.error(
-                        "CAhandler._config_passphrase_load() could not load cert_passphrase_variable:%s",
+                        "Could not load cert_passphrase_variable from environment: %s",
                         err,
                     )
 
@@ -227,7 +226,7 @@ class CAhandler(object):
                     )
                 else:
                     self.logger.error(
-                        'CAhandler._config_load() configuration incomplete: either "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file'
+                        'Configuration incomplete: missing "client_cert", "client_key", or "client_passphrase variable" in config file.'
                     )
         self.logger.debug("CAhandler._config_session_load() ended")
 
@@ -270,7 +269,7 @@ class CAhandler(object):
             and not self.ca_bundle
         ):
             self.logger.error(
-                "CAhandler._config_load() configuration wrong: client authentication requires a ca_bundle."
+                "Client authentication requires ca_bundle to be enabled in configuration."
             )
             # load profiles
             self.profiles = config_profile_load(self.logger, config_dic)
@@ -279,7 +278,7 @@ class CAhandler(object):
         for ele in ["host", "cert_profile_name", "endpoint_name"]:
             if not variable_dic[ele]:
                 self.logger.error(
-                    'CAhandler._config_load(): configuration incomplete: parameter "%s" is missing in configuration file.',
+                    'Configuration incomplete: parameter "%s" is missing in configuration file.',
                     ele,
                 )
         self.logger.debug("CAhandler._config_load() ended")
@@ -332,7 +331,7 @@ class CAhandler(object):
                 # ernoll failed
                 error = "Malformed response"
                 self.logger.error(
-                    "CAhandler.enroll(): Malformed Rest response: %s", sign_response
+                    "Malformed response from CA during enrollment: %s", sign_response
                 )
                 break_loop = True
 
@@ -361,8 +360,8 @@ class CAhandler(object):
                 timeout=self.request_timeout,
             ).json()
 
-        except Exception as err_:
-            self.logger.error("CAhandler._rpc_post() returned an error: %s", err_)
+        except Exception as err:
+            self.logger.error("RPC POST request failed: %s", err)
             response = {}
 
         self.logger.debug("CAhandler._rpc_post() ended.")
@@ -397,9 +396,8 @@ class CAhandler(object):
                 message = self.err_msg_dic["serverinternal"]
                 detail = "Revocation failed"
                 self.logger.error(
-                    "CAhandler._revoke() failed with: %s", revocation_response
+                    "Certificate revocation failed: %s", revocation_response
                 )
-
         else:
             code = 400
             message = self.err_msg_dic["serverinternal"]
@@ -449,13 +447,11 @@ class CAhandler(object):
                     )
                 else:
                     self.logger.error(
-                        "CAhandler.enroll(): Configuration incomplete. Clientauthentication is missing..."
+                        "Configuration incomplete: client authentication is missing."
                     )
                     error = "Configuration incomplete"
         else:
-            self.logger.error(
-                "CAhandler.enroll(): Configuration incomplete. Host variable is missing..."
-            )
+            self.logger.error("Configuration incomplete: host variable is missing.")
             error = "Configuration incomplete"
 
         self.logger.debug("Certificate.enroll() ended")

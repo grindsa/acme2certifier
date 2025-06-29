@@ -117,9 +117,7 @@ class CAhandler(object):
         for ele in ["api_url", "api_key", "organization_name"]:
             if not getattr(self, ele):
                 error = f"{ele} parameter in missing in config file"
-                self.logger.error(
-                    "CAhandler._config_check() ended with error: %s", error
-                )
+                self.logger.error("Configuration check ended with error: %s", error)
                 break
 
         self.logger.debug("CAhandler._config_check() ended with: %s", error)
@@ -147,7 +145,7 @@ class CAhandler(object):
                 )
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_server_load() could not load order_validity:%s",
+                    "Could not load order_validity:%s",
                     err,
                 )
 
@@ -157,7 +155,7 @@ class CAhandler(object):
                 )
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_server_load() could not load request_timeout:%s",
+                    "Could not load request_timeout:%s",
                     err,
                 )
                 self.request_timeout = 10
@@ -225,9 +223,7 @@ class CAhandler(object):
             # enroll certificate
             code, content = self._api_post(order_url, data_dic)
         else:
-            self.logger.error(
-                "CAhandler._order_send() failed: configuration incomplete: organisation_id is missing"
-            )
+            self.logger.error("Configuration incomplete: organisation_id is missing")
             code = 500
             content = "organisation_id is missing"
 
@@ -249,7 +245,7 @@ class CAhandler(object):
                     cert_bundle += cert["pem"] + "\n"
                 else:
                     self.logger.error(
-                        "CAhandler._order_response_parse() failed: no pem in certificate_chain"
+                        "Order response parsing failed: no pem in certificate_chain"
                     )
             cert_raw = b64_encode(
                 self.logger, cert_pem2der(content["certificate_chain"][0]["pem"])
@@ -258,11 +254,11 @@ class CAhandler(object):
                 poll_identifier = content["id"]
             else:
                 self.logger.error(
-                    "CAhandler._order_response_parse() polling_identifier generation failed: no id in response"
+                    "Polling_identifier generation failed: no id in response"
                 )
         else:
             self.logger.error(
-                "CAhandler._order_response_parse() failed: no certificate_chain in response"
+                "Order response parsing failed: no certificate_chain in response"
             )
 
         self.logger.debug("CAhandler._order_response_parse() ended")
@@ -287,7 +283,7 @@ class CAhandler(object):
                     break
 
         if not organization_id:
-            self.logger.error("CAhandler._organiation_id_get() failed")
+            self.logger.error("Could not get organization id.")
 
         self.logger.debug(
             "CAhandler._organiation_id_get() ended with: %s", organization_id

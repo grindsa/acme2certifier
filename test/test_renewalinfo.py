@@ -96,7 +96,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(85, self.renewalinfo.renewaltreshold_pctg)
         self.assertEqual(86400, self.renewalinfo.retry_after_timeout)
         self.assertIn(
-            "ERROR:test_a2c:acme2certifier Renewalinfo._config_load() renewaltreshold_pctg parsing error: could not convert string to float: 'aa'",
+            "ERROR:test_a2c:renewaltreshold_pctg parsing error: could not convert string to float: 'aa'",
             lcm.output,
         )
         self.assertFalse(self.renewalinfo.renewal_force)
@@ -137,7 +137,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(85, self.renewalinfo.renewaltreshold_pctg)
         self.assertEqual(86400, self.renewalinfo.retry_after_timeout)
         self.assertIn(
-            "ERROR:test_a2c:acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: invalid literal for int() with base 10: 'aa'",
+            "ERROR:test_a2c:retry_after_timeout parsing error: invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertFalse(self.renewalinfo.renewal_force)
@@ -239,7 +239,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_update.called)
         self.assertTrue(mock_renstr_get.called)
         self.assertIn(
-            "ERROR:test_a2c:Renewalinfo.get() - error: renewalinfo_get", lcm.output
+            "ERROR:test_a2c:Error when getting renewal information: renewalinfo_get",
+            lcm.output,
         )
 
     @patch("acme_srv.message.Message.check")

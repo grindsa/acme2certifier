@@ -405,7 +405,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.dbstore._account_search("invalid_field", "invalid_value")
             )
         self.assertIn(
-            "ERROR:test_a2c:DBStore._account_search(column:invalid_field, pattern:invalid_value) failed with err: no such column: invalid_field",
+            "ERROR:test_a2c:Account search failed for column 'invalid_field' and pattern 'invalid_value': no such column: invalid_field",
             lcm.output,
         )
 
@@ -912,7 +912,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.dbstore._authorization_search("invalid_field", "invalid_value")
             )
         self.assertIn(
-            "ERROR:test_a2c:DBStore._authorization_search(column:invalid_field, pattern:invalid_value) failed with err: no such column: invalid_field",
+            "ERROR:test_a2c:Authorization search failed for column 'invalid_field' and pattern 'invalid_value': no such column: invalid_field",
             lcm.output,
         )
 
@@ -1013,7 +1013,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.dbstore.authorization_lookup("nam", "name1"))
         self.assertIn(
-            "ERROR:test_a2c:DBStore.authorization_lookup(column:nam, pattern:name1) failed with err: mock_authz error",
+            "ERROR:test_a2c:Authorization lookup(column:nam, pattern:name1) failed with err: mock_authz error",
             lcm.output,
         )
 
@@ -1159,7 +1159,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.dbstore._challenge_search("invalid_field", "invalid_value")
             )
         self.assertIn(
-            "ERROR:test_a2c:DBStore._challenge_search(column:invalid_field, pattern:invalid_value) failed with err: no such column: challenge.invalid_field",
+            "ERROR:test_a2c:Challenge search failed for column 'invalid_field' and pattern 'invalid_value': no such column: challenge.invalid_field",
             lcm.output,
         )
 
@@ -1454,7 +1454,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.dbstore._order_search("invalid_field", "invalid_value")
             )
         self.assertIn(
-            "ERROR:test_a2c:DBStore._order_search(column:invalid_field, pattern:invalid_value) failed with err: no such column: orders.invalid_field",
+            "ERROR:test_a2c:Order search failed for column 'invalid_field' and pattern 'invalid_value': no such column: orders.invalid_field",
             lcm.output,
         )
 
@@ -2929,7 +2929,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.dbstore._cahandler_search("name", "name1"))
         self.assertIn(
-            "ERROR:test_a2c:DBStore._cahandler_search(column:name, pattern:name1) failed with err: 'Exception' object is not callable",
+            "ERROR:test_a2c:CA handler search failed for column 'name' and pattern 'name1': 'Exception' object is not callable",
             lcm.output,
         )
 
@@ -3097,7 +3097,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.dbstore.cliaccount_delete({"name": "name2"})
         self.assertIn(
-            "ERROR:test_a2c:DBStore.cliaccount_delete() failed for kid: name2",
+            "ERROR:test_a2c:CLI account delete failed: no entry found for kid 'name2'",
             lcm.output,
         )
         cli_account_list = self.dbstore.cliaccountlist_get()
@@ -3203,7 +3203,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.dbstore._cliaccount_search("name", "name2"))
         self.assertIn(
-            "ERROR:test_a2c:DBStore._cliaccount_search(column:name, pattern:name2) failed with err: 'Exception' object is not callable",
+            "ERROR:test_a2c:CLI account search failed for column 'name' and pattern 'name2': 'Exception' object is not callable",
             lcm.output,
         )
 

@@ -197,7 +197,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._ca_key_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._ca_key_load() failed with error: exc_key_load",
+            "ERROR:test_a2c:Failed to load CA private key from database: exc_key_load",
             lcm.output,
         )
 
@@ -210,7 +210,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((None, None, None), self.cahandler._ca_load())
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._ca_cert_load() failed with error: exc_cert_load",
+            "ERROR:test_a2c:Failed to load CA certificate from database: exc_cert_load",
             lcm.output,
         )
 
@@ -643,7 +643,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._requestname_get("csr"))
         self.assertIn(
-            "ERROR:test_a2c:ERROR: CAhandler._request_name_get(): SAN split failed: []",
+            "ERROR:test_a2c:Failed to split SAN from CSR subjectAltName: []",
             lcm.output,
         )
 
@@ -680,7 +680,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._requestname_get("csr"))
         self.assertIn(
-            "ERROR:test_a2c:ERROR: CAhandler._request_name_get(): SAN split failed: ['foo', 'bar']",
+            "ERROR:test_a2c:Failed to split SAN from CSR subjectAltName: ['foo', 'bar']",
             lcm.output,
         )
 
@@ -942,7 +942,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.ca_cert_chain_list)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load(): parameter "ca_cert_chain_list" cannot be loaded',
+            'ERROR:test_a2c:Parameter "ca_cert_chain_list" cannot be loaded',
             lcm.output,
         )
 
@@ -1012,7 +1012,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.passphrase)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load passphrase_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load passphrase_variable:'does_not_exist'",
             lcm.output,
         )
 
@@ -1831,7 +1831,7 @@ class TestACMEHandler(unittest.TestCase):
                 ),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._extended_keyusage_generate(): convert to int failed defaulting ekuc to False",
+            "ERROR:test_a2c:Failed to convert EKU critical flag to int, defaulting to False",
             lcm.output,
         )
 

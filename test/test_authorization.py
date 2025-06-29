@@ -360,7 +360,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.authorization._authz_info("http://tester.local/acme/authz/foo")
         self.assertIn(
-            "ERROR:test_a2c:acme2certifier database error in Authorization._expiry_update(foo) update: exc_authz_update",
+            "ERROR:test_a2c:acme2certifier database error during Authorzisation update (foo): update: exc_authz_update",
             lcm.output,
         )
 

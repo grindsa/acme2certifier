@@ -107,7 +107,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load host_variable:'unk'",
+            "ERROR:test_a2c:Unable to load host variable from environment: 'unk'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.use_kerberos)
@@ -194,7 +194,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn(
-            "ERROR:test_a2c:Could not load user_variable:'unk'",
+            "ERROR:test_a2c:Unable to load user variable from environment: 'unk'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.use_kerberos)
@@ -280,7 +280,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn(
-            "ERROR:test_a2c:Could not load password_variable:'unk'",
+            "ERROR:test_a2c:Unable to load password variable from environment: 'unk'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.use_kerberos)
@@ -807,7 +807,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._file_load("filename"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._file_load(): could not load filename. Error: ex_mock_open",
+            "ERROR:test_a2c:Could not load file 'filename'. Error: ex_mock_open",
             lcm.output,
         )
 
@@ -839,7 +839,13 @@ class TestACMEHandler(unittest.TestCase):
     def test_043_enroll(self, mock_rcr):
         """test enrollment - unconfigured"""
         self.assertEqual(
-            ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
+            (
+                "Configuration incomplete: host, user, password, or template is missing.",
+                None,
+                None,
+                None,
+            ),
+            self.cahandler.enroll("csr"),
         )
         self.assertFalse(mock_rcr.called)
 
@@ -851,7 +857,13 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.password = "password"
         self.cahandler.template = "template"
         self.assertEqual(
-            ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
+            (
+                "Configuration incomplete: host, user, password, or template is missing.",
+                None,
+                None,
+                None,
+            ),
+            self.cahandler.enroll("csr"),
         )
         self.assertFalse(mock_rcr.called)
 
@@ -863,7 +875,13 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.password = "password"
         self.cahandler.template = "template"
         self.assertEqual(
-            ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
+            (
+                "Configuration incomplete: host, user, password, or template is missing.",
+                None,
+                None,
+                None,
+            ),
+            self.cahandler.enroll("csr"),
         )
         self.assertFalse(mock_rcr.called)
 
@@ -875,7 +893,13 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.password = None
         self.cahandler.template = "template"
         self.assertEqual(
-            ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
+            (
+                "Configuration incomplete: host, user, password, or template is missing.",
+                None,
+                None,
+                None,
+            ),
+            self.cahandler.enroll("csr"),
         )
         self.assertFalse(mock_rcr.called)
 
@@ -887,7 +911,13 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.password = "password"
         self.cahandler.template = None
         self.assertEqual(
-            ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
+            (
+                "Configuration incomplete: host, user, password, or template is missing.",
+                None,
+                None,
+                None,
+            ),
+            self.cahandler.enroll("csr"),
         )
         self.assertFalse(mock_rcr.called)
 
@@ -908,12 +938,19 @@ class TestACMEHandler(unittest.TestCase):
         mock_b2s.side_effect = Exception("ex_b2s")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
-                ("cert bundling failed", None, None, None), self.cahandler.enroll("csr")
+                (
+                    "Certificate bundling failed: CA certificate or issued certificate is missing.",
+                    None,
+                    None,
+                    None,
+                ),
+                self.cahandler.enroll("csr"),
             )
+        self.assertIn("ERROR:test_a2c:Enrollment failed with error: ex_b2s", lcm.output)
         self.assertIn(
-            "ERROR:test_a2c:ca_server.get_cert() failed with error: ex_b2s", lcm.output
+            "ERROR:test_a2c:Certificate bundling failed: CA certificate or issued certificate is missing.",
+            lcm.output,
         )
-        self.assertIn("ERROR:test_a2c:cert bundling failed", lcm.output)
         self.assertTrue(mock_rcr.called)
 
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler.request_create")
@@ -933,9 +970,18 @@ class TestACMEHandler(unittest.TestCase):
         mock_b2s.return_value = None
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
-                ("cert bundling failed", None, None, None), self.cahandler.enroll("csr")
+                (
+                    "Certificate bundling failed: CA certificate or issued certificate is missing.",
+                    None,
+                    None,
+                    None,
+                ),
+                self.cahandler.enroll("csr"),
             )
-        self.assertIn("ERROR:test_a2c:cert bundling failed", lcm.output)
+        self.assertIn(
+            "ERROR:test_a2c:Certificate bundling failed: CA certificate or issued certificate is missing.",
+            lcm.output,
+        )
         self.assertTrue(mock_rcr.called)
 
     @patch("examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check")
@@ -1223,7 +1269,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._template_name_get("csr"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._template_name_get() could not parse template: Expecting value: line 1 column 1 (char 0)",
+            "ERROR:test_a2c:Failed to parse template from header info: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 
