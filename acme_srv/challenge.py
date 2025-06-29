@@ -81,8 +81,7 @@ class Challenge(object):
             challenge_list = self.dbstore.challenges_search(key, value, vlist)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._challengelist_search(): %s",
-                err_,
+                "Database error: failed to search for challenges: %s", err_
             )
             challenge_list = []
 
@@ -221,7 +220,9 @@ class Challenge(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._check() lookup: %s", err_
+                "Database error: failed to lookup challenge '%s': %s",
+                challenge_name,
+                err_,
             )
             challenge_dic = {}
 
@@ -236,9 +237,7 @@ class Challenge(object):
                     challenge_dic["authorization__order__account__name"]
                 )
             except Exception as err_:
-                self.logger.critical(
-                    "acme2certifier database error in Challenge._check() jwk: %s", err_
-                )
+                self.logger.critical("Database error: could not get jwk: %s", err_)
                 pub_key = None
 
             if pub_key:
@@ -278,7 +277,9 @@ class Challenge(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._info(): %s", err_
+                "Database error: failed to lookup challenge '%s': %s",
+                challenge_name,
+                err_,
             )
             challenge_dic = {}
 
@@ -418,7 +419,8 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.critical(
-                    "acme2certifier database error in Challenge._cvd_via_eabprofile_check(): %s",
+                    "Database error: failed to lookup challenge '%s': %s",
+                    challenge_name,
                     err_,
                 )
                 challenge_dic = {}
@@ -506,7 +508,7 @@ class Challenge(object):
             chid = self.dbstore.challenge_add(value, mtype, data_dic)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._new(): %s, %s:%s",
+                "Database error: failed to add new challenge: %s, value: %s, type: %s",
                 err_,
                 value,
                 mtype,
@@ -593,9 +595,7 @@ class Challenge(object):
         try:
             self.dbstore.challenge_update(data_dic)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Challenge._update(): %s", err_
-            )
+            self.logger.critical("Database error: failed to update challenge: %s", err_)
         self.logger.debug("Challenge._update() ended")
 
     def _update_authz(self, challenge_name: str, data_dic: Dict[str, str]):
@@ -608,7 +608,8 @@ class Challenge(object):
             )["authorization"]
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._update_authz() lookup: %s",
+                "Database error: failed to lookup authorization for challenge '%s': %s",
+                challenge_name,
                 err_,
             )
             authz_name = None
@@ -620,8 +621,7 @@ class Challenge(object):
             self.dbstore.authorization_update(data_dic)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._update_authz() upd: %s",
-                err_,
+                "Database error: failed to update authorization for challenge: %s", err_
             )
 
         self.logger.debug("Challenge._update_authz() ended")

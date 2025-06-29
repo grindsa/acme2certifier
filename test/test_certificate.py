@@ -1355,7 +1355,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.certificate._enroll_and_store(certificate_name, csr),
             )
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate._enrollerror_handler() _store_cert_error: ex_cert_error_store",
+            "CRITICAL:test_a2c:Database error: failed to store certificate error: ex_cert_error_store",
             lcm.output,
         )
         self.assertIn("ERROR:test_a2c:Enrollment error: error", lcm.output)
@@ -1488,7 +1488,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.certificate._enroll_and_store(certificate_name, csr),
             )
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate._store(): ex_cert_store",
+            "CRITICAL:test_a2c:Database error: failed to store certificate: ex_cert_store",
             lcm.output,
         )
         self.assertFalse(mock_chk.called)
@@ -2332,7 +2332,7 @@ class TestACMEHandler(unittest.TestCase):
                 "certificate_name", "poll_identifier", "csr", "order_name"
             )
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate.poll(): exc_cert_poll",
+            "CRITICAL:test_a2c:Database error during Certificate polling: exc_cert_poll",
             lcm.output,
         )
         self.assertTrue(mock_renew.called)
@@ -2360,7 +2360,7 @@ class TestACMEHandler(unittest.TestCase):
                 "certificate_name", "poll_identifier", "csr", "order_name"
             )
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate.poll(): exc_cert_poll",
+            "CRITICAL:test_a2c:Database error during Certificate polling: exc_cert_poll",
             lcm.output,
         )
 
@@ -2389,7 +2389,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._store_cert_error("cert_name", "error", "poll")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate._store_cert(): exc_cert_add_error",
+            "CRITICAL:test_a2c:Database error: failed to store certificate error: exc_cert_add_error",
             lcm.output,
         )
 
@@ -2401,7 +2401,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._account_check("account_name", "cert")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate._account_check(): exc_acc_chk",
+            "CRITICAL:test_a2c:Database error: failed to check account for certificate: exc_acc_chk",
             lcm.output,
         )
 
@@ -2411,7 +2411,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._authorization_check("order_name", "cert")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate._authorization_check(): exc_authz_chk",
+            "CRITICAL:test_a2c:Database error: failed to check authorization for order 'order_name': exc_authz_chk",
             lcm.output,
         )
 
@@ -2423,7 +2423,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._csr_check("cert_name", "csr")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate._csr_check(): exc_csr_chk",
+            "CRITICAL:test_a2c:Database error in Certificate when checking the CSR identifiers: exc_csr_chk",
             lcm.output,
         )
         # self.certificate.dbstore.order_lookup.side_effect = []
@@ -2436,7 +2436,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._info("cert_name")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate._info(): exc_cert_info",
+            "CRITICAL:test_a2c:Database error: failed to get certificate info: exc_cert_info",
             lcm.output,
         )
 
@@ -2811,7 +2811,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate.cleanup(1543640400)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate.cleanup() add: exc_cert_cleanup1",
+            "CRITICAL:test_a2c:Database error: failed to add certificate during cleanup: exc_cert_cleanup1",
             lcm.output,
         )
 
@@ -2837,7 +2837,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate.cleanup(1543640400, True)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate.cleanup() delete: exc_cert_cleanup2",
+            "CRITICAL:test_a2c:Database error: failed to delete certificate during cleanup: exc_cert_cleanup2",
             lcm.output,
         )
 
@@ -2849,7 +2849,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate.cleanup("timestamp")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate.cleanup() search: exc_cert_cleanup",
+            "CRITICAL:test_a2c:Database error: failed to search for certificates to clean up: exc_cert_cleanup",
             lcm.output,
         )
 
@@ -2866,7 +2866,7 @@ class TestACMEHandler(unittest.TestCase):
                 (None, None, None, None), self.certificate._cert_reusage_check("csr")
             )
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate._cert_reusage_check(): ex_cert_reusage",
+            "CRITICAL:test_a2c:Database error: failed to search for certificate reusage: ex_cert_reusage",
             lcm.output,
         )
 
@@ -2937,7 +2937,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._config_load()
         self.assertIn(
-            "CRITICAL:test_a2c:Certificate._config_load(): No ca_handler loaded",
+            "CRITICAL:test_a2c:No ca_handler loaded",
             lcm.output,
         )
         self.assertFalse(self.certificate.hooks)
@@ -2957,7 +2957,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._config_load()
         self.assertIn(
-            "CRITICAL:test_a2c:Certificate._config_load(): No ca_handler loaded",
+            "CRITICAL:test_a2c:No ca_handler loaded",
             lcm.output,
         )
         self.assertFalse(self.certificate.hooks)
@@ -3166,7 +3166,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(120, self.certificate.enrollment_timeout)
         self.assertFalse(self.certificate.hooks)
         self.assertIn(
-            "CRITICAL:test_a2c:Certificate._config_load(): Hooks could not be loaded: 'str' object has no attribute 'Hooks'",
+            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
             lcm.output,
         )
         self.assertFalse(self.certificate.ignore_pre_hook_failure)
@@ -3187,7 +3187,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(5, self.certificate.enrollment_timeout)
         self.assertFalse(self.certificate.hooks)
         self.assertIn(
-            "CRITICAL:test_a2c:Certificate._config_load(): Hooks could not be loaded: 'str' object has no attribute 'Hooks'",
+            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
             lcm.output,
         )
         self.assertFalse(self.certificate.ignore_pre_hook_failure)
@@ -3208,7 +3208,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(5, self.certificate.enrollment_timeout)
         self.assertFalse(self.certificate.hooks)
         self.assertIn(
-            "CRITICAL:test_a2c:Certificate._config_load(): Hooks could not be loaded: 'str' object has no attribute 'Hooks'",
+            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
             lcm.output,
         )
         self.assertTrue(self.certificate.ignore_pre_hook_failure)
@@ -3229,7 +3229,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(5, self.certificate.enrollment_timeout)
         self.assertFalse(self.certificate.hooks)
         self.assertIn(
-            "CRITICAL:test_a2c:Certificate._config_load(): Hooks could not be loaded: 'str' object has no attribute 'Hooks'",
+            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
             lcm.output,
         )
         self.assertFalse(self.certificate.ignore_pre_hook_failure)
@@ -3250,7 +3250,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(5, self.certificate.enrollment_timeout)
         self.assertFalse(self.certificate.hooks)
         self.assertIn(
-            "CRITICAL:test_a2c:Certificate._config_load(): Hooks could not be loaded: 'str' object has no attribute 'Hooks'",
+            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
             lcm.output,
         )
         self.assertFalse(self.certificate.ignore_pre_hook_failure)
@@ -3270,7 +3270,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(5, self.certificate.enrollment_timeout)
         self.assertFalse(self.certificate.hooks)
         self.assertIn(
-            "CRITICAL:test_a2c:Certificate._config_load(): Hooks could not be loaded: 'str' object has no attribute 'Hooks'",
+            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
             lcm.output,
         )
         self.assertFalse(self.certificate.ignore_pre_hook_failure)
@@ -3291,7 +3291,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(5, self.certificate.enrollment_timeout)
         self.assertFalse(self.certificate.hooks)
         self.assertIn(
-            "CRITICAL:test_a2c:Certificate._config_load(): Hooks could not be loaded: 'str' object has no attribute 'Hooks'",
+            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
             lcm.output,
         )
         self.assertFalse(self.certificate.ignore_pre_hook_failure)
@@ -3504,7 +3504,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._order_update({"url": "url"})
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate._order_update(): exc_order_upd",
+            "CRITICAL:test_a2c:Database error: failed to update order: exc_order_upd",
             lcm.output,
         )
 
@@ -3516,7 +3516,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate.certlist_search("type", "value")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate.certlist_search(): exc_certlist_search",
+            "CRITICAL:test_a2c:Database error while searching for certificates: exc_certlist_search",
             lcm.output,
         )
 

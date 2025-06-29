@@ -69,9 +69,7 @@ class Account(object):
         try:
             result = self.dbstore.account_lookup("jwk", json.dumps(jwk))
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Account._account_lookup(): %s", err_
-            )
+            self.logger.critical("Database error during account lookup: %s", err_)
             result = None
 
         if result:
@@ -97,7 +95,7 @@ class Account(object):
         try:
             (db_name, new) = self.dbstore.account_add(data_dic)
         except Exception as err_:
-            self.logger.critical("Account.account._add(): Database error: %s", err_)
+            self.logger.critical("Database error while adding account: %s", err_)
             db_name = None
             new = False
 
@@ -240,10 +238,10 @@ class Account(object):
             data_dic = {"name": aname, "contact": json.dumps(payload["contact"])}
             try:
                 result = self.dbstore.account_update(data_dic)
-            except Exception as err_:
+            except Exception as err:
                 self.logger.critical(
-                    "acme2certifier database error in Account._contacts_update(): %s",
-                    err_,
+                    "Database error while updating account contacts: %s",
+                    err,
                 )
                 result = None
 
@@ -262,9 +260,7 @@ class Account(object):
         try:
             result = self.dbstore.account_delete(aname)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Account._delete(): %s", err_
-            )
+            self.logger.critical("Database error while deleting account: %s", err_)
             result = None
 
         if result:
@@ -290,9 +286,7 @@ class Account(object):
             }
             result = self.dbstore.account_update(data_dic, active=False)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Account._deactivate(): %s", err_
-            )
+            self.logger.critical("Database error while deactivating account: %s", err_)
             result = None
 
         if result:
@@ -580,7 +574,7 @@ class Account(object):
                 result = self.dbstore.account_update(data_dic)
             except Exception as err_:
                 self.logger.critical(
-                    "acme2certifier database error in Account._key_change(): %s", err_
+                    "Database error while updating account key: %s", err_
                 )
                 result = None
             if result:
@@ -655,9 +649,7 @@ class Account(object):
         try:
             pub_key = self.dbstore.jwk_load(aname)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Account._key_compare(): %s", err_
-            )
+            self.logger.critical("Database error while comparing account key: %s", err_)
             pub_key = None
 
         if old_key and pub_key:
@@ -725,9 +717,7 @@ class Account(object):
         try:
             result = self.dbstore.account_lookup(field, value)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Account._lookup(): %s", err_
-            )
+            self.logger.critical("Database error during account lookup: %s", err_)
             result = None
         return result
 

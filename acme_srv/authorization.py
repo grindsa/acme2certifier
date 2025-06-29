@@ -69,7 +69,7 @@ class Authorization(object):
                 authz = self.dbstore.authorization_lookup("name", authz_name)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Authorization._authz_lookup(%s) lookup: %s",
+                "Database error: failed to lookup authorization '%s': %s",
                 authz_name,
                 err_,
             )
@@ -235,7 +235,7 @@ class Authorization(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Authorization.invalidate(): %s", err_
+                "Database error: failed to search for expired authorizations: %s", err_
             )
             authz_list = []
 
@@ -256,7 +256,8 @@ class Authorization(object):
                         self.dbstore.authorization_update(data_dic)
                     except Exception as err_:
                         self.logger.critical(
-                            "acme2certifier database error in Authorization.invalidate(): %s",
+                            "Database error: failed to update authorization '%s' as expired: %s",
+                            authz["name"],
                             err_,
                         )
 

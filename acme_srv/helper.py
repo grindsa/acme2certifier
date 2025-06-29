@@ -135,14 +135,14 @@ def ca_handler_load(
             return ca_handler_module
         except Exception as err_:
             logger.critical(
-                "loading CAhandler configured in cfg failed with err: %s", err_
+                "Loading CAhandler configured in cfg failed with err: %s", err_
             )
 
     # if no 'handler_file' provided or loading was unsuccessful, try to load default handler
     try:
         ca_handler_module = importlib.import_module("acme_srv.ca_handler")
     except Exception as err_:
-        logger.critical("loading default CAhandler failed with err: %s", err_)
+        logger.critical("Loading default CAhandler failed with err: %s", err_)
         ca_handler_module = None
 
     return ca_handler_module
@@ -299,19 +299,19 @@ def eab_handler_load(
             spec.loader.exec_module(eab_handler_module)
         except Exception as err_:
             logger.critical(
-                "loading EABhandler configured in cfg failed with err: %s", err_
+                "Loading EABhandler configured in cfg failed with err: %s", err_
             )
             try:
                 eab_handler_module = importlib.import_module("acme_srv.eab_handler")
             except Exception as err_:
                 eab_handler_module = None
-                logger.critical("loading default EABhandler failed with err: %s", err_)
+                logger.critical("Loading default EABhandler failed with err: %s", err_)
     else:
         if "EABhandler" in config_dic:
             try:
                 eab_handler_module = importlib.import_module("acme_srv.eab_handler")
             except Exception as err_:
-                logger.critical("loading default EABhandler failed with err: %s", err_)
+                logger.critical("Loading default EABhandler failed with err: %s", err_)
                 eab_handler_module = None
         else:
             logger.error("EABhandler configuration missing in config file")
@@ -335,7 +335,7 @@ def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_mod
             spec.loader.exec_module(hooks_module)
         except Exception as err_:
             logger.critical(
-                "Helper.hooks_load(): loading Hooks configured in cfg failed with err: %s",
+                "Loading Hooks configured in cfg failed with err: %s",
                 err_,
             )
 

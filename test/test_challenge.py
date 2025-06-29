@@ -1231,7 +1231,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._challengelist_search("key", "value")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._challengelist_search(): exc_chall_search",
+            "CRITICAL:test_a2c:Database error: failed to search for challenges: exc_chall_search",
             lcm.output,
         )
 
@@ -1247,7 +1247,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._check("name", "payload")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._check() jwk: exc_jkw_load",
+            "CRITICAL:test_a2c:Database error: could not get jwk: exc_jkw_load",
             lcm.output,
         )
 
@@ -1265,7 +1265,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._check("name", "payload")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._check() lookup: exc_chall_chk",
+            "CRITICAL:test_a2c:Database error: failed to lookup challenge 'name': exc_chall_chk",
             lcm.output,
         )
 
@@ -1277,17 +1277,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._info("name")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._info(): exc_chall_info",
-            lcm.output,
-        )
-
-    def test_075_challenge__new(self):
-        """test Challenge._new - dbstore.challenge_add() raises an exception"""
-        self.challenge.dbstore.challenge_add.side_effect = Exception("exc_chall_add")
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.challenge._new("authz_name", "mtype", "token", "value")
-        self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._new(): exc_chall_add, value:mtype",
+            "CRITICAL:test_a2c:Database error: failed to lookup challenge 'name': exc_chall_info",
             lcm.output,
         )
 
@@ -1297,7 +1287,17 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._update({"foo": "bar"})
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._update(): exc_chall_upd",
+            "CRITICAL:test_a2c:Database error: failed to update challenge: exc_chall_upd",
+            lcm.output,
+        )
+
+    def test_076_challenge__update(self):
+        """test Challenge._update - dbstore.challenge_update() raises an exception"""
+        self.challenge.dbstore.challenge_update.side_effect = Exception("exc_chall_upd")
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.challenge._update({"foo": "bar"})
+        self.assertIn(
+            "CRITICAL:test_a2c:Database error: failed to update challenge: exc_chall_upd",
             lcm.output,
         )
 
@@ -1313,7 +1313,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._update_authz("name", {"foo": "bar"})
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._update_authz() upd: exc_chall_autz_upd",
+            "CRITICAL:test_a2c:Database error: failed to update authorization for challenge: exc_chall_autz_upd",
             lcm.output,
         )
 
@@ -1325,7 +1325,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._update_authz("name", {"foo": "bar"})
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._update_authz() lookup: exc_chall_lookup_foo",
+            "CRITICAL:test_a2c:Database error: failed to lookup authorization for challenge 'name': exc_chall_lookup_foo",
             lcm.output,
         )
 
@@ -2113,7 +2113,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._cvd_via_eabprofile_check(): exc_chall_info",
+            "CRITICAL:test_a2c:Database error: failed to lookup challenge 'challenge_name': exc_chall_info",
             lcm.output,
         )
 

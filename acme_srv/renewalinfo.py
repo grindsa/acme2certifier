@@ -116,7 +116,7 @@ class Renewalinfo(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Renewalinfo._cert_table_update(): %s",
+                "Database error: failed to retrieve certificate list for renewal info update: %s",
                 err_,
             )
             certificate_list = []
@@ -163,7 +163,7 @@ class Renewalinfo(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Renewalinfo._draft01_lookup(): %s",
+                "Database error: failed to look up certificate for renewal info (draft01): %s",
                 err_,
             )
             result_dic = None
@@ -214,7 +214,7 @@ class Renewalinfo(object):
                     break
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Renewalinfo._draft02_lookup(): %s",
+                "Database error: failed to look up certificate for renewal info (draft02): %s",
                 err_,
             )
 

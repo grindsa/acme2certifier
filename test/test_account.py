@@ -1684,9 +1684,10 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._lookup("foo")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._lookup(): exc_acc_lookup",
+            "CRITICAL:test_a2c:Database error during account lookup: exc_acc_lookup",
             lcm.output,
         )
+        self.account.dbstore.account_lookup.side_effect = None
 
     def test_095_account__onlyreturnexisting(self):
         """test Account._onlyreturnexisting() if dbstore.account_lookup raises an exception"""
@@ -1698,7 +1699,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._onlyreturnexisting(protected, payload)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._account_lookup(): exc_acc_returnexit",
+            "CRITICAL:test_a2c:Database error during account lookup: exc_acc_returnexit",
             lcm.output,
         )
         self.account.dbstore.account_lookup.side_effect = None
@@ -1709,7 +1710,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._key_compare("foo", "bar")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._key_compare(): exc_key_compare",
+            "CRITICAL:test_a2c:Database error while comparing account key: exc_key_compare",
             lcm.output,
         )
         self.account.dbstore.jwk_load.side_effect = None
@@ -1732,7 +1733,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._key_change("aname", {}, protected)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._key_change(): exc_key_change",
+            "CRITICAL:test_a2c:Database error while updating account key: exc_key_change",
             lcm.output,
         )
 
@@ -1747,7 +1748,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._delete("foo")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._delete(): exc_delete",
+            "CRITICAL:test_a2c:Database error while deleting account: exc_delete",
             lcm.output,
         )
 
@@ -1770,7 +1771,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.account._deactivate("foo"),
             )
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._deactivate(): exc_deactivate",
+            "CRITICAL:test_a2c:Database error while deactivating account: exc_deactivate",
             lcm.output,
         )
 
@@ -1787,7 +1788,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._contacts_update(aname, payload)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._contacts_update(): exc_contact_upd",
+            "CRITICAL:test_a2c:Database error while updating account contacts: exc_contact_upd",
             lcm.output,
         )
 
@@ -1806,7 +1807,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._add(content, payload, "foo@example.com")
         self.assertIn(
-            "CRITICAL:test_a2c:Account.account._add(): Database error: exc_acc_add",
+            "CRITICAL:test_a2c:Database error while adding account: exc_acc_add",
             lcm.output,
         )
 
