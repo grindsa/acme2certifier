@@ -396,7 +396,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertIn(
-            "WARNING:test_a2c:loading allowed_domainlist failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to load allowed_domainlist from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)

@@ -2527,7 +2527,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.config_check(self.logger, config_dic)
         self.assertIn(
-            'WARNING:test_a2c:config_check(): section foo option: bar contains " characters. Check if this is really needed!',
+            'WARNING:test_a2c:Section foo option: bar contains " characters. Please check if this is required!',
             lcm.output,
         )
 
@@ -3145,7 +3145,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.header_info_lookup(self.logger, "csr", "header_info_field", "foo1")
             )
         self.assertIn(
-            "WARNING:test_a2c:Header_info_field not found: header_info_field",
+            "WARNING:test_a2c:Header_info_field not found in header info: header_info_field",
             lcm.output,
         )
 
@@ -3158,7 +3158,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.header_info_lookup(self.logger, "csr", "header_info_field", "foo1")
             )
         self.assertIn(
-            "WARNING:test_a2c:Header_info_field not found: header_info_field",
+            "WARNING:test_a2c:Header_info_field not found in header info: header_info_field",
             lcm.output,
         )
 
@@ -3171,7 +3171,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.header_info_lookup(self.logger, "csr", "header_info_field", "foo1")
             )
         self.assertIn(
-            "WARNING:test_a2c:Header_info_field not found: header_info_field",
+            "WARNING:test_a2c:Header_info_field not found in header info: header_info_field",
             lcm.output,
         )
 
@@ -3206,7 +3206,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.config_headerinfo_load(self.logger, config_dic))
         self.assertIn(
-            "WARNING:test_a2c:header_info_list failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to parse header_info_list from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 
@@ -3293,7 +3293,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.eab_profile_string_check(self.logger, cahandler, "foobar", "bar")
         self.assertEqual("foo", cahandler.foo)
         self.assertIn(
-            "WARNING:test_a2c:EAB profile string checking: ignore string attribute: key: foobar value: bar",
+            "WARNING:test_a2c:EAB profile string checking: ignoring unrecognized string attribute: key: foobar value: bar",
             lcm.output,
         )
 
@@ -3308,7 +3308,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         self.assertEqual("foo", cahandler.foo)
         self.assertIn(
-            "WARNING:test_a2c:EAP profile list checking: ignore list attribute: key: foobar value: bar",
+            "WARNING:test_a2c:EAP profile list checking: ignoring unrecognized list attribute: key: foobar value: bar",
             lcm.output,
         )
 
@@ -4199,7 +4199,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 (False, []), self.config_enroll_config_log_load(self.logger, config_dic)
             )
         self.assertIn(
-            "WARNING:test_a2c:loading enrollment_config_log failed with error: Not a boolean: aaa",
+            "WARNING:test_a2c:Failed to load enrollment_config_log from configuration: Not a boolean: aaa",
             lcm.output,
         )
 
@@ -4228,7 +4228,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.config_enroll_config_log_load(self.logger, config_dic),
             )
         self.assertIn(
-            "WARNING:test_a2c:enrollment_config_log_skip_list failed with error: Extra data: line 1 column 6 (char 5)",
+            "WARNING:test_a2c:Failed to parse enrollment_config_log_skip_list from configuration: Extra data: line 1 column 6 (char 5)",
             lcm.output,
         )
 
@@ -4256,7 +4256,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.config_allowed_domainlist_load(self.logger, config_dic),
             )
         self.assertIn(
-            "WARNING:test_a2c:loading allowed_domainlist failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to load allowed_domainlist from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 
@@ -4493,7 +4493,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.config_profile_load(self.logger, parser))
         self.assertIn(
-            "WARNING:test_a2c:loading profiles failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to load profiles from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 

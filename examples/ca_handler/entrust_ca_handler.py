@@ -338,7 +338,7 @@ class CAhandler(object):
                     )
                 else:
                     self.logger.warning(
-                        'CAhandler._config_load() configuration might be incomplete: "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file'
+                        'Configuration might be incomplete: "client_cert", "client_key" or "client_passphrase[_variable]" parameter is missing in config file'
                     )
             self.session.auth = (self.username, self.password)
 

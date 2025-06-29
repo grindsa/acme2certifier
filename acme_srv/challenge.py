@@ -310,7 +310,7 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() proxy_server_list failed with error: %s",
+                    "Failed to load proxy_server_list from configuration: %s",
                     err_,
                 )
 
@@ -327,7 +327,7 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() dns_server_list failed with error: %s",
+                    "Failed to load dns_server_list from configuration: %s",
                     err_,
                 )
         if (
@@ -340,7 +340,7 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() failed to load dns_validation_pause_timer: %s",
+                    "Failed to parse dns_validation_pause_timer from configuration: %s",
                     err_,
                 )
 
@@ -367,7 +367,7 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() failed to load challenge_validation_timeout: %s",
+                    "Failed to parse challenge_validation_timeout from configuration: %s",
                     err_,
                 )
 
@@ -643,7 +643,7 @@ class Challenge(object):
         ):
             if self.challenge_validation_disable:
                 self.logger.warning(
-                    "CHALLENGE VALIDATION DISABLED. Setting challenge status to valid."
+                    "Challenge validation is globally disabled. Setting challenge status to valid."
                 )
             else:
                 self.logger.info(

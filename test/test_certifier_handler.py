@@ -229,7 +229,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "WARNING:test_a2c:CAhandler._config_load() polling_timeout is not an integer, using default value: 60",
+            "WARNING:test_a2c:Invalid value for polling_timeout in configuration. Using default: 60",
             lcm.output,
         )
         self.assertEqual("api_host", self.cahandler.api_host)
@@ -458,7 +458,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_chk.called)
         self.assertFalse(self.cahandler.proxy)
         self.assertIn(
-            "WARNING:test_a2c:Challenge._config_load() proxy_server_list failed with error: not enough values to unpack (expected 2, got 1)",
+            "WARNING:test_a2c:Failed to parse proxy_server_list from configuration: not enough values to unpack (expected 2, got 1)",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -485,7 +485,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "WARNING:test_a2c:CAhandler._config_load() request_timeout is not an integer, using default value: 20",
+            "WARNING:test_a2c:Invalid value for request_timeout in configuration. Using default: 20",
             lcm.output,
         )
         self.assertEqual(20, self.cahandler.request_timeout)

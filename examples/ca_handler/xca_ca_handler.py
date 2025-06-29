@@ -634,7 +634,7 @@ class CAhandler(object):
             or int(oct_perm[2]) > int(self.xdb_permission[2])
         ):
             self.logger.warning(
-                "permissions %s for %s are to wide. Should be %s",
+                "File permissions %s for '%s' are too permissive. Should be %s.",
                 oct_perm,
                 self.xdb_file,
                 self.xdb_permission,
@@ -820,9 +820,7 @@ class CAhandler(object):
             columnname_list = self._columnnames_get(table)
             result = True if identifier in columnname_list else False
         else:
-            self.logger.warning(
-                "CAhandler._identifier_check(): table %s does not exist", table
-            )
+            self.logger.warning("Table '%s' does not exist in the database.", table)
             result = False
 
         self.logger.debug("CAhandler._identifier_check() ended with: %s", result)

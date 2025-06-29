@@ -515,7 +515,8 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.dbstore.account_lookup("non_existing_key", "name3"))
         self.assertIn(
-            "WARNING:test_a2c:column: non_existing_key not in account table", lcm.output
+            "WARNING:test_a2c:Column: non_existing_key not found in account table",
+            lcm.output,
         )
 
     def test_034_order_add(self):
@@ -1770,7 +1771,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.dbstore._certificate_search("invalid_field", "invalid_value")
             )
         self.assertIn(
-            "WARNING:test_a2c:column: invalid_field not in certificate table",
+            "WARNING:test_a2c:Column: invalid_field not found in certificate table",
             lcm.output,
         )
 
@@ -2158,7 +2159,7 @@ class TestACMEHandler(unittest.TestCase):
                 )
             )
         self.assertIn(
-            "WARNING:test_a2c:column: invalid_field not in authorization table",
+            "WARNING:test_a2c:Column: invalid_field not found in authorization table",
             lcm.output,
         )
 
@@ -2255,7 +2256,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.dbstore.certificate_delete("nam_e", "certname1")
         self.assertIn(
-            "WARNING:test_a2c:column: nam_e not in certificate table",
+            "WARNING:test_a2c:Column: nam_e not found in certificate table",
             lcm.output,
         )
         self.assertTrue(self.dbstore.certificate_lookup("name", "certname1"))
@@ -2364,7 +2365,7 @@ class TestACMEHandler(unittest.TestCase):
                 )
             )
         self.assertIn(
-            "WARNING:test_a2c:column: invalid_field not in certificate table",
+            "WARNING:test_a2c:Column: invalid_field not found in certificate table",
             lcm.output,
         )
 
@@ -2577,7 +2578,8 @@ class TestACMEHandler(unittest.TestCase):
                 self.dbstore.challenges_search("invalid_field", "invalid_value")
             )
         self.assertIn(
-            "WARNING:test_a2c:column: invalid_field not in challenge table", lcm.output
+            "WARNING:test_a2c:Column: invalid_field not found in challenge table",
+            lcm.output,
         )
 
     def test_115_db_update_orders(self):
@@ -2836,7 +2838,8 @@ class TestACMEHandler(unittest.TestCase):
                 self.dbstore.orders_invalid_search("invalid_field", "invalid_value")
             )
         self.assertIn(
-            "WARNING:test_a2c:column: invalid_field not in orders table", lcm.output
+            "WARNING:test_a2c:Column: invalid_field not found in orders table",
+            lcm.output,
         )
 
     @patch("examples.db_handler.wsgi_handler.DBstore._db_create")
@@ -2942,7 +2945,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.dbstore._cahandler_search("name", "name1"))
         self.assertIn(
-            "WARNING:test_a2c:column: name not in cahandler table", lcm.output
+            "WARNING:test_a2c:Column: name not found in cahandler table", lcm.output
         )
 
     def test_137_hkparameter_add(self):
@@ -3219,7 +3222,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.dbstore._cliaccount_search("name", "name2"))
         self.assertIn(
-            "WARNING:test_a2c:column: name not in cliaccount table", lcm.output
+            "WARNING:test_a2c:Column: name not found in cliaccount table", lcm.output
         )
 
     def test_152_status_search_invalid(self):
@@ -3230,7 +3233,8 @@ class TestACMEHandler(unittest.TestCase):
                 self.dbstore._status_search("invalid_field", "invalid_status"),
             )
         self.assertIn(
-            "WARNING:test_a2c:column: invalid_field not in status table", lcm.output
+            "WARNING:test_a2c:Column: invalid_field not found in status table",
+            lcm.output,
         )
 
     def test_153_table_check(self):
@@ -3262,7 +3266,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.dbstore._identifier_check("account", "contact"))
         self.assertIn(
-            "WARNING:test_a2c:DBStore._identifier_check(): table account does not exist",
+            "WARNING:test_a2c:Table 'account' does not exist in the database.",
             lcm.output,
         )
 

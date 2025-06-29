@@ -13,7 +13,7 @@ from acme_srv.version import __dbversion__
 
 
 # Define constants
-COLUMN_NOT_IN_TABLE_MSG = "column: %s not in %s table"
+COLUMN_NOT_IN_TABLE_MSG = "Column: %s not found in %s table"
 
 
 def initialize():
@@ -109,9 +109,7 @@ class DBstore(object):
             columnname_list = self._columnnames_get(table)
             result = True if identifier in columnname_list else False
         else:
-            self.logger.warning(
-                "DBStore._identifier_check(): table %s does not exist", table
-            )
+            self.logger.warning("Table '%s' does not exist in the database.", table)
             result = False
 
         self.logger.debug("DBStore._identifier_check() ended with: %s", result)
