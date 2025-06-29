@@ -137,7 +137,7 @@ class DBstore(object):
             result = self.cursor.fetchone()
         except Exception as err:
             self.logger.error(
-                "DBStore._account_search(column:%s, pattern:%s) failed with err: %s",
+                "Account search failed for column '%s' and pattern '%s': %s",
                 column,
                 string,
                 err,
@@ -175,7 +175,7 @@ class DBstore(object):
             result = self.cursor.fetchall()
         except Exception as err:
             self.logger.error(
-                "DBStore._authorization_search(column:%s, pattern:%s) failed with err: %s",
+                "Authorization search failed for column '%s' and pattern '%s': %s",
                 column,
                 string,
                 err,
@@ -199,7 +199,7 @@ class DBstore(object):
             result = self.cursor.fetchone()
         except Exception as err:
             self.logger.error(
-                "DBStore._cahandler_search(column:%s, pattern:%s) failed with err: %s",
+                "CA handler search failed for column '%s' and pattern '%s': %s",
                 column,
                 string,
                 err,
@@ -353,7 +353,7 @@ class DBstore(object):
             result = self.cursor.fetchone()
         except Exception as err:
             self.logger.error(
-                "DBStore._challenge_search(column:%s, pattern:%s) failed with err: %s",
+                "Challenge search failed for column '%s' and pattern '%s': %s",
                 column,
                 string,
                 err,
@@ -377,7 +377,7 @@ class DBstore(object):
             result = self.cursor.fetchone()
         except Exception as err:
             self.logger.error(
-                "DBStore._cliaccount_search(column:%s, pattern:%s) failed with err: %s",
+                "CLI account search failed for column '%s' and pattern '%s': %s",
                 column,
                 string,
                 err,
@@ -744,7 +744,7 @@ class DBstore(object):
             result = self.cursor.fetchone()
         except Exception as err:
             self.logger.error(
-                "DBStore._order_search(column:%s, pattern:%s) failed with err: %s",
+                "Order search failed for column '%s' and pattern '%s': %s",
                 column,
                 string,
                 err,
@@ -997,7 +997,7 @@ class DBstore(object):
             lookup = self._authorization_search(column, string)
         except Exception as err:
             self.logger.error(
-                "DBStore.authorization_lookup(column:%s, pattern:%s) failed with err: %s",
+                "Authorization lookup(column:%s, pattern:%s) failed with err: %s",
                 column,
                 string,
                 err,
@@ -1228,7 +1228,8 @@ class DBstore(object):
             self._db_close()
         else:
             self.logger.error(
-                "DBStore.cliaccount_delete() failed for kid: %s", data_dic["name"]
+                "CLI account delete failed: no entry found for kid '%s'",
+                data_dic["name"],
             )
         self.logger.debug("DBStore.cliaccount_delete() ended")
 

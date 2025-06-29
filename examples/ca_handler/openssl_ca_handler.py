@@ -259,7 +259,7 @@ class CAhandler(object):
                 fso.write(cert.public_bytes(serialization.Encoding.PEM))
         else:
             self.logger.error(
-                "CAhandler._certificate_store() handler configuration incomplete: cert_save_path is missing"
+                "Certificate storage failed: cert_save_path is missing in the handler configuration."
             )
 
         self.logger.debug("CAhandler._certificate_store() ended")
@@ -338,7 +338,7 @@ class CAhandler(object):
         error = self._config_parameters_check(error)
 
         if error:
-            self.logger.error("CAhandler config error: %s", error)
+            self.logger.error("Configuration error: %s", error)
 
         self.logger.debug("CAhandler._config_check() ended")
         return error
@@ -364,14 +364,14 @@ class CAhandler(object):
                 config_dic.get("CAhandler", "whitelist")
             )
             self.logger.error(
-                'CAhandler._config_load() found "whitelist" parameter in configfile which should be renamed to "allowed_domainlist"'
+                'Deprecated config: found "whitelist". Please rename to "allowed_domainlist".'
             )
         if "blacklist" in config_dic["CAhandler"]:
             self.blocked_domainlist = json.loads(
                 config_dic.get("CAhandler", "blacklist")
             )
             self.logger.error(
-                'CAhandler._config_load() found "blacklist" parameter in configfile which should be renamed to "blocked_domainlist"'
+                'Deprecated config: found "blacklist". Please rename to "blocked_domainlist".'
             )
 
         self.logger.debug("CAhandler._config_domainlists_load() ended")
@@ -394,7 +394,7 @@ class CAhandler(object):
                 ]
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load() could not load issuing_ca_key_passphrase_variable: %s",
+                    "Unable to load issuing_ca_key_passphrase_variable from environment: %s",
                     err,
                 )
         if "issuing_ca_key_passphrase" in config_dic["CAhandler"]:
@@ -434,17 +434,13 @@ class CAhandler(object):
                 "CAhandler", "cn_enforce", fallback=False
             )
         except Exception:
-            self.logger.error(
-                "CAhandler._config_load() variable cn_enforce cannot be parsed"
-            )
+            self.logger.error("Could not parse cn_enforce from config file.")
         try:
             self.cert_validity_adjust = config_dic.getboolean(
                 "CAhandler", "cert_validity_adjust", fallback=False
             )
         except Exception:
-            self.logger.error(
-                "CAhandler._config_load() variable cert_validity_adjust cannot be parsed"
-            )
+            self.logger.error("Could not parse cert_validity_adjust from config file.")
 
         self.logger.debug("CAhandler._config_policy_load() ended")
 
@@ -673,7 +669,7 @@ class CAhandler(object):
                             cert = ca_cert
                 else:
                     self.logger.error(
-                        "CAhandler._cacert_expiry_get(): file %s does not exist",
+                        "CA file %s does not exist",
                         ca_cert,
                     )
 
@@ -878,7 +874,9 @@ class CAhandler(object):
                     error = "urn:ietf:params:acme:badCSR"
 
             except Exception as err:
-                self.logger.error("CAhandler.enroll() error: %s", err)
+                self.logger.error(
+                    "Certificate enrollment failed due to exception: %s", err
+                )
                 error = "Unknown exception"
 
         self.logger.debug("CAhandler.enroll() ended")

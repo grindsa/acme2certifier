@@ -534,7 +534,7 @@ class Order(object):
                 order_dic["identifiers"] = json.loads(tmp_dic["identifiers"])
             except Exception:
                 self.logger.error(
-                    "Order._order_dic_create(): error while parsing the identifier %s",
+                    "Error while parsing the identifier %s",
                     tmp_dic["identifiers"],
                 )
 

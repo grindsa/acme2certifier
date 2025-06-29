@@ -545,7 +545,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.db_check)
         self.assertEqual(False, self.directory.suppress_product_information)
         self.assertIn(
-            "ERROR:test_a2c:Directory._config_load() suppress_product_information not set: Not a boolean: aa",
+            "ERROR:test_a2c:Error while reading the suppress_product_information parameter from config: Not a boolean: aa",
             lcm.output,
         )
         self.assertFalse(self.directory.profiles)
@@ -598,7 +598,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(False, self.directory.suppress_product_information)
         self.assertFalse(self.directory.caaidentities)
         self.assertIn(
-            "ERROR:test_a2c:Directory._config_load() error in caaIdentities: Expecting ',' delimiter: line 1 column 11 (char 10)",
+            "ERROR:test_a2c:Error while loading the caaIdentities parameter: Expecting ',' delimiter: line 1 column 11 (char 10)",
             lcm.output,
         )
         self.assertFalse(self.directory.profiles)

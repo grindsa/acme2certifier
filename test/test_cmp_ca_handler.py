@@ -232,7 +232,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.ref)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load cmp_ref:'does_not_exist'",
+            "ERROR:test_a2c:Could not load cmp_ref:'does_not_exist'",
             lcm.output,
         )
 
@@ -715,7 +715,7 @@ class TestACMEHandler(unittest.TestCase):
                 ("rc from enrollment not 0", "cert_bundle", "cert_raw", None),
                 self.cahandler.enroll("csr"),
             )
-        self.assertIn("ERROR:test_a2c:CAhandler.enroll(): failed: 25", lcm.output)
+        self.assertIn("ERROR:test_a2c:Enrollment failed with rcode: 25", lcm.output)
         self.assertTrue(mock_save.called)
         self.assertTrue(mock_build.called)
         self.assertTrue(mock_call.called)
@@ -744,7 +744,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 ("Enrollment failed", None, None, None), self.cahandler.enroll("csr")
             )
-        self.assertIn("ERROR:test_a2c:CAhandler.enroll(): failed: 25", lcm.output)
+        self.assertIn("ERROR:test_a2c:Enrollment failed with rcode: 25", lcm.output)
         self.assertTrue(mock_save.called)
         self.assertTrue(mock_build.called)
         self.assertTrue(mock_call.called)

@@ -138,7 +138,9 @@ class CAhandler(object):
         try:
             db_result = dict_from_row(self.cursor.fetchone())
         except Exception:
-            self.logger.error("cert lookup failed: %s", self.cursor.fetchone())
+            self.logger.error(
+                "Certificate lookup in database failed: %s", self.cursor.fetchone()
+            )
             db_result = {}
         self._db_close()
 
@@ -154,8 +156,9 @@ class CAhandler(object):
                 ca_id = db_result["id"]
             except Exception as err_:
                 self.logger.error(
-                    "CAhandler._ca_cert_load() failed with error: %s", err_
+                    "Failed to load CA certificate from database: %s", err_
                 )
+
         return (ca_cert, ca_id)
 
     def _ca_key_load(self) -> object:
@@ -168,8 +171,8 @@ class CAhandler(object):
         self.cursor.execute(pre_statement, [self.issuing_ca_key])
         try:
             db_result = dict_from_row(self.cursor.fetchone())
-        except Exception as _err:
-            self.logger.error("key lookup failed: %s", self.cursor.fetchone())
+        except Exception as err:
+            self.logger.error("Failed to load CA private key from database: %s", err)
             db_result = {}
         self._db_close()
 
@@ -184,12 +187,10 @@ class CAhandler(object):
                 )
             except Exception as err_:
                 self.logger.error(
-                    "CAhandler._ca_key_load() failed with error: %s", err_
+                    "Failed to load CA private key from database: %s", err_
                 )
         else:
-            self.logger.error(
-                "CAhandler._ca_key_load() failed to load key: %s", db_result
-            )
+            self.logger.error("Failed to load CA private key: %s", db_result)
 
         self.logger.debug("CAhandler._ca_key_load() ended")
         return ca_key
@@ -258,15 +259,15 @@ class CAhandler(object):
                     self._db_close()
                 else:
                     self.logger.error(
-                        "CAhandler._cert_insert() aborted. wrong datatypes: %s",
+                        "Certificate insert aborted due to wrong datatypes: %s",
                         cert_dic,
                     )
             else:
                 self.logger.error(
-                    "CAhandler._cert_insert() aborted. dataset incomplete: %s", cert_dic
+                    "Certificate insert aborted due to incomplete dataset: %s", cert_dic
                 )
         else:
-            self.logger.error("CAhandler._cert_insert() aborted. dataset empty")
+            self.logger.error("Certificate insert aborted: dataset is empty")
 
         self.logger.debug("CAhandler._cert_insert() ended with row_id: %s", row_id)
         return row_id
@@ -289,8 +290,7 @@ class CAhandler(object):
             item_result = dict_from_row(self.cursor.fetchone())
         except Exception:
             self.logger.error(
-                "CAhandler._cert_search(): item search failed: %s",
-                self.cursor.fetchone(),
+                "Certificate item search in database failed: %s", self.cursor.fetchone()
             )
             item_result = {}
 
@@ -302,7 +302,7 @@ class CAhandler(object):
                 cert_result = dict_from_row(self.cursor.fetchone())
             except Exception:
                 self.logger.error(
-                    "CAhandler._cert_search(): cert search failed: item: %s", item_id
+                    "Certificate search in database failed for item: %s", item_id
                 )
 
         self._db_close()
@@ -497,7 +497,7 @@ class CAhandler(object):
                 ]
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load() could not load passphrase_variable:%s",
+                    "Could not load passphrase_variable:%s",
                     err,
                 )
 
@@ -513,9 +513,7 @@ class CAhandler(object):
                     config_dic.get("CAhandler", "ca_cert_chain_list")
                 )
             except Exception:
-                self.logger.error(
-                    'CAhandler._config_load(): parameter "ca_cert_chain_list" cannot be loaded'
-                )
+                self.logger.error('Parameter "ca_cert_chain_list" cannot be loaded')
 
         # load allowed domainlist
         self.allowed_domainlist = config_allowed_domainlist_load(
@@ -583,14 +581,14 @@ class CAhandler(object):
                     self._db_close()
                 else:
                     self.logger.error(
-                        "CAhandler._csr_insert() aborted. wrong datatypes: %s", csr_dic
+                        "CSR insert aborted due to wrong datatypes: %s", csr_dic
                     )
             else:
                 self.logger.error(
-                    "CAhandler._csr_insert() aborted. dataset incomplete: %s", csr_dic
+                    "CSR insert aborted due to incomplete dataset: %s", csr_dic
                 )
         else:
-            self.logger.error("CAhandler._csr_insert() aborted. dataset empty")
+            self.logger.error("CSR insert aborted: dataset is empty")
 
         self.logger.debug("CAhandler._csr_insert() ended with row_id: %s", row_id)
         return row_id
@@ -693,7 +691,7 @@ class CAhandler(object):
                     ekuc = bool(int(template_dic["ekuCritical"]))
                 except Exception:
                     self.logger.error(
-                        "CAhandler._extended_keyusage_generate(): convert to int failed defaulting ekuc to False"
+                        "Failed to convert EKU critical flag to int, defaulting to False"
                     )
                     ekuc = False
             else:
@@ -857,15 +855,14 @@ class CAhandler(object):
                     self._db_close()
                 else:
                     self.logger.error(
-                        "CAhandler._insert_insert() aborted. wrong datatypes: %s",
-                        item_dic,
+                        "Item insert aborted due to wrong datatypes: %s", item_dic
                     )
             else:
                 self.logger.error(
-                    "CAhandler._item_insert() aborted. dataset incomplete: %s", item_dic
+                    "Item insert aborted due to incomplete dataset: %s", item_dic
                 )
         else:
-            self.logger.error("CAhandler._insert_insert() aborted. dataset empty")
+            self.logger.error("Item insert aborted: dataset is empty")
 
         self.logger.debug("CAhandler._item_insert() ended with row_id: %s", row_id)
         return row_id
@@ -904,7 +901,7 @@ class CAhandler(object):
                 kuval = int(kuval)
             except Exception:
                 self.logger.error(
-                    "Keyusage conversion to int failed defaulting ku_val to 0"
+                    "Keyusage value conversion to int failed, defaulting to 0"
                 )
                 kuval = 0
 
@@ -993,8 +990,7 @@ class CAhandler(object):
                 ].split(":")
             except Exception:
                 self.logger.error(
-                    "ERROR: CAhandler._request_name_get(): SAN split failed: %s",
-                    san_list,
+                    "Failed to split SAN from CSR subjectAltName: %s", san_list
                 )
 
         self.logger.debug("CAhandler._requestname_get() ended with: %s", request_name)
@@ -1022,16 +1018,14 @@ class CAhandler(object):
                     self._db_close()
                 else:
                     self.logger.error(
-                        "CAhandler._revocation_insert() aborted. wrong datatypes: %s",
-                        rev_dic,
+                        "Revocation insert aborted due to wrong datatypes: %s", rev_dic
                     )
             else:
                 self.logger.error(
-                    "CAhandler._revocation_insert() aborted. dataset incomplete: %s",
-                    rev_dic,
+                    "Revocation insert aborted due to incomplete dataset: %s", rev_dic
                 )
         else:
-            self.logger.error("CAhandler._revocation_insert() aborted. dataset empty")
+            self.logger.error("Revocation insert aborted: dataset is empty")
 
         self.logger.debug(
             "CAhandler._revocation_insert() ended with row_id: %s", row_id

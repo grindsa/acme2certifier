@@ -482,7 +482,9 @@ class DBstore(object):
             try:
                 jwk_dict = json.loads(account_dict[0]["jwk"].decode())
             except Exception as _err:
-                self.logger.error("DBStore.cli_jwk_load(): error: %s", _err)
+                self.logger.error(
+                    "Failed to decode JWK from cliaccounts table: %s", _err
+                )
                 jwk_dict = json.loads(account_dict[0]["jwk"])
         return jwk_dict
 

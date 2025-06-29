@@ -84,8 +84,10 @@ class CAhandler(object):
             cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
             cert_raw = cert_raw.replace("\n", "")
         else:
-            self.logger.error("cert bundling failed")
-            error = "cert bundling failed"
+            self.logger.error(
+                "Failed to bundle certificates: missing ca_pem or cert_raw."
+            )
+            error = "Certificate bundling failed: missing CA certificate or issued certificate."
 
         return (error, cert_bundle, cert_raw)
 
@@ -119,7 +121,7 @@ class CAhandler(object):
                 self.user = os.environ[config_dic.get("CAhandler", "user_variable")]
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load() could not load user_variable:%s", err
+                    "Could not load user_variable from environment: %s", err
                 )
         if "user" in config_dic["CAhandler"]:
             if self.user:
@@ -139,7 +141,7 @@ class CAhandler(object):
                 ]
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load() could not load password_variable:%s", err
+                    "Could not load password_variable from environment: %s", err
                 )
         if "password" in config_dic["CAhandler"]:
             if self.password:
@@ -157,7 +159,7 @@ class CAhandler(object):
                 self.host = os.environ[config_dic.get("CAhandler", "host_variable")]
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load() could not load host_variable:%s", err
+                    "Could not load host_variable from environment: %s", err
                 )
         if "host" in config_dic["CAhandler"]:
             if self.host:
@@ -171,7 +173,7 @@ class CAhandler(object):
                 self.url = os.environ[config_dic.get("CAhandler", "url_variable")]
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load() could not load url_variable:%s", err
+                    "Could not load url_variable from environment: %s", err
                 )
         if "url" in config_dic["CAhandler"]:
             if self.url:
@@ -297,9 +299,7 @@ class CAhandler(object):
                             template_name = ele.split("=")[1]
                             break
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._template_name_get() could not parse template: %s", err
-                )
+                self.logger.error("Failed to parse template from header_info: %s", err)
 
         self.logger.debug(
             "CAhandler._template_name_get() ended with: %s", template_name
@@ -319,7 +319,7 @@ class CAhandler(object):
             # ca_pem = ca_pem.replace('\r\n', '\n')
         except Exception as err_:
             ca_pem = None
-            self.logger.error("ca_server.get_chain() failed with error: %s", err_)
+            self.logger.error("Failed to get CA certificate chain: %s", err_)
 
         try:
             cert_p2b = ca_server.get_cert(csr, self.template)
@@ -329,7 +329,7 @@ class CAhandler(object):
         except Exception as err_:
             cert_raw = None
             error = str(err_)
-            self.logger.error("ca_server.get_cert() failed with error: %s", err_)
+            self.logger.error("Failed to enroll certificate from CA: %s", err_)
 
         # create bundle
         if cert_raw:
@@ -376,7 +376,7 @@ class CAhandler(object):
             # enroll certificate
             (error, cert_bundle, cert_raw) = self._csr_process(ca_server, csr)
         else:
-            self.logger.error("Connection or Credentialcheck failed")
+            self.logger.error("Connection or credential check failed for CA server.")
             error = "Connection or Credentialcheck failed."
 
         self.logger.debug("CAhandler._enroll() ended with error: %s", error)
@@ -405,12 +405,12 @@ class CAhandler(object):
                     # enroll certificate
                     (error, cert_bundle, cert_raw) = self._enroll(csr)
                 else:
-                    self.logger.error("EAB profile check failed")
+                    self.logger.error("EAB profile check failed: %s", error)
             else:
                 self.logger.error(error)
 
         else:
-            self.logger.error("Config incomplete")
+            self.logger.error("Configuration incomplete")
             error = "Config incomplete"
 
         self.logger.debug("Certificate.enroll() ended")

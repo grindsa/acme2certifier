@@ -110,12 +110,7 @@ class Housekeeping(object):
                 )
             print("\n")
         except Exception as err:
-            self.logger.error(
-                "acme2certifier error in Housekeeping._cliaccounts_format()"
-            )
-            self.logger.error(
-                "acme2certifier error in Housekeeping._cliaccounts_format(): %s", err
-            )
+            self.logger.error("Error in when formating cliaccounts: %s", err)
 
     def _report_get(
         self, payload: Dict[str, str]
@@ -307,7 +302,7 @@ class Housekeeping(object):
                     data_dic.update(config_dic["permissions"])
                 except Exception as err:
                     self.logger.error(
-                        "acme2certifier  error in Housekeeping._data_dic_build(): %s",
+                        "Error in while building the data dictionary: %s",
                         err,
                     )
 
@@ -704,9 +699,7 @@ class Housekeeping(object):
                     else:
                         result = self.dbstore.cliaccount_add(data_dic)
                 else:
-                    self.logger.error(
-                        "acme2certifier error in Housekeeping.cli_usermgr(): data incomplete"
-                    )
+                    self.logger.error("Error in CLI usermanagement: data incomplete")
 
             except Exception as err_:
                 self.logger.critical(

@@ -63,7 +63,7 @@ class Renewalinfo(object):
                 )
             except Exception as err_:
                 self.logger.error(
-                    "acme2certifier Renewalinfo._config_load() renewaltreshold_pctg parsing error: %s",
+                    "renewaltreshold_pctg parsing error: %s",
                     err_,
                 )
             try:
@@ -76,7 +76,7 @@ class Renewalinfo(object):
                 )
             except Exception as err_:
                 self.logger.error(
-                    "acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: %s",
+                    "retry_after_timeout parsing error: %s",
                     err_,
                 )
 
@@ -338,7 +338,7 @@ class Renewalinfo(object):
             else:
                 rc_code = 404
         except Exception as err_:
-            self.logger.error("Renewalinfo.get() - error: %s", err_)
+            self.logger.error("Error when getting renewal information: %s", err_)
             rewalinfo_dic = {}
             rc_code = 400
 

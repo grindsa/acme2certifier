@@ -91,7 +91,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "api_host" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration incomplete: "api_host" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -163,7 +163,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(60, self.cahandler.polling_timeout)
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "ca_name" parameter is missing in config file',
+            'ERROR:test_a2c:Configuration incomplete: "ca_name" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -335,7 +335,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.api_user)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load user_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load user_variable:'does_not_exist'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -378,7 +378,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.api_password)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load passphrase_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load passphrase_variable:'does_not_exist'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_id)
@@ -528,7 +528,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._auth_set()
         self.assertFalse(self.cahandler.auth)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._auth_set(): auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file',
+            'ERROR:test_a2c:Auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file',
             lcm.output,
         )
 
@@ -540,7 +540,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._auth_set()
         self.assertFalse(self.cahandler.auth)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._auth_set(): auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file',
+            'ERROR:test_a2c:Auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file',
             lcm.output,
         )
 
@@ -561,7 +561,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("exc_api_post", self.cahandler._api_post("url", "data"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._api_post() returned error: exc_api_post",
+            "ERROR:test_a2c:API post() request returned an error: exc_api_post",
             lcm.output,
         )
 
@@ -581,7 +581,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual({}, self.cahandler._ca_get())
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._ca_get(): api_host is misisng in configuration",
+            "ERROR:test_a2c:api_host parameter is misisng in configuration",
             lcm.output,
         )
 
@@ -610,7 +610,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._ca_get(),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._ca_get() returned error: exc_ca_get", lcm.output
+            "ERROR:test_a2c:API get() request returned error: exc_ca_get", lcm.output
         )
 
     @patch("examples.ca_handler.certifier_ca_handler.CAhandler._ca_get")
@@ -791,7 +791,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._cert_get_properties("serial", "link"),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._cert_get_properties() returned error: exc_api_get",
+            "ERROR:test_a2c:Could not get certificate properties. Error: exc_api_get",
             lcm.output,
         )
 
@@ -1469,7 +1469,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(result, self.cahandler._request_poll("url"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._request.poll() returned: exc_api_get", lcm.output
+            "ERROR:test_a2c:Polling request returned an error: exc_api_get", lcm.output
         )
 
     @patch("requests.get")

@@ -69,7 +69,7 @@ class Directory(object):
             )
         except Exception as err_:
             self.logger.error(
-                "Directory._config_load() suppress_product_information not set: %s",
+                "Error while reading the suppress_product_information parameter from config: %s",
                 err_,
             )
 
@@ -82,7 +82,7 @@ class Directory(object):
                     self.caaidentities = [tmp_caaidentities]
                 else:
                     self.logger.error(
-                        "Directory._config_load() error in caaIdentities: %s",
+                        "Error while loading the caaIdentities parameter: %s",
                         err_,
                     )
 
@@ -147,7 +147,7 @@ class Directory(object):
                     d_dic["meta"]["db_check"] = "OK"
                 else:
                     self.logger.error(
-                        "acme2certifier database error: version mismatch: detected: %s/ expected: %s",
+                        "Database schema mismatch detected: detected: %s/ expected: %s",
                         version,
                         __dbversion__,
                     )

@@ -145,9 +145,7 @@ class CAhandler(object):
             try:
                 self.ref = os.environ[config_dic["CAhandler"]["cmp_ref_variable"]]
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._config_load() could not load cmp_ref:%s", err
-                )
+                self.logger.error("Could not load cmp_ref:%s", err)
         elif ele == "cmp_secret_variable":
             try:
                 self.secret = os.environ[config_dic["CAhandler"]["cmp_secret_variable"]]
@@ -245,7 +243,7 @@ class CAhandler(object):
         if os.path.exists(self.tmp_dir):
             shutil.rmtree(self.tmp_dir)
         else:
-            self.logger.error("CAhandler._tmp_dir_delete(): failed: %s", self.tmp_dir)
+            self.logger.error("Could not delate tmp_dir: %s", self.tmp_dir)
 
     def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
         """enroll certificate from via MS certsrv"""
@@ -270,7 +268,7 @@ class CAhandler(object):
                 openssl_cmd = self._opensslcmd_build()
                 rcode = subprocess.call(openssl_cmd)
                 if rcode:
-                    self.logger.error(f"CAhandler.enroll(): failed: {rcode}")
+                    self.logger.error(f"Enrollment failed with rcode: {rcode}")
                     error = "rc from enrollment not 0"
 
                 # generate certificates we need to return

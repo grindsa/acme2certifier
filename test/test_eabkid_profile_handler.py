@@ -117,7 +117,8 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eabhandler.mac_key_get("kid"))
         self.assertIn(
-            "ERROR:test_a2c:EABhandler.mac_key_get() error: ex_json_load", lcm.output
+            "ERROR:test_a2c:Failed to retrieve MAC key for kid 'kid': ex_json_load",
+            lcm.output,
         )
 
     @patch("json.load")
@@ -281,7 +282,7 @@ class TestACMEHandler(unittest.TestCase):
                 {"foobar": {"foo": "foobar"}}, self.eabhandler.key_file_load()
             )
         self.assertIn(
-            "ERROR:test_a2c:EABhandler.keyfile_content_load(): error: Expecting value: line 1 column 1 (char 0)",
+            "ERROR:test_a2c:Failed to parse key file content as JSON: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 
@@ -291,7 +292,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eabhandler.key_file_load())
         self.assertIn(
-            "ERROR:test_a2c:EABhandler.key_file_load() no key_file specified",
+            "ERROR:test_a2c:No key_file specified for EAB profile loading.",
             lcm.output,
         )
 
@@ -302,11 +303,11 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eabhandler.key_file_load())
         self.assertIn(
-            "ERROR:test_a2c:EABhandler.keyfile_content_load(): error: Expecting value: line 1 column 1 (char 0)",
+            "ERROR:test_a2c:Failed to parse key file content as JSON: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:EABhandler.keyfile_content_load(): error: could not determine a constructor for the tag 'tag:yaml.org,2002:value'\n  in \"<unicode string>\", line 1, column 9:\n    foobar: =\n            ^",
+            "ERROR:test_a2c:Failed to parse key file content as YAML: could not determine a constructor for the tag 'tag:yaml.org,2002:value'\n  in \"<unicode string>\", line 1, column 9:\n    foobar: =\n            ^",
             lcm.output,
         )
 
@@ -318,9 +319,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_load.side_effect = Exception("ex_load")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eabhandler.key_file_load())
-        self.assertIn(
-            "ERROR:test_a2c:EABhandler.key_file_load() error: ex_load", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:Failed to load key file: ex_load", lcm.output)
 
     @patch("examples.eab_handler.kid_profile_handler.EABhandler._wllist_check")
     @patch("examples.eab_handler.kid_profile_handler.EABhandler._cn_add")
@@ -435,7 +434,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eabhandler.eab_profile_get("csr"))
         self.assertIn(
-            "ERROR:test_a2c:EABhandler._eab_profile_get() database error: ex_db_lookup",
+            "ERROR:test_a2c:Database error while retrieving eab_kid: ex_db_lookup",
             lcm.output,
         )
 

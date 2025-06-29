@@ -71,7 +71,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_enc.called)
         self.assertFalse(mock_p2d.called)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._cert_bundle_create() returned malformed response: {}",
+            "ERROR:test_a2c:Certificate bundle creation failed: malformed response from CA: {}",
             lcm.output,
         )
 
@@ -101,7 +101,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_enc.called)
         self.assertFalse(mock_p2d.called)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._cert_bundle_create() returned malformed response: {'foo': 'bar'}",
+            "ERROR:test_a2c:Certificate bundle creation failed: malformed response from CA: {'foo': 'bar'}",
             lcm.output,
         )
 
@@ -118,7 +118,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_enc.called)
         self.assertFalse(mock_p2d.called)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._cert_bundle_create() returned malformed response: {'data': {'certificate': 'certificate'}}",
+            "ERROR:test_a2c:Certificate bundle creation failed: malformed response from CA: {'data': {'certificate': 'certificate'}}",
             lcm.output,
         )
 
@@ -135,7 +135,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_enc.called)
         self.assertFalse(mock_p2d.called)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._cert_bundle_create() returned malformed response: {'data': {'chain': 'chain'}}",
+            "ERROR:test_a2c:Certificate bundle creation failed: malformed response from CA: {'data': {'chain': 'chain'}}",
             lcm.output,
         )
 
@@ -225,7 +225,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_server_load(parser)
         self.assertFalse(self.cahandler.host)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_server_load() could not load request_timeout:invalid literal for int() with base 10: 'aaa'",
+            "ERROR:test_a2c:Could not load request_timeout from config: invalid literal for int() with base 10: 'aaa'",
             lcm.output,
         )
         self.assertEqual(5, self.cahandler.request_timeout)
@@ -275,7 +275,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_ca_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_server_load(): failed to load polling_timeout option: invalid literal for int() with base 10: 'polling_timeout'",
+            "ERROR:test_a2c:Failed to load polling_timeout from config: invalid literal for int() with base 10: 'polling_timeout'",
             lcm.output,
         )
         self.assertEqual(0, self.cahandler.polling_timeout)
@@ -290,7 +290,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_session_load(parser)
         self.assertFalse(self.cahandler.client_cert)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: either "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file',
+            'ERROR:test_a2c:Configuration incomplete: missing "client_cert", "client_key", or "client_passphrase variable" in config file.',
             lcm.output,
         )
 
@@ -314,7 +314,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_session_load(parser)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: either "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file',
+            'ERROR:test_a2c:Configuration incomplete: missing "client_cert", "client_key", or "client_passphrase variable" in config file.',
             lcm.output,
         )
         self.assertTrue(mock_pass.called)
@@ -365,7 +365,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_passphrase_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_passphrase_load() could not load cert_passphrase_variable:'cert_passphrase_variable'",
+            "ERROR:test_a2c:Could not load cert_passphrase_variable from environment: 'cert_passphrase_variable'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.cert_passphrase)
@@ -399,15 +399,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: parameter "host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration incomplete: parameter "host" is missing in configuration file.',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: parameter "endpoint_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration incomplete: parameter "endpoint_name" is missing in configuration file.',
             lcm.output,
         )
 
@@ -420,7 +420,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() configuration wrong: client authentication requires a ca_bundle.",
+            "ERROR:test_a2c:Client authentication requires ca_bundle to be enabled in configuration.",
             lcm.output,
         )
 
@@ -438,11 +438,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            lcm.output,
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: parameter "endpoint_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration incomplete: parameter "endpoint_name" is missing in configuration file.',
             lcm.output,
         )
 
@@ -460,11 +461,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: parameter "host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration incomplete: parameter "host" is missing in configuration file.',
+            lcm.output,
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: parameter "endpoint_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration incomplete: parameter "endpoint_name" is missing in configuration file.',
             lcm.output,
         )
 
@@ -482,11 +484,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_auth_load.called)
         self.assertTrue(mock_server_load.called)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: parameter "host" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration incomplete: parameter "host" is missing in configuration file.',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load(): configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
+            'ERROR:test_a2c:Configuration incomplete: parameter "cert_profile_name" is missing in configuration file.',
             lcm.output,
         )
 
@@ -524,7 +526,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._rpc_post("url", "data"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._rpc_post() returned an error: exc_api_post",
+            "ERROR:test_a2c:RPC POST request failed: exc_api_post",
             lcm.output,
         )
 
@@ -540,7 +542,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler.enroll(csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll(): Configuration incomplete. Host variable is missing...",
+            "ERROR:test_a2c:Configuration incomplete: host variable is missing.",
             lcm.output,
         )
         self.assertFalse(mock_recode.called)
@@ -562,7 +564,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler.enroll(csr),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll(): Configuration incomplete. Clientauthentication is missing...",
+            "ERROR:test_a2c:Configuration incomplete: client authentication is missing.",
             lcm.output,
         )
         self.assertTrue(mock_recode.called)
@@ -630,7 +632,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._enroll({"foo": "bar"}),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll(): Malformed Rest response: {'foo': 'bar'}",
+            "ERROR:test_a2c:Malformed response from CA during enrollment: {'foo': 'bar'}",
             lcm.output,
         )
         self.assertFalse(mock_create.called)

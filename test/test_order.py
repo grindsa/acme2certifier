@@ -661,7 +661,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(e_result, self.order._lookup("foo"))
         self.assertIn(
-            "ERROR:test_a2c:Order._order_dic_create(): error while parsing the identifier wrongvalue",
+            "ERROR:test_a2c:Error while parsing the identifier wrongvalue",
             lcm.output,
         )
 

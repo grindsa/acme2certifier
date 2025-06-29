@@ -1016,7 +1016,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual((False, True), self.challenge._check("name", "payload"))
         self.assertFalse(mock_chall.called)
         self.assertIn(
-            'ERROR:test_a2c:unknown challenge type "tkauth-01". Setting check result to False',
+            'ERROR:test_a2c:Unknown challenge type "tkauth-01". Setting check result to False',
             lcm.output,
         )
 

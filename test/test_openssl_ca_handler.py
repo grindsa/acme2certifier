@@ -747,7 +747,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._certificate_store(cert)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._certificate_store() handler configuration incomplete: cert_save_path is missing",
+            "ERROR:test_a2c:Certificate storage failed: cert_save_path is missing in the handler configuration.",
             lcm.output,
         )
 
@@ -839,7 +839,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("blocked_domainlist", self.cahandler.blocked_domainlist)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() found "blacklist" parameter in configfile which should be renamed to "blocked_domainlist"',
+            'ERROR:test_a2c:Deprecated config: found "blacklist". Please rename to "blocked_domainlist".',
             lcm.output,
         )
 
@@ -855,7 +855,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("allowed_domainlist", self.cahandler.allowed_domainlist)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() found "whitelist" parameter in configfile which should be renamed to "allowed_domainlist"',
+            'ERROR:test_a2c:Deprecated config: found "whitelist". Please rename to "allowed_domainlist".',
             lcm.output,
         )
 
@@ -977,7 +977,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load issuing_ca_key_passphrase_variable: 'does_not_exist'",
+            "ERROR:test_a2c:Unable to load issuing_ca_key_passphrase_variable from environment: 'does_not_exist'",
             lcm.output,
         )
 
@@ -1036,7 +1036,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.cn_enforce)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() variable cn_enforce cannot be parsed",
+            "ERROR:test_a2c:Could not parse cn_enforce from config file.",
             lcm.output,
         )
 
@@ -1050,7 +1050,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.cn_enforce)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() variable cert_validity_adjust cannot be parsed",
+            "ERROR:test_a2c:Could not parse cert_validity_adjust from config file.",
             lcm.output,
         )
 
@@ -1755,7 +1755,8 @@ class TestACMEHandler(unittest.TestCase):
                 ("Unknown exception", None, None, None), self.cahandler.enroll("csr")
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll() error: exc_csr_check", lcm.output
+            "ERROR:test_a2c:Certificate enrollment failed due to exception: exc_csr_check",
+            lcm.output,
         )
         self.assertTrue(mock_cfgchk.called)
         self.assertTrue(mock_csrchk.called)
@@ -2093,7 +2094,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((366, "cert1"), self.cahandler._cacert_expiry_get())
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._cacert_expiry_get(): file cacert2 does not exist",
+            "ERROR:test_a2c:CA file cacert2 does not exist",
             lcm.output,
         )
 

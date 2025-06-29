@@ -2021,7 +2021,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.housekeeping._cliaccounts_format(result)
         self.assertIn(
-            "ERROR:test_a2c:acme2certifier error in Housekeeping._cliaccounts_format()",
+            "ERROR:test_a2c:Error in when formating cliaccounts: string indices must be integers, not 'str'",
             lcm.output,
         )
         self.assertIn(
@@ -2054,7 +2054,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.housekeeping.cli_usermgr(config_dic))
         self.assertIn(
-            "ERROR:test_a2c:acme2certifier error in Housekeeping.cli_usermgr(): data incomplete",
+            "ERROR:test_a2c:Error in CLI usermanagement: data incomplete",
             lcm.output,
         )
         self.assertFalse(self.housekeeping.dbstore.cliaccount_add.called)
@@ -2228,7 +2228,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(result_dic, self.housekeeping._data_dic_build(config_dic))
         self.assertIn(
-            "ERROR:test_a2c:acme2certifier  error in Housekeeping._data_dic_build(): dictionary update sequence element #0 has length 1; 2 is required",
+            "ERROR:test_a2c:Error in while building the data dictionary: dictionary update sequence element #0 has length 1; 2 is required",
             lcm.output,
         )
 

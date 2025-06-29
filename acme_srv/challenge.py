@@ -159,7 +159,7 @@ class Challenge(object):
             )
         else:
             self.logger.error(
-                'unknown challenge type "%s". Setting check result to False',
+                'Unknown challenge type "%s". Setting check result to False',
                 challenge_dic["type"],
             )
             result = False
@@ -982,9 +982,7 @@ class Challenge(object):
                 if challenge_json:
                     challenge_list.append(challenge_json)
                 else:
-                    self.logger.error(
-                        "ERROR: Empty challenge returned for %s", challenge_type
-                    )
+                    self.logger.error("Empty challenge returned for %s", challenge_type)
 
         self.logger.debug("Challenge._new_set returned (%s)", challenge_list)
         return challenge_list

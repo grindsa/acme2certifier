@@ -46,7 +46,7 @@ class EABhandler(object):
                     for row in csv_reader:
                         data_dic[row["eab_kid"]] = row["eab_mac"]
             except Exception as err:
-                self.logger.error("EABhandler.key_file_load() error: %s", err)
+                self.logger.error("Failed to load EAB key file: %s", err)
 
         self.logger.debug("EABhandler.key_file_load() ended: {%s}", bool(data_dic))
         return data_dic
@@ -61,6 +61,8 @@ class EABhandler(object):
             if kid in data_dic:
                 mac_key = data_dic[kid]
             else:
-                self.logger.error("EABhandler.mac_key_get() error: kid not found")
+                self.logger.error(
+                    "MAC key retrieval failed: kid '%s' not found in key file.", kid
+                )
         self.logger.debug("EABhandler.mac_key_get() ended with: %s", bool(mac_key))
         return mac_key
