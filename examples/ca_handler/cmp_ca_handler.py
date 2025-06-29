@@ -108,14 +108,12 @@ class CAhandler(object):
         # defaulting openssl_bin
         if not self.openssl_bin:
             self.logger.warning(
-                'CAhandler config error: "cmp_openssl_bin" parameter not in config_file. Using default (/usr/bin/openssl)'
+                "cmp_openssl_bin parameter missing in configuration. Using default: /usr/bin/openssl"
             )
             self.openssl_bin = "/usr/bin/openssl"
 
         if not self.recipient:
-            self.logger.error(
-                'CAhandler config error: "cmp_recipient" is missing in config_file.'
-            )
+            self.logger.error("cmp_recipient parameter missing in configuration.")
 
         self.logger.debug("CAhandler._config_paramters_load() ended")
 

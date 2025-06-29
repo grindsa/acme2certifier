@@ -178,7 +178,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(e_result, self.order._add(message, 1))
         self.assertTrue(mock_profile_check.called)
         self.assertIn(
-            "WARNING:test_a2c:Order._add(): ignore submitted profile 'profile' as no profiles are configured",
+            "WARNING:test_a2c:Ignore submitted profile 'profile' as no profiles are configured.",
             lcm.output,
         )
 
@@ -1990,7 +1990,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
         self.assertIn(
-            "WARNING:test_a2c:Order._config_load(): failed to parse retry_after: foo",
+            "WARNING:test_a2c:Failed to parse retry_after from configuration: foo",
             lcm.output,
         )
         self.assertFalse(self.order.header_info_list)
@@ -2047,7 +2047,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
         self.assertIn(
-            "WARNING:test_a2c:Order._config_load(): failed to parse validity: foo",
+            "WARNING:test_a2c:Failed to parse validity from configuration: foo",
             lcm.output,
         )
         self.assertFalse(self.order.header_info_list)
@@ -2106,7 +2106,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
         self.assertIn(
-            "WARNING:test_a2c:Order._config_load(): failed to parse authz validity: foo",
+            "WARNING:test_a2c:Failed to parse authz validity from configuration: foo",
             lcm.output,
         )
         self.assertFalse(self.order.header_info_list)
@@ -2205,7 +2205,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.order.authz_validity)
         self.assertFalse(self.order.header_info_list)
         self.assertIn(
-            "WARNING:test_a2c:Order._config_orderconfig_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to parse header_info_list from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
         self.assertEqual(20, self.order.identifier_limit)
@@ -2283,7 +2283,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.order.header_info_list)
         self.assertEqual(20, self.order.identifier_limit)
         self.assertIn(
-            "WARNING:test_a2c:Order._config_load(): failed to parse identifier_limit: aa",
+            "WARNING:test_a2c:Failed to parse identifier_limit from configuration: aa",
             lcm.output,
         )
         self.assertTrue(self.order.profiles_check_disable)
@@ -2452,7 +2452,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.order._profile_check("foo"),
             )
         self.assertIn(
-            "WARNING:test_a2c:Order._profile_check(): profile 'foo' is not valid",
+            "WARNING:test_a2c:Profile 'foo' is not valid. Ignoring submitted profile.",
             lcm.output,
         )
 

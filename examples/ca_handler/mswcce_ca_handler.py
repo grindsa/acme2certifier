@@ -76,7 +76,7 @@ class CAhandler(object):
                 )[0]
             except Exception as err_:
                 self.logger.warning(
-                    "Order._config_orderconfig_load() header_info_list failed with error: %s",
+                    "Failed to parse header_info_list from configuration: %s",
                     err_,
                 )
 
@@ -160,7 +160,8 @@ class CAhandler(object):
             self.timeout = config_dic.getint("CAhandler", "timeout", fallback=5)
         except Exception as err_:
             self.logger.warning(
-                "CAhandler._config_load() timeout failed with error: %s", err_
+                "Failed to parse 'timeout' from configuration. Using default value 5. Error: %s",
+                err_,
             )
             self.timeout = 5
 
@@ -170,7 +171,8 @@ class CAhandler(object):
             )
         except Exception as err_:
             self.logger.warning(
-                "CAhandler._config_load() use_kerberos failed with error: %s", err_
+                "Failed to parse 'use_kerberos' from configuration. Using default value False. Error: %s",
+                err_,
             )
 
         self.logger.debug("CAhandler._config_parameters_load()")
@@ -186,7 +188,7 @@ class CAhandler(object):
                 self.proxy = {"http": proxy_server, "https": proxy_server}
             except Exception as err_:
                 self.logger.warning(
-                    "CAhandler._config_load() proxy_server_list failed with error: %s",
+                    "Failed to load proxy_server_list from configuration: %s",
                     err_,
                 )
 

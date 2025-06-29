@@ -496,7 +496,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertIn(
-            "WARNING:test_a2c:CAhandler._config_load() proxy_server_list failed with error: exc_load_config",
+            "WARNING:test_a2c:Failed to load proxy_server_list from configuration: exc_load_config",
             lcm.output,
         )
         self.assertFalse(self.cahandler.use_kerberos)
@@ -597,7 +597,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
         self.assertIn(
-            "WARNING:test_a2c:CAhandler._config_load() use_kerberos failed with error: Not a boolean: aaaa",
+            "WARNING:test_a2c:Failed to parse 'use_kerberos' from configuration. Using default value False. Error: Not a boolean: aaaa",
             lcm.output,
         )
         self.assertFalse(self.cahandler.allowed_domainlist)
@@ -641,7 +641,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.use_kerberos)
         self.assertEqual("failed to parse", self.cahandler.allowed_domainlist)
         self.assertIn(
-            "WARNING:test_a2c:loading allowed_domainlist failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to load allowed_domainlist from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 
@@ -704,7 +704,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
         self.assertIn(
-            "WARNING:test_a2c:CAhandler._config_load() timeout failed with error: invalid literal for int() with base 10: 'aaaa'",
+            "WARNING:test_a2c:Failed to parse 'timeout' from configuration. Using default value 5. Error: invalid literal for int() with base 10: 'aaaa'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.allowed_domainlist)
@@ -789,7 +789,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
         self.assertIn(
-            "WARNING:test_a2c:loading enrollment_config_log failed with error: Not a boolean: aaaa",
+            "WARNING:test_a2c:Failed to load enrollment_config_log from configuration: Not a boolean: aaaa",
             lcm.output,
         )
         self.assertFalse(self.cahandler.allowed_domainlist)
@@ -1292,7 +1292,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_headerinfo_load(config_dic)
         self.assertFalse(self.cahandler.header_info_field)
         self.assertIn(
-            "WARNING:test_a2c:Order._config_orderconfig_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to parse header_info_list from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 

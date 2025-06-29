@@ -101,7 +101,7 @@ class Order(object):
             else:
                 # profile is not valid
                 self.logger.warning(
-                    "Order._profile_check(): profile '%s' is not valid", profile
+                    "Profile '%s' is not valid. Ignoring submitted profile.", profile
                 )
 
         self.logger.debug("Order._profile_check() ended with %s", error)
@@ -138,7 +138,7 @@ class Order(object):
                     else:
                         # profile check is enabled but no profiles are configured
                         self.logger.warning(
-                            "Order._add(): ignore submitted profile '%s' as no profiles are configured",
+                            "Ignore submitted profile '%s' as no profiles are configured.",
                             payload["profile"],
                         )
 
@@ -173,7 +173,7 @@ class Order(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Order._config_orderconfig_load() header_info_list failed with error: %s",
+                    "Failed to parse header_info_list from configuration: %s",
                     err_,
                 )
 
@@ -204,7 +204,7 @@ class Order(object):
                 )
             except Exception:
                 self.logger.warning(
-                    "Order._config_load(): failed to parse retry_after: %s",
+                    "Failed to parse retry_after from configuration: %s",
                     config_dic["Order"]["retry_after_timeout"],
                 )
             try:
@@ -213,7 +213,7 @@ class Order(object):
                 )
             except Exception:
                 self.logger.warning(
-                    "Order._config_load(): failed to parse validity: %s",
+                    "Failed to parse validity from configuration: %s",
                     config_dic["Order"]["validity"],
                 )
             try:
@@ -222,7 +222,7 @@ class Order(object):
                 )
             except Exception:
                 self.logger.warning(
-                    "Order._config_load(): failed to parse identifier_limit: %s",
+                    "Failed to parse identifier_limit from configuration: %s",
                     config_dic["Order"]["identifier_limit"],
                 )
 
@@ -246,7 +246,7 @@ class Order(object):
                 )
             except Exception:
                 self.logger.warning(
-                    "Order._config_load(): failed to parse authz validity: %s",
+                    "Failed to parse authz validity from configuration: %s",
                     config_dic["Authorization"]["validity"],
                 )
 

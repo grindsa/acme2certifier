@@ -156,7 +156,7 @@ def config_check(logger: logging.Logger, config_dic: Dict):
         for key, value in section_dic.items():
             if value.startswith('"') or value.endswith('"'):
                 logger.warning(
-                    'config_check(): section %s option: %s contains " characters. Check if this is really needed!',
+                    'Section %s option: %s contains " characters. Please check if this is required!',
                     section,
                     key,
                 )
@@ -172,7 +172,7 @@ def config_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
         try:
             profiles = json.loads(config_dic["Order"]["profiles"])
         except Exception as err_:
-            logger.warning("loading profiles failed with error: %s", err_)
+            logger.warning("Failed to load profiles from configuration: %s", err_)
 
     logger.debug("Helper.config_profile_load() ended")
     return profiles
@@ -190,7 +190,7 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
             "CAhandler", "eab_profiling", fallback=False
         )
     except Exception as err:
-        logger.warning("loading eabprofile failed with error: %s", err)
+        logger.warning("Failed to load eabprofile from configuration: %s", err)
         eab_profiling = False
 
     if eab_profiling:
@@ -224,8 +224,10 @@ def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
         try:
             header_info_field = json.loads(config_dic["Order"]["header_info_list"])[0]
         except Exception as err_:
-            logger.warning("header_info_list failed with error: %s", err_)
-
+            logger.warning(
+                "Failed to parse header_info_list from configuration: %s", err_
+            )
+    #
     logger.debug("Helper.config_headerinfo_load() ended")
     return header_info_field
 
@@ -243,7 +245,9 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
                 "CAhandler", "enrollment_config_log", fallback=False
             )
         except Exception as err_:
-            logger.warning("loading enrollment_config_log failed with error: %s", err_)
+            logger.warning(
+                "Failed to load enrollment_config_log from configuration: %s", err_
+            )
 
         if "enrollment_config_log_skip_list" in config_dic["CAhandler"]:
             try:
@@ -252,7 +256,8 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
                 )
             except Exception as err_:
                 logger.warning(
-                    "enrollment_config_log_skip_list failed with error: %s", err_
+                    "Failed to parse enrollment_config_log_skip_list from configuration: %s",
+                    err_,
                 )
                 enrollment_cfg_log_skip_list = PARSING_ERR_MSG
 
@@ -274,7 +279,9 @@ def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str,
                 config_dic["CAhandler"]["allowed_domainlist"]
             )
         except Exception as err_:
-            logger.warning("loading allowed_domainlist failed with error: %s", err_)
+            logger.warning(
+                "Failed to load allowed_domainlist from configuration: %s", err_
+            )
             allowed_domainlist = PARSING_ERR_MSG
 
     logger.debug(
@@ -987,10 +994,8 @@ def header_info_lookup(logger, csr: str, header_info_field, key: str) -> str:
                     break
         else:
             logger.warning(
-                "Header_info_field not found: %s",
-                header_info_field,
+                "Header_info_field not found in header info: %s", header_info_field
             )
-
     logger.debug("Helper.header_info_lookup(%s) ended with: %s", key, result)
     return result
 
@@ -2275,7 +2280,7 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
             result = error
     else:
         logger.warning(
-            "EAP profile list checking: ignore list attribute: key: %s value: %s",
+            "EAP profile list checking: ignoring unrecognized list attribute: key: %s value: %s",
             key,
             value,
         )
@@ -2297,7 +2302,7 @@ def eab_profile_string_check(logger, cahandler, key, value):
         setattr(cahandler, key, value)
     else:
         logger.warning(
-            "EAB profile string checking: ignore string attribute: key: %s value: %s",
+            "EAB profile string checking: ignoring unrecognized string attribute: key: %s value: %s",
             key,
             value,
         )

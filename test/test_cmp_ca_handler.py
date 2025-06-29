@@ -194,7 +194,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            'WARNING:test_a2c:CAhandler config error: "cmp_openssl_bin" parameter not in config_file. Using default (/usr/bin/openssl)',
+            "WARNING:test_a2c:cmp_openssl_bin parameter missing in configuration. Using default: /usr/bin/openssl",
             lcm.output,
         )
 
@@ -207,7 +207,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            'ERROR:test_a2c:CAhandler config error: "cmp_recipient" is missing in config_file.',
+            "ERROR:test_a2c:cmp_recipient parameter missing in configuration.",
             lcm.output,
         )
 

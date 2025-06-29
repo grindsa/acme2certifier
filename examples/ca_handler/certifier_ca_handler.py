@@ -364,7 +364,7 @@ class CAhandler(object):
             )
         except Exception:
             self.logger.warning(
-                "CAhandler._config_load() polling_timeout is not an integer, using default value: %s",
+                "Invalid value for polling_timeout in configuration. Using default: %s",
                 self.polling_timeout,
             )
 
@@ -376,7 +376,7 @@ class CAhandler(object):
             )
         except Exception:
             self.logger.warning(
-                "CAhandler._config_load() request_timeout is not an integer, using default value: %s",
+                "Invalid value for request_timeout in configuration. Using default: %s",
                 self.request_timeout,
             )
 
@@ -414,7 +414,7 @@ class CAhandler(object):
                     self.proxy = {"http": proxy_server, "https": proxy_server}
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() proxy_server_list failed with error: %s",
+                    "Failed to parse proxy_server_list from configuration: %s",
                     err_,
                 )
 

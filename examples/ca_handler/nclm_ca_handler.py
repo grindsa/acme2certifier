@@ -407,7 +407,7 @@ class CAhandler(object):
 
         if not self.error and self.ca_bundle is False:
             self.logger.warning(
-                '"ca_bundle" set to "False" - validation of server certificate disabled'
+                'CA bundle validation is disabled ("ca_bundle" set to False). Server certificate will not be validated.'
             )
 
         self.logger.debug("CAhandler._config_names_check() ended")
@@ -475,7 +475,7 @@ class CAhandler(object):
         elif "tsg_name" in config_dic["CAhandler"]:
             # for backwards compatibility
             self.logger.warning(
-                "CAhandler._config_names_load() tsg_name is deprecated. Use container_name instead."
+                "Configuration uses deprecated 'tsg_name'. Use 'container_name' instead."
             )
             self.container_info_dic["name"] = config_dic.get(
                 "CAhandler", "tsg_name", fallback=None
@@ -497,10 +497,9 @@ class CAhandler(object):
                     self.proxy = {"http": proxy_server, "https": proxy_server}
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() proxy_server_list failed with error: %s",
+                    "Failed to load proxy_server_list from configuration: %s",
                     err_,
                 )
-
         self.logger.debug("CAhandler._config_proxy_load() ended")
 
     def _config_timer_load(self, config_dic: Dict[str, str]):

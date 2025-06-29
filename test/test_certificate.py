@@ -1008,7 +1008,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.certificate._csr_check("cert_name", "csr"))
         self.assertIn(
-            "WARNING:test_a2c:Certificate._csr_check() error while parsing csr.\nerror: mock_status",
+            "WARNING:test_a2c:Error while parsing CSR for TNAuthList identifier check: mock_status",
             lcm.output,
         )
 
@@ -3308,7 +3308,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
         self.assertIn(
-            "WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: cert_san_get",
+            "WARNING:test_a2c:Error while parsing certificate for SAN identifier check: cert_san_get",
             lcm.output,
         )
 
@@ -3323,7 +3323,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
         self.assertIn(
-            "WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: idstat_exc",
+            "WARNING:test_a2c:Error while parsing certificate for SAN identifier check: idstat_exc",
             lcm.output,
         )
 
@@ -3339,7 +3339,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
         self.assertIn(
-            "WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: cert_ext_get",
+            "WARNING:test_a2c:Error while parsing certificate for TNAuthList identifier check: cert_ext_get",
             lcm.output,
         )
 
@@ -3359,7 +3359,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
         self.assertIn(
-            "WARNING:test_a2c:Certificate._authorization_check() error while loading parsing certifcate. Error: tnauth_in_exc",
+            "WARNING:test_a2c:Error while parsing certificate for TNAuthList identifier check: tnauth_in_exc",
             lcm.output,
         )
 

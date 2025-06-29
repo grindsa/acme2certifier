@@ -95,12 +95,12 @@ class Certificate(object):
                 identifier_status = self._identifer_tnauth_list(
                     identifier_dic, tnauthlist
                 )
-            except Exception as err_:
+            except Exception as err:
                 # enough to set identifier_list as empty list
                 identifier_status = []
                 self.logger.warning(
-                    "Certificate._authorization_check() error while loading parsing certifcate. Error: %s",
-                    err_,
+                    "Error while parsing certificate for TNAuthList identifier check: %s",
+                    err,
                 )
         else:
             try:
@@ -113,12 +113,12 @@ class Certificate(object):
                         san_list.append(f"DNS:{cert_cn}")
 
                 identifier_status = self._identifer_status_list(identifiers, san_list)
-            except Exception as err_:
+            except Exception as err:
                 # enough to set identifier_list as empty list
                 identifier_status = []
                 self.logger.warning(
-                    "Certificate._authorization_check() error while loading parsing certifcate. Error: %s",
-                    err_,
+                    "Error while parsing certificate for SAN identifier check: %s",
+                    err,
                 )
 
         self.logger.debug("Certificate._authz_check() ended")
@@ -330,7 +330,7 @@ class Certificate(object):
             except Exception as err_:
                 identifier_status = []
                 self.logger.warning(
-                    "Certificate._csr_check() error while parsing csr.\nerror: %s", err_
+                    "Error while parsing CSR for TNAuthList identifier check: %s", err_
                 )
         else:
             # get sans and compare identifiers against san
@@ -340,7 +340,7 @@ class Certificate(object):
             except Exception as err_:
                 identifier_status = []
                 self.logger.warning(
-                    "Certificate._csr_check() error while checking csr.\nerror: %s",
+                    "Error while checking identifiers against SAN: %s",
                     err_,
                 )
 

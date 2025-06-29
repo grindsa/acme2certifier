@@ -163,7 +163,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_check()
         self.assertFalse(self.cahandler.error)
         self.assertIn(
-            'WARNING:test_a2c:"ca_bundle" set to "False" - validation of server certificate disabled',
+            'WARNING:test_a2c:CA bundle validation is disabled ("ca_bundle" set to False). Server certificate will not be validated.',
             lcm.output,
         )
 
@@ -257,7 +257,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "WARNING:test_a2c:CAhandler._config_names_load() tsg_name is deprecated. Use container_name instead.",
+            "WARNING:test_a2c:Configuration uses deprecated 'tsg_name'. Use 'container_name' instead.",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -474,7 +474,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_chk.called)
         self.assertFalse(self.cahandler.proxy)
         self.assertIn(
-            "WARNING:test_a2c:Challenge._config_load() proxy_server_list failed with error: not enough values to unpack (expected 2, got 1)",
+            "WARNING:test_a2c:Failed to load proxy_server_list from configuration: not enough values to unpack (expected 2, got 1)",
             lcm.output,
         )
 

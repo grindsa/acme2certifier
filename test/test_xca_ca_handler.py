@@ -3244,7 +3244,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._db_check())
         self.assertIn(
-            "WARNING:test_a2c:permissions 660 for xdb_file are to wide. Should be 220",
+            "WARNING:test_a2c:File permissions 660 for 'xdb_file' are too permissive. Should be 220.",
             lcm.output,
         )
         self.assertTrue(mock_access.called)
@@ -3265,7 +3265,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._db_check())
         self.assertIn(
-            "WARNING:test_a2c:permissions 260 for xdb_file are to wide. Should be 220",
+            "WARNING:test_a2c:File permissions 260 for 'xdb_file' are too permissive. Should be 220.",
             lcm.output,
         )
         self.assertTrue(mock_access.called)
@@ -3286,7 +3286,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._db_check())
         self.assertIn(
-            "WARNING:test_a2c:permissions 222 for xdb_file are to wide. Should be 220",
+            "WARNING:test_a2c:File permissions 222 for 'xdb_file' are too permissive. Should be 220.",
             lcm.output,
         )
         self.assertTrue(mock_access.called)
@@ -3322,7 +3322,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._identifier_check("unknown_table", "unkown")
             )
         self.assertIn(
-            "WARNING:test_a2c:CAhandler._identifier_check(): table unknown_table does not exist",
+            "WARNING:test_a2c:Table 'unknown_table' does not exist in the database.",
             lcm.output,
         )
 

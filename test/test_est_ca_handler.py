@@ -523,7 +523,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_chk.called)
         self.assertFalse(self.cahandler.proxy)
         self.assertIn(
-            "WARNING:test_a2c:Challenge._config_load() proxy_server_list failed with error: not enough values to unpack (expected 2, got 1)",
+            "WARNING:test_a2c:Failed to load proxy_server_list from configuration: not enough values to unpack (expected 2, got 1)",
             lcm.output,
         )
         self.assertEqual(20, self.cahandler.request_timeout)
