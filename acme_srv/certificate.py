@@ -6,25 +6,25 @@ import json
 from typing import List, Tuple, Dict
 from acme_srv.helper import (
     b64_url_recode,
-    generate_random_string,
+    ca_handler_load,
+    cert_aki_get,
     cert_cn_get,
-    cert_san_get,
+    cert_dates_get,
     cert_extensions_get,
-    hooks_load,
-    uts_now,
-    uts_to_date_utc,
-    date_to_uts_utc,
-    load_config,
+    cert_san_get,
+    cert_serial_get,
+    certid_asn1_get,
     csr_san_get,
     csr_extensions_get,
-    cert_dates_get,
-    ca_handler_load,
+    date_to_uts_utc,
     error_dic_get,
-    string_sanitize,
+    generate_random_string,
+    hooks_load,
+    load_config,
     pembundle_to_list,
-    certid_asn1_get,
-    cert_serial_get,
-    cert_aki_get,
+    string_sanitize,
+    uts_now,
+    uts_to_date_utc,
 )
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
@@ -36,10 +36,14 @@ class Certificate(object):
 
     def __init__(self, debug: bool = False, srv_name: str = None, logger=None):
         self.debug = debug
-        self.server_name = srv_name
         self.logger = logger
+        self.server_name = srv_name
         self.cahandler = None
+        self.cert_operations_log = None
+        self.cert_reusage_timeframe = 0
+        self.cn2san_add = False
         self.dbstore = DBstore(self.debug, self.logger)
+        self.enrollment_timeout = 5
         self.err_msg_dic = error_dic_get(self.logger)
         self.hooks = None
         self.ignore_pre_hook_failure = False
@@ -49,9 +53,6 @@ class Certificate(object):
         self.path_dic = {"cert_path": "/acme/cert/"}
         self.retry_after = 600
         self.tnauthlist_support = False
-        self.cert_reusage_timeframe = 0
-        self.enrollment_timeout = 5
-        self.cn2san_add = False
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -154,6 +155,106 @@ class Certificate(object):
 
         self.logger.debug("Certificate._authorization_check() ended with %s", result)
         return result
+
+    def _cert_issuance_log(
+        self,
+        certificate_name: str,
+        certificate: str,
+        order_name: str,
+        cert_reusage: bool = False,
+    ):
+        """log certificate issuance"""
+        self.logger.debug("Certificate._certificate_issuance_log(%s)", certificate_name)
+
+        # lookup account name and kid
+        try:
+            order_dic = self.dbstore.order_lookup(
+                "name", order_name, ["id", "name", "account__name", "account__eab_kid"]
+            )
+        except Exception as err:
+            self.logger.error(
+                "Database error: failed to account information for cert issuance log: %s",
+                err,
+            )
+            order_dic = {}
+
+        data_dic = {
+            "account_name": order_dic.get("account__name", ""),
+            "eab_kid": order_dic.get("account__eab_kid", ""),
+            "certifcate_name": certificate_name,
+            "reused": cert_reusage,
+            "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
+            "common_name": cert_cn_get(self.logger, certificate),
+            "san_list": cert_san_get(self.logger, certificate),
+        }
+
+        if self.cert_operations_log == "json":
+            # log in json format
+            self.logger.info(
+                "Certificate issued: %s",
+                json.dumps(data_dic, sort_keys=True),
+            )
+        else:
+            # log in text format
+            self.logger.info(
+                "Certificate '%s' issued for account '%s' with EAB KID '%s'. Serial: %s, Common Name: %s, SANs: %s, reused: %s",
+                certificate_name,
+                data_dic["account_name"],
+                data_dic["eab_kid"],
+                data_dic["serial_number"],
+                data_dic["common_name"],
+                data_dic["san_list"],
+                data_dic["reused"],
+            )
+
+        self.logger.debug("Certificate._certificate_issuance_log() ended")
+
+    def _cert_revocation_log(self, certificate: str, status: str):
+        """log certificate revocation"""
+        self.logger.debug("Certificate._cert_revocation_log()")
+
+        # lookup account name and kid
+        try:
+            cert_dic = self.dbstore.certificate_lookup(
+                "cert_raw",
+                b64_url_recode(self.logger, certificate),
+                ["name", "name", "order__account__name", "order__account__eab_kid"],
+            )
+        except Exception as err:
+            self.logger.error(
+                "Database error: failed to account information for cert revocation: %s",
+                err,
+            )
+            cert_dic = {}
+
+        data_dic = {
+            "account_name": cert_dic.get("order__account__name", ""),
+            "eab_kid": cert_dic.get("order__account__eab_kid", ""),
+            "certifcate_name": cert_dic.get("name", ""),
+            "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
+            "common_name": cert_cn_get(self.logger, certificate),
+            "san_list": cert_san_get(self.logger, certificate),
+            "status": status,
+        }
+
+        if self.cert_operations_log == "json":
+            # log in json format
+            self.logger.info(
+                "Certificate revoked: %s",
+                json.dumps(data_dic, sort_keys=True),
+            )
+        else:
+            # log in text format
+            self.logger.info(
+                "Certificate '%s' revokation %s for account '%s' with EAB KID '%s'. Serial: %s, Common Name: %s, SANs: %s",
+                data_dic["certifcate_name"],
+                data_dic["status"],
+                data_dic["account_name"],
+                data_dic["eab_kid"],
+                data_dic["serial_number"],
+                data_dic["common_name"],
+                data_dic["san_list"],
+            )
 
     def _cert_reusage_check(self, csr: str) -> Tuple[None, str, str, str]:
         """check if an existing certificate an be reused"""
@@ -270,6 +371,12 @@ class Certificate(object):
                 k: config_dic["Directory"]["url_prefix"] + v
                 for k, v in self.path_dic.items()
             }
+
+        self.cert_operations_log = config_dic.get(
+            "Certificate", "cert_operations_log", fallback=self.cert_operations_log
+        )
+        if self.cert_operations_log:
+            self.cert_operations_log = self.cert_operations_log.lower()
 
         self.logger.debug("Certificate._config_parameters_load() ended")
 
@@ -406,11 +513,13 @@ class Certificate(object):
                     certificate_raw,
                     poll_identifier,
                 ) = ca_handler.enroll(csr)
+            cert_reusage = False
         else:
             self.logger.info("Reuse existing certificate")
+            cert_reusage = True
 
         self.logger.debug("Certificate._enroll() ended")
-        return (error, certificate, certificate_raw, poll_identifier)
+        return (error, certificate, certificate_raw, poll_identifier, cert_reusage)
 
     def _renewal_info_get(self, certificate: str) -> str:
         """get renewal info"""
@@ -573,7 +682,13 @@ class Certificate(object):
             return hook_error
 
         # enroll certificate
-        (error, certificate, certificate_raw, poll_identifier) = self._enroll(csr)
+        (
+            error,
+            certificate,
+            certificate_raw,
+            poll_identifier,
+            cert_reusage,
+        ) = self._enroll(csr)
 
         if certificate:
             (result, error) = self._store(
@@ -586,6 +701,11 @@ class Certificate(object):
             )
             if error:
                 return error
+            elif self.cert_operations_log:
+                self._cert_issuance_log(
+                    certificate_name, certificate_raw, order_name, cert_reusage
+                )
+
         else:
             self.logger.error("Enrollment error: %s", error)
             (result, error, detail) = self._enrollerror_handler(
@@ -1242,6 +1362,19 @@ class Certificate(object):
                         (code, message, detail) = ca_handler.revoke(
                             payload["certificate"], error, rev_date
                         )
+
+                    if self.cert_operations_log:
+                        if code == 200:
+                            self._cert_revocation_log(
+                                payload["certificate"],
+                                "successful",
+                            )
+                        else:
+                            self._cert_revocation_log(
+                                payload["certificate"],
+                                f"failed",
+                                # f"failed: {detail}",
+                            )
                 else:
                     message = error
                     detail = None
@@ -1255,7 +1388,6 @@ class Certificate(object):
         # prepare/enrich response
         status_dic = {"code": code, "type": message, "detail": detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
-
         self.logger.debug("Certificate.revoke() ended with: %s", response_dic)
         return response_dic
 
