@@ -133,6 +133,26 @@ class Order(object):
         self.logger.debug("Order._order_auth_add() ended with %s", error)
         return error
 
+    def _profile_add(self, data_dic: Dict[str, str], payload: Dict[str, str]) -> str:
+        """add profile to database"""
+        self.logger.debug("Order._profile_add(%s)", data_dic)
+
+        # check if profile is valid
+        error = self._profile_check(payload["profile"])
+        if not error:
+            if self.profiles:
+                # add profile to order
+                data_dic["profile"] = payload["profile"]
+            else:
+                # profile check is enabled but no profiles are configured
+                self.logger.warning(
+                    "Order._add(): ignore submitted profile '%s' as no profiles are configured",
+                    payload["profile"],
+                )
+
+        self.logger.debug("Order._profile_add() ended with %s", error)
+        return error, data_dic
+
     def _add(
         self, payload: Dict[str, str], aname: str
     ) -> Tuple[str, str, Dict[str, str], int]:
@@ -160,17 +180,7 @@ class Order(object):
             else:
                 if "profile" in payload:
                     # check if profile is valid
-                    error = self._profile_check(payload["profile"])
-                    if not error:
-                        if self.profiles:
-                            # add profile to order
-                            data_dic["profile"] = payload["profile"]
-                        else:
-                            # profile check is enabled but no profiles are configured
-                            self.logger.warning(
-                                "Order._add(): ignore submitted profile '%s' as no profiles are configured",
-                                payload["profile"],
-                            )
+                    (error, data_dic) = self._profile_add(data_dic, payload)
 
             # add order and authorization to database
             error = self._order_auth_add(data_dic, auth_dic, payload, error)
