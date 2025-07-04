@@ -41,6 +41,41 @@ class Directory(object):
     def __exit__(self, *args):
         """cose the connection at the end of the context"""
 
+    def _config_parameters_load(self, config_dic: Dict[str, str]) -> None:
+        """load parameters from config file"""
+        self.logger.debug("Directory._config_parameters_load()")
+
+        try:
+            self.supress_version = config_dic.getboolean(
+                "Directory", "supress_version", fallback=False
+            )
+        except Exception as err_:
+            self.logger.error(
+                "supress_version not set: %s",
+                err_,
+            )
+
+        try:
+            self.db_check = config_dic.getboolean(
+                "Directory", "db_check", fallback=False
+            )
+        except Exception as err_:
+            self.logger.error(
+                "db_check not set: %s",
+                err_,
+            )
+        try:
+            self.suppress_product_information = config_dic.getboolean(
+                "Directory", "suppress_product_information", fallback=False
+            )
+        except Exception as err_:
+            self.logger.error(
+                "suppress_product_information not set: %s",
+                err_,
+            )
+
+        self.logger.debug("Directory._config_parameters_load() ended")
+
     def _config_load(self):
         """ " load config from file"""
         self.logger.debug("Directory._config_load()")
@@ -50,28 +85,12 @@ class Directory(object):
             self.tos_url = cfg_dic.get("tos_url", None)
             self.url_prefix = cfg_dic.get("url_prefix", "")
             self.home = cfg_dic.get("home", GH_HOME)
-            if "supress_version" in config_dic["Directory"]:
-                self.supress_version = config_dic.getboolean(
-                    "Directory", "supress_version", fallback=False
-                )
-            if "db_check" in config_dic["Directory"]:
-                self.db_check = config_dic.getboolean(
-                    "Directory", "db_check", fallback=False
-                )
+
         if (
             "EABhandler" in config_dic
             and "eab_handler_file" in config_dic["EABhandler"]
         ):
             self.eab = True
-        try:
-            self.suppress_product_information = config_dic.getboolean(
-                "Directory", "suppress_product_information", fallback=False
-            )
-        except Exception as err_:
-            self.logger.error(
-                "Directory._config_load() suppress_product_information not set: %s",
-                err_,
-            )
 
         tmp_caaidentities = config_dic.get("Directory", "caaidentities", fallback=None)
         if tmp_caaidentities:
@@ -82,7 +101,7 @@ class Directory(object):
                     self.caaidentities = [tmp_caaidentities]
                 else:
                     self.logger.error(
-                        "Directory._config_load() error in caaIdentities: %s",
+                        "Error when loading the caaIdentities parameter from config: %s",
                         err_,
                     )
 
@@ -96,6 +115,9 @@ class Directory(object):
             self.cahandler = ca_handler_module.CAhandler
         else:
             self.logger.critical("Certificate._config_load(): No ca_handler loaded")
+
+        # load parameters from config file
+        self._config_parameters_load(config_dic)
 
         self.logger.debug("Directory._config_load() ended")
 

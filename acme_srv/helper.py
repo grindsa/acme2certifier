@@ -2029,9 +2029,11 @@ def profile_lookup(logger: logging.Logger, csr: str) -> str:
     from acme_srv.db_handler import DBstore  # pylint: disable=c0415
 
     dbstore = DBstore(logger=logger)
-    vlist: List[str] = ("id", "order_id", "order__profile")
+
     try:
-        result = dbstore.certificates_search("csr", csr, vlist)
+        result = dbstore.certificates_search(
+            "csr", csr, ["id", "order_id", "order__profile"]
+        )
     except Exception as err:
         logger.error("Helper.profile_lookup() failed with: %s", err)
         result = None

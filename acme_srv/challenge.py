@@ -432,17 +432,17 @@ class Challenge(object):
 
                 with self.eab_handler(self.logger) as eab_handler:
                     profile_dic = eab_handler.key_file_load()
-                    if eab_kid in profile_dic:
-                        if (
-                            "challenge" in profile_dic[eab_kid]
-                            and "challenge_validation_disable"
-                            in profile_dic[eab_kid]["challenge"]
-                        ):
-                            challenge_validation_disable = (
-                                profile_dic.get(eab_kid, {})
-                                .get("challenge", {})
-                                .get("challenge_validation_disable", False)
-                            )
+                    if (
+                        eab_kid in profile_dic
+                        and "challenge" in profile_dic[eab_kid]
+                        and "challenge_validation_disable"
+                        in profile_dic[eab_kid]["challenge"]
+                    ):
+                        challenge_validation_disable = (
+                            profile_dic.get(eab_kid, {})
+                            .get("challenge", {})
+                            .get("challenge_validation_disable", False)
+                        )
 
         self.logger.debug(
             "Challenge._profile_parse() ended with: %s", challenge_validation_disable
