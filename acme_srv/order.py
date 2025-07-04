@@ -107,10 +107,58 @@ class Order(object):
         self.logger.debug("Order._profile_check() ended with %s", error)
         return error
 
+    def _order_auth_add(
+        self,
+        data_dic: Dict[str, str],
+        auth_dic: Dict[str, str],
+        payload: Dict[str, str],
+        error: str,
+    ) -> Tuple[str, Dict[str, str]]:
+        """add order and authorization to database"""
+        self.logger.debug("Order._order_auth_add()")
+
+        try:
+            # add order to db
+            oid = self.dbstore.order_add(data_dic)
+        except Exception as err_:
+            self.logger.critical(
+                "acme2certifier database error in Order._add() order: %s", err_
+            )
+            oid = None
+
+        if not error:
+            # authorization add
+            error = self._auth_add(oid, payload, auth_dic)
+
+        self.logger.debug("Order._order_auth_add() ended with %s", error)
+        return error
+
+    def _profile_add(
+        self, data_dic: Dict[str, str], payload: Dict[str, str]
+    ) -> Tuple[str, Dict[str, str]]:
+        """add profile to database"""
+        self.logger.debug("Order._profile_add(%s)", data_dic)
+
+        # check if profile is valid
+        error = self._profile_check(payload["profile"])
+        if not error:
+            if self.profiles:
+                # add profile to order
+                data_dic["profile"] = payload["profile"]
+            else:
+                # profile check is enabled but no profiles are configured
+                self.logger.warning(
+                    "Order._add(): ignore submitted profile '%s' as no profiles are configured",
+                    payload["profile"],
+                )
+
+        self.logger.debug("Order._profile_add() ended with %s", error)
+        return error, data_dic
+
     def _add(
         self, payload: Dict[str, str], aname: str
     ) -> Tuple[str, str, Dict[str, str], int]:
-        """add order request to database"""
+        """add order request"""
         self.logger.debug("Order._add(%s)", aname)
 
         error = None
@@ -128,34 +176,17 @@ class Order(object):
             # check identifiers
             error = self._identifiers_check(payload["identifiers"])
 
-            if "profile" in payload:
-                # check if profile is valid
-                error = self._profile_check(payload["profile"])
-                if not error:
-                    if self.profiles:
-                        # add profile to order
-                        data_dic["profile"] = payload["profile"]
-                    else:
-                        # profile check is enabled but no profiles are configured
-                        self.logger.warning(
-                            "Ignore submitted profile '%s' as no profiles are configured.",
-                            payload["profile"],
-                        )
-
             # change order status if needed
             if error:
                 data_dic["status"] = 1
+            else:
+                if "profile" in payload:
+                    # check if profile is valid
+                    (error, data_dic) = self._profile_add(data_dic, payload)
 
-            try:
-                # add order to db
-                oid = self.dbstore.order_add(data_dic)
-            except Exception as err:
-                self.logger.critical("Database error: failed to add order: %s", err)
-                oid = None
+            # add order and authorization to database
+            error = self._order_auth_add(data_dic, auth_dic, payload, error)
 
-            if not error:
-                # authorization add
-                error = self._auth_add(oid, payload, auth_dic)
         else:
             error = self.error_msg_dic["unsupportedidentifier"]
 

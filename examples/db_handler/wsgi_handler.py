@@ -1289,17 +1289,17 @@ class DBstore(object):
         self.logger.debug("DBStore.certificate_add() ended with: %s", rid)
         return rid
 
-    def certificate_delete(self, mkey: str, string: str) -> Tuple[List[str], List[str]]:
+    def certificate_delete(self, mkey: str, string: str):
         """delete certificate from table"""
         self.logger.debug("DBStore.certificate_delete(%s:%s)", mkey, string)
 
         if not self._identifier_check("certificate", mkey):
             self.logger.warning(COLUMN_NOT_IN_TABLE_MSG, mkey, "certificate")
-            return []
-        self._db_open()
-        pre_statement = f"""DELETE from certificate WHERE {mkey} = ?"""
-        self.cursor.execute(pre_statement, [string])
-        self._db_close()
+        else:
+            self._db_open()
+            pre_statement = f"""DELETE from certificate WHERE {mkey} = ?"""
+            self.cursor.execute(pre_statement, [string])
+            self._db_close()
 
     def certificatelist_get(self) -> Tuple[List[str], List[str]]:
         """certificatelist_get"""

@@ -41,6 +41,41 @@ class Directory(object):
     def __exit__(self, *args):
         """cose the connection at the end of the context"""
 
+    def _config_parameters_load(self, config_dic: Dict[str, str]) -> None:
+        """load parameters from config file"""
+        self.logger.debug("Directory._config_parameters_load()")
+
+        try:
+            self.supress_version = config_dic.getboolean(
+                "Directory", "supress_version", fallback=False
+            )
+        except Exception as err_:
+            self.logger.error(
+                "supress_version not set: %s",
+                err_,
+            )
+
+        try:
+            self.db_check = config_dic.getboolean(
+                "Directory", "db_check", fallback=False
+            )
+        except Exception as err_:
+            self.logger.error(
+                "db_check not set: %s",
+                err_,
+            )
+        try:
+            self.suppress_product_information = config_dic.getboolean(
+                "Directory", "suppress_product_information", fallback=False
+            )
+        except Exception as err_:
+            self.logger.error(
+                "suppress_product_information not set: %s",
+                err_,
+            )
+
+        self.logger.debug("Directory._config_parameters_load() ended")
+
     def _config_load(self):
         """ " load config from file"""
         self.logger.debug("Directory._config_load()")
@@ -50,28 +85,12 @@ class Directory(object):
             self.tos_url = cfg_dic.get("tos_url", None)
             self.url_prefix = cfg_dic.get("url_prefix", "")
             self.home = cfg_dic.get("home", GH_HOME)
-            if "supress_version" in config_dic["Directory"]:
-                self.supress_version = config_dic.getboolean(
-                    "Directory", "supress_version", fallback=False
-                )
-            if "db_check" in config_dic["Directory"]:
-                self.db_check = config_dic.getboolean(
-                    "Directory", "db_check", fallback=False
-                )
+
         if (
             "EABhandler" in config_dic
             and "eab_handler_file" in config_dic["EABhandler"]
         ):
             self.eab = True
-        try:
-            self.suppress_product_information = config_dic.getboolean(
-                "Directory", "suppress_product_information", fallback=False
-            )
-        except Exception as err_:
-            self.logger.error(
-                "Error while reading the suppress_product_information parameter from config: %s",
-                err_,
-            )
 
         tmp_caaidentities = config_dic.get("Directory", "caaidentities", fallback=None)
         if tmp_caaidentities:
@@ -82,7 +101,7 @@ class Directory(object):
                     self.caaidentities = [tmp_caaidentities]
                 else:
                     self.logger.error(
-                        "Error while loading the caaIdentities parameter: %s",
+                        "Error when loading the caaIdentities parameter from config: %s",
                         err_,
                     )
 
@@ -97,7 +116,45 @@ class Directory(object):
         else:
             self.logger.critical("No ca_handler loaded")
 
+        # load parameters from config file
+        self._config_parameters_load(config_dic)
+
         self.logger.debug("Directory._config_load() ended")
+
+    def _directory_get_meta(self) -> Dict[str, str]:
+        """return meta information for directory"""
+        self.logger.debug("Directory._directory_get_meta()")
+
+        if not self.suppress_product_information:
+            meta_dic = {
+                "home": self.home,
+                "author": "grindsa <grindelsack@gmail.com>",
+                "name": "acme2certifier",
+            }
+            # show version information in meta tags if not disabled....
+            if not self.supress_version:
+                meta_dic["version"] = self.version
+        else:
+            meta_dic = {}
+            if self.home != GH_HOME:
+                meta_dic["home"] = self.home
+
+        # add terms of service
+        if self.tos_url:
+            meta_dic["termsOfService"] = self.tos_url
+
+        if self.caaidentities:
+            meta_dic["caaIdentities"] = self.caaidentities
+
+        if self.profiles:
+            meta_dic["profiles"] = self.profiles
+
+        # indicate eab requirement
+        if self.eab:
+            meta_dic["externalAccountRequired"] = True
+
+        self.logger.debug("Directory._directory_get_meta() ended")
+        return meta_dic
 
     def _directory_get(self) -> Dict[str, str]:
         """return response to ACME directory call"""
@@ -110,35 +167,8 @@ class Directory(object):
             "revokeCert": self.server_name + self.url_prefix + "/acme/revokecert",
             "keyChange": self.server_name + self.url_prefix + "/acme/key-change",
             "renewalInfo": self.server_name + self.url_prefix + "/acme/renewal-info",
-            "meta": {},
+            "meta": self._directory_get_meta(),
         }
-
-        if not self.suppress_product_information:
-            d_dic["meta"] = {
-                "home": self.home,
-                "author": "grindsa <grindelsack@gmail.com>",
-                "name": "acme2certifier",
-            }
-            # show version information in meta tags if not disabled....
-            if not self.supress_version:
-                d_dic["meta"]["version"] = self.version
-        else:
-            if self.home != GH_HOME:
-                d_dic["meta"]["home"] = self.home
-
-        # add terms of service
-        if self.tos_url:
-            d_dic["meta"]["termsOfService"] = self.tos_url
-
-        if self.caaidentities:
-            d_dic["meta"]["caaIdentities"] = self.caaidentities
-
-        if self.profiles:
-            d_dic["meta"]["profiles"] = self.profiles
-
-        # indicate eab requirement
-        if self.eab:
-            d_dic["meta"]["externalAccountRequired"] = True
 
         if self.db_check:
             try:

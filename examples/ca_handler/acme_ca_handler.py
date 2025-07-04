@@ -265,7 +265,7 @@ class CAhandler(object):
         authz_valid = False
 
         # query challenges
-        for authzr in list(order.authorizations):
+        for authzr in order.authorizations:
             (challenge_name, challenge_content, challenge) = self._challenge_info(
                 authzr, user_key
             )
@@ -296,7 +296,7 @@ class CAhandler(object):
         return authz_valid
 
     def _order_new(
-        self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, csr_pem: str
+        self, acmeclient: client.ClientV2, csr_pem: str
     ) -> messages.OrderResource:
         """create new order"""
         self.logger.debug("CAhandler._order_new()")
@@ -329,7 +329,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._order_issue() csr: " + str(csr_pem))
 
         # create new order
-        order = self._order_new(acmeclient, user_key, csr_pem)
+        order = self._order_new(acmeclient, csr_pem)
 
         error = None
         cert_bundle = None
