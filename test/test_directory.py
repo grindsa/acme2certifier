@@ -394,6 +394,26 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
     def test_027_config_load(self, mock_load_cfg, mock_ca_handler_load):
+        """test _config_load eab"""
+        parser = configparser.ConfigParser()
+        parser["Directory"] = {"supress_version": "aa"}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.directory._config_load()
+        self.assertFalse(self.directory.supress_version)
+        self.assertFalse(self.directory.tos_url)
+        self.assertFalse(self.directory.eab)
+        self.assertFalse(self.directory.db_check)
+        self.assertEqual(False, self.directory.suppress_product_information)
+        self.assertIn(
+            "ERROR:test_a2c:supress_version not set: Not a boolean: aa",
+            lcm.output,
+        )
+        self.assertFalse(self.directory.profiles)
+
+    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
+    @patch("acme_srv.directory.load_config")
+    def test_028_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load tos url"""
         parser = configparser.ConfigParser()
         parser["Directory"] = {"tos_url": "tos_url"}
@@ -407,7 +427,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
-    def test_028_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_029_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load eab"""
         parser = configparser.ConfigParser()
         parser["EABhandler"] = {"eab_handler_file": "eab_handler_file"}
@@ -423,7 +443,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
-    def test_029_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_030_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load all parameters set"""
         parser = configparser.ConfigParser()
         parser["EABhandler"] = {"eab_handler_file": "eab_handler_file"}
@@ -438,7 +458,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
-    def test_030_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_031_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load eab"""
         parser = configparser.ConfigParser()
         parser["Directory"] = {"url_prefix": "url_prefix"}
@@ -453,7 +473,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
-    def test_031_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_032_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load eab"""
         parser = configparser.ConfigParser()
         parser["Directory"] = {"db_check": True}
@@ -468,7 +488,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
-    def test_032_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_033_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load eab"""
         parser = configparser.ConfigParser()
         parser["Directory"] = {"db_check": False}
@@ -486,7 +506,27 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
-    def test_033_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_034_config_load(self, mock_load_cfg, mock_ca_handler_load):
+        """test _config_load eab"""
+        parser = configparser.ConfigParser()
+        parser["Directory"] = {"db_check": "aa"}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.directory._config_load()
+        self.assertFalse(self.directory.supress_version)
+        self.assertFalse(self.directory.tos_url)
+        self.assertFalse(self.directory.eab)
+        self.assertFalse(self.directory.db_check)
+        self.assertEqual(False, self.directory.suppress_product_information)
+        self.assertIn(
+            "ERROR:test_a2c:db_check not set: Not a boolean: aa",
+            lcm.output,
+        )
+        self.assertFalse(self.directory.profiles)
+
+    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
+    @patch("acme_srv.directory.load_config")
+    def test_035_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load eab"""
         parser = configparser.ConfigParser()
         parser["Directory"] = {"home": "home"}
@@ -502,7 +542,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
-    def test_034_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_036_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load eab"""
         parser = configparser.ConfigParser()
         parser["Directory"] = {"suppress_product_information": True}
@@ -517,7 +557,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
-    def test_035_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_037_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load eab"""
         parser = configparser.ConfigParser()
         parser["Directory"] = {"suppress_product_information": False}
@@ -532,7 +572,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
-    def test_036_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_038_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load eab"""
         parser = configparser.ConfigParser()
         parser["Directory"] = {"suppress_product_information": "aa"}
@@ -545,14 +585,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.directory.db_check)
         self.assertEqual(False, self.directory.suppress_product_information)
         self.assertIn(
-            "ERROR:test_a2c:Error while reading the suppress_product_information parameter from config: Not a boolean: aa",
+            "ERROR:test_a2c:suppress_product_information not set: Not a boolean: aa",
             lcm.output,
         )
         self.assertFalse(self.directory.profiles)
 
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
-    def test_037_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_039_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load eab"""
         parser = configparser.ConfigParser()
         parser["Directory"] = {"caaidentities": "foo.bar"}
@@ -568,7 +608,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
-    def test_038_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_040_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load eab"""
         parser = configparser.ConfigParser()
         parser["Directory"] = {"caaidentities": '["foo.bar", "foo.baz"]'}
@@ -584,7 +624,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
-    def test_039_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_041_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load eab"""
         parser = configparser.ConfigParser()
         parser["Directory"] = {"caaidentities": '["foo.bar"'}
@@ -598,14 +638,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(False, self.directory.suppress_product_information)
         self.assertFalse(self.directory.caaidentities)
         self.assertIn(
-            "ERROR:test_a2c:Error while loading the caaIdentities parameter: Expecting ',' delimiter: line 1 column 11 (char 10)",
+            "ERROR:test_a2c:Error when loading the caaIdentities parameter from config: Expecting ',' delimiter: line 1 column 11 (char 10)",
             lcm.output,
         )
         self.assertFalse(self.directory.profiles)
 
     @patch("acme_srv.directory.ca_handler_load", return_value=None)
     @patch("acme_srv.directory.load_config")
-    def test_040_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_042_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load eab"""
         parser = configparser.ConfigParser()
         parser["Directory"] = {"caaidentities": "foo.bar"}
@@ -626,7 +666,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
     @patch("acme_srv.directory.load_config")
-    def test_041_config_load(self, mock_load_cfg, mock_ca_handler_load):
+    def test_043_config_load(self, mock_load_cfg, mock_ca_handler_load):
         """test _config_load with unknown values config"""
         parser = configparser.ConfigParser()
         parser["Order"] = {"profiles": '{"foo": "bar", "bar": "foo"}'}
@@ -639,7 +679,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual({"foo": "bar", "bar": "foo"}, self.directory.profiles)
 
     @patch("acme_srv.directory.Directory._config_load")
-    def test_042__enter__(self, mock_cfg):
+    def test_044__enter__(self, mock_cfg):
         """test enter"""
         mock_cfg.return_value = True
         self.directory.__enter__()

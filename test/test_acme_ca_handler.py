@@ -2090,9 +2090,7 @@ class TestACMEHandler(unittest.TestCase):
         acmeclient = Mock()
         acmeclient.new_order = Mock(return_value="new_order")
         csr = "csr"
-        self.assertEqual(
-            "new_order", self.cahandler._order_new(acmeclient, "user_key", "csr")
-        )
+        self.assertEqual("new_order", self.cahandler._order_new(acmeclient, "csr"))
         self.assertTrue(acmeclient.new_order.called)
         acmeclient.new_order.assert_called_with(csr_pem="csr")
 
@@ -2102,9 +2100,7 @@ class TestACMEHandler(unittest.TestCase):
         acmeclient.new_order = Mock(return_value="new_order")
         csr = "csr"
         self.cahandler.profile = "profile"
-        self.assertEqual(
-            "new_order", self.cahandler._order_new(acmeclient, "user_key", "csr")
-        )
+        self.assertEqual("new_order", self.cahandler._order_new(acmeclient, "csr"))
         self.assertTrue(acmeclient.new_order.called)
         acmeclient.new_order.assert_called_with(csr_pem="csr", profile="profile")
 
@@ -2116,7 +2112,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
                 "new_order",
-                self.cahandler._order_new(acmeclient, "user_key", "csr_pem"),
+                self.cahandler._order_new(acmeclient, "csr_pem"),
             )
         self.assertIn(
             "WARNING:test_a2c:Failed to create order: mock_new. Try without profile information.",

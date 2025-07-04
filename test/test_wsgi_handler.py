@@ -2224,10 +2224,11 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(result, self.dbstore.certificate_lookup("name", "certname1"))
         self.dbstore.certificate_delete("name", "certname1")
+        # check if certificate is deleted
         self.assertFalse(self.dbstore.certificate_lookup("name", "certname1"))
 
     def test_105_certificate_delete(self):
-        """test DBstore.certificate_delete() method (succesful)"""
+        """test DBstore.certificate_delete() method (unsuccesful bcs of invalid column)"""
         data_dic = {
             "alg": "alg1",
             "jwk": '{"key11": "val11", "key12": "val12"}',
@@ -2259,6 +2260,7 @@ class TestACMEHandler(unittest.TestCase):
             "WARNING:test_a2c:Column: nam_e not found in certificate table",
             lcm.output,
         )
+        # check if certificate is NOT deleted
         self.assertTrue(self.dbstore.certificate_lookup("name", "certname1"))
 
     def test_105_certificatelist_get(self):
