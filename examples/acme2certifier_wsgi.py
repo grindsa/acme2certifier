@@ -57,6 +57,7 @@ try:
 except Exception:
     DEBUG = False
 
+URL_PREFIX = CONFIG.get("Directory", "url_prefix", fallback=None)
 
 
 def err_wrong_request_method(start_response):
@@ -516,7 +517,11 @@ def not_found(_environ, start_response):
 
 def redirect(environ, start_response):
     """redirect to directory ressource"""
-    start_response("302 Found", [("Location", "/directory")])
+    if URL_PREFIX:
+        start_response("302 Found", [("Location", URL_PREFIX + "/directory")])
+    else:
+        # redirect to directory
+        start_response("302 Found", [("Location", "/directory")])
     return []
 
 

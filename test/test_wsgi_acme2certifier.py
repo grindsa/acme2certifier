@@ -28,6 +28,7 @@ class FakeDBStore(object):
 class TestACMEHandler(unittest.TestCase):
     """test class for cgi_handler"""
 
+    @patch.dict("os.environ", {"ACME_SRV_CONFIGFILE": "ACME_SRV_CONFIGFILE"})
     def setUp(self):
         """setup unittest"""
         import logging

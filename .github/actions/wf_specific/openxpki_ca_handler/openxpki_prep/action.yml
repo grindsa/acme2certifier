@@ -40,40 +40,41 @@ runs:
       sed -i "s/approval_points: 1/approval_points: 0/g" openxpki-config/config.d/realm/democa/rpc/enroll.yaml
       sed -i "s/export_certificate: chain/export_certificate: fullchain/g" openxpki-config/config.d/realm/democa/rpc/enroll.yaml
       sed -i "s/dn: CN=\[\% CN.0 \%\],DC=Test Deployment,DC=OpenXPKI,DC=org/dn: CN=\[\% SAN_DNS.0 \%\]/g" openxpki-config/config.d/realm.tpl/profile/tls_server.yaml
-      cp contrib/wait_on_init.yaml  openxpki-config/config.d/system/local.yam
+      # cp contrib/wait_on_init.yaml  openxpki-config/config.d/system/local.yam
       docker-compose up &
-    shell: bash
-
-  - name: "Sleep for 60s"
-    uses: juliangruber/sleep-action@v2.0.3
-    with:
-      time: 60s
-
-  - name: "Fix 1st time start issues with OpenXPKI server"
-    working-directory: /tmp/openxpki/openxpki-docker
-    run: |
-      docker ps
-      docker stop openxpki-docker_openxpki-server_1
-      docker start openxpki-docker_openxpki-server_1
-    shell: bash
-
-  - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
-    with:
-      time: 10s
-
-  - name: "Configure OpenXPKI server"
-    working-directory: /tmp/openxpki
-    run: |
-      docker ps
-      docker exec -id openxpki-docker_openxpki-server_1 /bin/bash /etc/openxpki/contrib/sampleconfig.sh
-      docker exec -id openxpki-docker_openxpki-client_1 apt-get install -y libjson-pp-perl
     shell: bash
 
   - name: "Sleep for 45s"
     uses: juliangruber/sleep-action@v2.0.3
     with:
       time: 45s
+
+  # - name: "Fix 1st time start issues with OpenXPKI server"
+  #  working-directory: /tmp/openxpki/openxpki-docker
+  #  run: |
+  #    docker ps
+  #    docker stop OpenXPKI_Server
+  #    docker start OpenXPKI_Server
+  #   shell: bash
+
+  # - name: "Sleep for 10s"
+  #  uses: juliangruber/sleep-action@v2.0.3
+  #  with:
+  #    time: 10s
+
+  - name: "Configure OpenXPKI server"
+    working-directory: /tmp/openxpki
+    run: |
+      docker ps
+      docker exec -u root  -id OpenXPKI_Server /usr/share/doc/libopenxpki-perl/examples/sampleconfig.sh
+      # docker exec -id OpenXPKI_Server /bin/bash /etc/openxpki/contrib/sampleconfig.sh
+      docker exec -u root -id OpenXPKI_Client apt-get install -y libjson-pp-perl
+    shell: bash
+
+  - name: "Sleep for 60s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 60s
 
   - name: "Enroll keys for Client-authentication via scep"
     working-directory: ${{ inputs.WORKING_DIR }}

@@ -158,3 +158,6 @@ acme_srv/acme_srv.db.old.*
 *.key
 settings.json
 coverage.lcov
+
+# apple stuff
+.DS_Store

@@ -1,0 +1,95 @@
+name: "enroll_eab"
+description: "enroll_eab"
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: true
+    default: "rpm"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "EAB - Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    shell: bash
+
+  - name: "EAB - Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+
+  - name: "ACME Profile - 01 - Enroll lego with without template"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+    shell: bash
+
+  - name: "ACME Profile - 01 - Clear logs"
+    working-directory: examples/Docker/
+    run: |
+      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+      fi
+    shell: bash
+
+  - name: "ACME Profile - 02 - Enroll lego with a unknown template_name"
+    id: legofail01
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run --profile unknown
+    shell: bash
+
+  - name: "ACME Profile - 02 - check  result "
+    if: steps.legofail01.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "ACME Profile - 02 - Check logs"
+    working-directory: examples/Docker/
+    run: |
+      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+        docker-compose logs | grep "unknown"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep unknown
+      fi
+    shell: bash
+
+  - name: "ACME Profile - 03 - Enroll lego with am allowed template_name"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run --profile tls-client
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
+    shell: bash
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "ACME Profile - 03 - Check logs"
+    working-directory: examples/Docker/
+    run: |
+      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+        docker-compose logs | grep "cert_profile_name: tls-client"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_profile_name: tls-client"
+      fi
+    shell: bash
