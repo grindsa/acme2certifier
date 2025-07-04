@@ -133,7 +133,7 @@ class Order(object):
         self.logger.debug("Order._order_auth_add() ended with %s", error)
         return error
 
-    def _profile_add(self, data_dic: Dict[str, str], payload: Dict[str, str]) -> str:
+    def _profile_add(self, data_dic: Dict[str, str], payload: Dict[str, str]) -> Tuple[str, Dict[str, str]]:
         """add profile to database"""
         self.logger.debug("Order._profile_add(%s)", data_dic)
 
