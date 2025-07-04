@@ -32,6 +32,7 @@ ca_bundle: <filename>
 cert_profile_name: <name>
 ee_profile_name: <name>
 username: <name>
+username_append_cn: <True|False>
 enrollment_code: <value>
 ca_name: <name>
 request_timeout: <seconds>
@@ -43,8 +44,9 @@ eab_profiling: <True|False>
 - cert_passphrase - passphrase to access the pkcs#12 container
 - cert_passphrase_variable - *optional* - name of the environment variable containing the cert_passphrase (a configured `cert_passphrase` parameter in acme_srv.cfg takes precedence)
 - ca_bundle - optional - ca certificate chain in pem format needed to validate the EJBCA server certificate - can be True/False or a filename (default: True)
-- username - PKI username
+- username - EJBCA username
 - username_variable - *optional* - name of the environment variable containing the EJBCA username (a configured `username` parameter in acme_srv.cfg takes precedence)
+- username_append_cn - *optional* - add common-name (or 1st SAN) to EJBCA username to allow a better differenciation in the EJBCA-UI
 - enrollment_code - enrollment code
 - enrollment_code_variable - *optional* - name of the environment variable containing the enrollment_code for the EJBCA user (a configured `enrollment_code` parameter in acme_srv.cfg takes precedence)
 - cert_profile_name - name of the certificate profile

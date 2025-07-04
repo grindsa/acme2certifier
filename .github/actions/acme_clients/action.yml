@@ -64,7 +64,6 @@ runs:
           echo "delete cert-1.pem"
           rm -f cert-1.pem
         fi
-        ls -la
       shell: bash
 
     - name: "Sleep for 5s"
