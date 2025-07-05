@@ -413,10 +413,10 @@ def cert_dates_get(logger: logging.Logger, certificate: str) -> Tuple[int, int]:
     try:
         cert = cert_load(logger, certificate, recode=True)
         issue_date = date_to_uts_utc(
-            cert.not_valid_before, _tformat="%Y-%m-%d %H:%M:%S"
+            cert.not_valid_before_utc, _tformat="%Y-%m-%d %H:%M:%S"
         )
         expiration_date = date_to_uts_utc(
-            cert.not_valid_after, _tformat="%Y-%m-%d %H:%M:%S"
+            cert.not_valid_after_utc, _tformat="%Y-%m-%d %H:%M:%S"
         )
     except Exception:
         issue_date = 0
@@ -1622,9 +1622,7 @@ def servercert_get(
             "Error while getting the peer certifiate: minimum tls version not supported"
         )
 
-    context.options |= ssl.OP_NO_SSLv3
-    context.options |= ssl.OP_NO_TLSv1
-    context.options |= ssl.OP_NO_TLSv1_1
+    context.options |= ssl.PROTOCOL_TLS_SERVER
 
     if proxy_server:
         (proxy_proto, proxy_addr, proxy_port) = proxystring_convert(
