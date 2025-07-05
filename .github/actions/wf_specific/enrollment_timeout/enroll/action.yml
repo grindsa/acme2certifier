@@ -48,9 +48,11 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker-compose logs | grep "Certificate._enroll(): reuse existing certificate"
+        docker-compose logs | grep "Reuse existing certificate"
+        docker-compose logs | grep "issued for account" | grep "Serial:" | grep "reused: True"
       elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
-        docker exec acme-srv grep "Certificate._enroll(): reuse existing certificate" /var/log/messages
+        docker exec acme-srv grep "Reuse existing certificate" /var/log/messages
+        docker exec -i acme-srv bash -c 'tail -n 500 /var/log/messages | grep "issued for account" | grep "Serial:" | grep "reused: True"'
       fi
     shell: bash
 
