@@ -156,6 +156,27 @@ class Certificate(object):
         self.logger.debug("Certificate._authorization_check() ended with %s", result)
         return result
 
+    def _cert_issuance_log_text(self, certificate_name, data_dic):
+        """log certissuane as text string"""
+
+        log_string = f'Certificate {certificate_name} issued for account {data_dic["account_name"]}'
+
+        if data_dic.get("eab_kid", ""):
+            log_string = log_string + f' with EAB KID {data_dic["eab_kid"]}'
+
+        if data_dic.get("profile", ""):
+            log_string = log_string + f' with Profile {data_dic["profile"]}'
+
+        log_string = (
+            log_string
+            + f'. Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}'
+        )
+
+        if data_dic.get("reused", ""):
+            log_string = log_string + f' reused: {data_dic["reused"]}'
+
+        self.logger.info(log_string)
+
     def _cert_issuance_log(
         self,
         certificate_name: str,
@@ -169,7 +190,9 @@ class Certificate(object):
         # lookup account name and kid
         try:
             order_dic = self.dbstore.order_lookup(
-                "name", order_name, ["id", "name", "account__name", "account__eab_kid"]
+                "name",
+                order_name,
+                ["id", "name", "account__name", "account__eab_kid", "profile"],
             )
         except Exception as err:
             self.logger.error(
@@ -180,13 +203,23 @@ class Certificate(object):
 
         data_dic = {
             "account_name": order_dic.get("account__name", ""),
-            "eab_kid": order_dic.get("account__eab_kid", ""),
             "certifcate_name": certificate_name,
-            "reused": cert_reusage,
             "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
             "common_name": cert_cn_get(self.logger, certificate),
             "san_list": cert_san_get(self.logger, certificate),
         }
+
+        if cert_reusage:
+            # add cert reusage flag if set to true
+            data_dic["reused"] = cert_reusage
+
+        if order_dic.get("account__eab_kid", ""):
+            # add kid if existing
+            data_dic["eab_kid"] = order_dic.get("account__eab_kid", "")
+
+        if order_dic.get("profile", None):
+            # add profile if existing
+            data_dic["profile"] = order_dic.get("profile", "")
 
         if self.cert_operations_log == "json":
             # log in json format
@@ -196,16 +229,7 @@ class Certificate(object):
             )
         else:
             # log in text format
-            self.logger.info(
-                "Certificate '%s' issued for account '%s' with EAB KID '%s'. Serial: %s, Common Name: %s, SANs: %s, reused: %s",
-                certificate_name,
-                data_dic["account_name"],
-                data_dic["eab_kid"],
-                data_dic["serial_number"],
-                data_dic["common_name"],
-                data_dic["san_list"],
-                data_dic["reused"],
-            )
+            self._cert_issuance_log_text(certificate_name, data_dic)
 
         self.logger.debug("Certificate._certificate_issuance_log() ended")
 
