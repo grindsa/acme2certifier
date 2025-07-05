@@ -253,13 +253,15 @@ class Certificate(object):
 
         data_dic = {
             "account_name": cert_dic.get("order__account__name", ""),
-            "eab_kid": cert_dic.get("order__account__eab_kid", ""),
             "certifcate_name": cert_dic.get("name", ""),
             "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
             "common_name": cert_cn_get(self.logger, certificate),
             "san_list": cert_san_get(self.logger, certificate),
             "status": status,
         }
+
+        if cert_dic.get("order__account__eab_kid", ""):
+            data_dic["eab_kid"] = cert_dic.get("order__account__eab_kid")
 
         if self.cert_operations_log == "json":
             # log in json format
@@ -268,17 +270,17 @@ class Certificate(object):
                 json.dumps(data_dic, sort_keys=True),
             )
         else:
-            # log in text format
-            self.logger.info(
-                "Certificate '%s' revokation %s for account '%s' with EAB KID '%s'. Serial: %s, Common Name: %s, SANs: %s",
-                data_dic["certifcate_name"],
-                data_dic["status"],
-                data_dic["account_name"],
-                data_dic["eab_kid"],
-                data_dic["serial_number"],
-                data_dic["common_name"],
-                data_dic["san_list"],
+
+            log_string = f'"Certificate {data_dic["certifcate_name"]} revocation {data_dic["status"]} for account {data_dic["account_name"]}'
+            if data_dic.get("eab_kid", ""):
+                log_string = log_string + f'with EAB KID {data_dic["eab_kid"]}'
+            log_string = (
+                log_string
+                + f'. Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}'
             )
+
+            # log in text format
+            self.logger.info(log_string)
 
     def _cert_reusage_check(self, csr: str) -> Tuple[None, str, str, str]:
         """check if an existing certificate an be reused"""
