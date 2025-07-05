@@ -732,7 +732,8 @@ class DBstore(object):
                         status.name as status__name,
                         status.id as status__id,
                         account.name as account__name,
-                        account.id as account_id
+                        account.id as account_id,
+                        account.eab_kid as account__eab_kid
                     from orders
                     INNER JOIN status on status.id = orders.status_id
                     INNER JOIN account on account.id = orders.account_id
