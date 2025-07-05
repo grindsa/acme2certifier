@@ -332,7 +332,7 @@ class Certificate(object):
                     message = f'reused certificate from id: {certificate["id"]}'
                     break
 
-        self.logger.debug("Certificate._cert_reusage_check() ended with {%s", message)
+        self.logger.debug("Certificate._cert_reusage_check() ended with %s", message)
         return (None, cert, cert_raw, message)
 
     def _config_hooks_load(self, config_dic: Dict[str, str]):
