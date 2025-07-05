@@ -50,7 +50,6 @@ jobs:
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 300\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
-        exit 1
 
     - name: "Enrollment"
       uses: ./.github/actions/wf_specific/enrollment_timeout/enroll
@@ -101,10 +100,8 @@ jobs:
         sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        time.sleep(22)\\n        self.logger.debug('CAhandler.enroll(): timeout done')/g" data/acme_ca/ca_handler.py
         sudo chmod 777 data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/acme_srv.cfg
-
         # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\nenrollment_timeout: 15/g" data/acme_srv.cfg
         sudo sed -i "s/handler_file: examples\/ca_handler\/openssl_ca_handler.py/handler_file: \/opt\/acme2certifier\/volume\/acme_ca\/ca_handler.py/g" data/acme_srv.cfg
-        exit 1
 
     - name: "Execute install scipt"
       run: |
@@ -168,7 +165,6 @@ jobs:
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
         # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg
         sudo sed -i "s/handler_file: examples\/ca_handler\/openssl_ca_handler.py/handler_file: \/opt\/acme2certifier\/volume\/acme_ca\/ca_handler.py/g" data/volume/acme_srv.cfg
-        exit 1
 
     - name: "Execute install scipt"
       run: |
