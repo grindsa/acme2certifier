@@ -1,5 +1,7 @@
 <!-- markdownlint-disable MD013 -->
+
 <!-- wiki-title Proxy Support in acme2certifier -->
+
 # Proxy Support in acme2certifier
 
 Proxy support was introduced in **acme2certifier** version **0.18**.
@@ -9,7 +11,7 @@ Currently, both **HTTP** and **SOCKS5** proxies are supported for:
 - **Validation of HTTP and TLS-ALPN challenges**
 - **Usage in the following CA handlers:**
   - `certifier_ca_handler.py`
-  - `est_ca_handler.py`  
+  - `est_ca_handler.py`
   - `mscertsrv_ca_handler.py`
 
 ## Configuration
@@ -34,9 +36,9 @@ A **destination** can be defined as:
 
 ### Wildcards and Regular Expressions
 
-- Wildcards are supported:  
+- Wildcards are supported:
   Example: `host*.bar.local`
-- Regular expressions are also supported:  
+- Regular expressions are also supported:
   Example: `^hostname.bar.local$`
 
 ### Global Proxy Configuration

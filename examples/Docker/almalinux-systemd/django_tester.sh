@@ -20,11 +20,10 @@ case "$1" in
 
   *)
     echo "install missing packages"
-    yum install -y procps rsyslog
-
-    systemctl start rsyslog.service
-
     yum -y install epel-release
+    yum install -y procps syslog-ng
+    systemctl start syslog-ng.service
+
     yum -y localinstall /tmp/acme2certifier/*.rpm
     yum -y install python3-PyMySQL python3-sqlparse python3-psycopg2 python3-pyyaml python3-mysqlclient
 

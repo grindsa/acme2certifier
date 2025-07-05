@@ -1,4 +1,5 @@
 <!-- markdownlint-disable MD013 -->
+
 <!-- wiki-title How to Create Your Own CA Handler -->
 
 # How to Create Your Own CA Handler
@@ -16,7 +17,7 @@ The following skeleton outlines the input parameters received by `acme2certifier
 
 ```python
 class CAhandler:
-    """ CA handler """
+    """CA handler"""
 
     def __init__(self, debug=None, logger=None):
         """
@@ -28,15 +29,15 @@ class CAhandler:
         self.logger = logger
 
     def __enter__(self):
-        """ Makes CAhandler a context manager """
+        """Makes CAhandler a context manager"""
         return self
 
     def __exit__(self, *args):
-        """ Closes the connection at the end of the context """
+        """Closes the connection at the end of the context"""
         pass
 
     def enroll(self, csr):
-        """ Enrolls a certificate """
+        """Enrolls a certificate"""
         # Input:
         #     csr - CSR in PKCS#10 format
 
@@ -47,13 +48,13 @@ class CAhandler:
         #     poll_identifier - Callback identifier to track enrollment requests when the CA server does not
         #                       issue certificates immediately.
 
-        self.logger.debug('Certificate.enroll()')
+        self.logger.debug("Certificate.enroll()")
         ...
-        self.logger.debug('Certificate.enroll() ended')
+        self.logger.debug("Certificate.enroll() ended")
         return None, None, None, None
 
     def poll(self, cert_name, poll_identifier, csr):
-        """ Polls the status of a pending CSR and downloads certificates """
+        """Polls the status of a pending CSR and downloads certificates"""
         # Input:
         #     cert_name - Certificate resource name
         #     poll_identifier - Poll identifier
@@ -66,12 +67,12 @@ class CAhandler:
         #     poll_identifier - Updated callback identifier for future lookups
         #     rejected - Indicates whether the request has been rejected by the CA administrator.
 
-        self.logger.debug('CAhandler.poll()')
+        self.logger.debug("CAhandler.poll()")
         ...
         return None, None, None, None, False
 
-    def revoke(self, cert, rev_reason='unspecified', rev_date=None):
-        """ Revokes a certificate """
+    def revoke(self, cert, rev_reason="unspecified", rev_date=None):
+        """Revokes a certificate"""
         # Input:
         #     cert - Certificate in PEM format
         #     rev_reason - Revocation reason
@@ -82,12 +83,12 @@ class CAhandler:
         #     message - Error message if applicable, None otherwise
         #     detail - Additional error details
 
-        self.logger.debug(f'CAhandler.revoke({rev_reason}: {rev_date})')
+        self.logger.debug(f"CAhandler.revoke({rev_reason}: {rev_date})")
         ...
         return 200, None, None
 
     def trigger(self, payload):
-        """ Processes triggers sent by the CA server """
+        """Processes triggers sent by the CA server"""
         # Input:
         #     payload - Payload content
 
@@ -96,9 +97,9 @@ class CAhandler:
         #     cert_bundle - Certificate chain in PEM format
         #     cert_raw - Certificate in ASN.1 (binary) format, base64 encoded
 
-        self.logger.debug('CAhandler.trigger()')
+        self.logger.debug("CAhandler.trigger()")
         ...
-        self.logger.debug('CAhandler.trigger() ended with error: {0}'.format(error))
+        self.logger.debug("CAhandler.trigger() ended with error: {0}".format(error))
         return (error, cert_bundle, cert_raw)
 ```
 

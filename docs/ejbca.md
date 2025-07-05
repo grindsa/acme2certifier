@@ -1,5 +1,7 @@
 <!-- markdownlint-disable  MD013 -->
+
 <!-- wiki-title CA handler for EJBCA -->
+
 # Connecting to Keyfactor's EJBCA
 
 This handler can be used to enroll certificates from the [Open Source version of Keyfactor's EJBCA](https://www.ejbca.org) as ACME support is only available in the Enterprise version.
@@ -30,6 +32,7 @@ ca_bundle: <filename>
 cert_profile_name: <name>
 ee_profile_name: <name>
 username: <name>
+username_append_cn: <True|False>
 enrollment_code: <value>
 ca_name: <name>
 request_timeout: <seconds>
@@ -41,17 +44,18 @@ eab_profiling: <True|False>
 - cert_passphrase - passphrase to access the pkcs#12 container
 - cert_passphrase_variable - *optional* - name of the environment variable containing the cert_passphrase (a configured `cert_passphrase` parameter in acme_srv.cfg takes precedence)
 - ca_bundle - optional - ca certificate chain in pem format needed to validate the EJBCA server certificate - can be True/False or a filename (default: True)
-- username - PKI username
+- username - EJBCA username
 - username_variable - *optional* - name of the environment variable containing the EJBCA username (a configured `username` parameter in acme_srv.cfg takes precedence)
+- username_append_cn - *optional* - add common-name (or 1st SAN) to EJBCA username to allow a better differenciation in the EJBCA-UI
 - enrollment_code - enrollment code
 - enrollment_code_variable - *optional* - name of the environment variable containing the enrollment_code for the EJBCA user (a configured `enrollment_code` parameter in acme_srv.cfg takes precedence)
 - cert_profile_name - name of the certificate profile
 - ee_profile_name - name of the end entity profile
 - ca_name - name of the CA used to enroll certificates
-- allowed_domainlist - optional - list of domain-names allowed for enrollment in JSON format, for example: ["bar.local$, bar.foo.local] (default: [])
+- allowed_domainlist - optional - list of domain-names allowed for enrollment in JSON format, for example: \["bar.local$, bar.foo.local\] (default: \[\])
 - eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
 - enrollment_config_log - optional - log enrollment parameters (default False)
-- enrollment_config_log_skip_list - optional - list of enrollment parameters not to be logged in JSON format, for example: [ "parameter1", "parameter2" ] (default: [])
+- enrollment_config_log_skip_list - optional - list of enrollment parameters not to be logged in JSON format, for example: \[ "parameter1", "parameter2" \] (default: \[\])
 - request_timeout - optional - requests timeout in seconds for requests (default: 5s)
 
 You can test the connection by running the following curl command against your EJBCA server.
@@ -74,7 +78,22 @@ Use your favorite acme client for certificate enrollment. A list of clients used
 
 ## Passing a profile_id from client to server
 
-The handler makes use of the [header_info_list feature](header_info.md) allowing an ACME client to specify a certificate profile to be used during certificate enrollment. This feature is disabled by default and must be activated in `acme_srv.cfg` as shown below
+acme2certifier supports the the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a `cert_profile_name` parameter to be submitted to the CA server.
+
+The list of supported profiles must be configured in `acme_srv.cfg`
+
+```config
+[Order]
+profiles: {"profile1": "http://foo.bar/profile1", "profile2": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+```
+
+Once enabled, a client can specify the cert_profile_name to be used as part of an order request. Below an example for lego:
+
+```bash
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile profile2
+```
+
+Further, this handler makes use of the [header_info_list feature](header_info.md) allowing an ACME client to specify a certificate profile to be used during certificate enrollment. This feature is disabled by default and must be activated in `acme_srv.cfg` as shown below
 
 ```config
 [Order]
