@@ -1128,19 +1128,6 @@ def logger_setup(debug: bool) -> logging.Logger:
 
     logging.basicConfig(format=log_format, datefmt="%Y-%m-%d %H:%M:%S", level=log_mode)
     logger = logging.getLogger("acme2certifier")
-
-    # Remove any existing handlers
-    # if logger.hasHandlers():
-    #    logger.handlers.clear()
-    # Remove all handlers (including console)
-    # for handler in logger.handlers[:]:
-    #    logger.removeHandler(handler)
-
-    # File handler
-    file_handler = logging.FileHandler("a2c.log", encoding="utf-8")
-    file_handler.setFormatter(logging.Formatter(log_format))
-    logger.addHandler(file_handler)
-
     return logger
 
 
