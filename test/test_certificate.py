@@ -3535,6 +3535,217 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("certid", self.certificate._renewal_info_get("cert"))
         self.assertTrue(mock_p2l.called)
 
+    @patch("acme_srv.certificate.cert_san_get")
+    @patch("acme_srv.certificate.cert_cn_get")
+    @patch("acme_srv.certificate.cert_serial_get")
+    def test_208_cert_issuance_log(self, mock_serial, mock_cn, mock_san):
+        """test _cert_issuance_log"""
+        mock_serial.return_value = "serial"
+        mock_cn.return_value = "cn"
+        mock_san.return_value = ["san1", "san2"]
+        self.certificate.cert_operations_log = "json"
+        self.certificate.dbstore.order_lookup.return_value = {
+            "account__name": "account__name",
+            "account__eab_kid": "account__eab_kid",
+        }
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.certificate._cert_issuance_log(
+                "cert_name", "certificate", "order_name", "cert_reusage"
+            )
+        self.assertIn(
+            'INFO:test_a2c:Certificate issued: {"account_name": "account__name", "certifcate_name": "cert_name", "common_name": "cn", "eab_kid": "account__eab_kid", "reused": "cert_reusage", "san_list": ["san1", "san2"], "serial_number": "serial"}',
+            lcm.output,
+        )
+        self.assertTrue(self.certificate.dbstore.order_lookup.called)
+
+    @patch("acme_srv.certificate.cert_san_get")
+    @patch("acme_srv.certificate.cert_cn_get")
+    @patch("acme_srv.certificate.cert_serial_get")
+    def test_209_cert_issuance_log(self, mock_serial, mock_cn, mock_san):
+        """test _cert_issuance_log"""
+        mock_serial.return_value = "serial"
+        mock_cn.return_value = "cn"
+        mock_san.return_value = ["san1", "san2"]
+        self.certificate.cert_operations_log = True
+        self.certificate.dbstore.order_lookup.return_value = {
+            "account__name": "account__name",
+        }
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.certificate._cert_issuance_log(
+                "cert_name", "certificate", "order_name", False
+            )
+        self.assertIn(
+            "INFO:test_a2c:Certificate cert_name issued for account account__name. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            lcm.output,
+        )
+        self.assertTrue(self.certificate.dbstore.order_lookup.called)
+
+    @patch("acme_srv.certificate.cert_san_get")
+    @patch("acme_srv.certificate.cert_cn_get")
+    @patch("acme_srv.certificate.cert_serial_get")
+    def test_210_cert_issuance_log(self, mock_serial, mock_cn, mock_san):
+        """test _cert_issuance_log with kid"""
+        mock_serial.return_value = "serial"
+        mock_cn.return_value = "cn"
+        mock_san.return_value = ["san1", "san2"]
+        self.certificate.cert_operations_log = True
+        self.certificate.dbstore.order_lookup.return_value = {
+            "account__name": "account__name",
+            "account__eab_kid": "account__eab_kid",
+        }
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.certificate._cert_issuance_log(
+                "cert_name", "certificate", "order_name", False
+            )
+        self.assertIn(
+            "INFO:test_a2c:Certificate cert_name issued for account account__name with EAB KID account__eab_kid. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            lcm.output,
+        )
+        self.assertTrue(self.certificate.dbstore.order_lookup.called)
+
+    @patch("acme_srv.certificate.cert_san_get")
+    @patch("acme_srv.certificate.cert_cn_get")
+    @patch("acme_srv.certificate.cert_serial_get")
+    def test_211_cert_issuance_log(self, mock_serial, mock_cn, mock_san):
+        """test _cert_issuance_log with kid and profile"""
+        mock_serial.return_value = "serial"
+        mock_cn.return_value = "cn"
+        mock_san.return_value = ["san1", "san2"]
+        self.certificate.cert_operations_log = True
+        self.certificate.dbstore.order_lookup.return_value = {
+            "account__name": "account__name",
+            "account__eab_kid": "account__eab_kid",
+            "profile": "profile",
+        }
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.certificate._cert_issuance_log(
+                "cert_name", "certificate", "order_name", "reused"
+            )
+        self.assertIn(
+            "INFO:test_a2c:Certificate cert_name issued for account account__name with EAB KID account__eab_kid with Profile profile. Serial: serial, Common Name: cn, SANs: ['san1', 'san2'] reused: reused",
+            lcm.output,
+        )
+        self.assertTrue(self.certificate.dbstore.order_lookup.called)
+
+    @patch("acme_srv.certificate.cert_san_get")
+    @patch("acme_srv.certificate.cert_cn_get")
+    @patch("acme_srv.certificate.cert_serial_get")
+    def test_212_cert_issuance_log(self, mock_serial, mock_cn, mock_san):
+        """test _cert_issuance_log with kid and profile"""
+        mock_serial.return_value = "serial"
+        mock_cn.return_value = "cn"
+        mock_san.return_value = ["san1", "san2"]
+        self.certificate.cert_operations_log = True
+        self.certificate.dbstore.order_lookup.return_value = {
+            "account__name": "account__name",
+            "account__eab_kid": "account__eab_kid",
+            "profile": "profile",
+        }
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.certificate._cert_issuance_log(
+                "cert_name", "certificate", "order_name", False
+            )
+        self.assertIn(
+            "INFO:test_a2c:Certificate cert_name issued for account account__name with EAB KID account__eab_kid with Profile profile. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            lcm.output,
+        )
+        self.assertTrue(self.certificate.dbstore.order_lookup.called)
+
+    @patch("acme_srv.certificate.cert_san_get")
+    @patch("acme_srv.certificate.cert_cn_get")
+    @patch("acme_srv.certificate.cert_serial_get")
+    def test_213_cert_issuance_log(self, mock_serial, mock_cn, mock_san):
+        """test _cert_issuance_log"""
+        mock_serial.return_value = "serial"
+        mock_cn.return_value = "cn"
+        mock_san.return_value = ["san1", "san2"]
+        self.certificate.cert_operations_log = "json"
+        self.certificate.dbstore.order_lookup.side_effect = Exception(
+            "order_lookup error"
+        )
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.certificate._cert_issuance_log(
+                "cert_name", "certificate", "order_name", "cert_reusage"
+            )
+        self.assertIn(
+            'INFO:test_a2c:Certificate issued: {"account_name": "", "certifcate_name": "cert_name", "common_name": "cn", "reused": "cert_reusage", "san_list": ["san1", "san2"], "serial_number": "serial"}',
+            lcm.output,
+        )
+        self.assertIn(
+            "ERROR:test_a2c:Database error: failed to account information for cert issuance log: order_lookup error",
+            lcm.output,
+        )
+        self.assertTrue(self.certificate.dbstore.order_lookup.called)
+
+    @patch("acme_srv.certificate.cert_san_get")
+    @patch("acme_srv.certificate.cert_cn_get")
+    @patch("acme_srv.certificate.cert_serial_get")
+    def test_211_cert_revocation_log(self, mock_serial, mock_cn, mock_san):
+        """test Certificate._cert_revocation_log"""
+        mock_serial.return_value = "serial"
+        mock_cn.return_value = "cn"
+        mock_san.return_value = ["san1", "san2"]
+        self.certificate.dbstore.certificate_lookup.side_effect = None
+        self.certificate.dbstore.certificate_lookup.return_value = {
+            "name": "certificate_name",
+            "order__account__name": "account__name",
+            "order__account__eab_kid": "account__eab_kid",
+        }
+        self.certificate.cert_operations_log = "json"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.certificate._cert_revocation_log("certificate", "status")
+        self.assertIn(
+            'INFO:test_a2c:Certificate revoked: {"account_name": "account__name", "certifcate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "status"}',
+            lcm.output,
+        )
+
+    @patch("acme_srv.certificate.cert_san_get")
+    @patch("acme_srv.certificate.cert_cn_get")
+    @patch("acme_srv.certificate.cert_serial_get")
+    def test_212_cert_revocation_log(self, mock_serial, mock_cn, mock_san):
+        """test Certificate._cert_revocation_log"""
+        mock_serial.return_value = "serial"
+        mock_cn.return_value = "cn"
+        mock_san.return_value = ["san1", "san2"]
+        self.certificate.cert_operations_log = "json"
+        self.certificate.dbstore.certificate_lookup.side_effect = None
+        self.certificate.dbstore.certificate_lookup.return_value = {
+            "name": "certificate_name",
+            "order__account__name": "account__name",
+            "order__account__eab_kid": "account__eab_kid",
+        }
+        self.certificate.cert_operations_log = True
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.certificate._cert_revocation_log("certificate", "status")
+        self.assertIn(
+            "INFO:test_a2c:Certificate 'certificate_name' revokation status for account 'account__name' with EAB KID 'account__eab_kid'. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            lcm.output,
+        )
+
+    @patch("acme_srv.certificate.cert_san_get")
+    @patch("acme_srv.certificate.cert_cn_get")
+    @patch("acme_srv.certificate.cert_serial_get")
+    def test_213_cert_revocation_log(self, mock_serial, mock_cn, mock_san):
+        """test Certificate._cert_revocation_log"""
+        mock_serial.return_value = "serial"
+        mock_cn.return_value = "cn"
+        mock_san.return_value = ["san1", "san2"]
+        self.certificate.cert_operations_log = "json"
+        self.certificate.dbstore.certificate_lookup.side_effect = Exception(
+            "certificate_lookup error"
+        )
+        self.certificate.cert_operations_log = True
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.certificate._cert_revocation_log("certificate", "status")
+        self.assertIn(
+            "ERROR:test_a2c:Database error: failed to account information for cert revocation: certificate_lookup error",
+            lcm.output,
+        )
+        self.assertIn(
+            "INFO:test_a2c:Certificate '' revokation status for account '' with EAB KID ''. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            lcm.output,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
