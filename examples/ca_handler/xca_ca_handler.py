@@ -353,7 +353,7 @@ class CAhandler(object):
 
         # set cert_validity
         if "validity" in template_dic:
-            self.logger.info(
+            self.logger.debug(
                 "Take validity from template: %s", template_dic["validity"]
             )
             # take validity from template
@@ -905,15 +905,15 @@ class CAhandler(object):
 
         if kuval:
             # we have a key-usage value from template
-            self.logger.info("Generate KeyUsage Extension with data from template")
+            self.logger.debug("Generate KeyUsage Extension with data from template")
             ku_dic = self._ku_dict_generate(kuval)
         elif ku_csr:
             # no data from template but data from csr
-            self.logger.info("Generate KeyUsage Extension with data from csr")
+            self.logger.debug("Generate KeyUsage Extension with data from csr")
             ku_dic = ku_csr
         else:
             # no data from template no data from csr - default (23)
-            self.logger.info("Generate KeyUsage Extension with value 23")
+            self.logger.debug("Generate KeyUsage Extension with value 23")
             ku_dic = self._ku_dict_generate(23)
 
         self.logger.debug("CAhandler._kue_generate() ended with: %s", ku_dic)

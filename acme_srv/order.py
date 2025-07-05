@@ -121,9 +121,7 @@ class Order(object):
             # add order to db
             oid = self.dbstore.order_add(data_dic)
         except Exception as err_:
-            self.logger.critical(
-                "Database error: failed to add order: %s", err_
-            )
+            self.logger.critical("Database error: failed to add order: %s", err_)
             oid = None
 
         if not error:
