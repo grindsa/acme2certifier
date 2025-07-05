@@ -1404,10 +1404,10 @@ class TestACMEHandler(unittest.TestCase):
             "encipher_only": False,
             "decipher_only": False,
         }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup))
         self.assertIn(
-            "INFO:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
+            "DEBUG:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
         )
 
     def test_130__kue_generate(self):
@@ -1424,10 +1424,10 @@ class TestACMEHandler(unittest.TestCase):
             "encipher_only": False,
             "decipher_only": False,
         }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup))
         self.assertIn(
-            "INFO:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
+            "DEBUG:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
         )
 
     def test_131__kue_generate(self):
@@ -1444,10 +1444,10 @@ class TestACMEHandler(unittest.TestCase):
             "encipher_only": False,
             "decipher_only": False,
         }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup))
         self.assertIn(
-            "INFO:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
+            "DEBUG:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
         )
 
     def test_132__kue_generate(self):
@@ -1464,19 +1464,19 @@ class TestACMEHandler(unittest.TestCase):
             "encipher_only": False,
             "decipher_only": False,
         }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup))
         self.assertIn(
-            "INFO:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
+            "DEBUG:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
         )
 
     def test_133__kue_generate(self):
         """CAhandler._kue_generate() - kup none but csr_extensions"""
         kup = None
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual("ku_csr", self.cahandler._kue_generate(kup, "ku_csr"))
         self.assertIn(
-            "INFO:test_a2c:Generate KeyUsage Extension with data from csr", lcm.output
+            "DEBUG:test_a2c:Generate KeyUsage Extension with data from csr", lcm.output
         )
 
     def test_134__kue_generate(self):
@@ -1493,20 +1493,20 @@ class TestACMEHandler(unittest.TestCase):
             "encipher_only": False,
             "decipher_only": False,
         }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup, "ku_csr"))
         self.assertIn(
-            "INFO:test_a2c:Generate KeyUsage Extension with data from template",
+            "DEBUG:test_a2c:Generate KeyUsage Extension with data from template",
             lcm.output,
         )
 
     def test_135__kue_generate(self):
         """CAhandler._kue_generate() - kup 0 csr_extensions"""
         kup = 0
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual("ku_csr", self.cahandler._kue_generate(kup, "ku_csr"))
         self.assertIn(
-            "INFO:test_a2c:Generate KeyUsage Extension with data from csr", lcm.output
+            "DEBUG:test_a2c:Generate KeyUsage Extension with data from csr", lcm.output
         )
 
     @patch("examples.ca_handler.xca_ca_handler.CAhandler._kue_generate")
