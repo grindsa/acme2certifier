@@ -297,6 +297,7 @@ jobs:
         sudo echo "profile_id: 100" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
@@ -322,6 +323,8 @@ jobs:
 
     - name: "EAB ACME Profile - Enrollment"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
+      with:
+        DEPLOYMENT_TYPE: container
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
@@ -657,6 +660,7 @@ jobs:
         sudo echo "profile_id: 100" >> data/acme_srv.cfg
         sudo echo "eab_profiling: True" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_operations_log: True/g" data/acme_srv.cfg
         sudo echo -e "\n\n[EABhandler]" >> data/acme_srv.cfg
         sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
         sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
@@ -684,6 +688,8 @@ jobs:
 
     - name: "EAB ACME Profile - Enrollment"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
+      with:
+        DEPLOYMENT_TYPE: rpm
 
 
     - name: "[ * ] collecting test logs"
