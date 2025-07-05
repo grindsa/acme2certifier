@@ -99,7 +99,7 @@ jobs:
         sudo sed -i "s/import uuid/import uuid\\nimport time/g" data/acme_ca/ca_handler.py
         sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        time.sleep(22)\\n        self.logger.debug('CAhandler.enroll(): timeout done')/g" data/acme_ca/ca_handler.py
         sudo chmod 777 data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\ncert_operations_log: True/g" data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/acme_srv.cfg
         # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\nenrollment_timeout: 15/g" data/acme_srv.cfg
         sudo sed -i "s/handler_file: examples\/ca_handler\/openssl_ca_handler.py/handler_file: \/opt\/acme2certifier\/volume\/acme_ca\/ca_handler.py/g" data/acme_srv.cfg
 
@@ -162,7 +162,7 @@ jobs:
         sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        self.logger.debug('CAhandler.enroll(): timeout start')\\n        time.sleep(30)\\n        self.logger.debug('CAhandler.enroll(): timeout done')/g" data/volume/acme_ca/ca_handler.py
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
         sudo chmod 777 data/volume/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\ncert_operations_log: True/g" data/volume/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
         # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg
         sudo sed -i "s/handler_file: examples\/ca_handler\/openssl_ca_handler.py/handler_file: \/opt\/acme2certifier\/volume\/acme_ca\/ca_handler.py/g" data/volume/acme_srv.cfg
 
