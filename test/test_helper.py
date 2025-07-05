@@ -1840,7 +1840,11 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
     @patch("acme_srv.helper.load_config")
     def test_178_logger_setup(self, mock_load_cfg):
         """logger setup"""
-        mock_load_cfg.return_value = {"Helper": {"log_format": "%(asctime)s - acme2certifier - %(levelname)s - %(message)s"}}
+        mock_load_cfg.return_value = {
+            "Helper": {
+                "log_format": "%(asctime)s - acme2certifier - %(levelname)s - %(message)s"
+            }
+        }
         self.assertTrue(self.logger_setup(True))
 
     @patch("configparser.RawConfigParser")
