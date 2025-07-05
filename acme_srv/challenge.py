@@ -81,8 +81,7 @@ class Challenge(object):
             challenge_list = self.dbstore.challenges_search(key, value, vlist)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._challengelist_search(): %s",
-                err_,
+                "Database error: failed to search for challenges: %s", err_
             )
             challenge_list = []
 
@@ -159,7 +158,7 @@ class Challenge(object):
             )
         else:
             self.logger.error(
-                'unknown challenge type "%s". Setting check result to False',
+                'Unknown challenge type "%s". Setting check result to False',
                 challenge_dic["type"],
             )
             result = False
@@ -221,7 +220,9 @@ class Challenge(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._check() lookup: %s", err_
+                "Database error: failed to lookup challenge '%s': %s",
+                challenge_name,
+                err_,
             )
             challenge_dic = {}
 
@@ -236,9 +237,7 @@ class Challenge(object):
                     challenge_dic["authorization__order__account__name"]
                 )
             except Exception as err_:
-                self.logger.critical(
-                    "acme2certifier database error in Challenge._check() jwk: %s", err_
-                )
+                self.logger.critical("Database error: could not get jwk: %s", err_)
                 pub_key = None
 
             if pub_key:
@@ -278,7 +277,9 @@ class Challenge(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._info(): %s", err_
+                "Database error: failed to lookup challenge '%s': %s",
+                challenge_name,
+                err_,
             )
             challenge_dic = {}
 
@@ -309,7 +310,7 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() proxy_server_list failed with error: %s",
+                    "Failed to load proxy_server_list from configuration: %s",
                     err_,
                 )
 
@@ -326,7 +327,7 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() dns_server_list failed with error: %s",
+                    "Failed to load dns_server_list from configuration: %s",
                     err_,
                 )
         if (
@@ -339,7 +340,7 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() failed to load dns_validation_pause_timer: %s",
+                    "Failed to parse dns_validation_pause_timer from configuration: %s",
                     err_,
                 )
 
@@ -366,7 +367,7 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() failed to load challenge_validation_timeout: %s",
+                    "Failed to parse challenge_validation_timeout from configuration: %s",
                     err_,
                 )
 
@@ -418,7 +419,8 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.critical(
-                    "acme2certifier database error in Challenge._cvd_via_eabprofile_check(): %s",
+                    "Database error: failed to lookup challenge '%s': %s",
+                    challenge_name,
                     err_,
                 )
                 challenge_dic = {}
@@ -506,7 +508,7 @@ class Challenge(object):
             chid = self.dbstore.challenge_add(value, mtype, data_dic)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._new(): %s, %s:%s",
+                "Database error: failed to add new challenge: %s, value: %s, type: %s",
                 err_,
                 value,
                 mtype,
@@ -593,9 +595,7 @@ class Challenge(object):
         try:
             self.dbstore.challenge_update(data_dic)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Challenge._update(): %s", err_
-            )
+            self.logger.critical("Database error: failed to update challenge: %s", err_)
         self.logger.debug("Challenge._update() ended")
 
     def _update_authz(self, challenge_name: str, data_dic: Dict[str, str]):
@@ -608,7 +608,8 @@ class Challenge(object):
             )["authorization"]
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._update_authz() lookup: %s",
+                "Database error: failed to lookup authorization for challenge '%s': %s",
+                challenge_name,
                 err_,
             )
             authz_name = None
@@ -620,8 +621,7 @@ class Challenge(object):
             self.dbstore.authorization_update(data_dic)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._update_authz() upd: %s",
-                err_,
+                "Database error: failed to update authorization for challenge: %s", err_
             )
 
         self.logger.debug("Challenge._update_authz() ended")
@@ -643,7 +643,7 @@ class Challenge(object):
         ):
             if self.challenge_validation_disable:
                 self.logger.warning(
-                    "CHALLENGE VALIDATION DISABLED. Setting challenge status to valid."
+                    "Challenge validation is globally disabled. Setting challenge status to valid."
                 )
             else:
                 self.logger.info(
@@ -982,9 +982,7 @@ class Challenge(object):
                 if challenge_json:
                     challenge_list.append(challenge_json)
                 else:
-                    self.logger.error(
-                        "ERROR: Empty challenge returned for %s", challenge_type
-                    )
+                    self.logger.error("Empty challenge returned for %s", challenge_type)
 
         self.logger.debug("Challenge._new_set returned (%s)", challenge_list)
         return challenge_list

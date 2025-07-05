@@ -95,7 +95,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._api_post("url", "data"),
             )
         self.assertIn(
-            "ERROR:test_a2c:request_operation returned error during json parsing: 'str' object is not callable",
+            "ERROR:test_a2c:Request_operation returned error during json parsing: 'str' object is not callable",
             lcm.output,
         )
 
@@ -119,7 +119,7 @@ class TestACMEHandler(unittest.TestCase):
                 (500, "exc_api_post"), self.cahandler._api_post("url", "data")
             )
         self.assertIn(
-            "ERROR:test_a2c:request_operation returned error: exc_api_post", lcm.output
+            "ERROR:test_a2c:Request_operation returned error: exc_api_post", lcm.output
         )
 
     @patch.object(requests, "get")
@@ -146,7 +146,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._api_get("url"),
             )
         self.assertIn(
-            "ERROR:test_a2c:request_operation returned error during json parsing: 'str' object is not callable",
+            "ERROR:test_a2c:Request_operation returned error during json parsing: 'str' object is not callable",
             lcm.output,
         )
 
@@ -159,7 +159,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((500, "exc_api_get"), self.cahandler._api_get("url"))
         self.assertIn(
-            "ERROR:test_a2c:request_operation returned error: exc_api_get", lcm.output
+            "ERROR:test_a2c:Request_operation returned error: exc_api_get", lcm.output
         )
 
     @patch.object(requests, "put")
@@ -186,7 +186,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._api_put("url", "data"),
             )
         self.assertIn(
-            "ERROR:test_a2c:request_operation returned error during json parsing: 'str' object is not callable",
+            "ERROR:test_a2c:Request_operation returned error during json parsing: 'str' object is not callable",
             lcm.output,
         )
 
@@ -210,7 +210,7 @@ class TestACMEHandler(unittest.TestCase):
                 (500, "exc_api_put"), self.cahandler._api_put("url", "data")
             )
         self.assertIn(
-            "ERROR:test_a2c:request_operation returned error: exc_api_put", lcm.output
+            "ERROR:test_a2c:Request_operation returned error: exc_api_put", lcm.output
         )
 
     def test_017__config_check(self):
@@ -410,7 +410,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_server_load() could not load order_validity:invalid literal for int() with base 10: 'aa'",
+            "ERROR:test_a2c:Could not load order_validity:invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertTrue(mock_load.called)
@@ -496,7 +496,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_server_load() could not load request_timeout:invalid literal for int() with base 10: 'aa'",
+            "ERROR:test_a2c:Could not load request_timeout:invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertTrue(mock_load.called)
@@ -781,7 +781,7 @@ class TestACMEHandler(unittest.TestCase):
                 (None, None, None), self.cahandler._order_response_parse(content_dic)
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._order_response_parse() failed: no certificate_chain in response",
+            "ERROR:test_a2c:Order response parsing failed: no certificate_chain in response",
             lcm.output,
         )
 
@@ -800,7 +800,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._order_response_parse(content_dic),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._order_response_parse() failed: no pem in certificate_chain",
+            "ERROR:test_a2c:Order response parsing failed: no pem in certificate_chain",
             lcm.output,
         )
 
@@ -819,7 +819,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._order_response_parse(content_dic),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._order_response_parse() polling_identifier generation failed: no id in response",
+            "ERROR:test_a2c:Polling_identifier generation failed: no id in response",
             lcm.output,
         )
 
@@ -830,9 +830,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.organization_name = "organization_name"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._organiation_id_get()
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler._organiation_id_get() failed", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:Could not get organization id.", lcm.output)
         self.assertFalse(self.cahandler.organization_id)
 
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._api_get")

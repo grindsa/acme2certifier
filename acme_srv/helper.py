@@ -135,14 +135,14 @@ def ca_handler_load(
             return ca_handler_module
         except Exception as err_:
             logger.critical(
-                "loading CAhandler configured in cfg failed with err: %s", err_
+                "Loading CAhandler configured in cfg failed with err: %s", err_
             )
 
     # if no 'handler_file' provided or loading was unsuccessful, try to load default handler
     try:
         ca_handler_module = importlib.import_module("acme_srv.ca_handler")
     except Exception as err_:
-        logger.critical("loading default CAhandler failed with err: %s", err_)
+        logger.critical("Loading default CAhandler failed with err: %s", err_)
         ca_handler_module = None
 
     return ca_handler_module
@@ -156,7 +156,7 @@ def config_check(logger: logging.Logger, config_dic: Dict):
         for key, value in section_dic.items():
             if value.startswith('"') or value.endswith('"'):
                 logger.warning(
-                    'config_check(): section %s option: %s contains " characters. Check if this is really needed!',
+                    'Section %s option: %s contains " characters. Please check if this is required!',
                     section,
                     key,
                 )
@@ -172,7 +172,7 @@ def config_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
         try:
             profiles = json.loads(config_dic["Order"]["profiles"])
         except Exception as err_:
-            logger.warning("loading profiles failed with error: %s", err_)
+            logger.warning("Failed to load profiles from configuration: %s", err_)
 
     logger.debug("Helper.config_profile_load() ended")
     return profiles
@@ -190,7 +190,7 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
             "CAhandler", "eab_profiling", fallback=False
         )
     except Exception as err:
-        logger.warning("loading eabprofile failed with error: %s", err)
+        logger.warning("Failed to load eabprofile from configuration: %s", err)
         eab_profiling = False
 
     if eab_profiling:
@@ -224,8 +224,10 @@ def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
         try:
             header_info_field = json.loads(config_dic["Order"]["header_info_list"])[0]
         except Exception as err_:
-            logger.warning("header_info_list failed with error: %s", err_)
-
+            logger.warning(
+                "Failed to parse header_info_list from configuration: %s", err_
+            )
+    #
     logger.debug("Helper.config_headerinfo_load() ended")
     return header_info_field
 
@@ -243,7 +245,9 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
                 "CAhandler", "enrollment_config_log", fallback=False
             )
         except Exception as err_:
-            logger.warning("loading enrollment_config_log failed with error: %s", err_)
+            logger.warning(
+                "Failed to load enrollment_config_log from configuration: %s", err_
+            )
 
         if "enrollment_config_log_skip_list" in config_dic["CAhandler"]:
             try:
@@ -252,7 +256,8 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
                 )
             except Exception as err_:
                 logger.warning(
-                    "enrollment_config_log_skip_list failed with error: %s", err_
+                    "Failed to parse enrollment_config_log_skip_list from configuration: %s",
+                    err_,
                 )
                 enrollment_cfg_log_skip_list = PARSING_ERR_MSG
 
@@ -274,7 +279,9 @@ def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str,
                 config_dic["CAhandler"]["allowed_domainlist"]
             )
         except Exception as err_:
-            logger.warning("loading allowed_domainlist failed with error: %s", err_)
+            logger.warning(
+                "Failed to load allowed_domainlist from configuration: %s", err_
+            )
             allowed_domainlist = PARSING_ERR_MSG
 
     logger.debug(
@@ -299,19 +306,19 @@ def eab_handler_load(
             spec.loader.exec_module(eab_handler_module)
         except Exception as err_:
             logger.critical(
-                "loading EABhandler configured in cfg failed with err: %s", err_
+                "Loading EABhandler configured in cfg failed with err: %s", err_
             )
             try:
                 eab_handler_module = importlib.import_module("acme_srv.eab_handler")
             except Exception as err_:
                 eab_handler_module = None
-                logger.critical("loading default EABhandler failed with err: %s", err_)
+                logger.critical("Loading default EABhandler failed with err: %s", err_)
     else:
         if "EABhandler" in config_dic:
             try:
                 eab_handler_module = importlib.import_module("acme_srv.eab_handler")
             except Exception as err_:
-                logger.critical("loading default EABhandler failed with err: %s", err_)
+                logger.critical("Loading default EABhandler failed with err: %s", err_)
                 eab_handler_module = None
         else:
             logger.error("EABhandler configuration missing in config file")
@@ -335,7 +342,7 @@ def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_mod
             spec.loader.exec_module(hooks_module)
         except Exception as err_:
             logger.critical(
-                "Helper.hooks_load(): loading Hooks configured in cfg failed with err: %s",
+                "Loading Hooks configured in cfg failed with err: %s",
                 err_,
             )
 
@@ -374,7 +381,7 @@ def cert_aki_pyopenssl_get(logger, certificate: str) -> str:
         # Get the SKI value and convert it to hex
         aki_hex = aki.get_data()[4:].hex()
     else:
-        logger.error("cert_ski_pyopenssl_get(): No AKI found in certificate")
+        logger.warning("No AKI found in certificate")
         aki_hex = None
     logger.debug("Helper.cert_ski_pyopenssl_cert() ended with: %s", aki_hex)
     return aki_hex
@@ -443,7 +450,7 @@ def cert_der2pem(der_cert: bytes) -> str:
 
 
 def cert_issuer_get(logger: logging.Logger, certificate: str) -> str:
-    """get serial number form certificate"""
+    """get certificate issuer from certificate"""
     logger.debug("Helper.cert_issuer_get()")
 
     cert = cert_load(logger, certificate, recode=True)
@@ -516,7 +523,7 @@ def cert_san_get(
         for san in sans_list:
             sans.append(f"IP:{san}")
     except Exception as err:
-        logger.error("cert_san_get(): Error: %s", err)
+        logger.error("Error while getting SANs from certificate: %s", err)
         # we may add the routing to get the sanes via pyopenssl here if needed (sans = cert_san_pyopenssl_get(logger, certificate, recode=recode))
 
     logger.debug("Helper.cert_san_get() ended")
@@ -541,7 +548,7 @@ def cert_ski_pyopenssl_get(logger, certificate: str) -> str:
         # Get the SKI value and convert it to hex
         ski_hex = ski.get_data()[2:].hex()
     else:
-        logger.error("cert_ski_pyopenssl_get(): No SKI found in certificate")
+        logger.warning("No SKI found in certificate")
         ski_hex = None
     logger.debug("Helper.cert_ski_pyopenssl_cert() ended with: %s", ski_hex)
     return ski_hex
@@ -556,7 +563,7 @@ def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
         ski = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_KEY_IDENTIFIER)
         ski_value = ski.value.digest.hex()
     except Exception as err:
-        logger.error("cert_ski_get(): Error: %s", err)
+        logger.error("Error while getting the SKI fallback to Openssl method: %s", err)
         ski_value = cert_ski_pyopenssl_get(logger, certificate)
     logger.debug("Helper.cert_ski_get() ended with: %s", ski_value)
     return ski_value
@@ -573,7 +580,9 @@ def cryptography_version_get(logger: logging.Logger) -> int:
         if version_list:
             major_version = int(version_list[0])
     except Exception as err:
-        logger.error("cryptography_version_get(): Error: %s", err)
+        logger.error(
+            "Error while getting the version number of the cryptography module: %s", err
+        )
         major_version = 36
 
     logger.debug("cryptography_version_get() ended with %s", major_version)
@@ -744,7 +753,7 @@ def csr_san_get(logger: logging.Logger, csr: str) -> List[str]:
                 sans.append(f"IP:{san}")
 
         except Exception as err:
-            logger.error("csr_san_get(): Error: %s", err)
+            logger.error("Error while getting SANs from CSR: %s", err)
 
     logger.debug("Helper.csr_san_get() ended with: %s", str(sans))
     return sans
@@ -840,7 +849,7 @@ def decode_message(
         signature = jwstoken.objects["signature"]
         result = True
     except Exception as err:
-        logger.error("decode_message() err: %s", err)
+        logger.error("Error during message decoding %s", err)
         error = str(err)
         protected = {}
         payload = {}
@@ -875,7 +884,7 @@ def fqdn_in_san_check(logger: logging.Logger, san_list: List[str], fqdn: str) ->
                     result = True
                     break
             except Exception:
-                logger.error("ERROR: fqdn_in_san_check() SAN split failed: %s", san)
+                logger.error("Error during SAN check. SAN split failed: %s", san)
 
     logger.debug("Helper.fqdn_in_san_check() ended with: %s", result)
     return result
@@ -961,7 +970,7 @@ def header_info_jsonify(logger: logging.Logger, header_info: str) -> Dict[str, s
         if isinstance(header_info, list) and "header_info" in header_info[-1]:
             header_info_dic = json.loads(header_info[-1]["header_info"])
     except Exception as err:
-        logger.error("header_info_lookup() could not parse header_info_field: %s", err)
+        logger.error("Could not parse header_info_field: %s", err)
 
     logger.debug(
         "Helper.header_info_json_parse() ended with: %s", bool(header_info_dic)
@@ -984,11 +993,9 @@ def header_info_lookup(logger, csr: str, header_info_field, key: str) -> str:
                     result = ele.split("=", 1)[1]
                     break
         else:
-            logger.error(
-                "header_info_lookup() header_info_field not found: %s",
-                header_info_field,
+            logger.warning(
+                "Header_info_field not found in header info: %s", header_info_field
             )
-
     logger.debug("Helper.header_info_lookup(%s) ended with: %s", key, result)
     return result
 
@@ -1009,7 +1016,7 @@ def header_info_get(
         result = dbstore.certificates_search(field_name, csr, vlist)
     except Exception as err:
         result = []
-        logger.error("Helper.header_info_get(): error: %s", err)
+        logger.error("Error while getting header_info from database: %s", err)
 
     return list(result)
 
@@ -1138,7 +1145,7 @@ def jwk_thumbprint_get(logger: logging.Logger, pub_key: Dict[str, str]) -> str:
             jwkey = jwk.JWK(**pub_key)
             thumbprint = jwkey.thumbprint()
         except Exception as err:
-            logger.error("jwk_thumbprint_get(): error: %s", err)
+            logger.error("Could not get the JWKEY thumbprint from public key: %s", err)
             thumbprint = None
     else:
         thumbprint = None
@@ -1185,7 +1192,7 @@ def signature_check(
                 logger.debug("Helper.signature_check(): load plain json")
                 jwkey = jwk.JWK(**pub_key)
         except Exception as err:
-            logger.error("load key failed %s", err)
+            logger.error("Loading of public key failed %s", err)
             jwkey = None
             result = False
             error = str(err)
@@ -1198,7 +1205,7 @@ def signature_check(
                 jwstoken.verify(jwkey)
                 result = True
             except Exception as err:
-                logger.error("verify failed %s", err)
+                logger.error("Message verification failed %s", err)
                 error = str(err)
         else:
             logger.error("No jwkey extracted")
@@ -1375,7 +1382,7 @@ def url_get_with_own_dns(logger: logging.Logger, url: str, verify: bool = True) 
         result = req.text
     except Exception as err_:
         result = None
-        logger.error("Helper.url_get_with_own_dns error: %s", err_)
+        logger.error("Could not get URL by using the configured DNS servers: %s", err_)
     # cleanup
     connection.create_connection = connection._orig_create_connection
     return result
@@ -1428,7 +1435,7 @@ def url_get_with_default_dns(
             result = req.text
         except Exception as err:
             result = None
-            logger.error("url_get error: %s", err)
+            logger.error("Could not fetch URL: %s", err)
         urllib3_cn.allowed_gai_family = old_gai_family
 
     return result
@@ -1473,7 +1480,7 @@ def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> Lis
         for rrecord in response:
             txt_record_list.append(rrecord.strings[0])
     except Exception as err_:
-        logger.error("txt_get() error: %s", err_)
+        logger.error("Could not get TXT record: %s", err_)
     logger.debug("Helper.txt_get() ended with: %s", txt_record_list)
     return txt_record_list
 
@@ -1533,7 +1540,7 @@ def proxystring_convert(
         (proxy_proto, proxy) = proxy_server.split("://")
     except Exception:
         logger.error(
-            "proxystring_convert(): error splitting proxy_server string: %s",
+            "Error while splitting proxy_server string: %s",
             proxy_server,
         )
         proxy = None
@@ -1543,9 +1550,7 @@ def proxystring_convert(
         try:
             (proxy_addr, proxy_port) = proxy.split(":")
         except Exception:
-            logger.error(
-                "proxystring_convert(): error splitting proxy into host/port: %s", proxy
-            )
+            logger.error("Error while splitting proxy into host/port: %s", proxy)
             proxy_addr = None
             proxy_port = None
     else:
@@ -1556,13 +1561,11 @@ def proxystring_convert(
         try:
             proto_string = proxy_proto_dic[proxy_proto]
         except Exception:
-            logger.error(
-                "proxystring_convert(): unknown proxy protocol: %s", proxy_proto
-            )
+            logger.error("Unknown proxy protocol: %s", proxy_proto)
             proto_string = None
     else:
         logger.error(
-            "proxystring_convert(): proxy_proto (%s), proxy_addr (%s) or proxy_port (%s) missing",
+            "proxy_proto (%s), proxy_addr (%s) or proxy_port (%s) missing",
             proxy_proto,
             proxy_addr,
             proxy_port,
@@ -1572,7 +1575,7 @@ def proxystring_convert(
     try:
         proxy_port = int(proxy_port)
     except Exception:
-        logger.error("proxystring_convert(): unknown proxy port: %s", proxy_port)
+        logger.error("Unknown proxy port: %s", proxy_port)
         proxy_port = None
 
     logger.debug(
@@ -1615,7 +1618,9 @@ def servercert_get(
         # this does not work on RH8
         context.minimum_version = ssl.TLSVersion.TLSv1_2
     except Exception:  # pragma: no cover
-        logger.error("servercert_get(): minimum_version not supported")
+        logger.error(
+            "Error while getting the peer certifiate: minimum tls version not supported"
+        )
 
     context.options |= ssl.OP_NO_SSLv3
     context.options |= ssl.OP_NO_TLSv1
@@ -1643,7 +1648,7 @@ def servercert_get(
             if der_cert:
                 pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
     except Exception as err_:
-        logger.error("servercert_get() failed with: %s", err_)
+        logger.error("Could not get peer certificate. Error: %s", err_)
         pem_cert = None
 
     if pem_cert:
@@ -1749,7 +1754,6 @@ def handle_exception(exc_type, exc_value, exc_traceback):  # pragma: no cover
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
 
-    # logger.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
     logging.error("Uncaught exception")
 
 
@@ -2035,7 +2039,7 @@ def profile_lookup(logger: logging.Logger, csr: str) -> str:
             "csr", csr, ["id", "order_id", "order__profile"]
         )
     except Exception as err:
-        logger.error("Helper.profile_lookup() failed with: %s", err)
+        logger.warning("Profile lookup failed with: %s", err)
         result = None
     if result and "order__profile" in result[0]:
         # we have a match - get profile name
@@ -2062,9 +2066,7 @@ def eab_profile_header_info_check(
             # profiling enabled - check profile
             error = eab_profile_check(logger, cahandler, csr, handler_hifield)
         else:
-            logger.error(
-                "eab_profile_header_info_check(): eab_profiling enabled but no handler defined"
-            )
+            logger.error("EAB profiling enabled but no handler defined")
             error = "Eab_profiling enabled but no handler defined"
 
     elif cahandler.profiles:
@@ -2160,14 +2162,14 @@ def eab_profile_subject_string_check(
             del profile_subject_dic[key]
         else:
             logger.error(
-                "Helper.eab_profile_subject_check() failed for: %s: value: %s expected: %s",
+                "EAB profile subject check failed for: %s: value: %s expected: %s",
                 key,
                 value,
                 profile_subject_dic[key],
             )
             error = f"Profile subject check failed for {key}"
     else:
-        logger.error("Helper.eab_profile_subject_check() failed for: %s", key)
+        logger.error("EAB profile subject failed for: %s", key)
         error = f"Profile subject check failed for {key}"
 
     logger.debug("Helper.eab_profile_subject_string_check() ended")
@@ -2195,7 +2197,7 @@ def eab_profile_subject_check(
     # check if we have any entries left in the profile_subject_dic
     if not error and profile_subject_dic:
         logger.error(
-            "Helper.eab_profile_subject_check() failed for: %s",
+            "EAB profile subject check failed for: %s",
             list(profile_subject_dic.keys()),
         )
         error = "Profile subject check failed"
@@ -2279,8 +2281,8 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
         if error:
             result = error
     else:
-        logger.error(
-            "Helper.eab_profile_list_check(): ignore list attribute: key: %s value: %s",
+        logger.warning(
+            "EAP profile list checking: ignoring unrecognized list attribute: key: %s value: %s",
             key,
             value,
         )
@@ -2301,8 +2303,8 @@ def eab_profile_string_check(logger, cahandler, key, value):
         )
         setattr(cahandler, key, value)
     else:
-        logger.error(
-            "Helper.eab_profile_string_check(): ignore string attribute: key: %s value: %s",
+        logger.warning(
+            "EAB profile string checking: ignoring unrecognized string attribute: key: %s value: %s",
             key,
             value,
         )
@@ -2337,7 +2339,7 @@ def request_operation(
                 url=url, headers=headers, proxies=proxy, timeout=timeout, json=payload
             )
         else:
-            logger.error("unknown request method: %s", method)
+            logger.error("Unknown request method: %s", method)
             api_response = None
 
         code = api_response.status_code
@@ -2346,14 +2348,14 @@ def request_operation(
                 content = api_response.json()
             except Exception as err_:
                 logger.error(
-                    "request_operation returned error during json parsing: %s", err_
+                    "Request_operation returned error during json parsing: %s", err_
                 )
                 content = str(err_)
         else:
             content = None
 
     except Exception as err_:
-        logger.error("request_operation returned error: %s", err_)
+        logger.error("Request_operation returned error: %s", err_)
         code = 500
         content = str(err_)
 
@@ -2377,7 +2379,7 @@ def csr_cn_lookup(logger: logging.Logger, csr: str) -> str:
                 except Exception as err:
                     logger.error("SAN split failed: %s", err)
         else:
-            logger.error("no SANs found in CSR")
+            logger.error("No SANs found in CSR")
 
     logger.debug("Helper._csr_cn_lookup() ended with: %s", csr_cn)
     return csr_cn

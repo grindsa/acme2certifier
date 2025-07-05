@@ -104,7 +104,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.signature._jwk_load(1)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Signature._jwk_load(): exc_sig_jw_load",
+            "CRITICAL:test_a2c:Database error: failed to load JWK for account id 1: exc_sig_jw_load",
             lcm.output,
         )
 
@@ -187,7 +187,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.signature._cli_jwk_load(1)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Signature._cli_jwk_load(): exc_sig_jw_load",
+            "CRITICAL:test_a2c:Database error: failed to load CLI JWK for account id 1: exc_sig_jw_load",
             lcm.output,
         )
 

@@ -81,14 +81,12 @@ class CAhandler(object):
                     )
                 pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
             except Exception as err_:
-                self.logger.error(
-                    "CAhandler._cacerts_get() returned an error: %s", err_
-                )
+                self.logger.error("Error while getting the CA certificates: %s", err_)
                 error = err_
                 pem = None
         else:
             self.logger.error(
-                'CAhandler._cacerts_get() configuration incomplete: "est_host" parameter is missing'
+                'Configuration incomplete: "est_host" parameter is missing'
             )
             error = None
             pem = None
@@ -109,7 +107,7 @@ class CAhandler(object):
             cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
             cert_raw = cert_raw.replace("\n", "")
         else:
-            self.logger.error("CAhandler.enroll() _simpleenroll error: %s", error)
+            self.logger.error("Simpleenroll error: %s", error)
 
         self.logger.debug("CAhandler._cert_bundle_create()")
         return (error, cert_bundle, cert_raw)
@@ -125,15 +123,13 @@ class CAhandler(object):
                     + "/.well-known/est"
                 )
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._config_load() could not load est_host_variable:%s", err
-                )
+                self.logger.error("Could not load est_host_variable:%s", err)
         if "est_host" in config_dic["CAhandler"]:
             if self.est_host:
-                self.logger.info("CAhandler._config_load() overwrite est_host")
+                self.logger.info("Overwrite est_host")
             self.est_host = config_dic.get("CAhandler", "est_host") + "/.well-known/est"
         if not self.est_host:
-            self.logger.error('CAhandler._config_load(): missing "est_host" parameter')
+            self.logger.error('Missing "est_host" parameter')
 
         self.logger.debug("CAhandler._config_host_load() ended")
 
@@ -147,12 +143,12 @@ class CAhandler(object):
                 ]
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_authuser_load() could not load cert_passphrase_variable:%s",
+                    "Could not load cert_passphrase_variable:%s",
                     err,
                 )
         if "cert_passphrase" in config_dic["CAhandler"]:
             if self.cert_passphrase:
-                self.logger.info("CAhandler._config_load() overwrite cert_passphrase")
+                self.logger.info("Overwrite cert_passphrase")
             self.cert_passphrase = config_dic.get("CAhandler", "cert_passphrase")
         self.logger.debug("CAhandler._cert_passphrase_load() ended")
 
@@ -187,7 +183,7 @@ class CAhandler(object):
                 )
             else:
                 self.logger.error(
-                    'ERROR:test_a2c:CAhandler._config_load() clientauth configuration incomplete: either "est_client_key or "cert_passphrase" parameter is missing in config file'
+                    'Clientauth configuration incomplete: either "est_client_key or "cert_passphrase" parameter is missing in config file'
                 )
 
         self.logger.debug("CAhandler._config_clientauth_load() ended")
@@ -202,9 +198,7 @@ class CAhandler(object):
                     config_dic.get("CAhandler", "est_user_variable")
                 ]
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._config_load() could not load est_user_variable:%s", err
-                )
+                self.logger.error("Could not load est_user_variable:%s", err)
         if "est_user" in config_dic["CAhandler"]:
             if self.est_user:
                 self.logger.info("CAhandler._config_load() overwrite est_user")
@@ -222,19 +216,17 @@ class CAhandler(object):
                     config_dic.get("CAhandler", "est_password_variable")
                 ]
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._config_load() could not load est_password:%s", err
-                )
+                self.logger.error("Could not load est_password:%s", err)
         if "est_password" in config_dic["CAhandler"]:
             if self.est_password:
-                self.logger.info("CAhandler._config_load() overwrite est_password")
+                self.logger.info("Overwrite est_password")
             self.est_password = config_dic.get("CAhandler", "est_password")
 
         if (self.est_user and not self.est_password) or (
             self.est_password and not self.est_user
         ):
             self.logger.error(
-                'CAhandler._config_load() configuration incomplete: either "est_user" or "est_password" parameter is missing in config file'
+                'Configuration incomplete: either "est_user" or "est_password" parameter is missing in config file'
             )
 
         self.logger.debug("CAhandler._config_password_load() ended")
@@ -259,7 +251,7 @@ class CAhandler(object):
             )
         except Exception:
             self.logger.error(
-                "CAhandler._config_load() could not load request_timeout:%s",
+                "Could not load request_timeout:%s",
                 config_dic.get("CAhandler", "request_timeout"),
             )
 
@@ -279,7 +271,7 @@ class CAhandler(object):
                     self.proxy = {"http": proxy_server, "https": proxy_server}
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() proxy_server_list failed with error: %s",
+                    "Failed to load proxy_server_list from configuration: %s",
                     err_,
                 )
 
@@ -311,15 +303,15 @@ class CAhandler(object):
                 # check if we have one authentication scheme
                 if not self.est_client_cert and not self.est_user:
                     self.logger.error(
-                        "CAhandler._config_load() configuration incomplete: either user or client authentication must be configured."
+                        "Configuration incomplete: either user or client authentication must be configured."
                     )
                 elif self.est_client_cert and self.est_user:
                     self.logger.error(
-                        "CAhandler._config_load() configuration wrong: user and client authentication cannot be configured together."
+                        "Configuration error: user and client authentication cannot be configured together."
                     )
                 if self.est_client_cert and not self.ca_bundle:
                     self.logger.error(
-                        "CAhandler._config_load() configuration wrong: client authentication requires a ca_bundle."
+                        "Configuration error: client authentication requires a ca_bundle."
                     )
 
         # load proxy information
@@ -385,7 +377,7 @@ class CAhandler(object):
             # response.raise_for_status()
             pem = self._pkcs7_to_pem(b64_decode(self.logger, response.text))
         except Exception as err_:
-            self.logger.error("CAhandler._simpleenroll() returned an error: %s", err_)
+            self.logger.error("Enrollment error: %s", err_)
             error = str(err_)
             pem = None
 
@@ -418,9 +410,9 @@ class CAhandler(object):
                     )
                 else:
                     error = "no CA certificates found"
-                    self.logger.error("CAhandler.enroll(): no CA certificates found")
+                    self.logger.error("No CA certificates found")
             else:
-                self.logger.error("CAhandler.enroll() _cacerts_get error: %s", error)
+                self.logger.error("Error while fetching the CA certificates: %s", error)
 
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, None)

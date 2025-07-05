@@ -1016,7 +1016,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual((False, True), self.challenge._check("name", "payload"))
         self.assertFalse(mock_chall.called)
         self.assertIn(
-            'ERROR:test_a2c:unknown challenge type "tkauth-01". Setting check result to False',
+            'ERROR:test_a2c:Unknown challenge type "tkauth-01". Setting check result to False',
             lcm.output,
         )
 
@@ -1231,7 +1231,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._challengelist_search("key", "value")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._challengelist_search(): exc_chall_search",
+            "CRITICAL:test_a2c:Database error: failed to search for challenges: exc_chall_search",
             lcm.output,
         )
 
@@ -1247,7 +1247,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._check("name", "payload")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._check() jwk: exc_jkw_load",
+            "CRITICAL:test_a2c:Database error: could not get jwk: exc_jkw_load",
             lcm.output,
         )
 
@@ -1265,7 +1265,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._check("name", "payload")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._check() lookup: exc_chall_chk",
+            "CRITICAL:test_a2c:Database error: failed to lookup challenge 'name': exc_chall_chk",
             lcm.output,
         )
 
@@ -1277,17 +1277,17 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._info("name")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._info(): exc_chall_info",
+            "CRITICAL:test_a2c:Database error: failed to lookup challenge 'name': exc_chall_info",
             lcm.output,
         )
 
-    def test_075_challenge__new(self):
-        """test Challenge._new - dbstore.challenge_add() raises an exception"""
-        self.challenge.dbstore.challenge_add.side_effect = Exception("exc_chall_add")
+    def test_075_challenge__update(self):
+        """test Challenge._update - dbstore.challenge_update() raises an exception"""
+        self.challenge.dbstore.challenge_update.side_effect = Exception("exc_chall_upd")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.challenge._new("authz_name", "mtype", "token", "value")
+            self.challenge._update({"foo": "bar"})
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._new(): exc_chall_add, value:mtype",
+            "CRITICAL:test_a2c:Database error: failed to update challenge: exc_chall_upd",
             lcm.output,
         )
 
@@ -1297,7 +1297,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._update({"foo": "bar"})
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._update(): exc_chall_upd",
+            "CRITICAL:test_a2c:Database error: failed to update challenge: exc_chall_upd",
             lcm.output,
         )
 
@@ -1313,7 +1313,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._update_authz("name", {"foo": "bar"})
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._update_authz() upd: exc_chall_autz_upd",
+            "CRITICAL:test_a2c:Database error: failed to update authorization for challenge: exc_chall_autz_upd",
             lcm.output,
         )
 
@@ -1325,7 +1325,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._update_authz("name", {"foo": "bar"})
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._update_authz() lookup: exc_chall_lookup_foo",
+            "CRITICAL:test_a2c:Database error: failed to lookup authorization for challenge 'name': exc_chall_lookup_foo",
             lcm.output,
         )
 
@@ -1655,7 +1655,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._config_load()
         self.assertIn(
-            "WARNING:test_a2c:Challenge._config_load() dns_server_list failed with error: exc_mock_json",
+            "WARNING:test_a2c:Failed to load dns_server_list from configuration: exc_mock_json",
             lcm.output,
         )
         self.assertFalse(self.challenge.challenge_validation_disable)
@@ -1736,7 +1736,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._config_load()
         self.assertIn(
-            "WARNING:test_a2c:Challenge._config_load() proxy_server_list failed with error: exc_mock_json",
+            "WARNING:test_a2c:Failed to load proxy_server_list from configuration: exc_mock_json",
             lcm.output,
         )
         self.assertFalse(self.challenge.challenge_validation_disable)
@@ -1769,7 +1769,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._config_load()
         self.assertIn(
-            "WARNING:test_a2c:Challenge._config_load() failed to load challenge_validation_timeout: invalid literal for int() with base 10: 'AA'",
+            "WARNING:test_a2c:Failed to parse challenge_validation_timeout from configuration: invalid literal for int() with base 10: 'AA'",
             lcm.output,
         )
         self.assertFalse(self.challenge.challenge_validation_disable)
@@ -1830,7 +1830,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._config_load()
         self.assertIn(
-            "WARNING:test_a2c:Challenge._config_load() failed to load dns_validation_pause_timer: invalid literal for int() with base 10: 'aa'",
+            "WARNING:test_a2c:Failed to parse dns_validation_pause_timer from configuration: invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertFalse(self.challenge.challenge_validation_disable)
@@ -1880,7 +1880,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:CHALLENGE VALIDATION DISABLED. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -1889,7 +1889,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.challenge.Challenge._cvd_via_eabprofile_check")
     @patch("acme_srv.challenge.Challenge._update_authz")
     @patch("acme_srv.challenge.Challenge._update")
-    def test_213__validate(self, mock_update, mock_aupdate, mock_cvd_check):
+    def test_114__validate(self, mock_update, mock_aupdate, mock_cvd_check):
         """test validate"""
         challenge_name = "challenge_name"
         payload = "payload"
@@ -1909,7 +1909,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.challenge.Challenge._cvd_via_eabprofile_check")
     @patch("acme_srv.challenge.Challenge._update_authz")
     @patch("acme_srv.challenge.Challenge._update")
-    def test_214__validate(self, mock_update, mock_aupdate, mock_cvd_check):
+    def test_115__validate(self, mock_update, mock_aupdate, mock_cvd_check):
         """test validate"""
         challenge_name = "challenge_name"
         payload = "payload"
@@ -1920,7 +1920,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:CHALLENGE VALIDATION DISABLED. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -1929,7 +1929,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.challenge.Challenge._cvd_via_eabprofile_check")
     @patch("acme_srv.challenge.Challenge._update_authz")
     @patch("acme_srv.challenge.Challenge._update")
-    def test_215__validate(self, mock_update, mock_aupdate, mock_cvd_check):
+    def test_116__validate(self, mock_update, mock_aupdate, mock_cvd_check):
         """test validate"""
         challenge_name = "challenge_name"
         payload = "payload"
@@ -1944,7 +1944,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.challenge.Challenge._cvd_via_eabprofile_check")
     @patch("acme_srv.challenge.Challenge._update_authz")
     @patch("acme_srv.challenge.Challenge._update")
-    def test_216__validate(self, mock_update, mock_aupdate, mock_cvd_check):
+    def test_117__validate(self, mock_update, mock_aupdate, mock_cvd_check):
         """test validate"""
         challenge_name = "challenge_name"
         payload = "payload"
@@ -1955,7 +1955,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:CHALLENGE VALIDATION DISABLED. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -1964,7 +1964,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.challenge.Challenge._check")
     @patch("acme_srv.challenge.Challenge._update_authz")
     @patch("acme_srv.challenge.Challenge._update")
-    def test_114__validate(self, mock_update, mock_aupdate, mock_check):
+    def test_118__validate(self, mock_update, mock_aupdate, mock_check):
         """test validate check returned ch:False/inv:False"""
         challenge_name = "challenge_name"
         payload = "payload"
@@ -1978,7 +1978,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.challenge.Challenge._check")
     @patch("acme_srv.challenge.Challenge._update_authz")
     @patch("acme_srv.challenge.Challenge._update")
-    def test_115__validate(self, mock_update, mock_aupdate, mock_check):
+    def test_119__validate(self, mock_update, mock_aupdate, mock_check):
         """test validate check returned ch:False/inv:True"""
         challenge_name = "challenge_name"
         payload = "payload"
@@ -1992,7 +1992,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.challenge.Challenge._check")
     @patch("acme_srv.challenge.Challenge._update_authz")
     @patch("acme_srv.challenge.Challenge._update")
-    def test_116__validate(self, mock_update, mock_aupdate, mock_check):
+    def test_120__validate(self, mock_update, mock_aupdate, mock_check):
         """test validate check returned ch:True/inv:False"""
         challenge_name = "challenge_name"
         payload = "payload"
@@ -2006,7 +2006,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.challenge.Challenge._check")
     @patch("acme_srv.challenge.Challenge._update_authz")
     @patch("acme_srv.challenge.Challenge._update")
-    def test_117__validate(self, mock_update, mock_aupdate, mock_check):
+    def test_121__validate(self, mock_update, mock_aupdate, mock_check):
         """test validate check returned ch:True/inv:True"""
         challenge_name = "challenge_name"
         payload = "payload"
@@ -2020,7 +2020,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.challenge.Challenge._check")
     @patch("acme_srv.challenge.Challenge._update_authz")
     @patch("acme_srv.challenge.Challenge._update")
-    def test_118__validate(self, mock_update, mock_aupdate, mock_check):
+    def test_122__validate(self, mock_update, mock_aupdate, mock_check):
         """test validate check returned ch:True/inv:False"""
         challenge_name = "challenge_name"
         payload = {"keyAuthorization": "keyAuthorization"}
@@ -2033,7 +2033,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.challenge.Challenge._name_get")
     @patch("acme_srv.challenge.Challenge._info")
-    def test_119_get(self, mock_info, mock_name):
+    def test_123_get(self, mock_info, mock_name):
         """test get"""
         mock_info.return_value = "chall_info"
         mock_name.return_value = "foo"
@@ -2043,7 +2043,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.challenge.Challenge.new_set")
     @patch("acme_srv.challenge.Challenge._existing_challenge_validate")
     @patch("acme_srv.challenge.Challenge._challengelist_search")
-    def test_120_challengeset_get(self, mock_chsearch, mock_val, mock_set):
+    def test_124_challengeset_get(self, mock_chsearch, mock_val, mock_set):
         """test challengeset_get - no challenge_list returned"""
         mock_chsearch.return_value = []
         mock_val.return_value = True
@@ -2060,7 +2060,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.challenge.Challenge.new_set")
     @patch("acme_srv.challenge.Challenge._existing_challenge_validate")
     @patch("acme_srv.challenge.Challenge._challengelist_search")
-    def test_121_challengeset_get(self, mock_chsearch, mock_val, mock_set):
+    def test_125_challengeset_get(self, mock_chsearch, mock_val, mock_set):
         """test challengeset_get - challenge_list returned"""
         mock_chsearch.return_value = [{"name": "name1", "foo": "bar"}]
         mock_val.return_value = True
@@ -2074,28 +2074,28 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_set.called)
         self.assertFalse(mock_val.called)
 
-    def test_122_cvd_via_eabprofile_check(self):
+    def test_126_cvd_via_eabprofile_check(self):
         """test _cvd_via_eabprofile_check with profiling disabled"""
         self.challenge.eab_profiling = False
         self.challenge.eab_handler = None
         self.challenge.dbstore.challenge_lookup.return_value = {"foo": "bar"}
         self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
 
-    def test_123_cvd_via_eabprofile_check(self):
+    def test_127_cvd_via_eabprofile_check(self):
         """test _cvd_via_eabprofile_check with no handler"""
         self.challenge.eab_profiling = True
         self.challenge.eab_handler = None
         self.challenge.dbstore.challenge_lookup.return_value = {"foo": "bar"}
         self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
 
-    def test_124_cvd_via_eabprofile_check(self):
+    def test_128_cvd_via_eabprofile_check(self):
         """test _cvd_via_eabprofile_check with handler but profiling disabled"""
         self.challenge.eab_profiling = False
         self.challenge.eab_handler = MagicMock()
         self.challenge.dbstore.challenge_lookup.return_value = {"foo": "bar"}
         self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
 
-    def test_125_cvd_via_eabprofile_check(self):
+    def test_129_cvd_via_eabprofile_check(self):
         """test _cvd_via_eabprofile_check enabled but no useful data returned"""
         self.challenge.eab_profiling = True
         self.challenge.eab_handler = MagicMock()
@@ -2103,7 +2103,7 @@ class TestACMEHandler(unittest.TestCase):
         self.challenge.dbstore.challenge_lookup.side_effect = None
         self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
 
-    def test_126_cvd_via_eabprofile_check(self):
+    def test_130_cvd_via_eabprofile_check(self):
         """test _cvd_via_eabprofile_check enabled but exception during db lookup"""
         self.challenge.eab_profiling = True
         self.challenge.eab_handler = MagicMock()
@@ -2113,11 +2113,11 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._cvd_via_eabprofile_check(): exc_chall_info",
+            "CRITICAL:test_a2c:Database error: failed to lookup challenge 'challenge_name': exc_chall_info",
             lcm.output,
         )
 
-    def test_127_cvd_via_eabprofile_check(self):
+    def test_131_cvd_via_eabprofile_check(self):
         """test _cvd_via_eabprofile_check enabled cvd True"""
         self.challenge.eab_profiling = True
         self.challenge.eab_handler = MagicMock()
@@ -2134,7 +2134,7 @@ class TestACMEHandler(unittest.TestCase):
         self.challenge.dbstore.challenge_lookup.side_effect = None
         self.assertTrue(self.challenge._cvd_via_eabprofile_check("challenge_name"))
 
-    def test_128_cvd_via_eabprofile_check(self):
+    def test_132_cvd_via_eabprofile_check(self):
         """test _cvd_via_eabprofile_check enabled cvd False"""
         self.challenge.eab_profiling = True
         self.challenge.eab_handler = MagicMock()
@@ -2151,7 +2151,7 @@ class TestACMEHandler(unittest.TestCase):
         self.challenge.dbstore.challenge_lookup.side_effect = None
         self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
 
-    def test_129_cvd_via_eabprofile_check(self):
+    def test_133_cvd_via_eabprofile_check(self):
         """test _cvd_via_eabprofile_check enabled cvd True"""
         self.challenge.eab_profiling = True
         self.challenge.eab_handler = MagicMock()
@@ -2168,7 +2168,7 @@ class TestACMEHandler(unittest.TestCase):
         self.challenge.dbstore.challenge_lookup.side_effect = None
         self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
 
-    def test_130_cvd_via_eabprofile_check(self):
+    def test_134_cvd_via_eabprofile_check(self):
         """test _cvd_via_eabprofile_check enabled cvd True"""
         self.challenge.eab_profiling = True
         self.challenge.eab_handler = MagicMock()

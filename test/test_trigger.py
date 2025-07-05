@@ -355,7 +355,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.trigger._payload_process("payload")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in trigger._payload_process() upd: exc_trigger_order_upd",
+            "CRITICAL:test_a2c:Database error: failed to update order status during trigger processing: exc_trigger_order_upd",
             lcm.output,
         )
 
@@ -387,7 +387,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.trigger._payload_process("payload")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in trigger._payload_process() add: exc_trigger_order_add",
+            "CRITICAL:test_a2c:Database error: failed to update order status during trigger processing: exc_trigger_order_upd",
             lcm.output,
         )
 
@@ -430,7 +430,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.trigger._config_load()
         self.assertIn(
-            "CRITICAL:test_a2c:loading CAhandler configured in cfg failed with err: 'NoneType' object has no attribute 'loader'",
+            "CRITICAL:test_a2c:Loading CAhandler configured in cfg failed with err: 'NoneType' object has no attribute 'loader'",
             lcm.output,
         )
 
@@ -487,7 +487,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.trigger._config_load()
         self.assertIn(
-            "CRITICAL:test_a2c:Certificate._config_load(): loading CAhandler failed with err: 'str' object has no attribute 'CAhandler'",
+            "CRITICAL:test_a2c:Failed to load CA handler module: 'str' object has no attribute 'CAhandler'",
             lcm.output,
         )
 

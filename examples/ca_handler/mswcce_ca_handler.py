@@ -76,7 +76,7 @@ class CAhandler(object):
                 )[0]
             except Exception as err_:
                 self.logger.warning(
-                    "Order._config_orderconfig_load() header_info_list failed with error: %s",
+                    "Failed to parse header_info_list from configuration: %s",
                     err_,
                 )
 
@@ -91,11 +91,11 @@ class CAhandler(object):
                 self.host = os.environ[config_dic.get("CAhandler", "host_variable")]
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load() could not load host_variable:%s", err
+                    "Unable to load host variable from environment: %s", err
                 )
         if "host" in config_dic["CAhandler"]:
             if self.host:
-                self.logger.info("CAhandler._config_load() overwrite host")
+                self.logger.info("Overwrite host")
             self.host = config_dic.get("CAhandler", "host")
 
         self.logger.debug("CAhandler._config_host_load() ended")
@@ -109,11 +109,11 @@ class CAhandler(object):
                 self.user = os.environ[config_dic.get("CAhandler", "user_variable")]
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load() could not load user_variable:%s", err
+                    "Unable to load user variable from environment: %s", err
                 )
         if "user" in config_dic["CAhandler"]:
             if self.user:
-                self.logger.info("CAhandler._config_load() overwrite user")
+                self.logger.info("Overwrite user")
             self.user = config_dic.get("CAhandler", "user")
 
         if "password_variable" in config_dic["CAhandler"]:
@@ -123,11 +123,11 @@ class CAhandler(object):
                 ]
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load() could not load password_variable:%s", err
+                    "Unable to load password variable from environment: %s", err
                 )
         if "password" in config_dic["CAhandler"]:
             if self.password:
-                self.logger.info("CAhandler._config_load() overwrite password")
+                self.logger.info("Overwrite password")
             self.password = config_dic.get("CAhandler", "password")
 
         self.logger.debug("CAhandler._config_credentials_load() ended")
@@ -160,7 +160,8 @@ class CAhandler(object):
             self.timeout = config_dic.getint("CAhandler", "timeout", fallback=5)
         except Exception as err_:
             self.logger.warning(
-                "CAhandler._config_load() timeout failed with error: %s", err_
+                "Failed to parse 'timeout' from configuration. Using default value 5. Error: %s",
+                err_,
             )
             self.timeout = 5
 
@@ -170,7 +171,8 @@ class CAhandler(object):
             )
         except Exception as err_:
             self.logger.warning(
-                "CAhandler._config_load() use_kerberos failed with error: %s", err_
+                "Failed to parse 'use_kerberos' from configuration. Using default value False. Error: %s",
+                err_,
             )
 
         self.logger.debug("CAhandler._config_parameters_load()")
@@ -186,7 +188,7 @@ class CAhandler(object):
                 self.proxy = {"http": proxy_server, "https": proxy_server}
             except Exception as err_:
                 self.logger.warning(
-                    "CAhandler._config_load() proxy_server_list failed with error: %s",
+                    "Failed to load proxy_server_list from configuration: %s",
                     err_,
                 )
 
@@ -222,9 +224,7 @@ class CAhandler(object):
             with open(bundle, "r", encoding="utf-8") as fso:
                 file_ = fso.read()
         except Exception as err_:
-            self.logger.error(
-                "CAhandler._file_load(): could not load %s. Error: %s", bundle, err_
-            )
+            self.logger.error("Could not load file '%s'. Error: %s", bundle, err_)
         return file_
 
     def request_create(self) -> Request:
@@ -270,9 +270,7 @@ class CAhandler(object):
                             template_name = ele.split("=")[1]
                             break
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._template_name_get() could not parse template: %s", err
-                )
+                self.logger.error("Failed to parse template from header info: %s", err)
 
         self.logger.debug(
             "CAhandler._template_name_get() ended with: %s", template_name
@@ -305,7 +303,7 @@ class CAhandler(object):
             cert_raw = cert_raw.replace("\r\n", "\n")
         except Exception as err:
             cert_raw = None
-            self.logger.error("ca_server.get_cert() failed with error: %s", err)
+            self.logger.error("Enrollment failed with error: %s", err)
             error = "Could not get certificate from CA server"
 
         if not error and cert_raw:
@@ -317,8 +315,10 @@ class CAhandler(object):
             cert_raw = cert_raw.replace("-----END CERTIFICATE-----\n", "")
             cert_raw = cert_raw.replace("\n", "")
         else:
-            self.logger.error("cert bundling failed")
-            error = "cert bundling failed"
+            self.logger.error(
+                "Certificate bundling failed: CA certificate or issued certificate is missing."
+            )
+            error = "Certificate bundling failed: CA certificate or issued certificate is missing."
 
         self.logger.debug("CAhandler._enroll() ended with error: %s", error)
         return error, cert_raw, cert_bundle
@@ -331,8 +331,15 @@ class CAhandler(object):
         cert_raw = None
 
         if not (self.host and self.user and self.password and self.template):
-            self.logger.error("Config incomplete")
-            return ("Config incomplete", None, None, None)
+            self.logger.error(
+                "Configuration incomplete: host, user, password, or template is missing."
+            )
+            return (
+                "Configuration incomplete: host, user, password, or template is missing.",
+                None,
+                None,
+                None,
+            )
 
         # check for allowed domainlist
         error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
@@ -347,9 +354,9 @@ class CAhandler(object):
                 (error, cert_raw, cert_bundle) = self._enroll(csr)
 
             else:
-                self.logger.error("EAB profile check failed")
+                self.logger.error("EAB profile check failed: %s", error)
         else:
-            self.logger.error(error)
+            self.logger.error("Domain not allowed for enrollment: %s", error)
 
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, None)

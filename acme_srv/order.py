@@ -77,7 +77,7 @@ class Order(object):
                         self.dbstore.authorization_update(auth)
                 except Exception as err_:
                     self.logger.critical(
-                        "acme2certifier database error in Order._add() authz: %s", err_
+                        "Database error: failed to add authorization: %s", err_
                     )
         else:
             error = self.error_msg_dic["malformed"]
@@ -101,7 +101,7 @@ class Order(object):
             else:
                 # profile is not valid
                 self.logger.warning(
-                    "Order._profile_check(): profile '%s' is not valid", profile
+                    "Profile '%s' is not valid. Ignoring submitted profile.", profile
                 )
 
         self.logger.debug("Order._profile_check() ended with %s", error)
@@ -122,7 +122,7 @@ class Order(object):
             oid = self.dbstore.order_add(data_dic)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Order._add() order: %s", err_
+                "Database error: failed to add order: %s", err_
             )
             oid = None
 
@@ -148,7 +148,7 @@ class Order(object):
             else:
                 # profile check is enabled but no profiles are configured
                 self.logger.warning(
-                    "Order._add(): ignore submitted profile '%s' as no profiles are configured",
+                    "Ignore submitted profile '%s' as no profiles are configured.",
                     payload["profile"],
                 )
 
@@ -204,7 +204,7 @@ class Order(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Order._config_orderconfig_load() header_info_list failed with error: %s",
+                    "Failed to parse header_info_list from configuration: %s",
                     err_,
                 )
 
@@ -235,7 +235,7 @@ class Order(object):
                 )
             except Exception:
                 self.logger.warning(
-                    "Order._config_load(): failed to parse retry_after: %s",
+                    "Failed to parse retry_after from configuration: %s",
                     config_dic["Order"]["retry_after_timeout"],
                 )
             try:
@@ -244,7 +244,7 @@ class Order(object):
                 )
             except Exception:
                 self.logger.warning(
-                    "Order._config_load(): failed to parse validity: %s",
+                    "Failed to parse validity from configuration: %s",
                     config_dic["Order"]["validity"],
                 )
             try:
@@ -253,7 +253,7 @@ class Order(object):
                 )
             except Exception:
                 self.logger.warning(
-                    "Order._config_load(): failed to parse identifier_limit: %s",
+                    "Failed to parse identifier_limit from configuration: %s",
                     config_dic["Order"]["identifier_limit"],
                 )
 
@@ -277,7 +277,7 @@ class Order(object):
                 )
             except Exception:
                 self.logger.warning(
-                    "Order._config_load(): failed to parse authz validity: %s",
+                    "Failed to parse authz validity from configuration: %s",
                     config_dic["Authorization"]["validity"],
                 )
 
@@ -364,9 +364,7 @@ class Order(object):
         try:
             result = self.dbstore.order_lookup("name", order_name)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Order._info(): %s", err_
-            )
+            self.logger.critical("Database error: failed to look up order: %s", err_)
             result = None
         return result
 
@@ -468,7 +466,7 @@ class Order(object):
                     )
                 except Exception as err_:
                     self.logger.critical(
-                        "acme2certifier database error in Order._process(): %s", err_
+                        "Database error: Certificate lookup failed: %s", err_
                     )
                     cert_dic = {}
                 if cert_dic:
@@ -541,9 +539,7 @@ class Order(object):
         try:
             self.dbstore.order_update(data_dic)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Order._update(): %s", err_
-            )
+            self.logger.critical("Database error: failed to update order: %s", err_)
 
     def _order_dic_create(self, tmp_dic: Dict[str, str]) -> Dict[str, str]:
         """create order dictionary"""
@@ -563,7 +559,7 @@ class Order(object):
                 order_dic["identifiers"] = json.loads(tmp_dic["identifiers"])
             except Exception:
                 self.logger.error(
-                    "Order._order_dic_create(): error while parsing the identifier %s",
+                    "Error while parsing the identifier %s",
                     tmp_dic["identifiers"],
                 )
 
@@ -580,7 +576,7 @@ class Order(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Order._authz_list_lookup(): %s", err_
+                "Database error: failed to look up authorization list: %s", err_
             )
             authz_list = []
 
@@ -656,7 +652,7 @@ class Order(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Order._invalidate() search: %s", err_
+                "Database error: failed to search for expired orders: %s", err_
             )
             order_list = []
         output_list = []
@@ -674,7 +670,7 @@ class Order(object):
                     self.dbstore.order_update(data_dic)
                 except Exception as err_:
                     self.logger.critical(
-                        "acme2certifier database error in Order._invalidate() upd: %s",
+                        "Database error: failed to update order status to invalid: %s",
                         err_,
                     )
 

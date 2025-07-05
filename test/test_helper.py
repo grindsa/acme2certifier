@@ -523,10 +523,10 @@ class TestACMEHandler(unittest.TestCase):
         mock_json.side_effect = Exception("exc_mock_json")
         data_dic = '{"protected": "eyJub25jZSI6ICIyNmU2YTQ2ZWZhZGQ0NzdkOTA4ZDdjMjAxNGU0OWIzNCIsICJ1cmwiOiAiaHR0cDovL2xhcHRvcC5uY2xtLXNhbWJhLmxvY2FsL2FjbWUvYXV0aHovUEcxODlGRnpmYW8xIiwgImtpZCI6ICJodHRwOi8vbGFwdG9wLm5jbG0tc2FtYmEubG9jYWwvYWNtZS9hY2N0L3l1WjFHVUpiNzZaayIsICJhbGciOiAiUlMyNTYifQ", "payload": "", "signature": "ZW5jb2RlZF9zaWduYXR1cmU="}'
         if int("%i%i" % (sys.version_info[0], sys.version_info[1])) < 37:
-            result = "ERROR:test_a2c:decode_message() err: Invalid JWS Object [Invalid format]"
+            result = "ERROR:test_a2c:Error during message decoding Invalid JWS Object [Invalid format]"
             e_result = (False, "Invalid JWS Object [Invalid format]", {}, {}, None)
         else:
-            result = "ERROR:test_a2c:decode_message() err: Invalid JWS Object [Invalid format]"
+            result = "ERROR:test_a2c:Error during message decoding Invalid JWS Object [Invalid format]"
             e_result = (False, "Invalid JWS Object [Invalid format]", {}, {}, None)
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(e_result, self.decode_message(self.logger, data_dic))
@@ -808,7 +808,7 @@ PZwtZpoz736yvIqanX6u2zUHLDzSRZXOZHY6pxANqoH6howxqGkI3FMjeDbDUln7
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cert_san_get(self.logger, cert, recode=False))
         self.assertIn(
-            "ERROR:test_a2c:cert_san_get(): Error: 'str' object has no attribute 'extensions'",
+            "ERROR:test_a2c:Error while getting SANs from certificate: 'str' object has no attribute 'extensions'",
             lcm.output,
         )
 
@@ -1225,7 +1225,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         # mock_request.return_value.text = 'foo'
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.url_get(self.logger, "url"))
-        self.assertIn("ERROR:test_a2c:url_get error: foo", lcm.output)
+        self.assertIn("ERROR:test_a2c:Could not fetch URL: foo", lcm.output)
 
     @patch("acme_srv.helper.requests.get")
     def test_107_helper_url_get(self, mock_request):
@@ -1334,7 +1334,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual([], self.csr_san_get(self.logger, csr))
         self.assertIn(
-            "ERROR:test_a2c:csr_san_get(): Error: 'str' object has no attribute 'extensions'",
+            "ERROR:test_a2c:Error while getting SANs from CSR: 'str' object has no attribute 'extensions'",
             lcm.output,
         )
 
@@ -1608,7 +1608,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.fqdn_in_san_check(self.logger, san_list, fqdn))
         self.assertIn(
-            "ERROR:test_a2c:ERROR: fqdn_in_san_check() SAN split failed: foo1.bar.local",
+            "ERROR:test_a2c:Error during SAN check. SAN split failed: foo1.bar.local",
             lcm.output,
         )
 
@@ -1840,7 +1840,11 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
     @patch("acme_srv.helper.load_config")
     def test_178_logger_setup(self, mock_load_cfg):
         """logger setup"""
-        mock_load_cfg.return_value = {"Helper": {"log_format": "foo"}}
+        mock_load_cfg.return_value = {
+            "Helper": {
+                "log_format": "%(asctime)s - acme2certifier - %(levelname)s - %(message)s"
+            }
+        }
         self.assertTrue(self.logger_setup(True))
 
     @patch("configparser.RawConfigParser")
@@ -1971,7 +1975,8 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.jwk_thumbprint_get(self.logger, pub_key))
         self.assertIn(
-            "ERROR:test_a2c:jwk_thumbprint_get(): error: exc_jwk_jwk", lcm.output
+            "ERROR:test_a2c:Could not get the JWKEY thumbprint from public key: exc_jwk_jwk",
+            lcm.output,
         )
 
     @patch("socket.AF_INET")
@@ -2043,7 +2048,8 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             self.assertEqual(None, self.servercert_get(self.logger, "hostname", 443))
         self.assertFalse(mock_cert.called)
         self.assertIn(
-            "ERROR:test_a2c:servercert_get() failed with: exc_warp_sock", lcm.output
+            "ERROR:test_a2c:Could not get peer certificate. Error: exc_warp_sock",
+            lcm.output,
         )
 
     @patch("ssl.TLSVersion")
@@ -2062,7 +2068,8 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("foo", self.servercert_get(self.logger, "hostname"))
         self.assertIn(
-            "ERROR:test_a2c:servercert_get(): minimum_version not supported", lcm.output
+            "ERROR:test_a2c:Error while getting the peer certifiate: minimum tls version not supported",
+            lcm.output,
         )
 
     @patch("dns.resolver.Resolver")
@@ -2099,7 +2106,9 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_resolve.side_effect = Exception("mock_resolve")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.txt_get(self.logger, "foo"))
-        self.assertIn("ERROR:test_a2c:txt_get() error: mock_resolve", lcm.output)
+        self.assertIn(
+            "ERROR:test_a2c:Could not get TXT record: mock_resolve", lcm.output
+        )
 
     def test_204_proxystring_convert(self):
         """convert proxy_string http"""
@@ -2130,7 +2139,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 self.proxystring_convert(self.logger, "unk://proxy:8080"),
             )
         self.assertIn(
-            "ERROR:test_a2c:proxystring_convert(): unknown proxy protocol: unk",
+            "ERROR:test_a2c:Unknown proxy protocol: unk",
             lcm.output,
         )
 
@@ -2141,9 +2150,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 (3, "proxy", None),
                 self.proxystring_convert(self.logger, "http://proxy:ftp"),
             )
-        self.assertIn(
-            "ERROR:test_a2c:proxystring_convert(): unknown proxy port: ftp", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:Unknown proxy port: ftp", lcm.output)
 
     def test_209_proxystring_convert(self):
         """convert proxy_string porxy sting without protocol"""
@@ -2152,11 +2159,11 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 (None, None, None), self.proxystring_convert(self.logger, "proxy")
             )
         self.assertIn(
-            "ERROR:test_a2c:proxystring_convert(): error splitting proxy_server string: proxy",
+            "ERROR:test_a2c:Error while splitting proxy_server string: proxy",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:proxystring_convert(): proxy_proto (None), proxy_addr (None) or proxy_port (None) missing",
+            "ERROR:test_a2c:proxy_proto (None), proxy_addr (None) or proxy_port (None) missing",
             lcm.output,
         )
 
@@ -2168,11 +2175,11 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 self.proxystring_convert(self.logger, "http://proxy"),
             )
         self.assertIn(
-            "ERROR:test_a2c:proxystring_convert(): error splitting proxy into host/port: proxy",
+            "ERROR:test_a2c:Error while splitting proxy into host/port: proxy",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:proxystring_convert(): proxy_proto (http), proxy_addr (None) or proxy_port (None) missing",
+            "ERROR:test_a2c:proxy_proto (http), proxy_addr (None) or proxy_port (None) missing",
             lcm.output,
         )
 
@@ -2281,7 +2288,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.ca_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:loading default CAhandler failed with err: exc_mock_imp",
+            "CRITICAL:test_a2c:Loading default CAhandler failed with err: exc_mock_imp",
             lcm.output,
         )
 
@@ -2309,7 +2316,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("foo", self.ca_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:loading CAhandler configured in cfg failed with err: exc_mock_util",
+            "CRITICAL:test_a2c:Loading CAhandler configured in cfg failed with err: exc_mock_util",
             lcm.output,
         )
 
@@ -2323,7 +2330,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.ca_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:loading default CAhandler failed with err: exc_mock_imp",
+            "CRITICAL:test_a2c:Loading default CAhandler failed with err: exc_mock_imp",
             lcm.output,
         )
 
@@ -2344,7 +2351,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eab_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:loading default EABhandler failed with err: exc_mock_imp",
+            "CRITICAL:test_a2c:Loading default EABhandler failed with err: exc_mock_imp",
             lcm.output,
         )
 
@@ -2372,7 +2379,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("foo", self.eab_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:loading EABhandler configured in cfg failed with err: exc_mock_util",
+            "CRITICAL:test_a2c:Loading EABhandler configured in cfg failed with err: exc_mock_util",
             lcm.output,
         )
 
@@ -2386,7 +2393,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eab_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:loading default EABhandler failed with err: exc_mock_imp",
+            "CRITICAL:test_a2c:Loading default EABhandler failed with err: exc_mock_imp",
             lcm.output,
         )
 
@@ -2417,7 +2424,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.hooks_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:Helper.hooks_load(): loading Hooks configured in cfg failed with err: 'Exception' object is not callable",
+            "CRITICAL:test_a2c:Loading Hooks configured in cfg failed with err: 'Exception' object is not callable",
             lcm.output,
         )
 
@@ -2524,7 +2531,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.config_check(self.logger, config_dic)
         self.assertIn(
-            'WARNING:test_a2c:config_check(): section foo option: bar contains " characters. Check if this is really needed!',
+            'WARNING:test_a2c:Section foo option: bar contains " characters. Please check if this is required!',
             lcm.output,
         )
 
@@ -2773,7 +2780,8 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.header_info_get(self.logger, "csr"))
         self.assertIn(
-            "ERROR:test_a2c:Helper.header_info_get(): error: mock_search", lcm.output
+            "ERROR:test_a2c:Error while getting header_info from database: mock_search",
+            lcm.output,
         )
 
     def test_276_encode_url(self):
@@ -2876,7 +2884,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cert_ski_pyopenssl_get(self.logger, cert))
         self.assertIn(
-            "ERROR:test_a2c:cert_ski_pyopenssl_get(): No SKI found in certificate",
+            "WARNING:test_a2c:No SKI found in certificate",
             lcm.output,
         )
 
@@ -2914,7 +2922,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cert_aki_pyopenssl_get(self.logger, cert))
         self.assertIn(
-            "ERROR:test_a2c:cert_ski_pyopenssl_get(): No AKI found in certificate",
+            "WARNING:test_a2c:No AKI found in certificate",
             lcm.output,
         )
 
@@ -3141,7 +3149,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.header_info_lookup(self.logger, "csr", "header_info_field", "foo1")
             )
         self.assertIn(
-            "ERROR:test_a2c:header_info_lookup() header_info_field not found: header_info_field",
+            "WARNING:test_a2c:Header_info_field not found in header info: header_info_field",
             lcm.output,
         )
 
@@ -3154,7 +3162,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.header_info_lookup(self.logger, "csr", "header_info_field", "foo1")
             )
         self.assertIn(
-            "ERROR:test_a2c:header_info_lookup() header_info_field not found: header_info_field",
+            "WARNING:test_a2c:Header_info_field not found in header info: header_info_field",
             lcm.output,
         )
 
@@ -3167,7 +3175,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.header_info_lookup(self.logger, "csr", "header_info_field", "foo1")
             )
         self.assertIn(
-            "ERROR:test_a2c:header_info_lookup() header_info_field not found: header_info_field",
+            "WARNING:test_a2c:Header_info_field not found in header info: header_info_field",
             lcm.output,
         )
 
@@ -3182,7 +3190,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.header_info_lookup(self.logger, "csr", "header_info_field", "foo1")
             )
         self.assertIn(
-            "ERROR:test_a2c:header_info_lookup() could not parse header_info_field: mock_json",
+            "ERROR:test_a2c:Could not parse header_info_field: mock_json",
             lcm.output,
         )
 
@@ -3202,7 +3210,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.config_headerinfo_load(self.logger, config_dic))
         self.assertIn(
-            "WARNING:test_a2c:header_info_list failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to parse header_info_list from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 
@@ -3289,7 +3297,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.eab_profile_string_check(self.logger, cahandler, "foobar", "bar")
         self.assertEqual("foo", cahandler.foo)
         self.assertIn(
-            "ERROR:test_a2c:Helper.eab_profile_string_check(): ignore string attribute: key: foobar value: bar",
+            "WARNING:test_a2c:EAB profile string checking: ignoring unrecognized string attribute: key: foobar value: bar",
             lcm.output,
         )
 
@@ -3304,7 +3312,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         self.assertEqual("foo", cahandler.foo)
         self.assertIn(
-            "ERROR:test_a2c:Helper.eab_profile_list_check(): ignore list attribute: key: foobar value: bar",
+            "WARNING:test_a2c:EAP profile list checking: ignoring unrecognized list attribute: key: foobar value: bar",
             lcm.output,
         )
 
@@ -3594,7 +3602,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 ),
             )
         self.assertIn(
-            "ERROR:test_a2c:eab_profile_header_info_check(): eab_profiling enabled but no handler defined",
+            "ERROR:test_a2c:EAB profiling enabled but no handler defined",
             lcm.output,
         )
         self.assertEqual("pre_hi_field", cahandler.hi_field)
@@ -3752,7 +3760,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(36, self.cryptography_version_get(self.logger))
         self.assertIn(
-            "ERROR:test_a2c:cryptography_version_get(): Error: 'NoneType' object has no attribute 'split'",
+            "ERROR:test_a2c:Error while getting the version number of the cryptography module: 'NoneType' object has no attribute 'split'",
             lcm.output,
         )
 
@@ -3979,7 +3987,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         mock_san_get.return_value = None
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.csr_cn_lookup(self.logger, "csr"))
-        self.assertIn("ERROR:test_a2c:no SANs found in CSR", lcm.output)
+        self.assertIn("ERROR:test_a2c:No SANs found in CSR", lcm.output)
 
     @patch("acme_srv.helper.requests.put")
     @patch("acme_srv.helper.requests.post")
@@ -4107,7 +4115,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.request_operation(logger=self.logger, url="foo", method="unknown"),
             )
         self.assertIn(
-            "ERROR:test_a2c:request_operation returned error: 'NoneType' object has no attribute 'status_code'",
+            "ERROR:test_a2c:Request_operation returned error: 'NoneType' object has no attribute 'status_code'",
             lcm.output,
         )
         self.assertFalse(mock_get.called)
@@ -4195,7 +4203,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 (False, []), self.config_enroll_config_log_load(self.logger, config_dic)
             )
         self.assertIn(
-            "WARNING:test_a2c:loading enrollment_config_log failed with error: Not a boolean: aaa",
+            "WARNING:test_a2c:Failed to load enrollment_config_log from configuration: Not a boolean: aaa",
             lcm.output,
         )
 
@@ -4224,7 +4232,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.config_enroll_config_log_load(self.logger, config_dic),
             )
         self.assertIn(
-            "WARNING:test_a2c:enrollment_config_log_skip_list failed with error: Extra data: line 1 column 6 (char 5)",
+            "WARNING:test_a2c:Failed to parse enrollment_config_log_skip_list from configuration: Extra data: line 1 column 6 (char 5)",
             lcm.output,
         )
 
@@ -4252,7 +4260,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.config_allowed_domainlist_load(self.logger, config_dic),
             )
         self.assertIn(
-            "WARNING:test_a2c:loading allowed_domainlist failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to load allowed_domainlist from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 
@@ -4489,7 +4497,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.config_profile_load(self.logger, parser))
         self.assertIn(
-            "WARNING:test_a2c:loading profiles failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to load profiles from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 
@@ -4528,7 +4536,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.profile_lookup(self.logger, "csr"))
         self.assertIn(
-            "ERROR:test_a2c:Helper.profile_lookup() failed with: mock_search",
+            "WARNING:test_a2c:Profile lookup failed with: mock_search",
             lcm.output,
         )
 

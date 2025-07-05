@@ -76,13 +76,9 @@ class Message(object):
                     # store handler in variable
                     self.eab_handler = eab_handler_module.EABhandler
                 else:
-                    self.logger.critical(
-                        "Message._config_load(): EABHandler could not get loaded"
-                    )
+                    self.logger.critical("EABHandler could not get loaded")
             else:
-                self.logger.critical(
-                    "Message._config_load(): EABHandler configuration incomplete"
-                )
+                self.logger.critical("EABHandler configuration incomplete")
         else:
             # no eab_handler configuration found - disable check
             self.eabkid_check_disable = True
@@ -149,7 +145,8 @@ class Message(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Message._name_rev_get(): %s", err_
+                "Database error: failed to look up account name for revocation: %s",
+                err_,
             )
             account_list = []
         if account_list:
@@ -208,7 +205,7 @@ class Message(object):
                     "**** NONCE CHECK DISABLED!!! Severe security issue ****"
                 )
             else:
-                self.logger.info("skip nonce check of inner payload during keyrollover")
+                self.logger.info("Skip nonce check of inner payload during keyrollover")
             code = 200
             message = None
             detail = None

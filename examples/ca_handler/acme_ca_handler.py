@@ -81,7 +81,7 @@ class CAhandler(object):
         for ele in ("acme_keyfile", "acme_url"):
             if not getattr(self, ele):
                 self.logger.error(
-                    'CAhandler._config_load() configuration incomplete: "%s" parameter is missing in config file',
+                    'acme_ca_handler configuration incomplete: "%s" parameter is missing in config file',
                     ele,
                 )
 
@@ -100,9 +100,7 @@ class CAhandler(object):
                     "CAhandler", "ssl_verify", fallback=False
                 )
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._config_load(): failed to parse ssl_verify: %s", err
-                )
+                self.logger.warning("Failed to parse ssl_verify parameter: %s", err)
         self.logger.debug("CAhandler._config_account_load() ended")
 
     def _config_parameters_load(self, config_dic: Dict[str, str]):
@@ -132,7 +130,7 @@ class CAhandler(object):
             self.logger.debug("CAhandler._config_load() ended")
         else:
             self.logger.error(
-                'CAhandler._config_load() configuration incomplete: "CAhandler" section is missing in config file'
+                'Configuration incomplete: "CAhandler" section is missing in config file'
             )
 
         # load allowed domainlist
@@ -165,7 +163,7 @@ class CAhandler(object):
                 break
         if not result:
             self.logger.error(
-                "CAhandler._challenge_filter() ended. Could not find challenge of type %s",
+                "Could not find challenge of type %s",
                 chall_type,
             )
 
@@ -197,7 +195,7 @@ class CAhandler(object):
                     (chall_name, _token) = chall_content.split(".", 2)
                 except Exception:
                     self.logger.error(
-                        "CAhandler._challenge_info() challenge split failed: %s",
+                        "Challenge split failed: %s",
                         chall_content,
                     )
 
@@ -208,9 +206,9 @@ class CAhandler(object):
                 chall_content = challenge.to_partial_json()
         else:
             if authzr:
-                self.logger.error("CAhandler._challenge_info() userkey is missing")
+                self.logger.error("acme user is missing")
             else:
-                self.logger.error("CAhandler._challenge_info() authzr is missing")
+                self.logger.error("acme authorization is missing")
             challenge = None
 
         self.logger.debug("CAhandler._challenge_info() ended with %s", chall_name)
@@ -239,9 +237,7 @@ class CAhandler(object):
                 # check if account_name is stored in keyfile
                 if "account" in user_key_dic:
                     self.account = user_key_dic["account"]
-                    self.logger.info(
-                        "CAhandler.enroll() account %s found in keyfile", self.account
-                    )
+                    self.logger.info("Account %s found in keyfile", self.account)
                     del user_key_dic["account"]
                 user_key = josepy.JWKRSA.fields_from_json(user_key_dic)
         else:
@@ -318,8 +314,8 @@ class CAhandler(object):
                 self.logger.debug("CAhandler._order_new() no profile set")
                 order = acmeclient.new_order(csr_pem=csr_pem)
         except Exception as err:
-            self.logger.error(
-                "CAhandler._order_new() failed to create order: %s. Try without profile information.",
+            self.logger.warning(
+                "Failed to create order: %s. Try without profile information.",
                 err,
             )
             order = acmeclient.new_order(csr_pem=csr_pem)
@@ -356,9 +352,7 @@ class CAhandler(object):
                     self.logger, cert_pem2der(certs[0] + "-----END CERTIFICATE-----")
                 )
             else:
-                self.logger.error(
-                    "CAhandler.enroll: Error getting certificate: %s", order.error
-                )
+                self.logger.error("Error getting certificate: %s", order.error)
                 error = f"Error getting certificate: {order.error}"
 
         self.logger.debug("CAhandler._order_issue() ended")
@@ -374,9 +368,7 @@ class CAhandler(object):
         regr = acmeclient._regr_from_response(response)
         regr = acmeclient.query_registration(regr)
         if regr:
-            self.logger.info(
-                "CAhandler._account_lookup: found existing account: %s", regr.uri
-            )
+            self.logger.info("Found existing account: %s", regr.uri)
             self.account = regr.uri
             if self.acme_url:
                 # remove url from string
@@ -436,16 +428,12 @@ class CAhandler(object):
                 )
             except errors.ConflictError:
                 self.logger.error(
-                    "CAhandler._account_create(): registration failed: ConflictError"
+                    "Account registration failed: ConflictError"
                 )  # pragma: no cover
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._account_create(): registration failed: %s", err
-                )
+                self.logger.error("Account registration failed: %s", err)
         else:
-            self.logger.error(
-                "CAhandler._account_create(): registration aborted. Email address is missing"
-            )
+            self.logger.error("Registration aborted. Email address is missing")
 
         self.logger.debug("CAhandler._account_create() ended with: %s", bool(regr))
         return regr
@@ -515,7 +503,7 @@ class CAhandler(object):
                 self._account_to_keyfile()
 
         else:
-            self.logger.error("CAhandler._account_register(): registration failed")
+            self.logger.error("Registration failed")
         return regr
 
     def _account_to_keyfile(self):
@@ -531,7 +519,7 @@ class CAhandler(object):
                 with open(self.acme_keyfile, "w", encoding="utf8") as keyf:
                     keyf.write(json.dumps(key_dic))
             except Exception as err:
-                self.logger.error("CAhandler._account_to_keyfile() failed: %s", err)
+                self.logger.error("Could not map account to keyfile: %s", err)
 
     def _zerossl_eab_get(self):
         """get eab credentials from zerossl"""
@@ -551,7 +539,9 @@ class CAhandler(object):
             self.eab_hmac_key = response.json()["eab_hmac_key"]
             self.logger.debug("CAhandler._zerossl_eab_get() ended successfully")
         else:
-            self.logger.error("CAhandler._zerossl_eab_get() failed: %s", response.text)
+            self.logger.error(
+                "Could not get eab credentials from ZeroSSL: %s", response.text
+            )
 
     def _eab_profile_list_set(self, csr: str, key: str, value: str) -> str:
         self.logger.debug(
@@ -570,9 +560,7 @@ class CAhandler(object):
             if key == "acme_url":
                 if not self.acme_keypath:
                     result = "acme_keypath is missing in config"
-                    self.logger.error(
-                        "CAhandler._eab_profile_list_set(): acme_keypath is missing in config"
-                    )
+                    self.logger.error("acme_keypath is missing in config")
                 else:
                     self.acme_url_dic = parse_url(self.logger, new_value)
                     self.acme_keyfile = f"{self.acme_keypath.rstrip('/')}/{self.acme_url_dic['host'].replace(':', '.')}.json"
@@ -592,9 +580,7 @@ class CAhandler(object):
         result = None
         if hasattr(self, key) and key != "allowed_domainlist":
             if key == "acme_keyfile":
-                self.logger.error(
-                    "CAhandler._eab_profile_list_check(): acme_keyfile is not allowed in profile"
-                )
+                self.logger.error("acme_keyfile is not allowed in profile")
             else:
                 result = self._eab_profile_list_set(csr, key, value)
 
@@ -614,7 +600,7 @@ class CAhandler(object):
                 result = error
         else:
             self.logger.error(
-                "CAhandler._eab_profile_list_check(): ignore list attribute: key: %s value: %s",
+                "handler specific EAB profile list checking: ignore list attribute: key: %s value: %s",
                 key,
                 value,
             )
@@ -646,7 +632,9 @@ class CAhandler(object):
                 acmeclient, user_key, csr_pem
             )
         else:
-            self.logger.error("CAhandler.enroll: Bad ACME account: %s", regr.body.error)
+            self.logger.error(
+                "Enrollment failed: Bad ACME account: %s", regr.body.error
+            )
             error = f"Bad ACME account: {regr.body.error}"
 
         self.logger.debug("CAhandler._enroll() ended with %s", bool(cert_raw))
@@ -673,26 +661,22 @@ class CAhandler(object):
             regr = acmeclient.query_registration(regr)
             if hasattr(regr, "uri"):
                 self.logger.info(
-                    "CAhandler._registration_lookup(): found existing account: %s",
+                    "Found existing account: %s",
                     regr.uri,
                 )
             else:
                 self.logger.error(
-                    "CAhandler._registration_lookup(): account lookup failed. Account %s not found. Trying to register new account.",
+                    "Account lookup failed. Account %s not found. Trying to register new account.",
                     self.account,
                 )
                 regr = self._account_register(acmeclient, user_key, directory)
                 if hasattr(regr, "uri"):
-                    self.logger.info(
-                        "CAhandler._registration_lookup(): new account: %s", regr.uri
-                    )
+                    self.logger.info("New account: %s", regr.uri)
         else:
             # new account or existing account with missing account id
             regr = self._account_register(acmeclient, user_key, directory)
             if hasattr(regr, "uri"):
-                self.logger.info(
-                    "CAhandler._registration_lookup(): new account: %s", regr.uri
-                )
+                self.logger.info("New account: %s", regr.uri)
 
         self.logger.debug("CAhandler._registration_lookup() ended with: %s", bool(regr))
         return regr
@@ -708,7 +692,7 @@ class CAhandler(object):
             acmeclient.revoke(cert_obj, 1)
         except Exception as err:
             self.logger.error(
-                "CAhandler.revoke(): error: %s. Fallback to pre-4.0 method",
+                "Revocation error: %s. Fallback to pre-4.0 method",
                 err,
             )
             cert_obj = josepy.ComparableX509(
@@ -766,15 +750,15 @@ class CAhandler(object):
                         acmeclient, user_key, csr_pem, regr
                     )
                 else:
-                    self.logger.error("CAhandler.enroll: account registration failed")
+                    self.logger.error("Account registration failed")
                     error = "Account registration failed"
             except Exception as err:
-                self.logger.error("CAhandler.enroll: error: %s", err)
+                self.logger.error("Enrollment error: %s", err)
                 error = str(err)
             finally:
                 del user_key
         else:
-            self.logger.error("CAhandler.enroll: CSR rejected. %s", error)
+            self.logger.error("Enrollment error: CSR rejected. %s", error)
 
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, poll_indentifier)
@@ -848,23 +832,24 @@ class CAhandler(object):
                         message = None
                     else:
                         self.logger.error(
-                            "CAhandler.enroll: Bad ACME account: %s", regr.body.error
+                            "Enrollment error: Bad ACME account: %s", regr.body.error
                         )
                         detail = f"Bad ACME account: {regr.body.error}"
 
                 else:
                     self.logger.error(
-                        "CAhandler.revoke(): could not find account key and lookup at acme-endpoint failed."
+                        "Error during revocation operation. Could not find account key and lookup at acme-endpoint failed."
                     )
                     detail = "account lookup failed"
             else:
                 self.logger.error(
-                    "CAhandler.revoke(): could not load user_key %s", self.acme_keyfile
+                    "Error during revocation: Could not load user_key %s",
+                    self.acme_keyfile,
                 )
                 detail = "Internal Error"
 
         except Exception as err:
-            self.logger.error("CAhandler.revoke: error: %s", err)
+            self.logger.error("Revocation error: %s", err)
             detail = str(err)
 
         finally:
