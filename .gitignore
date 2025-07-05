@@ -161,3 +161,7 @@ coverage.lcov
 
 # apple stuff
 .DS_Store
+
+# Nix
+/.direnv
+/result
