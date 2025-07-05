@@ -155,6 +155,130 @@ class Certificate(object):
         self.logger.debug("Certificate._authorization_check() ended with %s", result)
         return result
 
+    def _cert_issuance_log_text(self, certificate_name, data_dic):
+        """log certissuane as text string"""
+
+        log_string = f'Certificate {certificate_name} issued for account {data_dic["account_name"]}'
+
+        if data_dic.get("eab_kid", ""):
+            log_string = log_string + f' with EAB KID {data_dic["eab_kid"]}'
+
+        if data_dic.get("profile", ""):
+            log_string = log_string + f' with Profile {data_dic["profile"]}'
+
+        log_string = (
+            log_string
+            + f'. Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}'
+        )
+
+        if data_dic.get("reused", ""):
+            log_string = log_string + f' reused: {data_dic["reused"]}'
+
+        self.logger.info(log_string)
+
+    def _cert_issuance_log(
+        self,
+        certificate_name: str,
+        certificate: str,
+        order_name: str,
+        cert_reusage: bool = False,
+    ):
+        """log certificate issuance"""
+        self.logger.debug("Certificate._certificate_issuance_log(%s)", certificate_name)
+
+        # lookup account name and kid
+        try:
+            order_dic = self.dbstore.order_lookup(
+                "name",
+                order_name,
+                ["id", "name", "account__name", "account__eab_kid", "profile"],
+            )
+        except Exception as err:
+            self.logger.error(
+                "Database error: failed to account information for cert issuance log: %s",
+                err,
+            )
+            order_dic = {}
+
+        data_dic = {
+            "account_name": order_dic.get("account__name", ""),
+            "certifcate_name": certificate_name,
+            "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
+            "common_name": cert_cn_get(self.logger, certificate),
+            "san_list": cert_san_get(self.logger, certificate),
+        }
+
+        if cert_reusage:
+            # add cert reusage flag if set to true
+            data_dic["reused"] = cert_reusage
+
+        if order_dic.get("account__eab_kid", ""):
+            # add kid if existing
+            data_dic["eab_kid"] = order_dic.get("account__eab_kid", "")
+
+        if order_dic.get("profile", None):
+            # add profile if existing
+            data_dic["profile"] = order_dic.get("profile", "")
+
+        if self.cert_operations_log == "json":
+            # log in json format
+            self.logger.info(
+                "Certificate issued: %s",
+                json.dumps(data_dic, sort_keys=True),
+            )
+        else:
+            # log in text format
+            self._cert_issuance_log_text(certificate_name, data_dic)
+
+        self.logger.debug("Certificate._certificate_issuance_log() ended")
+
+    def _cert_revocation_log(self, certificate: str, status: str):
+        """log certificate revocation"""
+        self.logger.debug("Certificate._cert_revocation_log()")
+
+        # lookup account name and kid
+        try:
+            cert_dic = self.dbstore.certificate_lookup(
+                "cert_raw",
+                b64_url_recode(self.logger, certificate),
+                ["name", "name", "order__account__name", "order__account__eab_kid"],
+            )
+        except Exception as err:
+            self.logger.error(
+                "Database error: failed to account information for cert revocation: %s",
+                err,
+            )
+            cert_dic = {}
+
+        data_dic = {
+            "account_name": cert_dic.get("order__account__name", ""),
+            "eab_kid": cert_dic.get("order__account__eab_kid", ""),
+            "certifcate_name": cert_dic.get("name", ""),
+            "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
+            "common_name": cert_cn_get(self.logger, certificate),
+            "san_list": cert_san_get(self.logger, certificate),
+            "status": status,
+        }
+
+        if self.cert_operations_log == "json":
+            # log in json format
+            self.logger.info(
+                "Certificate revoked: %s",
+                json.dumps(data_dic, sort_keys=True),
+            )
+        else:
+            # log in text format
+            self.logger.info(
+                "Certificate '%s' revokation %s for account '%s' with EAB KID '%s'. Serial: %s, Common Name: %s, SANs: %s",
+                data_dic["certifcate_name"],
+                data_dic["status"],
+                data_dic["account_name"],
+                data_dic["eab_kid"],
+                data_dic["serial_number"],
+                data_dic["common_name"],
+                data_dic["san_list"],
+            )
+
     def _cert_reusage_check(self, csr: str) -> Tuple[None, str, str, str]:
         """check if an existing certificate an be reused"""
         self.logger.debug(
