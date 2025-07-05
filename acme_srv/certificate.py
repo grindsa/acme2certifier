@@ -273,7 +273,7 @@ class Certificate(object):
 
             log_string = f'"Certificate {data_dic["certifcate_name"]} revocation {data_dic["status"]} for account {data_dic["account_name"]}'
             if data_dic.get("eab_kid", ""):
-                log_string = log_string + f'with EAB KID {data_dic["eab_kid"]}'
+                log_string = log_string + f' with EAB KID {data_dic["eab_kid"]}'
             log_string = (
                 log_string
                 + f'. Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}'
