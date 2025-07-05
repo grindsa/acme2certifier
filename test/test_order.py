@@ -178,7 +178,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(e_result, self.order._add(message, 1))
         self.assertTrue(mock_profile_check.called)
         self.assertIn(
-            "WARNING:test_a2c:Order._add(): ignore submitted profile 'profile' as no profiles are configured",
+            "WARNING:test_a2c:Ignore submitted profile 'profile' as no profiles are configured.",
             lcm.output,
         )
 
@@ -661,7 +661,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(e_result, self.order._lookup("foo"))
         self.assertIn(
-            "ERROR:test_a2c:Order._order_dic_create(): error while parsing the identifier wrongvalue",
+            "ERROR:test_a2c:Error while parsing the identifier wrongvalue",
             lcm.output,
         )
 
@@ -1766,7 +1766,7 @@ class TestACMEHandler(unittest.TestCase):
                 "aname",
             )
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._add() authz: exc_order_add",
+            "CRITICAL:test_a2c:Database error: failed to add authorization: exc_order_add",
             lcm.output,
         )
 
@@ -1778,7 +1778,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order._add({"foo": "bar", "identifiers": "identifiers"}, "aname")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._add() order: exc_order_add",
+            "CRITICAL:test_a2c:Database error: failed to add order: exc_order_add",
             lcm.output,
         )
 
@@ -1788,7 +1788,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order._info("oname")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._info(): exc_order_info",
+            "CRITICAL:test_a2c:Database error: failed to look up order: exc_order_info",
             lcm.output,
         )
 
@@ -1800,7 +1800,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order._process("oname", {"url": "url"}, "payload")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._process(): exc_order_process",
+            "CRITICAL:test_a2c:Database error: Certificate lookup failed: exc_order_process",
             lcm.output,
         )
 
@@ -1810,7 +1810,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order._update({"url": "url"})
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._update(): exc_order_upd",
+            "CRITICAL:test_a2c:Database error: failed to update order: exc_order_upd",
             lcm.output,
         )
 
@@ -1824,7 +1824,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order._lookup("oname")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._authz_list_lookup(): exc_authz_lookup",
+            "CRITICAL:test_a2c:Database error: failed to look up authorization list: exc_authz_lookup",
             lcm.output,
         )
 
@@ -1836,7 +1836,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order.invalidate(timestamp)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._invalidate() upd: exc_order_upd",
+            "CRITICAL:test_a2c:Database error: failed to update order status to invalid: exc_order_upd",
             lcm.output,
         )
 
@@ -1849,7 +1849,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order.invalidate(timestamp)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._invalidate() search: exc_order_search",
+            "CRITICAL:test_a2c:Database error: failed to search for expired orders: exc_order_search",
             lcm.output,
         )
 
@@ -1990,7 +1990,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
         self.assertIn(
-            "WARNING:test_a2c:Order._config_load(): failed to parse retry_after: foo",
+            "WARNING:test_a2c:Failed to parse retry_after from configuration: foo",
             lcm.output,
         )
         self.assertFalse(self.order.header_info_list)
@@ -2047,7 +2047,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
         self.assertIn(
-            "WARNING:test_a2c:Order._config_load(): failed to parse validity: foo",
+            "WARNING:test_a2c:Failed to parse validity from configuration: foo",
             lcm.output,
         )
         self.assertFalse(self.order.header_info_list)
@@ -2106,7 +2106,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.order.validity)
         self.assertEqual(86400, self.order.authz_validity)
         self.assertIn(
-            "WARNING:test_a2c:Order._config_load(): failed to parse authz validity: foo",
+            "WARNING:test_a2c:Failed to parse authz validity from configuration: foo",
             lcm.output,
         )
         self.assertFalse(self.order.header_info_list)
@@ -2205,7 +2205,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(86400, self.order.authz_validity)
         self.assertFalse(self.order.header_info_list)
         self.assertIn(
-            "WARNING:test_a2c:Order._config_orderconfig_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to parse header_info_list from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
         self.assertEqual(20, self.order.identifier_limit)
@@ -2283,7 +2283,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.order.header_info_list)
         self.assertEqual(20, self.order.identifier_limit)
         self.assertIn(
-            "WARNING:test_a2c:Order._config_load(): failed to parse identifier_limit: aa",
+            "WARNING:test_a2c:Failed to parse identifier_limit from configuration: aa",
             lcm.output,
         )
         self.assertTrue(self.order.profiles_check_disable)
@@ -2452,7 +2452,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.order._profile_check("foo"),
             )
         self.assertIn(
-            "WARNING:test_a2c:Order._profile_check(): profile 'foo' is not valid",
+            "WARNING:test_a2c:Profile 'foo' is not valid. Ignoring submitted profile.",
             lcm.output,
         )
 

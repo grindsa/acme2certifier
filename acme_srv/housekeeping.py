@@ -45,7 +45,7 @@ class Housekeeping(object):
             result = self.dbstore.accountlist_get()
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Housekeeping._accountlist_get(): %s",
+                "Database error: failed to retrieve account list: %s",
                 err_,
             )
             result = None
@@ -58,7 +58,7 @@ class Housekeeping(object):
             result = self.dbstore.certificatelist_get()
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Housekeeping.certificatelist_get(): %s",
+                "Database error: failed to retrieve certificate list: %s",
                 err_,
             )
             result = None
@@ -88,7 +88,7 @@ class Housekeeping(object):
             result = self.dbstore.cliaccountlist_get()
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Housekeeping._cliaccounts_list(): %s",
+                "Database error: failed to retrieve CLI account list: %s",
                 err_,
             )
             result = None
@@ -110,12 +110,7 @@ class Housekeeping(object):
                 )
             print("\n")
         except Exception as err:
-            self.logger.error(
-                "acme2certifier error in Housekeeping._cliaccounts_format()"
-            )
-            self.logger.error(
-                "acme2certifier error in Housekeeping._cliaccounts_format(): %s", err
-            )
+            self.logger.error("Error in when formating cliaccounts: %s", err)
 
     def _report_get(
         self, payload: Dict[str, str]
@@ -307,7 +302,7 @@ class Housekeeping(object):
                     data_dic.update(config_dic["permissions"])
                 except Exception as err:
                     self.logger.error(
-                        "acme2certifier  error in Housekeeping._data_dic_build(): %s",
+                        "Error in while building the data dictionary: %s",
                         err,
                     )
 
@@ -629,9 +624,7 @@ class Housekeeping(object):
                 if report_name:
                     self._json_dump(f"{report_name}.{report_format}", cert_list)
             else:
-                self.logger.info(
-                    "Housekeeping.certreport_get(): No dump just return report"
-                )
+                self.logger.info("No dump just return report")
 
         return cert_list
 
@@ -706,13 +699,11 @@ class Housekeeping(object):
                     else:
                         result = self.dbstore.cliaccount_add(data_dic)
                 else:
-                    self.logger.error(
-                        "acme2certifier error in Housekeeping.cli_usermgr(): data incomplete"
-                    )
+                    self.logger.error("Error in CLI usermanagement: data incomplete")
 
             except Exception as err_:
                 self.logger.critical(
-                    "acme2certifier database error in Housekeeping.cli_usermgr(): %s",
+                    "Database error: failed to manage CLI user: %s",
                     err_,
                 )
 
@@ -768,26 +759,22 @@ class Housekeeping(object):
                 (result, script_name) = self.dbstore.dbversion_get()
             except Exception as err_:
                 self.logger.critical(
-                    "acme2certifier database error in Housekeeping.dbversion_check(): %s",
+                    "Database error: failed to check database version: %s",
                     err_,
                 )
                 result = None
                 script_name = "handler specific migration"
             if result != version:
                 self.logger.critical(
-                    'acme2certifier database version mismatch in: version is %s but should be %s. Please run the "%s" script',
+                    'Database version mismatch: current version is %s but should be %s. Please run the "%s" script',
                     result,
                     version,
                     script_name,
                 )
             else:
-                self.logger.debug(
-                    "acme2certifier database version: %s is upto date", version
-                )
+                self.logger.debug("Database version: %s is upto date", version)
         else:
-            self.logger.critical(
-                "acme2certifier database version could not be verified in Housekeeping.dbversion_check()"
-            )
+            self.logger.critical("Database version could not be verified.")
 
     def orders_invalidate(
         self, uts: int = uts_now(), report_format: str = "csv", report_name: str = None

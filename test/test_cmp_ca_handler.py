@@ -194,7 +194,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            'WARNING:test_a2c:CAhandler config error: "cmp_openssl_bin" parameter not in config_file. Using default (/usr/bin/openssl)',
+            "WARNING:test_a2c:cmp_openssl_bin parameter missing in configuration. Using default: /usr/bin/openssl",
             lcm.output,
         )
 
@@ -207,7 +207,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            'ERROR:test_a2c:CAhandler config error: "cmp_recipient" is missing in config_file.',
+            "ERROR:test_a2c:cmp_recipient parameter missing in configuration.",
             lcm.output,
         )
 
@@ -232,7 +232,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.ref)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load cmp_ref:'does_not_exist'",
+            "ERROR:test_a2c:Could not load cmp_ref:'does_not_exist'",
             lcm.output,
         )
 
@@ -250,7 +250,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("cmp_ref_local", self.cahandler.ref)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite cmp_ref variable",
+            "INFO:test_a2c:Overwrite cmp_ref variable",
             lcm.output,
         )
 
@@ -275,7 +275,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.secret)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load cmp_secret_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load cmp_secret_variable:'does_not_exist'",
             lcm.output,
         )
 
@@ -293,7 +293,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("cmp_secret_local", self.cahandler.secret)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite cmp_secret variable",
+            "INFO:test_a2c:Overwrite cmp_secret variable",
             lcm.output,
         )
 
@@ -715,7 +715,7 @@ class TestACMEHandler(unittest.TestCase):
                 ("rc from enrollment not 0", "cert_bundle", "cert_raw", None),
                 self.cahandler.enroll("csr"),
             )
-        self.assertIn("ERROR:test_a2c:CAhandler.enroll(): failed: 25", lcm.output)
+        self.assertIn("ERROR:test_a2c:Enrollment failed with rcode: 25", lcm.output)
         self.assertTrue(mock_save.called)
         self.assertTrue(mock_build.called)
         self.assertTrue(mock_call.called)
@@ -744,7 +744,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 ("Enrollment failed", None, None, None), self.cahandler.enroll("csr")
             )
-        self.assertIn("ERROR:test_a2c:CAhandler.enroll(): failed: 25", lcm.output)
+        self.assertIn("ERROR:test_a2c:Enrollment failed with rcode: 25", lcm.output)
         self.assertTrue(mock_save.called)
         self.assertTrue(mock_build.called)
         self.assertTrue(mock_call.called)

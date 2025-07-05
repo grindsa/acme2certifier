@@ -90,7 +90,7 @@ class CAhandler(object):
             else:
                 if value:
                     self.logger.error(
-                        "CAhandler._config_load(): %s option is missing in config file",
+                        "%s option is missing in configuration file.",
                         ele,
                     )
 
@@ -106,12 +106,12 @@ class CAhandler(object):
                     )
             else:
                 self.logger.error(
-                    "CAhandler._config_load(): signing_cert %s not found.",
+                    "Signing certificate file not found: %s",
                     config_dic["CAhandler"]["signing_cert"],
                 )
         else:
             self.logger.error(
-                "CAhandler._config_load(): signing_cert option is missing in config file"
+                "Signing certificate option is missing in configuration file."
             )
 
         if "password" in config_dic["CAhandler"]:
@@ -127,13 +127,11 @@ class CAhandler(object):
                     )
             else:
                 self.logger.error(
-                    "CAhandler._config_load(): signing_key %s not found.",
+                    "Signing key file not found: %s",
                     config_dic["CAhandler"]["signing_key"],
                 )
         else:
-            self.logger.error(
-                "CAhandler._config_load(): signing_key option is missing in config file"
-            )
+            self.logger.error("Signing key option is missing in configuration file.")
 
     def _global_config_load(self, config_dic):
         """load configuriation options for external signing script"""
@@ -143,29 +141,25 @@ class CAhandler(object):
             self.soap_srv = config_dic["CAhandler"]["soap_srv"]
         else:
             self.logger.error(
-                "CAhandler._config_load(): soap_srv option is missing in config file"
+                "SOAP server URL (soap_srv) is missing in configuration file."
             )
 
         if "ca_bundle" in config_dic["CAhandler"]:
             self.ca_bundle = config_dic["CAhandler"]["ca_bundle"]
         else:
-            self.logger.warning(
-                "CAhandler._config_load(): SOAP server certificate validation disabled"
-            )
+            self.logger.warning("SOAP server certificate validation is disabled.")
 
         if "profilename" in config_dic["CAhandler"]:
             self.profilename = config_dic["CAhandler"]["profilename"]
         else:
             self.logger.error(
-                "CAhandler._config_load(): profilename option is missing in config file"
+                "Profile name (profilename) is missing in configuration file."
             )
 
         if "email" in config_dic["CAhandler"]:
             self.email = config_dic["CAhandler"]["email"]
         else:
-            self.logger.error(
-                "CAhandler._config_load(): email option is missing in config file"
-            )
+            self.logger.error("Email option is missing in configuration file.")
 
     def _config_load(self):
         # pylint: disable=R0912
@@ -189,7 +183,7 @@ class CAhandler(object):
                 self._self_signing_config_load(config_dic)
 
         else:
-            self.logger.error("CAhandler._config_load(): CAhandler section is missing")
+            self.logger.error("CAhandler section is missing in configuration file.")
 
         self.logger.debug("CAhandler._config_load() ended")
 
@@ -343,41 +337,41 @@ class CAhandler(object):
                         "RequestCertificateResponse"
                     ]["RequestCertificateResult"]["IssuedCertificate"]
                 except Exception:
-                    self.logger.error(
-                        "CAhandler._soaprequest_send() - XML Parsing error"
-                    )
+                    self.logger.error("XML parsing error in SOAP response from CA.")
                     self.logger.debug(
                         "CAhandler._soaprequest_send() xml2dict: %s", resp.text
                     )
                     error = "Parsing error"
             else:
                 self.logger.error(
-                    "CAhandler._soaprequest_send(): http status_code %s",
+                    "CA server returned HTTP error status: %s",
                     resp.status_code,
                 )
                 error = "Server error"
                 try:
                     soap_dic = xmltodict.parse(resp.text)
                     self.logger.error(
-                        "CAhandler._soaprequest_send() - faultcode: %s",
+                        "SOAP response contains faultcode: %s",
                         soap_dic[senvelope_field_name][sbody_field_name]["s:Fault"][
                             "faultcode"
                         ],
                     )
                     self.logger.error(
-                        "CAhandler._soaprequest_send() - faultstring: %s",
+                        "SOAP response contains faultstring: %s",
                         soap_dic[senvelope_field_name][sbody_field_name]["s:Fault"][
                             "faultstring"
                         ],
                     )
                 except Exception:
-                    self.logger.error("CAhandler._soaprequest_send() - unkown error")
+                    self.logger.error(
+                        "Unknown error while parsing SOAP response from CA."
+                    )
                     self.logger.debug(
                         "CAhandler._soaprequest_send() unk: %s", resp.text
                     )
 
         except Exception as err:
-            self.logger.error("CAhandler._soaprequest_send(): %s", err)
+            self.logger.error("SOAP request to CA failed: %s", err)
             error = "Connection error"
             payload = None  # lgtm [py/unused-local-variable]
             resp = None  # lgtm [py/unused-local-variable]
@@ -497,7 +491,7 @@ class CAhandler(object):
         signing_check = self._pkcs7_signing_config_verify()
         if signing_check:
             self.logger.error(
-                "CAhandler._pkcs7_sign_external(): config incomplete: %s", signing_check
+                "External signing configuration is incomplete: %s", signing_check
             )
             rcode = "Config incomplete"
             pkcs7_bundle = None
@@ -524,9 +518,7 @@ class CAhandler(object):
             if not rcode:
                 pkcs7_bundle = binary_read(self.logger, signed_filename)
             else:
-                self.logger.error(
-                    "CAhandler._pkcs7_sign_external() aborted with error: %s", rcode
-                )
+                self.logger.error("Certificate enrollment aborted: %s", rcode)
                 pkcs7_bundle = None
 
             # delete temporary files
@@ -581,12 +573,12 @@ class CAhandler(object):
         else:
             if error:
                 self.logger.error(
-                    "CAhandler.enroll() _soaprequest_send() aborted with error: %s",
+                    "SOAP request to CA failed: %s",
                     error,
                 )
             else:
                 self.logger.error(
-                    "CAhandler.enroll() _soaprequest_send() did not return a bundle"
+                    "SOAP request to CA did not return a certificate bundle."
                 )
 
         self.logger.debug("Certificate.enroll() ended")
