@@ -3919,7 +3919,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_revocation_log("certificate", "status")
         self.assertIn(
-            "INFO:test_a2c:\"Certificate certificate_name revocation status for account account__namewith EAB KID account__eab_kid. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            "INFO:test_a2c:\"Certificate certificate_name revocation status for account account__name with EAB KID account__eab_kid. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
             lcm.output,
         )
 
