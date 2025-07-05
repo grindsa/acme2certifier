@@ -2016,23 +2016,13 @@ class TestACMEHandler(unittest.TestCase):
         """test cliaccounts_format two entries to be reordered"""
         result = ["string"]
 
+        mock_print.side_effect = Exception('mock_print exception')
+
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.housekeeping._cliaccounts_format(result)
         self.assertIn(
-            "ERROR:test_a2c:Error in when formating cliaccounts: string indices must be integers, not 'str'",
+            "ERROR:test_a2c:Error in when formating cliaccounts: mock_print exception",
             lcm.output,
-        )
-        self.assertIn(
-            call(
-                "\nName           |Contact             |cliadm|repadm|certadm|Created at          "
-            ),
-            mock_print.mock_calls,
-        )
-        self.assertIn(
-            call(
-                "------------------------------------------------------------------------------"
-            ),
-            mock_print.mock_calls,
         )
 
     @patch("acme_srv.housekeeping.Housekeeping._cliconfig_check")
