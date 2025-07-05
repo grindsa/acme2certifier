@@ -305,6 +305,7 @@ class Certificate(object):
         message = None
 
         if result_dic:
+            self.logger.debug("Certificate._cert_reusage_check(): found %s certificates", len(result_dic))
             uts = uts_now()
             # sort certificates by creation date
             for certificate in sorted(
@@ -331,6 +332,8 @@ class Certificate(object):
                     cert_raw = certificate["cert_raw"]
                     message = f'reused certificate from id: {certificate["id"]}'
                     break
+        else:
+            self.logger.debug("Certificate._cert_reusage_check(): no certificates found")
 
         self.logger.debug("Certificate._cert_reusage_check() ended with {%s", message)
         return (None, cert, cert_raw, message)

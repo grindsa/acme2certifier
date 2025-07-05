@@ -39,6 +39,11 @@ runs:
       fi
     shell: bash
 
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 10s
+
   - name: "Enroll acme.sh"
     run: |
       docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
