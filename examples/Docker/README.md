@@ -1,5 +1,7 @@
 <!-- markdownlint-disable MD013 -->
+
 <!-- wiki-title Containerized Installation Using Apache2 or Nginx as Web Server with WSGI or Django -->
+
 # Containerized Installation Using Apache2 or Nginx as Web Server with WSGI or Django
 
 This is the **fastest and most convenient** way to deploy **acme2certifier**. After installation, **acme2certifier** will run inside a **minimal Ubuntu 20.04 container**, using either **Apache2** or **Nginx** as the web server.
@@ -24,7 +26,7 @@ The **data folder path** can be modified in [`docker-compose.yml`](https://githu
 
 By default, **acme2certifier** runs on:
 
-- **HTTP:** Port **22280**  
+- **HTTP:** Port **22280**
 - **HTTPS:** Port **22443** *(optional)*
 
 To expose these services externally, **map ports 80 and 443** accordingly.
@@ -46,7 +48,7 @@ CONTEXT=wsgi
 WEBSERVER=apache2
 ```
 
----
+______________________________________________________________________
 
 ## Building the Docker Image
 
@@ -67,7 +69,7 @@ Removing intermediate container 03f043052bc9
 ...
 ```
 
----
+______________________________________________________________________
 
 ## Setting the Timezone
 
@@ -83,7 +85,7 @@ services:
 
 [List of Timezones](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones)
 
----
+______________________________________________________________________
 
 ## Starting acme2certifier
 
@@ -104,7 +106,7 @@ During startup, the **entry-point script** checks for missing configuration file
 
 For **Django-based deployments**, a **project-specific `settings.py`** will also be created in `data/`.
 
----
+______________________________________________________________________
 
 ## Verifying the Container
 
@@ -156,17 +158,17 @@ If you modify `acme_srv.cfg`, `ca_handler.py`, or `settings.py`, restart the con
 docker-compose restart
 ```
 
----
+______________________________________________________________________
 
 ## Enrolling a Certificate
 
 Use your preferred **ACME client**. If enrollment fails:
 
 1. **Check the CA handler configuration.**
-2. **Review logs.**
-3. **Enable [debug mode](../../docs/acme_srv.md) in acme2certifier.**
+1. **Review logs.**
+1. **Enable [debug mode](../../docs/acme_srv.md) in acme2certifier.**
 
----
+______________________________________________________________________
 
 ## Enabling TLS (Apache2)
 
@@ -190,7 +192,7 @@ Intermediate CA certificate(s)
 -----END CERTIFICATE-----
 ```
 
----
+______________________________________________________________________
 
 ## Enabling TLS (Nginx)
 
@@ -201,7 +203,7 @@ For **Nginx**, place the following files in the volume:
 
 Both must be in **PEM format**.
 
----
+______________________________________________________________________
 
 ## Running acme2certifier Without Docker-Compose
 
@@ -217,6 +219,6 @@ This will:
 - **Map internal port 22443** to **external port 443**.
 - **Mount the `data/` directory** for persistent storage.
 
----
+______________________________________________________________________
 
 ### 🎉 Congratulations! acme2certifier is now running in a containerized environment! 🚀

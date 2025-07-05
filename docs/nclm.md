@@ -1,5 +1,7 @@
 <!-- markdownlint-disable MD013 -->
+
 <!-- wiki-title CA Handler for NetGuard Certificate Lifecycle Manager -->
+
 # Connecting to NetGuard Certificate Lifecycle Manager
 
 ## Prerequisites
@@ -23,7 +25,7 @@ api_user: <user>
 api_password: <password>
 ca_bundle: <value>
 ca_name: <ca_name>
-tsg_name: <tsg_name>
+container_name: <container_name>
 template_name: <template_name>
 ```
 
@@ -36,7 +38,7 @@ template_name: <template_name>
 - **api_password_variable** *(optional)* – Environment variable containing the REST password (overridden if `api_password` is set in `acme_srv.cfg`).
 - **ca_bundle** *(optional)* – Certificate bundle used to validate the server certificate. Can be `True`, `False`, or a filename (default: `True`).
 - **ca_name** – Name of the CA used for certificate enrollment.
-- **tsg_name** – Name of the target system group where certificates will be stored.
+- **container_name** – Name of the container where certificates will be stored.
 - **template_name** *(optional)* – Name of the template to be applied to the CSR.
 - **allowed_domainlist** *(optional)* – List of allowed domain names for enrollment (JSON format). Example: `["bar.local", "bar.foo.local"]` (default: `[]`).
 - **eab_profiling** *(optional)* – [Enable EAB profiling](eab_profiling.md) (default: `False`).

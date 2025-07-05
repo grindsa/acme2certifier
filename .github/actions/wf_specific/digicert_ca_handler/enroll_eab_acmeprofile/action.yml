@@ -1,0 +1,141 @@
+name: "enroll_eab"
+description: "enroll_eab"
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: true
+    default: "rpm"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "EAB - Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme.dynamop.de curlimages/curl -f http://acme-srv/directory
+    shell: bash
+
+  - name: "EAB - Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme.dynamop.de curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+
+  - name: "Clear logs"
+    working-directory: examples/Docker/
+    run: |
+      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+      fi
+    shell: bash
+
+  - name: "EAB - 01 - Enroll lego with a template_name taken from list in kid.json"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de --http run
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.dynamop.de.crt
+      sudo openssl x509 -in lego/certificates/lego.acme.dynamop.de.crt -text -noout
+      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de revoke
+    shell: bash
+
+  - name: "Check logs"
+    working-directory: examples/Docker/
+    run: |
+      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+        docker-compose logs | grep "cert_type: ssl_basic"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_type: ssl_basic"
+      fi
+    shell: bash
+
+  - name: "EAB - 02a - Enroll lego with a template_name taken from header_info NOT included in kid.json (to fail)"
+    id: legofail01
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de --http run --profile unknown
+    shell: bash
+
+  - name: "EAB - 02a - check  result "
+    if: steps.legofail01.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Check logs"
+    working-directory: examples/Docker/
+    run: |
+      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+        docker-compose logs | grep "unknown"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+        sleep 5
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "unknown"
+      fi
+    shell: bash
+
+  - name: "EAB - 02b - Enroll lego with a template_name taken from header_info included in kid.json"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de --http run --profile ssl_securesite_pro
+      sudo openssl x509 -in lego/certificates/lego.acme.dynamop.de.crt -ext extendedKeyUsage -noout
+      sudo openssl x509 -in lego/certificates/lego.acme.dynamop.de.crt -issuer --noout
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.dynamop.de.crt
+      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de revoke
+    shell: bash
+
+  - name: "Check logs"
+    working-directory: examples/Docker/
+    run: |
+      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+        docker-compose logs | grep "cert_type: ssl_securesite_pro"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_type: ssl_securesite_pro"
+      fi
+    shell: bash
+
+  - name: "EAB - 03 - Enroll lego with a template_name/ca_name taken from kid.json"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d lego.acme.dynamop.de --http run
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.dynamop.de.crt
+      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de revoke
+    shell: bash
+
+  - name: "Check logs"
+    working-directory: examples/Docker/
+    run: |
+      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+        docker-compose logs | grep "cert_type: ssl_securesite_pro"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_type: ssl_securesite_pro"
+      fi
+    shell: bash
+
+  - name: "EAB - 04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
+    id: legofail02
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme1.dynamop.de --http run
+    shell: bash
+
+  - name: "EAB - 04 - check  result "
+    if: steps.legofail02.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail02.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 05 - Enroll lego with default values from acme.cfg"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr -d lego.acme.dynamop.de --http run
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.dynamop.de.crt
+      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de revoke
+    shell: bash

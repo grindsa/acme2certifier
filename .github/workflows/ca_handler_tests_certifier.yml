@@ -256,6 +256,73 @@ jobs:
       with:
         RECONFIGURE: true
 
+    - name: "ACME Profile - Setup a2c with certifier_ca_handler"
+      run: |
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
+      env:
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
+
+    - name: "ACME Profile - Enrollmnet"
+      uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
+
+    - name: "EAB ACME Profile - Setup a2c with certifier_ca_handler"
+      run: |
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "profile_id: 100" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
+        sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+        sudo chmod 777 examples/eab_handler/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"SubCA2\"/" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
+        sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+        cd examples/Docker/
+        docker-compose restart
+      env:
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
+
+    - name: "EAB ACME Profile - Enrollment"
+      uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
+
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
       with:
@@ -283,7 +350,7 @@ jobs:
 
   certifier_handler_tests_rpm:
     name: "certifier_handler_tests_rpm"
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     # needs: certifier_handler_tests
     strategy:
       fail-fast: false
@@ -549,6 +616,76 @@ jobs:
       with:
         RECONFIGURE: true
 
+    - name: "ACME Profile - Setup a2c with certifier_ca_handler"
+      run: |
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/acme_srv.cfg
+      env:
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
+        PROFILE: ${{ secrets.PROFILE }}
+
+    - name: "ACME Profile - Reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "ACME Profile - Enrollmnet"
+      uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
+
+    - name: "EAB ACME Profile - Setup a2c with certifier_ca_handler"
+      run: |
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/acme_srv.cfg
+        # sudo echo "api_host: $NCM_API_HOST" >> data/acme_srv.cfg
+        sudo echo "api_host: https://forwarder.acme:8084" >> data/acme_srv.cfg
+        sudo echo "ca_bundle: False" >> data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
+        # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
+        sudo echo "profile_id: 100" >> data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/acme_srv.cfg
+        sudo echo -e "\n\n[EABhandler]" >> data/acme_srv.cfg
+        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
+        sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
+        sudo chmod 777 data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"SubCA2\"/" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/example.net/acme/g" data/acme_ca/kid_profiles.json
+        sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
+        sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
+      env:
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
+        PROFILE: ${{ secrets.PROFILE }}
+
+    - name: "EAB ACME Profile - Reconfigure a2c "
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+
+    - name: "EAB ACME Profile - Enrollment"
+      uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
+
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -568,4 +705,3 @@ jobs:
       with:
         name: certifier_ca_handler_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-
