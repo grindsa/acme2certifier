@@ -233,9 +233,14 @@ class Certificate(object):
 
         self.logger.debug("Certificate._certificate_issuance_log() ended")
 
-    def _cert_revocation_log(self, certificate: str, status: str):
+    def _cert_revocation_log(self, certificate: str, code: int):
         """log certificate revocation"""
         self.logger.debug("Certificate._cert_revocation_log()")
+
+        if code == 200:
+            status = "successful"
+        else:
+            status = "failed"
 
         # lookup account name and kid
         try:
@@ -1118,7 +1123,7 @@ class Certificate(object):
         self,
         key: str,
         value: str,
-        vlist: List[str] = ("name", "csr", "cert", "order__name"),
+        vlist: Tuple = ("name", "csr", "cert", "order__name"),
     ) -> Dict[str, str]:
         """get certificate from database"""
         self.logger.debug("Certificate.certlist_search(%s: %s)", key, value)
@@ -1405,17 +1410,11 @@ class Certificate(object):
                         )
 
                     if self.cert_operations_log:
-                        if code == 200:
-                            self._cert_revocation_log(
-                                payload["certificate"],
-                                "successful",
-                            )
-                        else:
-                            self._cert_revocation_log(
-                                payload["certificate"],
-                                f"failed",
-                                # f"failed: {detail}",
-                            )
+                        self._cert_revocation_log(
+                            payload["certificate"],
+                            code,
+                        )
+
                 else:
                     message = error
                     detail = None

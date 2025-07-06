@@ -220,7 +220,7 @@ class Challenge(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to lookup challenge '%s': %s",
+                "Database error: failed to lookup challenge during challenge check:'%s': %s",
                 challenge_name,
                 err_,
             )
@@ -277,7 +277,7 @@ class Challenge(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to lookup challenge '%s': %s",
+                "Database error: failed to lookup challenge: '%s': %s",
                 challenge_name,
                 err_,
             )
@@ -419,7 +419,7 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.critical(
-                    "Database error: failed to lookup challenge '%s': %s",
+                    "Database error: failed to lookup challenge during profile check:'%s': %s",
                     challenge_name,
                     err_,
                 )

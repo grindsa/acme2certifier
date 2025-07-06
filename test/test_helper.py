@@ -1414,6 +1414,39 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             (1594443191, 1625979191), self.cert_dates_get(self.logger, cert)
         )
 
+    @patch("acme_srv.helper.date_to_uts_utc")
+    @patch("acme_srv.helper.cert_load")
+    def test_135_helper_cert_dates_get(self, mock_cert, mock_dates):
+        """get issuing and expiration date excaption"""
+        mock_dates.side_effect = [Exception("not_valid_before_utc"), 123, 456]
+        mock_cert = Mock()
+        mock_cert.not_valid_before_utc.side_effect = Exception("not_valid_before_utc")
+        mock_cert.not_valid_after_utc.side_effect = Exception("not_valid_after_utc")
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.assertEqual((123, 456), self.cert_dates_get(self.logger, "cert"))
+        self.assertIn(
+            "DEBUG:test_a2c:Error while getting dates from certificate. Fallback to deprecated method: not_valid_before_utc",
+            lcm.output,
+        )
+
+    @patch("acme_srv.helper.date_to_uts_utc")
+    @patch("acme_srv.helper.cert_load")
+    def test_136_helper_cert_dates_get(self, mock_cert, mock_dates):
+        """get issuing and expiration date excaption"""
+        mock_dates.side_effect = [Exception("uts")]
+        mock_cert = Mock()
+        mock_cert.not_valid_before_utc.side_effect = Exception("not_valid_before_utc")
+        mock_cert.not_valid_after_utc.side_effect = Exception("not_valid_after_utc")
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.assertEqual((0, 0), self.cert_dates_get(self.logger, "cert"))
+        self.assertIn(
+            "DEBUG:test_a2c:Error while getting dates from certificate. Fallback to deprecated method: uts",
+            lcm.output,
+        )
+        self.assertIn(
+            "ERROR:test_a2c:Error while getting dates from certificate: uts", lcm.output
+        )
+
     @patch("dns.resolver.Resolver")
     def test_135_helper_fqdn_resolve(self, mock_resolve):
         """successful dns-query returning covering github"""
