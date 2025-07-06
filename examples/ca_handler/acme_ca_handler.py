@@ -61,6 +61,7 @@ class CAhandler(object):
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
         self.profile = None
+        self.dns_challenge_prefer = True
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -188,22 +189,30 @@ class CAhandler(object):
         chall_content = None
 
         if authzr and user_key:
-            challenge = self._challenge_filter(authzr)
-            if challenge:
-                chall_content = challenge.chall.validation(user_key)
-                try:
-                    (chall_name, _token) = chall_content.split(".", 2)
-                except Exception:
-                    self.logger.error(
-                        "Challenge split failed: %s",
-                        chall_content,
-                    )
+            if self.dns_challenge_prefer:
+                self.logger.debug("_challenge_info(): dns-01 challenge preferred")
+                challenge = self._challenge_filter(authzr, chall_type="dns-01")
+                if challenge:
+                    chall_content = challenge.chall.validation(user_key)
+                    chall_name = '_acme-challenge'
 
             else:
-                challenge = self._challenge_filter(
-                    authzr, chall_type="sectigo-email-01"
-                )
-                chall_content = challenge.to_partial_json()
+                challenge = self._challenge_filter(authzr)
+                if challenge:
+                    chall_content = challenge.chall.validation(user_key)
+                    try:
+                        (chall_name, _token) = chall_content.split(".", 2)
+                    except Exception:
+                        self.logger.error(
+                            "Challenge split failed: %s",
+                            chall_content,
+                        )
+
+                else:
+                    challenge = self._challenge_filter(
+                        authzr, chall_type="sectigo-email-01"
+                    )
+                    chall_content = challenge.to_partial_json()
         else:
             if authzr:
                 self.logger.error("acme user is missing")
@@ -270,15 +279,22 @@ class CAhandler(object):
                 authzr, user_key
             )
             if challenge_name and challenge_content:
-                self.logger.debug(
-                    "CAhandler._order_authorization(): http-01 challenge detected"
-                )
-                # store challenge in database to allow challenge validation
-                self._challenge_store(challenge_name, challenge_content)
-                _auth_response = acmeclient.answer_challenge(
-                    challenge, challenge.chall.response(user_key)
-                )  # lgtm [py/unused-local-variable]
-                authz_valid = True
+                if self.dns_challenge_prefer:
+                    self.logger.debug(
+                        "CAhandler._order_authorization(): dns challenge detected"
+                    )
+                else:
+                    self.logger.debug(
+                        "CAhandler._order_authorization(): http challenge detected"
+                    )
+                    # store challenge in database to allow challenge validation
+                    self._challenge_store(challenge_name, challenge_content)
+
+                    _auth_response = acmeclient.answer_challenge(
+                        challenge, challenge.chall.response(user_key)
+                    )  # lgtm [py/unused-local-variable]
+
+                    authz_valid = True
             else:
                 if (
                     isinstance(challenge_content, dict)
@@ -290,6 +306,7 @@ class CAhandler(object):
                     )
                     authz_valid = True
 
+        raise(NotImplementedError('exit here, because the challenge handling is not implemented yet'))
         self.logger.debug(
             "CAhandler._order_authorization() ended with: %s", authz_valid
         )
