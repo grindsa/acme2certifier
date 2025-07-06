@@ -1265,7 +1265,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._check("name", "payload")
         self.assertIn(
-            "CRITICAL:test_a2c:Database error: failed to lookup challenge 'name': exc_chall_chk",
+            "CRITICAL:test_a2c:Database error: failed to lookup challenge during challenge check:'name': exc_chall_chk",
             lcm.output,
         )
 
@@ -1277,7 +1277,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._info("name")
         self.assertIn(
-            "CRITICAL:test_a2c:Database error: failed to lookup challenge 'name': exc_chall_info",
+            "CRITICAL:test_a2c:Database error: failed to lookup challenge: 'name': exc_chall_info",
             lcm.output,
         )
 
@@ -2113,7 +2113,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
         self.assertIn(
-            "CRITICAL:test_a2c:Database error: failed to lookup challenge 'challenge_name': exc_chall_info",
+            "CRITICAL:test_a2c:Database error: failed to lookup challenge during profile check:'challenge_name': exc_chall_info",
             lcm.output,
         )
 

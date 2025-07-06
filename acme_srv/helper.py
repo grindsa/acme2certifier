@@ -424,7 +424,6 @@ def cert_dates_get(logger: logging.Logger, certificate: str) -> Tuple[int, int]:
             err,
         )
         try:
-            cert = cert_load(logger, certificate, recode=True)
             issue_date = date_to_uts_utc(
                 cert.not_valid_before, _tformat="%Y-%m-%d %H:%M:%S"
             )

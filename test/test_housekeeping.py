@@ -2016,7 +2016,7 @@ class TestACMEHandler(unittest.TestCase):
         """test cliaccounts_format two entries to be reordered"""
         result = ["string"]
 
-        mock_print.side_effect = Exception('mock_print exception')
+        mock_print.side_effect = Exception("mock_print exception")
 
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.housekeeping._cliaccounts_format(result)
