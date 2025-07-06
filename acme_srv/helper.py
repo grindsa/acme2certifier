@@ -418,7 +418,8 @@ def cert_dates_get(logger: logging.Logger, certificate: str) -> Tuple[int, int]:
         expiration_date = date_to_uts_utc(
             cert.not_valid_after_utc, _tformat="%Y-%m-%d %H:%M:%S"
         )
-    except Exception:
+    except Exception as err:
+        logger.debug("Error while getting dates from certificate: %s", err)
         issue_date = 0
         expiration_date = 0
 
