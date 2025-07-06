@@ -3,7 +3,7 @@
 """certificate class"""
 from __future__ import print_function
 import json
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Union
 from acme_srv.helper import (
     b64_url_recode,
     ca_handler_load,
@@ -1122,7 +1122,7 @@ class Certificate(object):
     def certlist_search(
         self,
         key: str,
-        value: str | int,
+        value: Union[str, int],
         vlist: List[str] = ("name", "csr", "cert", "order__name"),
     ) -> Dict[str, str]:
         """get certificate from database"""
