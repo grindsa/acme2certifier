@@ -305,6 +305,10 @@ class Certificate(object):
         message = None
 
         if result_dic:
+            self.logger.debug(
+                "Certificate._cert_reusage_check(): found %s certificates",
+                len(result_dic),
+            )
             uts = uts_now()
             # sort certificates by creation date
             for certificate in sorted(
@@ -320,6 +324,13 @@ class Certificate(object):
                     )
                     uts_create = 0
 
+                self.logger.debug(
+                    "uts: %s, reusage_tf: %s,  uts_create: %s, uts_exp: %s",
+                    uts,
+                    self.cert_reusage_timeframe,
+                    uts_create,
+                    certificate["expire_uts"],
+                )
                 # check if there certificates within reusage timeframe
                 if (
                     certificate["cert_raw"]
@@ -331,8 +342,12 @@ class Certificate(object):
                     cert_raw = certificate["cert_raw"]
                     message = f'reused certificate from id: {certificate["id"]}'
                     break
+        else:
+            self.logger.debug(
+                "Certificate._cert_reusage_check(): no certificates found"
+            )
 
-        self.logger.debug("Certificate._cert_reusage_check() ended with %s", message)
+        self.logger.debug("Certificate._cert_reusage_check() ended with {%s", message)
         return (None, cert, cert_raw, message)
 
     def _config_hooks_load(self, config_dic: Dict[str, str]):

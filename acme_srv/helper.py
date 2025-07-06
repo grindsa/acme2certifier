@@ -418,9 +418,23 @@ def cert_dates_get(logger: logging.Logger, certificate: str) -> Tuple[int, int]:
         expiration_date = date_to_uts_utc(
             cert.not_valid_after_utc, _tformat="%Y-%m-%d %H:%M:%S"
         )
-    except Exception:
-        issue_date = 0
-        expiration_date = 0
+    except Exception as err:
+        logger.debug(
+            "Error while getting dates from certificate. Fallback to deprecated method: %s",
+            err,
+        )
+        try:
+            cert = cert_load(logger, certificate, recode=True)
+            issue_date = date_to_uts_utc(
+                cert.not_valid_before, _tformat="%Y-%m-%d %H:%M:%S"
+            )
+            expiration_date = date_to_uts_utc(
+                cert.not_valid_after, _tformat="%Y-%m-%d %H:%M:%S"
+            )
+        except Exception:
+            logger.error("Error while getting dates from certificate: %s", err)
+            issue_date = 0
+            expiration_date = 0
 
     logger.debug("cert_dates_get() ended with: %s/%s", issue_date, expiration_date)
     return (issue_date, expiration_date)
