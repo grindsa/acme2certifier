@@ -1122,7 +1122,7 @@ class Certificate(object):
     def certlist_search(
         self,
         key: str,
-        value: str,
+        value: str | int,
         vlist: Tuple = ("name", "csr", "cert", "order__name"),
     ) -> Dict[str, str]:
         """get certificate from database"""
