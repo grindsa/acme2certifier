@@ -251,7 +251,7 @@ class Certificate(object):
             )
         except Exception as err:
             self.logger.error(
-                "Database error: failed to account information for cert revocation: %s",
+                "Database error: failed to get account information for cert revocation: %s",
                 err,
             )
             cert_dic = {}
