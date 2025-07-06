@@ -1123,7 +1123,7 @@ class Certificate(object):
         self,
         key: str,
         value: Union[str, int],
-        vlist: List[str] = ("name", "csr", "cert", "order__name"),
+        vlist: List[str] = ["name", "csr", "cert", "order__name"],
     ) -> Dict[str, str]:
         """get certificate from database"""
         self.logger.debug("Certificate.certlist_search(%s: %s)", key, value)
