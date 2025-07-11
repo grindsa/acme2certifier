@@ -157,11 +157,11 @@ class CAhandler(object):
             )
 
             try:
-                self.key_size = config_dic.get(
+                self.dns_validation_timeout = int(config_dic.get(
                     "CAhandler",
                     "dns_validation_timeout",
                     fallback=self.dns_validation_timeout,
-                )
+                ))
             except Exception as err:
                 self.logger.warning(
                     "CAhandler._config_dns_update_script_load(): Failed to parse dns_validation_timeout parameter: %s",
@@ -276,45 +276,59 @@ class CAhandler(object):
 
         chall_name = None
         chall_content = None
+        challenge = None
 
-        if authzr and user_key:
-            if self.dns_update_script:
-                self.logger.debug("_challenge_info(): dns-01 challenge preferred")
-                challenge = self._challenge_filter(authzr, chall_type="dns-01")
-                if challenge:
-                    (
-                        chall_content,
-                        _validation,
-                    ) = challenge.chall.response_and_validation(user_key)
-                    chall_content = chall_content.key_authorization
-                    chall_name = "dns-challenge"
-
-            else:
-                challenge = self._challenge_filter(authzr)
-                if challenge:
-                    chall_content = challenge.chall.validation(user_key)
-                    try:
-                        (chall_name, _token) = chall_content.split(".", 2)
-                    except Exception:
-                        self.logger.error(
-                            "Challenge split failed: %s",
-                            chall_content,
-                        )
-
-                else:
-                    challenge = self._challenge_filter(
-                        authzr, chall_type="sectigo-email-01"
-                    )
-                    chall_content = challenge.to_partial_json()
-        else:
+        if not authzr or not user_key:
             if authzr:
                 self.logger.error("acme user is missing")
             else:
                 self.logger.error("acme authorization is missing")
-            challenge = None
+            self.logger.debug("CAhandler._challenge_info() ended with %s", chall_name)
+            return (chall_name, chall_content, challenge)
+
+        if self.dns_update_script:
+            chall_name, chall_content, challenge = self._get_dns_challenge(authzr, user_key)
+        else:
+            chall_name, chall_content, challenge = self._get_http_or_email_challenge(authzr, user_key)
 
         self.logger.debug("CAhandler._challenge_info() ended with %s", chall_name)
         return (chall_name, chall_content, challenge)
+
+    def _get_dns_challenge(self, authzr, user_key):
+        self.logger.debug("_get_dns_challenge()")
+        challenge = self._challenge_filter(authzr, chall_type="dns-01")
+        chall_name = None
+        chall_content = None
+        if challenge:
+            (
+                chall_content_obj,
+                _validation,
+            ) = challenge.chall.response_and_validation(user_key)
+            chall_content = chall_content_obj.key_authorization
+            chall_name = "dns-challenge"
+        return chall_name, chall_content, challenge
+
+    def _get_http_or_email_challenge(self, authzr, user_key):
+        self.logger.debug("_get_http_or_email_challenge()")
+        challenge = self._challenge_filter(authzr)
+        chall_name = None
+        chall_content = None
+        if challenge:
+            chall_content = challenge.chall.validation(user_key)
+            try:
+                (chall_name, _token) = chall_content.split(".", 2)
+            except Exception:
+                self.logger.error(
+                    "Challenge split failed: %s",
+                    chall_content,
+                )
+        else:
+            challenge = self._challenge_filter(
+                authzr, chall_type="sectigo-email-01"
+            )
+            if challenge:
+                chall_content = challenge.to_partial_json()
+        return chall_name, chall_content, challenge
 
     def _key_generate(self) -> josepy.jwk.JWKRSA:
         """generate key"""
