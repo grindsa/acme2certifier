@@ -88,7 +88,7 @@ jobs:
         CF_TOKEN: ${{ secrets.CF_TOKEN }}
         CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
 
-    - name: "Bring up a2c container"
+    - name: "CloudFlare - Bring up a2c container"
       uses: ./.github/actions/container_up
       with:
         DB_HANDLER: ${{ matrix.dbhandler }}
@@ -100,13 +100,13 @@ jobs:
         echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
     - run: echo "UUID ${{ env.UUID }}"
 
-    - name: "Enrollment"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns
-      with:
-        HOSTNAME_SUFFIX: -${{ env.UUID }}
-        NAME_SPACE: acme.dynamop.de
-        CERT_TIMEOUT: 120
-        VERIFY_CERT: false
+    #- name: "Enrollment"
+    #  uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns
+    #  with:
+    #    HOSTNAME_SUFFIX: -${{ env.UUID }}
+    #    NAME_SPACE: acme.dynamop.de
+    #    CERT_TIMEOUT: 120
+    #    VERIFY_CERT: false
 
     - name: "ACMEDNS - Setup acme ca_handler"
       run: |
@@ -124,16 +124,25 @@ jobs:
         sudo echo "acme_account_email: grindelsack@gmail.com" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_sh_script: volume/acme/acme.sh" >> examples/Docker/data/acme_srv.cfg
         sudo echo "dns_update_script: volume/acme/dns_acmedns.sh" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "dns_update_script_variables: {\"CF_Token\": \"$CF_TOKEN\", \"CF_Zone_ID\": \"$CF_ZONE_ID\"}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "dns_update_script_variables: {\"ACMEDNS_USERNAME\": \"$ACMEDNS_USERNAME\", \"ACMEDNS_PASSWORD\": \"$ACMEDNS_PASSWORD\", \"ACMEDNS_BASE_URL\": \"https://auth.acme-dns.io\", \"ACMEDNS_SUBDOMAIN\": \"$ACMEDNS_SUBDOMAIN\"}" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_sh_shell: /bin/bash" >> examples/Docker/data/acme_srv.cfg
         sudo echo "dns_validation_timeout: 30" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker-compose restart
       env:
-        CF_TOKEN: ${{ secrets.CF_TOKEN }}
-        CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+        ACMEDNS_USERNAME: ${{ secrets.ACMEDNS_USERNAME }}
+        ACMEDNS_PASSWORD: ${{ ACMEDNS_PASSWORD.ACMEDNS_PASSWORD }}
+        ACMEDNS_SUBDOMAIN: ${{ ACMEDNS_SUBDOMAIN.ACMEDNS_SUBDOMAIN }}
 
+    - name: "ACMEDNS - WC - Enrollment"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns_wc
+      with:
+        NAME_SPACE: acme.dynamop.de
+        CERT_TIMEOUT: 120
+        VERIFY_CERT: false
 
     - name: "Check acme account found in keyfile"
       run: |
