@@ -50,9 +50,9 @@ jobs:
 
     - name: "Prepare setup acme_ca_handler"
       run: |
-        sudo mkdir -p data/acme
-        sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/acme.sh --output data/acme/acme.sh
-        sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/dnsapi/dns_cf.sh --output data/acme/dns_cf.sh
+        sudo mkdir -p data/acme_ca
+        sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/acme.sh --output data/acme_ca/acme.sh
+        sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/dnsapi/dns_cf.sh --output data/acme_ca/dns_cf.sh
         sudo chmod a+x data/acme/*.sh
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
@@ -62,14 +62,17 @@ jobs:
         sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/acme_srv.cfg
         sudo echo "acme_url: https://acme-staging-v02.api.letsencrypt.org" >> data/acme_srv.cfg
         sudo echo "acme_account_email: grindelsack@gmail.com" >> data/acme_srv.cfg
-        sudo echo "acme_sh_script: /opt/acme2certifier/volume/acme/acme.sh" >> data/acme_srv.cfg
-        sudo echo "dns_update_script: /opt/acme2certifier/volume/acme/dns_cf.sh" >> data/acme_srv.cfg
+        sudo echo "acme_sh_script: /opt/acme2certifier/volume/acme_ca/acme.sh" >> data/acme_srv.cfg
+        sudo echo "dns_update_script: /opt/acme2certifier/volume/acme_ca/dns_cf.sh" >> data/acme_srv.cfg
         sudo echo "dns_update_script_variables: {\"CF_Token\": \"$CF_TOKEN\", \"CF_Zone_ID\": \"$CF_ZONE_ID\"}" >> data/acme_srv.cfg
         sudo echo "acme_sh_shell: /bin/bash" >> data/acme_srv.cfg
         sudo echo "dns_validation_timeout: 30" >> data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
+      env:
+        CF_TOKEN: ${{ secrets.CF_TOKEN }}
+        CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
 
     - name: "Run Execute install scipt"
       run: |
