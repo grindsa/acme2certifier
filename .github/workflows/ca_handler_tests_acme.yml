@@ -83,7 +83,7 @@ jobs:
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-      with:
+      env:
         CF_TOKEN: ${{ secrets.CF_TOKEN }}
         CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
 
