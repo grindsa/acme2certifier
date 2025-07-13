@@ -50,7 +50,7 @@ class CAhandler(object):
         self.account = None
         self.acme_keypath = None
         self.acme_keyfile = None
-        self.acme_sh_scipt = None
+        self.acme_sh_script = None
         self.acme_sh_shell = None
         self.acme_url = None
         self.acme_url_dic = {}
@@ -58,7 +58,7 @@ class CAhandler(object):
         self.dbstore = DBstore(None, self.logger)
         self.dns_update_script = None
         self.dns_update_script_variables = None
-        self.dns_validation_timeout = 30
+        self.dns_validation_timeout = 20
         self.dns_record_dic = {}
         self.eab_handler = None
         self.eab_kid = None
@@ -136,7 +136,7 @@ class CAhandler(object):
         self.dns_update_script = config_dic.get(
             "CAhandler", "dns_update_script", fallback=None
         )
-        if not os.path.exists(self.dns_update_script):
+        if self.dns_update_script and not os.path.exists(self.dns_update_script):
             self.logger.error(
                 'CAhandler._config_dns_update_script_load(): dns update script "%s" does not exist',
                 self.dns_update_script,
@@ -149,58 +149,44 @@ class CAhandler(object):
                 self.dns_update_script,
             )
 
-            self.acme_sh_scipt = config_dic.get(
+            self.acme_sh_script = config_dic.get(
                 "CAhandler", "acme_sh_script", fallback=None
             )
+            if self.acme_sh_script and not os.path.exists(self.acme_sh_script):
+                self.logger.error(
+                    'CAhandler._config_dns_update_script_load(): acme.sh script "%s" does not exist',
+                    self.acme_sh_script,
+                )
+                self.acme_sh_script = None
+
             self.acme_sh_shell = config_dic.get(
                 "CAhandler", "acme_sh_shell", fallback=self.acme_sh_shell
             )
 
             try:
-                self.dns_validation_timeout = int(config_dic.get(
-                    "CAhandler",
-                    "dns_validation_timeout",
-                    fallback=self.dns_validation_timeout,
-                ))
+                self.dns_validation_timeout = int(
+                    config_dic.get(
+                        "CAhandler",
+                        "dns_validation_timeout",
+                        fallback=self.dns_validation_timeout,
+                    )
+                )
             except Exception as err:
                 self.logger.warning(
                     "CAhandler._config_dns_update_script_load(): Failed to parse dns_validation_timeout parameter: %s",
                     err,
                 )
 
-            if not os.path.exists(self.acme_sh_scipt):
-                self.logger.error(
-                    'CAhandler._config_dns_update_script_load(): acme.sh script "%s" does not exist',
-                    self.acme_sh_scipt,
-                )
-                self.acme_sh_scipt = None
-
-            self.dns_update_script_variables = json.loads(
-                config_dic.get(
-                    "CAhandler", "dns_update_script_variables", fallback=None
-                )
-            )
-
-            forbidden_variables_list = ["SHELL", "LANG", "PATH", "PWD", "HOME", "TZ"]
-            for key, value in self.dns_update_script_variables.items():
-                if key not in forbidden_variables_list:
-                    self.logger.debug(
-                        "CAhandler._config_dns_update_script_load(): setting environment variable: %s=%s",
-                        key,
-                        value,
+            try:
+                self.dns_update_script_variables = json.loads(
+                    config_dic.get(
+                        "CAhandler", "dns_update_script_variables", fallback=None
                     )
-                    os.environ[key] = value
-                else:
-                    self.logger.warning(
-                        'CAhandler._config_dns_update_script_load(): environment variable "%s" is forbidden and will not be set',
-                        key,
-                    )
-
-            for key in os.environ:
-                self.logger.debug(
-                    "CAhandler._config_dns_update_script_load(): environment variable: %s=%s",
-                    key,
-                    os.environ[key],
+                )
+            except Exception as err:
+                self.logger.warning(
+                    "CAhandler._config_dns_update_script_load(): Failed to parse dns_update_script_variables parameter: %s",
+                    err,
                 )
 
         self.logger.debug("CAhandler._config_dns_update_script_load() ended")
@@ -259,15 +245,6 @@ class CAhandler(object):
 
         return result
 
-    def _http_challenge_store(self, challenge_name: str, challenge_content: str):
-        """store challenge into database"""
-        self.logger.debug("CAhandler._http_challenge_store(%s)", challenge_name)
-
-        if challenge_name and challenge_content:
-            data_dic = {"name": challenge_name, "value1": challenge_content}
-            # store challenge into db
-            self.dbstore.cahandler_add(data_dic)
-
     def _challenge_info(
         self, authzr: messages.AuthorizationResource, user_key: josepy.jwk.JWKRSA
     ):
@@ -287,12 +264,134 @@ class CAhandler(object):
             return (chall_name, chall_content, challenge)
 
         if self.dns_update_script:
-            chall_name, chall_content, challenge = self._get_dns_challenge(authzr, user_key)
+            chall_name, chall_content, challenge = self._get_dns_challenge(
+                authzr, user_key
+            )
         else:
-            chall_name, chall_content, challenge = self._get_http_or_email_challenge(authzr, user_key)
+            chall_name, chall_content, challenge = self._get_http_or_email_challenge(
+                authzr, user_key
+            )
 
         self.logger.debug("CAhandler._challenge_info() ended with %s", chall_name)
         return (chall_name, chall_content, challenge)
+
+    def _dns_challenge_deprovision(self):
+        """delete dns challenge"""
+        self.logger.debug("CAhandler._dns_challenge_deprovision()")
+        if self.dns_update_script and self.acme_sh_script and self.dns_record_dic:
+
+            # get scriptname
+            basename_w_ext = os.path.splitext(os.path.basename(self.dns_update_script))[
+                0
+            ]
+
+            # set environment variables for dns update script
+            self._environment_variables_handle(unset=False)
+
+            for fqdn, txt_record_value in self.dns_record_dic.items():
+                # remove txt record from dns server - to be moved to a later place in the code
+                cmd_list = f"source {self.acme_sh_script} &>/dev/null; source {self.dns_update_script}; {basename_w_ext}_rm {fqdn} {txt_record_value.decode('utf-8') if isinstance(txt_record_value, bytes) else txt_record_value}"
+                if self.acme_sh_shell:
+                    self.logger.debug(
+                        "CAhandler._dns_challenge_provision(): using shell: %s",
+                        self.acme_sh_shell,
+                    )
+                    rcode = subprocess.call(
+                        cmd_list, shell=True, executable=self.acme_sh_shell
+                    )
+                else:
+                    rcode = subprocess.call(cmd_list, shell=True)
+
+                self.logger.debug(
+                    "_dns_challenge_deprovision(): %s rcode: %s", fqdn, rcode
+                )
+
+            # unset environment variables for dns update script
+            self._environment_variables_handle(unset=True)
+
+    def _dns_challenge_provision(
+        self, fqdn: str, key_authorization: str, _user_key: josepy.jwk.JWKRSA
+    ) -> bool:
+        self.logger.debug("CAhandler._dns_challenge_provision(%s)", fqdn)
+
+        # create txt record value
+        txt_record_value = b64_url_encode(
+            self.logger, sha256_hash(self.logger, key_authorization)
+        )
+
+        fqdn = f"_acme-challenge.{fqdn}"
+        self.logger.debug("fqdn: %s, txt_record_value: %s", fqdn, txt_record_value)
+
+        basename_w_ext = os.path.splitext(os.path.basename(self.dns_update_script))[0]
+
+        # set environment variables for dns update script
+        self._environment_variables_handle(unset=False)
+
+        # add txt record to dns server
+        cmd_list = f"source {self.acme_sh_script} &>/dev/null; source {self.dns_update_script};  {basename_w_ext}_add {fqdn} {txt_record_value.decode('utf-8') if isinstance(txt_record_value, bytes) else txt_record_value}"
+        if self.acme_sh_shell:
+            self.logger.debug(
+                "CAhandler._dns_challenge_provision(): using shell: %s",
+                self.acme_sh_shell,
+            )
+            rcode = subprocess.call(cmd_list, shell=True, executable=self.acme_sh_shell)
+        else:
+            rcode = subprocess.call(cmd_list, shell=True)
+
+        self.logger.debug("_dns_challenge_provision(): %s rcode: %s", fqdn, rcode)
+
+        # unset environment variables for dns update script
+        self._environment_variables_handle(unset=True)
+
+        # store dns record in dictionary
+        # if rcode == 0:
+        self.dns_record_dic[fqdn] = txt_record_value
+
+        cnt = 0
+        query_record_value = None
+        while cnt <= 10:
+            # wait for dns update
+            time.sleep(self.dns_validation_timeout / 10)
+            query_record_value = txt_get(self.logger, fqdn)
+            self.logger.debug("%s txt_record_value: %s", cnt, query_record_value)
+            cnt += 1
+            if query_record_value and txt_record_value in query_record_value:
+                # stop waiting if we found the record in DNS
+                self.logger.debug("_dns_challenge_provision(): found txt record in DNS")
+                break
+
+    def _environment_variables_handle(self, unset=False):
+        """set environment variables for dns update script"""
+        self.logger.debug("CAhandler._environment_variables_handle(): unset=%s", unset)
+
+        forbidden_variables_list = ["SHELL", "LANG", "PATH", "PWD", "HOME", "TZ"]
+        for key, value in self.dns_update_script_variables.items():
+            if key not in forbidden_variables_list:
+                if unset:
+                    self.logger.debug(
+                        "CAhandler._environment_variables_handle(): unsetting environment variable: %s",
+                        key,
+                    )
+                    # unset environment variable
+                    if key in os.environ:
+                        del os.environ[key]
+                    else:
+                        self.logger.warning(
+                            'CAhandler._environment_variables_handle(): environment variable "%s" is not set and will not be unset',
+                            key,
+                        )
+                else:
+                    self.logger.debug(
+                        "CAhandler._environment_variables_handle(): setting environment variable: %s=%s",
+                        key,
+                        value,
+                    )
+                    os.environ[key] = value
+            else:
+                self.logger.warning(
+                    'CAhandler._environment_variables_handle(): environment variable "%s" is forbidden and will not be changed',
+                    key,
+                )
 
     def _get_dns_challenge(self, authzr, user_key):
         self.logger.debug("_get_dns_challenge()")
@@ -323,12 +422,19 @@ class CAhandler(object):
                     chall_content,
                 )
         else:
-            challenge = self._challenge_filter(
-                authzr, chall_type="sectigo-email-01"
-            )
+            challenge = self._challenge_filter(authzr, chall_type="sectigo-email-01")
             if challenge:
                 chall_content = challenge.to_partial_json()
         return chall_name, chall_content, challenge
+
+    def _http_challenge_store(self, challenge_name: str, challenge_content: str):
+        """store challenge into database"""
+        self.logger.debug("CAhandler._http_challenge_store(%s)", challenge_name)
+
+        if challenge_name and challenge_content:
+            data_dic = {"name": challenge_name, "value1": challenge_content}
+            # store challenge into db
+            self.dbstore.cahandler_add(data_dic)
 
     def _key_generate(self) -> josepy.jwk.JWKRSA:
         """generate key"""
@@ -369,45 +475,6 @@ class CAhandler(object):
         self.logger.debug("CAhandler._user_key_load() ended with: %s", bool(user_key))
         return user_key
 
-    def _dns_challenge_provision(
-        self, fqdn: str, key_authorization: str, _user_key: josepy.jwk.JWKRSA
-    ) -> bool:
-        self.logger.debug("CAhandler._dns_challenge_provision(%s)", fqdn)
-
-        # create txt record value
-        txt_record_value = b64_url_encode(
-            self.logger, sha256_hash(self.logger, key_authorization)
-        )
-
-        fqdn = f"_acme-challenge.{fqdn}"
-        self.logger.debug("fqdn: %s, txt_record_value: %s", fqdn, txt_record_value)
-
-        basename_w_ext = os.path.splitext(os.path.basename(self.dns_update_script))[0]
-        # add txt record to dns server
-        cmd_list = f"source {self.acme_sh_scipt}; source {self.dns_update_script};  {basename_w_ext}_add {fqdn} {txt_record_value.decode('utf-8') if isinstance(txt_record_value, bytes) else txt_record_value}"
-        if self.acme_sh_shell:
-            self.logger.debug(
-                "CAhandler._dns_challenge_provision(): using shell: %s",
-                self.acme_sh_shell,
-            )
-            _rcode = subprocess.call(cmd_list, shell=True, executable=self.acme_sh_shell)
-        else:
-            _rcode = subprocess.call(cmd_list, shell=True)
-
-        self.dns_record_dic[fqdn] = txt_record_value
-
-        cnt = 0
-        query_record_value = None
-        while cnt <= 10:
-            # wait for dns update
-            time.sleep(self.dns_validation_timeout / 10)
-            query_record_value = txt_get(self.logger, fqdn)
-            self.logger.debug("%s txt_record_value: %s", cnt, query_record_value)
-            cnt += 1
-            if query_record_value and txt_record_value in query_record_value:
-                # stop waiting if we found the record in DNS
-                break
-
     def _order_authorization(
         self,
         acmeclient: client.ClientV2,
@@ -425,7 +492,7 @@ class CAhandler(object):
                 authzr, user_key
             )
             if challenge_name and challenge_content:
-                if self.dns_update_script and self.acme_sh_scipt:
+                if self.dns_update_script and self.acme_sh_script:
                     self.logger.debug(
                         "CAhandler._order_authorization(): dns challenge detected"
                     )
@@ -487,30 +554,6 @@ class CAhandler(object):
         self.logger.debug("CAhandler._order_new() ended with: %s", bool(order))
         return order
 
-    def _dns_challenge_deprovision(self):
-        """delete dns challenge"""
-        self.logger.debug("CAhandler._dns_challenge_deprovision()")
-        if self.dns_update_script and self.acme_sh_scipt and self.dns_record_dic:
-
-            # get scriptname
-            basename_w_ext = os.path.splitext(os.path.basename(self.dns_update_script))[
-                0
-            ]
-
-            for fqdn, txt_record_value in self.dns_record_dic.items():
-                # remove txt record from dns server - to be moved to a later place in the code
-                cmd_list = f"source {self.acme_sh_scipt}; source {self.dns_update_script}; {basename_w_ext}_rm {fqdn} {txt_record_value.decode('utf-8') if isinstance(txt_record_value, bytes) else txt_record_value}"
-                if self.acme_sh_shell:
-                    self.logger.debug(
-                        "CAhandler._dns_challenge_provision(): using shell: %s",
-                        self.acme_sh_shell,
-                    )
-                    _rcode = subprocess.call(
-                        cmd_list, shell=True, executable=self.acme_sh_shell
-                    )
-                else:
-                    _rcode = subprocess.call(cmd_list, shell=True)
-
     def _order_issue(
         self, acmeclient: client.ClientV2, user_key: josepy.jwk.JWKRSA, csr_pem: str
     ) -> Tuple[str, str, str]:
@@ -524,14 +567,14 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        # valid orders
+        # validate order
         order_valid = self._order_authorization(acmeclient, order, user_key)
 
         if order_valid:
             self.logger.debug("CAhandler.enroll() polling for certificate")
             order = acmeclient.poll_and_finalize(order)
 
-            if self.dns_update_script and self.acme_sh_scipt:
+            if self.dns_update_script and self.acme_sh_script:
                 # delete dns-records
                 self._dns_challenge_deprovision()
 
@@ -547,6 +590,11 @@ class CAhandler(object):
             else:
                 self.logger.error("Error getting certificate: %s", order.error)
                 error = f"Error getting certificate: {order.error}"
+        else:
+            self.logger.warning(
+                "Order authorization failed. Challenges not answered correctly."
+            )
+            error = "Order authorization failed. Challenges not answered correctly."
 
         self.logger.debug("CAhandler._order_issue() ended")
         return (error, cert_bundle, cert_raw)
