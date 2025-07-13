@@ -14,8 +14,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['apache2']
-        dbhandler: ['wsgi']
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
 
     steps:
     - name: "checkout GIT"
@@ -35,8 +35,8 @@ jobs:
       max-parallel: 1
       fail-fast: false
       matrix:
-        websrv: ['apache2']
-        dbhandler: ['wsgi']
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
 
     steps:
     - name: "checkout GIT"
@@ -181,8 +181,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['apache2']
-        dbhandler: ['wsgi']
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
 
     steps:
     - uses: geekyeggo/delete-artifact@v5
