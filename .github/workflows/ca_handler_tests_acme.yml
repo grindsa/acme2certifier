@@ -106,6 +106,7 @@ jobs:
         HOSTNAME_SUFFIX: -${{ env.UUID }}
         NAME_SPACE: acme.dynamop.de
         CERT_TIMEOUT: 120
+        VERIFY_CERT: false
 
     - name: "Verify allowed_domainlist error"
       run: |
