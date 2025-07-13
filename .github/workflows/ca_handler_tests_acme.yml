@@ -60,6 +60,7 @@ jobs:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
         CONTAINER_BUILD: false
+        NAME_SPACE: acme.dynamop.de
 
     - name: "Setup acme ca_handler"
       run: |
@@ -75,8 +76,8 @@ jobs:
         sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_url: https://acme-staging-v02.api.letsencrypt.org" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_account_email: grindelsack@gmail.com" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "acme_sh_script: volume/acme/acme.sh"
-        sudo echo "dns_update_script: volume/acme/dns_cf.sh"
+        sudo echo "acme_sh_script: volume/acme/acme.sh" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "dns_update_script: volume/acme/dns_cf.sh" >> examples/Docker/data/acme_srv.cfg
         sudo echo "dns_validation_timeout: 10" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> examples/Docker/data/acme_srv.cfg
@@ -87,6 +88,7 @@ jobs:
       with:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
+        NAME_SPACE: acme.dynamop.de
 
     - name: "Generate UUID"
       run: |
@@ -97,7 +99,7 @@ jobs:
       uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns
       with:
         HOSTNAME_SUFFIX: -${{ env.UUID }}
-
+        NAME_SPACE: acme.dynamop.de
 
     - name: "Verify allowed_domainlist error"
       run: |
