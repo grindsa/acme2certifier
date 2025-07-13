@@ -134,8 +134,8 @@ jobs:
         docker-compose restart
       env:
         ACMEDNS_USERNAME: ${{ secrets.ACMEDNS_USERNAME }}
-        ACMEDNS_PASSWORD: ${{ ACMEDNS_PASSWORD.ACMEDNS_PASSWORD }}
-        ACMEDNS_SUBDOMAIN: ${{ ACMEDNS_SUBDOMAIN.ACMEDNS_SUBDOMAIN }}
+        ACMEDNS_PASSWORD: ${{ secrets.ACMEDNS_PASSWORD }}
+        ACMEDNS_SUBDOMAIN: ${{ secrets.ACMEDNS_SUBDOMAIN }}
 
     - name: "ACMEDNS - WC - Enrollment"
       uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns_wc
