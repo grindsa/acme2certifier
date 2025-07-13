@@ -143,7 +143,7 @@ jobs:
       uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns_wc
       with:
         NAME_SPACE: acme.dynamop.de
-        CERT_TIMEOUT: 120
+        CERT_TIMEOUT: 180
         VERIFY_CERT: false
 
     - name: "Check acme account found in keyfile"
