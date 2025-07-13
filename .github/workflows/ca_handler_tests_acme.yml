@@ -86,7 +86,7 @@ jobs:
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 45/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 15/g" examples/Docker/data/acme_srv.cfg
 
       env:
         CF_TOKEN: ${{ secrets.CF_TOKEN }}
@@ -133,8 +133,8 @@ jobs:
         sudo echo "dns_validation_timeout: 30" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True\nenrollment_timeout: 45/g" examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 45/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 15/g" examples/Docker/data/acme_srv.cfg
 
         cd examples/Docker/
         docker-compose restart
