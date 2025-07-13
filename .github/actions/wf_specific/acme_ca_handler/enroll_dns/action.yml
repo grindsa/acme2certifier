@@ -44,6 +44,10 @@ inputs:
     description: "Test allowed_domainlist feature"
     required: true
     default: "false"
+  CERT_TIMEOUT:
+    description: "Certificate timeout"
+    required: true
+    default: "120"
 
 runs:
   using: "composite"
@@ -94,10 +98,10 @@ runs:
         echo "##### HTTP - Enroll lego #####"
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --cert.timeout $CERT_TIMEOUT --tls run
         else
           echo "use RSA"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --cert.timeout $CERT_TIMEOUT --tls run
         fi
       shell: bash
       env:
@@ -107,6 +111,7 @@ runs:
         USE_RSA: ${{ inputs.USE_RSA }}
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
 
     - name: "HTTP - Revoke lego"
       if: ${{ inputs.REVOCATION == 'true' }}
@@ -300,9 +305,9 @@ runs:
       run: |
         echo "##### HTTPS - Enroll certbot #####"
         if [ "$USE_RSA" == "false" ]; then
-          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout 120
+          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout $CERT_TIMEOUT
         else
-          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout 120
+          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout $CERT_TIMEOUT
         fi
 
         if [ "$VERIFY_CERT" == "true" ]; then
@@ -321,6 +326,7 @@ runs:
         USE_RSA: ${{ inputs.USE_RSA }}
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
 
     - name: "HTTPS - Revoke certbot"
       if: ${{ (inputs.USE_CERTBOT == 'true') && (inputs.REVOCATION == 'true') }}
@@ -340,9 +346,9 @@ runs:
       run: |
         echo "##### HTTP - Enroll certbot #####"
         if [ "$USE_RSA" == "false" ]; then
-          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http --agree-tos -m 'certbot@example.com' -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout 120
+          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http --agree-tos -m 'certbot@example.com' -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout $CERT_TIMEOUT
         else
-          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout 120
+          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout $CERT_TIMEOUT
         fi
 
         if [ "$VERIFY_CERT" == "true" ]; then
@@ -361,6 +367,7 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
 
     - name: "HTTP - Revoke certbot"
       if: ${{ (inputs.USE_CERTBOT == 'true') && (inputs.REVOCATION == 'true') }}
@@ -380,10 +387,10 @@ runs:
         echo "##### HTTPS - Enroll lego #####"
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --cert.timeout $CERT_TIMEOUT --tls run
          else
           echo "use RSA"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --cert.timeout $CERT_TIMEOUT --tls run
         fi
 
         if [ "$VERIFY_CERT" == "true" ]; then
@@ -403,6 +410,7 @@ runs:
         USE_RSA: ${{ inputs.USE_RSA }}
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
 
     - name: "HTTPS - Revoke lego"
       if: ${{ inputs.REVOCATION == 'true' }}
@@ -423,10 +431,10 @@ runs:
         sudo rm -rf lego/*
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --http run
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --cert.timeout $CERT_TIMEOUT --http run
          else
           echo "use RSA"
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --http run
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --cert.timeout $CERT_TIMEOUT --http run
         fi
         if [ "$VERIFY_CERT" == "true" ]; then
           if [ -f cert-2.pem ]; then
@@ -445,6 +453,7 @@ runs:
         USE_RSA: ${{ inputs.USE_RSA }}
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
 
     - name: "HTTP - Revoke lego"
       if: ${{ inputs.REVOCATION == 'true' }}

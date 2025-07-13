@@ -88,10 +88,15 @@ jobs:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
 
+    - name: "Generate UUID"
+      run: |
+        echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+    - run: echo "UUID ${{ env.UUID }}"
+
     - name: "Enrollment"
       uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns
       with:
-        HOSTNAME_SUFFIX: ${{ matrix.dbhandler }}
+        HOSTNAME_SUFFIX: -${{ env.UUID }}
 
 
     - name: "Verify allowed_domainlist error"
