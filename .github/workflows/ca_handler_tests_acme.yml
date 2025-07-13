@@ -63,7 +63,7 @@ jobs:
         sudo echo "acme_account_email: grindelsack@gmail.com" >> data/acme_srv.cfg
         sudo echo "acme_sh_script: /opt/acme2certifier/volume/acme/acme.sh" >> data/acme_srv.cfg
         sudo echo "dns_update_script: /opt/acme2certifier/volume/acme/dns_cf.sh" >> data/acme_srv.cfg
-        sudo echo "dns_update_script_variables: {\"CF_Token\": \"$CF_TOKEN\", \"CF_Zone_ID\": \"$CF_ZONE_ID\"}" >> >> data/acme_srv.cfg
+        sudo echo "dns_update_script_variables: {\"CF_Token\": \"$CF_TOKEN\", \"CF_Zone_ID\": \"$CF_ZONE_ID\"}" >> data/acme_srv.cfg
         sudo echo "acme_sh_shell: /bin/bash" >> data/acme_srv.cfg
         sudo echo "dns_validation_timeout: 30" >> data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> data/acme_srv.cfg
