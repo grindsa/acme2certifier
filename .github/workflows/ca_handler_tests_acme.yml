@@ -40,6 +40,7 @@ jobs:
         GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
         RPM_BUILD: false
+        NAME_SPACE: acme.dynamop.de
 
     - name: Download rpm package
       uses: actions/download-artifact@v4
