@@ -78,10 +78,14 @@ jobs:
         sudo echo "acme_account_email: grindelsack@gmail.com" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_sh_script: volume/acme/acme.sh" >> examples/Docker/data/acme_srv.cfg
         sudo echo "dns_update_script: volume/acme/dns_cf.sh" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "dns_update_script_variables: {\"CF_Token\": \"$CF_TOKEN\", \"CF_Zone_ID\": \"$CF_ZONE_ID\"} >> examples/Docker/data/acme_srv.cfg
         sudo echo "dns_validation_timeout: 10" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+      with:
+        CF_TOKEN: ${{ secrets.CF_TOKEN }}
+        CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
 
     - name: "Bring up a2c container"
       uses: ./.github/actions/container_up
