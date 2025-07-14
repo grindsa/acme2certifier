@@ -406,6 +406,10 @@ class Certificate(object):
                     fallback=self.enrollment_timeout,
                 )
             )
+            self.logger.info(
+                "enrollment_timeout set to %s",
+                self.enrollment_timeout,
+            )
         except Exception as err_:
             self.logger.error(
                 "enrollment_timeout parsing error: %s",

@@ -349,16 +349,17 @@ class CAhandler(object):
 
         cnt = 0
         query_record_value = None
-        while cnt <= 10:
-            # wait for dns update
-            time.sleep(self.dns_validation_timeout / 10)
-            query_record_value = txt_get(self.logger, fqdn)
-            self.logger.debug("%s txt_record_value: %s", cnt, query_record_value)
-            cnt += 1
-            if query_record_value and txt_record_value in query_record_value:
-                # stop waiting if we found the record in DNS
-                self.logger.debug("_dns_challenge_provision(): found txt record in DNS")
-                break
+        if self.dns_validation_timeout > 0:
+            while cnt <= 10:
+                # wait for dns update
+                time.sleep(self.dns_validation_timeout / 10)
+                query_record_value = txt_get(self.logger, fqdn)
+                self.logger.debug("%s txt_record_value: %s", cnt, query_record_value)
+                cnt += 1
+                if query_record_value and txt_record_value in query_record_value:
+                    # stop waiting if we found the record in DNS
+                    self.logger.debug("_dns_challenge_provision(): found txt record in DNS")
+                    break
 
     def _environment_variables_handle(self, unset=False):
         """set environment variables for dns update script"""
