@@ -109,7 +109,7 @@ jobs:
       with:
         HOSTNAME_SUFFIX: -${{ env.UUID }}
         NAME_SPACE: acme.dynamop.de
-        CERT_TIMEOUT: 240
+        CERT_TIMEOUT: 300
         VERIFY_CERT: false
 
     - name: "ACMEDNS - Setup acme ca_handler"
