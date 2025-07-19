@@ -109,7 +109,7 @@ jobs:
       with:
         HOSTNAME_SUFFIX: -${{ env.UUID }}
         NAME_SPACE: acme.dynamop.de
-        CERT_TIMEOUT: 300
+        CERT_TIMEOUT: 360
         VERIFY_CERT: false
 
     - name: "ACMEDNS - Setup acme ca_handler"
@@ -147,7 +147,7 @@ jobs:
       uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns_wc
       with:
         NAME_SPACE: acme.dynamop.de
-        CERT_TIMEOUT: 300
+        CERT_TIMEOUT: 360
         VERIFY_CERT: false
 
     - name: "Check acme account found in keyfile"
