@@ -6,16 +6,16 @@
 
 This handler allows certificate enrollment from [OpenXPKI](https://www.openxpki.org/), as ACME support appears to be available only in the commercial version.
 
-Although connecting to OpenXPKI was previously possible via the [generic EST CA handler](est.md), this dedicated handler is **preferred** because it supports revocation operations and allows specifying [certificate profiles](https://openxpki.readthedocs.io/en/develop/reference/configuration/profile.html).
+Although connecting to OpenXPKI was previously possible via the [generic EST CA handler](est.md), this dedicated handler is **preferred** because it supports revocation operations and allows specifying [certificate profiles](https://openxpki.readthedocs.io/en/master/configuration/profile.html).
 
 ## Prerequisites
 
 To use this handler, ensure you have:
 
-- A running [OpenXPKI](https://www.openxpki.org/) instance with an **activated [RPC server](https://openxpki.readthedocs.io/en/develop/subsystems/rpc.html)**.
-- An RPC endpoint that supports `RequestCertificate`, `RevokeCertificate`, and `SearchCertificate`, as described in the [example configuration](https://github.com/openxpki/openxpki-config/blob/community/rpc/enroll.conf).
+- A running [OpenXPKI](https://www.openxpki.org/) instance with an **activated [RPC server](https://openxpki.readthedocs.io/en/master/subsystems/rpc.html)**.
+- An RPC endpoint that supports `RequestCertificate`, `RevokeCertificate`, and `SearchCertificate`, as described in the [example configuration](https://github.com/openxpki/openxpki-config/blob/community/config.d/realm.tpl/rpc/enroll.yaml).
 - A **client certificate and key** in PEM format for authentication with OpenXPKI.
-- A [certificate profile](https://openxpki.readthedocs.io/en/develop/reference/configuration/profile.html).
+- A [certificate profile](https://openxpki.readthedocs.io/en/master/configuration/profile.html).
 
 ## OpenXPKI Configuration
 
@@ -51,7 +51,7 @@ style:
             dn: "[% IF CN.0 && CN.0 != '' %]CN=[% CN.0 %][% ELSE %]CN=[% SAN_DNS.0 %][% END %]"
 ```
 
-- acme2certifier will issue certificates on behalf of the end nodes. This needs to be allowed in OpenXPKI. Please see more info on enroll modes (especially `Signer on Behalf` section) here: [Enrollment Workflow](https://openxpki.readthedocs.io/en/develop/reference/configuration/workflows/enroll.html). For this, you will need to set the client certificate as an `authorized_signer` for your RPC endpoint. You can set this in `config.d/realm.tpl/rpc/enroll.yaml`:
+- acme2certifier will issue certificates on behalf of the end nodes. This needs to be allowed in OpenXPKI. Please see more info on enroll modes (especially `Signer on Behalf` section) here: [Enrollment Workflow](https://openxpki.readthedocs.io/en/master/configuration/workflows/enroll.html). For this, you will need to set the client certificate as an `authorized_signer` for your RPC endpoint. You can set this in `config.d/realm.tpl/rpc/enroll.yaml`:
 
 ```yaml
 authorized_signer:
