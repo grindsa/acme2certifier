@@ -95,6 +95,7 @@ class Challenge(models.Model):
     status = models.ForeignKey(Status, default=2, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     keyauthorization = models.CharField(max_length=128, blank=True)
+    source = models.CharField(max_length=128, blank=True)
     validated = models.IntegerField(default=0)
 
     def __unicode__(self):

@@ -41,6 +41,7 @@ class Challenge(object):
         debug: bool = False,
         srv_name: str = None,
         logger: object = None,
+        source: str = None,
         expiry: int = 3600,
     ):
         self.challenge_validation_disable = False
@@ -55,10 +56,12 @@ class Challenge(object):
         self.proxy_server_list = {}
         self.sectigo_sim = False
         self.server_name = srv_name
+        self.source_address = source
         self.tnauthlist_support = False
         self.dbstore = DBstore(debug, self.logger)
         self.err_msg_dic = error_dic_get(self.logger)
         self.message = Message(debug, self.server_name, self.logger)
+        self.source_address_check = False
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -353,6 +356,9 @@ class Challenge(object):
             self.challenge_validation_disable = config_dic.getboolean(
                 "Challenge", "challenge_validation_disable", fallback=False
             )
+            self.source_address_check = config_dic.getboolean(
+                "Challenge", "source_address_check", fallback=False
+            )
             self.sectigo_sim = config_dic.getboolean(
                 "Challenge", "sectigo_sim", fallback=False
             )
@@ -586,6 +592,55 @@ class Challenge(object):
         self.logger.debug("Challenge._parse() ended with: %s", code)
         return (code, message, detail, response_dic)
 
+    def _source_address_check(self, challenge_name: str = None) -> Tuple[bool, bool]:
+        """check dns responses against a pre-defined ip"""
+        self.logger.debug("Challenge._source_address(%s)", challenge_name)
+
+        challenge_check = False
+        invalid = False
+
+        if challenge_name:
+            try:
+                challenge_dic = self.dbstore.challenge_lookup(
+                    "name",
+                    challenge_name,
+                    [
+                        "authorization__name",
+                        "authorization__type",
+                        "authorization__value",
+                    ],
+                )
+            except Exception as err_:
+                self.logger.critical(
+                    "Database error: failed to lookup challenge during challenge check:'%s': %s",
+                    challenge_name,
+                    err_,
+                )
+                challenge_dic = {}
+
+            if (
+                challenge_dic
+                and challenge_dic.get("authorization__type", None) == "dns"
+                and challenge_dic.get("authorization__value", None)
+                and self.source_address
+            ):
+                response_list, invalid = fqdn_resolve(
+                    challenge_dic.get("authorization__value"),
+                    self.dns_server_list,
+                    catch_all=True,
+                )
+                if response_list and self.source_address in response_list:
+                    challenge_check = True
+                else:
+                    challenge_check = False
+
+        self.logger.debug(
+            "Challenge._source_address_check() ended with %s/%s",
+            challenge_check,
+            invalid,
+        )
+        return challenge_check, invalid
+
     def _update(self, data_dic: Dict[str, str]):
         """update challenge"""
         self.logger.debug("Challenge._update(%s)", data_dic)
@@ -649,18 +704,38 @@ class Challenge(object):
                 self.logger.info(
                     "Challenge validation disabled via eab profile. Setting challenge status to valid."
                 )
-            challenge_check = True
-            invalid = False
+
+            if self.source_address_check:
+                challenge_check, invalid = self._source_address_check(challenge_name)
+                self.logger.info(
+                    "Challenge._validate(): validate source_ip: %s ended with: %s",
+                    self.source_address,
+                    challenge_check,
+                )
+            else:
+                challenge_check = True
+                invalid = False
         else:
             (challenge_check, invalid) = self._check(challenge_name, payload)
 
         if invalid:
-            self._update({"name": challenge_name, "status": "invalid"})
+            self._update(
+                {
+                    "name": challenge_name,
+                    "status": "invalid",
+                    "source": self.source_address,
+                }
+            )
             # authorization update to valid state
             self._update_authz(challenge_name, {"status": "invalid"})
         elif challenge_check:
             self._update(
-                {"name": challenge_name, "status": "valid", "validated": uts_now()}
+                {
+                    "name": challenge_name,
+                    "status": "valid",
+                    "source": self.source_address,
+                    "validated": uts_now(),
+                }
             )
             # authorization update to valid state
             self._update_authz(challenge_name, {"status": "valid"})
