@@ -1244,30 +1244,50 @@ def string_sanitize(logger: logging.Logger, unsafe_str: str) -> str:
     return re.sub(r"\s+", " ", safe_str)
 
 
-def _fqdn_resolve(req: dns.resolver.Resolver, host: str) -> Tuple[str, bool]:
+def _fqdn_resolve_define_result(catch_all: bool = False):
+    """inititalize result as string or list"""
+    if catch_all:
+        result = []
+    else:
+        result = None
+
+    return result
+
+
+def _fqdn_resolve(
+    req: dns.resolver.Resolver, host: str, catch_all: bool = False
+) -> Tuple[str, bool]:
     """resolve hostname"""
+
+    result = _fqdn_resolve_define_result(catch_all)
+
+    invalid = True
+    # result =
     for rrtype in ["A", "AAAA"]:
         try:
-            result = None
-            invalid = True
             answers = req.resolve(host, rrtype)
             for rdata in answers:
-                result = str(rdata)
                 invalid = False
-                break
+                if catch_all:
+                    result.append(str(rdata))
+                else:
+                    result = str(rdata)
+                    break
         except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
             result = None
             invalid = True
         except Exception:
             result = None
             invalid = False
-        if result is not None:
+        if not catch_all and result is not None:
             break
 
     return (result, invalid)
 
 
-def fqdn_resolve(host: str, dnssrv: List[str] = None) -> Tuple[str, bool]:
+def fqdn_resolve(
+    host: str, dnssrv: List[str] = None, catch_all: bool = False
+) -> Tuple[str, bool]:
     """dns resolver"""
     req = dns.resolver.Resolver()
 
@@ -1277,7 +1297,7 @@ def fqdn_resolve(host: str, dnssrv: List[str] = None) -> Tuple[str, bool]:
             # add specific dns server
             req.nameservers = dnssrv
         # resolve hostname
-        (result, invalid) = _fqdn_resolve(req, host)
+        (result, invalid) = _fqdn_resolve(req, host, catch_all=catch_all)
 
     else:
         result = None

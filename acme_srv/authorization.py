@@ -89,7 +89,12 @@ class Authorization(object):
         """get challenge set"""
         self.logger.debug("Authorization._challengeset_get(%s)", authz_name)
 
-        with Challenge(self.debug, self.server_name, self.logger, expires) as challenge:
+        with Challenge(
+            debug=self.debug,
+            srv_name=self.server_name,
+            logger=self.logger,
+            expiry=expires,
+        ) as challenge:
             # get challenge data (either existing or new ones)
             if "identifier" in authz_info_dic:
                 if "type" in authz_info_dic["identifier"]:
