@@ -9,6 +9,9 @@ import os.path
 from typing import Tuple, Dict
 import requests
 import josepy
+import subprocess
+import time
+import shlex
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -16,11 +19,12 @@ from OpenSSL import crypto
 from acme import client, messages, errors
 from acme_srv.db_handler import DBstore
 from acme_srv.helper import (
-    load_config,
     allowed_domainlist_check,
     b64_encode,
+    b64_url_encode,
     b64_url_recode,
     b64_url_decode,
+    cert_pem2der,
     client_parameter_validate,
     config_allowed_domainlist_load,
     config_eab_profile_load,
@@ -29,8 +33,11 @@ from acme_srv.helper import (
     config_profile_load,
     eab_profile_header_info_check,
     enrollment_config_log,
+    jwk_thumbprint_get,
+    load_config,
     parse_url,
-    cert_pem2der,
+    sha256_hash,
+    txt_get,
     uts_now,
     uts_to_date_utc,
 )
@@ -41,26 +48,32 @@ class CAhandler(object):
 
     def __init__(self, _debug: bool = False, logger: object = None):
         self.logger = logger
+        self.account = None
+        self.acme_keypath = None
+        self.acme_keyfile = None
+        self.acme_sh_script = None
+        self.acme_sh_shell = None
         self.acme_url = None
         self.acme_url_dic = {}
-        self.acme_keyfile = None
-        self.key_size = 2048
-        self.account = None
-        self.email = None
-        self.path_dic = {"directory_path": "/directory", "acct_path": "/acme/acct/"}
-        self.dbstore = DBstore(None, self.logger)
         self.allowed_domainlist = []
+        self.dbstore = DBstore(None, self.logger)
+        self.dns_update_script = None
+        self.dns_update_script_variables = None
+        self.dns_validation_timeout = 20
+        self.dns_record_dic = {}
+        self.eab_handler = None
         self.eab_kid = None
         self.eab_hmac_key = None
-        self.header_info_field = False
-        self.eab_handler = None
         self.eab_profiling = False
-        self.acme_keypath = None
-        self.ssl_verify = True
+        self.email = None
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
-        self.profiles = {}
+        self.header_info_field = False
+        self.key_size = 2048
+        self.path_dic = {"directory_path": "/directory", "acct_path": "/acme/acct/"}
         self.profile = None
+        self.profiles = {}
+        self.ssl_verify = True
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -117,6 +130,68 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_eab_load() ended")
 
+    def _config_dns_update_script_load(self, config_dic: Dict[str, str]):
+        """ " load dns update script"""
+        self.logger.debug("CAhandler._config_dns_update_script_load()")
+
+        self.dns_update_script = config_dic.get(
+            "CAhandler", "dns_update_script", fallback=None
+        )
+        if self.dns_update_script and not os.path.exists(self.dns_update_script):
+            self.logger.error(
+                'CAhandler._config_dns_update_script_load(): dns update script "%s" does not exist',
+                self.dns_update_script,
+            )
+            self.dns_update_script = None
+
+        if self.dns_update_script:
+            self.logger.debug(
+                "CAhandler._config_dns_update_script_load(): dns update script: %s",
+                self.dns_update_script,
+            )
+
+            self.acme_sh_script = config_dic.get(
+                "CAhandler", "acme_sh_script", fallback=None
+            )
+            if self.acme_sh_script and not os.path.exists(self.acme_sh_script):
+                self.logger.error(
+                    'CAhandler._config_dns_update_script_load(): acme.sh script "%s" does not exist',
+                    self.acme_sh_script,
+                )
+                self.acme_sh_script = None
+
+            self.acme_sh_shell = config_dic.get(
+                "CAhandler", "acme_sh_shell", fallback=self.acme_sh_shell
+            )
+
+            try:
+                self.dns_validation_timeout = int(
+                    config_dic.get(
+                        "CAhandler",
+                        "dns_validation_timeout",
+                        fallback=self.dns_validation_timeout,
+                    )
+                )
+            except Exception as err:
+                self.logger.warning(
+                    "CAhandler._config_dns_update_script_load(): Failed to parse dns_validation_timeout parameter: %s",
+                    err,
+                )
+
+            try:
+                self.dns_update_script_variables = json.loads(
+                    config_dic.get(
+                        "CAhandler", "dns_update_script_variables", fallback=None
+                    )
+                )
+            except Exception as err:
+                self.logger.warning(
+                    "CAhandler._config_dns_update_script_load(): Failed to parse dns_update_script_variables parameter: %s",
+                    err,
+                )
+
+        self.logger.debug("CAhandler._config_dns_update_script_load() ended")
+
     def _config_load(self):
         """ " load config from file"""
         self.logger.debug("CAhandler._config_load()")
@@ -151,6 +226,8 @@ class CAhandler(object):
             self.enrollment_config_log_skip_list,
         ) = config_enroll_config_log_load(self.logger, config_dic)
 
+        self._config_dns_update_script_load(config_dic)
+
     def _challenge_filter(
         self, authzr: messages.AuthorizationResource, chall_type: str = "http-01"
     ) -> messages.ChallengeBody:
@@ -169,15 +246,6 @@ class CAhandler(object):
 
         return result
 
-    def _challenge_store(self, challenge_name: str, challenge_content: str):
-        """store challenge into database"""
-        self.logger.debug("CAhandler._challenge_store(%s)", challenge_name)
-
-        if challenge_name and challenge_content:
-            data_dic = {"name": challenge_name, "value1": challenge_content}
-            # store challenge into db
-            self.dbstore.cahandler_add(data_dic)
-
     def _challenge_info(
         self, authzr: messages.AuthorizationResource, user_key: josepy.jwk.JWKRSA
     ):
@@ -186,33 +254,229 @@ class CAhandler(object):
 
         chall_name = None
         chall_content = None
+        challenge = None
 
-        if authzr and user_key:
-            challenge = self._challenge_filter(authzr)
-            if challenge:
-                chall_content = challenge.chall.validation(user_key)
-                try:
-                    (chall_name, _token) = chall_content.split(".", 2)
-                except Exception:
-                    self.logger.error(
-                        "Challenge split failed: %s",
-                        chall_content,
-                    )
-
-            else:
-                challenge = self._challenge_filter(
-                    authzr, chall_type="sectigo-email-01"
-                )
-                chall_content = challenge.to_partial_json()
-        else:
+        if not authzr or not user_key:
             if authzr:
                 self.logger.error("acme user is missing")
             else:
                 self.logger.error("acme authorization is missing")
-            challenge = None
+            self.logger.debug("CAhandler._challenge_info() ended with %s", chall_name)
+            return (chall_name, chall_content, challenge)
+
+        if self.dns_update_script:
+            chall_name, chall_content, challenge = self._get_dns_challenge(
+                authzr, user_key
+            )
+        else:
+            chall_name, chall_content, challenge = self._get_http_or_email_challenge(
+                authzr, user_key
+            )
 
         self.logger.debug("CAhandler._challenge_info() ended with %s", chall_name)
         return (chall_name, chall_content, challenge)
+
+    def _dns_challenge_deprovision(self):
+        """delete dns challenge"""
+        self.logger.debug("CAhandler._dns_challenge_deprovision()")
+        if self.dns_update_script and self.acme_sh_script and self.dns_record_dic:
+
+            # get scriptname
+            basename_w_ext = os.path.splitext(os.path.basename(self.dns_update_script))[
+                0
+            ]
+
+            # set environment variables for dns update script
+            self._environment_variables_handle(unset=False)
+
+            for fqdn, txt_record_value in self.dns_record_dic.items():
+                # remove txt record from dns server - to be moved to a later place in the code
+                cmd_list = (
+                    f"source {shlex.quote(self.acme_sh_script)} &>/dev/null; "
+                    f"source {shlex.quote(self.dns_update_script)}; "
+                    f"{shlex.quote(basename_w_ext)}_rm "
+                    f"{shlex.quote(fqdn)} "
+                    f"{shlex.quote(txt_record_value.decode('utf-8') if isinstance(txt_record_value, bytes) else str(txt_record_value))}"
+                )
+                if self.acme_sh_shell:
+                    self.logger.debug(
+                        "CAhandler._dns_challenge_provision(): using shell: %s",
+                        self.acme_sh_shell,
+                    )
+                    rcode = subprocess.call(
+                        cmd_list, shell=True, executable=self.acme_sh_shell
+                    )
+                else:
+                    rcode = subprocess.call(cmd_list, shell=True)
+
+                self.logger.debug(
+                    "_dns_challenge_deprovision(): %s rcode: %s", fqdn, rcode
+                )
+
+            # unset environment variables for dns update script
+            self._environment_variables_handle(unset=True)
+
+    def _dns_challenge_provision(
+        self, fqdn: str, key_authorization: str, _user_key: josepy.jwk.JWKRSA
+    ) -> bool:
+        self.logger.debug("CAhandler._dns_challenge_provision(%s)", fqdn)
+
+        # create txt record value
+        txt_record_value = b64_url_encode(
+            self.logger, sha256_hash(self.logger, key_authorization)
+        )
+
+        fqdn = f"_acme-challenge.{fqdn}"
+        self.logger.debug("fqdn: %s, txt_record_value: %s", fqdn, txt_record_value)
+
+        basename_w_ext = os.path.splitext(os.path.basename(self.dns_update_script))[0]
+
+        # set environment variables for dns update script
+        self._environment_variables_handle(unset=False)
+
+        # add txt record to dns server
+        fqdn_escaped = shlex.quote(fqdn)
+        txt_record_value_str = (
+            txt_record_value.decode("utf-8")
+            if isinstance(txt_record_value, bytes)
+            else str(txt_record_value)
+        )
+        txt_record_value_escaped = shlex.quote(txt_record_value_str)
+        acme_sh_script_escaped = shlex.quote(self.acme_sh_script)
+        dns_update_script_escaped = shlex.quote(self.dns_update_script)
+        basename_w_ext_escaped = shlex.quote(basename_w_ext)
+        cmd_list = f"source {acme_sh_script_escaped} &>/dev/null; source {dns_update_script_escaped};  {basename_w_ext_escaped}_add {fqdn_escaped} {txt_record_value_escaped}"
+
+        if self.acme_sh_shell:
+            self.logger.debug(
+                "CAhandler._dns_challenge_provision(): using shell: %s",
+                self.acme_sh_shell,
+            )
+            rcode = subprocess.call(cmd_list, shell=True, executable=self.acme_sh_shell)
+        else:
+            rcode = subprocess.call(cmd_list, shell=True)
+
+        self.logger.debug("_dns_challenge_provision(): %s rcode: %s", fqdn, rcode)
+
+        # unset environment variables for dns update script
+        self._environment_variables_handle(unset=True)
+
+        # store dns record in dictionary
+        # if rcode == 0:
+        self.dns_record_dic[fqdn] = txt_record_value
+
+        cnt = 0
+        query_record_value = None
+
+        # wait for dns update to be propagated
+        self.logger.debug(
+            "CAhandler._dns_challenge_provision(): waiting 20s for dns update to be propagated"
+        )
+        time.sleep(20)
+
+        if self.dns_validation_timeout - 20 > 0:
+            sleep_interval = (self.dns_validation_timeout - 20) / 10
+        else:
+            sleep_interval = 1
+        self.logger.debug(
+            "CAhandler._dns_challenge_provision(): sleep_interval: %s",
+            sleep_interval,
+        )
+        if self.dns_validation_timeout > 0:
+            while cnt <= 10:
+                # wait for dns update
+                time.sleep(sleep_interval)
+                query_record_value = txt_get(self.logger, fqdn)
+                self.logger.debug("%s txt_record_value: %s", cnt, query_record_value)
+                cnt += 1
+                if query_record_value and txt_record_value in query_record_value:
+                    # stop waiting if we found the record in DNS
+                    self.logger.debug(
+                        "_dns_challenge_provision(): found txt record in DNS"
+                    )
+                    break
+
+    def _environment_variables_handle(self, unset=False):
+        """set environment variables for dns update script"""
+        self.logger.debug("CAhandler._environment_variables_handle(): unset=%s", unset)
+
+        forbidden_variables_list = [
+            "SHELL", "LANG", "PATH", "PWD", "HOME", "TZ",
+            "LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT", "LD_DEBUG", "LD_DYNAMIC_WEAK",
+            "LD_BIND_NOW", "LD_ORIGIN_PATH", "LD_RUN_PATH", "LD_ASSUME_KERNEL",
+            "LD_TRACE_LOADED_OBJECTS", "LD_TRACE_PRELINKING", "LD_USE_LOAD_BIAS",
+            "PYTHONPATH", "PYTHONHOME", "PYTHONUSERBASE"
+        ]
+        for key, value in self.dns_update_script_variables.items():
+            if key not in forbidden_variables_list:
+                if unset:
+                    self.logger.debug(
+                        "CAhandler._environment_variables_handle(): unsetting environment variable: %s",
+                        key,
+                    )
+                    # unset environment variable
+                    if key in os.environ:
+                        del os.environ[key]
+                    else:
+                        self.logger.warning(
+                            'CAhandler._environment_variables_handle(): environment variable "%s" is not set and will not be unset',
+                            key,
+                        )
+                else:
+                    self.logger.debug(
+                        "CAhandler._environment_variables_handle(): setting environment variable: %s=%s",
+                        key,
+                        value,
+                    )
+                    os.environ[key] = value
+            else:
+                self.logger.warning(
+                    'CAhandler._environment_variables_handle(): environment variable "%s" is forbidden and will not be changed',
+                    key,
+                )
+
+    def _get_dns_challenge(self, authzr, user_key):
+        self.logger.debug("_get_dns_challenge()")
+        challenge = self._challenge_filter(authzr, chall_type="dns-01")
+        chall_name = None
+        chall_content = None
+        if challenge:
+            (
+                chall_content_obj,
+                _validation,
+            ) = challenge.chall.response_and_validation(user_key)
+            chall_content = chall_content_obj.key_authorization
+            chall_name = "dns-challenge"
+        return chall_name, chall_content, challenge
+
+    def _get_http_or_email_challenge(self, authzr, user_key):
+        self.logger.debug("_get_http_or_email_challenge()")
+        challenge = self._challenge_filter(authzr)
+        chall_name = None
+        chall_content = None
+        if challenge:
+            chall_content = challenge.chall.validation(user_key)
+            try:
+                (chall_name, _token) = chall_content.split(".", 2)
+            except Exception:
+                self.logger.error(
+                    "Challenge split failed: %s",
+                    chall_content,
+                )
+        else:
+            challenge = self._challenge_filter(authzr, chall_type="sectigo-email-01")
+            if challenge:
+                chall_content = challenge.to_partial_json()
+        return chall_name, chall_content, challenge
+
+    def _http_challenge_store(self, challenge_name: str, challenge_content: str):
+        """store challenge into database"""
+        self.logger.debug("CAhandler._http_challenge_store(%s)", challenge_name)
+
+        if challenge_name and challenge_content:
+            data_dic = {"name": challenge_name, "value1": challenge_content}
+            # store challenge into db
+            self.dbstore.cahandler_add(data_dic)
 
     def _key_generate(self) -> josepy.jwk.JWKRSA:
         """generate key"""
@@ -270,14 +534,24 @@ class CAhandler(object):
                 authzr, user_key
             )
             if challenge_name and challenge_content:
-                self.logger.debug(
-                    "CAhandler._order_authorization(): http-01 challenge detected"
-                )
-                # store challenge in database to allow challenge validation
-                self._challenge_store(challenge_name, challenge_content)
+                if self.dns_update_script and self.acme_sh_script:
+                    self.logger.debug(
+                        "CAhandler._order_authorization(): dns challenge detected"
+                    )
+                    self._dns_challenge_provision(
+                        authzr.body.identifier.value, challenge_content, user_key
+                    )
+                else:
+                    self.logger.debug(
+                        "CAhandler._order_authorization(): http challenge detected"
+                    )
+                    # store challenge in database to allow challenge validation
+                    self._http_challenge_store(challenge_name, challenge_content)
+
                 _auth_response = acmeclient.answer_challenge(
                     challenge, challenge.chall.response(user_key)
                 )  # lgtm [py/unused-local-variable]
+
                 authz_valid = True
             else:
                 if (
@@ -335,12 +609,16 @@ class CAhandler(object):
         cert_bundle = None
         cert_raw = None
 
-        # valid orders
+        # validate order
         order_valid = self._order_authorization(acmeclient, order, user_key)
 
         if order_valid:
             self.logger.debug("CAhandler.enroll() polling for certificate")
             order = acmeclient.poll_and_finalize(order)
+
+            if self.dns_update_script and self.acme_sh_script:
+                # delete dns-records
+                self._dns_challenge_deprovision()
 
             if order.fullchain_pem:
                 self.logger.debug("CAhandler.enroll() successful")
@@ -354,6 +632,11 @@ class CAhandler(object):
             else:
                 self.logger.error("Error getting certificate: %s", order.error)
                 error = f"Error getting certificate: {order.error}"
+        else:
+            self.logger.warning(
+                "Order authorization failed. Challenges not answered correctly."
+            )
+            error = "Order authorization failed. Challenges not answered correctly."
 
         self.logger.debug("CAhandler._order_issue() ended")
         return (error, cert_bundle, cert_raw)
