@@ -276,7 +276,6 @@ def chall(environ, start_response):
         source=environ["REMOTE_ADDR"],
         logger=LOGGER,
     ) as challenge:
-        print(environ)
         if environ["REQUEST_METHOD"] == "POST":
 
             request_body = get_request_body(environ)
