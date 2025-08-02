@@ -3695,7 +3695,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_revocation_log("certificate", "status")
         self.assertIn(
-            'INFO:test_a2c:Certificate revoked: {"account_name": "account__name", "certifcate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "status"}',
+            'INFO:test_a2c:Certificate revoked: {"account_name": "account__name", "certificate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "status"}',
             lcm.output,
         )
 
@@ -3762,7 +3762,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_revocation_log("certificate", "status")
         self.assertIn(
-            'INFO:test_a2c:Certificate revoked: {"account_name": "account__name", "certificate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "failed"}',
+            'INFO:test_a2c:Certificate revoked: {"account_name": "account__name", "certificate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "status"}',
             lcm.output,
         )
 
@@ -3784,7 +3784,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_revocation_log("certificate", "status")
         self.assertIn(
-            "INFO:test_a2c:\"Certificate certificate_name revocation failed for account account__name. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            "INFO:test_a2c:\"Certificate certificate_name revocation status for account account__name. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
             lcm.output,
         )
 
@@ -3807,7 +3807,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_revocation_log("certificate", "status")
         self.assertIn(
-            "INFO:test_a2c:\"Certificate certificate_name revocation failed for account account__name with EAB KID account__eab_kid. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            "INFO:test_a2c:\"Certificate certificate_name revocation status for account account__name with EAB KID account__eab_kid. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
             lcm.output,
         )
 
