@@ -3732,7 +3732,7 @@ class TestACMEHandler(unittest.TestCase):
                 "cert_name", "certificate", "order_name", "cert_reusage"
             )
         self.assertIn(
-            'INFO:test_a2c:Certificate issued: {"account_name": "account__name", "certifcate_name": "cert_name", "common_name": "cn", "eab_kid": "account__eab_kid", "reused": "cert_reusage", "san_list": ["san1", "san2"], "serial_number": "serial"}',
+            'INFO:test_a2c:Certificate issued: {"account_name": "account__name", "certificate_name": "cert_name", "common_name": "cn", "eab_kid": "account__eab_kid", "reused": "cert_reusage", "san_list": ["san1", "san2"], "serial_number": "serial"}',
             lcm.output,
         )
         self.assertTrue(self.certificate.dbstore.order_lookup.called)
@@ -3847,7 +3847,7 @@ class TestACMEHandler(unittest.TestCase):
                 "cert_name", "certificate", "order_name", "cert_reusage"
             )
         self.assertIn(
-            'INFO:test_a2c:Certificate issued: {"account_name": "", "certifcate_name": "cert_name", "common_name": "cn", "reused": "cert_reusage", "san_list": ["san1", "san2"], "serial_number": "serial"}',
+            'INFO:test_a2c:Certificate issued: {"account_name": "", "certificate_name": "cert_name", "common_name": "cn", "reused": "cert_reusage", "san_list": ["san1", "san2"], "serial_number": "serial"}',
             lcm.output,
         )
         self.assertIn(
@@ -3874,7 +3874,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_revocation_log("certificate", "status")
         self.assertIn(
-            'INFO:test_a2c:Certificate revoked: {"account_name": "account__name", "certifcate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "failed"}',
+            'INFO:test_a2c:Certificate revoked: {"account_name": "account__name", "certificate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "failed"}',
             lcm.output,
         )
 
