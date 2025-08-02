@@ -11,6 +11,7 @@ import requests
 import josepy
 import subprocess
 import time
+import shlex
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -328,7 +329,18 @@ class CAhandler(object):
         self._environment_variables_handle(unset=False)
 
         # add txt record to dns server
-        cmd_list = f"source {self.acme_sh_script} &>/dev/null; source {self.dns_update_script};  {basename_w_ext}_add {fqdn} {txt_record_value.decode('utf-8') if isinstance(txt_record_value, bytes) else txt_record_value}"
+        fqdn_escaped = shlex.quote(fqdn)
+        txt_record_value_str = (
+            txt_record_value.decode("utf-8")
+            if isinstance(txt_record_value, bytes)
+            else str(txt_record_value)
+        )
+        txt_record_value_escaped = shlex.quote(txt_record_value_str)
+        acme_sh_script_escaped = shlex.quote(self.acme_sh_script)
+        dns_update_script_escaped = shlex.quote(self.dns_update_script)
+        basename_w_ext_escaped = shlex.quote(basename_w_ext)
+        cmd_list = f"source {acme_sh_script_escaped} &>/dev/null; source {dns_update_script_escaped};  {basename_w_ext_escaped}_add {fqdn_escaped} {txt_record_value_escaped}"
+
         if self.acme_sh_shell:
             self.logger.debug(
                 "CAhandler._dns_challenge_provision(): using shell: %s",
