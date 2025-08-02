@@ -85,7 +85,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.challenge.generate_random_string")
     def test_004_challenge__new(self, mock_random):
-        """test challenge generation challenge add thors exception"""
+        """test challenge generation challenge add throws exception"""
         mock_random.return_value = "foo"
         self.challenge.dbstore.challenge_add.side_effect = Exception("ex_new")
         with self.assertLogs("test_a2c", level="INFO") as lcm:

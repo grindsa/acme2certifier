@@ -1245,7 +1245,7 @@ def string_sanitize(logger: logging.Logger, unsafe_str: str) -> str:
 
 
 def _fqdn_resolve(
-    logger: logging.Logger,  # pylint: disable=W0613
+    logger: logging.Logger,
     req: dns.resolver.Resolver,
     host: str,
     catch_all: bool = False,

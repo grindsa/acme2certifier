@@ -1451,28 +1451,32 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_137_helper_fqdn_resolve(self, mock_resolve):
         """successful dns-query returning covering github"""
         mock_resolve.return_value.query.return_value = ["foo"]
-        self.assertEqual((None, False), self.fqdn_resolve("foo", dnssrv="10.0.0.1"))
+        self.assertEqual(
+            (None, False), self.fqdn_resolve(self.logger, "foo", dnssrv="10.0.0.1")
+        )
 
     @patch("dns.resolver.Resolver")
     def test_138_helper_fqdn_resolve(self, mock_resolve):
         """successful dns-query returning covering github"""
         mock_resolve.return_value.resolve.return_value = ["foo"]
         self.assertEqual(
-            ("foo", False), self.fqdn_resolve("foo.bar.local", dnssrv="10.0.0.1")
+            ("foo", False),
+            self.fqdn_resolve(self.logger, "foo.bar.local", dnssrv="10.0.0.1"),
         )
 
     @patch("dns.resolver.Resolver")
     def test_139_helper_fqdn_resolve(self, mock_resolve):
         """successful dns-query returning a single entry and catch_single"""
         mock_resolve.return_value.resolve.return_value = ["foo"]
-        self.assertEqual((None, False), self.fqdn_resolve("foo"))
+        self.assertEqual((None, False), self.fqdn_resolve(self.logger, "foo"))
 
     @patch("dns.resolver.Resolver")
     def test_140_helper_fqdn_resolve(self, mock_resolve):
         """successful dns-query returning two entries but catch singles"""
         mock_resolve.return_value.resolve.side_effect = [["v41", "v42"], ["v61", "v62"]]
         self.assertEqual(
-            ("v41", False), self.fqdn_resolve("foo.bar.local", dnssrv="10.0.0.1")
+            ("v41", False),
+            self.fqdn_resolve(self.logger, "foo.bar.local", dnssrv="10.0.0.1"),
         )
 
     @patch("dns.resolver.Resolver")
@@ -1480,7 +1484,8 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """successful dns-query returning only ipv6 and catchsingle"""
         mock_resolve.return_value.resolve.side_effect = [[], ["v61", "v62"]]
         self.assertEqual(
-            ("v61", False), self.fqdn_resolve("foo.bar.local", dnssrv="10.0.0.1")
+            ("v61", False),
+            self.fqdn_resolve(self.logger, "foo.bar.local", dnssrv="10.0.0.1"),
         )
 
     @patch("dns.resolver.Resolver")
@@ -1489,7 +1494,9 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_resolve.return_value.resolve.side_effect = [["v41", "v42"], ["v61", "v62"]]
         self.assertEqual(
             (["v41", "v42", "v61", "v62"], False),
-            self.fqdn_resolve("foo.bar.local", dnssrv="10.0.0.1", catch_all=True),
+            self.fqdn_resolve(
+                self.logger, "foo.bar.local", dnssrv="10.0.0.1", catch_all=True
+            ),
         )
 
     @patch("dns.resolver.Resolver")
@@ -1498,7 +1505,9 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_resolve.return_value.resolve.side_effect = [[], ["v61", "v62"]]
         self.assertEqual(
             (["v61", "v62"], False),
-            self.fqdn_resolve("foo.bar.local", dnssrv="10.0.0.1", catch_all=True),
+            self.fqdn_resolve(
+                self.logger, "foo.bar.local", dnssrv="10.0.0.1", catch_all=True
+            ),
         )
 
     @patch("dns.resolver.Resolver")
@@ -1507,20 +1516,96 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         mock_resolve.return_value.resolve.side_effect = [["v41", "v42"], []]
         self.assertEqual(
             (["v41", "v42"], False),
-            self.fqdn_resolve("foo.bar.local", dnssrv="10.0.0.1", catch_all=True),
+            self.fqdn_resolve(
+                self.logger, "foo.bar.local", dnssrv="10.0.0.1", catch_all=True
+            ),
+        )
+
+    @patch("dns.resolver.Resolver")
+    def test_243_helper_fqdn_resolve(self, mock_resolve):
+        """successful dns-query returning covering list but no v4 and catch_all"""
+        mock_resolve.return_value.resolve.side_effect = [
+            Exception("foo"),
+            ["v61", "v62"],
+        ]
+        self.assertEqual(
+            (["v61", "v62"], False),
+            self.fqdn_resolve(
+                self.logger, "foo.bar.local", dnssrv="10.0.0.1", catch_all=True
+            ),
+        )
+
+    @patch("dns.resolver.Resolver")
+    def test_244_helper_fqdn_resolve(self, mock_resolve):
+        """successful dns-query returning list v6 only and catch_all"""
+        mock_resolve.return_value.resolve.side_effect = [
+            ["v41", "v42"],
+            Exception("foo"),
+        ]
+        self.assertEqual(
+            (["v41", "v42"], False),
+            self.fqdn_resolve(
+                self.logger, "foo.bar.local", dnssrv="10.0.0.1", catch_all=True
+            ),
+        )
+
+    @patch(
+        "dns.resolver.Resolver.resolve",
+        side_effect=Mock(side_effect=[dns.resolver.NXDOMAIN, ["v61", "v62"]]),
+    )
+    def test_245_helper_fqdn_resolve(self, mock_resolve):
+        """successful dns-query returning covering list but no v4 and catch_all"""
+        # mock_resolve.return_value.resolve.side_effect = [Exception(dns.resolver.NXDOMAIN), ["v61", "v62"]]
+        self.assertEqual(
+            (["v61", "v62"], False),
+            self.fqdn_resolve(
+                self.logger, "foo.bar.local", dnssrv=["10.0.0.1"], catch_all=True
+            ),
+        )
+
+    @patch(
+        "dns.resolver.Resolver.resolve",
+        side_effect=Mock(side_effect=[["v41", "v42"], dns.resolver.NXDOMAIN]),
+    )
+    def test_246_helper_fqdn_resolve(self, mock_resolve):
+        """successful dns-query returning list v6 only and catch_all"""
+        # mock_resolve.return_value.resolve.side_effect = [["v41", "v42"], Exception(dns.resolver.NXDOMAIN)]
+        self.assertEqual(
+            (["v41", "v42"], False),
+            self.fqdn_resolve(
+                self.logger, "foo.bar.local", dnssrv=["10.0.0.1"], catch_all=True
+            ),
+        )
+
+    @patch(
+        "dns.resolver.Resolver.resolve",
+        side_effect=Mock(side_effect=dns.resolver.NXDOMAIN),
+    )
+    def test_247_helper_fqdn_resolve(self, mock_resolve):
+        """successful dns-query returning covering list but no v4 and catch_all"""
+        # mock_resolve.return_value.resolve.side_effect = [Exception(dns.resolver.NXDOMAIN), ["v61", "v62"]]
+        self.assertEqual(
+            ([], True),
+            self.fqdn_resolve(
+                self.logger, "foo.bar.local", dnssrv=["10.0.0.1"], catch_all=True
+            ),
         )
 
     @patch("dns.resolver.Resolver")
     def test_145_helper_fqdn_resolve(self, mock_resolve):
         """successful dns-query returning one value"""
         mock_resolve.return_value.resolve.return_value = ["foo"]
-        self.assertEqual(("foo", False), self.fqdn_resolve("foo.bar.local"))
+        self.assertEqual(
+            ("foo", False), self.fqdn_resolve(self.logger, "foo.bar.local")
+        )
 
     @patch("dns.resolver.Resolver")
     def test_146_helper_fqdn_resolve(self, mock_resolve):
         """successful dns-query returning two values"""
         mock_resolve.return_value.resolve.return_value = ["bar", "foo"]
-        self.assertEqual(("bar", False), self.fqdn_resolve("foo.bar.local"))
+        self.assertEqual(
+            ("bar", False), self.fqdn_resolve(self.logger, "foo.bar.local")
+        )
 
     @patch(
         "dns.resolver.Resolver.resolve",
@@ -1528,7 +1613,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     )
     def test_147_helper_fqdn_resolve(self, mock_resolve):
         """catch NXDOMAIN"""
-        self.assertEqual((None, True), self.fqdn_resolve("foo.bar.local"))
+        self.assertEqual((None, True), self.fqdn_resolve(self.logger, "foo.bar.local"))
 
     @patch(
         "dns.resolver.Resolver.resolve",
@@ -1536,7 +1621,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     )
     def test_148_helper_fqdn_resolve(self, mock_resolve):
         """catch NoAnswer"""
-        self.assertEqual((None, True), self.fqdn_resolve("foo.bar.local"))
+        self.assertEqual((None, True), self.fqdn_resolve(self.logger, "foo.bar.local"))
 
     @patch(
         "dns.resolver.Resolver.resolve",
@@ -1544,14 +1629,14 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     )
     def test_149_helper_fqdn_resolve(self, mock_resolve):
         """catch other dns related execption"""
-        self.assertEqual((None, False), self.fqdn_resolve("foo.bar.local"))
+        self.assertEqual((None, False), self.fqdn_resolve(self.logger, "foo.bar.local"))
 
     @patch(
         "dns.resolver.Resolver.resolve", side_effect=Mock(side_effect=Exception("foo"))
     )
     def test_150_helper_fqdn_resolve(self, mock_resolve):
         """catch other execption"""
-        self.assertEqual((None, False), self.fqdn_resolve("foo.bar.local"))
+        self.assertEqual((None, False), self.fqdn_resolve(self.logger, "foo.bar.local"))
 
     @patch(
         "dns.resolver.Resolver.resolve",
@@ -1559,7 +1644,9 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     )
     def test_151_helper_fqdn_resolve(self, mock_resolve):
         """catch NXDOMAIN on v4 and fine in v6"""
-        self.assertEqual(("foo", False), self.fqdn_resolve("foo.bar.local"))
+        self.assertEqual(
+            ("foo", False), self.fqdn_resolve(self.logger, "foo.bar.local")
+        )
 
     @patch(
         "dns.resolver.Resolver.resolve",
@@ -1567,7 +1654,9 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     )
     def test_152_helper_fqdn_resolve(self, mock_resolve):
         """catch NoAnswer on v4 and fine in v6"""
-        self.assertEqual(("foo", False), self.fqdn_resolve("foo.bar.local"))
+        self.assertEqual(
+            ("foo", False), self.fqdn_resolve(self.logger, "foo.bar.local")
+        )
 
     @patch(
         "dns.resolver.Resolver.resolve",
@@ -1575,7 +1664,9 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     )
     def test_153_helper_fqdn_resolve(self, mock_resolve):
         """catch other dns related execption on v4 and fine in v6"""
-        self.assertEqual(("foo", False), self.fqdn_resolve("foo.bar.local"))
+        self.assertEqual(
+            ("foo", False), self.fqdn_resolve(self.logger, "foo.bar.local")
+        )
 
     @patch(
         "dns.resolver.Resolver.resolve",
@@ -1583,7 +1674,9 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     )
     def test_154_helper_fqdn_resolve(self, mock_resolve):
         """catch other execption when resolving v4 but fine in v6"""
-        self.assertEqual(("foo", False), self.fqdn_resolve("foo.bar.local"))
+        self.assertEqual(
+            ("foo", False), self.fqdn_resolve(self.logger, "foo.bar.local")
+        )
 
     def test_155_helper_signature_check(self):
         """sucessful validation symmetric key"""

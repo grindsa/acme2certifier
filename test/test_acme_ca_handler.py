@@ -50,7 +50,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("examples.ca_handler.acme_ca_handler.load_config")
     def test_003__config_load(self, mock_load_cfg):
-        """test _config_load no cahandler section"""
+        """test _config_load default configparser object"""
         parser = configparser.ConfigParser()
         mock_load_cfg.return_value = parser
         with self.assertLogs("test_a2c", level="INFO") as lcm:
