@@ -291,7 +291,13 @@ class CAhandler(object):
 
             for fqdn, txt_record_value in self.dns_record_dic.items():
                 # remove txt record from dns server - to be moved to a later place in the code
-                cmd_list = f"source {self.acme_sh_script} &>/dev/null; source {self.dns_update_script}; {basename_w_ext}_rm {fqdn} {txt_record_value.decode('utf-8') if isinstance(txt_record_value, bytes) else txt_record_value}"
+                cmd_list = (
+                    f"source {shlex.quote(self.acme_sh_script)} &>/dev/null; "
+                    f"source {shlex.quote(self.dns_update_script)}; "
+                    f"{shlex.quote(basename_w_ext)}_rm "
+                    f"{shlex.quote(fqdn)} "
+                    f"{shlex.quote(txt_record_value.decode('utf-8') if isinstance(txt_record_value, bytes) else str(txt_record_value))}"
+                )
                 if self.acme_sh_shell:
                     self.logger.debug(
                         "CAhandler._dns_challenge_provision(): using shell: %s",
@@ -369,7 +375,7 @@ class CAhandler(object):
         time.sleep(20)
 
         if self.dns_validation_timeout - 20 > 0:
-            sleep_interval = self.dns_validation_timeout - 20 / 10
+            sleep_interval = (self.dns_validation_timeout - 20) / 10
         else:
             sleep_interval = 1
         self.logger.debug(
@@ -394,7 +400,13 @@ class CAhandler(object):
         """set environment variables for dns update script"""
         self.logger.debug("CAhandler._environment_variables_handle(): unset=%s", unset)
 
-        forbidden_variables_list = ["SHELL", "LANG", "PATH", "PWD", "HOME", "TZ"]
+        forbidden_variables_list = [
+            "SHELL", "LANG", "PATH", "PWD", "HOME", "TZ",
+            "LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT", "LD_DEBUG", "LD_DYNAMIC_WEAK",
+            "LD_BIND_NOW", "LD_ORIGIN_PATH", "LD_RUN_PATH", "LD_ASSUME_KERNEL",
+            "LD_TRACE_LOADED_OBJECTS", "LD_TRACE_PRELINKING", "LD_USE_LOAD_BIAS",
+            "PYTHONPATH", "PYTHONHOME", "PYTHONUSERBASE"
+        ]
         for key, value in self.dns_update_script_variables.items():
             if key not in forbidden_variables_list:
                 if unset:
