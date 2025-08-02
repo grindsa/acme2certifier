@@ -41,26 +41,23 @@ runs:
       sed -i "s/export_certificate: chain/export_certificate: fullchain/g" openxpki-config/config.d/realm/democa/rpc/enroll.yaml
       sed -i "s/dn: CN=\[\% CN.0 \%\],DC=Test Deployment,DC=OpenXPKI,DC=org/dn: CN=\[\% SAN_DNS.0 \%\]/g" openxpki-config/config.d/realm.tpl/profile/tls_server.yaml
       # cp contrib/wait_on_init.yaml  openxpki-config/config.d/system/local.yam
-      docker-compose up &
+      # docker-compose up -d
+      sudo apt-get update
+      sudo apt-get install -y ca-certificates curl gnupg
+      sudo install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+      sudo chmod a+r /etc/apt/keyrings/docker.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      sudo apt-get update
+      sudo apt-get install -y docker-compose-plugin
+      docker compose version
+      docker compose up -d web --wait
     shell: bash
 
-  - name: "Sleep for 45s"
+  - name: "Sleep for 120s"
     uses: juliangruber/sleep-action@v2.0.3
     with:
-      time: 45s
-
-  # - name: "Fix 1st time start issues with OpenXPKI server"
-  #  working-directory: /tmp/openxpki/openxpki-docker
-  #  run: |
-  #    docker ps
-  #    docker stop OpenXPKI_Server
-  #    docker start OpenXPKI_Server
-  #   shell: bash
-
-  # - name: "Sleep for 10s"
-  #  uses: juliangruber/sleep-action@v2.0.3
-  #  with:
-  #    time: 10s
+      time: 120s
 
   - name: "Configure OpenXPKI server"
     working-directory: /tmp/openxpki
@@ -71,10 +68,10 @@ runs:
       docker exec -u root -id OpenXPKI_Client apt-get install -y libjson-pp-perl
     shell: bash
 
-  - name: "Sleep for 60s"
+  - name: "Sleep for 45s"
     uses: juliangruber/sleep-action@v2.0.3
     with:
-      time: 60s
+      time: 45s
 
   - name: "Enroll keys for Client-authentication via scep"
     working-directory: ${{ inputs.WORKING_DIR }}
