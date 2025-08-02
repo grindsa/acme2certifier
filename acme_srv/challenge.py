@@ -596,7 +596,7 @@ class Challenge(object):
 
     def _source_address_check(self, challenge_name: str = None) -> Tuple[bool, bool]:
         """check dns responses against a pre-defined ip"""
-        self.logger.debug("Challenge._source_address(%s)", challenge_name)
+        self.logger.debug("Challenge._source_address_check(%s)", challenge_name)
 
         challenge_check = False
         invalid = False
@@ -620,16 +620,27 @@ class Challenge(object):
                 )
                 challenge_dic = {}
 
+            self.logger.debug(
+                "Challenge._source_address_check() challenge_dic: %s", challenge_dic
+            )
+
             if (
+
                 challenge_dic
                 and challenge_dic.get("authorization__type", None) == "dns"
                 and challenge_dic.get("authorization__value", None)
                 and self.source_address
             ):
                 response_list, invalid = fqdn_resolve(
+                    self.logger,
                     challenge_dic.get("authorization__value"),
                     self.dns_server_list,
                     catch_all=True,
+                )
+                self.logger.debug(
+                    "fqdn_resolve() ended with: %s/%s",
+                    response_list,
+                    invalid,
                 )
                 if response_list and self.source_address in response_list:
                     challenge_check = True
@@ -769,7 +780,7 @@ class Challenge(object):
 
         if id_type == "dns":
             # resolve name
-            (response, invalid) = fqdn_resolve(id_value, self.dns_server_list)
+            (response, invalid) = fqdn_resolve(self.logger, id_value, self.dns_server_list)
             self.logger.debug("fqdn_resolve() ended with: %s/%s", response, invalid)
             sni = id_value
         elif id_type == "ip":
@@ -865,7 +876,7 @@ class Challenge(object):
 
         if id_type == "dns":
             # resolve name
-            (response, invalid) = fqdn_resolve(id_value, self.dns_server_list)
+            (response, invalid) = fqdn_resolve(self.logger, id_value, self.dns_server_list)
             self.logger.debug("fqdn_resolve() ended with: %s/%s", response, invalid)
         elif id_type == "ip":
             invalid = False
