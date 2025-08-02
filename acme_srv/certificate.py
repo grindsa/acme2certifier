@@ -203,7 +203,7 @@ class Certificate(object):
 
         data_dic = {
             "account_name": order_dic.get("account__name", ""),
-            "certifcate_name": certificate_name,
+            "certificate_name": certificate_name,
             "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
             "common_name": cert_cn_get(self.logger, certificate),
             "san_list": cert_san_get(self.logger, certificate),
@@ -247,7 +247,7 @@ class Certificate(object):
             cert_dic = self.dbstore.certificate_lookup(
                 "cert_raw",
                 b64_url_recode(self.logger, certificate),
-                ["name", "name", "order__account__name", "order__account__eab_kid"],
+                ["name", "order__account__name", "order__account__eab_kid"],
             )
         except Exception as err:
             self.logger.error(
@@ -258,7 +258,7 @@ class Certificate(object):
 
         data_dic = {
             "account_name": cert_dic.get("order__account__name", ""),
-            "certifcate_name": cert_dic.get("name", ""),
+            "certificate_name": cert_dic.get("name", ""),
             "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
             "common_name": cert_cn_get(self.logger, certificate),
             "san_list": cert_san_get(self.logger, certificate),
@@ -276,7 +276,7 @@ class Certificate(object):
             )
         else:
 
-            log_string = f'"Certificate {data_dic["certifcate_name"]} revocation {data_dic["status"]} for account {data_dic["account_name"]}'
+            log_string = f'"Certificate {data_dic["certificate_name"]} revocation {data_dic["status"]} for account {data_dic["account_name"]}'
             if data_dic.get("eab_kid", ""):
                 log_string = log_string + f' with EAB KID {data_dic["eab_kid"]}'
             log_string = (
