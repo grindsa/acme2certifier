@@ -610,7 +610,7 @@ class DBstore(object):
             )
 
         if "source" not in challenges_column_list:
-            self.logger.info("alter challenge table - add source‚")
+            self.logger.info("alter challenge table - add source")
             self.cursor.execute(
                 """ALTER TABLE challenge ADD COLUMN source varchar(128)"""
             )
