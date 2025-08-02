@@ -623,7 +623,6 @@ class Challenge(object):
             )
 
             if (
-
                 challenge_dic
                 and challenge_dic.get("authorization__type", None) == "dns"
                 and challenge_dic.get("authorization__value", None)
@@ -780,7 +779,9 @@ class Challenge(object):
 
         if id_type == "dns":
             # resolve name
-            (response, invalid) = fqdn_resolve(self.logger, id_value, self.dns_server_list)
+            (response, invalid) = fqdn_resolve(
+                self.logger, id_value, self.dns_server_list
+            )
             self.logger.debug("fqdn_resolve() ended with: %s/%s", response, invalid)
             sni = id_value
         elif id_type == "ip":
@@ -876,7 +877,9 @@ class Challenge(object):
 
         if id_type == "dns":
             # resolve name
-            (response, invalid) = fqdn_resolve(self.logger, id_value, self.dns_server_list)
+            (response, invalid) = fqdn_resolve(
+                self.logger, id_value, self.dns_server_list
+            )
             self.logger.debug("fqdn_resolve() ended with: %s/%s", response, invalid)
         elif id_type == "ip":
             invalid = False

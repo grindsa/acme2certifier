@@ -1226,7 +1226,9 @@ def string_sanitize(logger: logging.Logger, unsafe_str: str) -> str:
 
 def _fqdn_resolve(
     logger: logging.Logger,  # pylint: disable=W0613
-    req: dns.resolver.Resolver, host: str, catch_all: bool = False
+    req: dns.resolver.Resolver,
+    host: str,
+    catch_all: bool = False,
 ) -> Tuple[str, bool]:
     """resolve hostname"""
     logger.debug("Helper._fqdn_resolve(%s:%s)", host, catch_all)
