@@ -276,7 +276,7 @@ class Certificate(object):
             )
         else:
 
-            log_string = f'"Certificate {data_dic["certificate_name"]} revocation {data_dic["status"]} for account {data_dic["account_name"]}'
+            log_string = f'Certificate {data_dic["certificate_name"]} revocation {data_dic["status"]} for account {data_dic["account_name"]}'
             if data_dic.get("eab_kid", ""):
                 log_string = log_string + f' with EAB KID {data_dic["eab_kid"]}'
             log_string = (
@@ -1127,10 +1127,13 @@ class Certificate(object):
         self,
         key: str,
         value: Union[str, int],
-        vlist: List[str] = ["name", "csr", "cert", "order__name"],
+        vlist: List[str] = None,
     ) -> Dict[str, str]:
         """get certificate from database"""
         self.logger.debug("Certificate.certlist_search(%s: %s)", key, value)
+        if vlist is None:
+            vlist = ["name", "csr", "cert", "order__name"]
+
         try:
             result = self.dbstore.certificates_search(key, value, vlist)
         except Exception as err_:
