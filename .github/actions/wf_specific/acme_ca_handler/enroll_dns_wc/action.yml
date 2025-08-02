@@ -1,0 +1,132 @@
+name: "acme_clients - enroll, renew and revoke certificates"
+description: "Test if acme.sh, certbot and lego can enroll, renew and certificates"
+inputs:
+  ACME_SERVER:
+    description: "ACME server URL"
+    required: true
+    default: "acme-srv"
+  REVOCATION:
+    description: "Revocation method"
+    required: true
+    default: "true"
+  RENEWAL:
+    description: "Renewal method"
+    required: true
+    default: "true"
+  VERIFY_CERT:
+    description: "Verify certificate"
+    required: true
+    default: "true"
+  USE_CERTBOT:
+    description: "Use certbot"
+    required: true
+    default: "true"
+  USE_RSA:
+    description: "Use RSA"
+    required: true
+    default: "false"
+  HTTP_PORT:
+    description: "HTTP port"
+    required: true
+    default: "80"
+  HTTPS_PORT:
+    description: "HTTPS port"
+    required: true
+    default: "443"
+  HOSTNAME_SUFFIX:
+    description: "Hostname suffix"
+    required: true
+  NAME_SPACE:
+    description: "Namespace"
+    required: true
+    default: "acme"
+  TEST_ADL:
+    description: "Test allowed_domainlist feature"
+    required: true
+    default: "false"
+  CERT_TIMEOUT:
+    description: "Certificate timeout"
+    required: true
+    default: "120"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "Create directories"
+      run: |
+        mkdir -p acme-sh/
+        sudo mkdir -p certbot/
+        sudo mkdir -p lego/ca
+        sudo cp .github/acme2certifier_cabundle.pem certbot/
+        sudo cp .github/acme2certifier_cabundle.pem lego/
+        if [ -f cert-2.pem ]; then
+          echo "delete cert-2.pem"
+          rm -f cert-2.pem
+        fi
+        if [ -f cert-1.pem ]; then
+          echo "delete cert-1.pem"
+          rm -f cert-1.pem
+        fi
+      shell: bash
+
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
+
+    - name: "Test if http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://$ACME_SERVER:$HTTP_PORT/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Test if https://acme-srv/directory is accessible"
+      run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SERVER:$HTTPS_PORT/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "HTTP - Enroll lego"
+      run: |
+        echo "##### HTTP - Enroll lego #####"
+        if [ "$USE_RSA" == "false" ]; then
+          echo "use ECC"
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d *.$NAME_SPACE --cert.timeout $CERT_TIMEOUT --tls run
+        else
+          echo "use RSA"
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" --key-type=rsa2048 -d *.$NAME_SPACE --cert.timeout $CERT_TIMEOUT --tls run
+        fi
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        USE_RSA: ${{ inputs.USE_RSA }}
+        HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
+
+    - name: "HTTP - Revoke lego"
+      if: ${{ inputs.REVOCATION == 'true' }}
+      run: |
+        echo "#### HTTP - Revoke lego"
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d *.$NAME_SPACE revoke
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
