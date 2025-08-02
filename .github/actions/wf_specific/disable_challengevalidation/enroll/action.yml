@@ -1,0 +1,61 @@
+name: "enroll_test"
+description: "enroll_test"
+inputs:
+  TO_FAIL:
+    description: "Enrollment with fron FQDN should fail"
+    required: true
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    shell: bash
+
+  - name: "Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+
+  - name: "Enroll lego with correct SAN"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature, Non Repudiation, Key Encipherment, Key Agreement"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext extendedKeyUsage | grep "TLS Web Server Authentication, TLS Web Client Authentication"
+    shell: bash
+
+  - name: "Enroll lego incorrect SAN (to fail)"
+    if: ${{ inputs.TO_FAIL  == 'true' }}
+    id: lego01
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego-unknown.acme --http run
+    shell: bash
+
+  - name: "Check  result "
+    if: ${{ (inputs.TO_FAIL  == 'true' ) && (steps.lego01.outcome != 'failure') }}
+    run: |
+      echo "acmefail outcome is ${{steps.lego01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Enroll lego incorrect SAN (to fail)"
+    if: ${{ inputs.TO_FAIL  == 'false' }}
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego-unknown.acme --http run
+      sudo openssl x509 -in lego/certificates/lego-unknown.acme.crt -text -noout
+    shell: bash
+
+  - name: "Delete acme-sh, letsencypt and lego folders"
+    run: |
+      sudo rm -rf  lego/*
+    shell: bash
