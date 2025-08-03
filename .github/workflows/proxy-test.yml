@@ -261,7 +261,7 @@ jobs:
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "host: $WES_HOST" >> examples/Docker/data/acme_srv.cfg
         sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
         sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
