@@ -229,48 +229,46 @@ jobs:
     #    docker stop proxy
     #    docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
-    - name: "Setup msca ca_handler for proxy usage"
+    - name: "Setup tunnel"
+      uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
+      with:
+        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
+        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
+        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
+        WCCE_HOST: ${{ secrets.WCCE_HOST }}
+        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
+        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
+        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
+        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+
+    - name: "Setup a2c with mscertsrv_ca_handler"
       run: |
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+        sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: ${{ secrets.WES_HOST }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: ${{ secrets.WES_USER }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: ${{ secrets.WES_PASSWORD }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "auth_method: ${{ secrets.WES_AUTHMETHOD }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: ${{ secrets.WES_TEMPLATE }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"amazonaws.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "auth_method: ntlm" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"testrfc7030.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
-
-    - name: "Prepare ssh environment on ramdisk "
-      run: |
-        sudo mkdir -p /tmp/rd
-        sudo mount -t tmpfs -o size=5M none /tmp/rd
-        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
-        sudo chmod 600 /tmp/rd/ak.tmp
-        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
       env:
-        SSH_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
-        KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-
-    - name: "Setup ssh forwarder"
-      run: |
-          docker run -d --rm --network acme --name=$WCCE_FQDN_WOTLD  -e "MAPPINGS=445:$WCCE_HOST:445; 443:$WCCE_HOST:443; 88:$WCCE_HOST:88" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
-      env:
-        SSH_USER: ${{ secrets.WCCE_SSH_USER }}
-        SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
+        WES_HOST: ${{ secrets.WES_HOST }}
+        WES_USER: ${{ secrets.WES_USER }}
+        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
+        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
+        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
         WCCE_HOST: ${{ secrets.WCCE_HOST }}
+        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
+        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
+        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
         WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
-
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
 
     - name: "MScertsrv - Enroll via msca ca_handler"
       run: |
