@@ -269,7 +269,7 @@ jobs:
         sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "request_timeout: 45" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"amazonaws.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
@@ -581,6 +581,7 @@ jobs:
         sudo echo "auth_method: $WES_AUTHMETHOD" >> data/acme_srv.cfg
         sudo echo "template: $WES_TEMPLATE" >> data/acme_srv.cfg
         sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
+        sudo echo "request_timeout: 45" >> data/acme_srv.cfg
         sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"amazonaws.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" data/acme_srv.cfg
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
