@@ -264,7 +264,7 @@ jobs:
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "host: $WES_HOST" >> examples/Docker/data/acme_srv.cfg
         sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "auth_method: $WES_AUTHMETHOD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> >> examples/Docker/data/acme_srv.cfg
