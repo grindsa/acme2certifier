@@ -40,7 +40,7 @@ jobs:
         sudo echo "est_user: estuser" >> examples/Docker/data/acme_srv.cfg
         sudo echo "est_password: estpwd" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "request_timeout: 45" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
