@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:24.10
 LABEL maintainer="grindelsack@gmail.com"
 RUN apt-get update  && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-install-recommends tzdata && \
