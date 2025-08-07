@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:24.10
 LABEL maintainer="grindelsack@gmail.com"
 
 ENV APACHE_RUN_USER www-data
