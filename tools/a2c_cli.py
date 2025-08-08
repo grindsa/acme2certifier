@@ -134,7 +134,7 @@ class KeyOperations(object):
                 f"Give the public key {filename}.pub to your acme2certifier administrator"
             )
         except Exception as err_:
-            self.logger.exception("Key generation failed: %s", err_)
+            self.logger.error("Key generation failed: %s", err_)
             self.print("Key generation failed with error: %s", err_)
         return key
 
