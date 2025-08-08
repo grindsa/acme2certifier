@@ -1739,6 +1739,8 @@ def validate_identifier(
             result = validate_fqdn(logger, identifier)
         elif id_type == "ip":
             result = validate_ip(logger, identifier)
+        elif id_type == "email":
+            result = validate_email(logger, [identifier])
         elif id_type == "tnauthlist" and tnauthlist_support:
             result = True
 
