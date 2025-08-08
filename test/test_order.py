@@ -178,7 +178,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(e_result, self.order._add(message, 1))
         self.assertTrue(mock_profile_check.called)
         self.assertIn(
-            "WARNING:test_a2c:Order._add(): ignore submitted profile 'profile' as no profiles are configured",
+            "WARNING:test_a2c:Ignore submitted profile 'profile' as no profiles are configured.",
             lcm.output,
         )
 
@@ -1778,7 +1778,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.order._add({"foo": "bar", "identifiers": "identifiers"}, "aname")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Order._add() order: exc_order_add",
+            'CRITICAL:test_a2c:Database error: failed to add order: exc_order_add',
             lcm.output,
         )
 
