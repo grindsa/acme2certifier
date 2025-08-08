@@ -55,53 +55,73 @@ class EmailHandler:
         """Load configuration from config file"""
         self.logger.debug("EmailHandler._config_load()")
 
-        config_dic = load_config(self.logger, 'acme_srv.cfg')
+        config_dic = load_config(self.logger, "acme_srv.cfg")
 
         # Load from DEFAULT section
-        if 'DEFAULT' in config_dic:
+        if "DEFAULT" in config_dic:
             # IMAP configuration
-            self.imap_server = config_dic.get('DEFAULT', 'imap_server', fallback=None)
+            self.imap_server = config_dic.get("DEFAULT", "imap_server", fallback=None)
             try:
-                self.imap_port = int(config_dic.get('DEFAULT', 'imap_port', fallback=993))
+                self.imap_port = int(
+                    config_dic.get("DEFAULT", "imap_port", fallback=993)
+                )
             except ValueError as err:
                 self.logger.warning(
-                    "Failed to parse imap_port from configuration. Using default 993. Error: %s", err
+                    "Failed to parse imap_port from configuration. Using default 993. Error: %s",
+                    err,
                 )
                 self.imap_port = 993
 
-            self.imap_use_ssl = config_dic.getboolean('DEFAULT', 'imap_use_ssl', fallback=True)
+            self.imap_use_ssl = config_dic.getboolean(
+                "DEFAULT", "imap_use_ssl", fallback=True
+            )
 
             # SMTP configuration (fallback to IMAP server if not specified)
-            self.smtp_server = config_dic.get('DEFAULT', 'smtp_server', fallback=self.imap_server)
+            self.smtp_server = config_dic.get(
+                "DEFAULT", "smtp_server", fallback=self.imap_server
+            )
             try:
-                self.smtp_port = int(config_dic.get('DEFAULT', 'smtp_port', fallback=587))
+                self.smtp_port = int(
+                    config_dic.get("DEFAULT", "smtp_port", fallback=587)
+                )
             except ValueError as err:
                 self.logger.warning(
-                    "Failed to parse smtp_port from configuration. Using default 587. Error: %s", err
+                    "Failed to parse smtp_port from configuration. Using default 587. Error: %s",
+                    err,
                 )
                 self.smtp_port = 587
 
-            self.smtp_use_tls = config_dic.getboolean('DEFAULT', 'smtp_use_tls', fallback=True)
+            self.smtp_use_tls = config_dic.getboolean(
+                "DEFAULT", "smtp_use_tls", fallback=True
+            )
 
             # Authentication
-            self.username = config_dic.get('DEFAULT', 'username', fallback=None)
-            self.password = config_dic.get('DEFAULT', 'password', fallback=None)
-            self.email_address = config_dic.get('DEFAULT', 'email_address', fallback=self.username)
+            self.username = config_dic.get("DEFAULT", "username", fallback=None)
+            self.password = config_dic.get("DEFAULT", "password", fallback=None)
+            self.email_address = config_dic.get(
+                "DEFAULT", "email_address", fallback=self.username
+            )
 
             # Timing configuration
             try:
-                self.polling_timer = int(config_dic.get('DEFAULT', 'polling_timer', fallback=60))
+                self.polling_timer = int(
+                    config_dic.get("DEFAULT", "polling_timer", fallback=60)
+                )
             except ValueError as err:
                 self.logger.warning(
-                    "Failed to parse polling_timer from configuration. Using default 60. Error: %s", err
+                    "Failed to parse polling_timer from configuration. Using default 60. Error: %s",
+                    err,
                 )
                 self.polling_timer = 60
 
             try:
-                self.connection_timeout = int(config_dic.get('DEFAULT', 'connection_timeout', fallback=30))
+                self.connection_timeout = int(
+                    config_dic.get("DEFAULT", "connection_timeout", fallback=30)
+                )
             except ValueError as err:
                 self.logger.warning(
-                    "Failed to parse connection_timeout from configuration. Using default 30. Error: %s", err
+                    "Failed to parse connection_timeout from configuration. Using default 30. Error: %s",
+                    err,
                 )
                 self.connection_timeout = 30
         else:
@@ -109,8 +129,14 @@ class EmailHandler:
 
         self.logger.debug("EmailHandler._config_load() ended")
 
-    def send(self, to_address: str, subject: str, message: str,
-             from_address: Optional[str] = None, html_message: Optional[str] = None) -> bool:
+    def send(
+        self,
+        to_address: str,
+        subject: str,
+        message: str,
+        from_address: Optional[str] = None,
+        html_message: Optional[str] = None,
+    ) -> bool:
         """Send email via SMTP"""
         self.logger.debug("EmailHandler.send()")
 
@@ -119,24 +145,28 @@ class EmailHandler:
 
         try:
             # Create message
-            msg = MIMEMultipart('alternative') if html_message else MIMEText(message)
-            msg['Subject'] = subject
-            msg['From'] = from_address or self.email_address
-            msg['To'] = to_address
+            msg = MIMEMultipart("alternative") if html_message else MIMEText(message)
+            msg["Subject"] = subject
+            msg["From"] = from_address or self.email_address
+            msg["To"] = to_address
 
             if html_message:
                 # Add both plain text and HTML parts
-                part1 = MIMEText(message, 'plain')
-                part2 = MIMEText(html_message, 'html')
+                part1 = MIMEText(message, "plain")
+                part2 = MIMEText(html_message, "html")
                 msg.attach(part1)
                 msg.attach(part2)
 
             # Connect to SMTP server
             if self.smtp_use_tls:
-                server = smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=self.connection_timeout)
+                server = smtplib.SMTP(
+                    self.smtp_server, self.smtp_port, timeout=self.connection_timeout
+                )
                 server.starttls()
             else:
-                server = smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, timeout=self.connection_timeout)
+                server = smtplib.SMTP_SSL(
+                    self.smtp_server, self.smtp_port, timeout=self.connection_timeout
+                )
 
             # Authenticate and send
             if self.username and self.password:
@@ -152,8 +182,12 @@ class EmailHandler:
             self.logger.error("Failed to send email: %s", err)
             return False
 
-    def receive(self, callback: Optional[Callable] = None, folder: str = 'INBOX',
-                mark_as_read: bool = True) -> List[Dict[str, Any]]:
+    def receive(
+        self,
+        callback: Optional[Callable] = None,
+        folder: str = "INBOX",
+        mark_as_read: bool = True,
+    ) -> List[Dict[str, Any]]:
         """Receive emails via IMAP"""
         self.logger.debug("EmailHandler.receive()")
 
@@ -175,13 +209,13 @@ class EmailHandler:
             mail.select(folder)
 
             # Search for unread emails
-            status, messages = mail.search(None, 'UNSEEN')
-            if status == 'OK':
+            status, messages = mail.search(None, "UNSEEN")
+            if status == "OK":
                 email_ids = messages[0].split()
 
                 for email_id in email_ids:
-                    status, msg_data = mail.fetch(email_id, '(RFC822)')
-                    if status == 'OK':
+                    status, msg_data = mail.fetch(email_id, "(RFC822)")
+                    if status == "OK":
                         email_body = msg_data[0][1]
                         email_message = email.message_from_bytes(email_body)
 
@@ -194,7 +228,7 @@ class EmailHandler:
 
                         # Mark as read if requested
                         if mark_as_read:
-                            mail.store(email_id, '+FLAGS', '\\Seen')
+                            mail.store(email_id, "+FLAGS", "\\Seen")
 
             mail.close()
             mail.logout()
@@ -206,8 +240,9 @@ class EmailHandler:
 
         return emails
 
-    def start_polling(self, callback: Callable, folder: str = 'INBOX',
-                     mark_as_read: bool = True):
+    def start_polling(
+        self, callback: Callable, folder: str = "INBOX", mark_as_read: bool = True
+    ):
         """Start polling for emails in a separate thread"""
         self.logger.debug("EmailHandler.start_polling()")
 
@@ -218,13 +253,14 @@ class EmailHandler:
         self._email_callback = callback
         self._polling_active = True
         self._polling_thread = threading.Thread(
-            target=self._polling_loop,
-            args=(folder, mark_as_read)
+            target=self._polling_loop, args=(folder, mark_as_read)
         )
         self._polling_thread.daemon = True
         self._polling_thread.start()
 
-        self.logger.info("Email polling started with %d second interval", self.polling_timer)
+        self.logger.info(
+            "Email polling started with %d second interval", self.polling_timer
+        )
 
     def stop_polling(self):
         """Stop email polling"""
@@ -240,9 +276,14 @@ class EmailHandler:
         """Main polling loop (runs in separate thread)"""
         while self._polling_active:
             try:
-                emails = self.receive(callback=self._email_callback,
-                                    folder=folder, mark_as_read=mark_as_read)
-                self.logger.debug("Polling check completed, found %d new emails", len(emails))
+                emails = self.receive(
+                    callback=self._email_callback,
+                    folder=folder,
+                    mark_as_read=mark_as_read,
+                )
+                self.logger.debug(
+                    "Polling check completed, found %d new emails", len(emails)
+                )
 
             except Exception as err:
                 self.logger.error("Error during email polling: %s", err)
@@ -256,35 +297,49 @@ class EmailHandler:
     def _parse_email(self, email_message) -> Dict[str, Any]:
         """Parse email message into dictionary"""
         parsed = {
-            'subject': email_message.get('Subject', ''),
-            'from': email_message.get('From', ''),
-            'to': email_message.get('To', ''),
-            'date': email_message.get('Date', ''),
-            'body': '',
-            'html_body': '',
-            'attachments': []
+            "subject": email_message.get("Subject", ""),
+            "from": email_message.get("From", ""),
+            "to": email_message.get("To", ""),
+            "date": email_message.get("Date", ""),
+            "body": "",
+            "html_body": "",
+            "attachments": [],
         }
 
         # Extract body content
         if email_message.is_multipart():
             for part in email_message.walk():
                 content_type = part.get_content_type()
-                content_disposition = str(part.get('Content-Disposition', ''))
+                content_disposition = str(part.get("Content-Disposition", ""))
 
-                if content_type == 'text/plain' and 'attachment' not in content_disposition:
-                    parsed['body'] = part.get_payload(decode=True).decode('utf-8', errors='ignore')
-                elif content_type == 'text/html' and 'attachment' not in content_disposition:
-                    parsed['html_body'] = part.get_payload(decode=True).decode('utf-8', errors='ignore')
-                elif 'attachment' in content_disposition:
+                if (
+                    content_type == "text/plain"
+                    and "attachment" not in content_disposition
+                ):
+                    parsed["body"] = part.get_payload(decode=True).decode(
+                        "utf-8", errors="ignore"
+                    )
+                elif (
+                    content_type == "text/html"
+                    and "attachment" not in content_disposition
+                ):
+                    parsed["html_body"] = part.get_payload(decode=True).decode(
+                        "utf-8", errors="ignore"
+                    )
+                elif "attachment" in content_disposition:
                     filename = part.get_filename()
                     if filename:
-                        parsed['attachments'].append({
-                            'filename': filename,
-                            'content_type': content_type,
-                            'content': part.get_payload(decode=True)
-                        })
+                        parsed["attachments"].append(
+                            {
+                                "filename": filename,
+                                "content_type": content_type,
+                                "content": part.get_payload(decode=True),
+                            }
+                        )
         else:
-            parsed['body'] = email_message.get_payload(decode=True).decode('utf-8', errors='ignore')
+            parsed["body"] = email_message.get_payload(decode=True).decode(
+                "utf-8", errors="ignore"
+            )
 
         return parsed
 
