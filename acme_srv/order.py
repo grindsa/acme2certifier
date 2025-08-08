@@ -2,6 +2,7 @@
 """Order class"""
 from __future__ import print_function
 import json
+import copy
 from typing import List, Tuple, Dict
 from acme_srv.helper import (
     b64_url_recode,
@@ -39,6 +40,8 @@ class Order(object):
         }
         self.retry_after = 600
         self.tnauthlist_support = False
+        self.email_identifier_support = False
+        self.email_identifier_rewrite = False
         self.sectigo_sim = False
         self.identifier_limit = 20
         self.header_info_list = []
@@ -223,6 +226,12 @@ class Order(object):
             self.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
             )
+            self.email_identifier_support = config_dic.getboolean(
+                "Order", "email_identifier_support", fallback=False
+            )
+            self.email_identifier_rewrite = config_dic.getboolean(
+                "Order", "email_identifier_rewrite", fallback=False
+            )
             self.expiry_check_disable = config_dic.getboolean(
                 "Order", "expiry_check_disable", fallback=False
             )
@@ -321,6 +330,8 @@ class Order(object):
         # add tnauthlist to list of supported identfiers if configured to do so
         if self.tnauthlist_support:
             allowed_identifers.append("tnauthlist")
+        if self.email_identifier_support:
+            allowed_identifers.append("email")
 
         for identifier in identifiers_list:
             if "type" in identifier:
@@ -343,14 +354,38 @@ class Order(object):
         self.logger.debug("Order._identifiers_allowed() ended with: %s", error)
         return error
 
+    def _email_identifier_rewrite(
+        self, identifiers_list: List[Dict[str, str]]
+    ) -> Dict[str, str]:
+        """rewrite email identifiers to address acme_email issue"""
+        self.logger.debug("Order._email_identifier_rewrite()")
+        identifiers_modified = []
+        for ident in identifiers_list:
+            if ident["type"].lower() == "dns" and "@" in ident["value"]:
+                self.logger.info(
+                    "Rewrite DNS identifier '%s' to email identifier",
+                    ident["value"],
+                )
+                # rewrite dns identifier to acme_email
+                ident["type"] = "email"
+            identifiers_modified.append(ident)
+        self.logger.debug("Order._email_identifier_rewrite() ended")
+        return identifiers_modified
+
     def _identifiers_check(self, identifiers_list: List[str]) -> str:
         """check validity of identifers in order"""
         self.logger.debug("Order._identifiers_check(%s)", identifiers_list)
+
+        # Create a deep copy to avoid modifying the original
+        identifiers_list = copy.deepcopy(identifiers_list)
 
         if identifiers_list and isinstance(identifiers_list, list):
             if len(identifiers_list) > self.identifier_limit:
                 error = self.error_msg_dic["rejectedidentifier"]
             else:
+                if self.email_identifier_support and self.email_identifier_rewrite:
+                    # rewirte email identifiers to address acme_email issue
+                    identifiers_list = self._email_identifier_rewrite(identifiers_list)
                 error = self._identifiers_allowed(identifiers_list)
         else:
             error = self.error_msg_dic["malformed"]
