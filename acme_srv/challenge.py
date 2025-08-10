@@ -29,6 +29,7 @@ from acme_srv.helper import (
     uts_to_date_utc,
 )
 from acme_srv.db_handler import DBstore
+from acme_srv.email_handler import EmailHandler
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 
@@ -58,6 +59,8 @@ class Challenge(object):
         self.server_name = srv_name
         self.source_address = source
         self.tnauthlist_support = False
+        self.email_identifier_support = False
+        self.email_address = None
         self.dbstore = DBstore(debug, self.logger)
         self.err_msg_dic = error_dic_get(self.logger)
         self.message = Message(debug, self.server_name, self.logger)
@@ -299,6 +302,11 @@ class Challenge(object):
             if "validated" in challenge_dic:
                 challenge_dic.pop("validated")
 
+        if self.email_identifier_support and self.email_address:
+            # add email address to challenge_dic for email-reply-00 challenges
+            self.logger.debug("Adding email address to challenge_dic")
+            challenge_dic["from"] = self.email_address
+
         self.logger.debug("Challenge._info(%s) ended", challenge_name)
         return challenge_dic
 
@@ -392,6 +400,21 @@ class Challenge(object):
             self.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
             )
+            self.email_identifier_support = config_dic.getboolean(
+                "Order", "email_identifier_support", fallback=False
+            )
+
+        if (
+            self.email_identifier_support
+            and "DEFAULT" in config_dic
+            and "email_address" in config_dic["DEFAULT"]
+        ):
+            self.email_address = config_dic["DEFAULT"].get("email_address")
+        else:
+            self.logger.warning(
+                "Email identifier support is enabled but no email address is configured. Disabling email identifier support."
+            )
+            self.email_identifier_support = False
 
         if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
             self.path_dic = {
@@ -490,6 +513,22 @@ class Challenge(object):
         self.logger.debug("Challenge.get_name() ended with: %s", challenge_name)
         return challenge_name
 
+    def _email_send(self, to_address: str = None, token1: str = None):
+        """send challenge email"""
+        self.logger.debug("Challenge._email_send(%s)", to_address)
+        message_text = f"""
+  This is an automatically generated ACME challenge for email address
+  "{to_address}". If you haven't requested an S/MIME
+  certificate generation for this email address, be very afraid.
+  If you did request it, your email client might be able to process
+  this request automatically, or you might have to paste the first
+  token part into an external program.
+"""
+        with EmailHandler(logger=self.logger) as email_handler:
+            email_handler.send(
+                to_address=to_address, subject=f"ACME: {token1}", message=message_text
+            )
+
     def _new(
         self, authz_name: str, mtype: str, token: str = None, value: str = None
     ) -> Dict[str, str]:
@@ -507,7 +546,13 @@ class Challenge(object):
             "status": 2,
         }
 
-        if mtype == "sectigo-email-01":
+        if mtype == "email-reply-00":
+            token1 = data_dic["keyauthorization"] = generate_random_string(
+                self.logger, 12
+            )
+            self._email_send(to_address=value, token1=token1)
+
+        elif mtype == "sectigo-email-01":
             data_dic["status"] = 5
 
         try:
@@ -529,7 +574,10 @@ class Challenge(object):
             ] = f'{self.server_name}{self.path_dic["chall_path"]}{challenge_name}'
             challenge_dic["token"] = token
             challenge_dic["status"] = "pending"
-            if mtype == "tkauth-01":
+            if mtype == "email-reply-00":
+                challenge_dic["from"] = self.email_address
+                challenge_dic["token"] = token
+            elif mtype == "tkauth-01":
                 challenge_dic["tkauth-type"] = "atc"
             elif mtype == "sectigo-email-01":
                 challenge_dic["status"] = "valid"
@@ -1023,8 +1071,15 @@ class Challenge(object):
 
             challenge_name_list = []
             for challenge in challenge_list:
+                if (
+                    self.email_identifier_support
+                    and self.email_address
+                    and challenge["type"] == "email-reply-00"
+                ):
+                    # add email address to challenge_dic for email-reply-00 challenges
+                    self.logger.debug("Adding email address to challenge_dic")
+                    challenge["from"] = self.email_address
                 challenge_name_list.append(challenge.pop("name"))
-
         else:
             # new challenges to be created
             self.logger.debug("Challenges not found. Create a new set.")
@@ -1055,10 +1110,32 @@ class Challenge(object):
 
         challenge_list = []
 
+        # check if we need to create a email-reply challenge
+        email_reply = False
+        if self.email_identifier_support:
+            if id_type == "email" or (id_type == "dns" and "@" in value):
+                email_reply = True
+                self.logger.debug(
+                    "Challenge.new_set(): create email-reply-00 challenge"
+                )
+
         if tnauth:
-            challenge_list.append(self._new(authz_name, "tkauth-01", token))
+            challenge_list.append(
+                self._new(authz_name=authz_name, mtype="tkauth-01", token=token)
+            )
         elif self.sectigo_sim:
-            challenge_list.append(self._new(authz_name, "sectigo-email-01"))
+            challenge_list.append(
+                self._new(authz_name=authz_name, mtype="sectigo-email-01")
+            )
+        elif email_reply:
+            challenge_list.append(
+                self._new(
+                    authz_name=authz_name,
+                    mtype="email-reply-00",
+                    token=token,
+                    value=value,
+                )
+            )
         else:
             challenge_type_list = ["http-01", "dns-01", "tls-alpn-01"]
             # remove dns challnge for ip-addresses
@@ -1067,7 +1144,12 @@ class Challenge(object):
                 challenge_type_list.pop(1)
 
             for challenge_type in challenge_type_list:
-                challenge_json = self._new(authz_name, challenge_type, token, value)
+                challenge_json = self._new(
+                    authz_name=authz_name,
+                    mtype=challenge_type,
+                    token=token,
+                    value=value,
+                )
                 if challenge_json:
                     challenge_list.append(challenge_json)
                 else:
