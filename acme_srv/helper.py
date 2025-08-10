@@ -1692,7 +1692,7 @@ def validate_identifier(
     identifier: str,
     tnauthlist_support: bool = False,
 ) -> bool:
-    """validate identifier"""
+    """validate identifier format"""
     logger.debug("Helper.validate_identifier()")
 
     result = False
