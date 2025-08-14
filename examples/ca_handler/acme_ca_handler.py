@@ -401,11 +401,27 @@ class CAhandler(object):
         self.logger.debug("CAhandler._environment_variables_handle(): unset=%s", unset)
 
         forbidden_variables_list = [
-            "SHELL", "LANG", "PATH", "PWD", "HOME", "TZ",
-            "LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT", "LD_DEBUG", "LD_DYNAMIC_WEAK",
-            "LD_BIND_NOW", "LD_ORIGIN_PATH", "LD_RUN_PATH", "LD_ASSUME_KERNEL",
-            "LD_TRACE_LOADED_OBJECTS", "LD_TRACE_PRELINKING", "LD_USE_LOAD_BIAS",
-            "PYTHONPATH", "PYTHONHOME", "PYTHONUSERBASE"
+            "SHELL",
+            "LANG",
+            "PATH",
+            "PWD",
+            "HOME",
+            "TZ",
+            "LD_PRELOAD",
+            "LD_LIBRARY_PATH",
+            "LD_AUDIT",
+            "LD_DEBUG",
+            "LD_DYNAMIC_WEAK",
+            "LD_BIND_NOW",
+            "LD_ORIGIN_PATH",
+            "LD_RUN_PATH",
+            "LD_ASSUME_KERNEL",
+            "LD_TRACE_LOADED_OBJECTS",
+            "LD_TRACE_PRELINKING",
+            "LD_USE_LOAD_BIAS",
+            "PYTHONPATH",
+            "PYTHONHOME",
+            "PYTHONUSERBASE",
         ]
         for key, value in self.dns_update_script_variables.items():
             if key not in forbidden_variables_list:
