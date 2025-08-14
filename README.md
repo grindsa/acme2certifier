@@ -36,10 +36,10 @@ The project consists of two main libraries:
 | [Insta ActiveCMS](docs/asa.md)                                                                                                                 | ✅             | ✅             | ✅                                         |
 | [Microsoft Certificate Enrollment Web Services](docs/mscertsrv.md)                                                                             | ✅             | ❌             | ✅                                         |
 | [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)](docs/mswcce.md)                                                           | ✅             | ❌             | ✅                                         |
-| [NetGuard Certificate Lifecycle Manager](docs/nclm.md)                                                                                         | ✅             | ✅             | ❌                                         |
+| [NetGuard Certificate Lifecycle Manager](docs/nclm.md)                                                                                         | ✅             | ✅             | ✅                                         |
 | [NetGuard Certificate Manager/Insta Certifier](docs/certifier.md)                                                                              | ✅             | ✅             | ✅                                         |
 | [OpenSSL](docs/openssl.md)                                                                                                                     | ✅             | ✅             | ❌                                         |
-| [OpenXPKI](docs/openxpki.md)                                                                                                                   | ✅             | ✅             | ❌                                         |
+| [OpenXPKI](docs/openxpki.md)                                                                                                                   | ✅             | ✅             | ✅                                         |
 | [XCA](docs/xca.md)                                                                                                                             | ✅             | ✅             | ✅                                         |
 | [acme2dfn](https://github.com/pfisterer/acme2dfn) (ACME proxy for [German research network's PKI](https://www.pki.dfn.de/ueberblick-dfn-pki/)) | ✅             | ❌             | ❌                                         |
 
