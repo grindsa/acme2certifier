@@ -634,6 +634,75 @@ class Challenge(object):
         self.logger.debug("Challenge._parse() ended with: %s", code)
         return (code, message, detail, response_dic)
 
+    def _source_address_check(self, challenge_name: str = None) -> Tuple[bool, bool]:
+        """check dns responses against a pre-defined ip"""
+        self.logger.debug("Challenge._source_address_check(%s)", challenge_name)
+
+        challenge_check = False
+        invalid = False
+
+        if challenge_name:
+            try:
+                challenge_dic = self.dbstore.challenge_lookup(
+                    "name",
+                    challenge_name,
+                    [
+                        "authorization__name",
+                        "authorization__type",
+                        "authorization__value",
+                    ],
+                )
+            except Exception as err_:
+                self.logger.critical(
+                    "Database error: failed to lookup challenge during challenge check:'%s': %s",
+                    challenge_name,
+                    err_,
+                )
+                challenge_dic = {}
+
+            self.logger.debug(
+                "Challenge._source_address_check() challenge_dic: %s", challenge_dic
+            )
+
+            if (
+                challenge_dic
+                and challenge_dic.get("authorization__type", None) == "dns"
+                and challenge_dic.get("authorization__value", None)
+                and self.source_address
+            ):
+                response_list, invalid = fqdn_resolve(
+                    self.logger,
+                    challenge_dic.get("authorization__value"),
+                    self.dns_server_list,
+                    catch_all=True,
+                )
+                self.logger.debug(
+                    "Challenge._source_address_check(): fqdn_resolve() ended with: %s/%s",
+                    response_list,
+                    invalid,
+                )
+                if response_list and self.source_address in response_list:
+                    self.logger.debug(
+                        "Challenge._source_address_check(): Source address check passed for %s ",
+                        self.source_address,
+                    )
+                    challenge_check = True
+                    invalid = False
+                else:
+                    self.logger.debug(
+                        "Challenge._source_address_check(): Source address check failed for %s",
+                        self.source_address,
+                    )
+                    challenge_check = False
+                    invalid = True
+
+        self.logger.debug(
+            "Challenge._source_address_check() ended with %s/%s",
+            challenge_check,
+            invalid,
+        )
+        return challenge_check, invalid
+
     def _update(self, data_dic: Dict[str, str]):
         """update challenge"""
         self.logger.debug("Challenge._update(%s)", data_dic)
