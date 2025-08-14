@@ -637,14 +637,24 @@ class Challenge(object):
                     catch_all=True,
                 )
                 self.logger.debug(
-                    "fqdn_resolve() ended with: %s/%s",
+                    "Challenge._source_address_check(): fqdn_resolve() ended with: %s/%s",
                     response_list,
                     invalid,
                 )
                 if response_list and self.source_address in response_list:
+                    self.logger.debug(
+                        "Challenge._source_address_check(): Source address check passed for %s ",
+                        self.source_address,
+                    )
                     challenge_check = True
+                    invalid = False
                 else:
+                    self.logger.debug(
+                        "Challenge._source_address_check(): Source address check failed for %s",
+                        self.source_address,
+                    )
                     challenge_check = False
+                    invalid = True
 
         self.logger.debug(
             "Challenge._source_address_check() ended with %s/%s",
