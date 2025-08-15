@@ -56,6 +56,9 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
+    - name: "Install dehydrated"
+      uses: ./.github/actions/wf_specific/disable_challengevalidation/dehydrated_install
+
     - name: "Test enrollment"
       uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
       with:
@@ -166,6 +169,9 @@ jobs:
         docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
       env:
         EXEC_SCRIPT: ${{ matrix.execscript }}
+
+    - name: "Install dehydrated"
+      uses: ./.github/actions/wf_specific/disable_challengevalidation/dehydrated_install
 
     - name: "Test enrollment"
       uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
