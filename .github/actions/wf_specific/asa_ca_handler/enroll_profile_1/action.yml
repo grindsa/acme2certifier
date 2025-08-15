@@ -49,7 +49,7 @@ runs:
 
   - name: "Profile 1 - Enroll lego"
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --key-type rsa2048 --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme  --key-type rsa2048 --http run
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
       sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Digital Signature"
       # sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
@@ -57,14 +57,14 @@ runs:
 
   - name: "Profile 1 - revoke HTTP-01 single domain lego"
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme revoke
     shell: bash
 
   - name: "Allowed domainlist feature - Enroll lego (fail)"
     continue-on-error: true
     id: legofail01
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego  --key-type rsa2048 --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego  --key-type rsa2048 --http run
     shell: bash
     env:
       ACME_SERVER: ${{ inputs.ACME_SERVER }}

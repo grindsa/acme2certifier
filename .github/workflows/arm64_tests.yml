@@ -238,7 +238,7 @@ jobs:
     - name: "Lego enroll"
       run: |
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "mkdir -p /tmp/a2c/$UUID/lego"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID --network $UUID goacme/lego -s http://acme-srv-$UUID/directory -a --email lego@example.com -d lego-$UUID --http run"
+        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID --network $UUID goacme/lego --tls-skip-verify -s https://acme-srv-$UUID/directory -a --email lego@example.com -d lego-$UUID --http run"
       env:
         SSH_USER: ${{ secrets.AWS_SSH_USER }}
         SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
@@ -246,7 +246,7 @@ jobs:
 
     - name: "Lego revoke"
       run: |
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID  --network $UUID goacme/lego -s http://acme-srv-$UUID -a --email "lego@example.com" -d lego-$UUID revoke"
+        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID  --network $UUID goacme/lego --tls-skip-verify -s https://acme-srv-$UUID -a --email "lego@example.com" -d lego-$UUID revoke"
       env:
         SSH_USER: ${{ secrets.AWS_SSH_USER }}
         SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
