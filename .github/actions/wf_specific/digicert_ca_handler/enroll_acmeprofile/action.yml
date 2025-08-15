@@ -25,10 +25,10 @@ runs:
   - name: "ACME Profile - 01 - Enroll lego with without template"
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de --http run
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.dynamop.de.crt
       sudo openssl x509 -in lego/certificates/lego.acme.dynamop.de.crt -text -noout
-      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de revoke
+      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de revoke
     shell: bash
 
   - name: "ACME Profile - 01 - Clear logs"
@@ -44,7 +44,7 @@ runs:
     continue-on-error: true
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de --http run --profile unknown
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de --http run --profile unknown
     shell: bash
 
   - name: "ACME Profile - 02 - check  result "
@@ -68,11 +68,11 @@ runs:
   - name: "ACME Profile - 03 - Enroll lego with am allowed template_name taken from profile"
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de --http run --profile ssl_securesite_pro
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de --http run --profile ssl_securesite_pro
       sudo openssl x509 -in lego/certificates/lego.acme.dynamop.de.crt -ext extendedKeyUsage -noout
       sudo openssl x509 -in lego/certificates/lego.acme.dynamop.de.crt -issuer --noout
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.dynamop.de.crt
-      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de revoke
+      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme.dynamop.de goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme.dynamop.de revoke
     shell: bash
 
   - name: "ACME Profile - 03 - Check logs"

@@ -56,7 +56,7 @@ runs:
 
   - name: "Enroll Lego"
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 180 --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 180 --http run
     shell: bash
 
   - name: "Check timeout"
