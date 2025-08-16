@@ -351,7 +351,7 @@ jobs:
     - name: "Setup and test load-balancer"
       run: |
         docker run -d --rm --name acme-srv --network acme  grindsa/pen:latest -r 443 alma9-c1.acme:443 alma9-c2.acme:443
-        docker run -i --rm --network acme curlimages/curl -f http://acme-srv.acme/directory
+        docker run -i --rm --network acme curlimages/curl -f https://acme-srv.acme/directory --insecure
 
     - name: "Create script for mass-testing"
       run: |
