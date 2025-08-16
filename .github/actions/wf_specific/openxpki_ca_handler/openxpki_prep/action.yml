@@ -59,9 +59,9 @@ runs:
     working-directory: /tmp/openxpki
     run: |
       docker ps
-      docker exec -u root  -id OpenXPKI_Server /usr/share/doc/libopenxpki-perl/examples/sampleconfig.sh
+      docker exec -u root OpenXPKI_Server /usr/share/doc/libopenxpki-perl/examples/sampleconfig.sh
       # docker exec -id OpenXPKI_Server /bin/bash /etc/openxpki/contrib/sampleconfig.sh
-      docker exec -u root -id OpenXPKI_Client apt-get install -y libjson-pp-perl
+      docker exec -u root OpenXPKI_Client apt-get install -y libjson-pp-perl
     shell: bash
 
   - name: "Sleep for 120s"
