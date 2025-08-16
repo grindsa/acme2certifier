@@ -223,7 +223,6 @@ jobs:
       with:
         DEPLOYMENT_TYPE: "container"
 
-
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
@@ -243,7 +242,6 @@ jobs:
         name: openxpki-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
-  openxpki_ca_handler_tests_rpm:
     name: " openxpki_ca_handler_tests_rpm"
     runs-on: ubuntu-latest
     strategy:
