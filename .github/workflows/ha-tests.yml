@@ -377,7 +377,7 @@ jobs:
             if [[ $? != 0 ]]; then break; fi
             docker run -i -p 80:80 --rm --network acme --name=acme-sh -v \$PWD/acme-sh:/acme.sh neilpang/acme.sh:latest --issue --server https://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --output-insecure --insecure --force # > /dev/null
             if [[ $? != 0 ]]; then break; fi
-            docker run -i -p 80:80 --rm --network acme --name=certbot -v \$PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme  --no-verify-ssl --agree-tos -m 'certbot@example.com' --no-eff-email --standalone --preferred-challenges http -d certbot.acme --cert-name certbot # > /dev/null
+            docker run -i -p 80:80 --rm --network acme --name=certbot -v \$PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --no-verify-ssl --agree-tos -m 'certbot@example.com' --no-eff-email --standalone --preferred-challenges http -d certbot.acme --cert-name certbot # > /dev/null
             ((counter++))
             exit 1
         done
