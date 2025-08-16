@@ -110,7 +110,7 @@ jobs:
       continue-on-error: true
       id: legofail01
       run: |
-        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  http://acme-srv -a --email "lego@example.com" -d lego --tls run
+        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
 
     - name: "Allowed domainlist feature - check  result "
       if: ${{ steps.legofail01.outcome != 'failure' }}
@@ -182,7 +182,7 @@ jobs:
       continue-on-error: true
       id: legofail02
       run: |
-        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  http://acme-srv -a --email "lego@example.com" -d lego --tls run
+        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
 
     - name: "Allowed domainlist feature - check  result "
       if: ${{ steps.legofail02.outcome != 'failure' }}
@@ -324,7 +324,7 @@ jobs:
       continue-on-error: true
       id: legofail01
       run: |
-        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  http://acme-srv -a --email "lego@example.com" -d lego --tls run
+        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
 
     - name: "Allowed domainlist feature - check  result "
       if: ${{ steps.legofail01.outcome != 'failure' }}
@@ -458,7 +458,7 @@ jobs:
       continue-on-error: true
       id: legofail01
       run: |
-        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  http://acme-srv -a --email "lego@example.com" -d lego --tls run
+        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
 
     - name: "Allowed domainlist feature - check  result "
       if: ${{ steps.legofail01.outcome != 'failure' }}
