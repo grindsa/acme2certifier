@@ -1,4 +1,4 @@
-name: HA tests
+name: HA tests on alma9
 
 on:
   push:
