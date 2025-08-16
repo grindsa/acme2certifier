@@ -28,12 +28,12 @@ runs:
   - name: "Instanciate OpenXPKI server"
     working-directory: /tmp/openxpki
     run: |
-      # sudo apt-get install -y docker-compose
+      sudo apt-get install -y docker-compose
 
-      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-      sudo apt update
-      sudo apt install -y docker-compose-plugin
+      # curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+      # echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      # sudo apt update
+      # sudo apt install -y docker-compose-plugin
 
       git clone https://github.com/openxpki/openxpki-docker.git
       cd openxpki-docker/
@@ -46,16 +46,16 @@ runs:
       sed -i "s/approval_points: 1/approval_points: 0/g" openxpki-config/config.d/realm/democa/rpc/generic.yaml
       sed -i "s/export_certificate: chain/export_certificate: fullchain/g" openxpki-config/config.d/realm/democa/rpc/generic.yaml
       sed -i "s/dn: CN=\[\% CN.0 \%\],DC=Test Deployment,DC=OpenXPKI,DC=org/dn: CN=\[\% SAN_DNS.0 \%\]/g" openxpki-config/config.d/realm.tpl/profile/tls_server.yaml
-      sed -i "s/8080:80/22080:80/g"  docker-compose.yml
-      cat docker-compose.yml
-      # docker-compose up -d
-      docker compose up -d
+      # sed -i "s/8080:80/22080:80/g"  docker-compose.yml
+      # cat docker-compose.yml
+      docker-compose up
+      # docker compose up -d
     shell: bash
 
-  - name: "Sleep for 30s"
+  - name: "Sleep for 120s"
     uses: juliangruber/sleep-action@v2.0.3
     with:
-      time: 30s
+      time: 120s
 
   # - name: "Fix 1st time start issues with OpenXPKI server"
   #  working-directory: /tmp/openxpki/openxpki-docker
