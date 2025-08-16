@@ -59,15 +59,15 @@ runs:
     working-directory: /tmp/openxpki
     run: |
       docker ps
-      docker exec -u root -i OpenXPKI_Server /usr/share/doc/libopenxpki-perl/examples/sampleconfig.sh
+      docker exec -u root -id OpenXPKI_Server /usr/share/doc/libopenxpki-perl/examples/sampleconfig.sh
       # docker exec -id OpenXPKI_Server /bin/bash /etc/openxpki/contrib/sampleconfig.sh
-      docker exec -u root -i OpenXPKI_Client apt-get install -y libjson-pp-perl
+      docker exec -u root -id OpenXPKI_Client apt-get install -y libjson-pp-perl
     shell: bash
 
-  - name: "Sleep for 120s"
+  - name: "Sleep for 180s"
     uses: juliangruber/sleep-action@v2.0.3
     with:
-      time: 120s
+      time: 180s
 
   - name: "Enroll keys for Client-authentication via scep"
     working-directory: ${{ inputs.WORKING_DIR }}
@@ -78,7 +78,7 @@ runs:
       curl -v -H "Content-Type: application/pkcs10" --data @/tmp/request.pem  https://$OPENXPKI_IP:8443/.well-known/est/simpleenroll --insecure -o /tmp/cert.txt
 
       docker exec -u root OpenXPKI_Server cat /var/log/openxpki-server/catchall.log
-
+      docker exec -u root OpenXPKI_Server openxpkiadm alias --realm democa
       cat /tmp/cert.txt
 
       sudo openssl pkcs7 -print_certs -in /tmp/cert.p7b -inform der -out data/acme_ca/client_crt.pem
