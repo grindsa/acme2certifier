@@ -75,7 +75,7 @@ runs:
       sudo openssl genrsa -out data/acme_ca/client_key.pem 2048
       sudo openssl req -new -key data/acme_ca/client_key.pem -subj '/CN=a2c:pkiclient,O=acme' -outform der | base64 > /tmp/request.pem
       # curl -v -H "Content-Type: application/pkcs10" --data @/tmp/request.pem  https://$OPENXPKI_IP:8443/.well-known/est/simpleenroll --insecure  | base64 -d > /tmp/cert.p7b
-      curl -v -H "Content-Type: application/pkcs10" --data @/tmp/request.pem  https://$OPENXPKI_IP:8443/.well-known/est/simpleenroll --insecure -O /tmp/cert.txt
+      curl -v -H "Content-Type: application/pkcs10" --data @/tmp/request.pem  https://$OPENXPKI_IP:8443/.well-known/est/simpleenroll --insecure -o /tmp/cert.txt
       cat /tmp/cert.txt
 
       sudo openssl pkcs7 -print_certs -in /tmp/cert.p7b -inform der -out data/acme_ca/client_crt.pem
