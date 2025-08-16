@@ -39,6 +39,7 @@ jobs:
     - name: "Setup environment"
       run: |
         docker network create acme
+        sudo mkdir -p data/nginx
         sudo mkdir -p data
         sudo chmod -R 777 data
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
