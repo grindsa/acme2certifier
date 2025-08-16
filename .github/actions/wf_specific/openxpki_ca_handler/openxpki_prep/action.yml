@@ -47,8 +47,8 @@ runs:
       sed -i "s/export_certificate: chain/export_certificate: fullchain/g" openxpki-config/config.d/realm/democa/rpc/generic.yaml
       sed -i "s/dn: CN=\[\% CN.0 \%\],DC=Test Deployment,DC=OpenXPKI,DC=org/dn: CN=\[\% SAN_DNS.0 \%\]/g" openxpki-config/config.d/realm.tpl/profile/tls_server.yaml
       # sed -i "s/8080:80/22080:80/g"  docker-compose.yml
-      # cat docker-compose.yml
-      docker-compose up &
+      cat docker-compose.yml
+      docker-compose up -d
       # docker compose up -d
     shell: bash
 
