@@ -42,10 +42,11 @@ runs:
       sed -i "s/value: 0/value: 1/g"  openxpki-config/config.d/realm/democa/est/default.yaml
       sed -i "s/cert_profile: tls_server/cert_profile: tls_client/g"  openxpki-config/config.d/realm/democa/est/default.yaml
       sed -i "s/approval_points: 1/approval_points: 0/g"  openxpki-config/config.d/realm/democa/est/default.yaml
+      cat openxpki-config/config.d/realm/democa/est/default.yaml
       sed -i "s/approval_points: 1/approval_points: 0/g" openxpki-config/config.d/realm/democa/rpc/generic.yaml
       sed -i "s/export_certificate: chain/export_certificate: fullchain/g" openxpki-config/config.d/realm/democa/rpc/generic.yaml
       sed -i "s/dn: CN=\[\% CN.0 \%\],DC=Test Deployment,DC=OpenXPKI,DC=org/dn: CN=\[\% SAN_DNS.0 \%\]/g" openxpki-config/config.d/realm.tpl/profile/tls_server.yaml
-      docker compose up -d web --wait
+      # docker compose up -d web --wait
     shell: bash
 
   - name: "Sleep for 30s"
