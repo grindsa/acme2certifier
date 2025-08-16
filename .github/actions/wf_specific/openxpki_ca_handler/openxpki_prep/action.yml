@@ -42,7 +42,7 @@ runs:
       sed -i "s/value: 0/value: 1/g"  openxpki-config/config.d/realm/democa/est/default.yaml
       sed -i "s/cert_profile: tls_server/cert_profile: tls_client/g"  openxpki-config/config.d/realm/democa/est/default.yaml
       sed -i "s/approval_points: 1/approval_points: 0/g"  openxpki-config/config.d/realm/democa/est/default.yaml
-      sed -i "s/allow_man_approv: 1/allow_man_approv: 0/g"  openxpki-config/config.d/realm/democa/est/default.yaml
+      # sed -i "s/allow_man_approv: 1/allow_man_approv: 0/g"  openxpki-config/config.d/realm/democa/est/default.yaml
       cat openxpki-config/config.d/realm/democa/est/default.yaml
       sed -i "s/approval_points: 1/approval_points: 0/g" openxpki-config/config.d/realm/democa/rpc/generic.yaml
       sed -i "s/export_certificate: chain/export_certificate: fullchain/g" openxpki-config/config.d/realm/democa/rpc/generic.yaml
