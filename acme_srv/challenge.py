@@ -197,6 +197,8 @@ class Challenge(object):
 
         jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
 
+        challenge_pause_list = ["dns-01", "email-reply-00"]
+
         for _ele in range(0, 5):
 
             result, invalid = self._challenge_validate_loop(
@@ -557,9 +559,9 @@ class Challenge(object):
         }
 
         if mtype == "email-reply-00":
-            token1 = data_dic["keyauthorization"] = generate_random_string(
-                self.logger, 32
-            )
+            token1 = generate_random_string(self.logger, 32)
+            self.logger.debug("Challenge._new(): generated token1: %s", token1)
+            data_dic["keyauthorization"] = token1
             self._email_send(to_address=value, token1=token1)
 
         elif mtype == "sectigo-email-01":
@@ -699,7 +701,14 @@ class Challenge(object):
                     response_list,
                     invalid,
                 )
-                if response_list and self.source_address in response_list:
+                if invalid:
+                    self.logger.debug(
+                        "Challenge._source_address_check(): fqdn resolve give: invalid address check failed for %s",
+                        self.source_address,
+                    )
+                    challenge_check = False
+                    invalid = True
+                elif response_list and self.source_address in response_list:
                     self.logger.debug(
                         "Challenge._source_address_check(): Source address check passed for %s ",
                         self.source_address,
@@ -1002,7 +1011,10 @@ class Challenge(object):
         )
 
         filter_string = f"ACME: {rfc_token1}"
-
+        self.logger.debug(
+            "Challenge._validate_email_reply_challenge(): filter string: %s",
+            filter_string,
+        )
         # define callback to filter emails
         def email_filter(email_data):
             """filter email"""
@@ -1013,6 +1025,10 @@ class Challenge(object):
                 )
                 return email_data
             else:
+                self.logger.debug(
+                    "Challenge._validate_email_reply_challenge(): email subject does not match filter: %s",
+                    email_data["subject"],
+                )
                 return None
 
         result = False

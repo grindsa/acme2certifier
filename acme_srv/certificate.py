@@ -245,7 +245,12 @@ class Certificate(object):
             cert_dic = self.dbstore.certificate_lookup(
                 "cert_raw",
                 b64_url_recode(self.logger, certificate),
-                ["name", "order__account__name", "order__account__eab_kid", "order__profile"]
+                [
+                    "name",
+                    "order__account__name",
+                    "order__account__eab_kid",
+                    "order__profile",
+                ],
             )
         except Exception as err:
             self.logger.error(
@@ -255,7 +260,9 @@ class Certificate(object):
             cert_dic = {}
 
         # construct log message including certificate name
-        self.logger.debug("Certificate._cert_revocation_log(%s)", cert_dic.get("name", ""))
+        self.logger.debug(
+            "Certificate._cert_revocation_log(%s)", cert_dic.get("name", "")
+        )
 
         data_dic = {
             "account_name": cert_dic.get("order__account__name", ""),

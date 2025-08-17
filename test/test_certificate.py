@@ -3851,7 +3851,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:Database error: failed to get account information for cert issuance log: order_lookup error',
+            "ERROR:test_a2c:Database error: failed to get account information for cert issuance log: order_lookup error",
             lcm.output,
         )
         self.assertTrue(self.certificate.dbstore.order_lookup.called)

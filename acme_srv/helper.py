@@ -2007,6 +2007,17 @@ def allowed_domainlist_check(
     error = None
     if allowed_domain_list:
         (san_list, check_list) = sancheck_lists_create(logger, csr)
+
+        # clean email addresses
+        tmp_san_list = []
+        for san in san_list:
+            if "@" in san:
+                _email_name, email_domain = san.split("@", 1)
+                tmp_san_list.append(email_domain)
+            else:
+                tmp_san_list.append(san)
+        san_list = tmp_san_list
+
         invalid_domains = []
 
         # go over the san list and check each entry
