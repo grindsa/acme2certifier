@@ -220,20 +220,34 @@ class EmailHandler:
                         email_message = email.message_from_bytes(email_body)
 
                         parsed_email = self._parse_email(email_message)
-                        emails.append(parsed_email)
 
                         # Call callback if provided
                         if callback:
-                            callback(parsed_email)
-
+                            result = callback(parsed_email)
+                            if result:
+                                self.logger.info(
+                                    "Email passed filter: %s", result["subject"]
+                                )
+                                emails = result  # return this email only if callback returns a value
+                                break
+                        else:
+                            self.logger.debug(
+                                "mailHandler.receive(): email did not pass filter: %s",
+                                parsed_email["subject"],
+                            )
+                            # no callback provided just add the email to the queue
+                            emails.append(parsed_email)
                         # Mark as read if requested
                         if mark_as_read:
                             mail.store(email_id, "+FLAGS", "\\Seen")
-
+                        else:
+                            mail.store(email_id, "-FLAGS", "\\Seen")
             mail.close()
             mail.logout()
 
-            self.logger.debug("Retrieved %d emails", len(emails))
+            self.logger.debug(
+                "EmailHandler.receive(): retrieved emails: %d", bool(emails)
+            )
 
         except Exception as err:
             self.logger.error("Failed to receive emails: %s", err)

@@ -4,6 +4,7 @@
 from __future__ import print_function
 import json
 import time
+import re
 from typing import List, Tuple, Dict
 from acme_srv.helper import (
     b64_encode,
@@ -11,6 +12,7 @@ from acme_srv.helper import (
     cert_extensions_get,
     cert_san_get,
     config_eab_profile_load,
+    convert_byte_to_string,
     error_dic_get,
     fqdn_in_san_check,
     fqdn_resolve,
@@ -161,6 +163,14 @@ class Challenge(object):
                 challenge_dic["token"],
                 jwk_thumbprint,
                 payload,
+            )
+        elif challenge_dic["type"] == "email-reply-00":
+            (result, invalid) = self._validate_email_reply_challenge(
+                challenge_name,
+                challenge_dic["authorization__type"],
+                challenge_dic["authorization__value"],
+                challenge_dic["token"],
+                jwk_thumbprint,
             )
         else:
             self.logger.error(
@@ -548,7 +558,7 @@ class Challenge(object):
 
         if mtype == "email-reply-00":
             token1 = data_dic["keyauthorization"] = generate_random_string(
-                self.logger, 12
+                self.logger, 32
             )
             self._email_send(to_address=value, token1=token1)
 
@@ -916,6 +926,129 @@ class Challenge(object):
 
         self.logger.debug("Challenge._validate_dns_challenge() ended with: %s", result)
         return (result, False)
+
+    def _emailchallenge_keyauth_generate(
+        self, challenge_name: str, token: str, jwk_thumbprint: str
+    ) -> Tuple[str | None, str | None]:
+        """generate RFC8823 keyauthorization"""
+        self.logger.debug(
+            "Challenge._emailchallenge_keyauth_generate(%s)", challenge_name
+        )
+
+        challenge_dic = self.dbstore.challenge_lookup(
+            "name", challenge_name, vlist=["name", "token", "keyauthorization"]
+        )
+
+        # this is the token we send via email
+        rfc_token1 = challenge_dic.get("keyauthorization", None)
+        # this is the token we send via https
+        rfc_token2 = challenge_dic.get("token", None)
+
+        keyauthorization = None
+        # this is to make sure that we picked the right value from the database
+        if token == rfc_token2:
+            # compute sha256 hash
+            keyauthorization = convert_byte_to_string(
+                b64_url_encode(
+                    self.logger,
+                    sha256_hash(
+                        self.logger, f"{rfc_token1}{rfc_token2}.{jwk_thumbprint}"
+                    ),
+                )
+            )
+
+        self.logger.debug(
+            "Challenge._emailchallenge_keyauth_generate() ended with: %s",
+            bool(keyauthorization),
+        )
+        return keyauthorization, rfc_token1
+
+    def _emailchallenge_keyauth_extract(self, body: str = None) -> str:
+        """extract keyauthorization from email body"""
+        self.logger.debug("Challenge._emailchallenge_keyauth_extract()")
+
+        email_keyauthorization = None
+        if body:
+            # extract keyauthorization from email body
+            match = re.search(
+                r"-+BEGIN ACME RESPONSE-+\s*([\w\-_=+/]+)\s*-+END ACME RESPONSE-+",
+                body,
+                re.DOTALL,
+            )
+            if match:
+                email_keyauthorization = match.group(1).strip()
+
+        self.logger.debug(
+            "Challenge._emailchallenge_keyauth_extract() ended with: %s",
+            bool(email_keyauthorization),
+        )
+        return email_keyauthorization
+
+    def _validate_email_reply_challenge(
+        self,
+        challenge_name: str,
+        _type: str,
+        email: str,
+        token: str,
+        jwk_thumbprint: str,
+    ) -> Tuple[bool, bool]:
+        """validate email reply challenge"""
+        self.logger.debug(
+            "Challenge._validate_email_reply_challenge(%s)", challenge_name
+        )
+
+        calculated_keyauth, rfc_token1 = self._emailchallenge_keyauth_generate(
+            challenge_name=challenge_name, token=token, jwk_thumbprint=jwk_thumbprint
+        )
+
+        filter_string = f"ACME: {rfc_token1}"
+
+        # define callback to filter emails
+        def email_filter(email_data):
+            """filter email"""
+            if filter_string in email_data["subject"]:
+                self.logger.debug(
+                    "Challenge._validate_email_reply_challenge(): email subject matches filter: %s",
+                    email_data["subject"],
+                )
+                return email_data
+            else:
+                return None
+
+        result = False
+        invalid = False
+        with EmailHandler(debug=False, logger=self.logger) as email_handler:
+
+            email_receive = email_handler.receive(
+                callback=email_filter, folder="INBOX", mark_as_read=False
+            )
+            if email_receive and "body" in email_receive:
+                email_keyauth = self._emailchallenge_keyauth_extract(
+                    email_receive["body"]
+                )
+                if (
+                    email_keyauth
+                    and calculated_keyauth
+                    and email_keyauth == calculated_keyauth
+                ):
+                    self.logger.debug(
+                        "Challenge._validate_email_reply_challenge(): email keyauthorization matches"
+                    )
+                    result = True
+                else:
+                    self.logger.debug(
+                        "Challenge._validate_email_reply_challenge(): email keyauthorization does not match. Expected: %s, Got: %s",
+                        calculated_keyauth,
+                        email_keyauth,
+                    )
+                    invalid = True
+
+        self.logger.debug(
+            "Challenge._validate_email_reply_challenge() ended with: %s/%s",
+            result,
+            invalid,
+        )
+        return (result, invalid)
 
     def _validate_http_challenge(
         self,
