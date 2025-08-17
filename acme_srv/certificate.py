@@ -157,7 +157,7 @@ class Certificate(object):
         return result
 
     def _cert_issuance_log_text(self, certificate_name, data_dic):
-        """log certissuane as text string"""
+        """log cert issuance as text string"""
 
         log_string = f'Certificate {certificate_name} issued for account {data_dic["account_name"]}'
 
@@ -196,7 +196,7 @@ class Certificate(object):
             )
         except Exception as err:
             self.logger.error(
-                "Database error: failed to account information for cert issuance log: %s",
+                "Database error: failed to get account information for cert issuance log: %s",
                 err,
             )
             order_dic = {}
@@ -235,8 +235,6 @@ class Certificate(object):
 
     def _cert_revocation_log(self, certificate: str, code: int):
         """log certificate revocation"""
-        self.logger.debug("Certificate._cert_revocation_log()")
-
         if code == 200:
             status = "successful"
         else:
@@ -247,7 +245,7 @@ class Certificate(object):
             cert_dic = self.dbstore.certificate_lookup(
                 "cert_raw",
                 b64_url_recode(self.logger, certificate),
-                ["name", "order__account__name", "order__account__eab_kid"],
+                ["name", "order__account__name", "order__account__eab_kid", "order__profile"]
             )
         except Exception as err:
             self.logger.error(
@@ -256,11 +254,15 @@ class Certificate(object):
             )
             cert_dic = {}
 
+        # construct log message including certificate name
+        self.logger.debug("Certificate._cert_revocation_log(%s)", cert_dic.get("name", ""))
+
         data_dic = {
             "account_name": cert_dic.get("order__account__name", ""),
             "certificate_name": cert_dic.get("name", ""),
             "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
             "common_name": cert_cn_get(self.logger, certificate),
+            "profile": cert_dic.get("order__profile", ""),
             "san_list": cert_san_get(self.logger, certificate),
             "status": status,
         }
@@ -279,6 +281,8 @@ class Certificate(object):
             log_string = f'Certificate {data_dic["certificate_name"]} revocation {data_dic["status"]} for account {data_dic["account_name"]}'
             if data_dic.get("eab_kid", ""):
                 log_string = log_string + f' with EAB KID {data_dic["eab_kid"]}'
+            if data_dic.get("profile", ""):
+                log_string = log_string + f' with Profile {data_dic["profile"]}'
             log_string = (
                 log_string
                 + f'. Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}'
