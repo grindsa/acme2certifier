@@ -543,7 +543,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_039_certificate_revoke(
         self, mock_mcheck, mock_validate, mock_nnonce, mock_log
     ):
-        """test Certificate.revoke with sucessful request validation"""
+        """test Certificate.revoke with successful request validation"""
         mock_mcheck.return_value = (
             200,
             None,
@@ -1491,7 +1491,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_111_certificate_enroll_and_store(
         self, mock_store_err, mock_store, mock_dates, mock_oupd, mock_chk, mock_log
     ):
-        """Certificate.enroll_and_store() enrollment succhessful without polling_identifier"""
+        """Certificate.enroll_and_store() enrollment successful without polling_identifier"""
         mock_store_err.return_value = True
         mock_store.return_value = True
         mock_dates.return_value = (1, 2)
@@ -3851,7 +3851,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:Database error: failed to account information for cert issuance log: order_lookup error",
+            'ERROR:test_a2c:Database error: failed to get account information for cert issuance log: order_lookup error',
             lcm.output,
         )
         self.assertTrue(self.certificate.dbstore.order_lookup.called)
@@ -3874,7 +3874,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_revocation_log("certificate", "status")
         self.assertIn(
-            'INFO:test_a2c:Certificate revoked: {"account_name": "account__name", "certificate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "failed"}',
+            'INFO:test_a2c:Certificate revoked: {"account_name": "account__name", "certificate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "profile": "", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "failed"}',
             lcm.output,
         )
 
