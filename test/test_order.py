@@ -1330,6 +1330,16 @@ class TestACMEHandler(unittest.TestCase):
             ),
         )
 
+    @patch("acme_srv.order.Order._identifiers_allowed")
+    @patch("acme_srv.order.Order._email_identifier_rewrite")
+    def test_070_order__identifiers_check(self, mock_rew, mock_all):
+        """order identifers check with correct identifer"""
+        mock_all.return_value = None
+        self.assertEqual(
+            None, self.order._identifiers_check([{"type": "dns", "value": "value"}])
+        )
+        self.assertFalse(mock_rew.called)
+
     @patch("acme_srv.order.validate_identifier")
     def test_069_order__identifiers_check(self, mock_vali):
         """order identifers check with correct identifer"""
@@ -1340,6 +1350,18 @@ class TestACMEHandler(unittest.TestCase):
                 [{"type": "dns", "value": "value"}, {"type": "dns", "value": "value"}]
             ),
         )
+
+    @patch("acme_srv.order.Order._identifiers_allowed")
+    @patch("acme_srv.order.Order._email_identifier_rewrite")
+    def test_071_order__identifiers_check(self, mock_rew, mock_all):
+        """order identifers check with correct identifer"""
+        mock_all.return_value = None
+        self.order.email_identifier_support = True
+        self.order.email_identifier_rewrite = True
+        self.assertEqual(
+            None, self.order._identifiers_check([{"type": "dns", "value": "value"}])
+        )
+        self.assertTrue(mock_rew.called)
 
     def test_070_order__process(self):
         """Order.prcoess() without url in protected header"""
@@ -2464,6 +2486,16 @@ class TestACMEHandler(unittest.TestCase):
             "urn:ietf:params:acme:error:invalidProfile",
             self.order._profile_check("foo"),
         )
+
+    def test_140__email_identifier_rewrite(self):
+        """ test _email_identifier_rewrite() """
+        identifier_list = [{'foo': 'bar'}]
+        self.assertEqual([{'foo': 'bar'}], self.order._email_identifier_rewrite(identifier_list))
+
+    def test_141__email_identifier_rewrite(self):
+        """ test _email_identifier_rewrite() """
+        identifier_list = [{'foo': 'bar', 'type': 'dns', 'value': 'foo@bar.local'}]
+        self.assertEqual([{'foo': 'bar', 'type': 'email', 'value': 'foo@bar.local'}], self.order._email_identifier_rewrite(identifier_list))
 
 
 if __name__ == "__main__":
