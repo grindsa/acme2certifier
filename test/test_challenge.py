@@ -83,6 +83,37 @@ class TestACMEHandler(unittest.TestCase):
             self.challenge._new("authz_name", "sectigo-email-01", "token"),
         )
 
+    @patch("acme_srv.challenge.generate_random_string")
+    def test_004_challenge__new(self, mock_random):
+        """test challenge generation challenge add throws exception"""
+        mock_random.return_value = "foo"
+        self.challenge.dbstore.challenge_add.side_effect = Exception("ex_new")
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.challenge._new("authz_name", "tkauth-01", "token"))
+        self.assertTrue(mock_random.called)
+        self.assertIn(
+            "CRITICAL:test_a2c:Database error: failed to add new challenge: ex_new, value: None, type: tkauth-01",
+            lcm.output,
+        )
+
+    @patch("acme_srv.challenge.Challenge._email_send")
+    @patch("acme_srv.challenge.generate_random_string")
+    def test_005_challenge__new(self, mock_random, mock_send):
+        """test challenge generation for email-reply-00 challenge"""
+        mock_random.return_value = "foo"
+        self.challenge.dbstore.challenge_add.side_effect = None
+        self.challenge.email_address = "foo@bar.local"
+        self.assertEqual(
+            {
+                "url": "http://tester.local/acme/chall/foo",
+                "type": "email-reply-00",
+                "status": "pending",
+                "from": "foo@bar.local",
+                "token": "token"
+            },
+            self.challenge._new("authz_name", "email-reply-00", "token"),
+        )
+
     @patch("acme_srv.challenge.Challenge._new")
     def test_004_challenge_new_set(self, mock_challenge):
         """test generation of a challenge set"""
@@ -127,6 +158,40 @@ class TestACMEHandler(unittest.TestCase):
             [{"foo": "sectigo_sim"}],
             self.challenge.new_set("authz_name", "token", False),
         )
+    @patch("acme_srv.challenge.Challenge._new")
+    def test_010_challenge_new_set(self, mock_challenge):
+        """test generation of a challenge with email"""
+        mock_challenge.return_value = {"foo": "bar"}
+        self.challenge.email_identifier_support = True
+        self.assertEqual(
+            [{"foo": "bar"}],
+            self.challenge.new_set(authz_name="authz_name", token="token", id_type='email', value='email@email.com'),
+        )
+        mock_challenge.assert_called_with(authz_name='authz_name', mtype='email-reply-00', token='token', value='email@email.com')
+
+    @patch("acme_srv.challenge.Challenge._new")
+    def test_011_challenge_new_set(self, mock_challenge):
+        """test generation of a challenge with email"""
+        mock_challenge.return_value = {"foo": "bar"}
+        self.challenge.email_identifier_support = True
+        self.assertEqual(
+            [{"foo": "bar"}],
+           self.challenge.new_set(authz_name="authz_name", token="token", id_type='dns', value='email@email.com'),
+        )
+        mock_challenge.assert_called_with(authz_name='authz_name', mtype='email-reply-00', token='token', value='email@email.com')
+
+    @patch("acme_srv.challenge.Challenge._new")
+    def test_012_challenge_new_set(self, mock_challenge):
+        """test generation of a challenge with email"""
+        mock_challenge.return_value = {"foo": "bar"}
+        self.challenge.email_identifier_support = False
+        self.assertEqual(
+            [{'foo': 'bar'}, {'foo': 'bar'}, {'foo': 'bar'}],
+           self.challenge.new_set(authz_name="authz_name", token="token", id_type='dns', value='email@email.com'),
+        )
+        mock_challenge.assert_called_with(authz_name='authz_name', mtype='tls-alpn-01', token='token', value='email@email.com')
+
+
 
     def test_009_challenge__info(self):
         """test challenge.info()"""
@@ -197,6 +262,27 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.assertEqual(
             {
+                "status": "valid",
+                "token": "token",
+                "type": "http-01",
+                "validated": "2018-12-01T05:00:00Z",
+            },
+            self.challenge._info("foo"),
+        )
+
+    def test_016_challenge__info(self):
+        """test challenge.info()  test to pop "validated" key"""
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "token": "token",
+            "type": "http-01",
+            "status": "valid",
+            "validated": 1543640400,
+        }
+        self.challenge.email_identifier_support = True
+        self.challenge.email_address = 'email@email.com'
+        self.assertEqual(
+            {
+                "from": "email@email.com",
                 "status": "valid",
                 "token": "token",
                 "type": "http-01",
@@ -1840,7 +1926,72 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
 
-    def test_109__name_get(self):
+    @patch("acme_srv.challenge.load_config")
+    def test_110_config_load(self, mock_load_cfg):
+        """test _config_load sectigo_sim"""
+        parser = configparser.ConfigParser()
+        parser["Challenge"] = {"source_address_check": True}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.proxy_server_list)
+        self.assertFalse(self.challenge.sectigo_sim)
+        self.assertEqual(10, self.challenge.challenge_validation_timeout)
+        self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertTrue(self.challenge.source_address_check)
+
+    @patch("acme_srv.challenge.load_config")
+    def test_111_config_load(self, mock_load_cfg):
+        """test _config_load sectigo_sim"""
+        parser = configparser.ConfigParser()
+        parser["Challenge"] = {"source_address_check": False}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.proxy_server_list)
+        self.assertFalse(self.challenge.sectigo_sim)
+        self.assertEqual(10, self.challenge.challenge_validation_timeout)
+        self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
+
+    @patch("acme_srv.challenge.load_config")
+    def test_112_config_load(self, mock_load_cfg):
+        """test _config_load sectigo_sim"""
+        parser = configparser.ConfigParser()
+        parser["DEFAULT"] = {"email_address": 'email@email.com'}
+        parser["Order"] = {"email_identifier_support": True}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.proxy_server_list)
+        self.assertFalse(self.challenge.sectigo_sim)
+        self.assertEqual(10, self.challenge.challenge_validation_timeout)
+        self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
+        self.assertTrue(self.challenge.email_identifier_support)
+        self.assertEqual('email@email.com', self.challenge.email_address)
+
+    @patch("acme_srv.challenge.load_config")
+    def test_113_config_load(self, mock_load_cfg):
+        """test _config_load sectigo_sim"""
+        parser = configparser.ConfigParser()
+        parser["DEFAULT"] = {"email_address": 'email@email.com'}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.proxy_server_list)
+        self.assertFalse(self.challenge.sectigo_sim)
+        self.assertEqual(10, self.challenge.challenge_validation_timeout)
+        self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.email_identifier_support)
+        self.assertFalse(self.challenge.email_address)
+
+    def test_112__name_get(self):
         """test name get no touch"""
         url = "foo"
         self.assertEqual("foo", self.challenge._name_get(url))
@@ -2074,7 +2225,46 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_set.called)
         self.assertFalse(mock_val.called)
 
-    def test_122_cvd_via_eabprofile_check(self):
+    @patch("acme_srv.challenge.Challenge.new_set")
+    @patch("acme_srv.challenge.Challenge._existing_challenge_validate")
+    @patch("acme_srv.challenge.Challenge._challengelist_search")
+    def test_131_challengeset_get(self, mock_chsearch, mock_val, mock_set):
+        """test challengeset_get - challenge_list returned"""
+        mock_chsearch.return_value = [{"name": "name1", "type": "email-reply-00"}]
+        mock_val.return_value = True
+        mock_set.return_value = "new_set"
+        self.challenge.email_identifier_support = True
+        self.challenge.email_address = "foo@bar.local"
+        self.assertEqual(
+            [{'from': 'foo@bar.local', 'type': 'email-reply-00'}],
+            self.challenge.challengeset_get(
+                "authz_name", "auth_status", "token", "tnauth"
+            ),
+        )
+        self.assertFalse(mock_set.called)
+        self.assertFalse(mock_val.called)
+
+    @patch("acme_srv.challenge.Challenge.new_set")
+    @patch("acme_srv.challenge.Challenge._existing_challenge_validate")
+    @patch("acme_srv.challenge.Challenge._challengelist_search")
+    def test_132_challengeset_get(self, mock_chsearch, mock_val, mock_set):
+        """test challengeset_get - challenge_list returned"""
+        mock_chsearch.return_value = [{"name": "name1", "type": "foo"}]
+        mock_val.return_value = True
+        mock_set.return_value = "new_set"
+        self.challenge.email_identifier_support = True
+        self.challenge.email_address = "foo@bar.local"
+        self.assertEqual(
+            [{"type": "foo"}],
+            self.challenge.challengeset_get(
+                "authz_name", "auth_status", "token", "tnauth"
+            ),
+        )
+        self.assertFalse(mock_set.called)
+        self.assertFalse(mock_val.called)
+
+
+    def test_131_cvd_via_eabprofile_check(self):
         """test _cvd_via_eabprofile_check with profiling disabled"""
         self.challenge.eab_profiling = False
         self.challenge.eab_handler = None
@@ -2185,6 +2375,121 @@ class TestACMEHandler(unittest.TestCase):
         }
         self.challenge.dbstore.challenge_lookup.side_effect = None
         self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
+
+    @patch("acme_srv.challenge.Challenge._config_load")
+    def test_140_enter(self, cfg_load):
+        """test __enter__"""
+        self.assertTrue(self.challenge.__enter__())
+        self.assertTrue(cfg_load.called)
+
+    @patch("acme_srv.challenge.fqdn_resolve")
+    def test_141__source_address_check(self, mock_resolv):
+        """test _source_address_check()"""
+        self.challenge.source_address = "ip1"
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "value",
+        }
+        mock_resolv.return_value = [["ip1", "ip2"], "invalid"]
+        self.assertEqual(
+            (False, True), self.challenge._source_address_check("challenge_name")
+        )
+
+    @patch("acme_srv.challenge.fqdn_resolve")
+    def test_142__source_address_check(self, mock_resolv):
+        """test _source_address_check() fqdn_resolv returns invalid but the ip is in the content"""
+        self.challenge.source_address = "ip2"
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "value",
+        }
+        mock_resolv.return_value = [["ip1", "ip2"], True]
+        self.assertEqual(
+            (False, True), self.challenge._source_address_check("challenge_name")
+        )
+
+    @patch("acme_srv.challenge.fqdn_resolve")
+    def test_143__source_address_check(self, mock_resolv):
+        """test _source_address_check() - ip check fails"""
+        self.challenge.source_address = "ip3"
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "value",
+        }
+        mock_resolv.return_value = [["ip1", "ip2"], False]
+        self.assertEqual(
+            (False, True), self.challenge._source_address_check("challenge_name")
+        )
+
+    @patch("acme_srv.challenge.fqdn_resolve")
+    def test_144__source_address_check(self, mock_resolv):
+        """test _source_address_check()"""
+        self.challenge.source_address = "ip3"
+        self.challenge.dbstore.challenge_lookup.side_effect = Exception("mock_lookup")
+        mock_resolv.return_value = [["ip1", "ip2"], "invalid"]
+
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                (False, False), self.challenge._source_address_check("challenge_name")
+            )
+        self.assertIn(
+            "CRITICAL:test_a2c:Database error: failed to lookup challenge during challenge check:'challenge_name': mock_lookup",
+            lcm.output,
+        )
+        self.assertFalse(mock_resolv.called)
+
+    @patch("acme_srv.challenge.fqdn_resolve")
+    def test_145__source_address_check(self, mock_resolv):
+        """test _source_address_check()"""
+        self.challenge.source_address = "ip2"
+        self.challenge.dbstore.challenge_lookup.side_effect = None
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "value",
+        }
+        mock_resolv.return_value = [["ip1", "ip2"], False]
+        self.assertEqual(
+            (True, False), self.challenge._source_address_check("challenge_name")
+        )
+
+    @patch("acme_srv.email_handler.EmailHandler.send")
+    def test_146__email_send(self, mock_email):
+        """ test send """
+        self.assertFalse(self.challenge._email_send('to_address', 'token1'))
+        self.assertTrue(mock_email.called)
+
+    def test_147__emailchallenge_keyauth_generate(self):
+        """test _emailchallenge_keyauth_generate()"""
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "name": "name",
+            "token": "token",
+            "keyauthorization": "keyauthorization"
+        }
+        self.assertEqual(('fXAhTLri1drJbQTLe4msBr9D9WQYs5Jybpj2D9UQBOw', 'keyauthorization'), self.challenge._emailchallenge_keyauth_generate('challenge_name', 'token', 'jwk_thumbprint'))
+
+    def test_148__emailchallenge_keyauth_extract(self):
+        """test _emailchallenge_keyauth_extract"""
+        body = 'foo'
+        self.assertFalse(self.challenge._emailchallenge_keyauth_extract(body))
+
+    def test_148__emailchallenge_keyauth_extract(self):
+        """test _emailchallenge_keyauth_extract"""
+        body = """
+-----BEGIN ACME RESPONSE-----
+4RQ8l7h50JB01xpDCoKZhe4XTY-ym-2Uxm7nz1LrBEA
+-----END ACME RESPONSE-----
+"""
+        self.assertEqual('4RQ8l7h50JB01xpDCoKZhe4XTY-ym-2Uxm7nz1LrBEA', self.challenge._emailchallenge_keyauth_extract(body))
+
+    def test_149__emailchallenge_keyauth_extract(self):
+        """test _emailchallenge_keyauth_extract"""
+        body = """-----BEGIN ACME RESPONSE-----\n4RQ8l7h50JB01xpDCoKZhe4XTY-ym-2Uxm7nz1LrBEA\n-----END ACME RESPONSE-----"""
+        self.assertEqual('4RQ8l7h50JB01xpDCoKZhe4XTY-ym-2Uxm7nz1LrBEA', self.challenge._emailchallenge_keyauth_extract(body))
+
+    def test_150__emailchallenge_keyauth_extract(self):
+        """test _emailchallenge_keyauth_extract"""
+        body = """-BEGIN ACME RESPONSE--\n4RQ8l7h50JB01xpDCoKZhe4XTY-ym-2Uxm7nz1LrBEA\n--END ACME RESPONSE--"""
+        self.assertEqual('4RQ8l7h50JB01xpDCoKZhe4XTY-ym-2Uxm7nz1LrBEA', self.challenge._emailchallenge_keyauth_extract(body))
 
 
 if __name__ == "__main__":
