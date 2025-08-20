@@ -359,7 +359,7 @@ class Order(object):
         self.logger.debug("Order._email_identifier_rewrite()")
         identifiers_modified = []
         for ident in identifiers_list:
-            if ident["type"].lower() == "dns" and "@" in ident["value"]:
+            if "type" in ident and "value" in ident and ident["type"].lower() == "dns" and "@" in ident["value"]:
                 self.logger.info(
                     "Rewrite DNS identifier '%s' to email identifier",
                     ident["value"],
