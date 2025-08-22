@@ -1495,6 +1495,8 @@ class DBstore(object):
 
         if "status" not in data_dic:
             data_dic["status"] = 2
+        if "keyauthorization" not in data_dic:
+            data_dic["keyauthorization"] = None
         if authorization:
             data_dic["authorization"] = authorization[0]["id"]
             self._db_open()
