@@ -993,6 +993,27 @@ class Challenge(object):
         )
         return email_keyauthorization
 
+    def _email_filter(self, email_data, rfc_token1):
+
+        filter_string = f"ACME: {rfc_token1}"
+        self.logger.debug(
+            "Challenge._validate_email_reply_challenge(): filter string: %s",
+            filter_string,
+        )
+
+        if filter_string in email_data.get("subject", ""):
+            self.logger.debug(
+                "Challenge._validate_email_reply_challenge(): email subject matches filter: %s",
+                email_data["subject"],
+            )
+            return email_data
+        else:
+            self.logger.debug(
+                "Challenge._validate_email_reply_challenge(): email subject does not match filter: %s",
+                email_data.get("subject", ""),
+            )
+            return None
+
     def _validate_email_reply_challenge(
         self,
         challenge_name: str,
@@ -1010,34 +1031,14 @@ class Challenge(object):
             challenge_name=challenge_name, token=token, jwk_thumbprint=jwk_thumbprint
         )
 
-        filter_string = f"ACME: {rfc_token1}"
-        self.logger.debug(
-            "Challenge._validate_email_reply_challenge(): filter string: %s",
-            filter_string,
-        )
-        # define callback to filter emails
-        def email_filter(email_data):
-            """filter email"""
-            if filter_string in email_data["subject"]:
-                self.logger.debug(
-                    "Challenge._validate_email_reply_challenge(): email subject matches filter: %s",
-                    email_data["subject"],
-                )
-                return email_data
-            else:
-                self.logger.debug(
-                    "Challenge._validate_email_reply_challenge(): email subject does not match filter: %s",
-                    email_data["subject"],
-                )
-                return None
-
         result = False
         invalid = False
         with EmailHandler(debug=False, logger=self.logger) as email_handler:
 
             email_receive = email_handler.receive(
-                callback=email_filter, folder="INBOX", mark_as_read=False
+                callback=lambda email_data: self._email_filter(email_data, rfc_token1)
             )
+
             if email_receive and "body" in email_receive:
                 email_keyauth = self._emailchallenge_keyauth_extract(
                     email_receive["body"]
