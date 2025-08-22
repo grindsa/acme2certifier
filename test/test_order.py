@@ -2488,14 +2488,19 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     def test_140__email_identifier_rewrite(self):
-        """ test _email_identifier_rewrite() """
-        identifier_list = [{'foo': 'bar'}]
-        self.assertEqual([{'foo': 'bar'}], self.order._email_identifier_rewrite(identifier_list))
+        """test _email_identifier_rewrite()"""
+        identifier_list = [{"foo": "bar"}]
+        self.assertEqual(
+            [{"foo": "bar"}], self.order._email_identifier_rewrite(identifier_list)
+        )
 
     def test_141__email_identifier_rewrite(self):
-        """ test _email_identifier_rewrite() """
-        identifier_list = [{'foo': 'bar', 'type': 'dns', 'value': 'foo@bar.local'}]
-        self.assertEqual([{'foo': 'bar', 'type': 'email', 'value': 'foo@bar.local'}], self.order._email_identifier_rewrite(identifier_list))
+        """test _email_identifier_rewrite()"""
+        identifier_list = [{"foo": "bar", "type": "dns", "value": "foo@bar.local"}]
+        self.assertEqual(
+            [{"foo": "bar", "type": "email", "value": "foo@bar.local"}],
+            self.order._email_identifier_rewrite(identifier_list),
+        )
 
 
 if __name__ == "__main__":
