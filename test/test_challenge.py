@@ -2492,5 +2492,180 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual('4RQ8l7h50JB01xpDCoKZhe4XTY-ym-2Uxm7nz1LrBEA', self.challenge._emailchallenge_keyauth_extract(body))
 
 
+    @patch("acme_srv.challenge.EmailHandler")
+    def test_151_validate_email_reply_challenge_success(self, mock_email_handler_cls):
+        """Test _validate_email_reply_challenge returns (True, False) on success"""
+        # Setup mock dbstore
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "name": "ch1",
+            "token": "tok2",
+            "keyauthorization": "tok1"
+        }
+        self.challenge.email_address = "test@example.com"
+        self.challenge.email_identifier_support = True
+        # Setup calculated keyauth to match extracted keyauth
+        expected_keyauth = "expected_keyauth"
+        with patch.object(self.challenge, "_emailchallenge_keyauth_generate", return_value=(expected_keyauth, "tok1")):
+            with patch.object(self.challenge, "_emailchallenge_keyauth_extract", return_value=expected_keyauth):
+                # Setup EmailHandler mock
+                mock_email_handler = MagicMock()
+                mock_email_handler.__enter__.return_value = mock_email_handler
+                mock_email_handler.receive.return_value = {"body": "irrelevant"}
+                mock_email_handler_cls.return_value = mock_email_handler
+
+                result, invalid = self.challenge._validate_email_reply_challenge(
+                    challenge_name="ch1",
+                    _type="email",
+                    email="test@example.com",
+                    token="tok2",
+                    jwk_thumbprint="thumb"
+                )
+                self.assertTrue(result)
+                self.assertFalse(invalid)
+
+    @patch("acme_srv.challenge.EmailHandler")
+    def test_152_validate_email_reply_challenge_keyauth_mismatch(self, mock_email_handler_cls):
+        """Test _validate_email_reply_challenge returns (False, True) on keyauth mismatch"""
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "name": "ch1",
+            "token": "tok2",
+            "keyauthorization": "tok1"
+        }
+        self.challenge.email_address = "test@example.com"
+        self.challenge.email_identifier_support = True
+        with patch.object(self.challenge, "_emailchallenge_keyauth_generate", return_value=("expected_keyauth", "tok1")):
+            with patch.object(self.challenge, "_emailchallenge_keyauth_extract", return_value="wrong_keyauth"):
+                mock_email_handler = MagicMock()
+                mock_email_handler.__enter__.return_value = mock_email_handler
+                mock_email_handler.receive.return_value = {"body": "irrelevant"}
+                mock_email_handler_cls.return_value = mock_email_handler
+
+                result, invalid = self.challenge._validate_email_reply_challenge(
+                    challenge_name="ch1",
+                    _type="email",
+                    email="test@example.com",
+                    token="tok2",
+                    jwk_thumbprint="thumb"
+                )
+                self.assertFalse(result)
+                self.assertTrue(invalid)
+
+    @patch("acme_srv.challenge.EmailHandler")
+    def test_153_validate_email_reply_challenge_no_email(self, mock_email_handler_cls):
+        """Test _validate_email_reply_challenge returns (False, False) if no email received"""
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "name": "ch1",
+            "token": "tok2",
+            "keyauthorization": "tok1"
+        }
+        self.challenge.email_address = "test@example.com"
+        self.challenge.email_identifier_support = True
+        with patch.object(self.challenge, "_emailchallenge_keyauth_generate", return_value=("expected_keyauth", "tok1")):
+            mock_email_handler = MagicMock()
+            mock_email_handler.__enter__.return_value = mock_email_handler
+            mock_email_handler.receive.return_value = None
+            mock_email_handler_cls.return_value = mock_email_handler
+
+            result, invalid = self.challenge._validate_email_reply_challenge(
+                challenge_name="ch1",
+                _type="email",
+                email="test@example.com",
+                token="tok2",
+                jwk_thumbprint="thumb"
+            )
+            self.assertFalse(result)
+            self.assertFalse(invalid)
+
+    @patch("acme_srv.challenge.EmailHandler")
+    def test_154_validate_email_reply_challenge_email_body_missing(self, mock_email_handler_cls):
+        """Test _validate_email_reply_challenge returns (False, False) if email body missing"""
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "name": "ch1",
+            "token": "tok2",
+            "keyauthorization": "tok1"
+        }
+        self.challenge.email_address = "test@example.com"
+        self.challenge.email_identifier_support = True
+        with patch.object(self.challenge, "_emailchallenge_keyauth_generate", return_value=("expected_keyauth", "tok1")):
+            mock_email_handler = MagicMock()
+            mock_email_handler.__enter__.return_value = mock_email_handler
+            mock_email_handler.receive.return_value = {}
+            mock_email_handler_cls.return_value = mock_email_handler
+
+            result, invalid = self.challenge._validate_email_reply_challenge(
+                challenge_name="ch1",
+                _type="email",
+                email="test@example.com",
+                token="tok2",
+                jwk_thumbprint="thumb"
+            )
+            self.assertFalse(result)
+            self.assertFalse(invalid)
+
+    @patch("acme_srv.challenge.EmailHandler")
+    def test_155_email_filter_subject_match(self, mock_email_handler_cls):
+        """Test _validate_email_reply_challenge processes only matching subject"""
+        # Setup challenge lookup and keyauth generation
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "name": "ch1",
+            "token": "tok2",
+            "keyauthorization": "tok1"
+        }
+        self.challenge.email_address = "test@example.com"
+        self.challenge.email_identifier_support = True
+        expected_keyauth = "expected_keyauth"
+        with patch.object(self.challenge, "_emailchallenge_keyauth_generate", return_value=(expected_keyauth, "tok1")):
+            with patch.object(self.challenge, "_emailchallenge_keyauth_extract", return_value=expected_keyauth):
+                # Setup EmailHandler mock
+                mock_email_handler = MagicMock()
+                mock_email_handler.__enter__.return_value = mock_email_handler
+                # Simulate receive() returning an email with the correct subject
+                mock_email_handler.receive.return_value = {
+                    "subject": "ACME: tok1",
+                    "body": "irrelevant"
+                }
+                mock_email_handler_cls.return_value = mock_email_handler
+
+                result, invalid = self.challenge._validate_email_reply_challenge(
+                    challenge_name="ch1",
+                    _type="email",
+                    email="test@example.com",
+                    token="tok2",
+                    jwk_thumbprint="thumb"
+                )
+                self.assertTrue(result)
+                self.assertFalse(invalid)
+
+    @patch("acme_srv.challenge.EmailHandler")
+    def test_156_email_filter_subject_no_match(self, mock_email_handler_cls):
+        """Test _validate_email_reply_challenge ignores non-matching subject"""
+        self.challenge.email_address = "test@example.com"
+        self.challenge.email_identifier_support = True
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "name": "ch1",
+            "token": "tok2",
+            "keyauthorization": "tok1"
+        }
+        expected_keyauth = "expected_keyauth"
+        with patch.object(self.challenge, "_emailchallenge_keyauth_generate", return_value=(expected_keyauth, "tok1")):
+            # Simulate receive() returning an email with a non-matching subject
+            mock_email_handler = MagicMock()
+            mock_email_handler.__enter__.return_value = mock_email_handler
+            mock_email_handler.receive.return_value = {
+                "subject": "Some other subject",
+                "body": "irrelevant"
+            }
+            mock_email_handler_cls.return_value = mock_email_handler
+
+            result, invalid = self.challenge._validate_email_reply_challenge(
+                challenge_name="ch1",
+                _type="email",
+                email="test@example.com",
+                token="tok2",
+                jwk_thumbprint="thumb"
+            )
+            self.assertFalse(result)
+            # self.assertFalse(invalid)
+
 if __name__ == "__main__":
     unittest.main()

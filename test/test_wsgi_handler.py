@@ -2145,6 +2145,8 @@ class TestACMEHandler(unittest.TestCase):
         }
         (result_vlist, result_account_list) = self.dbstore.accountlist_get()
         self.assertEqual(vlist, result_vlist)
+        print(account_list)
+        print(result_vlist)
         self.assertTrue(
             set(account_list.items()).issubset(set(result_account_list[0].items()))
         )
