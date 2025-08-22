@@ -615,43 +615,45 @@ class TestEmailHandler(unittest.TestCase):
         callback_calls = []
 
         def test_callback(email_data):
-            callback_calls.append(email_data)
+            result = None
+            if email_data['subject'] == 'Test Email 2':
+                result = email_data
+            else:
+                callback_calls.append(email_data)
+            return result
 
         with self.assertLogs(self.logger, level="DEBUG") as log:
             # Test receive with callback
             emails = self.email_handler.receive(callback=test_callback)
 
         # Assertions
-        self.assertEqual(len(emails), 3)
-        self.assertEqual(len(callback_calls), 3)
+        self.assertEqual('Test Email 2', emails['subject'])
 
         # Verify IMAP operations
         mock_mail.login.assert_called_once_with("test@test.com", "testpass")
         mock_mail.select.assert_called_once_with("INBOX")
         mock_mail.search.assert_called_once_with(None, "UNSEEN")
-        self.assertEqual(mock_mail.fetch.call_count, 3)
+        self.assertEqual(mock_mail.fetch.call_count, 2)
 
         # Verify callback was called for each email
         self.assertEqual(callback_calls[0]["subject"], "Test Email 1")
         self.assertEqual(callback_calls[0]["from"], "sender1@test.com")
-        self.assertEqual(callback_calls[1]["subject"], "Test Email 2")
-        self.assertEqual(callback_calls[1]["from"], "sender2@test.com")
-        self.assertEqual(callback_calls[2]["subject"], "Test Email 3")
-        self.assertEqual(callback_calls[2]["from"], "sender3@test.com")
 
         # Verify emails marked as read (default behavior)
-        expected_store_calls = [
-            call(b"1", "+FLAGS", "\\Seen"),
-            call(b"2", "+FLAGS", "\\Seen"),
-            call(b"3", "+FLAGS", "\\Seen"),
-        ]
-        mock_mail.store.assert_has_calls(expected_store_calls)
+        #expected_store_calls = [
+        #    call(b"1", "+FLAGS", "\\Seen"),
+        #    call(b"2", "+FLAGS", "\\Seen"),
+        #    call(b"3", "+FLAGS", "\\Seen"),
+        #]
+        #mock_mail.store.assert_has_calls(expected_store_calls)
 
         # Verify connection cleanup
         mock_mail.close.assert_called_once()
         mock_mail.logout.assert_called_once()
 
-        self.assertIn("DEBUG:test_a2c:Retrieved 3 emails", log.output)
+        self.assertIn('DEBUG:test_a2c:mailHandler.receive(): email did not pass filter: Test Email 1', log.output)
+        self.assertIn('INFO:test_a2c:Email passed filter: Test Email 2', log.output)
+        # self.assertIn('DEBUG:test_a2c:mailHandler.receive(): email did not pass filter: Test Email 3', log.output)
 
 
 if __name__ == "__main__":

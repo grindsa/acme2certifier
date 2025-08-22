@@ -220,6 +220,7 @@ class EmailHandler:
                         email_message = email.message_from_bytes(email_body)
 
                         parsed_email = self._parse_email(email_message)
+
                         # Call callback if provided
                         if callback:
                             result = callback(parsed_email)
@@ -229,12 +230,11 @@ class EmailHandler:
                                 )
                                 emails = result  # return this email only if callback returns a value
                                 break
-                            else:
-                                self.logger.debug(
-                                    "mailHandler.receive(): email did not pass filter: %s",
-                                    parsed_email["subject"],
-                                )
                         else:
+                            self.logger.debug(
+                                "mailHandler.receive(): email did not pass filter: %s",
+                                parsed_email["subject"],
+                            )
                             # no callback provided just add the email to the queue
                             emails.append(parsed_email)
                         # Mark as read if requested
@@ -251,6 +251,7 @@ class EmailHandler:
 
         except Exception as err:
             self.logger.error("Failed to receive emails: %s", err)
+
         return emails
 
     def start_polling(
