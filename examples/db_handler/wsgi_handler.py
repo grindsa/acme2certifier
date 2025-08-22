@@ -339,8 +339,7 @@ class DBstore(object):
                 authorization.token as authorization__token,
                 orders.name as authorization__order__name,
                 account.name as authorization__order__account__name,
-                account.eab_kid as authorization__order__account__eab_kid,
-                account.jwk as authorization__order__account__jwk
+                account.eab_kid as authorization__order__account__eab_kid
             from challenge
             INNER JOIN status on status.id = challenge.status_id
             INNER JOIN authorization on authorization.id = challenge.authorization_id
@@ -1503,7 +1502,7 @@ class DBstore(object):
         if "status" not in data_dic:
             data_dic["status"] = 2
         if "keyauthorization" not in data_dic:
-            data_dic["keyauthorization"] = ""
+            data_dic["keyauthorization"] = None
         if authorization:
             data_dic["authorization"] = authorization[0]["id"]
             self._db_open()
