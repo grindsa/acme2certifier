@@ -1,0 +1,63 @@
+name: "mailserver_install"
+description: "mailserver_install"
+inputs:
+  NAME_SPACE:
+    description: "Namespace"
+    required: true
+    default: "acme"
+  MAILSERVER_CERT:
+    description: "Mailserver Certificate"
+    required: true
+    default: "None"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Install mailserver"
+    run: |
+      sudo apt-get update
+      #  sudo apt-get upgrade -y
+      sudo apt-get install -y docker-compose
+      mkdir -p mailserver/docker-data/certs
+      DMS_GITHUB_URL="https://raw.githubusercontent.com/docker-mailserver/docker-mailserver/master"
+      curl ${DMS_GITHUB_URL}/compose.yaml -o mailserver/docker-compose.yaml
+      curl ${DMS_GITHUB_URL}/mailserver.env -o mailserver/mailserver.env
+    shell: bash
+
+  - name: "Modify downloaded files to reflect test-setup"
+    run: |
+      echo -e "networks:\n  default:\n    external:\n      name: ${NAME_SPACE}" >> mailserver/docker-compose.yaml
+      sudo sed -i "s/hostname: mail.example.com/hostname: mailserver.${NAME_SPACE}/g" mailserver/docker-compose.yaml
+      sudo sed -i "s/- .\/docker-data\/dms\/config\/:\/tmp\/docker-mailserver/- .\/docker-data\/dms\/config\/:\/tmp\/docker-mailserver\n      - .\/docker-data\/certs:\/etc\/certs/g" mailserver/docker-compose.yaml
+      sudo sed -i "s/ENABLE_OPENDKIM=1/ENABLE_OPENDKIM=0/g" mailserver/mailserver.env
+      sudo sed -i "s/ENABLE_OPENDMARC=1/ENABLE_OPENDMARC=0/g" mailserver/mailserver.env
+      sudo sed -i "s/ENABLE_POLICYD_SPF=1/ENABLE_POLICYD_SPF=0/g" mailserver/mailserver.env
+      sudo sed -i "s/RSPAMD_HFILTER=1/RSPAMD_HFILTER=0/g" mailserver/mailserver.env
+      sudo sed -i "s/ENABLE_AMAVIS=1/ENABLE_AMAVIS=0/g" mailserver/mailserver.env
+      sudo sed -i "s/SSL_TYPE=/SSL_TYPE=manual/g" mailserver/mailserver.env
+      sudo sed -i "s/SSL_CERT_PATH=/SSL_CERT_PATH=\/etc\/certs\/mailserver_crt.pem/g" mailserver/mailserver.env
+      sudo sed -i "s/SSL_KEY_PATH=/SSL_KEY_PATH=\/etc\/certs\/mailserver_key.pem/g" mailserver/mailserver.env
+      cat mailserver/docker-compose.yaml
+      echo ${MAILSERVER_CERT} | base64 -d > mailserver/docker-data/certs/mailserver_crt.pkcs12
+      openssl pkcs12 -in mailserver/docker-data/certs/mailserver_crt.pkcs12 -nodes -nocerts -out mailserver/docker-data/certs/mailserver_key.pem -passin pass:
+      openssl pkcs12 -in mailserver/docker-data/certs/mailserver_crt.pkcs12 -clcerts -nokeys -out mailserver/docker-data/certs/mailserver_crt.pem -passin pass:
+
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      MAILSERVER_CERT: ${{ inputs.MAILSERVER_CERT }}
+
+  - name: "Start and configure mailserver"
+    working-directory: mailserver
+    run: |
+      docker-compose up -d
+      sleep 20
+      docker exec mailserver grep mydestination /etc/postfix/main.cf
+      docker exec mailserver sh -c "sed -i 's/mydestination\s=\s\$myhostname,\slocalhost\.\$mydomain,\slocalhost/mydestination=localhost.\$mydomain,localhost/g' /etc/postfix/main.cf"
+      docker exec mailserver grep mydestination /etc/postfix/main.cf
+      docker exec mailserver setup email add postmaster@mailserver.acme pOstmAster
+      docker exec mailserver setup email add a2c@mailserver.acme a2cstarter
+      docker exec mailserver setup email add jum@mailserver.acme jumstarter
+      docker exec mailserver setup email add ulme@mailserver.acme ulmestarter
+    shell: bash
+
