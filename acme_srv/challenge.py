@@ -891,7 +891,7 @@ class Challenge(object):
 
     def _emailchallenge_keyauth_generate(
         self, challenge_name: str, token: str, jwk_thumbprint: str
-    ) -> Tuple[str | None, str | None]:
+    ):
         """generate RFC8823 keyauthorization"""
         self.logger.debug(
             "Challenge._emailchallenge_keyauth_generate(%s)", challenge_name
