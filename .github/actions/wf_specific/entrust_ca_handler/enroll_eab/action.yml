@@ -20,8 +20,8 @@ runs:
   - name: "EAB - 01 - Enroll lego with a template_name taken from list in kid.json"
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network rm-rf.ninja goacme/lego -s http://acme-srv -a --email "lego@example.com"  --key-type=rsa2048 --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.rm-rf.ninja --http run
-      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network rm-rf.ninja goacme/lego -s http://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.rm-rf.ninja revoke
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network rm-rf.ninja goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com"  --key-type=rsa2048 --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.rm-rf.ninja --http run
+      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network rm-rf.ninja goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.rm-rf.ninja revoke
     shell: bash
 
   - name: "EAB - 02 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
@@ -29,7 +29,7 @@ runs:
     continue-on-error: true
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network rm-rf.ninja goacme/lego -s http://acme-srv -a --email "lego@example.com" --key-type=rsa2048 --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.rm-rf.ninja --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network rm-rf.ninja goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.rm-rf.ninja --http run
     shell: bash
 
   - name: "EAB - 04a - check  result "
