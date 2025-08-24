@@ -2,7 +2,7 @@ name: "enroll_test"
 description: "enroll_test"
 inputs:
   TO_FAIL:
-    description: "Enrollment with fron FQDN should fail"
+    description: "Enrollment is expected to fail"
     required: true
     default: "false"
 

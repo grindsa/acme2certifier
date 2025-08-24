@@ -610,7 +610,7 @@ class DBstore(object):
             )
 
         if "source" not in challenges_column_list:
-            self.logger.info("alter challenge table - add source")
+            self.logger.info("alter challenge table - add source‚")
             self.cursor.execute(
                 """ALTER TABLE challenge ADD COLUMN source varchar(128)"""
             )
@@ -1501,11 +1501,13 @@ class DBstore(object):
 
         if "status" not in data_dic:
             data_dic["status"] = 2
+        if "keyauthorization" not in data_dic:
+            data_dic["keyauthorization"] = None
         if authorization:
             data_dic["authorization"] = authorization[0]["id"]
             self._db_open()
             self.cursor.execute(
-                """INSERT INTO challenge(name, token, authorization_id, expires, type, status_id) VALUES(:name, :token, :authorization, :expires, :type, :status)""",
+                """INSERT INTO challenge(name, token, authorization_id, expires, type, status_id, keyauthorization) VALUES(:name, :token, :authorization, :expires, :type, :status, :keyauthorization)""",
                 data_dic,
             )
             rid = self.cursor.lastrowid
