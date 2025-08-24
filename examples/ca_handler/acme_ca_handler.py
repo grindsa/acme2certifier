@@ -676,6 +676,24 @@ class CAhandler(object):
                 # remove acc_path
                 self.account = self.account.replace(self.path_dic["acct_path"], "")
 
+    def _jwk_strip(self, user_key: josepy.jwk.JWKRSA) -> josepy.jwk.JWKRSA:
+        """
+        Returns a new josepy.jwk.JWKRSA object containing only the minimal required fields (kty, n, e).
+        """
+        self.logger.debug("CAhandler._jwk_strip()")
+
+        # Extract the minimal JWK dict
+        full_jwk = user_key.to_json()
+        if "kty" in full_jwk and full_jwk["kty"] == "RSA":
+            self.logger.debug("Stripping JWK to minimal fields for RSA key")
+            minimal_jwk = {k: full_jwk[k] for k in ("kty", "n", "e") if k in full_jwk}
+            # Reconstruct a JWKRSA object from the minimal dict
+            result = josepy.JWKRSA.fields_from_json(minimal_jwk)
+        else:
+            result = user_key
+        self.logger.debug("CAhandler._jwk_strip() ended")
+        return result
+
     def _account_create(
         self,
         acmeclient: client.ClientV2,
@@ -702,7 +720,11 @@ class CAhandler(object):
                 # get zerossl eab credentials
                 self._zerossl_eab_get()
             if self.eab_kid and self.eab_hmac_key:
-                # we have to do some freaky eab to keep ZeroSSL happy
+                # use EAB credentials for registration
+                self.logger.info(
+                    "Using EAB key_id: %s for account registration", self.eab_kid
+                )
+                user_key = self._jwk_strip(user_key)
                 eab = messages.ExternalAccountBinding.from_data(
                     account_public_key=user_key,
                     kid=self.eab_kid,
