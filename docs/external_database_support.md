@@ -221,5 +221,5 @@ curl http://ub2204-c1.bar.local/directory
 - Try to enroll certificates by using your favorite ACME client. I am using [lego](https://github.com/go-acme/lego).
 
 ```bash
- docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://ub2204-c1.bar.local -a --email "lego@example.com" -d lego01.bar.local --http run
+ docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://ub2204-c1.bar.local -a --email "lego@example.com" -d lego01.bar.local --http run
 ```

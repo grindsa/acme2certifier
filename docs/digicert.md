@@ -66,7 +66,7 @@ profiles: {"profile1": "http://foo.bar/ssl_basic", "profile2": "http://foo.bar/s
 Once enabled, a client can specify the cert_type to be used as part of an order request. Below an example for lego:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile ssl_securesite_pro
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile ssl_securesite_pro
 ```
 
 Further, this handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a [certificate type](https://dev.digicert.com/en/certcentral-apis/services-api/orders.html) to be used during certificate enrollment. This feature is disabled by default and must be activate in `acme_srv.cfg` as shown below
@@ -88,7 +88,7 @@ docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --st
 Example for lego:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" --user-agent cert_type=ssl_securesite_pro -d <fqdn> --http run
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent cert_type=ssl_securesite_pro -d <fqdn> --http run
 ```
 
 # eab profiling
