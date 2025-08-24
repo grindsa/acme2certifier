@@ -529,13 +529,16 @@ class Challenge(object):
         """send challenge email"""
         self.logger.debug("Challenge._email_send(%s)", to_address)
         message_text = f"""
-  This is an automatically generated ACME challenge for email address
-  "{to_address}". If you haven't requested an S/MIME
-  certificate generation for this email address, be very afraid.
-  If you did request it, your email client might be able to process
-  this request automatically, or you might have to paste the first
-  token part into an external program.
-"""
+  This is an automatically generated ACME challenge for the email address
+  "{to_address}". If you did not request an S/MIME certificate for this
+  address, please disregard this message and consider taking appropriate
+  security precautions.
+
+  If you did initiate the request, your email client may be able to process
+  this challenge automatically. Alternatively, you may need to manually
+  copy the first token and paste it into the designated verification tool
+  or application."""
+
         with EmailHandler(logger=self.logger) as email_handler:
             email_handler.send(
                 to_address=to_address, subject=f"ACME: {token1}", message=message_text

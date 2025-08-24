@@ -60,4 +60,3 @@ runs:
       docker exec mailserver setup email add jum@mailserver.acme jumstarter
       docker exec mailserver setup email add ulme@mailserver.acme ulmestarter
     shell: bash
-

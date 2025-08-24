@@ -241,4 +241,3 @@ jobs:
       with:
         name: emailreply_challenge_tests_rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-
