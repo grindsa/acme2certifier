@@ -4,6 +4,7 @@
 from __future__ import print_function
 import json
 import time
+import re
 from typing import List, Tuple, Dict
 from acme_srv.helper import (
     b64_encode,
@@ -11,6 +12,7 @@ from acme_srv.helper import (
     cert_extensions_get,
     cert_san_get,
     config_eab_profile_load,
+    convert_byte_to_string,
     error_dic_get,
     fqdn_in_san_check,
     fqdn_resolve,
@@ -29,6 +31,7 @@ from acme_srv.helper import (
     uts_to_date_utc,
 )
 from acme_srv.db_handler import DBstore
+from acme_srv.email_handler import EmailHandler
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 
@@ -58,6 +61,8 @@ class Challenge(object):
         self.server_name = srv_name
         self.source_address = source
         self.tnauthlist_support = False
+        self.email_identifier_support = False
+        self.email_address = None
         self.dbstore = DBstore(debug, self.logger)
         self.err_msg_dic = error_dic_get(self.logger)
         self.message = Message(debug, self.server_name, self.logger)
@@ -159,6 +164,14 @@ class Challenge(object):
                 jwk_thumbprint,
                 payload,
             )
+        elif challenge_dic["type"] == "email-reply-00":
+            (result, invalid) = self._validate_email_reply_challenge(
+                challenge_name,
+                challenge_dic["authorization__type"],
+                challenge_dic["authorization__value"],
+                challenge_dic["token"],
+                jwk_thumbprint,
+            )
         else:
             self.logger.error(
                 'Unknown challenge type "%s". Setting check result to False',
@@ -183,6 +196,8 @@ class Challenge(object):
         self.logger.debug("Challenge._challenge_validate(%s)", challenge_name)
 
         jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
+
+        challenge_pause_list = ["dns-01", "email-reply-00"]
 
         for _ele in range(0, 5):
 
@@ -299,6 +314,11 @@ class Challenge(object):
             if "validated" in challenge_dic:
                 challenge_dic.pop("validated")
 
+        if self.email_identifier_support and self.email_address:
+            # add email address to challenge_dic for email-reply-00 challenges
+            self.logger.debug("Adding email address to challenge_dic")
+            challenge_dic["from"] = self.email_address
+
         self.logger.debug("Challenge._info(%s) ended", challenge_name)
         return challenge_dic
 
@@ -392,6 +412,21 @@ class Challenge(object):
             self.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
             )
+            self.email_identifier_support = config_dic.getboolean(
+                "Order", "email_identifier_support", fallback=False
+            )
+
+        if (
+            self.email_identifier_support
+            and "DEFAULT" in config_dic
+            and "email_address" in config_dic["DEFAULT"]
+        ):
+            self.email_address = config_dic["DEFAULT"].get("email_address")
+        else:
+            self.logger.warning(
+                "Email identifier support is enabled but no email address is configured. Disabling email identifier support."
+            )
+            self.email_identifier_support = False
 
         if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
             self.path_dic = {
@@ -490,6 +525,25 @@ class Challenge(object):
         self.logger.debug("Challenge.get_name() ended with: %s", challenge_name)
         return challenge_name
 
+    def _email_send(self, to_address: str = None, token1: str = None):
+        """send challenge email"""
+        self.logger.debug("Challenge._email_send(%s)", to_address)
+        message_text = f"""
+  This is an automatically generated ACME challenge for the email address
+  "{to_address}". If you did not request an S/MIME certificate for this
+  address, please disregard this message and consider taking appropriate
+  security precautions.
+
+  If you did initiate the request, your email client may be able to process
+  this challenge automatically. Alternatively, you may need to manually
+  copy the first token and paste it into the designated verification tool
+  or application."""
+
+        with EmailHandler(logger=self.logger) as email_handler:
+            email_handler.send(
+                to_address=to_address, subject=f"ACME: {token1}", message=message_text
+            )
+
     def _new(
         self, authz_name: str, mtype: str, token: str = None, value: str = None
     ) -> Dict[str, str]:
@@ -507,7 +561,13 @@ class Challenge(object):
             "status": 2,
         }
 
-        if mtype == "sectigo-email-01":
+        if mtype == "email-reply-00":
+            token1 = generate_random_string(self.logger, 32)
+            self.logger.debug("Challenge._new(): generated token1: %s", token1)
+            data_dic["keyauthorization"] = token1
+            self._email_send(to_address=value, token1=token1)
+
+        elif mtype == "sectigo-email-01":
             data_dic["status"] = 5
 
         try:
@@ -529,7 +589,10 @@ class Challenge(object):
             ] = f'{self.server_name}{self.path_dic["chall_path"]}{challenge_name}'
             challenge_dic["token"] = token
             challenge_dic["status"] = "pending"
-            if mtype == "tkauth-01":
+            if mtype == "email-reply-00":
+                challenge_dic["from"] = self.email_address
+                challenge_dic["token"] = token
+            elif mtype == "tkauth-01":
                 challenge_dic["tkauth-type"] = "atc"
             elif mtype == "sectigo-email-01":
                 challenge_dic["status"] = "valid"
@@ -641,7 +704,14 @@ class Challenge(object):
                     response_list,
                     invalid,
                 )
-                if response_list and self.source_address in response_list:
+                if invalid:
+                    self.logger.debug(
+                        "Challenge._source_address_check(): fqdn resolve give: invalid address check failed for %s",
+                        self.source_address,
+                    )
+                    challenge_check = False
+                    invalid = True
+                elif response_list and self.source_address in response_list:
                     self.logger.debug(
                         "Challenge._source_address_check(): Source address check passed for %s ",
                         self.source_address,
@@ -869,6 +939,137 @@ class Challenge(object):
         self.logger.debug("Challenge._validate_dns_challenge() ended with: %s", result)
         return (result, False)
 
+    def _emailchallenge_keyauth_generate(
+        self, challenge_name: str, token: str, jwk_thumbprint: str
+    ):
+        """generate RFC8823 keyauthorization"""
+        self.logger.debug(
+            "Challenge._emailchallenge_keyauth_generate(%s)", challenge_name
+        )
+
+        challenge_dic = self.dbstore.challenge_lookup(
+            "name", challenge_name, vlist=["name", "token", "keyauthorization"]
+        )
+
+        # this is the token we send via email
+        rfc_token1 = challenge_dic.get("keyauthorization", None)
+        # this is the token we send via https
+        rfc_token2 = challenge_dic.get("token", None)
+
+        keyauthorization = None
+        # this is to make sure that we picked the right value from the database
+        if token == rfc_token2:
+            # compute sha256 hash
+            keyauthorization = convert_byte_to_string(
+                b64_url_encode(
+                    self.logger,
+                    sha256_hash(
+                        self.logger, f"{rfc_token1}{rfc_token2}.{jwk_thumbprint}"
+                    ),
+                )
+            )
+
+        self.logger.debug(
+            "Challenge._emailchallenge_keyauth_generate() ended with: %s",
+            bool(keyauthorization),
+        )
+        return keyauthorization, rfc_token1
+
+    def _emailchallenge_keyauth_extract(self, body: str = None) -> str:
+        """extract keyauthorization from email body"""
+        self.logger.debug("Challenge._emailchallenge_keyauth_extract()")
+
+        email_keyauthorization = None
+        if body:
+            # extract keyauthorization from email body
+            match = re.search(
+                r"-+BEGIN ACME RESPONSE-+\s*([\w\-_=+/]+)\s*-+END ACME RESPONSE-+",
+                body,
+                re.DOTALL,
+            )
+            if match:
+                email_keyauthorization = match.group(1).strip()
+
+        self.logger.debug(
+            "Challenge._emailchallenge_keyauth_extract() ended with: %s",
+            bool(email_keyauthorization),
+        )
+        return email_keyauthorization
+
+    def _email_filter(self, email_data, rfc_token1):
+
+        filter_string = f"ACME: {rfc_token1}"
+        self.logger.debug(
+            "Challenge._validate_email_reply_challenge(): filter string: %s",
+            filter_string,
+        )
+
+        if filter_string in email_data.get("subject", ""):
+            self.logger.debug(
+                "Challenge._validate_email_reply_challenge(): email subject matches filter: %s",
+                email_data["subject"],
+            )
+            return email_data
+        else:
+            self.logger.debug(
+                "Challenge._validate_email_reply_challenge(): email subject does not match filter: %s",
+                email_data.get("subject", ""),
+            )
+            return None
+
+    def _validate_email_reply_challenge(
+        self,
+        challenge_name: str,
+        _type: str,
+        email: str,
+        token: str,
+        jwk_thumbprint: str,
+    ) -> Tuple[bool, bool]:
+        """validate email reply challenge"""
+        self.logger.debug(
+            "Challenge._validate_email_reply_challenge(%s)", challenge_name
+        )
+
+        calculated_keyauth, rfc_token1 = self._emailchallenge_keyauth_generate(
+            challenge_name=challenge_name, token=token, jwk_thumbprint=jwk_thumbprint
+        )
+
+        result = False
+        invalid = False
+        with EmailHandler(debug=False, logger=self.logger) as email_handler:
+
+            email_receive = email_handler.receive(
+                callback=lambda email_data: self._email_filter(email_data, rfc_token1)
+            )
+
+            if email_receive and "body" in email_receive:
+                email_keyauth = self._emailchallenge_keyauth_extract(
+                    email_receive["body"]
+                )
+                if (
+                    email_keyauth
+                    and calculated_keyauth
+                    and email_keyauth == calculated_keyauth
+                ):
+                    self.logger.debug(
+                        "Challenge._validate_email_reply_challenge(): email keyauthorization matches"
+                    )
+                    result = True
+                else:
+                    self.logger.debug(
+                        "Challenge._validate_email_reply_challenge(): email keyauthorization does not match. Expected: %s, Got: %s",
+                        calculated_keyauth,
+                        email_keyauth,
+                    )
+                    invalid = True
+
+        self.logger.debug(
+            "Challenge._validate_email_reply_challenge() ended with: %s/%s",
+            result,
+            invalid,
+        )
+        return (result, invalid)
+
     def _validate_http_challenge(
         self,
         challenge_name: str,
@@ -1033,8 +1234,15 @@ class Challenge(object):
 
             challenge_name_list = []
             for challenge in challenge_list:
+                if (
+                    self.email_identifier_support
+                    and self.email_address
+                    and challenge["type"] == "email-reply-00"
+                ):
+                    # add email address to challenge_dic for email-reply-00 challenges
+                    self.logger.debug("Adding email address to challenge_dic")
+                    challenge["from"] = self.email_address
                 challenge_name_list.append(challenge.pop("name"))
-
         else:
             # new challenges to be created
             self.logger.debug("Challenges not found. Create a new set.")
@@ -1065,10 +1273,32 @@ class Challenge(object):
 
         challenge_list = []
 
+        # check if we need to create a email-reply challenge
+        email_reply = False
+        if self.email_identifier_support:
+            if id_type == "email" or (id_type == "dns" and "@" in value):
+                email_reply = True
+                self.logger.debug(
+                    "Challenge.new_set(): create email-reply-00 challenge"
+                )
+
         if tnauth:
-            challenge_list.append(self._new(authz_name, "tkauth-01", token))
+            challenge_list.append(
+                self._new(authz_name=authz_name, mtype="tkauth-01", token=token)
+            )
         elif self.sectigo_sim:
-            challenge_list.append(self._new(authz_name, "sectigo-email-01"))
+            challenge_list.append(
+                self._new(authz_name=authz_name, mtype="sectigo-email-01")
+            )
+        elif email_reply:
+            challenge_list.append(
+                self._new(
+                    authz_name=authz_name,
+                    mtype="email-reply-00",
+                    token=token,
+                    value=value,
+                )
+            )
         else:
             challenge_type_list = ["http-01", "dns-01", "tls-alpn-01"]
             # remove dns challnge for ip-addresses
@@ -1077,7 +1307,12 @@ class Challenge(object):
                 challenge_type_list.pop(1)
 
             for challenge_type in challenge_type_list:
-                challenge_json = self._new(authz_name, challenge_type, token, value)
+                challenge_json = self._new(
+                    authz_name=authz_name,
+                    mtype=challenge_type,
+                    token=token,
+                    value=value,
+                )
                 if challenge_json:
                     challenge_list.append(challenge_json)
                 else:
