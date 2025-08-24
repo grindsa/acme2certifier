@@ -39,9 +39,12 @@ jobs:
     - name: "Setup environment"
       run: |
         docker network create acme
+        sudo mkdir -p data/nginx
         sudo mkdir -p data
         sudo chmod -R 777 data
         sudo cp ${{ steps.rpm.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm data
+        sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
         # sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
         sudo mkdir -p $PWD/lego
         sudo mkdir -p $PWD/certbot
@@ -250,7 +253,13 @@ jobs:
         # docker exec alma9-c1 yum localinstall -y /tmp/acme2certifier/acme2certifier-0.34-1.0.noarch.rpm
         docker exec alma9-c1 chown -R nginx /opt/acme2certifier/volume/
         docker exec alma9-c1 cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
+        docker exec alma9-c1 cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
         docker exec alma9-c1 cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig
+
+        docker exec alma9-c1 mkdir -p /var/www/acme2certifier/volume/
+        docker exec alma9-c1 cp /tmp/acme2certifier/nginx/acme2certifier_cert.pem /var/www/acme2certifier/volume/
+        docker exec alma9-c1 cp /tmp/acme2certifier/nginx/acme2certifier_key.pem /var/www/acme2certifier/volume/
+
         docker exec alma9-c1 sh -c "head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf"
         docker exec alma9-c1 sh -c "echo '}' >> /etc/nginx/nginx.conf"
         docker exec alma9-c1  cp /opt/acme2certifier/examples/db_handler/django_handler.py /opt/acme2certifier/acme_srv/db_handler.py
@@ -267,7 +276,13 @@ jobs:
         # docker exec alma9-c2 yum localinstall -y /tmp/acme2certifier/acme2certifier-0.34-1.0.noarch.rpm
         docker exec alma9-c2 chown -R nginx /opt/acme2certifier/volume/
         docker exec alma9-c2 cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
+        docker exec alma9-c2 cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
         docker exec alma9-c2 cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig
+
+        docker exec alma9-c2 mkdir -p /var/www/acme2certifier/volume/
+        docker exec alma9-c2 cp /tmp/acme2certifier/nginx/acme2certifier_cert.pem /var/www/acme2certifier/volume/
+        docker exec alma9-c2 cp /tmp/acme2certifier/nginx/acme2certifier_key.pem /var/www/acme2certifier/volume/
+
         docker exec alma9-c2 sh -c "head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf"
         docker exec alma9-c2 sh -c "echo '}' >> /etc/nginx/nginx.conf"
         docker exec alma9-c2  cp /opt/acme2certifier/examples/db_handler/django_handler.py /opt/acme2certifier/acme_srv/db_handler.py
@@ -323,20 +338,20 @@ jobs:
 
     - name: "Test acme2certifier on alma9-c1"
       run: |
-        docker run -i --rm --network acme curlimages/curl -f http://alma9-c1.acme/directory
+        docker run -i --rm --network acme curlimages/curl -f https://alma9-c1.acme/directory --insecure
         sudo rm -rf lego/
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://alma9-c1.acme -a --email "lego@example.com" -d lego.local --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://alma9-c1.acme -a --email "lego@example.com" -d lego.local --http run
 
     - name: "Test acme2certifier on alma9-c2"
       run: |
-        docker run -i --rm --network acme curlimages/curl -f http://alma9-c2.acme/directory
+        docker run -i --rm --network acme curlimages/curl -f https://alma9-c2.acme/directory --insecure
         sudo rm -rf lego/
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://alma9-c2.acme -a --email "lego@example.com" -d lego.local --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://alma9-c2.acme -a --email "lego@example.com" -d lego.local --http run
 
     - name: "Setup and test load-balancer"
       run: |
-        docker run -d --rm --name acme-srv --network acme  grindsa/pen:latest -r 80 alma9-c1.acme:80 alma9-c2.acme:80
-        docker run -i --rm --network acme curlimages/curl -f http://acme-srv.acme/directory
+        docker run -d --rm --name acme-srv --network acme  grindsa/pen:latest -r 443 alma9-c1.acme:443 alma9-c2.acme:443
+        docker run -i --rm --network acme curlimages/curl -f https://acme-srv.acme/directory --insecure
 
     - name: "Create script for mass-testing"
       run: |
@@ -352,18 +367,20 @@ jobs:
             sudo rm -rf \$PWD/acme-sh/*
             sudo rm -rf \$PWD/lego/*
             sudo rm -rf \$PWD/certbot/*
-            docker run -i -p 80:80 --rm --network acme --name=lego -v \$PWD/lego:/.lego/ goacme/lego -s http://acme-srv.acme -a --email "lego@example.com" -d lego01.acme --http run > /dev/null
+            docker run -i -p 80:80 --rm --network acme --name=lego -v \$PWD/lego:/.lego/ goacme/lego --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" -d lego01.acme --http run  > /dev/null
             if [[ $? != 0 ]]; then break; fi
-            docker run -i -p 80:80 --rm --network acme --name=acme-sh -v \$PWD/acme-sh:/acme.sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --force > /dev/null
+            docker run -i -p 80:80 --rm --network acme --name=acme-sh -v \$PWD/acme-sh:/acme.sh neilpang/acme.sh:latest --issue --server https://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --insecure --force > /dev/null
             if [[ $? != 0 ]]; then break; fi
-            docker run -i -p 80:80 --rm --network acme --name=certbot -v \$PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv.acme --agree-tos -m 'certbot@example.com' --no-eff-email --standalone --preferred-challenges http -d certbot.acme --cert-name certbot > /dev/null
+            docker run -i -p 80:80 --rm --network acme --name=certbot -v \$PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme  --no-verify-ssl --agree-tos -m 'certbot@example.com' --no-eff-email --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal > /dev/null
             if [[ $? != 0 ]]; then break; fi
-            docker run -i -p 80:80 --rm --network acme --name=lego -v \$PWD/lego:/.lego/ goacme/lego -s http://acme-srv.acme -a --email "lego@example.com" -d lego01.acme --http run > /dev/null
+            docker run -i -p 80:80 --rm --network acme --name=lego -v \$PWD/lego:/.lego/ goacme/lego --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" -d lego01.acme --http run > /dev/null
             if [[ $? != 0 ]]; then break; fi
-            docker run -i -p 80:80 --rm --network acme --name=acme-sh -v \$PWD/acme-sh:/acme.sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --output-insecure --force > /dev/null
+            docker run -i -p 80:80 --rm --network acme --name=acme-sh -v \$PWD/acme-sh:/acme.sh neilpang/acme.sh:latest --issue --server https://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --output-insecure --insecure --force > /dev/null
             if [[ $? != 0 ]]; then break; fi
-            docker run -i -p 80:80 --rm --network acme --name=certbot -v \$PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv.acme --agree-tos -m 'certbot@example.com' --no-eff-email --standalone --preferred-challenges http -d certbot.acme --cert-name certbot > /dev/null
-            ((counter++))
+            docker run -i -p 80:80 --rm --network acme --name=certbot -v \$PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --no-verify-ssl --agree-tos -m 'certbot@example.com' --no-eff-email --standalone --preferred-challenges http -d certbot.acme --cert-name certbot  --force-renewal > /dev/null
+            if [[ $? != 0 ]]; then break; fi
+           ((counter++))
+
         done
         echo "## End mass-test ##"
         echo \$counter

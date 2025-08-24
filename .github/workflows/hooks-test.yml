@@ -122,7 +122,7 @@ jobs:
 
     - name: "Enroll lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "Compare checksums to validate hook file content"
@@ -466,7 +466,7 @@ jobs:
 
     - name: "[ ENROLL ] lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
     - name: "[ CHECK ] compare checksums to validate hook file content"
