@@ -9,7 +9,6 @@
 This feature adds support for the enrollment of **End-User certificates** via the ACME protocol, following [RFC 8823: End-User Certificate Enrollment for the Automated Certificate Management Environment (ACME)](https://datatracker.ietf.org/doc/html/rfc8823).
 RFC 8823 extends ACME to allow end-users (such as individuals requesting S/MIME certificates for email) to obtain certificates, not just server operators. This enables new use cases like secure email and client authentication.
 
-
 ## Prerequisites
 
 ### Server Side
@@ -68,7 +67,7 @@ Adjust the values to match your email server settings.
 | `polling_timer`          | Interval (in seconds) for polling the mailbox for challenge responses.                       |
 | `connection_timeout`     | Timeout (in seconds) for email server connections.                                           |
 
----
+______________________________________________________________________
 
 ## Important Notes
 
