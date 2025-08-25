@@ -208,7 +208,7 @@ class Challenge(object):
             if result or invalid:
                 # break loop if we got any good or bad response
                 break
-            elif challenge_dic["type"] == "dns-01" and jwk_thumbprint:
+            elif challenge_dic["type"] in challenge_pause_list and jwk_thumbprint:
                 # sleep for a while before we try again
                 time.sleep(self.dns_validation_pause_timer)
 
@@ -983,7 +983,7 @@ class Challenge(object):
         if body:
             # extract keyauthorization from email body
             match = re.search(
-                r"-+BEGIN ACME RESPONSE-+\s*([\w\-_=+/]+)\s*-+END ACME RESPONSE-+",
+                r"-+BEGIN ACME RESPONSE-+\s*([\w=+/ -]+)\s*-+END ACME RESPONSE-+",
                 body,
                 re.DOTALL,
             )
@@ -1016,6 +1016,53 @@ class Challenge(object):
                 email_data.get("subject", ""),
             )
             return None
+
+    def _email_reply_challenge_create(self, id_type: str, value: str) -> bool:
+        """Determine if an email-reply challenge should be created."""
+        self.logger.debug("Challenge._email_reply_create(%s)", id_type)
+        if not self.email_identifier_support:
+            return False
+        if id_type == "email":
+            self.logger.debug(
+                "Challenge._email_reply_challenge_create(): create email-reply-00 challenge (id_type=email)"
+            )
+            return True
+        if id_type == "dns" and value and "@" in value:
+            self.logger.debug(
+                "Challenge._email_reply_challenge_create(): create email-reply-00 challenge (dns with @)"
+            )
+            return True
+        self.logger.debug("Challenge._email_reply_challenge_create() ended.")
+        return False
+
+    def _standard_challenges_create(
+        self, authz_name: str, token: str, id_type: str, value: str
+    ) -> List[Dict[str, str]]:
+        """Create standard challenge types (http-01, dns-01, tls-alpn-01)."""
+        self.logger.debug(
+            "Challenge._standard_challenges_create(%s, %s)", authz_name, id_type
+        )
+        challenge_type_list = ["http-01", "dns-01", "tls-alpn-01"]
+        if id_type == "ip":
+            self.logger.debug(
+                "Challenge.ne_standard_challenges_createw_set(): skip dns-01 challenge()"
+            )
+            challenge_type_list.remove("dns-01")
+
+        challenges = []
+        for challenge_type in challenge_type_list:
+            challenge_json = self._new(
+                authz_name=authz_name,
+                mtype=challenge_type,
+                token=token,
+                value=value,
+            )
+            if challenge_json:
+                challenges.append(challenge_json)
+            else:
+                self.logger.error("Empty challenge returned for %s", challenge_type)
+        self.logger.debug("Challenge._standard_challenges_create() ended")
+        return challenges
 
     def _validate_email_reply_challenge(
         self,
@@ -1268,19 +1315,13 @@ class Challenge(object):
         id_type: str = "dns",
         value: str = None,
     ) -> List[str]:
-        """net challenge set"""
+        """create a new challenge set"""
         self.logger.debug("Challenge.new_set(%s, %s)", authz_name, value)
 
         challenge_list = []
 
-        # check if we need to create a email-reply challenge
-        email_reply = False
-        if self.email_identifier_support:
-            if id_type == "email" or (id_type == "dns" and "@" in value):
-                email_reply = True
-                self.logger.debug(
-                    "Challenge.new_set(): create email-reply-00 challenge"
-                )
+        # Determine if we need to create an email-reply challenge
+        email_reply = self._email_reply_challenge_create(id_type, value)
 
         if tnauth:
             challenge_list.append(
@@ -1300,23 +1341,9 @@ class Challenge(object):
                 )
             )
         else:
-            challenge_type_list = ["http-01", "dns-01", "tls-alpn-01"]
-            # remove dns challnge for ip-addresses
-            if id_type == "ip":
-                self.logger.debug("Challenge.new_set(): skip dns-01 challenge()")
-                challenge_type_list.pop(1)
-
-            for challenge_type in challenge_type_list:
-                challenge_json = self._new(
-                    authz_name=authz_name,
-                    mtype=challenge_type,
-                    token=token,
-                    value=value,
-                )
-                if challenge_json:
-                    challenge_list.append(challenge_json)
-                else:
-                    self.logger.error("Empty challenge returned for %s", challenge_type)
+            challenge_list.extend(
+                self._standard_challenges_create(authz_name, token, id_type, value)
+            )
 
         self.logger.debug("Challenge._new_set returned (%s)", challenge_list)
         return challenge_list

@@ -132,66 +132,66 @@ class TestEmailHandler(unittest.TestCase):
             log.output,
         )
 
-    def test_005_validate_smtp_config_valid(self):
-        """Test _validate_smtp_config with valid configuration"""
+    def test_005_smtp_config_validate_valid(self):
+        """Test _smtp_config_validate with valid configuration"""
         self.email_handler.smtp_server = "smtp.test.com"
         self.email_handler.email_address = "test@test.com"
         self.email_handler.username = "test@test.com"
         self.email_handler.password = "testpass"
 
-        result = self.email_handler._validate_smtp_config()
+        result = self.email_handler._smtp_config_validate()
         self.assertTrue(result)
 
-    def test_006_validate_smtp_config_missing_server(self):
-        """Test _validate_smtp_config with missing server"""
+    def test_006_smtp_config_validate_missing_server(self):
+        """Test _smtp_config_validate with missing server"""
         self.email_handler.smtp_server = None
         with self.assertLogs(self.logger, level="ERROR") as log:
-            result = self.email_handler._validate_smtp_config()
+            result = self.email_handler._smtp_config_validate()
         self.assertFalse(result)
         self.assertIn("ERROR:test_a2c:SMTP server not configured", log.output)
 
-    def test_007_validate_smtp_config_missing_email(self):
-        """Test _validate_smtp_config with missing email"""
+    def test_007_smtp_config_validate_missing_email(self):
+        """Test _smtp_config_validate with missing email"""
         self.email_handler.smtp_server = "smtp.test.com"
         self.email_handler.email_address = None
         with self.assertLogs(self.logger, level="ERROR") as log:
-            result = self.email_handler._validate_smtp_config()
+            result = self.email_handler._smtp_config_validate()
         self.assertFalse(result)
         self.assertIn("ERROR:test_a2c:Email address not configured", log.output)
 
-    def test_008_validate_smtp_config_missing_credentials(self):
-        """Test _validate_smtp_config with missing credentials"""
+    def test_008_smtp_config_validate_missing_credentials(self):
+        """Test _smtp_config_validate with missing credentials"""
         self.email_handler.smtp_server = "smtp.test.com"
         self.email_handler.email_address = "test@test.com"
         self.email_handler.username = None
         with self.assertLogs(self.logger, level="ERROR") as log:
-            result = self.email_handler._validate_smtp_config()
+            result = self.email_handler._smtp_config_validate()
         self.assertFalse(result)
         self.assertIn("ERROR:test_a2c:Username or password not configured", log.output)
 
-    def test_009_validate_imap_config_valid(self):
-        """Test _validate_imap_config with valid configuration"""
+    def test_009_imap_config_validate_valid(self):
+        """Test _imap_config_validate with valid configuration"""
         self.email_handler.imap_server = "imap.test.com"
         self.email_handler.username = "test@test.com"
         self.email_handler.password = "testpass"
 
-        result = self.email_handler._validate_imap_config()
+        result = self.email_handler._imap_config_validate()
         self.assertTrue(result)
 
-    def test_010_validate_imap_config_missing_server(self):
-        """Test _validate_imap_config with missing server"""
+    def test_010_imap_config_validate_missing_server(self):
+        """Test _imap_config_validate with missing server"""
         self.email_handler.imap_server = None
         with self.assertLogs(self.logger, level="ERROR") as log:
-            result = self.email_handler._validate_imap_config()
+            result = self.email_handler._imap_config_validate()
         self.assertFalse(result)
         self.assertIn("ERROR:test_a2c:IMAP server not configured", log.output)
 
-    def test_011_validate_imap_config_missing_credentials(self):
-        """Test _validate_imap_config with missing credentials"""
+    def test_011_imap_config_validate_missing_credentials(self):
+        """Test _imap_config_validate with missing credentials"""
         self.email_handler.imap_server = "imap.test.com"
         self.email_handler.username = None
         with self.assertLogs(self.logger, level="ERROR") as log:
-            result = self.email_handler._validate_imap_config()
+            result = self.email_handler._imap_config_validate()
         self.assertFalse(result)
         self.assertIn("ERROR:test_a2c:Username or password not configured", log.output)
 
@@ -384,7 +384,7 @@ class TestEmailHandler(unittest.TestCase):
         with self.assertLogs(self.logger, level="ERROR") as log:
             self.logger.error("Failed to receive emails: %s", "IMAP Error")
 
-    def test_021_parse_email_simple(self):
+    def test_021_email_parse_simple(self):
         """Test parsing simple email"""
         # Create mock email message
         mock_msg = MagicMock()
@@ -398,7 +398,7 @@ class TestEmailHandler(unittest.TestCase):
         mock_msg.get_payload.return_value = b"Test message body"
 
         # Test
-        parsed = self.email_handler._parse_email(mock_msg)
+        parsed = self.email_handler._email_parse(mock_msg)
 
         # Assertions
         self.assertEqual(parsed["subject"], "Test Subject")
@@ -408,7 +408,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertEqual(parsed["html_body"], "")
         self.assertEqual(len(parsed["attachments"]), 0)
 
-    def test_022_parse_email_multipart_text_html(self):
+    def test_022_email_parse_multipart_text_html(self):
         """Test parsing multipart email with text and HTML"""
         # Create multipart email
         msg = MIMEMultipart("alternative")
@@ -428,7 +428,7 @@ class TestEmailHandler(unittest.TestCase):
         msg.attach(html_part)
 
         # Parse the email
-        parsed = self.email_handler._parse_email(msg)
+        parsed = self.email_handler._email_parse(msg)
 
         # Assertions
         self.assertEqual(parsed["subject"], "Multipart Test")
@@ -442,7 +442,7 @@ class TestEmailHandler(unittest.TestCase):
         )
         self.assertEqual(len(parsed["attachments"]), 0)
 
-    def test_023_parse_email_with_attachment(self):
+    def test_023_email_parse_with_attachment(self):
         """Test parsing email with attachment"""
         # Create multipart email with attachment
         msg = MIMEMultipart()
@@ -461,7 +461,7 @@ class TestEmailHandler(unittest.TestCase):
         msg.attach(attachment)
 
         # Parse the email
-        parsed = self.email_handler._parse_email(msg)
+        parsed = self.email_handler._email_parse(msg)
 
         # Assertions
         self.assertEqual(parsed["subject"], "Email with Attachment")

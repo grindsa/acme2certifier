@@ -354,7 +354,7 @@ class Order(object):
 
     def _email_identifier_rewrite(
         self, identifiers_list: List[Dict[str, str]]
-    ) -> Dict[str, str]:
+    ) -> List[Dict[str, str]]:
         """rewrite email identifiers to address acme_email issue"""
         self.logger.debug("Order._email_identifier_rewrite()")
         identifiers_modified = []
