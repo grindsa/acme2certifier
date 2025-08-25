@@ -1262,7 +1262,7 @@ class Certificate(object):
         cert_list = self.certlist_search(
             "issue_uts",
             0,
-            vlist=("id", "name", "cert", "cert_raw", "issue_uts", "expire_uts"),
+            vlist=["id", "name", "cert", "cert_raw", "issue_uts", "expire_uts"],
         )
         self.logger.debug("Got {%s} certificates to be updated...", len(cert_list))
         for cert in cert_list:

@@ -48,7 +48,7 @@ class Trigger(object):
         with Certificate(self.debug, "foo", self.logger) as certificate:
             # search certificates in status "processing"
             cert_list = certificate.certlist_search(
-                "order__status_id", 4, ("name", "csr", "order__name")
+                "order__status_id", 4, ["name", "csr", "order__name"]
             )
 
             for cert in cert_list:
