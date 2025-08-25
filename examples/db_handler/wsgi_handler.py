@@ -818,7 +818,6 @@ class DBstore(object):
         self,
         column: str,
         string: str,
-        vlist: List = None,  # pylint: disable=unused-argument NOSONAR
     ) -> Dict[str, str]:
         """lookup account table for a certain key/value pair and return id"""
         self.logger.debug(
