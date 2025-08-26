@@ -686,9 +686,24 @@ class CAhandler(object):
         full_jwk = user_key.to_json()
         if "kty" in full_jwk and full_jwk["kty"] == "RSA":
             self.logger.debug("Stripping JWK to minimal fields for RSA key")
-            minimal_jwk = {k: full_jwk[k] for k in ("kty", "n", "e") if k in full_jwk}
+            required_fields = ("kty", "n", "e")
+            missing_fields = [k for k in required_fields if k not in full_jwk]
+            if missing_fields:
+                self.logger.error(
+                    f"Missing required JWK fields for RSA key: {', '.join(missing_fields)}"
+                )
+                return None
+            minimal_jwk = {k: full_jwk[k] for k in required_fields}
             # Reconstruct a JWKRSA object from the minimal dict
-            result = josepy.JWKRSA.fields_from_json(minimal_jwk)
+            try:
+                result = josepy.JWKRSA.fields_from_json(minimal_jwk)
+            except Exception as e:
+                self.logger.error(
+                    "Failed to strip JWK to minimal fields. Input: %s, Error: %s",
+                    minimal_jwk,
+                    str(e),
+                )
+                result = None
         else:
             result = user_key
         self.logger.debug("CAhandler._jwk_strip() ended")
