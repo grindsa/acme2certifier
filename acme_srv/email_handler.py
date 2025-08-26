@@ -188,7 +188,7 @@ class EmailHandler:
         folder: str = "INBOX",
         mark_as_read: bool = True,
     ) -> List[Dict[str, Any]]:
-        """Receive emails via IMAP"""
+        """Receive emails via IMAP and return as dictionary"""
         self.logger.debug("EmailHandler.receive()")
 
         if not self._imap_config_validate():
