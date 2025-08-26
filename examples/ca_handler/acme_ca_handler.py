@@ -699,7 +699,7 @@ class CAhandler(object):
                 result = josepy.JWKRSA.fields_from_json(minimal_jwk)
             except Exception as e:
                 self.logger.error(
-                    "Failed to strip JWK to minimal fields. Input: %s, Error: %s",
+                    'Failed to strip JWK to minimal fields. Input: %s, Error: %s',
                     minimal_jwk,
                     str(e),
                 )
