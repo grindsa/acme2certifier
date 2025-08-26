@@ -64,7 +64,7 @@ runs:
         ISSUING_CA_KEY: ${{ inputs.ISSUING_CA_KEY }}
         ISSUING_CA_CERT: ${{ inputs.ISSUING_CA_CERT }}
         ROOT_CA_CERT: ${{ inputs.ROOT_CA_CERT }}
-        CA_PASSPHRASE: ${{ inputs.CA_PASSPHRASE }}
+        ISSUING_CA_PASSPHRASE: ${{ inputs.ISSUING_CA_PASSPHRASE }}
         DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
         EE_KEY: ${{ inputs.EE_KEY }}
         EE_CERT: ${{ inputs.EE_CERT }}
