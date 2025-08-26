@@ -1253,33 +1253,28 @@ def _fqdn_resolve(
     """resolve hostname"""
     logger.debug("Helper._fqdn_resolve(%s:%s)", host, catch_all)
 
-    if catch_all:
-        result = []
-    else:
-        result = None
-
+    result = [] if catch_all else None
     invalid = True
+
     for rrtype in ["A", "AAAA"]:
         try:
             answers = req.resolve(host, rrtype)
             logger.debug("Helper._fqdn_resolve() got answer: %s", list(answers))
-            for rdata in answers:
-                invalid = False
+            resolved = [str(rdata) for rdata in answers]
+            if resolved:
                 if catch_all:
-                    result.append(str(rdata))
+                    result.extend(resolved)
+                    invalid = False
                 else:
-                    result = str(rdata)
-                    break
+                    result = resolved[0]
+                    invalid = False
+                    break  # Only break if we found a result
         except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
             logger.debug("No answer for %s with type %s", host, rrtype)
-            if not result:
-                invalid = True
+            continue
         except Exception as err:
             logger.debug("Error while resolving %s with type %s: %s", host, rrtype, err)
-            invalid = False
-
-        if not catch_all and result is not None:
-            break
+            # Do not set invalid to False here, only if we get a valid result
 
     logger.debug("Helper._fqdn_resolve(%s) ended with: %s, %s", host, result, invalid)
     return (result, invalid)

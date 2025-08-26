@@ -1629,14 +1629,14 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     )
     def test_154_helper_fqdn_resolve(self, mock_resolve):
         """catch other dns related execption"""
-        self.assertEqual((None, False), self.fqdn_resolve(self.logger, "foo.bar.local"))
+        self.assertEqual((None, True), self.fqdn_resolve(self.logger, "foo.bar.local"))
 
     @patch(
         "dns.resolver.Resolver.resolve", side_effect=Mock(side_effect=Exception("foo"))
     )
     def test_155_helper_fqdn_resolve(self, mock_resolve):
         """catch other execption"""
-        self.assertEqual((None, False), self.fqdn_resolve(self.logger, "foo.bar.local"))
+        self.assertEqual((None, True), self.fqdn_resolve(self.logger, "foo.bar.local"))
 
     @patch(
         "dns.resolver.Resolver.resolve",
