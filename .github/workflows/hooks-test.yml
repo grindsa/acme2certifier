@@ -201,10 +201,6 @@ jobs:
       run: |
         sudo mkdir -p examples/Docker/data/hooks
         sudo chmod -R 777 examples/Docker/data/hooks
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/

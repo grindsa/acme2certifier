@@ -96,6 +96,9 @@ jobs:
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: "Create a2c configuration"
       run: |
         sudo mkdir -p data
@@ -237,6 +240,9 @@ jobs:
       env:
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
+
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
 
     - name: "Create a2c configuration"
       run: |

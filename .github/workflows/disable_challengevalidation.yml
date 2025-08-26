@@ -30,10 +30,6 @@ jobs:
 
     - name: "Setup a2c with xca_ca_handler"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo mkdir -p examples/Docker/data/xca
         sudo chmod -R 777 examples/Docker/data/xca
         sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME

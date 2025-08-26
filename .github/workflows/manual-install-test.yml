@@ -352,6 +352,9 @@ jobs:
         sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3
         sudo apt-get install -y /tmp/acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: "Prepare local modification to get a2c running"
       run: |
         sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv.conf

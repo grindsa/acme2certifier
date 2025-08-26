@@ -37,6 +37,9 @@ jobs:
         CF_WINACME1_NAME: ${{ secrets.CF_WINACME1_NAME }}
         CF_WINACME2_NAME: ${{ secrets.CF_WINACME2_NAME }}
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: "[ PREPARE ] Build local acme2certifier environment"
       run: |
         python -m pip install --upgrade pip
