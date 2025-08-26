@@ -23,19 +23,29 @@ jobs:
     - name: "configure awccli"
       run: |
         aws --version
-        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws configure set default.region ${{ secrets.AWS_REGION }}
+        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+        aws configure set default.region $AWS_REGION
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
 
     - name: "check instance status"
       run: |
         wget https://raw.githubusercontent.com/grindsa/aws_ec2_mgr/main/aws_ec_mgr.py
         chmod a+rx ./aws_ec_mgr.py
-        python3 ./aws_ec_mgr.py -a state -r ${{ secrets.AWS_REGION }} -i ${{ secrets.AWS_INSTANCE_ID }} | grep -i "stopped"
+        python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_INSTANCE_ID | grep -i "stopped"
+      env:
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ secrets.AWS_INSTANCE_ID }}
 
     - name: "start instance"
       run: |
-        python3 ./aws_ec_mgr.py -a start -r ${{ secrets.AWS_REGION }} -i ${{ secrets.AWS_INSTANCE_ID }}
+        python3 ./aws_ec_mgr.py -a start -r $AWS_REGION -i $AWS_INSTANCE_ID
+      env:
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ secrets.AWS_INSTANCE_ID }}
 
     - name: "[ WAIT ] Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -44,7 +54,10 @@ jobs:
 
     - name: "check instance status"
       run: |
-        python3 ./aws_ec_mgr.py -a state -r ${{ secrets.AWS_REGION }} -i ${{ secrets.AWS_INSTANCE_ID }} | grep -i "running"
+        python3 ./aws_ec_mgr.py -a state -r -r $AWS_REGION -i $AWS_INSTANCE_ID | grep -i "running"
+      env:
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ secrets.AWS_INSTANCE_ID }}
 
   build_and_upload_images_to_hub:
     name: Push images to dockerhub and github
@@ -100,7 +113,6 @@ jobs:
       - name: "show version from version.py"
         run: |
           cat acme_srv/version.py
-
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -535,13 +547,20 @@ jobs:
     - name: "configure awccli"
       run: |
         aws --version
-        aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-        aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws configure set default.region ${{ secrets.AWS_REGION }}
+        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+        aws configure set default.region $AWS_REGION
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ secrets.AWS_REGION }}
 
     - name: "stop instance"
       run: |
         wget https://raw.githubusercontent.com/grindsa/aws_ec2_mgr/main/aws_ec_mgr.py
         chmod a+rx ./aws_ec_mgr.py
-        python3 ./aws_ec_mgr.py -a stop -r ${{ secrets.AWS_REGION }} -i ${{ secrets.AWS_INSTANCE_ID }}
-        python3 ./aws_ec_mgr.py -a state -r ${{ secrets.AWS_REGION }} -i ${{ secrets.AWS_INSTANCE_ID }}
+        python3 ./aws_ec_mgr.py -a stop -r $AWS_REGION -i $AWS_INSTANCE_ID
+        python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_INSTANCE_ID
+      env:
+        AWS_REGION: ${{ secrets.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ secrets.AWS_INSTANCE_ID }}

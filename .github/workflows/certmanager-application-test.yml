@@ -268,16 +268,25 @@ jobs:
         sudo microk8s.kubectl get pods -n cert-manager-acme | grep -i Running
         sudo microk8s.kubectl -n cert-manager-acme describe pod acme2certifier | grep " IP:" | cut -d ' ' -f 5
         echo ACME_IP=$(sudo microk8s.kubectl -n cert-manager-acme describe pod acme2certifier | grep " IP:" | cut -d ' ' -f 5) >> $GITHUB_ENV
-    - run: echo "a2c pod IP is ${{ env.ACME_IP }}"
+
+    - run: echo "a2c pod IP is $ACME_IP"
+      env:
+        ACME_IP: ${{ env.ACME_IP }}
 
     - name: "Deploy cert-manager"
       run: |
         sudo cp .github/k8s-cert-mgr-dns-01.yml data
         sudo chmod -R 777 data/k8s-cert-mgr-dns-01.yml
-        sudo sed -i "s/ACME_SRV/${{ env.ACME_IP }}/g" data/k8s-cert-mgr-dns-01.yml
-        sudo sed -i "s/CF_TOKEN/${{ secrets.CF_TOKEN }}/g" data/k8s-cert-mgr-dns-01.yml
-        sudo sed -i "s/MY_EMAIL/${{ secrets.EMAIL }}/g" data/k8s-cert-mgr-dns-01.yml
-        sudo sed -i "s/k8.acme.dynamop.de/k8.${{ matrix.websrv }}-${{ matrix.dbhandler }}.acme.dynamop.de/g" data/k8s-cert-mgr-dns-01.yml
+        sudo sed -i "s/ACME_SRV/$ACME_IP/g" data/k8s-cert-mgr-dns-01.yml
+        sudo sed -i "s/CF_TOKEN/$CF_TOKEN/g" data/k8s-cert-mgr-dns-01.yml
+        sudo sed -i "s/MY_EMAIL/$EMAIL/g" data/k8s-cert-mgr-dns-01.yml
+        sudo sed -i "s/k8.acme.dynamop.de/k8.$WEB_SRV-$DB_HANDLER.acme.dynamop.de/g" data/k8s-cert-mgr-dns-01.yml
+      env:
+        ACME_IP: ${{ env.ACME_IP }}
+        CF_TOKEN: ${{ secrets.CF_TOKEN }}
+        EMAIL: ${{ secrets.EMAIL }}
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
     - name: "Deploy cert-manager and trigger enrollment"
       run: |
@@ -328,7 +337,10 @@ jobs:
       run: |
         sudo microk8s.kubectl delete -f data/k8s-cert-mgr-dns-01.yml
         sudo sed -i "s/commonName: k8.acme.dynamop.de/commonName: '*.acme.dynamop.de'/g" data/k8s-cert-mgr-dns-01.yml
-        sudo sed -i "s/- k8.${{ matrix.websrv }}-${{ matrix.dbhandler }}.acme.dynamop.de/- k8.${{ matrix.websrv }}-${{ matrix.dbhandler }}.acme.dynamop.de\n    - '*.${{ matrix.websrv }}-${{ matrix.dbhandler }}.acme.dynamop.de'/g" data/k8s-cert-mgr-dns-01.yml
+        sudo sed -i "s/- k8.$WEB_SRV-$DB_HANDLER.acme.dynamop.de/- k8.$WEB_SRV-$DB_HANDLER.acme.dynamop.de\n    - '*.$WEB_SRV-$DB_HANDLER.acme.dynamop.de'/g" data/k8s-cert-mgr-dns-01.yml
+      env:
+        WEB_SRV: ${{ matrix.websrv }}
+        DB_HANDLER: ${{ matrix.dbhandler }}
 
     - name: "Deploy cert-manager and trigger enrollment"
       run: |

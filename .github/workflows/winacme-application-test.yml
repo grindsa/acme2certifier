@@ -30,7 +30,12 @@ jobs:
 
     - name: "[ PREPARE ] Create DNS entries "
       run: |
-        Invoke-RestMethod -ContentType "application/json" -Method PUT -Uri ${{ secrets.CF_DYNAMOP_URL }} -Headers @{Authorization="Bearer ${{ secrets.CF_TOKEN }}"} -UseBasicParsing -Body '{"type":"A","name":"${{ secrets.CF_WINACME1_NAME }}","content":"${{ env.RUNNER_IP }}","ttl":120,"proxied":false}'
+        Invoke-RestMethod -ContentType "application/json" -Method PUT -Uri $CF_DYNAMOP_URL -Headers @{Authorization="Bearer $CF_TOKEN"} -UseBasicParsing -Body '{"type":"A","name":"$CF_WINACME1_NAME","content":"$env:RUNNER_IP","ttl":120,"proxied":false}'
+      env:
+        CF_TOKEN: ${{ secrets.CF_TOKEN }}
+        CF_DYNAMOP_URL: ${{ secrets.CF_DYNAMOP_URL }}
+        CF_WINACME1_NAME: ${{ secrets.CF_WINACME1_NAME }}
+        CF_WINACME2_NAME: ${{ secrets.CF_WINACME2_NAME }}
 
     - name: "[ PREPARE ] Build local acme2certifier environment"
       run: |
@@ -62,6 +67,7 @@ jobs:
     - name: "[ PREPARE ] try to get up the server"
       run: |
         Start-Process powershell {python .\manage.py runserver 0.0.0.0:8080 3>&1 2>&1 > volume\redirection.log}
+
     - name: "[ PREPARE ] Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
       with:
@@ -83,7 +89,10 @@ jobs:
 
     - name: "[ ENROLL ] Enroll certificate via win-acme"
       run: |
-        .\win-acme\wacs.exe --baseuri http://127.0.0.1:8080 --emailaddress=grindsa@bar.local --pemfilespath win-acme\certs --source manual --host ${{ secrets.CF_WINACME1_NAME }},${{ secrets.CF_WINACME2_NAME }}  --store pemfiles  --force
+        .\win-acme\wacs.exe --baseuri http://127.0.0.1:8080 --emailaddress=grindsa@bar.local --pemfilespath win-acme\certs --source manual --host $CF_WINACME1_NAME,$CF_WINACME2_NAME  --store pemfiles  --force
+      env:
+        CF_WINACME1_NAME: ${{ secrets.CF_WINACME1_NAME }}
+        CF_WINACME2_NAME: ${{ secrets.CF_WINACME2_NAME }}
 
     - name: "[ PREPARE ] try to get up the sslserver"
       run: |
@@ -135,7 +144,9 @@ jobs:
       # if: $env:ACC_1 == env.ACC_2
       run: |
         $DebugPreference = 'Continue'
-        New-PACertificate ${{ secrets.CF_WINACME1_NAME }} -Plugin WebSelfHost -PluginArgs @{}  -Force
+        New-PACertificate $CF_WINACME1_NAME -Plugin WebSelfHost -PluginArgs @{}  -Force
+      env:
+        CF_WINACME1_NAME: ${{ secrets.CF_WINACME1_NAME }}
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
