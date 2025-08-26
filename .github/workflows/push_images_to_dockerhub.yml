@@ -240,6 +240,9 @@ jobs:
           sudo mkdir -p certbot
           sudo mkdir -p lego
 
+      - name: "Generate keys and certificates"
+        uses: ./.github/actions/cert_gen
+
       - name: "Setup openssl ca_handler"
         run: |
           sudo mkdir -p examples/Docker/data/acme_ca/certs
@@ -408,6 +411,9 @@ jobs:
           SSH_USER: ${{ secrets.AWS_SSH_USER }}
           SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
           UUID: ${{ env.UUID }}
+
+      - name: "Generate keys and certificates"
+        uses: ./.github/actions/cert_gen
 
       - name: "Prepare and data package"
         run: |

@@ -157,6 +157,9 @@ jobs:
         DB_HANDLER: ${{ matrix.dbhandler }}
         UUID: ${{ env.UUID }}
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: "Prepare and data package"
       run: |
         sudo mkdir -p /tmp/data/acme_ca/certs

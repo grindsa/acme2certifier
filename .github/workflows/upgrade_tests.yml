@@ -36,8 +36,6 @@ jobs:
         sudo mkdir -p examples/Docker/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         echo "" >> examples/Docker/data/acme_srv.cfg
         echo "handler_file: examples/ca_handler/openssl_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
@@ -148,6 +146,9 @@ jobs:
       with:
         name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         path: /tmp/
+
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
 
     - name: "Setup environment for alma installation"
       run: |
@@ -430,6 +431,9 @@ jobs:
         name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         path: /tmp/
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: "Setup environment for alma installation"
       run: |
         sudo mkdir acme-sh
@@ -568,6 +572,9 @@ jobs:
       with:
         name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
         path: /tmp/
+
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
 
     - name: "Setup environment for alma installation"
       run: |
