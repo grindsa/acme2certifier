@@ -1126,7 +1126,7 @@ jobs:
         path: ${{ github.workspace }}/artifact/upload/
 
   rpm_acme_ca_handler_dns_test:
-    name: "rpm_acme_ca_handler_test"
+    name: "rpm_acme_ca_handler_dns_test"
     runs-on: ubuntu-latest
     needs: [rpm_build_and_upload]
     strategy:
