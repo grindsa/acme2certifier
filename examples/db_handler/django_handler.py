@@ -99,7 +99,16 @@ class DBstore(object):
         self,
         mkey: str,
         value: str,
-        vlist: List = ["id", "jwk", "name", "contact", "alg", "created_at"],
+        vlist: List = [
+            "id",
+            "jwk",
+            "name",
+            "contact",
+            "alg",
+            "created_at",
+            "eab_kid",
+            "status_id",
+        ],
     ) -> Dict[str, str]:
         """search account for a given id"""
         self.logger.debug("DBStore.account_lookup(%s:%s)", mkey, value)
