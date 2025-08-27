@@ -25,6 +25,9 @@ jobs:
     - name: Branch name
       run: echo running on branch ${GITHUB_REF##*/}
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: "Run install script"
       run: |
         sudo mkdir -p data
@@ -85,6 +88,9 @@ jobs:
     - name: Branch name
       run: echo running on branch ${GITHUB_REF##*/}
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: "Run install script"
       run: |
         sudo mkdir -p data
@@ -144,6 +150,9 @@ jobs:
 
     - name: Branch name
       run: echo running on branch ${GITHUB_REF##*/}
+
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
 
     - name: "Prepare environment"
       run: |
@@ -256,6 +265,9 @@ jobs:
       run: |
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: Download debian package
       uses: actions/download-artifact@v4
       continue-on-error: true
@@ -339,6 +351,9 @@ jobs:
     - name: "Retrieve Version from version.py"
       run: |
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
 
     - name: Download debian package
       uses: actions/download-artifact@v4

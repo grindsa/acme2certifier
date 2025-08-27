@@ -93,9 +93,7 @@ class Message(object):
         """check for accounts with invalid eab credentials"""
         self.logger.debug("Message._invalid_eab_check()")
 
-        account_dic = self.dbstore.account_lookup(
-            "name", account_name, vlist=["id", "eab_kid", "status_id"]
-        )
+        account_dic = self.dbstore.account_lookup("name", account_name)
         if account_dic:
             eab_kid = account_dic.get("eab_kid", None)
             if eab_kid:
