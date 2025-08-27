@@ -1126,7 +1126,7 @@ jobs:
         path: ${{ github.workspace }}/artifact/upload/
 
   rpm_acme_ca_handler_dns_test:
-    name: "rpm_acme_ca_handler_test"
+    name: "rpm_acme_ca_handler_dns_test"
     runs-on: ubuntu-latest
     needs: [rpm_build_and_upload]
     strategy:
@@ -1212,6 +1212,13 @@ jobs:
         docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v4
+      if: ${{ failure() }}
+      with:
+        name: rpm_acme_ca_handler_dns_test-rh${{ matrix.rhversion }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
 
   rpm_cleanup:
     name: "rpm_cleanup"
