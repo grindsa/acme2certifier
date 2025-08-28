@@ -2859,7 +2859,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.dns_update_script = "/tmp/dns_update.sh"
         self.cahandler.acme_sh_script = "/tmp/acme.sh"
         self.cahandler.dns_update_script_variables = {"TEST_VAR": "value"}
-        self.cahandler.dns_validation_timeout = 10
+        self.cahandler.dns_validation_timeout = 30
         fqdn = "example.com"
         key_authorization = "key-auth"
         user_key = MagicMock()
