@@ -2945,6 +2945,45 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
+    def test_176_email_identifier_support_disabled(self):
+        """Should return False if email_identifier_support is False"""
+        # self.challenge.email_identifier_support = False
+        self.assertFalse(
+            self.challenge._email_reply_challenge_create("email", "user@example.com")
+        )
+        self.assertFalse(
+            self.challenge._email_reply_challenge_create("dns", "user@example.com")
+        )
+
+    def test_177_id_type_email(self):
+        """Should return True if id_type is 'email' and support enabled"""
+        self.challenge.email_identifier_support = True
+        self.assertTrue(
+            self.challenge._email_reply_challenge_create("email", "user@example.com")
+        )
+
+    def test_178_id_type_dns_with_at(self):
+        """Should return True if id_type is 'dns' and value contains '@'"""
+        self.challenge.email_identifier_support = True
+        self.assertTrue(
+            self.challenge._email_reply_challenge_create("dns", "user@example.com")
+        )
+
+    def test_179_id_type_dns_without_at(self):
+        """Should return False if id_type is 'dns' and value does not contain '@'"""
+        self.challenge.email_identifier_support = True
+        self.assertFalse(
+            self.challenge._email_reply_challenge_create("dns", "example.com")
+        )
+
+    def test_180_id_type_other(self):
+        """Should return False for other id_types"""
+        self.challenge.email_identifier_support = True
+        self.assertFalse(
+            self.challenge._email_reply_challenge_create("ip", "192.0.2.1")
+        )
+        self.assertFalse(self.challenge._email_reply_challenge_create("other", "foo"))
+
 
 if __name__ == "__main__":
     unittest.main()

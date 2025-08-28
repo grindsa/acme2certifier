@@ -2502,6 +2502,104 @@ class TestACMEHandler(unittest.TestCase):
             self.order._email_identifier_rewrite(identifier_list),
         )
 
+    @patch("acme_srv.order.validate_identifier", return_value=True)
+    def test_144_dns_identifier_allowed(self, mock_validate):
+        identifiers = [{"type": "dns", "value": "example.com"}]
+        result = self.order._identifiers_allowed(identifiers)
+        self.assertIsNone(result)
+        mock_validate.assert_called_once_with(
+            self.logger, "dns", "example.com", self.order.tnauthlist_support
+        )
+
+    @patch("acme_srv.order.validate_identifier", return_value=True)
+    def test_145_ip_identifier_allowed(self, mock_validate):
+        identifiers = [{"type": "ip", "value": "192.0.2.1"}]
+        result = self.order._identifiers_allowed(identifiers)
+        self.assertIsNone(result)
+        mock_validate.assert_called_once_with(
+            self.logger, "ip", "192.0.2.1", self.order.tnauthlist_support
+        )
+
+    @patch("acme_srv.order.validate_identifier", return_value=True)
+    def test_146_tnauthlist_identifier_allowed(self, mock_validate):
+        self.order.tnauthlist_support = True
+        identifiers = [{"type": "tnauthlist", "value": "foobar"}]
+        result = self.order._identifiers_allowed(identifiers)
+        self.assertIsNone(result)
+        mock_validate.assert_called_once_with(self.logger, "tnauthlist", "foobar", True)
+
+    @patch("acme_srv.order.validate_identifier", return_value=True)
+    def test_147_email_identifier_allowed(self, mock_validate):
+        self.order.email_identifier_support = True
+        identifiers = [{"type": "email", "value": "user@example.com"}]
+        result = self.order._identifiers_allowed(identifiers)
+        self.assertIsNone(result)
+        mock_validate.assert_called_once_with(
+            self.logger, "email", "user@example.com", self.order.tnauthlist_support
+        )
+
+    def test_148_unsupported_identifier_type(self):
+        self.order.error_msg_dic = {
+            "unsupportedidentifier": "unsupportedidentifier",
+            "rejectedidentifier": "rejectedidentifier",
+            "malformed": "malformed",
+        }
+        identifiers = [{"type": "foo", "value": "bar"}]
+        result = self.order._identifiers_allowed(identifiers)
+        self.assertEqual(result, "unsupportedidentifier")
+
+    @patch("acme_srv.order.validate_identifier", return_value=False)
+    def test_149_rejected_identifier(self, mock_validate):
+        self.order.error_msg_dic = {
+            "unsupportedidentifier": "unsupportedidentifier",
+            "rejectedidentifier": "rejectedidentifier",
+            "malformed": "malformed",
+        }
+        identifiers = [{"type": "dns", "value": "bad_domain"}]
+        result = self.order._identifiers_allowed(identifiers)
+        self.assertEqual(result, "rejectedidentifier")
+        mock_validate.assert_called_once_with(
+            self.logger, "dns", "bad_domain", self.order.tnauthlist_support
+        )
+
+    def test_150_missing_type_field(self):
+        self.order.error_msg_dic = {
+            "unsupportedidentifier": "unsupportedidentifier",
+            "rejectedidentifier": "rejectedidentifier",
+            "malformed": "malformed",
+        }
+        identifiers = [{"value": "example.com"}]
+        result = self.order._identifiers_allowed(identifiers)
+        self.assertEqual(result, "malformed")
+
+    def test_151_multiple_identifiers_first_invalid(self):
+        self.order.error_msg_dic = {
+            "unsupportedidentifier": "unsupportedidentifier",
+            "rejectedidentifier": "rejectedidentifier",
+            "malformed": "malformed",
+        }
+        identifiers = [
+            {"type": "foo", "value": "bar"},
+            {"type": "dns", "value": "example.com"},
+        ]
+        result = self.order._identifiers_allowed(identifiers)
+        self.assertEqual(result, "unsupportedidentifier")
+
+    @patch("acme_srv.order.validate_identifier", side_effect=[True, False])
+    def test_152_multiple_identifiers_second_invalid(self, mock_validate):
+        self.order.error_msg_dic = {
+            "unsupportedidentifier": "unsupportedidentifier",
+            "rejectedidentifier": "rejectedidentifier",
+            "malformed": "malformed",
+        }
+        identifiers = [
+            {"type": "dns", "value": "example.com"},
+            {"type": "dns", "value": "bad_domain"},
+        ]
+        result = self.order._identifiers_allowed(identifiers)
+        self.assertEqual(result, "rejectedidentifier")
+        self.assertEqual(mock_validate.call_count, 2)
+
 
 if __name__ == "__main__":
     unittest.main()

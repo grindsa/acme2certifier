@@ -25,6 +25,32 @@ class TestEmailHandler(unittest.TestCase):
 
         self.email_handler = EmailHandler(debug=True, logger=self.logger)
 
+    def _mock_mail(
+        self, search_status="OK", search_ids=b"1 2", fetch_status="OK", subjects=None
+    ):
+        """Helper to create a mock mail object."""
+        mail = MagicMock()
+        mail.search.return_value = (search_status, [search_ids])
+        # Prepare different subjects for each fetch
+        if subjects is None:
+            subjects = ["Test 1", "Test 2"]
+
+        def fetch_side_effect(email_id, _):
+            idx = int(email_id.decode()) - 1
+            msg = Mock()
+            msg.get.side_effect = lambda k, d="": {
+                "Subject": subjects[idx],
+                "From": "sender@test.com",
+                "To": "rcpt@test.com",
+                "Date": "2025-01-01",
+            }.get(k, d)
+            msg.is_multipart.return_value = False
+            msg.get_payload.return_value = f"Body {idx+1}".encode()
+            return (fetch_status, [(None, msg.get_payload.return_value)])
+
+        mail.fetch.side_effect = fetch_side_effect
+        return mail
+
     def tearDown(self):
         """Clean up after tests"""
         if hasattr(self.email_handler, "_polling_active"):
@@ -657,6 +683,87 @@ class TestEmailHandler(unittest.TestCase):
         )
         self.assertIn("INFO:test_a2c:Email passed filter: Test Email 2", log.output)
         # self.assertIn('DEBUG:test_a2c:mailHandler.receive(): email did not pass filter: Test Email 3', log.output)
+
+    def test_emails_fetch_no_emails(self):
+        mail = self._mock_mail(search_ids=b"")
+        emails = self.email_handler._emails_fetch(
+            mail, callback=None, mark_as_read=True
+        )
+        self.assertEqual(emails, [])
+
+    def test_emails_fetch_multiple_emails(self):
+        mail = self._mock_mail()
+        # Patch _email_parse to return a simple dict
+        self.email_handler._email_parse = lambda msg: {
+            "subject": "Test",
+            "body": "Body",
+        }
+        emails = self.email_handler._emails_fetch(
+            mail, callback=None, mark_as_read=True
+        )
+        self.assertEqual(len(emails), 2)
+        mail.store.assert_any_call(b"1", "+FLAGS", "\\Seen")
+        mail.store.assert_any_call(b"2", "+FLAGS", "\\Seen")
+
+    def test_emails_fetch_mark_as_unread(self):
+        mail = self._mock_mail()
+        self.email_handler._email_parse = lambda msg: {
+            "subject": "Test",
+            "body": "Body",
+        }
+        emails = self.email_handler._emails_fetch(
+            mail, callback=None, mark_as_read=False
+        )
+        mail.store.assert_any_call(b"1", "-FLAGS", "\\Seen")
+        mail.store.assert_any_call(b"2", "-FLAGS", "\\Seen")
+
+    def test_emails_fetch_with_callback_returns_result(self):
+        mail = self._mock_mail()
+        # Only return a result for the first email
+        def callback(email):
+            return email if email["subject"] == "Test" else None
+
+        self.email_handler._email_parse = lambda msg: {
+            "subject": "Test",
+            "body": "Body",
+        }
+        emails = self.email_handler._emails_fetch(
+            mail, callback=callback, mark_as_read=True
+        )
+        self.assertEqual(emails, {"subject": "Test", "body": "Body"})
+
+    def test_emails_fetch_with_callback_filters_all(self):
+        mail = self._mock_mail(subjects=["NoMatch", "NoMatch2"])
+
+        def callback(email):
+            return None  # Filter out all emails
+
+        self.email_handler._email_parse = lambda msg: {
+            "subject": msg.get("Subject"),
+            "body": "Body",
+        }
+        emails = self.email_handler._emails_fetch(
+            mail, callback=callback, mark_as_read=True
+        )
+        self.assertEqual(emails, [])
+
+    def test_emails_fetch_search_not_ok(self):
+        mail = self._mock_mail(search_status="NO")
+        emails = self.email_handler._emails_fetch(
+            mail, callback=None, mark_as_read=True
+        )
+        self.assertEqual(emails, [])
+
+    def test_emails_fetch_fetch_not_ok(self):
+        mail = self._mock_mail(fetch_status="NO")
+        self.email_handler._email_parse = lambda msg: {
+            "subject": "Test",
+            "body": "Body",
+        }
+        emails = self.email_handler._emails_fetch(
+            mail, callback=None, mark_as_read=True
+        )
+        self.assertEqual(emails, [])
 
 
 if __name__ == "__main__":
