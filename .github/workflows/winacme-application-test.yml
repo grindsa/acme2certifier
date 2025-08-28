@@ -30,7 +30,13 @@ jobs:
 
     - name: "[ PREPARE ] Create DNS entries "
       run: |
-        Invoke-RestMethod -ContentType "application/json" -Method PUT -Uri ${{ secrets.CF_DYNAMOP_URL }} -Headers @{Authorization="Bearer ${{ secrets.CF_TOKEN }}"} -UseBasicParsing -Body '{"type":"A","name":"${{ secrets.CF_WINACME1_NAME }}","content":"${{ env.RUNNER_IP }}","ttl":120,"proxied":false}'
+        Invoke-RestMethod -ContentType "application/json" -Method PUT -Uri "${{ env.CF_DYNAMOP_URL }}" -Headers @{Authorization="Bearer ${{ env.CF_TOKEN }}" } -UseBasicParsing -Body '{"type":"A","name":"${{ env.CF_WINACME1_NAME }}","content":"${{ env.RUNNER_IP }}","ttl":120,"proxied":false}'
+      shell: pwsh
+      env:
+        CF_DYNAMOP_URL: ${{ secrets.CF_DYNAMOP_URL }}
+        CF_TOKEN: ${{ secrets.CF_TOKEN }}
+        CF_WINACME1_NAME: ${{ secrets.CF_WINACME1_NAME }}
+        CF_WINACME2_NAME: ${{ secrets.CF_WINACME2_NAME }}
 
     - name: "Generate keys and certificates"
       uses: ./.github/actions/cert_gen
@@ -89,7 +95,11 @@ jobs:
 
     - name: "[ ENROLL ] Enroll certificate via win-acme"
       run: |
-        .\win-acme\wacs.exe --baseuri http://127.0.0.1:8080 --emailaddress=grindsa@bar.local --pemfilespath win-acme\certs --source manual --host ${{ secrets.CF_WINACME1_NAME }},${{ secrets.CF_WINACME2_NAME }}  --store pemfiles  --force
+        .\win-acme\wacs.exe --baseuri http://127.0.0.1:8080 --emailaddress=grindsa@bar.local --pemfilespath win-acme\certs --source manual --host "%CF_WINACME1_NAME%","%CF_WINACME2_NAME%" --store pemfiles --force
+      shell: cmd
+      env:
+        CF_WINACME1_NAME: ${{ secrets.CF_WINACME1_NAME }}
+        CF_WINACME2_NAME: ${{ secrets.CF_WINACME2_NAME }}
 
     - name: "[ PREPARE ] try to get up the sslserver"
       run: |
@@ -119,7 +129,6 @@ jobs:
         $ACC_1 = (Get-PAAccount | Out-String -Stream | Select-String -Pattern "valid")
         echo ACC1=$ACC_1 >> $env:GITHUB_ENV
         Export-PAAccountKEy -OutputFile foo.key
-        echo $env:ACC_1
 
     - name: "Recreate account via Posh-ACME"
       run: |
@@ -141,7 +150,11 @@ jobs:
       # if: $env:ACC_1 == env.ACC_2
       run: |
         $DebugPreference = 'Continue'
-        New-PACertificate ${{ secrets.CF_WINACME1_NAME }} -Plugin WebSelfHost -PluginArgs @{}  -Force
+        New-PACertificate ${{ env.CF_WINACME1_NAME }} -Plugin WebSelfHost -PluginArgs @{}  -Force
+      shell: pwsh
+      env:
+        CF_WINACME1_NAME: ${{ secrets.CF_WINACME1_NAME }}
+
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
