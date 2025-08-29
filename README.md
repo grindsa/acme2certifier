@@ -64,6 +64,7 @@ The following ACME clients are **regularly tested** for compatibility:
 - [Caddy](https://caddyserver.com/docs/automatic-https)
 - [Certbot](https://certbot.eff.org/)
 - [cert-manager](docs/cert-mgr.md)
+- [dehydrated](https://www.rfc-editor.org/rfc/rfc8823.html#name-use-of-acme-for-issuing-end)
 - [lego](https://github.com/go-acme/lego)
 - [traefik](https://traefik.io/)
 - [Posh-ACME](https://github.com/rmbolger/Posh-ACME)
@@ -92,6 +93,7 @@ Supported challenge types:
 
 - [http-01](https://tools.ietf.org/html/rfc8555#section-8.3)
 - [dns-01](https://tools.ietf.org/html/rfc8555#section-8.4)
+- [email-reply-00](https://www.rfc-editor.org/rfc/rfc8823.html#name-use-of-acme-for-issuing-end)
 - [tls-alpn-01](https://tools.ietf.org/html/rfc8737)
 - [tkauth-01](https://www.rfc-editor.org/rfc/rfc9447)
 
