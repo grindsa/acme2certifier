@@ -6,6 +6,31 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.39
+
+**Upgrade notes**:‚
+
+- The database schema has been updated. Please ensure you run the appropriate update script after upgrading:
+  - Use `tools/db_update.py` if you are using the `wsgi_handler`
+  - Use `tools/django_update.py` if you are using the `django_handler`
+
+**Features and Improvements**:
+
+- **RFC 8823 Support:**
+  Added support for [RFC 8823](https://www.rfc-editor.org/rfc/rfc8823.html) — *Automatic Certificate Management Environment for End-User S/MIME Certificates*. This includes handling of `email` identifiers and the `email-reply-00` challenge type.
+- **Source Address Check:**
+  Introduced the `source_address_check` option, which can be used in combination with `challenge_validation_disable` to verify that the client IP address is registered for the FQDNs included in the order request.
+- **DNS Challenge Support in acme_ca_handler:**
+  Enhanced [acme_ca_handler.py](https://github.com/grindsa/acme2certifier/blob/devel/docs/acme_ca.md) to support DNS challenges.
+- **Certificate Operations Logging:**
+  Added the `cert_operations_log` option to enable logging of certificate issuance and revocation operations.
+
+**Bugfixes**:
+
+- Added documentation for the `contact_check_disable` option.
+- Fixed broken links in the [OpenXPKI documentation](https://github.com/grindsa/acme2certifier/blob/master/docs/openxpki.md).
+- Implemented various logging improvements for better traceability and troubleshooting.
+
 ## Changes in 0.38
 
 **Upgrade notes**:
