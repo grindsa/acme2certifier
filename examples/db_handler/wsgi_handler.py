@@ -307,6 +307,7 @@ class DBstore(object):
                             orders.id as order__id,
                             orders.name as order__name,
                             orders.status_id as order__status_id,
+                            orders.profile as order__profile,
                             account.name as order__account__name,
                             account.eab_kid as order__account__eab_kid
                             from certificate
