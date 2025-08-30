@@ -75,7 +75,7 @@ class CAhandler(object):
                 timeout=self.request_timeout,
             ).json()
         except Exception as err_:
-            self.logger.error("CAhandler._api_put() returned error: %s", err_)
+            self.logger.error("API put() returned error: %s", err_)
             api_response = str(err_)
 
         return api_response
@@ -98,12 +98,12 @@ class CAhandler(object):
                     timeout=self.request_timeout,
                 ).json()
             except Exception as err_:
-                self.logger.error("CAhandler._ca_get() returned error: %s", str(err_))
+                self.logger.error(
+                    "Certificate status check returned error: %s", str(err_)
+                )
                 certstatus_response = {"status": "nok", "error": str(err_)}
         else:
-            self.logger.error(
-                "CAhandler._status_get(): api_host option is misisng in configuration"
-            )
+            self.logger.error("api_host parameter is missing in configuration")
             certstatus_response = {}
 
         return certstatus_response
@@ -121,7 +121,7 @@ class CAhandler(object):
                 )
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_server_load() could not load request_timeout:%s",
+                    "Could not load request_timeout parameter:%s",
                     err,
                 )
                 self.request_timeout = 5
@@ -145,17 +145,17 @@ class CAhandler(object):
                     ]
                 except Exception as err:
                     self.logger.error(
-                        "CAhandler._config_authuser_load() could not load username_variable:%s",
+                        "Could not load username_variable:%s",
                         err,
                     )
 
             if "username" in config_dic["CAhandler"]:
                 if self.username:
-                    self.logger.info("CAhandler._config_load() overwrite username")
+                    self.logger.info("Overwrite username parameter")
                 self.username = config_dic.get("CAhandler", "username", fallback=None)
         else:
             self.logger.error(
-                'CAhandler._config_authuser_load() configuration incomplete: "username" parameter is missing in config file'
+                'Configuration incomplete: "username" parameter is missing in config file'
             )
 
         # check if we need to add the common name of a certificate to the username
@@ -165,7 +165,7 @@ class CAhandler(object):
             )
         except Exception:
             self.logger.error(
-                "CAhandler._config_authuser_load() could not load username_append_cn parameter, using default value: False"
+                "Could not load username_append_cn parameter, using default value: False"
             )
             self.username_append_cn = False
 
@@ -184,19 +184,17 @@ class CAhandler(object):
                     ]
                 except Exception as err:
                     self.logger.error(
-                        "CAhandler._config_authuser_load() could not load enrollment_code_variable:%s",
+                        "Could not load enrollment_code_variable:%s",
                         err,
                     )
 
             if "enrollment_code" in config_dic["CAhandler"]:
                 if self.enrollment_code:
-                    self.logger.info(
-                        "CAhandler._config_load() overwrite enrollment_code"
-                    )
+                    self.logger.info("Overwrite enrollment_code")
                 self.enrollment_code = config_dic.get("CAhandler", "enrollment_code")
         else:
             self.logger.error(
-                'CAhandler._config_authuser_load() configuration incomplete: "enrollment_code" parameter is missing in config file'
+                'Configuration incomplete: "enrollment_code" parameter is missing in config file'
             )
 
         self.logger.debug("CAhandler._config_enrollmentcode_load() ended")
@@ -217,7 +215,7 @@ class CAhandler(object):
                     ]
                 except Exception as err:
                     self.logger.error(
-                        "CAhandler._config_authuser_load() could not load cert_passphrase_variable:%s",
+                        "Could not load cert_passphrase_variable:%s",
                         err,
                     )
 
@@ -243,7 +241,7 @@ class CAhandler(object):
                 )
         else:
             self.logger.error(
-                'CAhandler._config_load(): configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.'
+                'Configuration incomplete: "cert_file"/"cert_passphrase" parameter is missing in configuration file.'
             )
 
         self.logger.debug("CAhandler._config_session_load() ended")
@@ -311,7 +309,7 @@ class CAhandler(object):
         ]:
             if not variable_dic[ele]:
                 self.logger.error(
-                    'CAhandler._config_load(): configuration incomplete: parameter "%s" is missing in configuration file.',
+                    'Configuration incomplete: parameter "%s" is missing in configuration file.',
                     ele,
                 )
 
@@ -335,7 +333,7 @@ class CAhandler(object):
                 timeout=self.request_timeout,
             ).json()
         except Exception as err_:
-            self.logger.error("CAhandler._api_post() returned error: %s", err_)
+            self.logger.error("API post() returned error: %s", err_)
             api_response = str(err_)
 
         return api_response
@@ -347,19 +345,17 @@ class CAhandler(object):
         cn = csr_cn_get(self.logger, csr)
 
         if not cn:
-            self.logger.info("CAhandler._csr_cn_get(): CN not found in CSR")
+            self.logger.info("CN not found in CSR")
             san_list = csr_san_get(self.logger, csr)
             if san_list:
                 (_type, san_value) = san_list[0].split(":")
                 cn = san_value
                 self.logger.info(
-                    "CAhandler._csr_cn_get(): CN not found in CSR. Using first SAN entry as CN: %s",
+                    "CN not found in CSR. Using first SAN entry as CN: %s",
                     san_value,
                 )
             else:
-                self.logger.error(
-                    "CAhandler._csr_cn_get(): CN not found in CSR. No SAN entries found"
-                )
+                self.logger.error("CN not found in CSR. No SAN entries found")
 
         self.logger.debug("CAhandler._csr_cn_get() ended with: %s", cn)
         return cn
@@ -388,7 +384,7 @@ class CAhandler(object):
         else:
             error = "Malformed response"
             self.logger.error(
-                "CAhandler.enroll(): Malformed Rest response: %s", sign_response
+                "Enrollment error. Malformed Rest response: %s", sign_response
             )
 
         self.logger.debug("CAhandler._enroll() ended with error: %s", error)
@@ -408,12 +404,12 @@ class CAhandler(object):
                 ).json()
             except Exception as err_:
                 self.logger.error(
-                    "CAhandler._status_get() returned error: %s", str(err_)
+                    "Could not get certificate status. Error: %s", str(err_)
                 )
                 api_response = {"status": "nok", "error": str(err_)}
         else:
             self.logger.error(
-                "CAhandler._status_get(): api_host parameter is missing in configuration"
+                "Configuration incomplete: api_host parameter is missing in configuration"
             )
             api_response = {}
 
@@ -452,7 +448,7 @@ class CAhandler(object):
             )
         else:
             self.logger.error(
-                "CAhandler._status_get(): api_host is misisng in configuration"
+                "Configuration incomplete: api_host is missing in configuration"
             )
             sign_response = {}
 
@@ -486,14 +482,16 @@ class CAhandler(object):
                 # cnroll certificate
                 (error, cert_bundle, cert_raw) = self._enroll(csr)
             else:
-                self.logger.error("CAhandler.enroll: CSR rejected. %s", error)
+                self.logger.error(
+                    "Enrollment error. CSR got rejected with error: %s", error
+                )
         else:
             # error in status respoinse from ejbca rest api
             if "error" in status_dic:
                 error = status_dic["error"]
             else:
                 error = "Unknown error"
-                self.logger.error("CAhandler.enroll(): Unknown error")
+                self.logger.error("Enrollment failed: Unknown error")
 
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, poll_indentifier)

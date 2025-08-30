@@ -1,0 +1,88 @@
+<!-- markdownlint-disable  MD013 -->
+
+<!-- wiki-title Enrollment of End-User Certificates according to RFC8823 -->
+
+# Enrollment of End-User Certificates according to RFC8823
+
+## Introduction
+
+This feature adds support for the enrollment of **End-User certificates** via the ACME protocol, following [RFC 8823: End-User Certificate Enrollment for the Automated Certificate Management Environment (ACME)](https://datatracker.ietf.org/doc/html/rfc8823).
+RFC 8823 extends ACME to allow end-users (such as individuals requesting S/MIME certificates for email) to obtain certificates, not just server operators. This enables new use cases like secure email and client authentication.
+
+## Prerequisites
+
+### Server Side
+
+- **ACME2Certifier** running version **0.39** or higher.
+- **Email Server**: The ACME2Certifier instance must be able to send and receive emails for the challenge/response flow required by RFC 8823. This typically means configuring access to an SMTP and IMAP server.
+
+### Client Side
+
+- **ACME Client with RFC 8823 Support**: You need an ACME client that implements the RFC 8823 extension for end-user certificate enrollment. For testing, we used the [acme_email test client](https://github.com/polhenarejos/acme_email) by Pol Henarejos.
+
+## How to Enable the Feature
+
+**Configure Email Support in `acme_srv.cfg`**
+
+Add or update the following section in your configuration file:
+
+```cfg
+[Default]
+email_identifier_support = true
+imap_server = imap.example.com
+imap_port = 993
+imap_use_ssl = true
+smtp_server = smtp.example.com
+smtp_port = 587
+smtp_use_tls = true
+username = acme2certifier
+password = a2c-password
+email = a2c@example.com
+polling_timer = 60
+connection_timeout = 30
+...
+
+[Order]
+email_identifier_support: True
+email_identifier_rewrite: True
+```
+
+Adjust the values to match your email server settings.
+
+## Configuration Parameters
+
+| Parameter                | Description                                                                                   |
+|--------------------------|-----------------------------------------------------------------------------------------------|
+| `email_identifier_support` | Set to `true` to allow email identifiers for end-user certificates.                         |
+| `email_identifier_rewrite` | Set to `true` to send email addresses as part of DNS indentifiers. You need to enable this option when [acme_email test client](https://github.com/polhenarejos/acme_email) as the client is not fully rfc compliant.  [Further details](https://github.com/polhenarejos/acme_email/issues/4)                       |
+| `imap_server`            | IMAP server address for receiving challenge emails.                                          |
+| `imap_port`              | IMAP server port (usually 993 for SSL).                                                      |
+| `imap_use_ssl`           | Set to `true` to use SSL for IMAP connections.                                               |
+| `smtp_server`            | SMTP server address for sending challenge emails.                                            |
+| `smtp_port`              | SMTP server port (usually 587 for TLS).                                                      |
+| `smtp_use_tls`           | Set to `true` to use TLS for SMTP connections.                                               |
+| `username`               | acme2certifier username for authenticating to the email server.                              |
+| `password`               | acme2certifier password for authenticating to the email server.                              |
+| `email_address`          | email-address used by acme2certifier for sending and receiving emails.                       |
+| `polling_timer`          | Interval (in seconds) for polling the mailbox for challenge responses.                       |
+| `connection_timeout`     | Timeout (in seconds) for email server connections.                                           |
+
+______________________________________________________________________
+
+## Important Notes
+
+- **Implementation Status:**
+  The RFC 8823 feature is new and may be incomplete, as there are currently very few ACME clients supporting this extension.
+  If you encounter issues or unexpected behavior, please [open an issue](https://github.com/grindsa/acme2certifier/issues) with details about your setup and the problem.
+
+- **Client Compatibility:**
+  For testing, we recommend the [acme_email test client](https://github.com/polhenarejos/acme_email). CLI parameters for certificate enrollment can be taken from the respective [github action](../.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll/action.yml#L53)
+  If you use another client, ensure it supports RFC 8823.
+
+- **Feedback Encouraged:**
+  Your feedback and bug reports are valuable to improve this feature and ensure interoperability with more clients.
+
+**Reference:**
+
+- [RFC 8823: End-User Certificate Enrollment for ACME](https://datatracker.ietf.org/doc/html/rfc8823)
+- [ACME Email S/MIME Client](https://github.com/polhenarejos/acme_email)

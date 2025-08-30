@@ -64,6 +64,7 @@ The following ACME clients are **regularly tested** for compatibility:
 - [Caddy](https://caddyserver.com/docs/automatic-https)
 - [Certbot](https://certbot.eff.org/)
 - [cert-manager](docs/cert-mgr.md)
+- [dehydrated](https://www.rfc-editor.org/rfc/rfc8823.html#name-use-of-acme-for-issuing-end)
 - [lego](https://github.com/go-acme/lego)
 - [traefik](https://traefik.io/)
 - [Posh-ACME](https://github.com/rmbolger/Posh-ACME)
@@ -72,7 +73,7 @@ The following ACME clients are **regularly tested** for compatibility:
 Other clients are **on the list for future testing**.
 If you test additional ACME clients, feel free to raise an [issue](https://github.com/grindsa/acme2certifier/issues/new) if something does not work as expected.
 
-[List of command-line parameters used for testing](docs/acme-clients.md)
+[List of command-line parameters used for testing](docs/rfc8823_email_identifier.md)
 
 ______________________________________________________________________
 
@@ -81,7 +82,8 @@ ______________________________________________________________________
 - **ACME v2 [RFC 8555](https://www.rfc-editor.org/rfc/rfc8555.html) compliant** server implementation, including:
   - [RFC 8737](https://www.rfc-editor.org/rfc/rfc8737.html) – **TLS ALPN-01 Challenge**
   - [RFC 8738](https://www.rfc-editor.org/rfc/rfc8738.html) – **IP Address Certificates**
-  - [Renewal Information (ARI)](https://datatracker.ietf.org/doc/draft-ietf-acme-ari/)
+  - [RFC 8823](https://www.rfc-editor.org/rfc/rfc8823.html) - **Automatic Certificate Management Environment for End-User S/MIME Certificates**
+  - [RFC 9773](https://datatracker.ietf.org/doc/rfc9773/) - **ACME Renewal Information (ARI) Extension**
   - [ACME Profiles Extension](docs/acme_profiling.md)
   - **TNAuthList identifiers** ([TNAuthList Profile](docs/tnauthlist.md))
   - [RFC 9447 - Automated Certificate Management Environment (ACME) Challenges Using an Authority Token](https://www.rfc-editor.org/rfc/rfc9447)
@@ -91,6 +93,7 @@ Supported challenge types:
 
 - [http-01](https://tools.ietf.org/html/rfc8555#section-8.3)
 - [dns-01](https://tools.ietf.org/html/rfc8555#section-8.4)
+- [email-reply-00](https://www.rfc-editor.org/rfc/rfc8823.html#name-use-of-acme-for-issuing-end)
 - [tls-alpn-01](https://tools.ietf.org/html/rfc8737)
 - [tkauth-01](https://www.rfc-editor.org/rfc/rfc9447)
 

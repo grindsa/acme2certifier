@@ -197,7 +197,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._ca_key_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._ca_key_load() failed with error: exc_key_load",
+            "ERROR:test_a2c:Failed to load CA private key from database: exc_key_load",
             lcm.output,
         )
 
@@ -210,7 +210,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((None, None, None), self.cahandler._ca_load())
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._ca_cert_load() failed with error: exc_cert_load",
+            "ERROR:test_a2c:Failed to load CA certificate from database: exc_cert_load",
             lcm.output,
         )
 
@@ -643,7 +643,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._requestname_get("csr"))
         self.assertIn(
-            "ERROR:test_a2c:ERROR: CAhandler._request_name_get(): SAN split failed: []",
+            "ERROR:test_a2c:Failed to split SAN from CSR subjectAltName: []",
             lcm.output,
         )
 
@@ -680,7 +680,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._requestname_get("csr"))
         self.assertIn(
-            "ERROR:test_a2c:ERROR: CAhandler._request_name_get(): SAN split failed: ['foo', 'bar']",
+            "ERROR:test_a2c:Failed to split SAN from CSR subjectAltName: ['foo', 'bar']",
             lcm.output,
         )
 
@@ -942,7 +942,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.ca_cert_chain_list)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load(): parameter "ca_cert_chain_list" cannot be loaded',
+            'ERROR:test_a2c:Parameter "ca_cert_chain_list" cannot be loaded',
             lcm.output,
         )
 
@@ -1012,7 +1012,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.passphrase)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load passphrase_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load passphrase_variable:'does_not_exist'",
             lcm.output,
         )
 
@@ -1027,7 +1027,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("foo_file", self.cahandler.passphrase)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite passphrase_variable",
+            "INFO:test_a2c:Overwrite passphrase_variable",
             lcm.output,
         )
 
@@ -1117,7 +1117,7 @@ class TestACMEHandler(unittest.TestCase):
                 ({"foo1": "bar1"}), self.cahandler._utf_stream_parse(utf_stream)
             )
         self.assertIn(
-            "INFO:test_a2c:_utf_stream_parse(): hack to skip template with empty eku - maybe a bug in xca...",
+            "INFO:test_a2c:Hack to skip template with empty eku - maybe a bug in xca...",
             lcm.output,
         )
 
@@ -1404,9 +1404,11 @@ class TestACMEHandler(unittest.TestCase):
             "encipher_only": False,
             "decipher_only": False,
         }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup))
-        self.assertIn("INFO:test_a2c:CAhandler._kue_generate() with 23", lcm.output)
+        self.assertIn(
+            "DEBUG:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
+        )
 
     def test_130__kue_generate(self):
         """CAhandler._kue_generate() - kup '0' defaulting to 23"""
@@ -1422,9 +1424,11 @@ class TestACMEHandler(unittest.TestCase):
             "encipher_only": False,
             "decipher_only": False,
         }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup))
-        self.assertIn("INFO:test_a2c:CAhandler._kue_generate() with 23", lcm.output)
+        self.assertIn(
+            "DEBUG:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
+        )
 
     def test_131__kue_generate(self):
         """CAhandler._kue_generate() - kup cannot get converted to int"""
@@ -1440,9 +1444,11 @@ class TestACMEHandler(unittest.TestCase):
             "encipher_only": False,
             "decipher_only": False,
         }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup))
-        self.assertIn("INFO:test_a2c:CAhandler._kue_generate() with 23", lcm.output)
+        self.assertIn(
+            "DEBUG:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
+        )
 
     def test_132__kue_generate(self):
         """CAhandler._kue_generate() - kup none"""
@@ -1458,17 +1464,19 @@ class TestACMEHandler(unittest.TestCase):
             "encipher_only": False,
             "decipher_only": False,
         }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup))
-        self.assertIn("INFO:test_a2c:CAhandler._kue_generate() with 23", lcm.output)
+        self.assertIn(
+            "DEBUG:test_a2c:Generate KeyUsage Extension with value 23", lcm.output
+        )
 
     def test_133__kue_generate(self):
         """CAhandler._kue_generate() - kup none but csr_extensions"""
         kup = None
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual("ku_csr", self.cahandler._kue_generate(kup, "ku_csr"))
         self.assertIn(
-            "INFO:test_a2c:CAhandler._kue_generate() with data from csr", lcm.output
+            "DEBUG:test_a2c:Generate KeyUsage Extension with data from csr", lcm.output
         )
 
     def test_134__kue_generate(self):
@@ -1485,20 +1493,20 @@ class TestACMEHandler(unittest.TestCase):
             "encipher_only": False,
             "decipher_only": False,
         }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual(result, self.cahandler._kue_generate(kup, "ku_csr"))
         self.assertIn(
-            "INFO:test_a2c:CAhandler._kue_generate() with data from template",
+            "DEBUG:test_a2c:Generate KeyUsage Extension with data from template",
             lcm.output,
         )
 
     def test_135__kue_generate(self):
         """CAhandler._kue_generate() - kup 0 csr_extensions"""
         kup = 0
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.assertEqual("ku_csr", self.cahandler._kue_generate(kup, "ku_csr"))
         self.assertIn(
-            "INFO:test_a2c:CAhandler._kue_generate() with data from csr", lcm.output
+            "DEBUG:test_a2c:Generate KeyUsage Extension with data from csr", lcm.output
         )
 
     @patch("examples.ca_handler.xca_ca_handler.CAhandler._kue_generate")
@@ -1823,7 +1831,7 @@ class TestACMEHandler(unittest.TestCase):
                 ),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._extended_keyusage_generate(): convert to int failed defaulting ekuc to False",
+            "ERROR:test_a2c:Failed to convert EKU critical flag to int, defaulting to False",
             lcm.output,
         )
 
@@ -2101,7 +2109,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 "mock_name", self.cahandler._subject_modify("subject", dn_dic)
             )
-        self.assertIn("INFO:test_a2c:rewrite OU to organizationalUnitName", lcm.output)
+        self.assertIn("INFO:test_a2c:Rewrite OU to organizationalUnitName", lcm.output)
 
     @patch("examples.ca_handler.xca_ca_handler.x509.Name")
     @patch("examples.ca_handler.xca_ca_handler.x509.NameAttribute")
@@ -2114,7 +2122,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 "mock_name", self.cahandler._subject_modify("subject", dn_dic)
             )
-        self.assertIn("INFO:test_a2c:rewrite O to organizationName", lcm.output)
+        self.assertIn("INFO:test_a2c:Rewrite O to organizationName", lcm.output)
 
     @patch("examples.ca_handler.xca_ca_handler.x509.Name")
     @patch("examples.ca_handler.xca_ca_handler.x509.NameAttribute")
@@ -2127,7 +2135,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 "mock_name", self.cahandler._subject_modify("subject", dn_dic)
             )
-        self.assertIn("INFO:test_a2c:rewrite L to localityName", lcm.output)
+        self.assertIn("INFO:test_a2c:Rewrite L to localityName", lcm.output)
 
     @patch("examples.ca_handler.xca_ca_handler.x509.Name")
     @patch("examples.ca_handler.xca_ca_handler.x509.NameAttribute")
@@ -2140,7 +2148,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 "mock_name", self.cahandler._subject_modify("subject", dn_dic)
             )
-        self.assertIn("INFO:test_a2c:rewrite ST to stateOrProvinceName", lcm.output)
+        self.assertIn("INFO:test_a2c:Rewrite ST to stateOrProvinceName", lcm.output)
 
     @patch("examples.ca_handler.xca_ca_handler.x509.Name")
     @patch("examples.ca_handler.xca_ca_handler.x509.NameAttribute")
@@ -2153,7 +2161,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 "mock_name", self.cahandler._subject_modify("subject", dn_dic)
             )
-        self.assertIn("INFO:test_a2c:rewrite C to countryName", lcm.output)
+        self.assertIn("INFO:test_a2c:Rewrite C to countryName", lcm.output)
 
     @patch("examples.ca_handler.xca_ca_handler.eab_profile_header_info_check")
     @patch("examples.ca_handler.xca_ca_handler.CAhandler._cert_sign")
@@ -3236,7 +3244,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._db_check())
         self.assertIn(
-            "WARNING:test_a2c:permissions 660 for xdb_file are to wide. Should be 220",
+            "WARNING:test_a2c:File permissions 660 for 'xdb_file' are too permissive. Should be 220.",
             lcm.output,
         )
         self.assertTrue(mock_access.called)
@@ -3257,7 +3265,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._db_check())
         self.assertIn(
-            "WARNING:test_a2c:permissions 260 for xdb_file are to wide. Should be 220",
+            "WARNING:test_a2c:File permissions 260 for 'xdb_file' are too permissive. Should be 220.",
             lcm.output,
         )
         self.assertTrue(mock_access.called)
@@ -3278,7 +3286,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._db_check())
         self.assertIn(
-            "WARNING:test_a2c:permissions 222 for xdb_file are to wide. Should be 220",
+            "WARNING:test_a2c:File permissions 222 for 'xdb_file' are too permissive. Should be 220.",
             lcm.output,
         )
         self.assertTrue(mock_access.called)
@@ -3314,7 +3322,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._identifier_check("unknown_table", "unkown")
             )
         self.assertIn(
-            "WARNING:test_a2c:CAhandler._identifier_check(): table unknown_table does not exist",
+            "WARNING:test_a2c:Table 'unknown_table' does not exist in the database.",
             lcm.output,
         )
 

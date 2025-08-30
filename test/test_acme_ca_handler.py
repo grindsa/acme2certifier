@@ -50,8 +50,9 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("examples.ca_handler.acme_ca_handler.load_config")
     def test_003__config_load(self, mock_load_cfg):
-        """test _config_load no cahandler section"""
-        mock_load_cfg.return_value = {}
+        """test _config_load default configparser object"""
+        parser = configparser.ConfigParser()
+        mock_load_cfg.return_value = parser
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.acme_keyfile)
@@ -64,7 +65,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "CAhandler" section is missing in config file',
+            'ERROR:test_a2c:Configuration incomplete: "CAhandler" section is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -87,11 +88,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -115,11 +116,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -143,7 +144,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -170,7 +171,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertEqual("acme_keypath", self.cahandler.acme_keypath)
@@ -194,7 +195,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -218,11 +219,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -246,11 +247,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("acme_account_keysize", self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -274,11 +275,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertEqual("acme_account_email", self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -302,11 +303,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -330,11 +331,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(2048, self.cahandler.key_size)
         self.assertFalse(self.cahandler.email)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -359,11 +360,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertEqual(["foo", "bar"], self.cahandler.allowed_domainlist)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -388,15 +389,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertEqual("failed to parse", self.cahandler.allowed_domainlist)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            "WARNING:test_a2c:loading allowed_domainlist failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to load allowed_domainlist from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -421,11 +422,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -451,11 +452,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -481,15 +482,15 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.email)
         self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): failed to parse ssl_verify: Not a boolean: aaa",
+            "WARNING:test_a2c:Failed to parse ssl_verify parameter: Not a boolean: aaa",
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -516,11 +517,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("eab_kid", self.cahandler.eab_kid)
         self.assertFalse(self.cahandler.eab_hmac_key)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -547,11 +548,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.eab_kid)
         self.assertEqual("eab_hmac_key", self.cahandler.eab_hmac_key)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_keyfile" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_keyfile" parameter is missing in config file',
             lcm.output,
         )
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() configuration incomplete: "acme_url" parameter is missing in config file',
+            'ERROR:test_a2c:acme_ca_handler configuration incomplete: "acme_url" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(self.cahandler.acme_keypath)
@@ -619,25 +620,25 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._challenge_filter(authz))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._challenge_filter() ended. Could not find challenge of type http-01",
+            "ERROR:test_a2c:Could not find challenge of type http-01",
             lcm.output,
         )
 
-    def test_025__challenge_store(self):
-        """test _challenge_store() no challenge_content"""
+    def test_025__http_challenge_store(self):
+        """test _http_challenge_store() no challenge_content"""
         # mock_add.return_value = 'ff'
-        self.cahandler._challenge_store("challenge_name", None)
+        self.cahandler._http_challenge_store("challenge_name", None)
         self.assertFalse(self.cahandler.dbstore.cahandler_add.called)
 
-    def test_026__challenge_store(self):
-        """test _challenge_store() no challenge_content"""
+    def test_026__http_challenge_store(self):
+        """test _http_challenge_store() no challenge_content"""
         # mock_add.return_value = 'ff'
-        self.cahandler._challenge_store(None, "challenge_content")
+        self.cahandler._http_challenge_store(None, "challenge_content")
         self.assertFalse(self.cahandler.dbstore.cahandler_add.called)
 
-    def test_027__challenge_store(self):
-        """test _challenge_store()"""
-        self.cahandler._challenge_store("challenge_name", "challenge_content")
+    def test_027__http_challenge_store(self):
+        """test _http_challenge_store()"""
+        self.cahandler._http_challenge_store("challenge_name", "challenge_content")
         self.assertTrue(self.cahandler.dbstore.cahandler_add.called)
 
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter")
@@ -662,7 +663,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(response[0])
         self.assertIn("foobar", response[1])
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._challenge_info() challenge split failed: foobar",
+            "ERROR:test_a2c:Challenge split failed: foobar",
             lcm.output,
         )
 
@@ -676,9 +677,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 (None, None, None), self.cahandler._challenge_info(None, "user_key")
             )
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler._challenge_info() authzr is missing", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:acme authorization is missing", lcm.output)
 
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter")
     def test_031__challenge_info(self, mock_filter):
@@ -690,9 +689,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 (None, None, None), self.cahandler._challenge_info("authzr", None)
             )
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler._challenge_info() userkey is missing", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:acme user is missing", lcm.output)
 
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter")
     def test_032__challenge_info(self, mock_filter):
@@ -1016,7 +1013,7 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertTrue(mock_newreg.called)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._account_create(): registration failed: mock_exception",
+            "ERROR:test_a2c:Account registration failed: mock_exception",
             lcm.output,
         )
 
@@ -1033,7 +1030,7 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertTrue(mock_newreg.called)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._account_create(): registration failed: ConflictError",
+            "ERROR:test_a2c:Account registration failed: ConflictError",
             lcm.output,
         )
 
@@ -1134,13 +1131,11 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler.enroll("csr"),
             )
         self.assertFalse(mock_enroll.called)
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll: account registration failed", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:Account registration failed", lcm.output)
 
     @patch("examples.ca_handler.acme_ca_handler.b64_encode")
     @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_store")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_register")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
@@ -1191,7 +1186,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
     @patch("examples.ca_handler.acme_ca_handler.b64_encode")
     @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_store")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
     @patch("acme.client.ClientV2.query_registration")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
@@ -1245,7 +1240,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
     @patch("OpenSSL.crypto.load_certificate")
     @patch("OpenSSL.crypto.dump_certificate")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_store")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_register")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
@@ -1297,13 +1292,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_ach.called)
         self.assertTrue(mock_reg.called)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll: Bad ACME account: error", lcm.output
+            "ERROR:test_a2c:Enrollment failed: Bad ACME account: error", lcm.output
         )
 
     @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
     @patch("OpenSSL.crypto.load_certificate")
     @patch("OpenSSL.crypto.dump_certificate")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_store")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_register")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
@@ -1352,7 +1347,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler.enroll("csr"),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll: Error getting certificate: order_error",
+            "ERROR:test_a2c:Error getting certificate: order_error",
             lcm.output,
         )
         self.assertTrue(mock_store.called)
@@ -1363,7 +1358,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme.client.ClientV2.query_registration")
     @patch("acme.client.ClientNetwork")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_register")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_store")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
     def test_062_enroll(
         self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg, mock_csrchk
@@ -1375,9 +1370,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(
                 ("ex_user_key_load", None, None, None), self.cahandler.enroll("csr")
             )
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll: error: ex_user_key_load", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:Enrollment error: ex_user_key_load", lcm.output)
         self.assertFalse(mock_store.called)
         self.assertFalse(mock_nw.called)
         self.assertFalse(mock_reg.called)
@@ -1388,7 +1381,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme.client.ClientV2.query_registration")
     @patch("acme.client.ClientNetwork")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_register")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_store")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
     def test_063_enroll(
         self,
@@ -1408,7 +1401,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(("error", None, None, None), self.cahandler.enroll("csr"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll: CSR rejected. error", lcm.output
+            "ERROR:test_a2c:Enrollment error: CSR rejected. error", lcm.output
         )
         self.assertFalse(mock_store.called)
         self.assertFalse(mock_nw.called)
@@ -1420,7 +1413,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme.client.ClientV2.query_registration")
     @patch("acme.client.ClientNetwork")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_register")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_store")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
     def test_064_enroll(
         self,
@@ -1440,7 +1433,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(("error", None, None, None), self.cahandler.enroll("csr"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll: CSR rejected. error", lcm.output
+            "ERROR:test_a2c:Enrollment error: CSR rejected. error", lcm.output
         )
         self.assertFalse(mock_store.called)
         self.assertFalse(mock_nw.called)
@@ -1451,7 +1444,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
     @patch("OpenSSL.crypto.load_certificate")
     @patch("OpenSSL.crypto.dump_certificate")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_store")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_register")
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
@@ -1520,7 +1513,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._account_lookup(acmeclient, "reg", directory)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._account_lookup: found existing account: urluriacc_info",
+            "INFO:test_a2c:Found existing account: urluriacc_info",
             lcm.output,
         )
         self.assertEqual("urluriacc_info", self.cahandler.account)
@@ -1538,7 +1531,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._account_lookup(acmeclient, "reg", directory)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._account_lookup: found existing account: urluriacc_info",
+            "INFO:test_a2c:Found existing account: urluriacc_info",
             lcm.output,
         )
         self.assertEqual("uriacc_info", self.cahandler.account)
@@ -1556,7 +1549,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._account_lookup(acmeclient, "reg", directory)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._account_lookup: found existing account: urluriacc_info",
+            "INFO:test_a2c:Found existing account: urluriacc_info",
             lcm.output,
         )
         self.assertEqual("urluri", self.cahandler.account)
@@ -1575,7 +1568,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._account_lookup(acmeclient, "reg", directory)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._account_lookup: found existing account: urluriacc_info",
+            "INFO:test_a2c:Found existing account: urluriacc_info",
             lcm.output,
         )
         self.assertEqual("uri", self.cahandler.account)
@@ -1710,7 +1703,7 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertFalse(mock_lookup.called)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.revoke(): could not load user_key keyfile",
+            "ERROR:test_a2c:Error during revocation: Could not load user_key keyfile",
             lcm.output,
         )
 
@@ -1727,9 +1720,7 @@ class TestACMEHandler(unittest.TestCase):
                 (500, "urn:ietf:params:acme:error:serverInternal", "ex_user_key_load"),
                 self.cahandler.revoke("cert", "reason", "date"),
             )
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler.revoke: error: ex_user_key_load", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:Revocation error: ex_user_key_load", lcm.output)
 
     @patch("requests.post")
     def test_075__zerossl_eab_get(self, mock_post):
@@ -1759,7 +1750,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.eab_kid)
         self.assertFalse(self.cahandler.eab_hmac_key)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._zerossl_eab_get() failed: text", lcm.output
+            "ERROR:test_a2c:Could not get eab credentials from ZeroSSL: text",
+            lcm.output,
         )
 
     @patch("requests.post")
@@ -1776,7 +1768,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.eab_kid)
         self.assertFalse(self.cahandler.eab_hmac_key)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._zerossl_eab_get() failed: text", lcm.output
+            "ERROR:test_a2c:Could not get eab credentials from ZeroSSL: text",
+            lcm.output,
         )
 
     @patch("requests.post")
@@ -1793,7 +1786,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.eab_kid)
         self.assertFalse(self.cahandler.eab_hmac_key)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._zerossl_eab_get() failed: text", lcm.output
+            "ERROR:test_a2c:Could not get eab credentials from ZeroSSL: text",
+            lcm.output,
         )
 
     @patch("requests.post")
@@ -1810,7 +1804,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.eab_kid)
         self.assertFalse(self.cahandler.eab_hmac_key)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._zerossl_eab_get() failed: text", lcm.output
+            "ERROR:test_a2c:Could not get eab credentials from ZeroSSL: text",
+            lcm.output,
         )
 
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
@@ -1874,7 +1869,7 @@ class TestACMEHandler(unittest.TestCase):
                 )
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._eab_profile_list_check(): acme_keyfile is not allowed in profile",
+            "ERROR:test_a2c:acme_keyfile is not allowed in profile",
             lcm.output,
         )
 
@@ -1888,7 +1883,7 @@ class TestACMEHandler(unittest.TestCase):
                 ),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._eab_profile_list_set(): acme_keypath is missing in config",
+            "ERROR:test_a2c:acme_keypath is missing in config",
             lcm.output,
         )
 
@@ -2042,7 +2037,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._account_to_keyfile()
         self.assertTrue(mock_file.called)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._account_to_keyfile() failed: ex_json_dump",
+            "ERROR:test_a2c:Could not map account to keyfile: ex_json_dump",
             lcm.output,
         )
 
@@ -2121,7 +2116,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._order_new(acmeclient, "csr_pem"),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._order_new() failed to create order: mock_new. Try without profile information.",
+            "WARNING:test_a2c:Failed to create order: mock_new. Try without profile information.",
             lcm.output,
         )
 
@@ -2152,6 +2147,992 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_cry_load.called)
         self.assertTrue(mock_ossl_load.called)
         self.assertTrue(mock_comparable.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_deprovision")
+    @patch("examples.ca_handler.acme_ca_handler.b64_encode")
+    @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
+    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
+    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
+    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    def test_107_order_issue_success(
+        self,
+        mock_jwk,
+        mock_order,
+        mock_client,
+        mock_pem2der,
+        mock_b64,
+        mock_deprovision,
+    ):
+        """test _order_issue with successful order issuance"""
+        self.cahandler.dns_update_script = None
+        self.cahandler.acme_sh_scipt = None
+        mock_pem2der.return_value = "mock_pem2der"
+        mock_b64.return_value = "mock_b64"
+        acmeclient = mock_client
+        user_key = mock_jwk
+        order_obj = MagicMock()
+        order_obj.fullchain_pem = (
+            "-----BEGIN CERTIFICATE-----\nfullchain\n-----END CERTIFICATE-----"
+        )
+        order_obj.error = None
+        self.cahandler._order_new = MagicMock(return_value=order_obj)
+        self.cahandler._order_authorization = MagicMock(return_value=True)
+        acmeclient.poll_and_finalize.return_value = order_obj
+        self.assertEqual(
+            (
+                None,
+                "-----BEGIN CERTIFICATE-----\nfullchain\n-----END CERTIFICATE-----",
+                "mock_b64",
+            ),
+            self.cahandler._order_issue(acmeclient, user_key, "csr"),
+        )
+        self.assertFalse(mock_deprovision.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_deprovision")
+    @patch("examples.ca_handler.acme_ca_handler.b64_encode")
+    @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
+    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
+    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
+    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    def test_108_order_issue_success(
+        self,
+        mock_jwk,
+        mock_order,
+        mock_client,
+        mock_pem2der,
+        mock_b64,
+        mock_deprovision,
+    ):
+        """test _order_issue with successful order issuance"""
+        self.cahandler.dns_update_script = None
+        self.cahandler.acme_sh_scipt = None
+        mock_pem2der.return_value = "mock_pem2der"
+        mock_b64.return_value = "mock_b64"
+        acmeclient = mock_client
+        user_key = mock_jwk
+        order_obj = MagicMock()
+        order_obj.fullchain_pem = (
+            "-----BEGIN CERTIFICATE-----\nfullchain\n-----END CERTIFICATE-----"
+        )
+        order_obj.error = None
+        self.cahandler.dns_update_script = "mock_dns_update_script"
+        self.cahandler.acme_sh_script = "mock_acme_sh_script"
+        self.cahandler._order_new = MagicMock(return_value=order_obj)
+        self.cahandler._order_authorization = MagicMock(return_value=True)
+        acmeclient.poll_and_finalize.return_value = order_obj
+        self.assertEqual(
+            (
+                None,
+                "-----BEGIN CERTIFICATE-----\nfullchain\n-----END CERTIFICATE-----",
+                "mock_b64",
+            ),
+            self.cahandler._order_issue(acmeclient, user_key, "csr"),
+        )
+        self.assertTrue(mock_deprovision.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_deprovision")
+    @patch("examples.ca_handler.acme_ca_handler.b64_encode")
+    @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
+    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
+    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
+    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    def test_109_order_issue_success(
+        self,
+        mock_jwk,
+        mock_order,
+        mock_client,
+        mock_pem2der,
+        mock_b64,
+        mock_deprovision,
+    ):
+        """test _order_issue with successful order issuance"""
+        self.cahandler.dns_update_script = None
+        self.cahandler.acme_sh_scipt = None
+        mock_pem2der.return_value = "mock_pem2der"
+        mock_b64.return_value = "mock_b64"
+        acmeclient = mock_client
+        user_key = mock_jwk
+        order_obj = MagicMock()
+        order_obj.fullchain_pem = (
+            "-----BEGIN CERTIFICATE-----\nfullchain\n-----END CERTIFICATE-----"
+        )
+        order_obj.error = None
+        self.cahandler.dns_update_script = "mock_dns_update_script"
+        self.cahandler.acme_sh_script = None
+        self.cahandler._order_new = MagicMock(return_value=order_obj)
+        self.cahandler._order_authorization = MagicMock(return_value=True)
+        acmeclient.poll_and_finalize.return_value = order_obj
+        self.assertEqual(
+            (
+                None,
+                "-----BEGIN CERTIFICATE-----\nfullchain\n-----END CERTIFICATE-----",
+                "mock_b64",
+            ),
+            self.cahandler._order_issue(acmeclient, user_key, "csr"),
+        )
+        self.assertFalse(mock_deprovision.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_deprovision")
+    @patch("examples.ca_handler.acme_ca_handler.b64_encode")
+    @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
+    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
+    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
+    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    def test_110_order_issue_success(
+        self,
+        mock_jwk,
+        mock_order,
+        mock_client,
+        mock_pem2der,
+        mock_b64,
+        mock_deprovision,
+    ):
+        """test _order_issue with successful order issuance"""
+        self.cahandler.dns_update_script = None
+        self.cahandler.acme_sh_scipt = None
+        mock_pem2der.return_value = "mock_pem2der"
+        mock_b64.return_value = "mock_b64"
+        acmeclient = mock_client
+        user_key = mock_jwk
+        order_obj = MagicMock()
+        order_obj.fullchain_pem = (
+            "-----BEGIN CERTIFICATE-----\nfullchain\n-----END CERTIFICATE-----"
+        )
+        order_obj.error = None
+        self.cahandler.dns_update_script = None
+        self.cahandler.acme_sh_script = "mock_acme_sh_script"
+        self.cahandler._order_new = MagicMock(return_value=order_obj)
+        self.cahandler._order_authorization = MagicMock(return_value=True)
+        acmeclient.poll_and_finalize.return_value = order_obj
+        self.assertEqual(
+            (
+                None,
+                "-----BEGIN CERTIFICATE-----\nfullchain\n-----END CERTIFICATE-----",
+                "mock_b64",
+            ),
+            self.cahandler._order_issue(acmeclient, user_key, "csr"),
+        )
+        self.assertFalse(mock_deprovision.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_deprovision")
+    @patch("examples.ca_handler.acme_ca_handler.b64_encode")
+    @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
+    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
+    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
+    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    def test_111_order_issue_no_fullchain(
+        self,
+        mock_jwk,
+        mock_order,
+        mock_client,
+        mock_pem2der,
+        mock_b64,
+        mock_deprovision,
+    ):
+        acmeclient = mock_client
+        user_key = mock_jwk
+        csr_pem = "dummy_csr"
+        order_obj = MagicMock()
+        order_obj.fullchain_pem = None
+        order_obj.error = "Some error"
+        self.cahandler._order_new = MagicMock(return_value=order_obj)
+        self.cahandler._order_authorization = MagicMock(return_value=True)
+        acmeclient.poll_and_finalize.return_value = order_obj
+        self.assertEqual(
+            ("Error getting certificate: Some error", None, None),
+            self.cahandler._order_issue(acmeclient, user_key, csr_pem),
+        )
+        self.assertFalse(mock_pem2der.called)
+        self.assertFalse(mock_b64.called)
+        self.assertFalse(mock_deprovision.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._order_authorization")
+    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    def test_112_order_issue_invalid_order(self, mock_jwk, mock_order, mock_client):
+        acmeclient = mock_client
+        user_key = mock_jwk
+        csr_pem = "dummy_csr"
+        order_obj = MagicMock()
+        order_obj.fullchain_pem = None
+        order_obj.error = None
+        mock_order = False
+        self.cahandler._order_new = MagicMock(return_value=order_obj)
+        self.cahandler._order_authorization = MagicMock(return_value=False)
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                (
+                    "Order authorization failed. Challenges not answered correctly.",
+                    None,
+                    None,
+                ),
+                self.cahandler._order_issue(acmeclient, user_key, csr_pem),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Order authorization failed. Challenges not answered correctly.",
+            lcm.output,
+        )
+        self.assertFalse(acmeclient.poll_and_finalize.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_provision")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
+    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
+    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
+    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    def test_113_order_authorization_http_challenge(
+        self, mock_jwk, mock_order, mock_client, mock_info, mock_provision
+    ):
+        # Setup mocks
+        acmeclient = mock_client
+        user_key = mock_jwk
+        challenge = MagicMock()
+        challenge_name = "http-01"
+        challenge_content = "challenge-content"
+        challenge.chall.response_and_validation.return_value = (
+            MagicMock(),
+            "validation",
+        )
+        challenge.chall.validation.return_value = "http-01.challenge-token"
+        challenge.chall.response.return_value = "response"
+        authzr = MagicMock()
+        authzr.body.challenges = [challenge]
+        authzr.body.identifier.value = "example.com"
+        mock_info.return_value = (challenge_name, challenge_content, challenge)
+        mock_order.authorizations = [authzr]
+        acmeclient.answer_challenge.return_value = MagicMock()
+        result = self.cahandler._order_authorization(acmeclient, mock_order, user_key)
+        self.assertTrue(result)
+        self.assertFalse(mock_provision.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_provision")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
+    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
+    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
+    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    def test_114_order_authorization_dns_challenge(
+        self, mock_jwk, mock_order, mock_client, mock_info, mock_provision
+    ):
+        acmeclient = mock_client
+        user_key = mock_jwk
+        challenge = MagicMock()
+        challenge_name = "dns-challenge"
+        challenge_content = "dns-challenge-content"
+        challenge.chall.response_and_validation.return_value = (
+            MagicMock(),
+            "validation",
+        )
+        challenge.chall.response.return_value = "response"
+
+        authzr = MagicMock()
+        authzr.body.challenges = [challenge]
+        authzr.body.identifier.value = "example.com"
+
+        cahandler = self.cahandler
+        cahandler.dns_update_script = "script.sh"
+        cahandler.acme_sh_script = "acme.sh"
+        mock_info.return_value = (challenge_name, challenge_content, challenge)
+        mock_order.authorizations = [authzr]
+        acmeclient.answer_challenge.return_value = MagicMock()
+        self.assertTrue(
+            self.cahandler._order_authorization(acmeclient, mock_order, user_key)
+        )
+        self.assertTrue(mock_provision.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_provision")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
+    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
+    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
+    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    def test_115_order_authorization_sectigo_email_challenge(
+        self, mock_jwk, mock_order, mock_client, mock_info, mock_provision
+    ):
+        acmeclient = mock_client
+        user_key = mock_jwk
+        challenge = MagicMock()
+        challenge_name = None
+        challenge_content = {"type": "sectigo-email-01", "status": "valid"}
+        authzr = MagicMock()
+        authzr.body.challenges = [challenge]
+        authzr.body.identifier.value = "example.com"
+        cahandler = self.cahandler
+        mock_info.return_value = (challenge_name, challenge_content, challenge)
+        mock_order.authorizations = [authzr]
+        self.assertTrue(
+            self.cahandler._order_authorization(acmeclient, mock_order, user_key)
+        )
+        self.assertFalse(mock_provision.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_provision")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
+    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
+    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
+    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    def test_116_order_authorization_no_challenge(
+        self, mock_jwk, mock_order, mock_client, mock_info, mock_provision
+    ):
+        acmeclient = mock_client
+        user_key = mock_jwk
+        cahandler = self.cahandler
+        mock_info.return_value = (None, None, None)
+        mock_order.authorizations = [MagicMock()]
+        self.assertFalse(
+            self.cahandler._order_authorization(acmeclient, mock_order, user_key)
+        )
+
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter")
+    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    def test_117_get_dns_challenge_success(self, mock_jwk, mock_filter):
+        """Test _get_dns_challenge with a valid DNS challenge."""
+        challenge = MagicMock()
+        challenge.chall.response_and_validation.return_value = (
+            MagicMock(key_authorization="key-auth"),
+            "validation",
+        )
+        authzr = MagicMock()
+        authzr.body.challenges = [challenge]
+        mock_filter.return_value = challenge
+        chall_name, chall_content, result_challenge = self.cahandler._get_dns_challenge(
+            authzr, mock_jwk
+        )
+        self.assertEqual(chall_name, "dns-challenge")
+        self.assertEqual(chall_content, "key-auth")
+        self.assertEqual(result_challenge, challenge)
+
+    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    def test_118_get_dns_challenge_no_challenge(self, mock_jwk):
+        """Test _get_dns_challenge with no DNS challenge."""
+        authzr = MagicMock()
+        authzr.body.challenges = []
+        # Patch _challenge_filter to return None
+        self.cahandler._challenge_filter = MagicMock(return_value=None)
+        chall_name, chall_content, result_challenge = self.cahandler._get_dns_challenge(
+            authzr, mock_jwk
+        )
+        self.assertIsNone(chall_name)
+        self.assertIsNone(chall_content)
+        self.assertIsNone(result_challenge)
+
+    def test_119_set_environment_variables(self):
+        """Test _environment_variables_handle with unset=False."""
+        self.cahandler.dns_update_script_variables = {
+            "TEST_VAR": "test_value",
+            "PATH": "/usr/bin",
+            "FORBIDDEN_VAR": "should_not_set",
+        }
+
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._environment_variables_handle(unset=False)
+        self.assertEqual(os.environ.get("TEST_VAR"), "test_value")
+        self.assertNotEqual(os.environ.get("PATH"), "should_not_set")
+        self.assertIn(
+            'WARNING:test_a2c:CAhandler._environment_variables_handle(): environment variable "PATH" is forbidden and will not be changed',
+            lcm.output,
+        )
+        # Clean up
+        if "TEST_VAR" in os.environ:
+            del os.environ["TEST_VAR"]
+
+    def test_120_unset_environment_variables(self):
+        """Test _environment_variables_handle with unset=True."""
+        self.cahandler.dns_update_script_variables = {
+            "TEST_VAR": "test_value",
+            "PATH": "/usr/bin",
+            "FORBIDDEN_VAR": "should_not_set",
+        }
+        os.environ["TEST_VAR"] = "test_value"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._environment_variables_handle(unset=True)
+        self.assertIsNone(os.environ.get("TEST_VAR"))
+        self.assertIn(
+            'WARNING:test_a2c:CAhandler._environment_variables_handle(): environment variable "PATH" is forbidden and will not be changed',
+            lcm.output,
+        )
+
+    def test_121_unset_not_set_variable(self):
+        """Test _environment_variables_handle with unset=True when variable is not set."""
+        self.cahandler.dns_update_script_variables = {
+            "TEST_VAR": "test_value",
+            "PATH": "/usr/bin",
+            "FORBIDDEN_VAR": "should_not_set",
+        }
+        if "TEST_VAR" in os.environ:
+            del os.environ["TEST_VAR"]
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._environment_variables_handle(unset=True)
+
+        self.assertIn(
+            'WARNING:test_a2c:CAhandler._environment_variables_handle(): environment variable "PATH" is forbidden and will not be changed',
+            lcm.output,
+        )
+
+    @patch("os.path.exists")
+    def test_122_dns_update_script_does_not_exist(self, mock_exists):
+        """Test _config_dns_update_script_load with dns_update_script that does not exist."""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"dns_update_script": "/fake/path/script.sh"}
+        mock_exists.return_value = False
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.cahandler._config_dns_update_script_load(parser)
+        self.assertIsNone(self.cahandler.dns_update_script)
+        self.assertIn(
+            'ERROR:test_a2c:CAhandler._config_dns_update_script_load(): dns update script "/fake/path/script.sh" does not exist',
+            lcm.output,
+        )
+
+    @patch("os.path.exists")
+    def test_123_dns_update_script_exists_and_acme_sh_script_missing(self, mock_exists):
+        """Test _config_dns_update_script_load with dns_update_script exists but acme_sh_script does not."""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "dns_update_script": "/fake/path/script.sh",
+            "acme_sh_script": "/fake/path/acme.sh",
+            "dns_update_script_variables": '{"VAR1": "value1"}',
+        }
+        mock_exists.side_effect = [True, False]
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.cahandler._config_dns_update_script_load(parser)
+        self.assertEqual(self.cahandler.dns_update_script, "/fake/path/script.sh")
+        self.assertIn(
+            'ERROR:test_a2c:CAhandler._config_dns_update_script_load(): acme.sh script "/fake/path/acme.sh" does not exist',
+            lcm.output,
+        )
+        self.assertIsNone(self.cahandler.acme_sh_script)
+        self.assertEqual(self.cahandler.dns_update_script_variables, {"VAR1": "value1"})
+
+    @patch("os.path.exists")
+    def test_124_dns_validation_timeout_parsing(self, mock_exists):
+        """Test _config_dns_update_script_load with invalid dns_validation_timeout."""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "dns_update_script": "/fake/path/script.sh",
+            "acme_sh_script": "/fake/path/acme.sh",
+            "dns_update_script_variables": '{"VAR1": "value1"}',
+            "dns_validation_timeout": "not_an_int",
+        }
+        mock_exists.return_value = True
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_dns_update_script_load(parser)
+        self.assertIn(
+            "WARNING:test_a2c:CAhandler._config_dns_update_script_load(): Failed to parse dns_validation_timeout parameter: invalid literal for int() with base 10: 'not_an_int'",
+            lcm.output,
+        )
+        self.assertEqual(self.cahandler.dns_validation_timeout, 20)
+
+    @patch("os.path.exists")
+    def test_125_dns_update_script_variables_none(self, mock_exists):
+        """Test _config_dns_update_script_load with dns_update_script_variables as None."""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "dns_update_script": "/fake/path/script.sh",
+            "acme_sh_script": "/fake/path/acme.sh",
+            "dns_update_script_variables": "foo",
+        }
+        mock_exists.return_value = True
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_dns_update_script_load(parser)
+        self.assertIn(
+            "WARNING:test_a2c:CAhandler._config_dns_update_script_load(): Failed to parse dns_update_script_variables parameter: Expecting value: line 1 column 1 (char 0)",
+            lcm.output,
+        )
+        self.assertIsNone(self.cahandler.dns_update_script_variables)
+
+    @patch("os.path.exists")
+    def test_126_dns_validation_timeout_parsing(self, mock_exists):
+        """Test _config_dns_update_script_load with valid parameters."""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "dns_update_script": "/fake/path/script.sh",
+            "acme_sh_script": "/fake/path/acme.sh",
+            "dns_update_script_variables": '{"VAR1": "value1"}',
+            "dns_validation_timeout": "40",
+        }
+        mock_exists.return_value = True
+        self.cahandler._config_dns_update_script_load(parser)
+        self.assertEqual(self.cahandler.dns_validation_timeout, 40)
+        self.assertEqual(self.cahandler.dns_update_script, "/fake/path/script.sh")
+        self.assertEqual(self.cahandler.acme_sh_script, "/fake/path/acme.sh")
+        self.assertEqual(self.cahandler.dns_update_script_variables, {"VAR1": "value1"})
+
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._get_http_or_email_challenge")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._get_dns_challenge")
+    def test_127_challenge_info_dns(
+        self, mock_get_dns_challenge, mock_get_http_or_email_challenge
+    ):
+        """Test _challenge_info when dns_update_script is set."""
+        self.cahandler.dns_update_script = "script.sh"
+        mock_get_dns_challenge.return_value = (
+            "dns-challenge",
+            "key-auth",
+            "challenge_obj",
+        )
+        authzr = MagicMock()
+        user_key = MagicMock()
+
+        chall_name, chall_content, challenge = self.cahandler._challenge_info(
+            authzr, user_key
+        )
+        self.assertEqual(chall_name, "dns-challenge")
+        self.assertEqual(chall_content, "key-auth")
+        self.assertEqual(challenge, "challenge_obj")
+        mock_get_dns_challenge.assert_called_once_with(authzr, user_key)
+        self.assertTrue(mock_get_dns_challenge.called)
+        self.assertFalse(mock_get_http_or_email_challenge.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._get_dns_challenge")
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._get_http_or_email_challenge")
+    def test_128_challenge_info_http(
+        self, mock_get_http_or_email_challenge, mock_get_dns_challenge
+    ):
+        """Test _challenge_info when dns_update_script is not set."""
+        self.cahandler.dns_update_script = None
+        mock_get_http_or_email_challenge.return_value = (
+            "http-challenge",
+            "token",
+            "challenge_obj",
+        )
+        authzr = MagicMock()
+        user_key = MagicMock()
+
+        chall_name, chall_content, challenge = self.cahandler._challenge_info(
+            authzr, user_key
+        )
+        self.assertEqual(chall_name, "http-challenge")
+        self.assertEqual(chall_content, "token")
+        self.assertEqual(challenge, "challenge_obj")
+        mock_get_http_or_email_challenge.assert_called_once_with(authzr, user_key)
+        self.assertFalse(mock_get_dns_challenge.called)
+        self.assertTrue(mock_get_http_or_email_challenge.called)
+
+    def test_129_challenge_info_missing_authzr(self):
+        """Test _challenge_info when authorization is missing."""
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            chall_name, chall_content, challenge = self.cahandler._challenge_info(
+                None, MagicMock()
+            )
+        self.assertIn(
+            "ERROR:test_a2c:acme authorization is missing",
+            lcm.output,
+        )
+        self.assertIsNone(chall_name)
+        self.assertIsNone(chall_content)
+        self.assertIsNone(challenge)
+
+    def test_130_challenge_info_missing_user_key(self):
+        """Test _challenge_info when user key is missing."""
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            chall_name, chall_content, challenge = self.cahandler._challenge_info(
+                MagicMock(), None
+            )
+        self.assertIn(
+            "ERROR:test_a2c:acme user is missing",
+            lcm.output,
+        )
+        self.assertIsNone(chall_name)
+        self.assertIsNone(chall_content)
+        self.assertIsNone(challenge)
+
+    @patch("subprocess.call")
+    @patch(
+        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+    )
+    @patch("os.path.splitext")
+    @patch("os.path.basename")
+    def test_131_deprovision_calls_subprocess_and_env(
+        self, mock_basename, mock_splitext, mock_env_handle, mock_subprocess
+    ):
+        """Test _dns_challenge_deprovision with subprocess and environment variable handling."""
+        self.cahandler.dns_update_script = "/tmp/dns_update.sh"
+        self.cahandler.acme_sh_script = "/tmp/acme.sh"
+        self.cahandler.acme_sh_shell = "/bin/bash"
+        self.cahandler.dns_record_dic = {
+            "test.example.com": b"testvalue",
+            "other.example.com": "othervalue",
+        }
+        self.cahandler.dns_update_script_variables = {"TEST_VAR": "value"}
+        mock_basename.return_value = "dns_update.sh"
+        mock_splitext.side_effect = lambda x: ("/tmp/dns_update", ".sh")
+        mock_subprocess.return_value = 0
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.cahandler._dns_challenge_deprovision()
+        self.assertIn(
+            "DEBUG:test_a2c:CAhandler._dns_challenge_provision(): using shell: /bin/bash",
+            lcm.output,
+        )
+
+        # Check environment variable handling called for set and unset
+        self.assertEqual(mock_env_handle.call_count, 2)
+        mock_env_handle.assert_any_call(unset=False)
+        mock_env_handle.assert_any_call(unset=True)
+
+        # Check subprocess called for each record
+        self.assertEqual(mock_subprocess.call_count, 2)
+        calls = [call[0][0] for call in mock_subprocess.call_args_list]
+        self.assertTrue(any("_rm test.example.com testvalue" in c for c in calls))
+        self.assertTrue(any("_rm other.example.com othervalue" in c for c in calls))
+
+    @patch("subprocess.call")
+    @patch(
+        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+    )
+    @patch("os.path.splitext")
+    @patch("os.path.basename")
+    def test_132_deprovision_calls_subprocess_and_env(
+        self, mock_basename, mock_splitext, mock_env_handle, mock_subprocess
+    ):
+        """Test _dns_challenge_deprovision with subprocess and environment variable handling."""
+        self.cahandler.dns_update_script = "/tmp/dns_update.sh"
+        self.cahandler.acme_sh_script = "/tmp/acme.sh"
+        self.cahandler.dns_record_dic = {
+            "test.example.com": b"testvalue",
+            "other.example.com": "othervalue",
+        }
+        self.cahandler.dns_update_script_variables = {"TEST_VAR": "value"}
+        mock_basename.return_value = "dns_update.sh"
+        mock_splitext.side_effect = lambda x: ("/tmp/dns_update", ".sh")
+        mock_subprocess.return_value = 0
+        self.cahandler._dns_challenge_deprovision()
+        # Check environment variable handling called for set and unset
+        self.assertEqual(mock_env_handle.call_count, 2)
+        mock_env_handle.assert_any_call(unset=False)
+        mock_env_handle.assert_any_call(unset=True)
+
+        # Check subprocess called for each record
+        self.assertEqual(mock_subprocess.call_count, 2)
+        calls = [call[0][0] for call in mock_subprocess.call_args_list]
+        self.assertTrue(any("_rm test.example.com testvalue" in c for c in calls))
+        self.assertTrue(any("_rm other.example.com othervalue" in c for c in calls))
+
+    @patch("subprocess.call")
+    @patch(
+        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+    )
+    def test_133_deprovision_no_records(self, mock_env_handle, mock_subprocess):
+        """Test _dns_challenge_deprovision with no DNS records."""
+        self.cahandler.dns_update_script = "/tmp/dns_update.sh"
+        self.cahandler.acme_sh_script = "/tmp/acme.sh"
+        self.cahandler.dns_record_dic = {}
+        self.cahandler.dns_update_script_variables = {"TEST_VAR": "value"}
+        self.cahandler._dns_challenge_deprovision()
+        # Should not call subprocess
+        mock_subprocess.assert_not_called()
+        self.assertFalse(mock_env_handle.called)
+
+    def test_134_deprovision_missing_scripts(self):
+        """Test _dns_challenge_deprovision with missing scripts."""
+        self.cahandler.dns_update_script = "/tmp/dns_update.sh"
+        self.cahandler.acme_sh_script = "/tmp/acme.sh"
+        self.cahandler.acme_sh_shell = "/bin/bash"
+        self.cahandler.dns_record_dic = {
+            "test.example.com": b"testvalue",
+            "other.example.com": "othervalue",
+        }
+        self.cahandler.dns_update_script_variables = {"TEST_VAR": "value"}
+
+        self.cahandler.dns_update_script = None
+        self.cahandler.acme_sh_script = None
+        self.cahandler.dns_record_dic = {"test.example.com": b"testvalue"}
+        # Should do nothing (no error)
+        self.cahandler._dns_challenge_deprovision()
+
+    @patch("time.sleep")
+    @patch("subprocess.call")
+    @patch(
+        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+    )
+    @patch("os.path.splitext")
+    @patch("os.path.basename")
+    @patch("examples.ca_handler.acme_ca_handler.sha256_hash")
+    @patch("examples.ca_handler.acme_ca_handler.b64_url_encode")
+    @patch("examples.ca_handler.acme_ca_handler.txt_get")
+    def test_135_dns_challenge_provision_success(
+        self,
+        mock_txt_get,
+        mock_b64_url_encode,
+        mock_sha256_hash,
+        mock_basename,
+        mock_splitext,
+        mock_env_handle,
+        mock_subprocess,
+        mock_sleep,
+    ):
+        """Test _dns_challenge_provision with successful DNS challenge provisioning."""
+        self.cahandler.dns_update_script = "/tmp/dns_update.sh"
+        self.cahandler.acme_sh_script = "/tmp/acme.sh"
+        self.cahandler.dns_update_script_variables = {"TEST_VAR": "value"}
+        self.cahandler.dns_validation_timeout = 30
+        fqdn = "example.com"
+        key_authorization = "key-auth"
+        user_key = MagicMock()
+        mock_sleep.return_value = Mock()
+        # Setup mocks
+        mock_sha256_hash.return_value = b"hashbytes"
+        mock_b64_url_encode.return_value = b"encodedtxt"
+        mock_basename.return_value = "dns_update.sh"
+        mock_splitext.side_effect = lambda x: ("/tmp/dns_update", ".sh")
+        mock_subprocess.return_value = 0
+        # Simulate DNS propagation
+        mock_txt_get.side_effect = [None, b"encodedtxt"]
+        self.cahandler._dns_challenge_provision(fqdn, key_authorization, user_key)
+        # Check environment variable handling called for set and unset
+        self.assertEqual(mock_env_handle.call_count, 2)
+        mock_env_handle.assert_any_call(unset=False)
+        mock_env_handle.assert_any_call(unset=True)
+
+        # Check subprocess called
+        mock_subprocess.assert_called()
+        # Check DNS record stored
+        self.assertIn("_acme-challenge.example.com", self.cahandler.dns_record_dic)
+        self.assertEqual(
+            self.cahandler.dns_record_dic["_acme-challenge.example.com"], b"encodedtxt"
+        )
+
+    @patch("time.sleep")
+    @patch("subprocess.call")
+    @patch(
+        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+    )
+    @patch("os.path.splitext")
+    @patch("os.path.basename")
+    @patch("examples.ca_handler.acme_ca_handler.sha256_hash")
+    @patch("examples.ca_handler.acme_ca_handler.b64_url_encode")
+    @patch("examples.ca_handler.acme_ca_handler.txt_get")
+    def test_136_dns_challenge_provision_success(
+        self,
+        mock_txt_get,
+        mock_b64_url_encode,
+        mock_sha256_hash,
+        mock_basename,
+        mock_splitext,
+        mock_env_handle,
+        mock_subprocess,
+        mock_sleep,
+    ):
+        """Test _dns_challenge_provision with successful DNS challenge provisioning."""
+        self.cahandler.dns_update_script = "/tmp/dns_update.sh"
+        self.cahandler.acme_sh_script = "/tmp/acme.sh"
+        self.cahandler.acme_sh_shell = "/bin/bash"
+        self.cahandler.dns_update_script_variables = {"TEST_VAR": "value"}
+        self.cahandler.dns_validation_timeout = 10
+        fqdn = "example.com"
+        key_authorization = "key-auth"
+        user_key = MagicMock()
+        mock_sleep.return_value = Mock()
+        # Setup mocks
+        mock_sha256_hash.return_value = b"hashbytes"
+        mock_b64_url_encode.return_value = b"encodedtxt"
+        mock_basename.return_value = "dns_update.sh"
+        mock_splitext.side_effect = lambda x: ("/tmp/dns_update", ".sh")
+        mock_subprocess.return_value = 0
+        # Simulate DNS propagation
+        mock_txt_get.side_effect = [None, b"encodedtxt"]
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.cahandler._dns_challenge_provision(fqdn, key_authorization, user_key)
+        self.assertIn(
+            "DEBUG:test_a2c:CAhandler._dns_challenge_provision(): using shell: /bin/bash",
+            lcm.output,
+        )
+
+        # Check environment variable handling called for set and unset
+        self.assertEqual(mock_env_handle.call_count, 2)
+        mock_env_handle.assert_any_call(unset=False)
+        mock_env_handle.assert_any_call(unset=True)
+
+        # Check subprocess called
+        mock_subprocess.assert_called()
+        # Check DNS record stored
+        self.assertIn("_acme-challenge.example.com", self.cahandler.dns_record_dic)
+        self.assertEqual(
+            self.cahandler.dns_record_dic["_acme-challenge.example.com"], b"encodedtxt"
+        )
+
+    @patch("time.sleep")
+    @patch("subprocess.call")
+    @patch(
+        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+    )
+    @patch("os.path.splitext")
+    @patch("os.path.basename")
+    @patch("examples.ca_handler.acme_ca_handler.sha256_hash")
+    @patch("examples.ca_handler.acme_ca_handler.b64_url_encode")
+    @patch("examples.ca_handler.acme_ca_handler.txt_get")
+    def test_137_dns_challenge_provision_success(
+        self,
+        mock_txt_get,
+        mock_b64_url_encode,
+        mock_sha256_hash,
+        mock_basename,
+        mock_splitext,
+        mock_env_handle,
+        mock_subprocess,
+        mock_sleep,
+    ):
+        """Test _dns_challenge_provision with successful DNS challenge provisioning."""
+        self.cahandler.dns_update_script = "/tmp/dns_update.sh"
+        self.cahandler.acme_sh_script = "/tmp/acme.sh"
+        self.cahandler.acme_sh_shell = "/bin/bash"
+        self.cahandler.dns_update_script_variables = {"TEST_VAR": "value"}
+        self.cahandler.dns_validation_timeout = 10
+        fqdn = "example.com"
+        key_authorization = "key-auth"
+        user_key = MagicMock()
+        mock_sleep.return_value = Mock()
+        # Setup mocks
+        mock_sha256_hash.return_value = b"hashbytes"
+        mock_b64_url_encode.return_value = b"encodedtxt"
+        mock_basename.return_value = "dns_update.sh"
+        mock_splitext.side_effect = lambda x: ("/tmp/dns_update", ".sh")
+        mock_subprocess.return_value = 0
+        # Simulate DNS propagation
+        mock_txt_get.return_value = b"encodedtxt"
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.cahandler._dns_challenge_provision(fqdn, key_authorization, user_key)
+        self.assertIn(
+            "DEBUG:test_a2c:CAhandler._dns_challenge_provision(): using shell: /bin/bash",
+            lcm.output,
+        )
+        self.assertIn(
+            "DEBUG:test_a2c:_dns_challenge_provision(): found txt record in DNS",
+            lcm.output,
+        )
+        # Check environment variable handling called for set and unset
+        self.assertEqual(mock_env_handle.call_count, 2)
+        mock_env_handle.assert_any_call(unset=False)
+        mock_env_handle.assert_any_call(unset=True)
+
+        # Check subprocess called
+        mock_subprocess.assert_called()
+        # Check DNS record stored
+        self.assertIn("_acme-challenge.example.com", self.cahandler.dns_record_dic)
+        self.assertEqual(
+            self.cahandler.dns_record_dic["_acme-challenge.example.com"], b"encodedtxt"
+        )
+
+    @patch("time.sleep")
+    @patch("subprocess.call")
+    @patch(
+        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+    )
+    @patch("os.path.splitext")
+    @patch("os.path.basename")
+    @patch("acme_srv.helper.sha256_hash")
+    @patch("acme_srv.helper.b64_url_encode")
+    @patch("acme_srv.helper.txt_get")
+    def test_138_dns_challenge_provision_timeout(
+        self,
+        mock_txt_get,
+        mock_b64_url_encode,
+        mock_sha256_hash,
+        mock_basename,
+        mock_splitext,
+        mock_env_handle,
+        mock_subprocess,
+        mock_sleep,
+    ):
+        """Test _dns_challenge_provision with DNS propagation timeout."""
+        self.cahandler.dns_update_script = "/tmp/dns_update.sh"
+        self.cahandler.acme_sh_script = "/tmp/acme.sh"
+        self.cahandler.acme_sh_shell = "/bin/bash"
+        self.cahandler.dns_update_script_variables = {"TEST_VAR": "value"}
+        self.cahandler.dns_validation_timeout = 10
+        fqdn = "example.com"
+        key_authorization = "key-auth"
+        user_key = MagicMock()
+        mock_sleep.return_value = Mock()
+        mock_sha256_hash.return_value = b"hashbytes"
+        mock_b64_url_encode.return_value = b"encodedtxt"
+        mock_basename.return_value = "dns_update.sh"
+        mock_splitext.side_effect = lambda x: ("/tmp/dns_update", ".sh")
+        mock_subprocess.return_value = 0
+        # Simulate DNS never propagates
+        mock_txt_get.return_value = None
+
+        self.cahandler._dns_challenge_provision(fqdn, key_authorization, user_key)
+
+        # Should still store the record
+        self.assertIn("_acme-challenge.example.com", self.cahandler.dns_record_dic)
+        self.assertEqual(
+            self.cahandler.dns_record_dic["_acme-challenge.example.com"],
+            b"4EsbamPacNncn5UI7noRUSqV4bk-1xyk8dpPgpQisJY",
+        )
+
+    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
+    @patch("examples.ca_handler.acme_ca_handler.messages.Registration")
+    @patch("examples.ca_handler.acme_ca_handler.messages.Directory")
+    def test_139_existing_account_found(self, mock_directory, mock_reg, mock_client):
+        """Test _registration_lookup with existing account found."""
+        self.cahandler.acme_url = "https://acme.example.com"
+        self.cahandler.path_dic = {"acct_path": "/acme/acct/"}
+        self.cahandler.account = "12345"
+        regr = MagicMock()
+        regr.uri = "https://acme.example.com/acme/acct/12345"
+        mock_client.query_registration.return_value = regr
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cahandler._registration_lookup(
+                mock_client, mock_reg, mock_directory, MagicMock()
+            )
+        self.assertEqual(result, regr)
+        self.assertIn(
+            "INFO:test_a2c:Found existing account: https://acme.example.com/acme/acct/12345",
+            lcm.output,
+        )
+
+    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
+    @patch("examples.ca_handler.acme_ca_handler.messages.Registration")
+    @patch("examples.ca_handler.acme_ca_handler.messages.Directory")
+    def test_140_account_not_found_register_new(
+        self, mock_directory, mock_reg, mock_client
+    ):
+        """Test _registration_lookup when account is not found and needs to be registered."""
+        self.cahandler.acme_url = "https://acme.example.com"
+        self.cahandler.path_dic = {"acct_path": "/acme/acct/"}
+        self.cahandler.account = "12345"
+        regr = MagicMock()
+        delattr(regr, "uri")
+        mock_client.query_registration.return_value = regr
+
+        # Patch _account_register to return a new regr with uri
+        new_regr = MagicMock()
+        new_regr.uri = "https://acme.example.com/acme/acct/67890"
+        self.cahandler._account_register = MagicMock(return_value=new_regr)
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cahandler._registration_lookup(
+                mock_client, mock_reg, mock_directory, MagicMock()
+            )
+        self.assertEqual(result, new_regr)
+        self.assertIn(
+            "ERROR:test_a2c:Account lookup failed. Account 12345 not found. Trying to register new account.",
+            lcm.output,
+        )
+        self.assertIn(
+            "INFO:test_a2c:New account: https://acme.example.com/acme/acct/67890",
+            lcm.output,
+        )
+
+    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
+    @patch("examples.ca_handler.acme_ca_handler.messages.Registration")
+    @patch("examples.ca_handler.acme_ca_handler.messages.Directory")
+    def test_141_no_account_set_register_new(
+        self, mock_directory, mock_reg, mock_client
+    ):
+        """Test _registration_lookup when no account is set and needs to be registered."""
+        self.cahandler.acme_url = "https://acme.example.com"
+        self.cahandler.path_dic = {"acct_path": "/acme/acct/"}
+        self.cahandler.account = "12345"
+        # Remove account
+        self.cahandler.account = None
+        # Patch _account_register to return a new regr with uri
+        new_regr = MagicMock()
+        new_regr.uri = "https://acme.example.com/acme/acct/99999"
+        self.cahandler._account_register = MagicMock(return_value=new_regr)
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cahandler._registration_lookup(
+                mock_client, mock_reg, mock_directory, MagicMock()
+            )
+        self.assertEqual(result, new_regr)
+        self.assertIn(
+            "INFO:test_a2c:New account: https://acme.example.com/acme/acct/99999",
+            lcm.output,
+        )
 
 
 if __name__ == "__main__":

@@ -156,9 +156,7 @@ class CAhandler(object):
 
         # for some reason entrust custs leading zeros from serial number
         if cert_serial.startswith("0"):
-            self.logger.info(
-                "CAhandler._certificates_get_from_serial() remove leading zeros from serial number"
-            )
+            self.logger.info("Remove leading zeros from serial number")
             cert_serial = cert_serial.lstrip("0")
 
         code, content = self._api_get(
@@ -169,7 +167,7 @@ class CAhandler(object):
             cert_list = content["certificates"]
         else:
             self.logger.error(
-                "CAhandler._certificates_get_from_serial() for %s failed with code: %s",
+                "Certificate lookup based on serial number failed for %s with code: %s",
                 cert_serial,
                 code,
             )
@@ -198,9 +196,7 @@ class CAhandler(object):
                     )
                 )
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._config_load(): failed to parse request_timeout %s", err
-                )
+                self.logger.error("Failed to parse request_timeout parameter: %s", err)
             try:
                 self.cert_validity_days = int(
                     config_dic.get(
@@ -211,7 +207,7 @@ class CAhandler(object):
                 )
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load(): failed to parse cert_validity_days %s",
+                    "Failed to parse cert_validity_days %s parameter",
                     err,
                 )
 
@@ -273,7 +269,7 @@ class CAhandler(object):
                     ]
                 except Exception as err:
                     self.logger.error(
-                        "CAhandler._config_passphrase_load() could not load cert_passphrase_variable:%s",
+                        "Could not load cert_passphrase_variable:%s",
                         err,
                     )
 
@@ -282,9 +278,7 @@ class CAhandler(object):
                     "CAhandler._config_passphrase_load(): load passphrase from config file"
                 )
                 if self.cert_passphrase:
-                    self.logger.info(
-                        "CAhandler._config_load() overwrite cert_passphrase"
-                    )
+                    self.logger.info("Overwrite cert_passphrase")
                 self.cert_passphrase = config_dic.get(
                     "CAhandler", "cert_passphrase", fallback=self.cert_passphrase
                 )
@@ -306,7 +300,7 @@ class CAhandler(object):
                     self.entrust_root_cert = ca_file.read()
             else:
                 self.logger.error(
-                    "CAhandler._config_root_load(): root CA file configured but not not found. Using default one."
+                    "Root CA file configured but not not found. Using default one."
                 )
 
         self.logger.debug("CAhandler._config_root_load() ended")
@@ -344,7 +338,7 @@ class CAhandler(object):
                     )
                 else:
                     self.logger.warning(
-                        'CAhandler._config_load() configuration might be incomplete: "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file'
+                        'Configuration might be incomplete: "client_cert", "client_key" or "client_passphrase[_variable]" parameter is missing in config file'
                     )
             self.session.auth = (self.username, self.password)
 
@@ -358,14 +352,12 @@ class CAhandler(object):
         org_dic = self._organizations_get()
         if self.organization_name not in org_dic:
             error = f"Organization {self.organization_name} not found in Entrust API"
-            self.logger.error(
-                "CAhandler._organizations_check() ended with error: %s", error
-            )
+            self.logger.error("organizations check ended with error: %s", error)
         else:
             domain_list = self._domains_get(org_dic[self.organization_name])
             if not self.allowed_domainlist:
                 self.logger.info(
-                    "CAhandler._organizations_check(): allowed_domainlist is empty, using domains from Entrust API"
+                    "Allowed_domainlist is empty, using domains from Entrust API"
                 )
                 self.allowed_domainlist = domain_list
 
@@ -389,7 +381,9 @@ class CAhandler(object):
                 ):
                     org_dic[org["name"]] = org["clientId"]
         else:
-            self.logger.error("CAhandler._organizations_get(): malformed response")
+            self.logger.error(
+                "Malformed response while getting the organization list from API"
+            )
 
         self.logger.debug("CAhandler._organizations_get() ended with code: %s", code)
         return org_dic
@@ -410,7 +404,9 @@ class CAhandler(object):
                 ):
                     api_domain_list.append(domain.get("domainName"))
         else:
-            self.logger.error("CAhandler._domains_get(): malformed response")
+            self.logger.error(
+                "Malformed response while getting the domain list from API"
+            )
 
         self.logger.debug("CAhandler._domains_get() ended with code: %s", code)
         return api_domain_list
@@ -435,9 +431,7 @@ class CAhandler(object):
         for ele in ["api_url", "username", "password", "organization_name"]:
             if not getattr(self, ele):
                 error = f"{ele} parameter in missing in config file"
-                self.logger.error(
-                    "CAhandler._config_check() ended with error: %s", error
-                )
+                self.logger.error("Configuration check ended with error: %s", error)
                 break
 
         self.logger.debug("CAhandler._config_check() ended with: %s", error)
@@ -488,7 +482,7 @@ class CAhandler(object):
         if not tracking_id:
             # lookup through Entrust API
             self.logger.info(
-                "CAhandler._trackingid_get(): tracking_id not found in database. Lookup trough Entrust API"
+                "Tracking_id not found in database. Lookup trough Entrust API"
             )
             cert_serial = cert_serial_get(self.logger, cert_raw, hexformat=True)
             certificate_list = self._certificates_get_from_serial(cert_serial)
@@ -571,7 +565,7 @@ class CAhandler(object):
                 error = f"Error during order creation: {code} - {content['errors']}"
             else:
                 error = f"Error during order creation: {code} - {content}"
-            self.logger.error("CAhandler._enroll() failed with error: %s", error)
+            self.logger.error("Enrollment failed with error: %s", error)
 
         self.logger.debug("CAhandler._enroll() ended with code: %s", code)
         return error, cert_bundle, cert_raw, poll_indentifier
@@ -608,7 +602,7 @@ class CAhandler(object):
             total = content["summary"]["total"]  # get total number of certificates
         else:
             self.logger.error(
-                "CAhandler.certificates_get() failed did not get any total value: %s",
+                "Error while trying to get the certificate totals. Did not get any total value: %s",
                 content,
             )
             raise StopIteration(
@@ -651,14 +645,12 @@ class CAhandler(object):
                         prev_data = content["certificates"]
                         offset = offset + limit
                     else:
-                        self.logger.error(
-                            "CAhandler.certificates_get() failed to get new data"
+                        self.logger.info(
+                            "Could not get get new certificate data in loop. Stopping the loop."
                         )
                         break
             else:
-                self.logger.error(
-                    "CAhandler.certificates_get() failed with code: %s", code
-                )
+                self.logger.error("Getting certificate data failed with code: %s", code)
                 break
 
         self.logger.debug(

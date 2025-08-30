@@ -138,7 +138,9 @@ class CAhandler(object):
         try:
             db_result = dict_from_row(self.cursor.fetchone())
         except Exception:
-            self.logger.error("cert lookup failed: %s", self.cursor.fetchone())
+            self.logger.error(
+                "Certificate lookup in database failed: %s", self.cursor.fetchone()
+            )
             db_result = {}
         self._db_close()
 
@@ -154,8 +156,9 @@ class CAhandler(object):
                 ca_id = db_result["id"]
             except Exception as err_:
                 self.logger.error(
-                    "CAhandler._ca_cert_load() failed with error: %s", err_
+                    "Failed to load CA certificate from database: %s", err_
                 )
+
         return (ca_cert, ca_id)
 
     def _ca_key_load(self) -> object:
@@ -168,8 +171,8 @@ class CAhandler(object):
         self.cursor.execute(pre_statement, [self.issuing_ca_key])
         try:
             db_result = dict_from_row(self.cursor.fetchone())
-        except Exception as _err:
-            self.logger.error("key lookup failed: %s", self.cursor.fetchone())
+        except Exception as err:
+            self.logger.error("Failed to load CA private key from database: %s", err)
             db_result = {}
         self._db_close()
 
@@ -184,12 +187,10 @@ class CAhandler(object):
                 )
             except Exception as err_:
                 self.logger.error(
-                    "CAhandler._ca_key_load() failed with error: %s", err_
+                    "Failed to load CA private key from database: %s", err_
                 )
         else:
-            self.logger.error(
-                "CAhandler._ca_key_load() failed to load key: %s", db_result
-            )
+            self.logger.error("Failed to load CA private key: %s", db_result)
 
         self.logger.debug("CAhandler._ca_key_load() ended")
         return ca_key
@@ -258,15 +259,15 @@ class CAhandler(object):
                     self._db_close()
                 else:
                     self.logger.error(
-                        "CAhandler._cert_insert() aborted. wrong datatypes: %s",
+                        "Certificate insert aborted due to wrong datatypes: %s",
                         cert_dic,
                     )
             else:
                 self.logger.error(
-                    "CAhandler._cert_insert() aborted. dataset incomplete: %s", cert_dic
+                    "Certificate insert aborted due to incomplete dataset: %s", cert_dic
                 )
         else:
-            self.logger.error("CAhandler._cert_insert() aborted. dataset empty")
+            self.logger.error("Certificate insert aborted: dataset is empty")
 
         self.logger.debug("CAhandler._cert_insert() ended with row_id: %s", row_id)
         return row_id
@@ -289,8 +290,7 @@ class CAhandler(object):
             item_result = dict_from_row(self.cursor.fetchone())
         except Exception:
             self.logger.error(
-                "CAhandler._cert_search(): item search failed: %s",
-                self.cursor.fetchone(),
+                "Certificate item search in database failed: %s", self.cursor.fetchone()
             )
             item_result = {}
 
@@ -302,7 +302,7 @@ class CAhandler(object):
                 cert_result = dict_from_row(self.cursor.fetchone())
             except Exception:
                 self.logger.error(
-                    "CAhandler._cert_search(): cert search failed: item: %s", item_id
+                    "Certificate search in database failed for item: %s", item_id
                 )
 
         self._db_close()
@@ -316,7 +316,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._cert_subject_generate()")
 
         if not bool(req.subject):
-            self.logger.info("rewrite CN to %s", request_name)
+            self.logger.info("Rewrite CN to %s", request_name)
             subject = x509.Name(
                 [x509.NameAttribute(x509.NameOID.COMMON_NAME, request_name)]
             )
@@ -353,8 +353,8 @@ class CAhandler(object):
 
         # set cert_validity
         if "validity" in template_dic:
-            self.logger.info(
-                "take validity from template: %s", template_dic["validity"]
+            self.logger.debug(
+                "Take validity from template: %s", template_dic["validity"]
             )
             # take validity from template
             cert_validity = template_dic["validity"]
@@ -497,16 +497,14 @@ class CAhandler(object):
                 ]
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load() could not load passphrase_variable:%s",
+                    "Could not load passphrase_variable:%s",
                     err,
                 )
 
         if "passphrase" in config_dic["CAhandler"]:
             # overwrite passphrase specified in variable
             if self.passphrase:
-                self.logger.info(
-                    "CAhandler._config_load() overwrite passphrase_variable"
-                )
+                self.logger.info("Overwrite passphrase_variable")
             self.passphrase = config_dic.get("CAhandler", "passphrase")
 
         if "ca_cert_chain_list" in config_dic["CAhandler"]:
@@ -515,9 +513,7 @@ class CAhandler(object):
                     config_dic.get("CAhandler", "ca_cert_chain_list")
                 )
             except Exception:
-                self.logger.error(
-                    'CAhandler._config_load(): parameter "ca_cert_chain_list" cannot be loaded'
-                )
+                self.logger.error('Parameter "ca_cert_chain_list" cannot be loaded')
 
         # load allowed domainlist
         self.allowed_domainlist = config_allowed_domainlist_load(
@@ -585,14 +581,14 @@ class CAhandler(object):
                     self._db_close()
                 else:
                     self.logger.error(
-                        "CAhandler._csr_insert() aborted. wrong datatypes: %s", csr_dic
+                        "CSR insert aborted due to wrong datatypes: %s", csr_dic
                     )
             else:
                 self.logger.error(
-                    "CAhandler._csr_insert() aborted. dataset incomplete: %s", csr_dic
+                    "CSR insert aborted due to incomplete dataset: %s", csr_dic
                 )
         else:
-            self.logger.error("CAhandler._csr_insert() aborted. dataset empty")
+            self.logger.error("CSR insert aborted: dataset is empty")
 
         self.logger.debug("CAhandler._csr_insert() ended with row_id: %s", row_id)
         return row_id
@@ -638,7 +634,7 @@ class CAhandler(object):
             or int(oct_perm[2]) > int(self.xdb_permission[2])
         ):
             self.logger.warning(
-                "permissions %s for %s are to wide. Should be %s",
+                "File permissions %s for '%s' are too permissive. Should be %s.",
                 oct_perm,
                 self.xdb_file,
                 self.xdb_permission,
@@ -695,7 +691,7 @@ class CAhandler(object):
                     ekuc = bool(int(template_dic["ekuCritical"]))
                 except Exception:
                     self.logger.error(
-                        "CAhandler._extended_keyusage_generate(): convert to int failed defaulting ekuc to False"
+                        "Failed to convert EKU critical flag to int, defaulting to False"
                     )
                     ekuc = False
             else:
@@ -785,7 +781,7 @@ class CAhandler(object):
         # add subjectAltName(s)
         if "subjectAltName" in csr_extensions_dic:
             # pylint: disable=C2801
-            self.logger.info(
+            self.logger.debug(
                 "CAhandler._extension_list_generate(): adding subAltNames: %s",
                 csr_extensions_dic["subjectAltName"].__str__(),
             )
@@ -824,9 +820,7 @@ class CAhandler(object):
             columnname_list = self._columnnames_get(table)
             result = True if identifier in columnname_list else False
         else:
-            self.logger.warning(
-                "CAhandler._identifier_check(): table %s does not exist", table
-            )
+            self.logger.warning("Table '%s' does not exist in the database.", table)
             result = False
 
         self.logger.debug("CAhandler._identifier_check() ended with: %s", result)
@@ -859,15 +853,14 @@ class CAhandler(object):
                     self._db_close()
                 else:
                     self.logger.error(
-                        "CAhandler._insert_insert() aborted. wrong datatypes: %s",
-                        item_dic,
+                        "Item insert aborted due to wrong datatypes: %s", item_dic
                     )
             else:
                 self.logger.error(
-                    "CAhandler._item_insert() aborted. dataset incomplete: %s", item_dic
+                    "Item insert aborted due to incomplete dataset: %s", item_dic
                 )
         else:
-            self.logger.error("CAhandler._insert_insert() aborted. dataset empty")
+            self.logger.error("Item insert aborted: dataset is empty")
 
         self.logger.debug("CAhandler._item_insert() ended with row_id: %s", row_id)
         return row_id
@@ -906,21 +899,21 @@ class CAhandler(object):
                 kuval = int(kuval)
             except Exception:
                 self.logger.error(
-                    "CAhandler._kue_generate(): convert to int failed defaulting ku_val to 0"
+                    "Keyusage value conversion to int failed, defaulting to 0"
                 )
                 kuval = 0
 
         if kuval:
             # we have a key-usage value from template
-            self.logger.info("CAhandler._kue_generate() with data from template")
+            self.logger.debug("Generate KeyUsage Extension with data from template")
             ku_dic = self._ku_dict_generate(kuval)
         elif ku_csr:
             # no data from template but data from csr
-            self.logger.info("CAhandler._kue_generate() with data from csr")
+            self.logger.debug("Generate KeyUsage Extension with data from csr")
             ku_dic = ku_csr
         else:
             # no data from template no data from csr - default (23)
-            self.logger.info("CAhandler._kue_generate() with 23")
+            self.logger.debug("Generate KeyUsage Extension with value 23")
             ku_dic = self._ku_dict_generate(23)
 
         self.logger.debug("CAhandler._kue_generate() ended with: %s", ku_dic)
@@ -995,8 +988,7 @@ class CAhandler(object):
                 ].split(":")
             except Exception:
                 self.logger.error(
-                    "ERROR: CAhandler._request_name_get(): SAN split failed: %s",
-                    san_list,
+                    "Failed to split SAN from CSR subjectAltName: %s", san_list
                 )
 
         self.logger.debug("CAhandler._requestname_get() ended with: %s", request_name)
@@ -1024,16 +1016,14 @@ class CAhandler(object):
                     self._db_close()
                 else:
                     self.logger.error(
-                        "CAhandler._revocation_insert() aborted. wrong datatypes: %s",
-                        rev_dic,
+                        "Revocation insert aborted due to wrong datatypes: %s", rev_dic
                     )
             else:
                 self.logger.error(
-                    "CAhandler._revocation_insert() aborted. dataset incomplete: %s",
-                    rev_dic,
+                    "Revocation insert aborted due to incomplete dataset: %s", rev_dic
                 )
         else:
-            self.logger.error("CAhandler._revocation_insert() aborted. dataset empty")
+            self.logger.error("Revocation insert aborted: dataset is empty")
 
         self.logger.debug(
             "CAhandler._revocation_insert() ended with row_id: %s", row_id
@@ -1174,7 +1164,7 @@ class CAhandler(object):
         subject_name_list = []
 
         if "organizationalUnitName" in dn_dic and dn_dic["organizationalUnitName"]:
-            self.logger.info("rewrite OU to %s", dn_dic["organizationalUnitName"])
+            self.logger.info("Rewrite OU to %s", dn_dic["organizationalUnitName"])
             subject_name_list.append(
                 x509.NameAttribute(
                     x509.NameOID.ORGANIZATIONAL_UNIT_NAME,
@@ -1182,26 +1172,26 @@ class CAhandler(object):
                 )
             )
         if "organizationName" in dn_dic and dn_dic["organizationName"]:
-            self.logger.info("rewrite O to %s", dn_dic["organizationName"])
+            self.logger.info("Rewrite O to %s", dn_dic["organizationName"])
             subject_name_list.append(
                 x509.NameAttribute(
                     x509.NameOID.ORGANIZATION_NAME, dn_dic["organizationName"]
                 )
             )
         if "localityName" in dn_dic and dn_dic["localityName"]:
-            self.logger.info("rewrite L to %s", dn_dic["localityName"])
+            self.logger.info("Rewrite L to %s", dn_dic["localityName"])
             subject_name_list.append(
                 x509.NameAttribute(x509.NameOID.LOCALITY_NAME, dn_dic["localityName"])
             )
         if "stateOrProvinceName" in dn_dic and dn_dic["stateOrProvinceName"]:
-            self.logger.info("rewrite ST to %s", dn_dic["stateOrProvinceName"])
+            self.logger.info("Rewrite ST to %s", dn_dic["stateOrProvinceName"])
             subject_name_list.append(
                 x509.NameAttribute(
                     x509.NameOID.STATE_OR_PROVINCE_NAME, dn_dic["stateOrProvinceName"]
                 )
             )
         if "countryName" in dn_dic and dn_dic["countryName"]:
-            self.logger.info("rewrite C to %s", dn_dic["countryName"])
+            self.logger.info("Rewrite C to %s", dn_dic["countryName"])
             subject_name_list.append(
                 x509.NameAttribute(x509.NameOID.COUNTRY_NAME, dn_dic["countryName"])
             )
@@ -1292,7 +1282,7 @@ class CAhandler(object):
                     ele = ele[1:]
                 if ele == b"eKeyUse\xff\xff\xff\xff":
                     self.logger.info(
-                        "_utf_stream_parse(): hack to skip template with empty eku - maybe a bug in xca..."
+                        "Hack to skip template with empty eku - maybe a bug in xca..."
                     )
                 else:
                     parameter_list.append(ele.decode("utf-8"))

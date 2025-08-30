@@ -99,7 +99,7 @@ class TestACMEHandler(unittest.TestCase):
                 ("status_code", "ex_json"), self.cahandler._api_post("url", "data")
             )
         self.assertIn(
-            "ERROR:test_a2c:request_operation returned error during json parsing: ex_json",
+            "ERROR:test_a2c:Request_operation returned error during json parsing: ex_json",
             lcm.output,
         )
 
@@ -124,7 +124,7 @@ class TestACMEHandler(unittest.TestCase):
                 (500, "exc_api_post"), self.cahandler._api_post("url", "data")
             )
         self.assertIn(
-            "ERROR:test_a2c:request_operation returned error: exc_api_post", lcm.output
+            "ERROR:test_a2c:Request_operation returned error: exc_api_post", lcm.output
         )
 
     def test_010__api_get(self):
@@ -152,7 +152,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(("status_code", "ex_json"), self.cahandler._api_get("url"))
         self.assertIn(
-            "ERROR:test_a2c:request_operation returned error during json parsing: ex_json",
+            "ERROR:test_a2c:Request_operation returned error during json parsing: ex_json",
             lcm.output,
         )
 
@@ -164,7 +164,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((500, "exc_api_get"), self.cahandler._api_get("url"))
         self.assertIn(
-            "ERROR:test_a2c:request_operation returned error: exc_api_get", lcm.output
+            "ERROR:test_a2c:Request_operation returned error: exc_api_get", lcm.output
         )
 
     def test_013__api_put(self):
@@ -195,7 +195,7 @@ class TestACMEHandler(unittest.TestCase):
                 ("status_code", "ex_json"), self.cahandler._api_put("url", "data")
             )
         self.assertIn(
-            "ERROR:test_a2c:request_operation returned error during json parsing: ex_json",
+            "ERROR:test_a2c:Request_operation returned error during json parsing: ex_json",
             lcm.output,
         )
 
@@ -220,7 +220,7 @@ class TestACMEHandler(unittest.TestCase):
                 (500, "exc_api_put"), self.cahandler._api_put("url", "data")
             )
         self.assertIn(
-            "ERROR:test_a2c:request_operation returned error: exc_api_put", lcm.output
+            "ERROR:test_a2c:Request_operation returned error: exc_api_put", lcm.output
         )
 
     @patch("examples.ca_handler.entrust_ca_handler.CAhandler._api_get")
@@ -238,7 +238,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._certificates_get_from_serial("serial"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._certificates_get_from_serial() for serial failed with code: 300",
+            "ERROR:test_a2c:Certificate lookup based on serial number failed for serial with code: 300",
             lcm.output,
         )
 
@@ -249,7 +249,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._certificates_get_from_serial("serial"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._certificates_get_from_serial() for serial failed with code: 200",
+            "ERROR:test_a2c:Certificate lookup based on serial number failed for serial with code: 200",
             lcm.output,
         )
 
@@ -262,7 +262,7 @@ class TestACMEHandler(unittest.TestCase):
                 ["foo", "bar"], self.cahandler._certificates_get_from_serial("0serial")
             )
         self.assertIn(
-            "INFO:test_a2c:CAhandler._certificates_get_from_serial() remove leading zeros from serial number",
+            "INFO:test_a2c:Remove leading zeros from serial number",
             lcm.output,
         )
 
@@ -413,7 +413,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): failed to parse request_timeout invalid literal for int() with base 10: 'aa'",
+            "ERROR:test_a2c:Failed to parse request_timeout parameter: invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertTrue(mock_session.called)
@@ -484,7 +484,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): failed to parse cert_validity_days invalid literal for int() with base 10: 'aa'",
+            "ERROR:test_a2c:Failed to parse cert_validity_days invalid literal for int() with base 10: 'aa' parameter",
             lcm.output,
         )
         self.assertTrue(mock_session.called)
@@ -720,7 +720,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_passphrase_load(parser)
         self.assertFalse(self.cahandler.cert_passphrase)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_passphrase_load() could not load cert_passphrase_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load cert_passphrase_variable:'does_not_exist'",
             lcm.output,
         )
 
@@ -735,7 +735,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_passphrase_load(parser)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite cert_passphrase",
+            "INFO:test_a2c:Overwrite cert_passphrase",
             lcm.output,
         )
         self.assertEqual("cert_passphrase", self.cahandler.cert_passphrase)
@@ -760,7 +760,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_root_load(parser)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_root_load(): root CA file configured but not not found. Using default one.",
+            "ERROR:test_a2c:Root CA file configured but not not found. Using default one.",
             lcm.output,
         )
         self.assertIn("290IENlcnRpZmljYXRpb24g", self.cahandler.entrust_root_cert)
@@ -810,7 +810,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_sl.called)
         self.assertTrue(self.cahandler.session)
         self.assertIn(
-            'WARNING:test_a2c:CAhandler._config_load() configuration might be incomplete: "client_cert. "client_key" or "client_passphrase[_variable] parameter is missing in config file',
+            'WARNING:test_a2c:Configuration might be incomplete: "client_cert", "client_key" or "client_passphrase[_variable]" parameter is missing in config file',
             lcm.output,
         )
         self.assertFalse(mock_pkcs12.called)
@@ -889,7 +889,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._organizations_get()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._organizations_get(): malformed response",
+            "ERROR:test_a2c:Malformed response while getting the organization list from API",
             lcm.output,
         )
 
@@ -952,7 +952,8 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._domains_get(1)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._domains_get(): malformed response", lcm.output
+            "ERROR:test_a2c:Malformed response while getting the domain list from API",
+            lcm.output,
         )
 
     @patch("examples.ca_handler.entrust_ca_handler.CAhandler._api_get")
@@ -1047,7 +1048,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_check()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_check() ended with error: api_url parameter in missing in config file",
+            "ERROR:test_a2c:Configuration check ended with error: api_url parameter in missing in config file",
             lcm.output,
         )
 
@@ -1057,7 +1058,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_check()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_check() ended with error: username parameter in missing in config file",
+            "ERROR:test_a2c:Configuration check ended with error: username parameter in missing in config file",
             lcm.output,
         )
 
@@ -1068,7 +1069,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_check()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_check() ended with error: password parameter in missing in config file",
+            "ERROR:test_a2c:Configuration check ended with error: password parameter in missing in config file",
             lcm.output,
         )
 
@@ -1080,7 +1081,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_check()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_check() ended with error: organization_name parameter in missing in config file",
+            "ERROR:test_a2c:Configuration check ended with error: organization_name parameter in missing in config file",
             lcm.output,
         )
 
@@ -1501,7 +1502,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler.certificates_get())
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.certificates_get() failed with code: 500",
+            "ERROR:test_a2c:Getting certificate data failed with code: 500",
             lcm.output,
         )
 
@@ -1573,7 +1574,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.certificates_get() failed to get new data",
+            "INFO:test_a2c:Could not get get new certificate data in loop. Stopping the loop.",
             lcm.output,
         )
 
