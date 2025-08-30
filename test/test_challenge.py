@@ -1131,7 +1131,7 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual((False, True), self.challenge._check("name", "payload"))
         self.assertFalse(mock_chall.called)
         self.assertIn(
-            'ERROR:test_a2c:unknown challenge type "tkauth-01". Setting check result to False',
+            'ERROR:test_a2c:Unknown challenge type "tkauth-01". Setting check result to False',
             lcm.output,
         )
 
@@ -1346,7 +1346,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._challengelist_search("key", "value")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._challengelist_search(): exc_chall_search",
+            "CRITICAL:test_a2c:Database error: failed to search for challenges: exc_chall_search",
             lcm.output,
         )
 
@@ -1362,7 +1362,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._check("name", "payload")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._check() jwk: exc_jkw_load",
+            "CRITICAL:test_a2c:Database error: could not get jwk: exc_jkw_load",
             lcm.output,
         )
 
@@ -1380,7 +1380,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._check("name", "payload")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._check() lookup: exc_chall_chk",
+            "CRITICAL:test_a2c:Database error: failed to lookup challenge during challenge check:'name': exc_chall_chk",
             lcm.output,
         )
 
@@ -1392,17 +1392,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._info("name")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._info(): exc_chall_info",
-            lcm.output,
-        )
-
-    def test_075_challenge__new(self):
-        """test Challenge._new - dbstore.challenge_add() raises an exception"""
-        self.challenge.dbstore.challenge_add.side_effect = Exception("exc_chall_add")
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.challenge._new("authz_name", "mtype", "token", "value")
-        self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._new(): exc_chall_add, value:mtype",
+            "CRITICAL:test_a2c:Database error: failed to lookup challenge: 'name': exc_chall_info",
             lcm.output,
         )
 
@@ -1412,7 +1402,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._update({"foo": "bar"})
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._update(): exc_chall_upd",
+            "CRITICAL:test_a2c:Database error: failed to update challenge: exc_chall_upd",
             lcm.output,
         )
 
@@ -1438,7 +1428,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._update_authz("name", {"foo": "bar"})
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._update_authz() upd: exc_chall_autz_upd",
+            "CRITICAL:test_a2c:Database error: failed to update authorization for challenge: exc_chall_autz_upd",
             lcm.output,
         )
 
@@ -1450,7 +1440,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._update_authz("name", {"foo": "bar"})
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._update_authz() lookup: exc_chall_lookup_foo",
+            "CRITICAL:test_a2c:Database error: failed to lookup authorization for challenge 'name': exc_chall_lookup_foo",
             lcm.output,
         )
 
@@ -1684,6 +1674,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_098_config_load(self, mock_load_cfg):
@@ -1698,6 +1689,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_099_config_load(self, mock_load_cfg):
@@ -1712,6 +1704,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_100_config_load(self, mock_load_cfg):
@@ -1726,6 +1719,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_101_config_load(self, mock_load_cfg):
@@ -1740,6 +1734,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_102_config_load(self, mock_load_cfg):
@@ -1754,6 +1749,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_103_config_load(self, mock_load_cfg):
@@ -1768,6 +1764,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("json.loads")
     @patch("acme_srv.challenge.load_config")
@@ -1780,7 +1777,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._config_load()
         self.assertIn(
-            "WARNING:test_a2c:Challenge._config_load() dns_server_list failed with error: exc_mock_json",
+            "WARNING:test_a2c:Failed to load dns_server_list from configuration: exc_mock_json",
             lcm.output,
         )
         self.assertFalse(self.challenge.challenge_validation_disable)
@@ -1789,6 +1786,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_105_config_load(self, mock_load_cfg):
@@ -1810,6 +1808,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_106_config_load(self, mock_load_cfg):
@@ -1828,6 +1827,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_107_config_load(self, mock_load_cfg):
@@ -1847,6 +1847,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("json.loads")
     @patch("acme_srv.challenge.load_config")
@@ -1861,7 +1862,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._config_load()
         self.assertIn(
-            "WARNING:test_a2c:Challenge._config_load() proxy_server_list failed with error: exc_mock_json",
+            "WARNING:test_a2c:Failed to load proxy_server_list from configuration: exc_mock_json",
             lcm.output,
         )
         self.assertFalse(self.challenge.challenge_validation_disable)
@@ -1870,6 +1871,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_109_config_load(self, mock_load_cfg):
@@ -1884,6 +1886,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(5, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_110_config_load(self, mock_load_cfg):
@@ -1894,7 +1897,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._config_load()
         self.assertIn(
-            "WARNING:test_a2c:Challenge._config_load() failed to load challenge_validation_timeout: invalid literal for int() with base 10: 'AA'",
+            "WARNING:test_a2c:Failed to parse challenge_validation_timeout from configuration: invalid literal for int() with base 10: 'AA'",
             lcm.output,
         )
         self.assertFalse(self.challenge.challenge_validation_disable)
@@ -1903,6 +1906,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_111_config_load(self, mock_load_cfg):
@@ -1917,6 +1921,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_112_config_load(self, mock_load_cfg):
@@ -1931,6 +1936,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_113_config_load(self, mock_load_cfg):
@@ -1945,6 +1951,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(20, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_114_config_load(self, mock_load_cfg):
@@ -1955,7 +1962,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.challenge._config_load()
         self.assertIn(
-            "WARNING:test_a2c:Challenge._config_load() failed to load dns_validation_pause_timer: invalid literal for int() with base 10: 'aa'",
+            "WARNING:test_a2c:Failed to parse dns_validation_pause_timer from configuration: invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertFalse(self.challenge.challenge_validation_disable)
@@ -1964,6 +1971,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.source_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_115_config_load(self, mock_load_cfg):
@@ -2070,7 +2078,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:CHALLENGE VALIDATION DISABLED. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -2152,7 +2160,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:CHALLENGE VALIDATION DISABLED. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -2187,7 +2195,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:CHALLENGE VALIDATION DISABLED. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -2383,7 +2391,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.challenge._cvd_via_eabprofile_check("challenge_name"))
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Challenge._cvd_via_eabprofile_check(): exc_chall_info",
+            "CRITICAL:test_a2c:Database error: failed to lookup challenge during profile check:'challenge_name': exc_chall_info",
             lcm.output,
         )
 
@@ -2936,6 +2944,45 @@ class TestACMEHandler(unittest.TestCase):
             'ERROR:test_a2c:Unknown challenge type "unknown-type". Setting check result to False',
             lcm.output,
         )
+
+    def test_176_email_identifier_support_disabled(self):
+        """Should return False if email_identifier_support is False"""
+        # self.challenge.email_identifier_support = False
+        self.assertFalse(
+            self.challenge._email_reply_challenge_create("email", "user@example.com")
+        )
+        self.assertFalse(
+            self.challenge._email_reply_challenge_create("dns", "user@example.com")
+        )
+
+    def test_177_id_type_email(self):
+        """Should return True if id_type is 'email' and support enabled"""
+        self.challenge.email_identifier_support = True
+        self.assertTrue(
+            self.challenge._email_reply_challenge_create("email", "user@example.com")
+        )
+
+    def test_178_id_type_dns_with_at(self):
+        """Should return True if id_type is 'dns' and value contains '@'"""
+        self.challenge.email_identifier_support = True
+        self.assertTrue(
+            self.challenge._email_reply_challenge_create("dns", "user@example.com")
+        )
+
+    def test_179_id_type_dns_without_at(self):
+        """Should return False if id_type is 'dns' and value does not contain '@'"""
+        self.challenge.email_identifier_support = True
+        self.assertFalse(
+            self.challenge._email_reply_challenge_create("dns", "example.com")
+        )
+
+    def test_180_id_type_other(self):
+        """Should return False for other id_types"""
+        self.challenge.email_identifier_support = True
+        self.assertFalse(
+            self.challenge._email_reply_challenge_create("ip", "192.0.2.1")
+        )
+        self.assertFalse(self.challenge._email_reply_challenge_create("other", "foo"))
 
 
 if __name__ == "__main__":

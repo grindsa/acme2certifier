@@ -4,6 +4,7 @@
 from __future__ import print_function
 import json
 import time
+import re
 from typing import List, Tuple, Dict
 from acme_srv.helper import (
     b64_encode,
@@ -11,6 +12,7 @@ from acme_srv.helper import (
     cert_extensions_get,
     cert_san_get,
     config_eab_profile_load,
+    convert_byte_to_string,
     error_dic_get,
     fqdn_in_san_check,
     fqdn_resolve,
@@ -42,6 +44,7 @@ class Challenge(object):
         debug: bool = False,
         srv_name: str = None,
         logger: object = None,
+        source: str = None,
         expiry: int = 3600,
     ):
         self.challenge_validation_disable = False
@@ -56,12 +59,14 @@ class Challenge(object):
         self.proxy_server_list = {}
         self.sectigo_sim = False
         self.server_name = srv_name
+        self.source_address = source
         self.tnauthlist_support = False
         self.email_identifier_support = False
         self.email_address = None
         self.dbstore = DBstore(debug, self.logger)
         self.err_msg_dic = error_dic_get(self.logger)
         self.message = Message(debug, self.server_name, self.logger)
+        self.source_address_check = False
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -84,8 +89,7 @@ class Challenge(object):
             challenge_list = self.dbstore.challenges_search(key, value, vlist)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._challengelist_search(): %s",
-                err_,
+                "Database error: failed to search for challenges: %s", err_
             )
             challenge_list = []
 
@@ -160,9 +164,17 @@ class Challenge(object):
                 jwk_thumbprint,
                 payload,
             )
+        elif challenge_dic["type"] == "email-reply-00":
+            (result, invalid) = self._validate_email_reply_challenge(
+                challenge_name,
+                challenge_dic["authorization__type"],
+                challenge_dic["authorization__value"],
+                challenge_dic["token"],
+                jwk_thumbprint,
+            )
         else:
             self.logger.error(
-                'unknown challenge type "%s". Setting check result to False',
+                'Unknown challenge type "%s". Setting check result to False',
                 challenge_dic["type"],
             )
             result = False
@@ -185,6 +197,8 @@ class Challenge(object):
 
         jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
 
+        challenge_pause_list = ["dns-01", "email-reply-00"]
+
         for _ele in range(0, 5):
 
             result, invalid = self._challenge_validate_loop(
@@ -194,7 +208,7 @@ class Challenge(object):
             if result or invalid:
                 # break loop if we got any good or bad response
                 break
-            elif challenge_dic["type"] == "dns-01" and jwk_thumbprint:
+            elif challenge_dic["type"] in challenge_pause_list and jwk_thumbprint:
                 # sleep for a while before we try again
                 time.sleep(self.dns_validation_pause_timer)
 
@@ -224,7 +238,9 @@ class Challenge(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._check() lookup: %s", err_
+                "Database error: failed to lookup challenge during challenge check:'%s': %s",
+                challenge_name,
+                err_,
             )
             challenge_dic = {}
 
@@ -239,9 +255,7 @@ class Challenge(object):
                     challenge_dic["authorization__order__account__name"]
                 )
             except Exception as err_:
-                self.logger.critical(
-                    "acme2certifier database error in Challenge._check() jwk: %s", err_
-                )
+                self.logger.critical("Database error: could not get jwk: %s", err_)
                 pub_key = None
 
             if pub_key:
@@ -281,7 +295,9 @@ class Challenge(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._info(): %s", err_
+                "Database error: failed to lookup challenge: '%s': %s",
+                challenge_name,
+                err_,
             )
             challenge_dic = {}
 
@@ -317,7 +333,7 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() proxy_server_list failed with error: %s",
+                    "Failed to load proxy_server_list from configuration: %s",
                     err_,
                 )
 
@@ -334,7 +350,7 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() dns_server_list failed with error: %s",
+                    "Failed to load dns_server_list from configuration: %s",
                     err_,
                 )
         if (
@@ -347,7 +363,7 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() failed to load dns_validation_pause_timer: %s",
+                    "Failed to parse dns_validation_pause_timer from configuration: %s",
                     err_,
                 )
 
@@ -360,6 +376,9 @@ class Challenge(object):
         if "Challenge" in config_dic:
             self.challenge_validation_disable = config_dic.getboolean(
                 "Challenge", "challenge_validation_disable", fallback=False
+            )
+            self.source_address_check = config_dic.getboolean(
+                "Challenge", "source_address_check", fallback=False
             )
             self.sectigo_sim = config_dic.getboolean(
                 "Challenge", "sectigo_sim", fallback=False
@@ -374,7 +393,7 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() failed to load challenge_validation_timeout: %s",
+                    "Failed to parse challenge_validation_timeout from configuration: %s",
                     err_,
                 )
 
@@ -441,7 +460,8 @@ class Challenge(object):
                 )
             except Exception as err_:
                 self.logger.critical(
-                    "acme2certifier database error in Challenge._cvd_via_eabprofile_check(): %s",
+                    "Database error: failed to lookup challenge during profile check:'%s': %s",
+                    challenge_name,
                     err_,
                 )
                 challenge_dic = {}
@@ -509,13 +529,16 @@ class Challenge(object):
         """send challenge email"""
         self.logger.debug("Challenge._email_send(%s)", to_address)
         message_text = f"""
-  This is an automatically generated ACME challenge for email address
-  "{to_address}". If you haven't requested an S/MIME
-  certificate generation for this email address, be very afraid.
-  If you did request it, your email client might be able to process
-  this request automatically, or you might have to paste the first
-  token part into an external program.
-"""
+  This is an automatically generated ACME challenge for the email address
+  "{to_address}". If you did not request an S/MIME certificate for this
+  address, please disregard this message and consider taking appropriate
+  security precautions.
+
+  If you did initiate the request, your email client may be able to process
+  this challenge automatically. Alternatively, you may need to manually
+  copy the first token and paste it into the designated verification tool
+  or application."""
+
         with EmailHandler(logger=self.logger) as email_handler:
             email_handler.send(
                 to_address=to_address, subject=f"ACME: {token1}", message=message_text
@@ -539,9 +562,9 @@ class Challenge(object):
         }
 
         if mtype == "email-reply-00":
-            token1 = data_dic["keyauthorization"] = generate_random_string(
-                self.logger, 12
-            )
+            token1 = generate_random_string(self.logger, 32)
+            self.logger.debug("Challenge._new(): generated token1: %s", token1)
+            data_dic["keyauthorization"] = token1
             self._email_send(to_address=value, token1=token1)
 
         elif mtype == "sectigo-email-01":
@@ -551,7 +574,7 @@ class Challenge(object):
             chid = self.dbstore.challenge_add(value, mtype, data_dic)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._new(): %s, %s:%s",
+                "Database error: failed to add new challenge: %s, value: %s, type: %s",
                 err_,
                 value,
                 mtype,
@@ -681,7 +704,14 @@ class Challenge(object):
                     response_list,
                     invalid,
                 )
-                if response_list and self.source_address in response_list:
+                if invalid:
+                    self.logger.debug(
+                        "Challenge._source_address_check(): fqdn resolve give: invalid address check failed for %s",
+                        self.source_address,
+                    )
+                    challenge_check = False
+                    invalid = True
+                elif response_list and self.source_address in response_list:
                     self.logger.debug(
                         "Challenge._source_address_check(): Source address check passed for %s ",
                         self.source_address,
@@ -710,9 +740,7 @@ class Challenge(object):
         try:
             self.dbstore.challenge_update(data_dic)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Challenge._update(): %s", err_
-            )
+            self.logger.critical("Database error: failed to update challenge: %s", err_)
         self.logger.debug("Challenge._update() ended")
 
     def _update_authz(self, challenge_name: str, data_dic: Dict[str, str]):
@@ -725,7 +753,8 @@ class Challenge(object):
             )["authorization"]
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._update_authz() lookup: %s",
+                "Database error: failed to lookup authorization for challenge '%s': %s",
+                challenge_name,
                 err_,
             )
             authz_name = None
@@ -737,8 +766,7 @@ class Challenge(object):
             self.dbstore.authorization_update(data_dic)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Challenge._update_authz() upd: %s",
-                err_,
+                "Database error: failed to update authorization for challenge: %s", err_
             )
 
         self.logger.debug("Challenge._update_authz() ended")
@@ -760,24 +788,44 @@ class Challenge(object):
         ):
             if self.challenge_validation_disable:
                 self.logger.warning(
-                    "CHALLENGE VALIDATION DISABLED. Setting challenge status to valid."
+                    "Challenge validation is globally disabled. Setting challenge status to valid."
                 )
             else:
                 self.logger.info(
                     "Challenge validation disabled via eab profile. Setting challenge status to valid."
                 )
-            challenge_check = True
-            invalid = False
+
+            if self.source_address_check:
+                challenge_check, invalid = self._source_address_check(challenge_name)
+                self.logger.info(
+                    "Challenge._validate(): validate source_ip: %s ended with: %s",
+                    self.source_address,
+                    challenge_check,
+                )
+            else:
+                challenge_check = True
+                invalid = False
         else:
             (challenge_check, invalid) = self._check(challenge_name, payload)
 
         if invalid:
-            self._update({"name": challenge_name, "status": "invalid"})
+            self._update(
+                {
+                    "name": challenge_name,
+                    "status": "invalid",
+                    "source": self.source_address,
+                }
+            )
             # authorization update to valid state
             self._update_authz(challenge_name, {"status": "invalid"})
         elif challenge_check:
             self._update(
-                {"name": challenge_name, "status": "valid", "validated": uts_now()}
+                {
+                    "name": challenge_name,
+                    "status": "valid",
+                    "source": self.source_address,
+                    "validated": uts_now(),
+                }
             )
             # authorization update to valid state
             self._update_authz(challenge_name, {"status": "valid"})
@@ -811,7 +859,9 @@ class Challenge(object):
 
         if id_type == "dns":
             # resolve name
-            (response, invalid) = fqdn_resolve(id_value, self.dns_server_list)
+            (response, invalid) = fqdn_resolve(
+                self.logger, id_value, self.dns_server_list
+            )
             self.logger.debug("fqdn_resolve() ended with: %s/%s", response, invalid)
             sni = id_value
         elif id_type == "ip":
@@ -933,7 +983,7 @@ class Challenge(object):
         if body:
             # extract keyauthorization from email body
             match = re.search(
-                r"-+BEGIN ACME RESPONSE-+\s*([\w\-_=+/]+)\s*-+END ACME RESPONSE-+",
+                r"-+BEGIN ACME RESPONSE-+\s*([\w=+/ -]+)\s*-+END ACME RESPONSE-+",
                 body,
                 re.DOTALL,
             )
@@ -966,6 +1016,53 @@ class Challenge(object):
                 email_data.get("subject", ""),
             )
             return None
+
+    def _email_reply_challenge_create(self, id_type: str, value: str) -> bool:
+        """Determine if an email-reply challenge should be created."""
+        self.logger.debug("Challenge._email_reply_create(%s)", id_type)
+        if not self.email_identifier_support:
+            return False
+        if id_type == "email":
+            self.logger.debug(
+                "Challenge._email_reply_challenge_create(): create email-reply-00 challenge (id_type=email)"
+            )
+            return True
+        if id_type == "dns" and value and "@" in value:
+            self.logger.debug(
+                "Challenge._email_reply_challenge_create(): create email-reply-00 challenge (dns with @)"
+            )
+            return True
+        self.logger.debug("Challenge._email_reply_challenge_create() ended.")
+        return False
+
+    def _standard_challenges_create(
+        self, authz_name: str, token: str, id_type: str, value: str
+    ) -> List[Dict[str, str]]:
+        """Create standard challenge types (http-01, dns-01, tls-alpn-01)."""
+        self.logger.debug(
+            "Challenge._standard_challenges_create(%s, %s)", authz_name, id_type
+        )
+        challenge_type_list = ["http-01", "dns-01", "tls-alpn-01"]
+        if id_type == "ip":
+            self.logger.debug(
+                "Challenge.ne_standard_challenges_createw_set(): skip dns-01 challenge()"
+            )
+            challenge_type_list.remove("dns-01")
+
+        challenges = []
+        for challenge_type in challenge_type_list:
+            challenge_json = self._new(
+                authz_name=authz_name,
+                mtype=challenge_type,
+                token=token,
+                value=value,
+            )
+            if challenge_json:
+                challenges.append(challenge_json)
+            else:
+                self.logger.error("Empty challenge returned for %s", challenge_type)
+        self.logger.debug("Challenge._standard_challenges_create() ended")
+        return challenges
 
     def _validate_email_reply_challenge(
         self,
@@ -1038,7 +1135,9 @@ class Challenge(object):
 
         if id_type == "dns":
             # resolve name
-            (response, invalid) = fqdn_resolve(id_value, self.dns_server_list)
+            (response, invalid) = fqdn_resolve(
+                self.logger, id_value, self.dns_server_list
+            )
             self.logger.debug("fqdn_resolve() ended with: %s/%s", response, invalid)
         elif id_type == "ip":
             invalid = False
@@ -1216,19 +1315,13 @@ class Challenge(object):
         id_type: str = "dns",
         value: str = None,
     ) -> List[str]:
-        """net challenge set"""
+        """create a new challenge set"""
         self.logger.debug("Challenge.new_set(%s, %s)", authz_name, value)
 
         challenge_list = []
 
-        # check if we need to create a email-reply challenge
-        email_reply = False
-        if self.email_identifier_support:
-            if id_type == "email" or (id_type == "dns" and "@" in value):
-                email_reply = True
-                self.logger.debug(
-                    "Challenge.new_set(): create email-reply-00 challenge"
-                )
+        # Determine if we need to create an email-reply challenge
+        email_reply = self._email_reply_challenge_create(id_type, value)
 
         if tnauth:
             challenge_list.append(
@@ -1248,25 +1341,9 @@ class Challenge(object):
                 )
             )
         else:
-            challenge_type_list = ["http-01", "dns-01", "tls-alpn-01"]
-            # remove dns challnge for ip-addresses
-            if id_type == "ip":
-                self.logger.debug("Challenge.new_set(): skip dns-01 challenge()")
-                challenge_type_list.pop(1)
-
-            for challenge_type in challenge_type_list:
-                challenge_json = self._new(
-                    authz_name=authz_name,
-                    mtype=challenge_type,
-                    token=token,
-                    value=value,
-                )
-                if challenge_json:
-                    challenge_list.append(challenge_json)
-                else:
-                    self.logger.error(
-                        "ERROR: Empty challenge returned for %s", challenge_type
-                    )
+            challenge_list.extend(
+                self._standard_challenges_create(authz_name, token, id_type, value)
+            )
 
         self.logger.debug("Challenge._new_set returned (%s)", challenge_list)
         return challenge_list
