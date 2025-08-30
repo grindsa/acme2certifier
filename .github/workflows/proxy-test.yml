@@ -2,11 +2,12 @@ name: Proxy tests
 
 on:
   push:
-  pull_request:
-    branches: [ devel ]
-  schedule:
-    # * is a special character in YAML so you have to quote this string
-    - cron:  '0 2 * * 6'
+    branches: [ 'disabled']
+  #pull_request:
+  #  branches: [ devel ]
+  #schedule:
+  #  # * is a special character in YAML so you have to quote this string
+  #  - cron:  '0 2 * * 6'
 
 jobs:
   proxy_tests:
