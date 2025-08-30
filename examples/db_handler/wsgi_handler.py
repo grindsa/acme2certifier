@@ -13,7 +13,7 @@ from acme_srv.version import __dbversion__
 
 
 # Define constants
-COLUMN_NOT_IN_TABLE_MSG = "column: %s not in %s table"
+COLUMN_NOT_IN_TABLE_MSG = "Column: %s not found in %s table"
 
 
 def initialize():
@@ -109,9 +109,7 @@ class DBstore(object):
             columnname_list = self._columnnames_get(table)
             result = True if identifier in columnname_list else False
         else:
-            self.logger.warning(
-                "DBStore._identifier_check(): table %s does not exist", table
-            )
+            self.logger.warning("Table '%s' does not exist in the database.", table)
             result = False
 
         self.logger.debug("DBStore._identifier_check() ended with: %s", result)
@@ -137,7 +135,7 @@ class DBstore(object):
             result = self.cursor.fetchone()
         except Exception as err:
             self.logger.error(
-                "DBStore._account_search(column:%s, pattern:%s) failed with err: %s",
+                "Account search failed for column '%s' and pattern '%s': %s",
                 column,
                 string,
                 err,
@@ -175,7 +173,7 @@ class DBstore(object):
             result = self.cursor.fetchall()
         except Exception as err:
             self.logger.error(
-                "DBStore._authorization_search(column:%s, pattern:%s) failed with err: %s",
+                "Authorization search failed for column '%s' and pattern '%s': %s",
                 column,
                 string,
                 err,
@@ -199,7 +197,7 @@ class DBstore(object):
             result = self.cursor.fetchone()
         except Exception as err:
             self.logger.error(
-                "DBStore._cahandler_search(column:%s, pattern:%s) failed with err: %s",
+                "CA handler search failed for column '%s' and pattern '%s': %s",
                 column,
                 string,
                 err,
@@ -309,6 +307,7 @@ class DBstore(object):
                             orders.id as order__id,
                             orders.name as order__name,
                             orders.status_id as order__status_id,
+                            orders.profile as order__profile,
                             account.name as order__account__name,
                             account.eab_kid as order__account__eab_kid
                             from certificate
@@ -353,7 +352,7 @@ class DBstore(object):
             result = self.cursor.fetchone()
         except Exception as err:
             self.logger.error(
-                "DBStore._challenge_search(column:%s, pattern:%s) failed with err: %s",
+                "Challenge search failed for column '%s' and pattern '%s': %s",
                 column,
                 string,
                 err,
@@ -377,7 +376,7 @@ class DBstore(object):
             result = self.cursor.fetchone()
         except Exception as err:
             self.logger.error(
-                "DBStore._cliaccount_search(column:%s, pattern:%s) failed with err: %s",
+                "CLI account search failed for column '%s' and pattern '%s': %s",
                 column,
                 string,
                 err,
@@ -448,7 +447,7 @@ class DBstore(object):
         self.logger.debug("create challenge")
         self.cursor.execute(
             """
-            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(15) NOT NULL, "keyauthorization" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "validated" integer DEFAULT 0, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(15) NOT NULL, "keyauthorization" varchar(128), "source" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "validated" integer DEFAULT 0, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         """
         )
         self.logger.debug("create certificate")
@@ -611,6 +610,12 @@ class DBstore(object):
                 """ALTER TABLE challenge ADD COLUMN validated integer DEFAULT 0"""
             )
 
+        if "source" not in challenges_column_list:
+            self.logger.info("alter challenge table - add source‚")
+            self.cursor.execute(
+                """ALTER TABLE challenge ADD COLUMN source varchar(128)"""
+            )
+
     def _db_update_cliaccount(self):
         """alter cliaccount table"""
         self.logger.debug("DBStore._db_update_cliaccount()")
@@ -734,7 +739,8 @@ class DBstore(object):
                         status.name as status__name,
                         status.id as status__id,
                         account.name as account__name,
-                        account.id as account_id
+                        account.id as account_id,
+                        account.eab_kid as account__eab_kid
                     from orders
                     INNER JOIN status on status.id = orders.status_id
                     INNER JOIN account on account.id = orders.account_id
@@ -744,7 +750,7 @@ class DBstore(object):
             result = self.cursor.fetchone()
         except Exception as err:
             self.logger.error(
-                "DBStore._order_search(column:%s, pattern:%s) failed with err: %s",
+                "Order search failed for column '%s' and pattern '%s': %s",
                 column,
                 string,
                 err,
@@ -996,7 +1002,7 @@ class DBstore(object):
             lookup = self._authorization_search(column, string)
         except Exception as err:
             self.logger.error(
-                "DBStore.authorization_lookup(column:%s, pattern:%s) failed with err: %s",
+                "Authorization lookup(column:%s, pattern:%s) failed with err: %s",
                 column,
                 string,
                 err,
@@ -1227,7 +1233,8 @@ class DBstore(object):
             self._db_close()
         else:
             self.logger.error(
-                "DBStore.cliaccount_delete() failed for kid: %s", data_dic["name"]
+                "CLI account delete failed: no entry found for kid '%s'",
+                data_dic["name"],
             )
         self.logger.debug("DBStore.cliaccount_delete() ended")
 
@@ -1494,11 +1501,13 @@ class DBstore(object):
 
         if "status" not in data_dic:
             data_dic["status"] = 2
+        if "keyauthorization" not in data_dic:
+            data_dic["keyauthorization"] = None
         if authorization:
             data_dic["authorization"] = authorization[0]["id"]
             self._db_open()
             self.cursor.execute(
-                """INSERT INTO challenge(name, token, authorization_id, expires, type, status_id) VALUES(:name, :token, :authorization, :expires, :type, :status)""",
+                """INSERT INTO challenge(name, token, authorization_id, expires, type, status_id, keyauthorization) VALUES(:name, :token, :authorization, :expires, :type, :status, :keyauthorization)""",
                 data_dic,
             )
             rid = self.cursor.lastrowid
@@ -1554,9 +1563,12 @@ class DBstore(object):
         if "validated" not in data_dic:
             data_dic["validated"] = lookup["validated"]
 
+        if "source" not in data_dic:
+            data_dic["source"] = lookup["source"]
+
         self._db_open()
         self.cursor.execute(
-            """UPDATE challenge SET status_id = :status, keyauthorization = :keyauthorization, validated = :validated WHERE name = :name""",
+            """UPDATE challenge SET status_id = :status, keyauthorization = :keyauthorization, source= :source, validated = :validated WHERE name = :name""",
             data_dic,
         )
         self._db_close()

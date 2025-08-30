@@ -109,7 +109,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._config_check(),
             )
         self.assertIn(
-            "INFO:test_a2c:CAhandler._config_check_crl(): issuing_ca_crl foo.pem does not exist.",
+            "INFO:test_a2c:Issuing_ca_crl foo.pem does not exist.",
             lcm.output,
         )
 
@@ -747,7 +747,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._certificate_store(cert)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._certificate_store() handler configuration incomplete: cert_save_path is missing",
+            "ERROR:test_a2c:Certificate storage failed: cert_save_path is missing in the handler configuration.",
             lcm.output,
         )
 
@@ -796,7 +796,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_dump.return_value = "foo"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._certificate_store(cert)
-        self.assertIn("INFO:test_a2c:convert serial to hex: 42: 2A", lcm.output)
+        self.assertIn("INFO:test_a2c:Convert serial to hex: 42: 2A", lcm.output)
 
     @patch("examples.ca_handler.openssl_ca_handler.load_config")
     def test_076__config_load(self, mock_load_cfg):
@@ -839,7 +839,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("blocked_domainlist", self.cahandler.blocked_domainlist)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() found "blacklist" parameter in configfile which should be renamed to "blocked_domainlist"',
+            'ERROR:test_a2c:Deprecated config: found "blacklist". Please rename to "blocked_domainlist".',
             lcm.output,
         )
 
@@ -855,7 +855,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual("allowed_domainlist", self.cahandler.allowed_domainlist)
         self.assertIn(
-            'ERROR:test_a2c:CAhandler._config_load() found "whitelist" parameter in configfile which should be renamed to "allowed_domainlist"',
+            'ERROR:test_a2c:Deprecated config: found "whitelist". Please rename to "allowed_domainlist".',
             lcm.output,
         )
 
@@ -977,7 +977,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load issuing_ca_key_passphrase_variable: 'does_not_exist'",
+            "ERROR:test_a2c:Unable to load issuing_ca_key_passphrase_variable from environment: 'does_not_exist'",
             lcm.output,
         )
 
@@ -995,7 +995,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertEqual(b"foo_file", self.cahandler.issuer_dict["passphrase"])
         self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite issuing_ca_key_passphrase_variable",
+            "INFO:test_a2c:Overwrite issuing_ca_key_passphrase_variable",
             lcm.output,
         )
 
@@ -1036,7 +1036,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.cn_enforce)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() variable cn_enforce cannot be parsed",
+            "ERROR:test_a2c:Could not parse cn_enforce from config file.",
             lcm.output,
         )
 
@@ -1050,7 +1050,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.cn_enforce)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() variable cert_validity_adjust cannot be parsed",
+            "ERROR:test_a2c:Could not parse cert_validity_adjust from config file.",
             lcm.output,
         )
 
@@ -1274,16 +1274,9 @@ class TestACMEHandler(unittest.TestCase):
             "basicConstraints": {"critical": True, "value": "CA:TRUE, pathlen:0"}
         }
         result = [{"critical": True, "name": "mock_bc"}]
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(
-                result,
-                self.cahandler._cert_extension_dic_parse(
-                    cert_extension_dic, cert, cert
-                ),
-            )
-        self.assertIn(
-            "INFO:test_a2c:CAhandler.cert_extesion_dic_parse(): basicConstraints",
-            lcm.output,
+        self.assertEqual(
+            result,
+            self.cahandler._cert_extension_dic_parse(cert_extension_dic, cert, cert),
         )
 
     @patch("examples.ca_handler.openssl_ca_handler.ExtendedKeyUsage")
@@ -1305,16 +1298,9 @@ class TestACMEHandler(unittest.TestCase):
             "subjectKeyIdentifier": {"critical": True, "value": "value"}
         }
         result = [{"critical": False, "name": "mock_ski"}]
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(
-                result,
-                self.cahandler._cert_extension_dic_parse(
-                    cert_extension_dic, cert, cert
-                ),
-            )
-        self.assertIn(
-            "INFO:test_a2c:CAhandler.cert_extesion_dic_parse(): subjectKeyIdentifier",
-            lcm.output,
+        self.assertEqual(
+            result,
+            self.cahandler._cert_extension_dic_parse(cert_extension_dic, cert, cert),
         )
 
     @patch("examples.ca_handler.openssl_ca_handler.ExtendedKeyUsage")
@@ -1336,16 +1322,9 @@ class TestACMEHandler(unittest.TestCase):
             "authorityKeyIdentifier": {"critical": True, "value": "value"}
         }
         result = [{"critical": True, "name": "mock_aki"}]
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(
-                result,
-                self.cahandler._cert_extension_dic_parse(
-                    cert_extension_dic, cert, cert
-                ),
-            )
-        self.assertIn(
-            "INFO:test_a2c:CAhandler.cert_extesion_dic_parse(): authorityKeyIdentifier",
-            lcm.output,
+        self.assertEqual(
+            result,
+            self.cahandler._cert_extension_dic_parse(cert_extension_dic, cert, cert),
         )
 
     @patch("examples.ca_handler.openssl_ca_handler.ExtendedKeyUsage")
@@ -1365,15 +1344,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_eku.return_value = "mock_eku"
         cert_extension_dic = {"keyUsage": {"critical": True, "value": "value"}}
         result = [{"critical": True, "name": "mock_ku"}]
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(
-                result,
-                self.cahandler._cert_extension_dic_parse(
-                    cert_extension_dic, cert, cert
-                ),
-            )
-        self.assertIn(
-            "INFO:test_a2c:CAhandler.cert_extesion_dic_parse(): keyUsage", lcm.output
+        self.assertEqual(
+            result,
+            self.cahandler._cert_extension_dic_parse(cert_extension_dic, cert, cert),
         )
 
     @patch("examples.ca_handler.openssl_ca_handler.ExtendedKeyUsage")
@@ -1393,16 +1366,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_eku.return_value = "mock_eku"
         cert_extension_dic = {"extendedKeyUsage": {"critical": True, "value": "value"}}
         result = [{"critical": True, "name": "mock_eku"}]
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(
-                result,
-                self.cahandler._cert_extension_dic_parse(
-                    cert_extension_dic, cert, cert
-                ),
-            )
-        self.assertIn(
-            "INFO:test_a2c:CAhandler.cert_extesion_dic_parse(): extendedKeyUsage",
-            lcm.output,
+        self.assertEqual(
+            result,
+            self.cahandler._cert_extension_dic_parse(cert_extension_dic, cert, cert),
         )
 
     @patch("examples.ca_handler.xca_ca_handler.x509.CertificateBuilder")
@@ -1789,7 +1755,8 @@ class TestACMEHandler(unittest.TestCase):
                 ("Unknown exception", None, None, None), self.cahandler.enroll("csr")
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll() error: exc_csr_check", lcm.output
+            "ERROR:test_a2c:Certificate enrollment failed due to exception: exc_csr_check",
+            lcm.output,
         )
         self.assertTrue(mock_cfgchk.called)
         self.assertTrue(mock_csrchk.called)
@@ -1902,7 +1869,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((200, None, None), self.cahandler.revoke("cert"))
         self.assertIn(
-            "INFO:test_a2c:CAhandler.revoke(): load existing crl issuing_ca_crl)",
+            "INFO:test_a2c:Load existing crl issuing_ca_crl)",
             lcm.output,
         )
         self.assertTrue(mock_ca_load.called)
@@ -1948,7 +1915,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((200, None, None), self.cahandler.revoke("cert"))
         self.assertIn(
-            "INFO:test_a2c:CAhandler._crlobject_build(): create new crl issuing_ca_crl)",
+            "INFO:test_a2c:Create new crl issuing_ca_crl)",
             lcm.output,
         )
         self.assertTrue(mock_ca_load.called)
@@ -2003,7 +1970,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler.revoke("cert"),
             )
         self.assertIn(
-            "INFO:test_a2c:CAhandler.revoke(): load existing crl issuing_ca_crl)",
+            "INFO:test_a2c:Load existing crl issuing_ca_crl)",
             lcm.output,
         )
         self.assertTrue(mock_ca_load.called)
@@ -2127,7 +2094,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((366, "cert1"), self.cahandler._cacert_expiry_get())
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._cacert_expiry_get(): file cacert2 does not exist",
+            "ERROR:test_a2c:CA file cacert2 does not exist",
             lcm.output,
         )
 
@@ -2182,7 +2149,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("not_valid_after", self.cahandler._certexpiry_date_set())
         self.assertIn(
-            "INFO:test_a2c:CAhandler._certexpiry_date_set(): adjust validity to 20 days.",
+            "INFO:test_a2c:Adjust validity to 20 days.",
             lcm.output,
         )
         self.assertTrue(mock_default.called)

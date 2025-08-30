@@ -99,7 +99,16 @@ class DBstore(object):
         self,
         mkey: str,
         value: str,
-        vlist: List = ["id", "jwk", "name", "contact", "alg", "created_at"],
+        vlist: List = [
+            "id",
+            "jwk",
+            "name",
+            "contact",
+            "alg",
+            "created_at",
+            "eab_kid",
+            "status_id",
+        ],
     ) -> Dict[str, str]:
         """search account for a given id"""
         self.logger.debug("DBStore.account_lookup(%s:%s)", mkey, value)
@@ -482,7 +491,9 @@ class DBstore(object):
             try:
                 jwk_dict = json.loads(account_dict[0]["jwk"].decode())
             except Exception as _err:
-                self.logger.error("DBStore.cli_jwk_load(): error: %s", _err)
+                self.logger.error(
+                    "Failed to decode JWK from cliaccounts table: %s", _err
+                )
                 jwk_dict = json.loads(account_dict[0]["jwk"])
         return jwk_dict
 

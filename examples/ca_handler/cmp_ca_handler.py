@@ -82,13 +82,11 @@ class CAhandler(object):
 
         if "CAhandler" in config_dic and "cmp_ref" in config_dic["CAhandler"]:
             if self.ref:
-                self.logger.info("CAhandler._config_load() overwrite cmp_ref variable")
+                self.logger.info("Overwrite cmp_ref variable")
             self.ref = config_dic["CAhandler"]["cmp_ref"]
         if "CAhandler" in config_dic and "cmp_secret" in config_dic["CAhandler"]:
             if self.secret:
-                self.logger.info(
-                    "CAhandler._config_load() overwrite cmp_secret variable"
-                )
+                self.logger.info("Overwrite cmp_secret variable")
             self.secret = config_dic["CAhandler"]["cmp_secret"]
 
         self.logger.debug("CAhandler._config_refsecret_load() ended")
@@ -110,14 +108,12 @@ class CAhandler(object):
         # defaulting openssl_bin
         if not self.openssl_bin:
             self.logger.warning(
-                'CAhandler config error: "cmp_openssl_bin" parameter not in config_file. Using default (/usr/bin/openssl)'
+                "cmp_openssl_bin parameter missing in configuration. Using default: /usr/bin/openssl"
             )
             self.openssl_bin = "/usr/bin/openssl"
 
         if not self.recipient:
-            self.logger.error(
-                'CAhandler config error: "cmp_recipient" is missing in config_file.'
-            )
+            self.logger.error("cmp_recipient parameter missing in configuration.")
 
         self.logger.debug("CAhandler._config_paramters_load() ended")
 
@@ -147,15 +143,13 @@ class CAhandler(object):
             try:
                 self.ref = os.environ[config_dic["CAhandler"]["cmp_ref_variable"]]
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._config_load() could not load cmp_ref:%s", err
-                )
+                self.logger.error("Could not load cmp_ref:%s", err)
         elif ele == "cmp_secret_variable":
             try:
                 self.secret = os.environ[config_dic["CAhandler"]["cmp_secret_variable"]]
             except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load() could not load cmp_secret_variable:%s",
+                    "Could not load cmp_secret_variable:%s",
                     err,
                 )
         elif ele in ("cmp_secret", "cmp_ref"):
@@ -247,7 +241,7 @@ class CAhandler(object):
         if os.path.exists(self.tmp_dir):
             shutil.rmtree(self.tmp_dir)
         else:
-            self.logger.error("CAhandler._tmp_dir_delete(): failed: %s", self.tmp_dir)
+            self.logger.error("Could not delate tmp_dir: %s", self.tmp_dir)
 
     def enroll(self, csr: str) -> Tuple[str, str, str, bool]:
         """enroll certificate from via MS certsrv"""
@@ -272,7 +266,7 @@ class CAhandler(object):
                 openssl_cmd = self._opensslcmd_build()
                 rcode = subprocess.call(openssl_cmd)
                 if rcode:
-                    self.logger.error(f"CAhandler.enroll(): failed: {rcode}")
+                    self.logger.error(f"Enrollment failed with rcode: {rcode}")
                     error = "rc from enrollment not 0"
 
                 # generate certificates we need to return

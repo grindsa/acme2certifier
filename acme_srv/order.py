@@ -2,6 +2,7 @@
 """Order class"""
 from __future__ import print_function
 import json
+import copy
 from typing import List, Tuple, Dict
 from acme_srv.helper import (
     b64_url_recode,
@@ -39,6 +40,8 @@ class Order(object):
         }
         self.retry_after = 600
         self.tnauthlist_support = False
+        self.email_identifier_support = False
+        self.email_identifier_rewrite = False
         self.sectigo_sim = False
         self.identifier_limit = 20
         self.header_info_list = []
@@ -77,7 +80,7 @@ class Order(object):
                         self.dbstore.authorization_update(auth)
                 except Exception as err_:
                     self.logger.critical(
-                        "acme2certifier database error in Order._add() authz: %s", err_
+                        "Database error: failed to add authorization: %s", err_
                     )
         else:
             error = self.error_msg_dic["malformed"]
@@ -101,7 +104,7 @@ class Order(object):
             else:
                 # profile is not valid
                 self.logger.warning(
-                    "Order._profile_check(): profile '%s' is not valid", profile
+                    "Profile '%s' is not valid. Ignoring submitted profile.", profile
                 )
 
         self.logger.debug("Order._profile_check() ended with %s", error)
@@ -121,9 +124,7 @@ class Order(object):
             # add order to db
             oid = self.dbstore.order_add(data_dic)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Order._add() order: %s", err_
-            )
+            self.logger.critical("Database error: failed to add order: %s", err_)
             oid = None
 
         if not error:
@@ -148,7 +149,7 @@ class Order(object):
             else:
                 # profile check is enabled but no profiles are configured
                 self.logger.warning(
-                    "Order._add(): ignore submitted profile '%s' as no profiles are configured",
+                    "Ignore submitted profile '%s' as no profiles are configured.",
                     payload["profile"],
                 )
 
@@ -204,7 +205,7 @@ class Order(object):
                 )
             except Exception as err_:
                 self.logger.warning(
-                    "Order._config_orderconfig_load() header_info_list failed with error: %s",
+                    "Failed to parse header_info_list from configuration: %s",
                     err_,
                 )
 
@@ -223,6 +224,12 @@ class Order(object):
             self.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
             )
+            self.email_identifier_support = config_dic.getboolean(
+                "Order", "email_identifier_support", fallback=False
+            )
+            self.email_identifier_rewrite = config_dic.getboolean(
+                "Order", "email_identifier_rewrite", fallback=False
+            )
             self.expiry_check_disable = config_dic.getboolean(
                 "Order", "expiry_check_disable", fallback=False
             )
@@ -235,7 +242,7 @@ class Order(object):
                 )
             except Exception:
                 self.logger.warning(
-                    "Order._config_load(): failed to parse retry_after: %s",
+                    "Failed to parse retry_after from configuration: %s",
                     config_dic["Order"]["retry_after_timeout"],
                 )
             try:
@@ -244,7 +251,7 @@ class Order(object):
                 )
             except Exception:
                 self.logger.warning(
-                    "Order._config_load(): failed to parse validity: %s",
+                    "Failed to parse validity from configuration: %s",
                     config_dic["Order"]["validity"],
                 )
             try:
@@ -253,7 +260,7 @@ class Order(object):
                 )
             except Exception:
                 self.logger.warning(
-                    "Order._config_load(): failed to parse identifier_limit: %s",
+                    "Failed to parse identifier_limit from configuration: %s",
                     config_dic["Order"]["identifier_limit"],
                 )
 
@@ -277,7 +284,7 @@ class Order(object):
                 )
             except Exception:
                 self.logger.warning(
-                    "Order._config_load(): failed to parse authz validity: %s",
+                    "Failed to parse authz validity from configuration: %s",
                     config_dic["Authorization"]["validity"],
                 )
 
@@ -321,6 +328,8 @@ class Order(object):
         # add tnauthlist to list of supported identfiers if configured to do so
         if self.tnauthlist_support:
             allowed_identifers.append("tnauthlist")
+        if self.email_identifier_support:
+            allowed_identifers.append("email")
 
         for identifier in identifiers_list:
             if "type" in identifier:
@@ -343,14 +352,43 @@ class Order(object):
         self.logger.debug("Order._identifiers_allowed() ended with: %s", error)
         return error
 
+    def _email_identifier_rewrite(
+        self, identifiers_list: List[Dict[str, str]]
+    ) -> List[Dict[str, str]]:
+        """rewrite email identifiers to address acme_email issue"""
+        self.logger.debug("Order._email_identifier_rewrite()")
+        identifiers_modified = []
+        for ident in identifiers_list:
+            if (
+                "type" in ident
+                and "value" in ident
+                and ident["type"].lower() == "dns"
+                and "@" in ident["value"]
+            ):
+                self.logger.info(
+                    "Rewrite DNS identifier '%s' to email identifier",
+                    ident["value"],
+                )
+                # rewrite dns identifier to acme_email
+                ident["type"] = "email"
+            identifiers_modified.append(ident)
+        self.logger.debug("Order._email_identifier_rewrite() ended")
+        return identifiers_modified
+
     def _identifiers_check(self, identifiers_list: List[str]) -> str:
         """check validity of identifers in order"""
         self.logger.debug("Order._identifiers_check(%s)", identifiers_list)
+
+        # Create a deep copy to avoid modifying the original
+        identifiers_list = copy.deepcopy(identifiers_list)
 
         if identifiers_list and isinstance(identifiers_list, list):
             if len(identifiers_list) > self.identifier_limit:
                 error = self.error_msg_dic["rejectedidentifier"]
             else:
+                if self.email_identifier_support and self.email_identifier_rewrite:
+                    # rewirte email identifiers to address acme_email issue
+                    identifiers_list = self._email_identifier_rewrite(identifiers_list)
                 error = self._identifiers_allowed(identifiers_list)
         else:
             error = self.error_msg_dic["malformed"]
@@ -364,9 +402,7 @@ class Order(object):
         try:
             result = self.dbstore.order_lookup("name", order_name)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Order._info(): %s", err_
-            )
+            self.logger.critical("Database error: failed to look up order: %s", err_)
             result = None
         return result
 
@@ -468,7 +504,7 @@ class Order(object):
                     )
                 except Exception as err_:
                     self.logger.critical(
-                        "acme2certifier database error in Order._process(): %s", err_
+                        "Database error: Certificate lookup failed: %s", err_
                     )
                     cert_dic = {}
                 if cert_dic:
@@ -541,9 +577,7 @@ class Order(object):
         try:
             self.dbstore.order_update(data_dic)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Order._update(): %s", err_
-            )
+            self.logger.critical("Database error: failed to update order: %s", err_)
 
     def _order_dic_create(self, tmp_dic: Dict[str, str]) -> Dict[str, str]:
         """create order dictionary"""
@@ -563,7 +597,7 @@ class Order(object):
                 order_dic["identifiers"] = json.loads(tmp_dic["identifiers"])
             except Exception:
                 self.logger.error(
-                    "Order._order_dic_create(): error while parsing the identifier %s",
+                    "Error while parsing the identifier %s",
                     tmp_dic["identifiers"],
                 )
 
@@ -580,7 +614,7 @@ class Order(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Order._authz_list_lookup(): %s", err_
+                "Database error: failed to look up authorization list: %s", err_
             )
             authz_list = []
 
@@ -656,7 +690,7 @@ class Order(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Order._invalidate() search: %s", err_
+                "Database error: failed to search for expired orders: %s", err_
             )
             order_list = []
         output_list = []
@@ -674,7 +708,7 @@ class Order(object):
                     self.dbstore.order_update(data_dic)
                 except Exception as err_:
                     self.logger.critical(
-                        "acme2certifier database error in Order._invalidate() upd: %s",
+                        "Database error: failed to update order status to invalid: %s",
                         err_,
                     )
 

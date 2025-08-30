@@ -272,7 +272,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load host_variable:'doesnotexist'",
+            "ERROR:test_a2c:Could not load host_variable from environment: 'doesnotexist'",
             lcm.output,
         )
 
@@ -286,9 +286,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertEqual("host_local", self.cahandler.host)
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite host", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite host", lcm.output)
 
     @patch.dict("os.environ", {"user_variable": "user"})
     @patch("examples.ca_handler.mscertsrv_ca_handler.load_config")
@@ -311,7 +309,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.user)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load user_variable:'doesnotexist'",
+            "ERROR:test_a2c:Could not load user_variable from environment: 'doesnotexist'",
             lcm.output,
         )
 
@@ -325,9 +323,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertEqual("user_local", self.cahandler.user)
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite user", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite user", lcm.output)
 
     @patch.dict("os.environ", {"password_variable": "password"})
     @patch("examples.ca_handler.mscertsrv_ca_handler.load_config")
@@ -350,7 +346,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_load()
         self.assertFalse(self.cahandler.password)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load password_variable:'doesnotexist'",
+            "ERROR:test_a2c:Could not load password_variable from environment: 'doesnotexist'",
             lcm.output,
         )
         self.assertFalse, (self.cahandler.allowed_domainlist)
@@ -368,9 +364,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertEqual("password_local", self.cahandler.password)
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite password", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite password", lcm.output)
         self.assertFalse, (self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mscertsrv_ca_handler.proxy_check")
@@ -408,7 +402,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_chk.called)
         self.assertFalse(self.cahandler.proxy)
         self.assertIn(
-            "WARNING:test_a2c:CAhandler._config_load() proxy_server_list failed with error: exc_load_config",
+            "WARNING:test_a2c:Failed to load proxy_server_list from configuration: exc_load_config",
             lcm.output,
         )
         self.assertFalse, (self.cahandler.allowed_domainlist)
@@ -446,7 +440,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.krb5_config)
         self.assertEqual("failed to parse", self.cahandler.allowed_domainlist)
         self.assertIn(
-            "WARNING:test_a2c:loading allowed_domainlist failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to load allowed_domainlist from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 
@@ -794,7 +788,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(("error", None, None, None), self.cahandler.enroll("csr"))
         self.assertIn(
-            "INFO:test_a2c:CAhandler.enroll(): load krb5config from krb5_config",
+            "INFO:test_a2c:Load krb5config from krb5_config",
             lcm.output,
         )
         self.assertTrue(mock_eab.called)
@@ -853,14 +847,22 @@ class TestACMEHandler(unittest.TestCase):
         mock_p2p.return_value = "p2p"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
-                ("cert bundling failed", None, "get_cert", None),
+                (
+                    "Certificate bundling failed: missing CA certificate or issued certificate.",
+                    None,
+                    "get_cert",
+                    None,
+                ),
                 self.cahandler.enroll("csr"),
             )
         self.assertIn(
-            "ERROR:test_a2c:ca_server.get_chain() failed with error: exc_get_chain",
+            "ERROR:test_a2c:Failed to get CA certificate chain: exc_get_chain",
             lcm.output,
         )
-        self.assertIn("ERROR:test_a2c:cert bundling failed", lcm.output)
+        self.assertIn(
+            "ERROR:test_a2c:Failed to bundle certificates: missing ca_pem or cert_raw.",
+            lcm.output,
+        )
 
     @patch("examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")
     @patch("examples.ca_handler.mscertsrv_ca_handler.convert_byte_to_string")
@@ -888,7 +890,7 @@ class TestACMEHandler(unittest.TestCase):
                 ("get_cert", None, None, None), self.cahandler.enroll("csr")
             )
         self.assertIn(
-            "ERROR:test_a2c:ca_server.get_cert() failed with error: get_cert",
+            "ERROR:test_a2c:Failed to enroll certificate from CA: get_cert",
             lcm.output,
         )
 
@@ -957,7 +959,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._template_name_get("csr"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._template_name_get() could not parse template: Expecting value: line 1 column 1 (char 0)",
+            "ERROR:test_a2c:Failed to parse template from header_info: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 
@@ -980,7 +982,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_headerinfo_load(config_dic)
         self.assertFalse(self.cahandler.header_info_field)
         self.assertIn(
-            "WARNING:test_a2c:Order._config_orderconfig_load() header_info_list failed with error: Expecting value: line 1 column 1 (char 0)",
+            "WARNING:test_a2c:Failed to parse header_info_list from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
         )
 
@@ -1016,7 +1018,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_url_load(parser)
         self.assertFalse(self.cahandler.url)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load url_variable:'doesnotexist'",
+            "ERROR:test_a2c:Could not load url_variable from environment: 'doesnotexist'",
             lcm.output,
         )
 

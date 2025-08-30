@@ -548,6 +548,7 @@ jobs:
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
+
     - name: "Prepare container environment"
       uses: ./.github/actions/container_prep
       with:
@@ -606,11 +607,9 @@ jobs:
         WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
         WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
 
+
     - name: "NTLM Headerinfo - Setup a2c with ms_wcce_ca_handler"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
         sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo touch examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/ca_certs.pem
@@ -659,10 +658,6 @@ jobs:
 
     - name: "NTLM ACME Profile - Setup a2c with ms_wcce_ca_handler"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo touch examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/ca_certs.pem
         sudo echo "$WCCE_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
@@ -917,10 +912,6 @@ jobs:
 
     - name: "EAB with headerinfo - Setup a2c with ms_wcce_ca_handler (Kerboros)"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo touch examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/ca_certs.pem
         sudo echo "$WCCE_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
@@ -983,10 +974,6 @@ jobs:
 
     - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerboros)"
       run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo touch examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/ca_certs.pem
         sudo echo "$WCCE_CA_BUNDLE" > examples/Docker/data/ca_certs.pem

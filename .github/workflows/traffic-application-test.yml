@@ -58,7 +58,8 @@ jobs:
 
     - name: "Setup and instanciate traefik"
       run: |
-        mkdir traefik
+        mkdir -p traefik/certs/
+        sudo cp .github/acme2certifier_cabundle.pem traefik/certs/
         sudo cp .github/traefik-matrix.yml traefik/docker-compose.yml
         sudo sed -i "s/whoami.acme/${{ env.RUNNER_HOSTNAME }}/g" traefik/docker-compose.yml
         sudo sed -i "s/CHALLENGE_TYPE/${{ matrix.challenge_type }}/g" traefik/docker-compose.yml

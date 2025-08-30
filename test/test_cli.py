@@ -438,7 +438,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.keyops.generate("file_name")
         self.assertIn(
-            "ERROR:test_a2c:KeyOperations.generate() failed with err: exc_fd",
+            "ERROR:test_a2c:Key generation failed: exc_fd",
             lcm.output,
         )
         self.assertTrue(mock_jwk.called)
