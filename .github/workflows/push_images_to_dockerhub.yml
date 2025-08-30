@@ -54,7 +54,7 @@ jobs:
 
     - name: "check instance status"
       run: |
-        python3 ./aws_ec_mgr.py -a state -r -r $AWS_REGION -i $AWS_INSTANCE_ID | grep -i "running"
+fox        python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_INSTANCE_ID | grep -i "running"
       env:
         AWS_REGION: ${{ secrets.AWS_REGION }}
         AWS_INSTANCE_ID: ${{ secrets.AWS_INSTANCE_ID }}
