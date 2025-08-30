@@ -140,7 +140,7 @@ class EmailHandler:
         """Send email via SMTP"""
         self.logger.debug("EmailHandler.send()")
 
-        if not self._validate_smtp_config():
+        if not self._smtp_config_validate():
             return False
 
         try:
@@ -188,66 +188,81 @@ class EmailHandler:
         folder: str = "INBOX",
         mark_as_read: bool = True,
     ) -> List[Dict[str, Any]]:
-        """Receive emails via IMAP"""
+        """Receive emails via IMAP and return as dictionary"""
         self.logger.debug("EmailHandler.receive()")
 
-        if not self._validate_imap_config():
+        if not self._imap_config_validate():
             return []
 
-        emails = []
         try:
-            # Connect to IMAP server
-            if self.imap_use_ssl:
-                mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
-            else:
-                mail = imaplib.IMAP4(self.imap_server, self.imap_port)
-
-            mail.socket().settimeout(self.connection_timeout)
-
-            # Login
+            mail = self._imap_connect()
             mail.login(self.username, self.password)
             mail.select(folder)
 
-            # Search for unread emails
-            status, messages = mail.search(None, "UNSEEN")
-            if status == "OK":
-                email_ids = messages[0].split()
-
-                for email_id in email_ids:
-                    status, msg_data = mail.fetch(email_id, "(RFC822)")
-                    if status == "OK":
-                        email_body = msg_data[0][1]
-                        email_message = email.message_from_bytes(email_body)
-
-                        parsed_email = self._parse_email(email_message)
-                        # Call callback if provided
-                        if callback:
-                            result = callback(parsed_email)
-                            if result:
-                                self.logger.info(
-                                    "Email passed filter: %s", result["subject"]
-                                )
-                                emails = result  # return this email only if callback returns a value
-                                break
-                            else:
-                                self.logger.debug(
-                                    "mailHandler.receive(): email did not pass filter: %s",
-                                    parsed_email["subject"],
-                                )
-                        else:
-                            # no callback provided just add the email to the queue
-                            emails.append(parsed_email)
-                        # Mark as read if requested
-                        if mark_as_read:
-                            mail.store(email_id, "+FLAGS", "\\Seen")
+            emails = self._emails_fetch(mail, callback, mark_as_read)
 
             mail.close()
             mail.logout()
 
-            self.logger.debug("Retrieved %d emails", len(emails))
+            self.logger.debug(
+                "EmailHandler.receive(): retrieved emails: %d", bool(emails)
+            )
+            return emails
 
         except Exception as err:
             self.logger.error("Failed to receive emails: %s", err)
+            return []
+
+    def _imap_connect(self):
+        """Connect to IMAP server and set timeout."""
+        self.logger.debug("EmailHandler._imap_connect()")
+        if self.imap_use_ssl:
+            mail = imaplib.IMAP4_SSL(self.imap_server, self.imap_port)
+        else:
+            mail = imaplib.IMAP4(self.imap_server, self.imap_port)
+        mail.socket().settimeout(self.connection_timeout)
+        self.logger.debug("EmailHandler._imap_connect() ended")
+        return mail
+
+    def _emails_fetch(self, mail, callback, mark_as_read):
+        """Fetch unread emails and process them."""
+        self.logger.debug("EmailHandler._emails_fetch()")
+        emails = []
+        status, messages = mail.search(None, "UNSEEN")
+        if status != "OK":
+            return emails
+
+        email_ids = messages[0].split()
+        for email_id in email_ids:
+            status, msg_data = mail.fetch(email_id, "(RFC822)")
+            if status != "OK":
+                continue
+            email_body = msg_data[0][1]
+            email_message = email.message_from_bytes(email_body)
+            parsed_email = self._email_parse(email_message)
+
+            if callback:
+                result = callback(parsed_email)
+                if result:
+                    self.logger.info("Email passed filter: %s", result["subject"])
+                    emails = (
+                        result  # return this email only if callback returns a value
+                    )
+                    break
+                else:
+                    self.logger.debug(
+                        "mailHandler.receive(): email did not pass filter: %s",
+                        parsed_email["subject"],
+                    )
+            else:
+                emails.append(parsed_email)
+
+            # Mark as read/unread
+            if mark_as_read:
+                mail.store(email_id, "+FLAGS", "\\Seen")
+            else:
+                mail.store(email_id, "-FLAGS", "\\Seen")
+        self.logger.debug("EmailHandler._emails_fetch() ended")
         return emails
 
     def start_polling(
@@ -304,8 +319,10 @@ class EmailHandler:
                     break
                 time.sleep(1)
 
-    def _parse_email(self, email_message) -> Dict[str, Any]:
+    def _email_parse(self, email_message) -> Dict[str, Any]:
         """Parse email message into dictionary"""
+        self.logger.debug("EmailHandler._email_parse()")
+
         parsed = {
             "subject": email_message.get("Subject", ""),
             "from": email_message.get("From", ""),
@@ -351,9 +368,10 @@ class EmailHandler:
                 "utf-8", errors="ignore"
             )
 
+        self.logger.debug("EmailHandler._email_parse() ended")
         return parsed
 
-    def _validate_smtp_config(self) -> bool:
+    def _smtp_config_validate(self) -> bool:
         """Validate SMTP configuration"""
         if not self.smtp_server:
             self.logger.error("SMTP server not configured")
@@ -366,7 +384,7 @@ class EmailHandler:
             return False
         return True
 
-    def _validate_imap_config(self) -> bool:
+    def _imap_config_validate(self) -> bool:
         """Validate IMAP configuration"""
         if not self.imap_server:
             self.logger.error("IMAP server not configured")

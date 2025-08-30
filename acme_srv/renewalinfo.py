@@ -63,7 +63,7 @@ class Renewalinfo(object):
                 )
             except Exception as err_:
                 self.logger.error(
-                    "acme2certifier Renewalinfo._config_load() renewaltreshold_pctg parsing error: %s",
+                    "renewaltreshold_pctg parsing error: %s",
                     err_,
                 )
             try:
@@ -76,7 +76,7 @@ class Renewalinfo(object):
                 )
             except Exception as err_:
                 self.logger.error(
-                    "acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: %s",
+                    "retry_after_timeout parsing error: %s",
                     err_,
                 )
 
@@ -116,7 +116,7 @@ class Renewalinfo(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Renewalinfo._cert_table_update(): %s",
+                "Database error: failed to retrieve certificate list for renewal info update: %s",
                 err_,
             )
             certificate_list = []
@@ -163,7 +163,7 @@ class Renewalinfo(object):
             )
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Renewalinfo._draft01_lookup(): %s",
+                "Database error: failed to look up certificate for renewal info (draft01): %s",
                 err_,
             )
             result_dic = None
@@ -214,7 +214,7 @@ class Renewalinfo(object):
                     break
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Renewalinfo._draft02_lookup(): %s",
+                "Database error: failed to look up certificate for renewal info (draft02): %s",
                 err_,
             )
 
@@ -338,7 +338,7 @@ class Renewalinfo(object):
             else:
                 rc_code = 404
         except Exception as err_:
-            self.logger.error("Renewalinfo.get() - error: %s", err_)
+            self.logger.error("Error when getting renewal information: %s", err_)
             rewalinfo_dic = {}
             rc_code = 400
 

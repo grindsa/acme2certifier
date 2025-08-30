@@ -72,7 +72,7 @@ jobs:
     - name: "Enroll lego with profileID ACME - could potenially fail"
       continue-on-error: True
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME -d lego.acme --key-type rsa2048 --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME -d lego.acme --key-type rsa2048 --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Digital Signature"
 
@@ -85,7 +85,7 @@ jobs:
 
     - name: "Enroll lego with profileID ACME"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME -d lego.acme --key-type rsa2048 --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME -d lego.acme --key-type rsa2048 --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Digital Signature"
 
@@ -97,7 +97,7 @@ jobs:
 
     - name: "Enroll lego with profileID ACME_2"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME_2 -d lego.acme --key-type rsa2048 --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME_2 -d lego.acme --key-type rsa2048 --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
 
