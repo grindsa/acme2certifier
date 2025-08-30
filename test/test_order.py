@@ -2522,7 +2522,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.order.validate_identifier", return_value=True)
     def test_146_tnauthlist_identifier_allowed(self, mock_validate):
-        self.order.tnauthlist_‚support = True
+        self.order.tnauthlist_support = True
         identifiers = [{"type": "tnauthlist", "value": "foobar"}]
         result = self.order._identifiers_allowed(identifiers)
         self.assertIsNone(result)
