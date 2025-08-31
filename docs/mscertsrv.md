@@ -123,7 +123,7 @@ profiles: {"template1": "http://foo.bar/template1", "template2": "http://foo.bar
 Once enabled, a client can specify the template to be used as part of an order request. Below an example for lego:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile template2
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile template2
 ```
 
 The handler supports the [header_info_list feature](header_info.md), allowing an ACME client to specify a template name during enrollment. To enable this feature, update `acme_srv.cfg`:
@@ -144,7 +144,7 @@ docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --st
 - **lego**:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" --user-agent template=foo -d <fqdn> --http run
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent template=foo -d <fqdn> --http run
 ```
 
 ## EAB Profiling

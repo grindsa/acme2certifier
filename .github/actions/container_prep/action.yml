@@ -28,6 +28,10 @@ inputs:
 runs:
   using: "composite"
   steps:
+
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: "Setup environment"
       run: |
         echo "IPv6 is $IPV6"

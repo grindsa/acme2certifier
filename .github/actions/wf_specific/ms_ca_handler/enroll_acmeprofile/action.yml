@@ -45,7 +45,7 @@ runs:
   - name: "ACME Profile - 01 Enroll lego with template in acme_srv.cfg (WebServer)"
     run: |
       sudo rm -rf lego/
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network ${{ inputs.NAME_SPACE }} goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.${{ inputs.NAME_SPACE }} --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network ${{ inputs.NAME_SPACE }} goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.${{ inputs.NAME_SPACE }} --http run
       sudo openssl verify -CAfile cert-1.pem lego/certificates/lego.${{ inputs.NAME_SPACE }}.crt
       sudo openssl x509 -in lego/certificates/lego.${{ inputs.NAME_SPACE }}.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
     shell: bash
@@ -66,7 +66,7 @@ runs:
     continue-on-error: true
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network ${{ inputs.NAME_SPACE }} goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run --profile unknown
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network ${{ inputs.NAME_SPACE }} goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run --profile unknown
     shell: bash
 
   - name: "ACME Profile - 02 - check  result "
@@ -95,7 +95,7 @@ runs:
   - name: "ACME Profile - 03 - Enroll lego with template submitted in command line (WebServerModified)"
     run: |
       sudo rm -rf lego/
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network ${{ inputs.NAME_SPACE }} goacme/lego -s http://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.${{ inputs.NAME_SPACE }} --http run --profile WebServerModified
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network ${{ inputs.NAME_SPACE }} goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.${{ inputs.NAME_SPACE }} --http run --profile WebServerModified
       sudo openssl verify -CAfile cert-1.pem lego/certificates/lego.${{ inputs.NAME_SPACE }}.crt
       sudo openssl x509 -in lego/certificates/lego.${{ inputs.NAME_SPACE }}.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
     shell: bash

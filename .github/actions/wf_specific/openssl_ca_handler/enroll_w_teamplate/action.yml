@@ -64,7 +64,7 @@ runs:
 
   - name: "Enroll lego"
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run
       # verify aborts due to unhandled critical extension
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout | grep "Basic Constraints: critical"
@@ -74,5 +74,5 @@ runs:
 
   - name: "Revoke lego"
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme revoke
     shell: bash

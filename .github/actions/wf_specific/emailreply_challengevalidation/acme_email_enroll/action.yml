@@ -1,0 +1,71 @@
+name: "acme_email_enroll"
+description: "acme_email_enroll"
+inputs:
+  TO_FAIL:
+    description: "Enrollment is expected to fail"
+    required: true
+    default: "false"
+  INSTALL:
+    description: "Install acme_email and dependencies"
+    required: true
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Test if http://127.0.0.1:22280/directory is accessible"
+    run: curl --insecure -f http://127.0.0.1:22280/directory
+    shell: bash
+
+  - name: "Install acme_email and dependencies"
+    if: ${{ inputs.INSTALL  == 'true' }}
+    run: |
+      echo "### Install acme-email"
+      git clone https://github.com/grindsa/acme_email.git
+      cd acme_email
+      python3 -m venv venv
+      source venv/bin/activate
+      pip3 install .
+    shell: bash
+
+  - name: "Enroll certificate"
+    run: |
+      echo "### Enroll certificate"
+      cd acme_email
+      source venv/bin/activate
+      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e jum@mailserver.acme --contact joern.mewes@gmx.net --imap --login jum@mailserver.acme --password jumstarter --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
+    shell: bash
+
+  - name: "Enroll certificate with wrong email (to fail)"
+    if: ${{ inputs.TO_FAIL  == 'true' }}
+    id: certbot01
+    continue-on-error: true
+    run: |
+      echo "### Enroll certificate"
+      cd acme_email
+      sudo rm -rf ./live/*
+      source venv/bin/activate
+      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e ulme@mailserver.acme --contact joern.mewes@gmx.net --imap --login jum@mailserver.acme --password jumstarter --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
+    shell: bash
+
+  - name: "Check  result "
+    if: ${{ (inputs.TO_FAIL  == 'true' ) && (steps.certbot01.outcome != 'failure') }}
+    run: |
+      echo "acmefail outcome is ${{steps.certbot01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Enroll certificate with wrong email (not to fail)"
+    if: ${{ inputs.TO_FAIL  == 'false' }}
+    run: |
+      echo "### Enroll certificate"
+      cd acme_email
+      sudo rm -rf ./live/*
+      source venv/bin/activate
+      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e ulme@mailserver.acme --contact joern.mewes@gmx.net --imap --login jum@mailserver.acme --password jumstarter --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
+    shell: bash

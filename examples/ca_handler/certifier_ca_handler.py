@@ -74,7 +74,7 @@ class CAhandler(object):
             self.auth = HTTPBasicAuth(self.api_user, self.api_password)
         else:
             self.logger.error(
-                'CAhandler._auth_set(): auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file'
+                'Auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file'
             )
         self.logger.debug("CAhandler._auth_set() ended")
 
@@ -126,7 +126,7 @@ class CAhandler(object):
                 timeout=self.request_timeout,
             ).json()
         except Exception as err_:
-            self.logger.error("CAhandler._api_post() returned error: %s", err_)
+            self.logger.error("API post() request returned an error: %s", err_)
             api_response = str(err_)
 
         return api_response
@@ -152,16 +152,14 @@ class CAhandler(object):
                     timeout=self.request_timeout,
                 ).json()
             except Exception as err_:
-                self.logger.error("CAhandler._ca_get() returned error: %s", str(err_))
+                self.logger.error("API get() request returned error: %s", str(err_))
                 api_response = {
                     "status": 500,
                     "message": str(err_),
                     "statusMessage": "Internal Server Error",
                 }
         else:
-            self.logger.error(
-                "CAhandler._ca_get(): api_host is misisng in configuration"
-            )
+            self.logger.error("api_host parameter is misisng in configuration")
             api_response = {}
         self.logger.debug("CAhandler._ca_get() ended with: %s", api_response)
         return api_response
@@ -231,7 +229,7 @@ class CAhandler(object):
             ).json()
         except Exception as err_:
             self.logger.error(
-                "CAhandler._cert_get_properties() returned error: %s", str(err_)
+                "Could not get certificate properties. Error: %s", str(err_)
             )
             api_response = {
                 "status": 500,
@@ -304,18 +302,16 @@ class CAhandler(object):
                         config_dic.get("CAhandler", "api_user_variable")
                     ]
                 except Exception as err:
-                    self.logger.error(
-                        "CAhandler._config_load() could not load user_variable:%s", err
-                    )
+                    self.logger.error("Could not load user_variable:%s", err)
             if "api_user" in config_dic["CAhandler"]:
                 if self.api_user:
-                    self.logger.info("CAhandler._config_load() overwrite api_user")
+                    self.logger.info("Overwrite api_user")
                 self.api_user = config_dic.get(
                     "CAhandler", "api_user", fallback=self.api_user
                 )
         else:
             self.logger.error(
-                'CAhandler._config_load() configuration incomplete: "api_user" parameter is missing in config file'
+                'Configuration incomplete: "api_user" parameter is missing in config file'
             )
 
         self.logger.debug("_config_user_load() ended")
@@ -335,18 +331,16 @@ class CAhandler(object):
                     ]
                 except Exception as err:
                     self.logger.error(
-                        "CAhandler._config_load() could not load passphrase_variable:%s",
+                        "Could not load passphrase_variable:%s",
                         err,
                     )
             if "api_password" in config_dic["CAhandler"]:
                 if self.api_password:
-                    self.logger.info(
-                        "CAhandler._config_load() overwrite api_password_variable"
-                    )
+                    self.logger.info("Overwrite api_password_variable")
                 self.api_password = config_dic.get("CAhandler", "api_password")
         else:
             self.logger.error(
-                'CAhandler._config_load() configuration incomplete: "api_password" parameter is missing in config file'
+                'Configuration incomplete: "api_password" parameter is missing in config file'
             )
 
         self.logger.debug("_config_password_load() ended")
@@ -359,7 +353,7 @@ class CAhandler(object):
             self.ca_name = config_dic.get("CAhandler", "ca_name", fallback=self.ca_name)
         else:
             self.logger.error(
-                'CAhandler._config_load() configuration incomplete: "ca_name" parameter is missing in config file'
+                'Configuration incomplete: "ca_name" parameter is missing in config file'
             )
 
         try:
@@ -370,7 +364,7 @@ class CAhandler(object):
             )
         except Exception:
             self.logger.warning(
-                "CAhandler._config_load() polling_timeout is not an integer, using default value: %s",
+                "Invalid value for polling_timeout in configuration. Using default: %s",
                 self.polling_timeout,
             )
 
@@ -382,7 +376,7 @@ class CAhandler(object):
             )
         except Exception:
             self.logger.warning(
-                "CAhandler._config_load() request_timeout is not an integer, using default value: %s",
+                "Invalid value for request_timeout in configuration. Using default: %s",
                 self.request_timeout,
             )
 
@@ -420,7 +414,7 @@ class CAhandler(object):
                     self.proxy = {"http": proxy_server, "https": proxy_server}
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() proxy_server_list failed with error: %s",
+                    "Failed to parse proxy_server_list from configuration: %s",
                     err_,
                 )
 
@@ -438,7 +432,7 @@ class CAhandler(object):
                 )
             else:
                 self.logger.error(
-                    'CAhandler._config_load() configuration incomplete: "api_host" parameter is missing in config file'
+                    'Configuration incomplete: "api_host" parameter is missing in config file'
                 )
 
             # load user from config
@@ -558,7 +552,7 @@ class CAhandler(object):
                 # sleep
                 time.sleep(self.request_timeout)
         else:
-            self.logger.error("CAhandler._loop_poll(): no request url specified")
+            self.logger.warning("Error during polling loop: no request url specified")
             poll_identifier = request_url
 
         self.logger.debug("CAhandler._loop_poll() ended with error: %s", error)
@@ -658,7 +652,7 @@ class CAhandler(object):
                 timeout=self.request_timeout,
             ).json()
         except Exception as err:
-            self.logger.error("CAhandler._request.poll() returned: %s", err)
+            self.logger.error("Polling request returned an error: %s", err)
             request_dic = {}
 
         # check response

@@ -33,7 +33,7 @@ if __name__ == "__main__":
 
     # check amount of command line arguments
     if len(sys.argv) != 5:
-        LOGGER.error("Mot enough command line arguments")
+        LOGGER.error("Not enough command line arguments")
         sys.exit(1)
 
     IN_FILE = sys.argv[1]

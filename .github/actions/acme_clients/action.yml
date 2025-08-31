@@ -89,15 +89,15 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "HTTP - Enroll lego"
+    - name: "HTTPS - Enroll lego"
       run: |
         echo "##### HTTP - Enroll lego #####"
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
         else
           echo "use RSA"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
         fi
       shell: bash
       env:
@@ -108,11 +108,11 @@ runs:
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "HTTP - Revoke lego"
+    - name: "HTTPS - Revoke lego"
       if: ${{ inputs.REVOCATION == 'true' }}
       run: |
         echo "#### HTTP - Revoke lego"
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE revoke
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE revoke
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -380,10 +380,10 @@ runs:
         echo "##### HTTPS - Enroll lego #####"
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
          else
           echo "use RSA"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
         fi
 
         if [ "$VERIFY_CERT" == "true" ]; then
@@ -408,49 +408,7 @@ runs:
       if: ${{ inputs.REVOCATION == 'true' }}
       run: |
         echo "##### HTTPS - Revoke lego #####"
-        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE revoke
-      shell: bash
-      env:
-        ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        HTTP_PORT: ${{ inputs.HTTP_PORT }}
-        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
-        HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
-        NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-    - name: "HTTP - Enroll lego"
-      run: |
-        echo "##### HTTP - Enroll lego #####"
-        sudo rm -rf lego/*
-        if [ "$USE_RSA" == "false" ]; then
-          echo "use ECC"
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --http run
-         else
-          echo "use RSA"
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --http run
-        fi
-        if [ "$VERIFY_CERT" == "true" ]; then
-          if [ -f cert-2.pem ]; then
-            sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego$HOSTNAME_SUFFIX.$NAME_SPACE.crt
-          else
-            echo "single root ca"
-            sudo openssl verify -CAfile cert-1.pem lego/certificates/lego$HOSTNAME_SUFFIX.$NAME_SPACE.crt
-          fi
-        fi
-      shell: bash
-      env:
-        VERIFY_CERT: ${{ inputs.VERIFY_CERT }}
-        ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        HTTP_PORT: ${{ inputs.HTTP_PORT }}
-        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
-        USE_RSA: ${{ inputs.USE_RSA }}
-        HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
-        NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-    - name: "HTTP - Revoke lego"
-      if: ${{ inputs.REVOCATION == 'true' }}
-      run: |
-        echo "#### HTTP - Revoke lego"
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE revoke
+        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify  -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE revoke
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -467,10 +425,10 @@ runs:
         echo "##### HTTP - Enroll lego to test allowed domainlist feature #####"
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run -i --rm -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX --tls run
+          docker run -i --rm -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER --tls-skip-verify  -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX --tls run
         else
           echo "use RSA"
-          docker run -i --rm -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s http://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX --tls run
+          docker run -i --rm -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER --tls-skip-verify  -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX --tls run
         fi
       shell: bash
       env:

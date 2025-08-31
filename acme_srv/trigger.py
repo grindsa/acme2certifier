@@ -48,7 +48,7 @@ class Trigger(object):
         with Certificate(self.debug, "foo", self.logger) as certificate:
             # search certificates in status "processing"
             cert_list = certificate.certlist_search(
-                "order__status_id", 4, ("name", "csr", "order__name")
+                "order__status_id", 4, ["name", "csr", "order__name"]
             )
 
             for cert in cert_list:
@@ -82,7 +82,7 @@ class Trigger(object):
                 self.cahandler = ca_handler_module.CAhandler
             except Exception as err_:
                 self.logger.critical(
-                    "Certificate._config_load(): loading CAhandler failed with err: %s",
+                    "Failed to load CA handler module: %s",
                     err_,
                 )
 
@@ -112,7 +112,7 @@ class Trigger(object):
                     self.dbstore.certificate_add(data_dic)
                 except Exception as err_:
                     self.logger.critical(
-                        "acme2certifier database error in trigger._payload_process() add: %s",
+                        "Database error: failed to add certificate during trigger processing: %s",
                         err_,
                     )
                 if "order_name" in cert and cert["order_name"]:
@@ -123,7 +123,7 @@ class Trigger(object):
                         )
                     except Exception as err_:
                         self.logger.critical(
-                            "acme2certifier database error in trigger._payload_process() upd: %s",
+                            "Database error: failed to update order status during trigger processing: %s",
                             err_,
                         )
             code = 200

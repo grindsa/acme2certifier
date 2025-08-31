@@ -237,7 +237,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.message.check(message, skip_nonce_check=True),
             )
         self.assertIn(
-            "INFO:test_a2c:skip nonce check of inner payload during keyrollover",
+            "INFO:test_a2c:Skip nonce check of inner payload during keyrollover",
             lcm.output,
         )
 
@@ -421,7 +421,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.message._name_get(protected)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Message._name_rev_get(): exc_mess__name_get",
+            "CRITICAL:test_a2c:Database error: failed to look up account name for revocation: exc_mess__name_get",
             lcm.output,
         )
 
@@ -568,7 +568,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.message._config_load()
         self.assertIn(
-            "CRITICAL:test_a2c:Message._config_load(): EABHandler configuration incomplete",
+            "CRITICAL:test_a2c:EABHandler configuration incomplete",
             lcm.output,
         )
         self.assertFalse(self.message.disable_dic["nonce_check_disable"])
@@ -608,7 +608,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.message._config_load()
         self.assertIn(
-            "CRITICAL:test_a2c:Message._config_load(): EABHandler could not get loaded",
+            "CRITICAL:test_a2c:EABHandler could not get loaded",
             lcm.output,
         )
         self.assertFalse(self.message.disable_dic["nonce_check_disable"])

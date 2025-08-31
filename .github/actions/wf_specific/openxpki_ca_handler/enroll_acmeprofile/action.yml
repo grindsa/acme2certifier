@@ -25,7 +25,7 @@ runs:
   - name: "ACME Profile - 01 - Enroll lego with without template"
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
     shell: bash
@@ -43,7 +43,7 @@ runs:
     continue-on-error: true
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run --profile unknown
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run --profile unknown
     shell: bash
 
   - name: "ACME Profile - 02 - check  result "
@@ -72,7 +72,7 @@ runs:
   - name: "ACME Profile - 03 - Enroll lego with am allowed template_name"
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run --profile tls-client
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run --profile tls-client
       sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout
       sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt

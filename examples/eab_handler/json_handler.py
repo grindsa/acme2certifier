@@ -44,7 +44,7 @@ class EABhandler(object):
                 with open(self.key_file, encoding="utf8") as json_file:
                     data_dic = json.load(json_file)
             except Exception as err:
-                self.logger.error("EABhandler.key_file_load() error: {0}".format(err))
+                self.logger.error("Failed to load EAB key file: %s", err)
 
         self.logger.debug(
             "EABhandler.key_file_load() ended: {0}".format(bool(data_dic))

@@ -33,7 +33,9 @@ class Signature(object):
             result = self.dbstore.cli_jwk_load(kid)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Signature._cli_jwk_load(): %s", err_
+                "Database error: failed to load CLI JWK for account id %s: %s",
+                kid,
+                err_,
             )
             result = None
         return result
@@ -45,7 +47,7 @@ class Signature(object):
             result = self.dbstore.jwk_load(kid)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Signature._jwk_load(): %s", err_
+                "Database error: failed to load JWK for account id %s: %s", kid, err_
             )
             result = None
         return result
