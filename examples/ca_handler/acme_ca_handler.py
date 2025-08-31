@@ -697,7 +697,10 @@ class CAhandler(object):
             if (
                 self.acme_url
                 and "host" in self.acme_url_dic
-                and self.acme_url_dic["host"].endswith("zerossl.com")
+                and (
+                    self.acme_url_dic["host"] == "zerossl.com"
+                    or self.acme_url_dic["host"].endswith(".zerossl.com")
+                )
             ):  # lgtm [py/incomplete-url-substring-sanitization]
                 # get zerossl eab credentials
                 self._zerossl_eab_get()
