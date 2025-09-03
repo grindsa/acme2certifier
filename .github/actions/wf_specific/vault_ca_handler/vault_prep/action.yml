@@ -51,7 +51,7 @@ runs:
       openssl x509 -req -in $WORKING_DIR/data/vault/certs/server.csr -CA $ISSUING_CA_CERT -CAkey $ISSUING_CA_KEY -CAcreateserial -out $WORKING_DIR/data/vault/certs/server.crt -copy_extensions copy -days 30 -sha256 --passin pass:$ISSUING_CA_PASSPHRASE
       cat $ISSUING_CA_CERT >> $WORKING_DIR/data/vault/certs/server.csr
       cat $ROOT_CA_CERT >> $WORKING_DIR/data/vault/certs/server.csr
-      sudo chmod 777 data/vault/*
+      sudo chmod 777 $WORKING_DIR/data/vault/*
       cat $WORKING_DIR/data/vault/certs/server.csr
     shell: bash
     env:
