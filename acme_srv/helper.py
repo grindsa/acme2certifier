@@ -290,6 +290,30 @@ def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str,
     return allowed_domainlist
 
 
+def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
+    """load parameters"""
+    logger.debug("_config_proxy_load()")
+
+    proxy = {}
+    if "DEFAULT" in config_dic and "proxy_server_list" in config_dic["DEFAULT"]:
+        try:
+            proxy_list = json.loads(config_dic["DEFAULT"]["proxy_server_list"])
+            url_dic = parse_url(logger, host_name)
+            if "host" in url_dic:
+                # check if we need to set the proxy
+                (fqdn, _port) = url_dic["host"].split(":")
+                proxy_server = proxy_check(logger, fqdn, proxy_list)
+                proxy = {"http": proxy_server, "https": proxy_server}
+        except Exception as err_:
+            logger.warning(
+                "Failed to parse proxy_server_list from configuration: %s",
+                err_,
+            )
+
+    logger.debug("config_proxy_load() ended with: %s", proxy)
+    return proxy
+
+
 def eab_handler_load(
     logger: logging.Logger, config_dic: Dict
 ) -> importlib.import_module:
@@ -2362,6 +2386,7 @@ def request_operation(
     session=requests,
     method: str = "GET",
     payload: Dict[str, str] = None,
+    verify: bool = True,
 ):
     """check if a for a string value taken from profile if its a variable inside a class and apply value"""
     logger.debug("Helper.api_operation(): method: %s", method)
@@ -2369,15 +2394,25 @@ def request_operation(
     try:
         if method.lower() == "get":
             api_response = session.get(
-                url=url, headers=headers, proxies=proxy, timeout=timeout
+                url=url, headers=headers, proxies=proxy, timeout=timeout, verify=verify
             )
         elif method.lower() == "post":
             api_response = session.post(
-                url=url, headers=headers, proxies=proxy, timeout=timeout, json=payload
+                url=url,
+                headers=headers,
+                proxies=proxy,
+                timeout=timeout,
+                json=payload,
+                verify=verify,
             )
         elif method.lower() == "put":
             api_response = session.put(
-                url=url, headers=headers, proxies=proxy, timeout=timeout, json=payload
+                url=url,
+                headers=headers,
+                proxies=proxy,
+                timeout=timeout,
+                json=payload,
+                verify=verify,
             )
         else:
             logger.error("Unknown request method: %s", method)
