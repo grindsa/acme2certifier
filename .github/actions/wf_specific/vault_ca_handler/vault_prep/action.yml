@@ -56,10 +56,10 @@ runs:
     shell: bash
     env:
       WORKING_DIR: ${{ inputs.WORKING_DIR }}
-      ISSUING_CA_CERT: ${{ secrets.ISSUING_CA_CERT }}
-      ISSUING_CA_KEY: ${{ secrets.ISSUING_CA_KEY }}
-      ISSUING_CA_PASSPHRASE: ${{ secrets.ISSUING_CA_PASSPHRASE }}
-      ROOT_CA_CERT: ${{ secrets.ROOT_CA_CERT }}
+      ISSUING_CA_CERT: ${{ inputs.ISSUING_CA_CERT }}
+      ISSUING_CA_KEY: ${{ inputs.ISSUING_CA_KEY }}
+      ISSUING_CA_PASSPHRASE: ${{ inputs.ISSUING_CA_PASSPHRASE }}
+      ROOT_CA_CERT: ${{ inputs.ROOT_CA_CERT }}
 
   - name: "Instanciate vault server"
     run: |
