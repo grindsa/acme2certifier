@@ -2,7 +2,6 @@ name: CA handler Tests - Hashicorp Vault
 
 on:
   push:
-    branches: [ 'devel', 'master', 'profile_wf']
   pull_request:
     branches: [ devel ]
   schedule:
