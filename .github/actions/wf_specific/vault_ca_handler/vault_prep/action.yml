@@ -70,16 +70,26 @@ runs:
       docker-compose up -d
     shell: bash
 
-  - name: "Sleep for 20s"
+  - name: "Sleep for 10s"
     uses: juliangruber/sleep-action@v2.0.3
     with:
-      time: 20s
+      time: 10s
 
   - name: "Configure vault server"
     working-directory: ${{ inputs.WORKING_DIR }}/data/vault
     run: |
       docker ps -a
-      docker-compose logs
+      VAULT_INIT_OUTPUT="$(docker exec vault vault operator init)"
+      sleep 5
+      UNSEAL_KEY_1=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Unseal Key 1: \([^ ]*\).*/\1/p')
+      UNSEAL_KEY_2=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Unseal Key 2: \([^ ]*\).*/\1/p')
+      UNSEAL_KEY_3=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Unseal Key 3: \([^ ]*\).*/\1/p')
+      INITIAL_ROOT_TOKEN=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Initial Root Token: \([^ ]*\).*/\1/p')
+      echo "Unseal Key 1: $UNSEAL_KEY_1"
+      echo "Unseal Key 2: $UNSEAL_KEY_2"
+      echo "Unseal Key 3: $UNSEAL_KEY_3"
+      echo "Initial Root Token: $INITIAL_ROOT_TOKEN"
+
       exit 1
     shell: bash
 
