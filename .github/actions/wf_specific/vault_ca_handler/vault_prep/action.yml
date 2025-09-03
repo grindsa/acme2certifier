@@ -69,15 +69,16 @@ runs:
       docker-compose up -d
     shell: bash
 
-  - name: "Sleep for 10s"
+  - name: "Sleep for 20s"
     uses: juliangruber/sleep-action@v2.0.3
     with:
-      time: 10s
+      time: 20s
 
   - name: "Configure vault server"
     working-directory: ${{ inputs.WORKING_DIR }}/data/vault
     run: |
       docker ps -a
+      docker-compose logs
       exit 1
     shell: bash
 
