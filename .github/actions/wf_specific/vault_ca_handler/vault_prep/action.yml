@@ -52,7 +52,6 @@ runs:
       cat $ISSUING_CA_CERT >> $WORKING_DIR/data/vault/certs/server.csr
       cat $ROOT_CA_CERT >> $WORKING_DIR/data/vault/certs/server.csr
       sudo chmod 777 $WORKING_DIR/data/vault/*
-      cat $WORKING_DIR/data/vault/certs/server.csr
     shell: bash
     env:
       WORKING_DIR: ${{ inputs.WORKING_DIR }}
@@ -62,15 +61,23 @@ runs:
       ROOT_CA_CERT: ${{ inputs.ROOT_CA_CERT }}
 
   - name: "Instanciate vault server"
+    working-directory: ${{ inputs.WORKING_DIR }}/data/vault
     run: |
-      exit 1
-      docker run -id --rm -p 80:8080 -p 443:8443 -e TLS_SETUP_ENABLED=true -v $(pwd)/examples/vault:/tmp/data  -v ${{ inputs.WORKING_DIR }}/data:/tmp/store --name "vault" -h vault keyfactor/ejbca-ce
+      docker-compose up -d
     shell: bash
 
-  - name: "Sleep for 180s"
+  - name: "Sleep for 10s"
     uses: juliangruber/sleep-action@v2.0.3
     with:
-      time: 180s
+      time: 10s
+
+  - name: "Configure vault server"
+    working-directory: ${{ inputs.WORKING_DIR }}/data/vault
+    run: |
+      docker ps -a
+      exit 1
+    shell: bash
+
 
   - name: "Get randmonly generated Superadmin password for ejbca instance"
     run: |
