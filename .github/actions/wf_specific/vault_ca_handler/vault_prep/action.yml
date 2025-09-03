@@ -39,7 +39,7 @@ runs:
       sudo apt-get update
       sudo apt-get install -y docker-compose
       docker network create acme
-      mkdir -p data/vault
+      mkdir -p data/vault/config
       sudo chmod -R 777 data/vault
       sudo sh -c "echo '$VAULT_IP vault' >> /etc/hosts"
       cp vault/config.hcl data/vault/config/
