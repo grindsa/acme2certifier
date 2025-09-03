@@ -1,4 +1,4 @@
-name: CA handler Tests - Digicert CertCentral
+name: CA handler Tests - Hashicorp Vault
 
 on:
   push:
