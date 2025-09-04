@@ -34,8 +34,9 @@ jobs:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         WORKING_DIR: ${{ github.workspace }}/examples/Docker
 
-    - name: "create folders"
+    - name: " show token"
       run: |
+        echo ${{ env.VAULT_TOKEN }}
         exit 1
 
     - name: "Build container"
