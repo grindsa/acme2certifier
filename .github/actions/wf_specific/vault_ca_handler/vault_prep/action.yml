@@ -173,10 +173,10 @@ runs:
 
   - name: "Test if vault is accessible"
     run: |
-      docker run -i --rm --network $NAME_SPACE curlimages/curl \
+      docker run --rm --network $NAME_SPACE curlimages/curl \
         --header "X-Vault-Token: $VAULT_TOKEN" --header "X-Vault-Namespace: admin" \
         https://vault:8200/v1/pki_int/issue/serverauth --insecure -v --request POST \
-        --data '{"common_name": "test1.acme", "ttl": "24h"}'
+        --data '{"common_name": "test1.acme", "ttl": "24h"}' | jq
     shell: bash
     env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
