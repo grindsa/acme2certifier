@@ -24,6 +24,10 @@ inputs:
     description: "Path to the root CA certificate"
     required: true
     default: "test/ca/root-ca-cert.pem"
+  NAME_SPACE:
+    description: "Name space for the Docker network"
+    required: true
+    default: "acme"
 
 outputs:
   VAULT_TOKEN:
@@ -134,12 +138,12 @@ runs:
       docker exec vault vault write pki_int/intermediate/set-signed certificate=@/certs/pki_intermediate_cert.pem
       docker exec vault vault read -field=default pki_int/config/issuers
 
-      echo ISSUER_REF=$(docker exec vault vault list pki_int/issuers/ | awk 'NR==3') >> $GITHUB_ENV
-      echo ${{ env.ISSUER_REF }}
+      ISSUER_REF=$(docker exec vault vault list pki_int/issuers/ | awk 'NR==3')
+      echo $ISSUER_REF
 
       # Create roles
       docker exec vault vault write pki_int/roles/bar-dot-local \
-          issuer_ref="${{ env.ISSUER_REF }}" \
+          issuer_ref="$ISSUER_REF" \
           allowed_domains="bar.local" \
           allow_subdomains=true \
           key_type=rsa\
@@ -148,7 +152,7 @@ runs:
           max_ttl="720h"
 
       docker exec vault vault write pki_int/roles/serverauth \
-          issuer_ref="${{ env.ISSUER_REF }}" \
+          issuer_ref="$ISSUER_REF" \
           allowed_domains="acme" \
           allow_subdomains=true \
           key_type=ec \
@@ -157,15 +161,24 @@ runs:
           max_ttl="720h"
 
       docker exec vault vault write pki_int/roles/clientauth \
-          issuer_ref="${{ env.ISSUER_REF }}" \
+          issuer_ref="$ISSUER_REF" \
           allowed_domains="acme" \
           allow_subdomains=true \
           key_type=ec \
           key_usage="DigitalSignature, KeyEncipherment" \
           ext_key_usage="clientauth"  \
           max_ttl="720h"
-
     shell: bash
+
+
+  - name: "Test if vault is accessible"
+    run: |
+      docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure --header "X-Vault-Token: $VAULT_TOKEN" --header "X-Vault-Namespace: admin" \
+      -f https://vault/v1/pki_int/issue/serverauth -v --request POST --data '{"common_name": "test1.acme", "ttl": "24h"}'
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
 
   - name: "Test enrollment via REST-API"
     working-directory: ${{ inputs.WORKING_DIR }}
