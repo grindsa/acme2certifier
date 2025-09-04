@@ -41,12 +41,10 @@ jobs:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         WORKING_DIR: ${{ github.workspace }}/examples/Docker
 
-    - name: " show token"
-      run: |
-        echo ${{ env.VAULT_TOKEN }}
-        exit 1
-
-
+    #- name: " show token"
+    #  run: |
+    #    echo ${{ env.VAULT_TOKEN }}
+    #    exit 1
 
     - name: "Setup a2c with vault_ca_handler"
       run: |
@@ -58,7 +56,7 @@ jobs:
         sudo echo "vault_url: https://192.168.64.3:8200" >> examples/Docker/data/acme_srv.cfg
         sudo echo "vault_path: pki_int" >> examples/Docker/data/acme_srv.cfg
         sudo echo "vault_role: bar-dot-local" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "vault_token: hvs.Y2y0GLolTYiYNWvIebNOFpaw" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "vault_token: $VAULT_TOKEN" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
@@ -67,9 +65,7 @@ jobs:
         cd examples/Docker/
         docker-compose restart
       env:
-        DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ secrets.DIGICERT_DOMAIN }}
+        VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
