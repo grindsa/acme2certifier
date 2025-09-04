@@ -170,6 +170,7 @@ runs:
   - name: "Test enrollment via REST-API"
     working-directory: ${{ inputs.WORKING_DIR }}
     run: |
+      echo "$VAULT_TOKEN"
       curl --header "X-Vault-Token: $VAULT_TOKEN" \
         --header "X-Vault-Namespace: admin" \
         --request POST \
