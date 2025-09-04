@@ -175,7 +175,7 @@ runs:
         --header "X-Vault-Namespace: admin" \
         --request POST \
         --data '{"common_name": "test1.acme", "ttl": "24h"}' \
-        http://127.0.0.1:8200/v1/pki_int/issue/serverauth | jq
+        http://127.0.0.1:8200/v1/pki_int/issue/serverauth  # | jq
     shell: bash
     env:
       VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
