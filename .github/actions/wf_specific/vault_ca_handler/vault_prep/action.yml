@@ -95,8 +95,7 @@ runs:
       docker exec vault vault operator unseal $UNSEAL_KEY_1
       docker exec vault vault operator unseal $UNSEAL_KEY_2
       docker exec vault vault operator unseal $UNSEAL_KEY_3
-      docker exec vault vault login --non-interactive ${{ env.VAULT_TOKEN }}
-
+      echo "${{ env.VAULT_TOKEN }}" | docker exec -i vault vault login -
 
       # Create root ca
       docker exec vault vault secrets enable pki
