@@ -170,11 +170,10 @@ runs:
           max_ttl="720h"
     shell: bash
 
-
   - name: "Test if vault is accessible"
     run: |
       docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure --header "X-Vault-Token: $VAULT_TOKEN" --header "X-Vault-Namespace: admin" \
-      -f https://vault/v1/pki_int/issue/serverauth -v --request POST --data '{"common_name": "test1.acme", "ttl": "24h"}'
+      -f https://vault:8200/v1/pki_int/issue/serverauth -v --request POST --data '{"common_name": "test1.acme", "ttl": "24h"}'
     shell: bash
     env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
