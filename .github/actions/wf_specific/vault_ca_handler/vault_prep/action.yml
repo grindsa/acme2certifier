@@ -140,6 +140,7 @@ runs:
 
       ISSUER_REF=$(docker exec vault vault list pki_int/issuers/ | awk 'NR==3')
       echo $ISSUER_REF
+      echo $ISSUER_REF
 
       # Create roles
       docker exec vault vault write pki_int/roles/bar-dot-local \
