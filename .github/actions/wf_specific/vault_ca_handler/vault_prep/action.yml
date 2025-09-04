@@ -45,23 +45,23 @@ runs:
       sudo apt-get update
       sudo apt-get install -y docker-compose
       docker network create acme
-      mkdir -p data/vault/config
+      mkdir -p vault/config
       sudo chmod -R 777 data/vault
       sudo sh -c "echo '$VAULT_IP vault' >> /etc/hosts"
-      cp vault/config.hcl data/vault/config/
-      cp vault/compose.yaml data/vault/docker-compose.yaml
+      cp vault/config.hcl vault/config/
+      cp vault/compose.yaml vault/docker-compose.yaml
     env:
       VAULT_IP: ${{ inputs.RUNNER_IP }}
     shell: bash
 
   - name: "Generate Certificates"
     run: |
-      mkdir -p $WORKING_DIR/data/vault/certs
-      openssl req -nodes -newkey rsa:2048 -keyout $WORKING_DIR/data/vault/certs/server.key -out $WORKING_DIR/data/vault/certs/server.csr -batch -subj "/CN=vault.acme" -addext "subjectAltName=DNS:vault.acme" -addext "keyUsage = digitalSignature, keyEncipherment, dataEncipherment" -addext "extendedKeyUsage = serverAuth" -addext "basicConstraints=CA:false"
-      openssl x509 -req -in $WORKING_DIR/data/vault/certs/server.csr -CA $ISSUING_CA_CERT -CAkey $ISSUING_CA_KEY -CAcreateserial -out $WORKING_DIR/data/vault/certs/server.crt -copy_extensions copy -days 30 -sha256 --passin pass:$ISSUING_CA_PASSPHRASE
-      cat $ISSUING_CA_CERT >> $WORKING_DIR/data/vault/certs/server.csr
-      cat $ROOT_CA_CERT >> $WORKING_DIR/data/vault/certs/server.csr
-      sudo chmod 777 $WORKING_DIR/data/vault/*
+      mkdir -p $WORKING_DIR/vault/certs
+      openssl req -nodes -newkey rsa:2048 -keyout $WORKING_DIR/vault/certs/server.key -out $WORKING_DIR/vault/certs/server.csr -batch -subj "/CN=vault.acme" -addext "subjectAltName=DNS:vault.acme" -addext "keyUsage = digitalSignature, keyEncipherment, dataEncipherment" -addext "extendedKeyUsage = serverAuth" -addext "basicConstraints=CA:false"
+      openssl x509 -req -in $WORKING_DIR/vault/certs/server.csr -CA $ISSUING_CA_CERT -CAkey $ISSUING_CA_KEY -CAcreateserial -out $WORKING_DIR/vault/certs/server.crt -copy_extensions copy -days 30 -sha256 --passin pass:$ISSUING_CA_PASSPHRASE
+      cat $ISSUING_CA_CERT >> $WORKING_DIR/vault/certs/server.csr
+      cat $ROOT_CA_CERT >> $WORKING_DIR/vault/certs/server.csr
+      sudo chmod 777 $WORKING_DIR/vault/*
     shell: bash
     env:
       WORKING_DIR: ${{ inputs.WORKING_DIR }}
