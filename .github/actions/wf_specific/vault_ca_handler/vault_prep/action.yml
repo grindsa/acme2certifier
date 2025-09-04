@@ -71,7 +71,7 @@ runs:
       ROOT_CA_CERT: ${{ inputs.ROOT_CA_CERT }}
 
   - name: "Instanciate vault server"
-    working-directory: ${{ inputs.WORKING_DIR }}/data/vault
+    working-directory: ${{ inputs.WORKING_DIR }}/vault
     run: |
       docker-compose up -d
     shell: bash
@@ -82,7 +82,7 @@ runs:
       time: 5s
 
   - name: "Configure vault server"
-    working-directory: ${{ inputs.WORKING_DIR }}/data/vault
+    working-directory: ${{ inputs.WORKING_DIR }}/vault
     run: |
       docker ps -a
       VAULT_INIT_OUTPUT="$(docker exec vault vault operator init)"
