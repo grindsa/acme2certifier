@@ -170,12 +170,11 @@ runs:
   - name: "Test enrollment via REST-API"
     working-directory: ${{ inputs.WORKING_DIR }}
     run: |
-      echo "$VAULT_TOKEN"
       curl --header "X-Vault-Token: $VAULT_TOKEN" \
         --header "X-Vault-Namespace: admin" \
         --request POST \
         --data '{"common_name": "test1.acme", "ttl": "24h"}' \
-        http://127.0.0.1:8200/v1/pki_int/issue/serverauth  # | jq
+        http://127.0.0.1:8200/v1/pki_int/issue/serverauth -v
     shell: bash
     env:
       VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
