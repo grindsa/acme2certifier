@@ -42,9 +42,9 @@ runs:
   - name: "Prepare Environment"
     working-directory: ${{ inputs.WORKING_DIR }}
     run: |
-      sudo apt-get update
-      sudo apt-get install -y docker-compose
-      docker network create acme
+      # sudo apt-get update
+      # sudo apt-get install -y docker-compose
+      # docker network create acme
       mkdir -p vault/config
       sudo chmod -R 777 vault
       sudo sh -c "echo '$VAULT_IP vault' >> /etc/hosts"
