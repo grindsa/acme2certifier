@@ -72,10 +72,10 @@ runs:
       docker-compose up -d
     shell: bash
 
-  - name: "Sleep for 10s"
+  - name: "Sleep for 5s"
     uses: juliangruber/sleep-action@v2.0.3
     with:
-      time: 10s
+      time: 5s
 
   - name: "Configure vault server"
     working-directory: ${{ inputs.WORKING_DIR }}/data/vault
@@ -86,18 +86,16 @@ runs:
       UNSEAL_KEY_1=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Unseal Key 1: \([^ ]*\).*/\1/p')
       UNSEAL_KEY_2=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Unseal Key 2: \([^ ]*\).*/\1/p')
       UNSEAL_KEY_3=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Unseal Key 3: \([^ ]*\).*/\1/p')
-      ROOT_TOKEN=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Initial Root Token: \([^ ]*\).*/\1/p')
-      VAULT_TOKEN=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Initial Root Token: \([^ ]*\).*/\1/p') >> $GITHUB_ENV
+      echo VAULT_TOKEN=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Initial Root Token: \([^ ]*\).*/\1/p') >> $GITHUB_ENV
       echo "Unseal Key 1: $UNSEAL_KEY_1"
       echo "Unseal Key 2: $UNSEAL_KEY_2"
       echo "Unseal Key 3: $UNSEAL_KEY_3"
       echo "Vault Token: ${{ env.VAULT_TOKEN }}"
-      echo "Root Token: $ROOT_TOKEN"
 
       docker exec vault vault operator unseal $UNSEAL_KEY_1
       docker exec vault vault operator unseal $UNSEAL_KEY_2
       docker exec vault vault operator unseal $UNSEAL_KEY_3
-      echo "$ROOT_TOKEN" | docker exec -i vault vault login -
+      echo ${{ env.VAULT_TOKEN }} | docker exec -i vault vault login -
 
 
       # Create root ca
