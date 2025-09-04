@@ -36,6 +36,7 @@ outputs:
   ISSUER_REF:
     description: "Issuer Reference"
     value: ${{ env.ISSUER_REF }}
+
 runs:
   using: "composite"
   steps:

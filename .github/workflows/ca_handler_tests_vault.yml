@@ -64,7 +64,6 @@ jobs:
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
       with:
-        NAME_SPACE: acme.dynamop.de
         USE_CERTBOT: false
         TEST_ADL: "true"
 
