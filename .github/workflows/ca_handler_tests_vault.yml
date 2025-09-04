@@ -53,7 +53,7 @@ jobs:
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/vault_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
 
-        sudo echo "vault_url: https://192.168.64.3:8200" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "vault_url: https://vault.acme:8200" >> examples/Docker/data/acme_srv.cfg
         sudo echo "vault_path: pki_int" >> examples/Docker/data/acme_srv.cfg
         sudo echo "vault_role: bar-dot-local" >> examples/Docker/data/acme_srv.cfg
         sudo echo "vault_token: $VAULT_TOKEN" >> examples/Docker/data/acme_srv.cfg
