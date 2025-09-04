@@ -33,7 +33,6 @@ jobs:
       with:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
-        NAME_SPACE: acme.dynamop.de
 
     - name: "Instanciate vault"
       uses: ./.github/actions/wf_specific/vault_ca_handler/vault_prep
