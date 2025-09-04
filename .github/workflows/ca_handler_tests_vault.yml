@@ -28,23 +28,18 @@ jobs:
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
 
-    #- name: "Build container"
-    #  uses: ./.github/actions/container_prep
-    #  with:
-    #    DB_HANDLER: ${{ matrix.dbhandler }}
-    #    WEB_SRV: ${{ matrix.websrv }}
-    #    NAME_SPACE: acme.dynamop.de
+    - name: "Build container"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        NAME_SPACE: acme.dynamop.de
 
     - name: "Instanciate vault"
       uses: ./.github/actions/wf_specific/vault_ca_handler/vault_prep
       with:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         WORKING_DIR: ${{ github.workspace }}/examples/Docker
-
-    #- name: " show token"
-    #  run: |
-    #    echo ${{ env.VAULT_TOKEN }}
-    #    exit 1
 
     - name: "Setup a2c with vault_ca_handler"
       run: |
@@ -55,7 +50,7 @@ jobs:
 
         sudo echo "vault_url: https://vault.acme:8200" >> examples/Docker/data/acme_srv.cfg
         sudo echo "vault_path: pki_int" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "vault_role: bar-dot-local" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "vault_role: serverauth" >> examples/Docker/data/acme_srv.cfg
         sudo echo "vault_token: $VAULT_TOKEN" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
