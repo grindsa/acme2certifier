@@ -55,8 +55,8 @@ jobs:
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
         # sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker-compose restart
+        # cd examples/Docker/
+        # docker-compose restart
       env:
         VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
 
