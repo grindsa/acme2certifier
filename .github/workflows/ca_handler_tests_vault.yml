@@ -42,6 +42,7 @@ jobs:
 
     - name: "Setup a2c with vault_ca_handler"
       run: |
+        mkdir -p examples/Docker/data/
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
