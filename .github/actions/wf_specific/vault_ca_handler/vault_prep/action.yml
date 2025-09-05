@@ -87,7 +87,7 @@ runs:
     run: |
       docker ps -a
       VAULT_INIT_OUTPUT="$(docker exec vault vault operator init)"
-      sleep 5
+      sleep 2
       UNSEAL_KEY_1=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Unseal Key 1: \([^ ]*\).*/\1/p')
       UNSEAL_KEY_2=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Unseal Key 2: \([^ ]*\).*/\1/p')
       UNSEAL_KEY_3=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Unseal Key 3: \([^ ]*\).*/\1/p')
@@ -120,28 +120,28 @@ runs:
           issuing_certificates="http://127.0.0.1:8200/v1/pki/ca" \
           crl_distribution_points="http://127.0.0.1:8200/v1/pki/crl"
 
+      ROOT_ISSUER_REF=$(docker exec vault sh -c 'vault list -format=json pki/issuers/' | jq -r '.[]')
+      echo $ROOT_ISSUER_REF
+
       # Intermediate CA
       docker exec vault vault secrets enable -path=pki_int pki
       docker exec vault vault secrets tune -max-lease-ttl=43800h pki_int
 
-      docker exec vault sh -c 'vault write -format=json pki_int/intermediate/generate/internal \
-          common_name="ACME Intermediate Authority" \
-          issuer_name="acme-intermediate"  > /certs/pki_intermediate_csr.json'
+      docker exec vault vault pki issue \
+            --issuer_name=acme-intermediate \
+            /pki/issuer/$ROOT_ISSUER_REF \
+            /pki_int/ \
+            common_name="ACME Intermediate Authority" \
+            key_type="rsa" \
+            key_bits="4096" \
+            max_depth_len=1 \
+            ttl="43800h"
 
-      sudo sh -c "jq -r '.data.csr' certs/pki_intermediate_csr.json > certs/pki_intermediate_csr.pem"
-      docker exec vault sh -c 'vault write -format=json pki/root/sign-intermediate \
-          issuer_ref="root" \
-          csr=@/certs/pki_intermediate_csr.pem \
-          format=pem_bundle ttl="43800h" > /certs/pki_intermediate_cert.json'
+      # docker exec vault vault read -field=default pki_int/config/issuers
 
-      sudo sh -c "jq -r '.data.certificate' certs/pki_intermediate_cert.json > certs/pki_intermediate_cert.pem"
-      sudo sh -c "jq -r '.data.certificate' certs/pki_intermediate_cert.json | awk '/-----BEGIN CERTIFICATE-----/{f=1} f; /-----END CERTIFICATE-----/{if(f){exit}}' > certs/pki_intermediate_cert.pem"
-      docker exec vault vault write pki_int/intermediate/set-signed certificate=@/certs/pki_intermediate_cert.pem
-      docker exec vault vault read -field=default pki_int/config/issuers
-
-      ISSUER_REF=$(docker exec vault vault list pki_int/issuers/ | awk 'NR==3')
+      ISSUER_REF=$(docker exec vault vault read -field=default pki_int/config/issuers)
       echo $ISSUER_REF
-      echo $ISSUER_REF
+
 
       # Create roles
       docker exec vault vault write pki_int/roles/bar-dot-local \
