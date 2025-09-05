@@ -145,30 +145,30 @@ runs:
 
       # Create roles
       docker exec vault vault write pki_int/roles/bar-dot-local \
-          issuer_ref=$ISSUER_REF \
+          issuer_ref="$ISSUER_REF" \
           allowed_domains="bar.local" \
           allow_subdomains=true \
           key_type=rsa\
           key_usage="DigitalSignature, KeyEncipherment" \
-          ext_key_usage="serverauth"  \
+          ext_key_usage="ServerAuth"  \
           max_ttl="720h"
 
       docker exec vault vault write pki_int/roles/serverauth \
-          issuer_ref=$ISSUER_REF \
+          issuer_ref="$ISSUER_REF" \
           allowed_domains="acme" \
           allow_subdomains=true \
           key_type=ec \
           key_usage="DigitalSignature, KeyEncipherment" \
-          ext_key_usage="serverauth"  \
+          ext_key_usage="ServerAuth"  \
           max_ttl="720h"
 
       docker exec vault vault write pki_int/roles/clientauth \
-          issuer_ref=$ISSUER_REF \
+          issuer_ref="$ISSUER_REF" \
           allowed_domains="acme" \
           allow_subdomains=true \
           key_type=ec \
           key_usage="DigitalSignature, KeyEncipherment" \
-          ext_key_usage="clientauth"  \
+          ext_key_usage="ClientAuth"  \
           max_ttl="720h"
     shell: bash
 
