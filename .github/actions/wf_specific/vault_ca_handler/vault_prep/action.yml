@@ -159,7 +159,7 @@ runs:
           allow_subdomains=true \
           key_type=ec \
           key_usage="DigitalSignature, KeyEncipherment" \
-          ext_key_usage="ServerAuth"  \
+          ext_key_usage="ServerAuth, IPSecTunnel"  \
           max_ttl="720h"
 
       docker exec vault vault write pki_int/roles/clientauth \
@@ -168,7 +168,7 @@ runs:
           allow_subdomains=true \
           key_type=ec \
           key_usage="DigitalSignature, KeyEncipherment" \
-          ext_key_usage="ClientAuth"  \
+          ext_key_usage="ClientAuth, IPSECUser"  \
           max_ttl="720h"
     shell: bash
 
