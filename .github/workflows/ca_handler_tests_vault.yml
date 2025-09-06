@@ -28,17 +28,17 @@ jobs:
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
 
-    #- name: "Build container"
-    #  uses: ./.github/actions/container_prep
-    #  with:
-    #    DB_HANDLER: ${{ matrix.dbhandler }}
-    #    WEB_SRV: ${{ matrix.websrv }}
+    - name: "Build container"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
-    #- name: "Instanciate vault"
-    #  uses: ./.github/actions/wf_specific/vault_ca_handler/vault_prep
-    #  with:
-    #    RUNNER_IP: ${{ env.RUNNER_IP }}
-    #    WORKING_DIR: ${{ github.workspace }}/examples/Docker
+    - name: "Instanciate vault"
+      uses: ./.github/actions/wf_specific/vault_ca_handler/vault_prep
+      with:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
+        WORKING_DIR: ${{ github.workspace }}/examples/Docker
 
     - name: "Setup a2c with vault_ca_handler"
       run: |
@@ -55,8 +55,8 @@ jobs:
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
         # sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-        #cd examples/Docker/
-        #docker-compose restart
+        cd examples/Docker/
+        docker-compose restart
       env:
         VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
 
@@ -74,8 +74,8 @@ jobs:
     - name: "ACME Profiling - setup a2c with vault_ca_handler"
       run: |
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"serverauth\": \"http:\/\/foo.bar\/serverauth\", \"clientauth\": \"http:\/\/foo.bar\/clientauth\", \"bar-dot-local\": \"http:\/\/foo.bar\/bar-dot-local\"}/g" examples/Docker/data/acme_srv.cfg
-        #cd examples/Docker/
-        #docker-compose restart
+        cd examples/Docker/
+        docker-compose restart
       env:
         VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
 
@@ -100,6 +100,9 @@ jobs:
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
         docker-compose restart
+
+    - name: "ACME Profiling - enrollment"
+      uses: ./.github/actions/wf_specific/vault_ca_handler/enroll_eab_acmeprofile
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
