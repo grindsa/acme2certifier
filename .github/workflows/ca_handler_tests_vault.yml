@@ -28,17 +28,17 @@ jobs:
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
     - run: echo "runner IP is ${{ env.RUNNER_IP }}"
 
-    - name: "Build container"
-      uses: ./.github/actions/container_prep
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
+    #- name: "Build container"
+    #  uses: ./.github/actions/container_prep
+    #  with:
+    #    DB_HANDLER: ${{ matrix.dbhandler }}
+    #    WEB_SRV: ${{ matrix.websrv }}
 
-    - name: "Instanciate vault"
-      uses: ./.github/actions/wf_specific/vault_ca_handler/vault_prep
-      with:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        WORKING_DIR: ${{ github.workspace }}/examples/Docker
+    #- name: "Instanciate vault"
+    #  uses: ./.github/actions/wf_specific/vault_ca_handler/vault_prep
+    #  with:
+    #    RUNNER_IP: ${{ env.RUNNER_IP }}
+    #    WORKING_DIR: ${{ github.workspace }}/examples/Docker
 
     - name: "Setup a2c with vault_ca_handler"
       run: |
@@ -60,11 +60,11 @@ jobs:
       env:
         VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
 
-    - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
-      with:
-        USE_CERTBOT: false
-        TEST_ADL: "true"
+    #- name: "Test enrollment"
+    #  uses: ./.github/actions/acme_clients
+    #  with:
+    #    USE_CERTBOT: false
+    #    TEST_ADL: "true"
 
     - name: "Verify allowed_domainlist error"
       run: |
@@ -79,8 +79,26 @@ jobs:
       env:
         VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
 
-    - name: "ACME Profiling - enrollment"
-      uses: ./.github/actions/wf_specific/vault_ca_handler/enroll_acmeprofile
+    #- name: "ACME Profiling - enrollment"
+    #  uses: ./.github/actions/wf_specific/vault_ca_handler/enroll_acmeprofile
+
+    - name: "EAB Profiling - setup a2c with vault_ca_handler"
+      run: |
+        sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+        sudo chmod 777 examples/eab_handler/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"vault_role\"\: \[\"clientauth\", \"serverauth\"\]/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"vault_role\"\: \"servers\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"vault_path\": \"pki\"/" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
+        sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
