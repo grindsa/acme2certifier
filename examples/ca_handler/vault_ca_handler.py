@@ -136,7 +136,7 @@ class CAhandler(object):
         return error
 
     def _config_load(self):
-        """ " load config from file"""
+        """load config from file"""
         self.logger.debug("CAhandler._config_load()")
 
         config_dic = load_config(self.logger, "CAhandler")
