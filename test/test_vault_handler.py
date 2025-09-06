@@ -109,7 +109,7 @@ class TestCAhandler(unittest.TestCase):
 
     @patch("requests.post")
     def test_010__api_post(self, mock_req):
-        """test _api_post(="""
+        """test _api_post()"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
         mock_req.side_effect = Exception("exc_api_post")
