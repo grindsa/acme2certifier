@@ -84,10 +84,10 @@ jobs:
 
     - name: "EAB Profiling - setup a2c with vault_ca_handler"
       run: |
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
         sudo chmod 777 examples/eab_handler/kid_profiles.json
