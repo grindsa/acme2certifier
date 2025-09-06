@@ -182,5 +182,3 @@ runs:
     env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
       VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
-
-
