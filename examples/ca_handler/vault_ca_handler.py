@@ -128,7 +128,7 @@ class CAhandler(object):
         for ele in ["vault_url", "vault_path", "vault_role", "vault_token"]:
             if not getattr(self, ele):
 
-                error = f"{ele} parameter in missing in config file"
+                error = f"{ele} parameter is missing in config file"
                 self.logger.error("Configuration check ended with error: %s", error)
                 break
 
