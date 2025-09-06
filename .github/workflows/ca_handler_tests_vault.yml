@@ -122,7 +122,7 @@ jobs:
       run: |
         sudo echo "eab_profiling: True" >> data/acme_srv.cfg
         sudo echo -e "\n[EABhandler]" >> data/acme_srv.cfg
-        sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
+        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
         sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
@@ -140,7 +140,7 @@ jobs:
       run: |
         sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
         sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-        sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
         sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
