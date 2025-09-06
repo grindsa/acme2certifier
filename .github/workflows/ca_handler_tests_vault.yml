@@ -63,7 +63,7 @@ jobs:
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
       with:
-        USE_CERTBOT: false
+        USE_CERTBOT: "true"
         TEST_ADL: "true"
 
     - name: "Verify allowed_domainlist error"
