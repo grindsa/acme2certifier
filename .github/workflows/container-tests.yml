@@ -10,7 +10,7 @@ on:
 
 jobs:
   docker-compose:
-    name: "Docker compose - apache2 wsgi"
+    name: "Docker compose - apache2 sgi"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
