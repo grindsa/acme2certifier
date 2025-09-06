@@ -1,3 +1,7 @@
+<!-- markdownlint-disable MD013 MD014 MD029 -->
+
+<!-- Hashicorp Vault PKI CA-handler -->
+
 # Hashicorp Vault PKI CA-handler
 
 ## Overview
