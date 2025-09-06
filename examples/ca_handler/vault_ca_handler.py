@@ -16,10 +16,10 @@ from acme_srv.helper import (
     cert_pem2der,
     cert_serial_get,
     eab_profile_header_info_check,
+    eab_profile_revocation_check,
     load_config,
     uts_now,
     uts_to_date_utc,
-
     allowed_domainlist_check,
     csr_cn_lookup,
     config_allowed_domainlist_load,
@@ -97,7 +97,7 @@ class CAhandler(object):
             proxy=self.proxy,
             timeout=self.request_timeout,
             payload=data,
-            verify=self.ca_bundle
+            verify=self.ca_bundle,
         )
         self.logger.debug("CAhandler._api_post() ended with code: %s", code)
         return code, content
@@ -118,7 +118,6 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._api_put() ended with code: %s", code)
         return code, content
-
 
     def _config_check(self) -> str:
         """check if config is valid"""
@@ -142,21 +141,11 @@ class CAhandler(object):
 
         config_dic = load_config(self.logger, "CAhandler")
         if "CAhandler" in config_dic:
-            self.vault_url = config_dic.get(
-                "CAhandler", "vault_url", fallback=None
-            )
-            self.vault_path = config_dic.get(
-                "CAhandler", "vault_path", fallback=None
-            )
-            self.vault_role = config_dic.get(
-                "CAhandler", "vault_role", fallback=None
-            )
-            self.vault_token = config_dic.get(
-                "CAhandler", "vault_token", fallback=None
-            )
-            self.issuer_ref = config_dic.get(
-                "CAhandler", "issuer_ref", fallback=None
-            )
+            self.vault_url = config_dic.get("CAhandler", "vault_url", fallback=None)
+            self.vault_path = config_dic.get("CAhandler", "vault_path", fallback=None)
+            self.vault_role = config_dic.get("CAhandler", "vault_role", fallback=None)
+            self.vault_token = config_dic.get("CAhandler", "vault_token", fallback=None)
+            self.issuer_ref = config_dic.get("CAhandler", "issuer_ref", fallback=None)
             try:
                 self.request_timeout = int(
                     config_dic.get(
@@ -254,11 +243,17 @@ class CAhandler(object):
                 if self.issuer_ref:
                     enroll_url = f"{self.vault_url}/v1/{self.vault_path}/issuer/{self.issuer_ref}/sign/{self.vault_role}"
                 else:
-                    enroll_url = f"{self.vault_url}/v1/{self.vault_path}/sign/{self.vault_role}"
+                    enroll_url = (
+                        f"{self.vault_url}/v1/{self.vault_path}/sign/{self.vault_role}"
+                    )
 
                 if self.enrollment_config_log:
                     self.enrollment_config_log_skip_list.extend(
-                        ["vault_token", "enrollment_config_log_skip_list", "enrollment_config_log"]
+                        [
+                            "vault_token",
+                            "enrollment_config_log_skip_list",
+                            "enrollment_config_log",
+                        ]
                     )
                     enrollment_config_log(
                         self.logger, self, self.enrollment_config_log_skip_list
@@ -267,11 +262,23 @@ class CAhandler(object):
                 # enroll certificate
                 code, content = self._api_post(enroll_url, data_dic)
 
-                if code in (200, 201) and content.get('data').get('certificate') and content.get('data').get('ca_chain'):
-                    cert_bundle = f'{content['data']['certificate']}\n' + '\n'.join(content['data']['ca_chain'])
-                    cert_raw = b64_encode(self.logger, cert_pem2der(content['data']['certificate']))
+                if (
+                    code in (200, 201)
+                    and content.get("data").get("certificate")
+                    and content.get("data").get("ca_chain")
+                ):
+                    cert_bundle = f'{content["data"]["certificate"]}\n' + "\n".join(
+                        content["data"]["ca_chain"]
+                    )
+                    cert_raw = b64_encode(
+                        self.logger, cert_pem2der(content["data"]["certificate"])
+                    )
                 else:
-                    error = json.dumps(content['errors']) if 'errors' in content else json.dumps(content)
+                    error = (
+                        json.dumps(content["errors"])
+                        if "errors" in content
+                        else json.dumps(content)
+                    )
                     self.logger.error("Failed to enroll certificate: %s", error)
 
         self.logger.debug("Certificate.enroll() ended")
@@ -317,12 +324,37 @@ class CAhandler(object):
 
         if cert_serial:
             self.logger.debug("Certificate serial number found: %s", cert_serial)
-            cert_serial = ":".join(cert_serial[i:i+2] for i in range(0, len(cert_serial), 2)).lower()
-            data_dic = {'serial_number': f'{cert_serial}'}
+
+            # modify handler configuration in case of eab profiling
+            if self.eab_profiling:
+                eab_profile_revocation_check(self.logger, self, certificate_raw)
+
+            if self.enrollment_config_log:
+                # log enrollment config
+                self.enrollment_config_log_skip_list.extend(
+                    [
+                        "vault_token",
+                        "enrollment_config_log_skip_list",
+                        "enrollment_config_log",
+                    ]
+                )
+                enrollment_config_log(
+                    self.logger, self, self.enrollment_config_log_skip_list
+                )
+
+            # reformat serial number
+            cert_serial = ":".join(
+                cert_serial[i : i + 2] for i in range(0, len(cert_serial), 2)
+            ).lower()
+            data_dic = {"serial_number": f"{cert_serial}"}
             revoke_url = f"{self.vault_url}/v1/{self.vault_path}/revoke"
             code, content = self._api_post(revoke_url, data_dic)
             if code not in (200, 201):
-                detail = json.dumps(content['errors']) if 'errors' in content else json.dumps(content)
+                detail = (
+                    json.dumps(content["errors"])
+                    if "errors" in content
+                    else json.dumps(content)
+                )
                 self.logger.error("Failed to revoke certificate: %s", detail)
         else:
             self.logger.error("Failed to get certificate serial number")

@@ -142,16 +142,23 @@ class EABhandler(object):
         self.logger.debug("EABhandler.allowed_domains_check() ended with: %s", result)
         return result
 
-    def eab_kid_get(self, csr: str) -> str:
+    def eab_kid_get(self, csr: str, revocation=False) -> str:
         """get eab kid  from datbases based on csr"""
         self.logger.debug("EABhandler.eab_kid_get()")
         try:
             # look up eab_kid from database based on csr
             from acme_srv.db_handler import DBstore  # pylint: disable=c0415
 
+            if revocation:
+                # this is a lookup for a revocation request
+                search_key = "cert_raw"
+            else:
+                # this is a lookup for an enrollment request
+                search_key = "csr"
+
             dbstore = DBstore(False, self.logger)
             result_dic = dbstore.certificate_lookup(
-                "csr",
+                search_key,
                 csr,
                 vlist=[
                     "name",
@@ -171,7 +178,7 @@ class EABhandler(object):
         self.logger.debug("EABhandler.eab_kid_get() ended with: %s", eab_kid)
         return eab_kid
 
-    def eab_profile_get(self, csr: str) -> str:
+    def eab_profile_get(self, csr: str, revocation=False) -> str:
         """get eab profile"""
         self.logger.debug("EABhandler._eab_profile_get()")
 
@@ -179,7 +186,7 @@ class EABhandler(object):
         profiles_dic = self.key_file_load()
 
         # get eab_kid from database
-        eab_kid = self.eab_kid_get(csr)
+        eab_kid = self.eab_kid_get(csr, revocation=revocation)
 
         # get profile from profiles_dic
         if (
