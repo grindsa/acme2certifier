@@ -359,6 +359,7 @@ runs:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        USE_RSA: ${{ inputs.USE_RSA }}
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
@@ -439,7 +440,7 @@ runs:
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Allowed domainlist feature - check  result "
+    - name: "Allowed domainlist feature - check  result "‚‚
       if: ${{ (inputs.TEST_ADL == 'true') && steps.legofail01.outcome != 'failure' }}
       run: |
         echo "legofail outcome is ${{steps.legofail01.outcome }}"
