@@ -2204,6 +2204,34 @@ def eab_profile_subject_check(
     return error
 
 
+def eab_profile_revocation_check(
+    logger: logging.Logger, cahandler, certificate_raw: str
+):
+    """check eab profile for revocation"""
+    logger.debug("Helper.eab_profile_revocation_check()")
+    with cahandler.eab_handler(logger) as eab_handler:
+        eab_profile_dic = eab_handler.eab_profile_get(
+            b64_url_recode(logger, certificate_raw), revocation=True
+        )
+        for key, value in eab_profile_dic.items():
+            if key in ["subject", "allowed_domainlist"]:
+                continue
+            elif isinstance(value, str):
+                eab_profile_string_check(logger, cahandler, key, value)
+            elif isinstance(value, list):
+                # check if we need to execute a function from the handler
+                if "eab_profile_list_check" in dir(cahandler):
+                    _result = cahandler.eab_profile_list_check(
+                        eab_handler, certificate_raw, key, value
+                    )
+                else:
+                    _result = eab_profile_list_check(
+                        logger, cahandler, eab_handler, certificate_raw, key, value
+                    )
+
+    logger.debug("Helper.eab_profile_revocation_check() ended")
+
+
 def eab_profile_check(
     logger: logging.Logger, cahandler, csr: str, handler_hifield: str
 ) -> str:
