@@ -66,7 +66,7 @@ class CAhandler(object):
         return self
 
     def __exit__(self, *args):
-        """cose the connection at the end of the context"""
+        """close the connection at the end of the context"""
 
     def _api_get(self, url: str) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
