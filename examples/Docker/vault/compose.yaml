@@ -1,0 +1,29 @@
+version: '3.3'
+services:
+  vault:
+    image: hashicorp/vault
+    container_name: vault
+    environment:
+      VAULT_ADDR: "https://vault.acme:8200"
+      VAULT_API_ADDR: "https://vault.acme:8200"
+      VAULT_ADDRESS: "https://vault.acme:8200"
+      VAULT_SKIP_VERIFY: "true"
+      # VAULT_UI: true
+      # VAULT_TOKEN:
+    ports:
+      - "8200:8200"
+      - "8201:8201"
+    restart: always
+    volumes:
+      - ./data/logs:/vault/logs/:rw
+      - ./data/data:/vault/data/:rw
+      - ./config:/vault/config/:rw
+      - ./certs:/certs/:rw
+      - ./data/file:/vault/file/:rw
+    cap_add:
+      - IPC_LOCK
+    entrypoint: vault server -config /vault/config/config.hcl
+networks:
+  default:
+    external:
+      name: acme
