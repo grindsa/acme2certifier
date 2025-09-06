@@ -1,0 +1,184 @@
+name: "vault_prep"
+description: "vault_prep"
+inputs:
+  RUNNER_IP:
+    description: "Runner IP"
+    required: true
+  WORKING_DIR:
+    description: "Working directory"
+    required: true
+    default: ${{ github.workspace }}
+  ISSUING_CA_KEY:
+    description: "Path to the Issuing-CA private key"
+    required: true
+    default: "test/ca/sub-ca-key.pem"
+  ISSUING_CA_CERT:
+    description: "Path to the CA certificate"
+    required: true
+    default: "test/ca/sub-ca-cert.pem"
+  ISSUING_CA_PASSPHRASE:
+    description: "Passphrase for the private key"
+    required: true
+    default: "Test1234"
+  ROOT_CA_CERT:
+    description: "Path to the root CA certificate"
+    required: true
+    default: "test/ca/root-ca-cert.pem"
+  NAME_SPACE:
+    description: "Name space for the Docker network"
+    required: true
+    default: "acme"
+
+outputs:
+  VAULT_TOKEN:
+    description: "Vault Token"
+    value: ${{ env.VAULT_TOKEN }}
+  ISSUER_REF:
+    description: "Issuer Reference"
+    value: ${{ env.ISSUER_REF }}
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Prepare Environment"
+    working-directory: ${{ inputs.WORKING_DIR }}
+    run: |
+      sudo apt-get update
+      sudo apt-get install -y docker-compose
+      # docker network create acme
+      mkdir -p vault/config
+      sudo chmod -R 777 vault
+      sudo sh -c "echo '$VAULT_IP vault' >> /etc/hosts"
+      cp vault/config.hcl vault/config/
+      cp vault/compose.yaml vault/docker-compose.yaml
+    env:
+      VAULT_IP: ${{ inputs.RUNNER_IP }}
+    shell: bash
+
+  - name: "Generate Certificates"
+    run: |
+      mkdir -p $WORKING_DIR/vault/certs
+      openssl req -nodes -newkey rsa:2048 -keyout $WORKING_DIR/vault/certs/server.key -out $WORKING_DIR/vault/certs/server.csr -batch -subj "/CN=vault.acme" -addext "subjectAltName=DNS:vault.acme" -addext "keyUsage = digitalSignature, keyEncipherment, dataEncipherment" -addext "extendedKeyUsage = serverAuth" -addext "basicConstraints=CA:false"
+      openssl x509 -req -in $WORKING_DIR/vault/certs/server.csr -CA $ISSUING_CA_CERT -CAkey $ISSUING_CA_KEY -CAcreateserial -out $WORKING_DIR/vault/certs/server.crt -copy_extensions copy -days 30 -sha256 --passin pass:$ISSUING_CA_PASSPHRASE
+      cat $ISSUING_CA_CERT >> $WORKING_DIR/vault/certs/server.csr
+      cat $ROOT_CA_CERT >> $WORKING_DIR/vault/certs/server.csr
+      sudo chmod 777 $WORKING_DIR/vault/*
+    shell: bash
+    env:
+      WORKING_DIR: ${{ inputs.WORKING_DIR }}
+      ISSUING_CA_CERT: ${{ inputs.ISSUING_CA_CERT }}
+      ISSUING_CA_KEY: ${{ inputs.ISSUING_CA_KEY }}
+      ISSUING_CA_PASSPHRASE: ${{ inputs.ISSUING_CA_PASSPHRASE }}
+      ROOT_CA_CERT: ${{ inputs.ROOT_CA_CERT }}
+
+  - name: "Instanciate vault server"
+    working-directory: ${{ inputs.WORKING_DIR }}/vault
+    run: |
+      docker-compose up -d
+    shell: bash
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Configure vault server"
+    working-directory: ${{ inputs.WORKING_DIR }}/vault
+    run: |
+      docker ps -a
+      VAULT_INIT_OUTPUT="$(docker exec vault vault operator init)"
+      sleep 2
+      UNSEAL_KEY_1=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Unseal Key 1: \([^ ]*\).*/\1/p')
+      UNSEAL_KEY_2=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Unseal Key 2: \([^ ]*\).*/\1/p')
+      UNSEAL_KEY_3=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Unseal Key 3: \([^ ]*\).*/\1/p')
+      ROOT_TOKEN=$(echo "$VAULT_INIT_OUTPUT" | sed -n 's/.*Initial Root Token: \([^ ]*\).*/\1/p')
+      echo VAULT_TOKEN=$ROOT_TOKEN >> $GITHUB_ENV
+      echo "Unseal Key 1: $UNSEAL_KEY_1"
+      echo "Unseal Key 2: $UNSEAL_KEY_2"
+      echo "Unseal Key 3: $UNSEAL_KEY_3"
+      echo "Root Token: $ROOT_TOKEN"
+      echo "Vault Token: ${{ env.VAULT_TOKEN }}"
+
+      docker exec vault vault operator unseal $UNSEAL_KEY_1
+      docker exec vault vault operator unseal $UNSEAL_KEY_2
+      docker exec vault vault operator unseal $UNSEAL_KEY_3
+      echo $ROOT_TOKEN | docker exec -i vault vault login -
+
+      # Create root ca
+      docker exec vault vault secrets enable pki
+      docker exec vault vault secrets tune -max-lease-ttl=87600h pki
+
+      docker exec vault vault write -field=certificate pki/root/generate/internal \
+          common_name="root.acme" \
+          issuer_name="root" \
+          ttl=87600h > root_ca.crt
+
+      docker exec vault vault list pki/issuers/
+      docker exec vault vault write pki/roles/servers allow_any_name=true
+
+      docker exec vault vault write pki/config/urls \
+          issuing_certificates="http://127.0.0.1:8200/v1/pki/ca" \
+          crl_distribution_points="http://127.0.0.1:8200/v1/pki/crl"
+
+      ROOT_ISSUER_REF=$(docker exec vault sh -c 'vault list -format=json pki/issuers/' | jq -r '.[]')
+      echo $ROOT_ISSUER_REF
+
+      # Intermediate CA
+      docker exec vault vault secrets enable -path=pki_int pki
+      docker exec vault vault secrets tune -max-lease-ttl=43800h pki_int
+
+      docker exec vault vault pki issue \
+            --issuer_name=acme-intermediate \
+            /pki/issuer/$ROOT_ISSUER_REF \
+            /pki_int/ \
+            common_name="ACME Intermediate Authority" \
+            key_type="rsa" \
+            key_bits="4096" \
+            max_depth_len=1 \
+            ttl="43800h"
+
+      # docker exec vault vault read -field=default pki_int/config/issuers
+
+      ISSUER_REF=$(docker exec vault vault read -field=default pki_int/config/issuers)
+      echo $ISSUER_REF
+
+
+      # Create roles
+      docker exec vault vault write pki_int/roles/bar-dot-local \
+          issuer_ref="$ISSUER_REF" \
+          allowed_domains="bar.local" \
+          allow_subdomains=true \
+          key_type=rsa\
+          key_usage="DigitalSignature, KeyEncipherment" \
+          ext_key_usage="ServerAuth"  \
+          max_ttl="720h"
+
+      docker exec vault vault write pki_int/roles/serverauth \
+          issuer_ref="$ISSUER_REF" \
+          allowed_domains="acme" \
+          allow_subdomains=true \
+          key_type=ec \
+          key_usage="DigitalSignature, KeyEncipherment" \
+          ext_key_usage="ServerAuth, IPSecTunnel"  \
+          max_ttl="720h"
+
+      docker exec vault vault write pki_int/roles/clientauth \
+          issuer_ref="$ISSUER_REF" \
+          allowed_domains="acme" \
+          allow_subdomains=true \
+          key_type=ec \
+          key_usage="DigitalSignature, KeyEncipherment" \
+          ext_key_usage="ClientAuth, IPSECUser"  \
+          max_ttl="720h"
+    shell: bash
+
+  - name: "Test if vault is accessible"
+    run: |
+      docker run --rm --network $NAME_SPACE curlimages/curl \
+        --header "X-Vault-Token: $VAULT_TOKEN" --header "X-Vault-Namespace: admin" \
+        https://vault:8200/v1/pki_int/issue/serverauth --insecure -v --request POST \
+        --data '{"common_name": "test1.acme", "ttl": "24h"}' | jq
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
