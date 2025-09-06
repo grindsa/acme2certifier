@@ -82,7 +82,7 @@ jobs:
     #- name: "ACME Profiling - enrollment"
     #  uses: ./.github/actions/wf_specific/vault_ca_handler/enroll_acmeprofile
 
-    - name: "EAB Profiling - setup a2c with vault_ca_handler"
+    - name: "EAB ACME Profiling - setup a2c with vault_ca_handler"
       run: |
         sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
@@ -101,7 +101,7 @@ jobs:
         cd examples/Docker/
         docker-compose restart
 
-    - name: "ACME Profiling - enrollment"
+    - name: "EAB ACME Profiling - enrollment"
       uses: ./.github/actions/wf_specific/vault_ca_handler/enroll_eab_acmeprofile
 
     - name: "Check container configuration"
