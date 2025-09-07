@@ -562,22 +562,75 @@ class TestCAhandler(unittest.TestCase):
         self.assertIsNone(poll_identifier)
 
     @patch(
+        "examples.ca_handler.vault_ca_handler.enrollment_config_log",
+    )
+    @patch(
+        "examples.ca_handler.vault_ca_handler.eab_profile_revocation_check",
+    )
+    @patch(
         "examples.ca_handler.vault_ca_handler.cert_serial_get",
         return_value="abcdef1234",
     )
-    def test_026_revoke_success(self, mock_cert_serial_get):
+    def test_026_revoke_success(self, mock_cert_serial_get, mock_eab, mock_log):
         self.cahandler._api_post = MagicMock(return_value=(200, {}))
         code, message, detail = self.cahandler.revoke("dummy_cert")
         self.cahandler._api_post.assert_called_once()
         self.assertEqual(code, 200)
         self.assertIsNone(message)
         self.assertIsNone(detail)
+        self.assertTrue(mock_cert_serial_get.called)
+        self.assertFalse(mock_eab.called)
+        self.assertFalse(mock_log.called)
+
+    @patch(
+        "examples.ca_handler.vault_ca_handler.enrollment_config_log",
+    )
+    @patch(
+        "examples.ca_handler.vault_ca_handler.eab_profile_revocation_check",
+    )
+    @patch(
+        "examples.ca_handler.vault_ca_handler.cert_serial_get",
+        return_value="abcdef1234",
+    )
+    def test_027_revoke_success(self, mock_cert_serial_get, mock_eab, mock_log):
+        self.cahandler._api_post = MagicMock(return_value=(200, {}))
+        self.cahandler.eab_profiling = True
+        code, message, detail = self.cahandler.revoke("dummy_cert")
+        self.cahandler._api_post.assert_called_once()
+        self.assertEqual(code, 200)
+        self.assertIsNone(message)
+        self.assertIsNone(detail)
+        self.assertTrue(mock_cert_serial_get.called)
+        self.assertTrue(mock_eab.called)
+        self.assertFalse(mock_log.called)
+
+    @patch(
+        "examples.ca_handler.vault_ca_handler.enrollment_config_log",
+    )
+    @patch(
+        "examples.ca_handler.vault_ca_handler.eab_profile_revocation_check",
+    )
+    @patch(
+        "examples.ca_handler.vault_ca_handler.cert_serial_get",
+        return_value="abcdef1234",
+    )
+    def test_028_revoke_success(self, mock_cert_serial_get, mock_eab, mock_log):
+        self.cahandler._api_post = MagicMock(return_value=(200, {}))
+        self.cahandler.enrollment_config_log = True
+        code, message, detail = self.cahandler.revoke("dummy_cert")
+        self.cahandler._api_post.assert_called_once()
+        self.assertEqual(code, 200)
+        self.assertIsNone(message)
+        self.assertIsNone(detail)
+        self.assertTrue(mock_cert_serial_get.called)
+        self.assertFalse(mock_eab.called)
+        self.assertTrue(mock_log.called)
 
     @patch(
         "examples.ca_handler.vault_ca_handler.cert_serial_get",
         return_value="abcdef1234",
     )
-    def test_027_revoke_api_error(self, mock_cert_serial_get):
+    def test_029_revoke_api_error(self, mock_cert_serial_get):
         self.cahandler._api_post = MagicMock(return_value=(400, {"errors": ["fail"]}))
         code, message, detail = self.cahandler.revoke("dummy_cert")
         self.cahandler._api_post.assert_called_once()
@@ -589,7 +642,7 @@ class TestCAhandler(unittest.TestCase):
         "examples.ca_handler.vault_ca_handler.cert_serial_get",
         return_value="abcdef1234",
     )
-    def test_028_revoke_api_error(self, mock_cert_serial_get):
+    def test_030_revoke_api_error(self, mock_cert_serial_get):
         self.cahandler._api_post = MagicMock(return_value=(400, {"foo": ["fail"]}))
         code, message, detail = self.cahandler.revoke("dummy_cert")
         self.cahandler._api_post.assert_called_once()
@@ -598,7 +651,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertEqual('{"foo": ["fail"]}', detail)
 
     @patch("examples.ca_handler.vault_ca_handler.cert_serial_get", return_value=None)
-    def test_029_revoke_no_serial(self, mock_cert_serial_get):
+    def test_031_revoke_no_serial(self, mock_cert_serial_get):
         self.cahandler._api_post = MagicMock()
         code, message, detail = self.cahandler.revoke("dummy_cert")
         self.cahandler._api_post.assert_not_called()
@@ -607,13 +660,13 @@ class TestCAhandler(unittest.TestCase):
         self.assertEqual(detail, "Failed to parse certificate serial")
 
     @patch("examples.ca_handler.vault_ca_handler.CAhandler._config_check")
-    def test_030_handler_check(self, mock_config_check):
+    def test_032_handler_check(self, mock_config_check):
         mock_config_check.return_value = "foo"
         self.assertEqual("foo", self.cahandler.handler_check())
 
     @patch("examples.ca_handler.vault_ca_handler.eab_profile_header_info_check")
     @patch("examples.ca_handler.vault_ca_handler.allowed_domainlist_check")
-    def test_031_csr_check(self, mock_adl, mock_hic):
+    def test_033_csr_check(self, mock_adl, mock_hic):
         mock_adl.return_value = "mock_adl"
         mock_hic.return_value = "mock_hlc"
         self.assertEqual("mock_adl", self.cahandler._csr_check("dummy-csr"))
@@ -622,7 +675,7 @@ class TestCAhandler(unittest.TestCase):
 
     @patch("examples.ca_handler.vault_ca_handler.eab_profile_header_info_check")
     @patch("examples.ca_handler.vault_ca_handler.allowed_domainlist_check")
-    def test_032_csr_check(self, mock_adl, mock_hic):
+    def test_034_csr_check(self, mock_adl, mock_hic):
         mock_adl.return_value = None
         mock_hic.return_value = "mock_hlc"
         self.assertEqual("mock_hlc", self.cahandler._csr_check("dummy-csr"))

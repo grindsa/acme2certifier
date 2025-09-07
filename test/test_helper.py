@@ -143,6 +143,7 @@ class TestACMEHandler(unittest.TestCase):
             allowed_domainlist_check,
             radomize_parameter_list,
             profile_lookup,
+            eab_profile_revocation_check,
         )
 
         self.logger = logging.getLogger("test_a2c")
@@ -254,6 +255,7 @@ class TestACMEHandler(unittest.TestCase):
         self.config_profile_load = config_profile_load
         self.profile_lookup = profile_lookup
         self.b64_url_decode = b64_url_decode
+        self.eab_profile_revocation_check = eab_profile_revocation_check
 
     def test_001_helper_b64decode_pad(self):
         """test b64decode_pad() method with a regular base64 encoded string"""
@@ -4767,6 +4769,75 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             "thisisateststring",
             self.b64_url_decode(self.logger, "dGhpc2lzYXRlc3RzdHJpbmc    "),
         )
+
+    @patch("acme_srv.helper.b64_url_recode", return_value="encoded_cert")
+    def test_441_eab_profile_revocation_check_str_value(self, mock_b64_url_recode):
+        """eab_profile_dic with a string value"""
+        self.cahandler = MagicMock()
+        self.cahandler.eab_handler.return_value.__enter__.return_value = MagicMock()
+        self.certificate_raw = "dummy_cert"
+        eab_handler = self.cahandler.eab_handler.return_value.__enter__.return_value
+        eab_handler.eab_profile_get.return_value = {"profile": "value"}
+        with patch("acme_srv.helper.eab_profile_string_check") as mock_string_check:
+            self.eab_profile_revocation_check(
+                self.logger, self.cahandler, self.certificate_raw
+            )
+            mock_string_check.assert_called_once_with(
+                self.logger, self.cahandler, "profile", "value"
+            )
+
+    @patch("acme_srv.helper.b64_url_recode", return_value="encoded_cert")
+    def test_442_eab_profile_revocation_check_str_and_ignore_value(
+        self, mock_b64_url_recode
+    ):
+        """eab_profile_dic with a string value"""
+        self.cahandler = MagicMock()
+        self.cahandler.eab_handler.return_value.__enter__.return_value = MagicMock()
+        self.certificate_raw = "dummy_cert"
+        eab_handler = self.cahandler.eab_handler.return_value.__enter__.return_value
+        eab_handler.eab_profile_get.return_value = {
+            "profile": "value",
+            "subject": "value2",
+        }
+        with patch("acme_srv.helper.eab_profile_string_check") as mock_string_check:
+            self.eab_profile_revocation_check(
+                self.logger, self.cahandler, self.certificate_raw
+            )
+            mock_string_check.assert_called_once_with(
+                self.logger, self.cahandler, "profile", "value"
+            )
+
+    @patch("acme_srv.helper.b64_url_recode", return_value="encoded_cert")
+    def test_443_eab_profile_revocation_check_list_value(self, mock_b64_url_recode):
+        """eab_profile_dic with a list value"""
+        self.cahandler = MagicMock()
+        self.cahandler.eab_handler.return_value.__enter__.return_value = MagicMock()
+        self.certificate_raw = "dummy_cert"
+        eab_handler = self.cahandler.eab_handler.return_value.__enter__.return_value
+        eab_handler.eab_profile_get.return_value = {"profile": ["v1", "v2"]}
+        self.cahandler.eab_profile_list_check = MagicMock()
+        self.eab_profile_revocation_check(
+            self.logger, self.cahandler, self.certificate_raw
+        )
+        self.cahandler.eab_profile_list_check.assert_called_once()
+
+    @patch("acme_srv.helper.b64_url_recode", return_value="encoded_cert")
+    def test_444_eab_profile_revocation_check_list_value_fallback(
+        self, mock_b64_url_recode
+    ):
+        """eab_profile_dic with a list value, fallback to global function"""
+        self.cahandler = MagicMock()
+        self.cahandler.eab_handler.return_value.__enter__.return_value = MagicMock()
+        self.certificate_raw = "dummy_cert"
+        eab_handler = self.cahandler.eab_handler.return_value.__enter__.return_value
+        eab_handler.eab_profile_get.return_value = {"profile": ["v1", "v2"]}
+        if hasattr(self.cahandler, "eab_profile_list_check"):
+            delattr(self.cahandler, "eab_profile_list_check")
+        with patch("acme_srv.helper.eab_profile_list_check") as mock_list_check:
+            self.eab_profile_revocation_check(
+                self.logger, self.cahandler, self.certificate_raw
+            )
+            mock_list_check.assert_called_once()
 
 
 if __name__ == "__main__":
