@@ -39,11 +39,11 @@ class TestCAhandler(unittest.TestCase):
 
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
-                "vault_url parameter in missing in config file",
+                "vault_url parameter is missing in config file",
                 self.cahandler._config_check(),
             )
         self.assertIn(
-            "ERROR:test_a2c:Configuration check ended with error: vault_url parameter in missing in config file",
+            "ERROR:test_a2c:Configuration check ended with error: vault_url parameter is missing in config file",
             lcm.output,
         )
 
