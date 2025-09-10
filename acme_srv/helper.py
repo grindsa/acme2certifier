@@ -2561,7 +2561,6 @@ def handler_config_check(logger, handler, parameterlist) -> str:
     error = None
     for ele in parameterlist:
         if not getattr(handler, ele):
-
             error = f"{ele} parameter is missing in config file"
             logger.error("Configuration check ended with error: %s", error)
             break
