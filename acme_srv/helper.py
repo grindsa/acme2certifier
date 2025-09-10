@@ -2551,3 +2551,20 @@ def radomize_parameter_list(
         # set parameter values
         for parameter, value_list in tmp_dic.items():
             setattr(ca_handler, parameter, value_list[index])
+
+
+def handler_config_check(logger, handler, parameterlist) -> str:
+    """check if handler config is valid"""
+    logger.debug("CAhandler._config_check()")
+    error = None
+
+    error = None
+    for ele in parameterlist:
+        if not getattr(handler, ele):
+
+            error = f"{ele} parameter is missing in config file"
+            logger.error("Configuration check ended with error: %s", error)
+            break
+
+    logger.debug("CAhandler._config_check() ended with %s", error)
+    return error
