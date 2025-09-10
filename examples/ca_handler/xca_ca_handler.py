@@ -615,7 +615,7 @@ class CAhandler(object):
         return db_result
 
     def _db_check(self):
-        """do verious checks on database"""
+        """do various checks on database"""
         self.logger.debug("CAhandler._db_check()")
         error = None
 
