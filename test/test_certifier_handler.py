@@ -1157,11 +1157,14 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.revoke("cert"),
         )
 
+    @patch("examples.ca_handler.certifier_ca_handler.eab_profile_revocation_check")
     @patch("examples.ca_handler.certifier_ca_handler.CAhandler._api_post")
     @patch("examples.ca_handler.certifier_ca_handler.CAhandler._cert_get_properties")
     @patch("examples.ca_handler.certifier_ca_handler.cert_serial_get")
     @patch("examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties")
-    def test_080_revoke(self, mock_getca, mock_serial, mock_getcert, mock_post):
+    def test_080_revoke(
+        self, mock_getca, mock_serial, mock_getcert, mock_post, mock_eab
+    ):
         """CAhandler.revoke() _ca_get_properties get_cert_properties returns cert_list revocation successful"""
         mock_getca.return_value = {"foo": "bar", "href": "href"}
         mock_serial.return_value = 123
@@ -1171,6 +1174,27 @@ class TestACMEHandler(unittest.TestCase):
         }
         mock_post.return_value = {}
         self.assertEqual((200, None, None), self.cahandler.revoke("cert"))
+        self.assertFalse(mock_eab.called)
+
+    @patch("examples.ca_handler.certifier_ca_handler.eab_profile_revocation_check")
+    @patch("examples.ca_handler.certifier_ca_handler.CAhandler._api_post")
+    @patch("examples.ca_handler.certifier_ca_handler.CAhandler._cert_get_properties")
+    @patch("examples.ca_handler.certifier_ca_handler.cert_serial_get")
+    @patch("examples.ca_handler.certifier_ca_handler.CAhandler._ca_get_properties")
+    def test_181_revoke(
+        self, mock_getca, mock_serial, mock_getcert, mock_post, mock_eab
+    ):
+        """CAhandler.revoke() _ca_get_properties get_cert_properties returns cert_list revocation successful"""
+        mock_getca.return_value = {"foo": "bar", "href": "href"}
+        self.cahandler.eab_profiling = True
+        mock_serial.return_value = 123
+        mock_getcert.return_value = {
+            "foo": "bar",
+            "certificates": [{"foo": "bar", "href": "href"}],
+        }
+        mock_post.return_value = {}
+        self.assertEqual((200, None, None), self.cahandler.revoke("cert"))
+        self.assertTrue(mock_eab.called)
 
     @patch("examples.ca_handler.certifier_ca_handler.CAhandler._api_post")
     @patch("examples.ca_handler.certifier_ca_handler.CAhandler._cert_get_properties")
@@ -1571,6 +1595,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("mock_eab", self.cahandler._csr_check(csr))
         self.assertTrue(mock_eab.called)
         self.assertFalse(mock_dlc.called)
+
+    @patch("examples.ca_handler.certifier_ca_handler.handler_config_check")
+    def test_108_handler_check(self, mock_handler_check):
+        """test handler_check"""
+        mock_handler_check.return_value = "mock_handler_check"
+        self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
 
 if __name__ == "__main__":
