@@ -66,7 +66,7 @@ class CAhandler(object):
         return self
 
     def __exit__(self, *args):
-        """cose the connection at the end of the context"""
+        """close the connection at the end of the context"""
 
     def _api_get(self, url: str) -> Tuple[int, Dict[str, str]]:
         """post data to API"""
@@ -128,7 +128,7 @@ class CAhandler(object):
         for ele in ["vault_url", "vault_path", "vault_role", "vault_token"]:
             if not getattr(self, ele):
 
-                error = f"{ele} parameter in missing in config file"
+                error = f"{ele} parameter is missing in config file"
                 self.logger.error("Configuration check ended with error: %s", error)
                 break
 
@@ -136,7 +136,7 @@ class CAhandler(object):
         return error
 
     def _config_load(self):
-        """ " load config from file"""
+        """load config from file"""
         self.logger.debug("CAhandler._config_load()")
 
         config_dic = load_config(self.logger, "CAhandler")
