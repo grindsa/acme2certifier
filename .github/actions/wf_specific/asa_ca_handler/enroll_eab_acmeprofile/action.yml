@@ -72,6 +72,11 @@ runs:
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep -i "Digital Signature"
     shell: bash
 
+  - name: "EAB ACME Profiling - 03 - Revoke lego with a profile_name/ca_name taken from kid.json"
+    run: |
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg  -k rsa2048 -d lego.acme revoke
+    shell: bash
+
   - name: "EAB ACME Profiling - 04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
     id: legofail021
     continue-on-error: true

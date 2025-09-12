@@ -32,6 +32,7 @@ from acme_srv.helper import (
     config_enroll_config_log_load,
     config_profile_load,
     eab_profile_header_info_check,
+    eab_profile_revocation_check,
     enrollment_config_log,
     jwk_thumbprint_get,
     load_config,
@@ -40,6 +41,7 @@ from acme_srv.helper import (
     txt_get,
     uts_now,
     uts_to_date_utc,
+    handler_config_check,
 )
 
 
@@ -1065,6 +1067,17 @@ class CAhandler(object):
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
+    def handler_check(self):
+        """check if handler is ready"""
+        self.logger.debug("CAhandler.check()")
+
+        error = handler_config_check(
+            self.logger, self, ["acme_url", "email"]
+        )
+
+        self.logger.debug("CAhandler.check() ended with %s", error)
+        return error
+
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str
     ) -> Tuple[str, str, str, str, bool]:
@@ -1092,6 +1105,10 @@ class CAhandler(object):
         code = 500
         message = "urn:ietf:params:acme:error:serverInternal"
         detail = None
+
+        # modify handler configuration in case of eab profiling
+        if self.eab_profiling:
+            eab_profile_revocation_check(self.logger, self, _cert)
 
         try:
             if os.path.exists(self.acme_keyfile):
