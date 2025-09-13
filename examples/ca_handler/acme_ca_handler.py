@@ -1071,9 +1071,7 @@ class CAhandler(object):
         """check if handler is ready"""
         self.logger.debug("CAhandler.check()")
 
-        error = handler_config_check(
-            self.logger, self, ["acme_url", "email"]
-        )
+        error = handler_config_check(self.logger, self, ["acme_url", "email"])
 
         self.logger.debug("CAhandler.check() ended with %s", error)
         return error

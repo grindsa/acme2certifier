@@ -2555,7 +2555,7 @@ def radomize_parameter_list(
 
 def handler_config_check(logger, handler, parameterlist) -> str:
     """check if handler config is valid"""
-    logger.debug("CAhandler._config_check()")
+    logger.debug("Helper.handler_config_check()")
     error = None
 
     error = None
@@ -2565,5 +2565,5 @@ def handler_config_check(logger, handler, parameterlist) -> str:
             logger.error("Configuration check ended with error: %s", error)
             break
 
-    logger.debug("CAhandler._config_check() ended with %s", error)
+    logger.debug("Helper.handler_config_check() ended with %s", error)
     return error
