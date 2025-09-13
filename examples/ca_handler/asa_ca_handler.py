@@ -533,7 +533,16 @@ class CAhandler(object):
         self.logger.debug("CAhandler.check()")
 
         error = handler_config_check(
-            self.logger, self, ["api_host", "api_user", "api_password", "api_key", "ca_name", "profile_name"]
+            self.logger,
+            self,
+            [
+                "api_host",
+                "api_user",
+                "api_password",
+                "api_key",
+                "ca_name",
+                "profile_name",
+            ],
         )
 
         self.logger.debug("CAhandler.check() ended with %s", error)

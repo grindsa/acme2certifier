@@ -66,13 +66,19 @@ runs:
       sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
     shell: bash
 
-  - name: "EAB ACME Profile - 02 -  profilinging ca and cert_profile"
+  - name: "EAB ACME Profile - 02 -  profiling ca and cert_profile"
     run: |
       sudo rm -rf lego/*
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --http run
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i acmeca
       sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
+    shell: bash
+
+  - name: "EAB ACME Profile - 02 -  revoke profiled ca"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg revoke
     shell: bash
 
   - name: "EAB ACME Profile - 03 - domainlist validation fails (to fail)"
