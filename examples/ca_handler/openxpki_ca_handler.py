@@ -9,20 +9,22 @@ from requests_pkcs12 import Pkcs12Adapter
 
 # pylint: disable=e0401
 from acme_srv.helper import (
-    load_config,
+    allowed_domainlist_check,
+    b64_encode,
+    b64_url_recode,
     build_pem_file,
     cert_pem2der,
-    b64_url_recode,
-    b64_encode,
-    error_dic_get,
     config_allowed_domainlist_load,
-    allowed_domainlist_check,
-    config_profile_load,
     config_eab_profile_load,
-    config_headerinfo_load,
     config_enroll_config_log_load,
+    config_headerinfo_load,
+    config_profile_load,
     eab_profile_header_info_check,
+    eab_profile_revocation_check,
     enrollment_config_log,
+    error_dic_get,
+    handler_config_check,
+    load_config,
 )
 from acme_srv.db_handler import DBstore
 
@@ -457,6 +459,15 @@ class CAhandler(object):
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
+    def handler_check(self):
+        """check if handler is ready"""
+        self.logger.debug("CAhandler.check()")
+        error = handler_config_check(
+            self.logger, self, ["host", "cert_profile_name", "endpoint_name"]
+        )
+        self.logger.debug("CAhandler.check() ended with %s", error)
+        return error
+
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str
     ) -> Tuple[str, str, str, str, bool]:
@@ -480,9 +491,10 @@ class CAhandler(object):
         message = None
         detail = None
 
-        # get certifcate identifier based on common name search
-        # cert_cn = cert_cn_get(self.logger, cert)
-        # cert_identifier = self._cert_identifier_get(cert_cn)
+        # modify handler configuration in case of eab profiling
+        if self.eab_profiling:
+            eab_profile_revocation_check(self.logger, self, cert)
+
         cert_raw = b64_url_recode(self.logger, cert)
         cert_identifier = self._cert_identifier_get(cert_raw)
 
