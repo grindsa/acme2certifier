@@ -1451,11 +1451,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_post.called)
         self.assertTrue(mock_poll.called)
 
+    @patch("examples.ca_handler.nclm_ca_handler.eab_profile_revocation_check")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._revocation_status_poll")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._api_post")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._cert_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.error_dic_get")
-    def test_100_revoke(self, mock_err, mock_idl, mock_post, mock_poll):
+    def test_100_revoke(self, mock_err, mock_idl, mock_post, mock_poll, mock_eab):
         """test revoke"""
         mock_err.return_value = {"foo": "bar", "serverinternal": "serverinternal"}
         mock_idl.return_value = "cert_id"
@@ -1469,6 +1470,35 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_idl.called)
         self.assertTrue(mock_post.called)
         self.assertFalse(mock_poll.called)
+        self.assertFalse(mock_eab.called)
+
+    @patch("examples.ca_handler.nclm_ca_handler.eab_profile_revocation_check")
+    @patch("examples.ca_handler.nclm_ca_handler.CAhandler._revocation_status_poll")
+    @patch("examples.ca_handler.nclm_ca_handler.CAhandler._api_post")
+    @patch("examples.ca_handler.nclm_ca_handler.CAhandler._cert_id_lookup")
+    @patch("examples.ca_handler.nclm_ca_handler.error_dic_get")
+    def test_101_revoke(self, mock_err, mock_idl, mock_post, mock_poll, mock_eab):
+        """test revoke"""
+        mock_err.return_value = {"foo": "bar", "serverinternal": "serverinternal"}
+        mock_idl.return_value = "cert_id"
+        mock_post.return_value = {"urls": {"foo": "foo"}}
+        mock_poll.return_value = (200, "message", "detail")
+        self.cahandler.eab_profiling = True
+        self.assertEqual(
+            (500, "serverinternal", "Revocation operation failed"),
+            self.cahandler.revoke("cert_raw"),
+        )
+        self.assertTrue(mock_err.called)
+        self.assertTrue(mock_idl.called)
+        self.assertTrue(mock_post.called)
+        self.assertFalse(mock_poll.called)
+        self.assertTrue(mock_eab.called)
+
+    @patch("examples.ca_handler.nclm_ca_handler.CAhandler._config_check")
+    def test_102_handler_check(self, mock_handler_check):
+        """test handler_check"""
+        self.cahandler.error = "mock_handler_check"
+        self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
 
 if __name__ == "__main__":
