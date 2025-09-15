@@ -9,26 +9,27 @@ import requests
 
 # pylint: disable=e0401, r0913
 from acme_srv.helper import (
-    load_config,
-    build_pem_file,
+    allowed_domainlist_check,
     b64_encode,
     b64_url_recode,
-    convert_string_to_byte,
+    build_pem_file,
     cert_serial_get,
-    uts_now,
+    config_allowed_domainlist_load,
+    config_eab_profile_load,
+    config_enroll_config_log_load,
+    config_headerinfo_load,
+    config_profile_load,
+    convert_string_to_byte,
+    eab_profile_header_info_check,
+    eab_profile_revocation_check,
+    enrollment_config_log,
+    error_dic_get,
+    header_info_get,
+    load_config,
     parse_url,
     proxy_check,
-    error_dic_get,
+    uts_now,
     uts_to_date_utc,
-    header_info_get,
-    eab_profile_header_info_check,
-    config_eab_profile_load,
-    config_profile_load,
-    config_headerinfo_load,
-    config_enroll_config_log_load,
-    enrollment_config_log,
-    config_allowed_domainlist_load,
-    allowed_domainlist_check,
 )
 
 
@@ -604,7 +605,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._csr_check()")
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, "profile_id")
+        error = eab_profile_header_info_check(self.logger, self, csr, "template_name")
 
         if not error:
             # check for allowed domainlist
@@ -841,6 +842,14 @@ class CAhandler(object):
         self.logger.debug("CAhandler.enroll() ended")
         return (error, cert_bundle, cert_raw, cert_id)
 
+    def handler_check(self):
+        """check if handler is ready"""
+        self.logger.debug("CAhandler.check()")
+        self._config_check()
+
+        self.logger.debug("CAhandler.check() ended with %s", self.error)
+        return self.error
+
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str
     ) -> Tuple[str, str, str, str, bool]:
@@ -869,6 +878,10 @@ class CAhandler(object):
         code = 500
         message = err_dic["serverinternal"]
         detail = "Revocation operation failed"
+
+        # modify handler configuration in case of eab profiling
+        if self.eab_profiling:
+            eab_profile_revocation_check(self.logger, self, cert)
 
         # get tracking id as input for revocation call
         cert_id = self._cert_id_lookup(cert)
