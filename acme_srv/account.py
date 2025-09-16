@@ -329,7 +329,9 @@ class Account(object):
                     self.logger.debug("outer: %s", jwk_outer)
                     self.logger.debug("inner: %s", jwk_inner)
             else:
-                self.logger.error("protected header: %s is not a dictionary", protected)
+                self.logger.error("Protected header: %s is not a dictionary", protected)
+        else:
+            self.logger.error("No jwk in protected header")
 
         self.logger.debug("_eab_jwk_compare() ended with: %s", result)
         return result
