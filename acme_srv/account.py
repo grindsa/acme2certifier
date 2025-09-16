@@ -322,7 +322,7 @@ class Account(object):
                 # decode inner jwk
                 jwk_inner = b64decode_pad(self.logger, payload)
                 jwk_inner = json.loads(jwk_inner)
-                if jwk_outer == jwk_inner:
+                if json.dumps(jwk_outer, sort_keys=True) == json.dumps(jwk_inner, sort_keys=True):
                     result = True
                 else:
                     self.logger.error("jwk from outer and inner jws do not match")
