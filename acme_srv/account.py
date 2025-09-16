@@ -314,14 +314,22 @@ class Account(object):
         self.logger.debug("Account._eab_jwk_compare()")
         result = False
         if "jwk" in protected:
+            self.logger.debug("compare jwk from outer and inner jws")
             # convert outer jwk into string for better comparison
             if isinstance(protected, dict):
-                jwk_outer = json.dumps(protected["jwk"])
+                # extract outer jwk
+                jwk_outer = protected["jwk"]
                 # decode inner jwk
                 jwk_inner = b64decode_pad(self.logger, payload)
-                jwk_inner = json.dumps(json.loads(jwk_inner))
+                jwk_inner = json.loads(jwk_inner)
                 if jwk_outer == jwk_inner:
                     result = True
+                else:
+                    self.logger.error("jwk from outer and inner jws do not match")
+                    self.logger.debug("outer: %s", jwk_outer)
+                    self.logger.debug("inner: %s", jwk_inner)
+            else:
+                self.logger.error("protected header: %s is not a dictionary", protected)
 
         self.logger.debug("_eab_jwk_compare() ended with: %s", result)
         return result
