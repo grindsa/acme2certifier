@@ -599,5 +599,3 @@ jobs:
       with:
         name: cert-certmgr_eab-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-
-
