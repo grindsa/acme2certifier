@@ -101,9 +101,9 @@ jobs:
         sudo echo "krb5_config: /var/www/acme2certifier/volume/krb5.conf" >> examples/Docker/data/acme_srv.cfg
         sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
         sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "WCCE_HOST: $WCCE_HOST" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-
         sudo touch examples/Docker/data/krb5.conf
         sudo chmod 777 examples/Docker/data/krb5.conf
         cat <<EOF > examples/Docker/data/krb5.conf
