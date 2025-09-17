@@ -6,6 +6,12 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.39.1
+
+**Bug fixes**:
+
+- [#260](https://github.com/grindsa/acme2certifier/issues/260) improved method for eab key-comparison
+
 ## Changes in 0.39
 
 **Upgrade notes**:‚
@@ -30,6 +36,12 @@ and pick the appropriate release branch.
 - Added documentation for the `contact_check_disable` option.
 - Fixed broken links in the [OpenXPKI documentation](https://github.com/grindsa/acme2certifier/blob/master/docs/openxpki.md).
 - Implemented various logging improvements for better traceability and troubleshooting.
+
+## Changes in 0.38.1
+
+**Bug fixes**:
+
+- [#260](https://github.com/grindsa/acme2certifier/issues/260) improved method for eab key-comparison
 
 ## Changes in 0.38
 
