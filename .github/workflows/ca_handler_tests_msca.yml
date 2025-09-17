@@ -146,6 +146,7 @@ jobs:
 
     - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler"
       run: |
+        exit 1
         sudo touch examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/ca_certs.pem
         sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
