@@ -8,6 +8,9 @@ import josepy
 import unittest
 from unittest.mock import patch, mock_open, Mock, MagicMock
 import configparser
+import josepy
+from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.backends import default_backend
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
@@ -39,6 +42,13 @@ class TestACMEHandler(unittest.TestCase):
     def tearDown(self):
         """teardown"""
         pass
+
+    def _generate_full_jwk(self):
+        """Helper to generate a full josepy.JWKRSA object"""
+        private_key = rsa.generate_private_key(
+            public_exponent=65537, key_size=2048, backend=default_backend()
+        )
+        return josepy.JWKRSA(key=private_key)
 
     def test_001___init__(self):
         """init"""
@@ -964,14 +974,16 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("uri", self.cahandler.account)
         self.assertFalse(mock_eab.called)
 
+    @patch("examples.ca_handler.acme_ca_handler.CAhandler._jwk_strip")
     @patch(
         "examples.ca_handler.acme_ca_handler.messages.ExternalAccountBinding.from_data"
     )
     @patch("acme.messages")
-    def test_048__account_register(self, mock_messages, mock_eab):
+    def test_048__account_register(self, mock_messages, mock_eab, mock_jwk_strip):
         """test account register existing account - zerossl.com url"""
         response = Mock()
         response.uri = "urluri"
+        mock_jwk_strip.return_value = "user_key"
         acmeclient = Mock()
         acmeclient.new_account = Mock(return_value=response)
         mock_eab.return_value = Mock()
@@ -3133,6 +3145,55 @@ class TestACMEHandler(unittest.TestCase):
             "INFO:test_a2c:New account: https://acme.example.com/acme/acct/99999",
             lcm.output,
         )
+
+    def test_142_jwk_strip_minimal_fields(self):
+        """Test _jwk_strip returns minimal JWK for RSA key"""
+        user_key = self._generate_full_jwk()
+        stripped_key = self.cahandler._jwk_strip(user_key)
+        self.assertIsInstance(stripped_key, josepy.JWKRSA)
+        minimal_jwk = stripped_key.to_json()
+        self.assertIn("kty", minimal_jwk)
+        self.assertIn("n", minimal_jwk)
+        self.assertIn("e", minimal_jwk)
+        self.assertEqual(len(minimal_jwk), 3)  # Only minimal fields
+
+    def test_143_jwk_strip_non_rsa_key(self):
+        """Test _jwk_strip returns original key if not RSA"""
+        user_key = self._generate_full_jwk()
+        with patch.object(
+            type(user_key),
+            "to_json",
+            return_value={"kty": "EC", "crv": "P-256", "x": "foo", "y": "bar"},
+        ):
+            result = self.cahandler._jwk_strip(user_key)
+            self.assertEqual(result, user_key)
+
+    def test_144_jwk_strip_missing_fields(self):
+        """Test _jwk_strip returns None if required fields are missing"""
+        user_key = self._generate_full_jwk()
+        with patch.object(
+            type(user_key), "to_json", return_value={"kty": "RSA", "e": "AQAB"}
+        ):
+            with self.assertLogs("test_a2c", level="INFO") as lcm:
+                result = self.cahandler._jwk_strip(user_key)
+            self.assertIn(
+                "ERROR:test_a2c:Missing required JWK fields for RSA key: n", lcm.output
+            )
+            self.assertIsNone(result)
+
+    def test_145_jwk_strip_invalid_jwk(self):
+        """Test _jwk_strip handles exception when reconstructing JWKRSA"""
+        user_key = self._generate_full_jwk()
+        with patch.object(
+            type(user_key), "to_json", return_value={"kty": "RSA", "n": None, "e": None}
+        ):
+            with self.assertLogs("test_a2c", level="INFO") as lcm:
+                result = self.cahandler._jwk_strip(user_key)
+            self.assertIn(
+                "ERROR:test_a2c:Failed to strip JWK to minimal fields. Input: {'kty': 'RSA', 'n': None, 'e': None}, Error: 'NoneType' object has no attribute 'encode'",
+                lcm.output,
+            )
+            self.assertIsNone(result)
 
 
 if __name__ == "__main__":
