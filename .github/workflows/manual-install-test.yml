@@ -25,6 +25,9 @@ jobs:
     - name: Branch name
       run: echo running on branch ${GITHUB_REF##*/}
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: "Run install script"
       run: |
         sudo mkdir -p data
@@ -85,6 +88,9 @@ jobs:
     - name: Branch name
       run: echo running on branch ${GITHUB_REF##*/}
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: "Run install script"
       run: |
         sudo mkdir -p data
@@ -144,6 +150,9 @@ jobs:
 
     - name: Branch name
       run: echo running on branch ${GITHUB_REF##*/}
+
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
 
     - name: "Prepare environment"
       run: |
@@ -256,6 +265,9 @@ jobs:
       run: |
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: Download debian package
       uses: actions/download-artifact@v4
       continue-on-error: true
@@ -340,6 +352,9 @@ jobs:
       run: |
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: Download debian package
       uses: actions/download-artifact@v4
       with:
@@ -351,6 +366,9 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3
         sudo apt-get install -y /tmp/acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
+
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
 
     - name: "Prepare local modification to get a2c running"
       run: |

@@ -29,7 +29,6 @@ jobs:
         mkdir lego
         mkdir acme-sh
         mkdir certbot
-
     - name: "Build container"
       uses: ./.github/actions/container_prep
       with:
@@ -47,10 +46,9 @@ jobs:
         sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        time.sleep(30)/g" examples/Docker/data/ca_handler.py
         sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\\ncert_reusage_timeframe: 300/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 300\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker-compose restart
-
     - name: "Enrollment"
       uses: ./.github/actions/wf_specific/enrollment_timeout/enroll
 
@@ -59,11 +57,9 @@ jobs:
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         cd examples/Docker
         docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh
-
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
     - name: "[ * ] uploading artifacts"
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
@@ -100,14 +96,12 @@ jobs:
         sudo sed -i "s/import uuid/import uuid\\nimport time/g" data/acme_ca/ca_handler.py
         sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        time.sleep(22)\\n        self.logger.debug('CAhandler.enroll(): timeout done')/g" data/acme_ca/ca_handler.py
         sudo chmod 777 data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\\ncert_reusage_timeframe: 1800\\nenrollment_timeout: 15/g" data/acme_srv.cfg
-        # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\\nenrollment_timeout: 15/g" data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/acme_srv.cfg
+        # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\nenrollment_timeout: 15/g" data/acme_srv.cfg
         sudo sed -i "s/handler_file: examples\/ca_handler\/openssl_ca_handler.py/handler_file: \/opt\/acme2certifier\/volume\/acme_ca\/ca_handler.py/g" data/acme_srv.cfg
-
     - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
-
     - name: "Enrollment"
       uses: ./.github/actions/wf_specific/enrollment_timeout/enroll
       with:
@@ -124,7 +118,6 @@ jobs:
         docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
-
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
@@ -163,14 +156,12 @@ jobs:
         sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        self.logger.debug('CAhandler.enroll(): timeout start')\\n        time.sleep(30)\\n        self.logger.debug('CAhandler.enroll(): timeout done')/g" data/volume/acme_ca/ca_handler.py
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
         sudo chmod 777 data/volume/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\\ncert_reusage_timeframe: 1800\\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg
-        # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
+        # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg
         sudo sed -i "s/handler_file: examples\/ca_handler\/openssl_ca_handler.py/handler_file: \/opt\/acme2certifier\/volume\/acme_ca\/ca_handler.py/g" data/volume/acme_srv.cfg
-
     - name: "Execute install scipt"
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
-
     - name: "Enrollment"
       uses: ./.github/actions/wf_specific/enrollment_timeout/enroll
       with:
@@ -190,7 +181,6 @@ jobs:
         docker exec acme-srv rpm -qa > ${{ github.workspace }}/artifact/data/packages.txt
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
-
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
