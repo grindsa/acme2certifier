@@ -51,7 +51,7 @@ jobs:
           docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
       env:
         SSH_USER: ${{ secrets.CMP_SSH_USER }}
-        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
+        SSH_HOST: ${{ secrets.WCCE_SSH_HOST}}
         SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
@@ -257,7 +257,7 @@ jobs:
           docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
       env:
         SSH_USER: ${{ secrets.CMP_SSH_USER }}
-        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
+        SSH_HOST: ${{ secrets.WCCE_SSH_HOST}}
         SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
@@ -391,7 +391,7 @@ jobs:
           docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
       env:
         SSH_USER: ${{ secrets.CMP_SSH_USER }}
-        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
+        SSH_HOST: ${{ secrets.WCCE_SSH_HOST}}
         SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
         CMP_HOST: ${{ secrets.CMP_HOST }}
 

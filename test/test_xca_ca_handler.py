@@ -862,13 +862,14 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.revoke("cert", "reason", None),
         )
 
+    @patch("examples.ca_handler.xca_ca_handler.eab_profile_revocation_check")
     @patch("examples.ca_handler.xca_ca_handler.CAhandler._revocation_search")
     @patch("examples.ca_handler.xca_ca_handler.CAhandler._revocation_insert")
     @patch("examples.ca_handler.xca_ca_handler.cert_serial_get")
     @patch("examples.ca_handler.xca_ca_handler.CAhandler._ca_load")
     @patch("examples.ca_handler.xca_ca_handler.uts_to_date_utc")
     def test_079_revoke(
-        self, mock_date, mock_ca, mock_serial, mock_rev_insert, mock_search
+        self, mock_date, mock_ca, mock_serial, mock_rev_insert, mock_search, mock_eab
     ):
         """CAhandler.revocation no serial"""
         self.cahandler.xdb_file = self.dir_path + "/ca/acme2certifier.xdb"
@@ -880,6 +881,29 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(
             (200, None, None), self.cahandler.revoke("cert", "reason", None)
         )
+        self.assertFalse(mock_eab.called)
+
+    @patch("examples.ca_handler.xca_ca_handler.eab_profile_revocation_check")
+    @patch("examples.ca_handler.xca_ca_handler.CAhandler._revocation_search")
+    @patch("examples.ca_handler.xca_ca_handler.CAhandler._revocation_insert")
+    @patch("examples.ca_handler.xca_ca_handler.cert_serial_get")
+    @patch("examples.ca_handler.xca_ca_handler.CAhandler._ca_load")
+    @patch("examples.ca_handler.xca_ca_handler.uts_to_date_utc")
+    def test_080_revoke(
+        self, mock_date, mock_ca, mock_serial, mock_rev_insert, mock_search, mock_eab
+    ):
+        """CAhandler.revocation no serial"""
+        self.cahandler.xdb_file = self.dir_path + "/ca/acme2certifier.xdb"
+        self.cahandler.eab_profiling = True
+        mock_date.return_value = "foo"
+        mock_ca.return_value = ("key", "cert", 2)
+        mock_search.return_value = None
+        mock_rev_insert.return_value = 20
+        mock_serial.return_value = 1000
+        self.assertEqual(
+            (200, None, None), self.cahandler.revoke("cert", "reason", None)
+        )
+        self.assertTrue(mock_eab.called)
 
     @patch("examples.ca_handler.xca_ca_handler.CAhandler._identifier_check")
     def test_080_cert_search(self, mock_check):

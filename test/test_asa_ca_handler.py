@@ -1121,9 +1121,10 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertFalse(mock_b2s.called)
         self.assertFalse(mock_d2p.called)
 
+    @patch("examples.ca_handler.asa_ca_handler.eab_profile_revocation_check")
     @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
     @patch("examples.ca_handler.asa_ca_handler.cert_ski_get")
-    def test_051_revoke(self, mock_ski, mock_post):
+    def test_051_revoke(self, mock_ski, mock_post, mock_epr):
         """test revoke()"""
         self.cahandler.ca_name = "ca_name"
         mock_ski.return_value = "serial"
@@ -1131,6 +1132,21 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
         self.assertEqual(("code", None, None), self.cahandler.revoke("cert"))
         self.assertTrue(mock_ski.called)
         self.assertTrue(mock_post.called)
+        self.assertFalse(mock_epr.called)
+
+    @patch("examples.ca_handler.asa_ca_handler.eab_profile_revocation_check")
+    @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
+    @patch("examples.ca_handler.asa_ca_handler.cert_ski_get")
+    def test_151_revoke(self, mock_ski, mock_post, mock_epr):
+        """test revoke()"""
+        self.cahandler.ca_name = "ca_name"
+        mock_ski.return_value = "serial"
+        mock_post.return_value = ("code", None)
+        self.cahandler.eab_profiling = True
+        self.assertEqual(("code", None, None), self.cahandler.revoke("cert"))
+        self.assertTrue(mock_ski.called)
+        self.assertTrue(mock_post.called)
+        self.assertTrue(mock_epr.called)
 
     @patch("examples.ca_handler.asa_ca_handler.CAhandler._api_post")
     @patch("examples.ca_handler.asa_ca_handler.cert_ski_get")
@@ -1318,6 +1334,12 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
             "notAfter": "date2",
         }
         self.assertEqual(result, self.cahandler._enrollment_dic_create("csr"))
+
+    @patch("examples.ca_handler.asa_ca_handler.handler_config_check")
+    def test_068_handler_check(self, mock_handler_check):
+        """test handler_check"""
+        mock_handler_check.return_value = "mock_handler_check"
+        self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
 
 if __name__ == "__main__":
