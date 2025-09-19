@@ -31,6 +31,9 @@ runs:
       id: deb_build
       uses: ./.github/actions/deb_build
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: "Setup environment for ubuntu installation"
       run: |
         echo "IPv6 is $IPV6"
@@ -60,6 +63,20 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         IPV6: ${{ inputs.IPV6 }}
       shell: bash
+
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+      with:
+        DESTINATION_PATH: ".github"
+        EE_KEY: "acme2certifier_key.pem"
+        EE_CERT: "acme2certifier_cert.pem"
+        EE_CSR: "acme2certifier_csr.pem"
+        EE_BUNDLE: "acme2certifier.pem"
+        CA_BUNDLE: "acme2certifier_cabundle.pem"
+        ISSUING_CA_KEY: "test/ca/sub-ca-key.pem"
+        ISSUING_CA_CERT: "test/ca/sub-ca-cert.pem"
+        ISSUING_CA_PASSPHRASE: "Test1234"
+        ROOT_CA_CERT: "test/ca/root-ca-cert.pem"
 
     - name: "Instanciate Ubuntu 22.04"
       run: |

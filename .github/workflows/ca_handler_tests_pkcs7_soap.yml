@@ -52,6 +52,9 @@ jobs:
         sudo mv ../../.dockerignore.acme ../../.dockerignore
         docker-compose up -d
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: "Setup a2c with pkcs7_ca_handler"
       run: |
         sudo mkdir -p examples/Docker/data/acme_ca/certs
@@ -148,6 +151,9 @@ jobs:
 
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
 
     - name: "Setup a2c with pkcs7_ca_handler"
       run: |
