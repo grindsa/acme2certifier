@@ -861,6 +861,12 @@ class TestACMEHandler(unittest.TestCase):
         ]
         self.assertEqual(result, self.cahandler._pkcs7_to_pem(file_content, "list"))
 
+    @patch("examples.ca_handler.est_ca_handler.handler_config_check")
+    def test_063_handler_check(self, mock_handler_check):
+        """test handler_check"""
+        mock_handler_check.return_value = "mock_handler_check"
+        self.assertEqual("mock_handler_check", self.cahandler.handler_check())
+
 
 if __name__ == "__main__":
 

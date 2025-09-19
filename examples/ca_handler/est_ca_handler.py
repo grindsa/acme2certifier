@@ -25,6 +25,7 @@ from acme_srv.helper import (
     proxy_check,
     config_allowed_domainlist_load,
     allowed_domainlist_check,
+    handler_config_check,
 )
 
 
@@ -416,6 +417,13 @@ class CAhandler(object):
 
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, None)
+
+    def handler_check(self):
+        """check if handler is ready"""
+        self.logger.debug("CAhandler.check()")
+        error = handler_config_check(self.logger, self, ["est_host"])
+        self.logger.debug("CAhandler.check() ended with %s", error)
+        return error
 
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str

@@ -1223,15 +1223,22 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_encode.called)
         self.assertTrue(mock_put.called)
 
+    @patch("examples.ca_handler.ejbca_ca_handler.eab_profile_revocation_check")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_put")
     @patch("examples.ca_handler.ejbca_ca_handler.encode_url")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
     def test_077_revoke(
-        self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
+        self,
+        mock_serial,
+        mock_issuer,
+        mock_status,
+        mock_encode,
+        mock_put,
+        mock_revcheck,
     ):
-        """test revoke operation - revocation unsuccessful"""
+        """test revoke operation - revocation successful"""
         mock_status.return_value = {"revoked": False}
         mock_put.return_value = {"revoked": True}
         self.cahandler.api_host = "api_host"
@@ -1240,6 +1247,34 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_issuer.called)
         self.assertTrue(mock_encode.called)
         self.assertTrue(mock_put.called)
+        self.assertFalse(mock_revcheck.called)
+
+    @patch("examples.ca_handler.ejbca_ca_handler.eab_profile_revocation_check")
+    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._api_put")
+    @patch("examples.ca_handler.ejbca_ca_handler.encode_url")
+    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
+    @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
+    @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
+    def test_078_revoke(
+        self,
+        mock_serial,
+        mock_issuer,
+        mock_status,
+        mock_encode,
+        mock_put,
+        mock_revcheck,
+    ):
+        """test revoke operation - revocation successful"""
+        mock_status.return_value = {"revoked": False}
+        mock_put.return_value = {"revoked": True}
+        self.cahandler.api_host = "api_host"
+        self.cahandler.eab_profiling = True
+        self.assertEqual((200, None, None), self.cahandler.revoke("cert"))
+        self.assertTrue(mock_serial.called)
+        self.assertTrue(mock_issuer.called)
+        self.assertTrue(mock_encode.called)
+        self.assertTrue(mock_put.called)
+        self.assertTrue(mock_revcheck.called)
 
     @patch("examples.ca_handler.ejbca_ca_handler.csr_san_get")
     @patch("examples.ca_handler.ejbca_ca_handler.csr_cn_get")
@@ -1279,6 +1314,12 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertTrue(mock_san.called)
+
+    @patch("examples.ca_handler.ejbca_ca_handler.handler_config_check")
+    def test_081_handler_check(self, mock_handler_check):
+        """test handler_check"""
+        mock_handler_check.return_value = "mock_handler_check"
+        self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
 
 if __name__ == "__main__":
