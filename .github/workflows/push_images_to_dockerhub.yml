@@ -155,7 +155,7 @@ jobs:
       - name: Delete image from registry
         run: |
           docker images
-          docker rmi $(docker images grindsa/acme2certifier -q) --force
+      #    docker rmi $(docker images grindsa/acme2certifier -q) --force
 
       - name: Checkout code for latest release
         uses: actions/checkout@v4
