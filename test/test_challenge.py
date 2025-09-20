@@ -3030,6 +3030,126 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(self.challenge._email_reply_challenge_create("other", "foo"))
 
+    @patch("acme_srv.challenge.fqdn_resolve")
+    def test_181_forward_address_check_success(self, mock_fqdn_resolve):
+        """Simulate DNS resolves to the correct address"""
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.challenge.forward_address_check = True
+        self.challenge.reverse_address_check = False
+        mock_fqdn_resolve.return_value = (["1.2.3.4"], False)
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        result, invalid = self.challenge._source_address_check("test_challenge")
+        self.assertTrue(result)
+        self.assertFalse(invalid)
+
+    @patch("acme_srv.challenge.fqdn_resolve")
+    def test_182_forward_address_check_fail(self, mock_fqdn_resolve):
+        """Simulate DNS resolves to a different address"""
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.challenge.forward_address_check = True
+        self.challenge.reverse_address_check = False
+        mock_fqdn_resolve.return_value = (["5.6.7.8"], False)
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        result, invalid = self.challenge._source_address_check("test_challenge")
+        self.assertFalse(result)
+        self.assertTrue(invalid)
+
+    def test_183_no_challenge_name(self):
+        """No challenge name provided"""
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        result, invalid = self.challenge._source_address_check(None)
+        self.assertTrue(result)
+        self.assertFalse(invalid)
+
+    @patch("acme_srv.challenge.Challenge._forward_address_check")
+    @patch("acme_srv.challenge.Challenge._reverse_address_check")
+    def test_184_reverse_address_check(self, mock_reverse, mock_forward):
+        """Both forward and reverse checks enabled all ok"""
+        mock_forward.return_value = (True, False)
+        mock_reverse.return_value = (True, False)
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.challenge.forward_address_check = True
+        self.challenge.reverse_address_check = True
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        result, invalid = self.challenge._source_address_check("test_challenge")
+        self.assertTrue(result)
+        self.assertFalse(invalid)
+        self.assertTrue(mock_forward.called)
+        self.assertTrue(mock_reverse.called)
+
+    @patch("acme_srv.challenge.Challenge._forward_address_check")
+    @patch("acme_srv.challenge.Challenge._reverse_address_check")
+    def test_185_reverse_address_check(self, mock_reverse, mock_forward):
+        """Both forward and reverse checks enabled forward fails"""
+        mock_forward.return_value = (False, True)
+        mock_reverse.return_value = (True, False)
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.challenge.forward_address_check = True
+        self.challenge.reverse_address_check = True
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        result, invalid = self.challenge._source_address_check("test_challenge")
+        self.assertFalse(result)
+        self.assertTrue(invalid)
+        self.assertTrue(mock_forward.called)
+        self.assertFalse(mock_reverse.called)
+
+    @patch("acme_srv.challenge.Challenge._forward_address_check")
+    @patch("acme_srv.challenge.Challenge._reverse_address_check")
+    def test_186_reverse_address_check(self, mock_reverse, mock_forward):
+        """Both forward and reverse checks enabled reverse fails"""
+        mock_forward.return_value = (True, False)
+        mock_reverse.return_value = (False, True)
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.challenge.forward_address_check = True
+        self.challenge.reverse_address_check = True
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        result, invalid = self.challenge._source_address_check("test_challenge")
+        self.assertFalse(result)
+        self.assertTrue(invalid)
+        self.assertTrue(mock_forward.called)
+        self.assertTrue(mock_reverse.called)
+
+    @patch("acme_srv.challenge.Challenge._forward_address_check")
+    @patch("acme_srv.challenge.Challenge._reverse_address_check")
+    def test_187_reverse_address_check(self, mock_reverse, mock_forward):
+        """Both forward and reverse checks enabled reverse fails but reverse check disabled"""
+        mock_forward.return_value = (True, False)
+        mock_reverse.return_value = (False, True)
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.challenge.forward_address_check = True
+        self.challenge.reverse_address_check = False
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        result, invalid = self.challenge._source_address_check("test_challenge")
+        self.assertTrue(result)
+        self.assertFalse(invalid)
+        self.assertTrue(mock_forward.called)
+        self.assertFalse(mock_reverse.called)
+
 
 if __name__ == "__main__":
     unittest.main()
