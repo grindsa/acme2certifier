@@ -1327,6 +1327,30 @@ def fqdn_resolve(
     return (result, invalid)
 
 
+def ptr_resolve(
+    logger: logging.Logger, ip_address: str, dnssrv: List[str] = None
+) -> str:
+    """reverse dns resolver"""
+    logger.debug("Helper.ptr_resolve(%s)", ip_address)
+    req = dns.resolver.Resolver()
+    invalid = True
+
+    if dnssrv:
+        # add specific dns server
+        req.nameservers = dnssrv
+    try:
+        reversed_dns = dns.reversename.from_address(ip_address)
+        answers = req.resolve(reversed_dns, "PTR")
+        result = str(answers[0])[:-1]  # remove trailing dot
+        invalid = False
+    except Exception as err:
+        logger.debug("Error while resolving %s: %s", ip_address, err)
+        result = None
+
+    logger.debug("Helper.ptr_resolve(%s) ended with: %s", ip_address, result)
+    return result, invalid
+
+
 def dns_server_list_load() -> List[str]:
     """load dns-server from config file"""
     config_dic = load_config()
