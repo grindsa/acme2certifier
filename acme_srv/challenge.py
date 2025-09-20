@@ -22,6 +22,7 @@ from acme_srv.helper import (
     load_config,
     parse_url,
     proxy_check,
+    ptr_resolve,
     servercert_get,
     sha256_hash,
     sha256_hash_hex,
@@ -679,6 +680,31 @@ class Challenge(object):
         challenge_check = False
         invalid = False
 
+        if (
+            challenge_dic
+            and challenge_dic.get("authorization__type", None) == "dns"
+            and challenge_dic.get("authorization__value", None)
+            and self.source_address
+        ):
+            response, invalid = ptr_resolve(
+                self.logger, self.source_address, self.dns_server_list
+            )
+
+            if response and response == challenge_dic.get("authorization__value", None):
+                self.logger.debug(
+                    "Challenge._reverse_address_check(): ip address check succeeded for %s",
+                    self.source_address,
+                )
+                challenge_check = True
+                invalid = False
+            else:
+                self.logger.debug(
+                    "Challenge._reverse_address_check(): ip address check failed for %s",
+                    self.source_address,
+                )
+                challenge_check = False
+                invalid = True
+
         return challenge_check, invalid
 
     def _forward_address_check(self, challenge_dic: str = None) -> Tuple[bool, bool]:
@@ -799,7 +825,7 @@ class Challenge(object):
                 )
 
             self.logger.debug(
-                "Challenge._forward_address_check() challenge_dic: %s", challenge_dic
+                "Challenge._source_address_check() challenge_dic: %s", challenge_dic
             )
 
         if self.forward_address_check:
