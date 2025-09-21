@@ -2137,7 +2137,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -2156,7 +2156,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -2178,7 +2178,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("foo1", self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -2199,7 +2199,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "INFO:test_a2c:Challenge validation disabled via eab profile. Setting challenge status to valid.",
+            "INFO:test_a2c:Challenge validation disabled via eab profile.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -2219,7 +2219,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -2254,7 +2254,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
