@@ -733,7 +733,7 @@ class Challenge(object):
             )
             if invalid:
                 self.logger.debug(
-                    "Challenge._forward_address_check(): fqdn resolve give: invalid address check failed for %s",
+                    "Challenge._forward_address_check(): Source address check returned invalid for %s",
                     self.source_address,
                 )
                 challenge_check = False
@@ -863,16 +863,18 @@ class Challenge(object):
         ):
             if self.challenge_validation_disable:
                 self.logger.warning(
-                    "Challenge validation is globally disabled. Setting challenge status to valid."
+                    "Challenge validation is globally disabled."
                 )
             else:
                 self.logger.info(
-                    "Challenge validation disabled via eab profile. Setting challenge status to valid."
+                    "Challenge validation disabled via eab profile."
                 )
 
             if self.forward_address_check or self.reverse_address_check:
                 challenge_check, invalid = self._source_address_check(challenge_name)
             else:
+                self.logger.warning(
+                    "Source address checks are disabled. Setting challenge status to valid. This is not recommended as this is a severe security risk!")
                 challenge_check = True
                 invalid = False
         else:
