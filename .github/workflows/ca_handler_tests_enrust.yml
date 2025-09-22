@@ -59,7 +59,7 @@ jobs:
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
         # cd examples/Docker/
-        # docker-compose restart
+        # docker compose restart
       env:
         ENTRUST_CERT: ${{ secrets.ENTRUST_CERT }}
         ENTRUST_CERT_PASSPHRASE: ${{ secrets.ENTRUST_CERT_PASSPHRASE }}
@@ -112,7 +112,7 @@ jobs:
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ENTRUST_CERT: ${{ secrets.ENTRUST_CERT }}
         ENTRUST_CERT_PASSPHRASE: ${{ secrets.ENTRUST_CERT_PASSPHRASE }}
@@ -141,7 +141,7 @@ jobs:
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         # touch ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
 

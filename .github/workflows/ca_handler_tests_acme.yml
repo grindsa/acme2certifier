@@ -49,7 +49,10 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker-compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
@@ -92,12 +95,12 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "Check acme account found in keyfile"
       run: |
         cd examples/Docker
-        docker-compose logs | grep -i "found in keyfile"
+        docker compose logs | grep -i "found in keyfile"
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
@@ -121,7 +124,7 @@ jobs:
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "ACME Profile - enrollment"
       uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_acmeprofile
@@ -137,7 +140,7 @@ jobs:
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         cd examples/Docker
         docker logs acme-le-sim > ${{ github.workspace }}/artifact/acme-le-sim.log
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data docker-compose.log acme-le-sim.log
 
     - name: "[ * ] uploading artifacts"
@@ -169,7 +172,10 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker-compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
@@ -221,7 +227,7 @@ jobs:
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         cd examples/Docker
         docker logs acme-le-sim > ${{ github.workspace }}/artifact/acme-le-sim.log
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data docker-compose.log acme-le-sim.log
 
     - name: "[ * ] uploading artifacts"
@@ -253,7 +259,10 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker-compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
@@ -387,7 +396,7 @@ jobs:
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "EAB ACME Profiling - enrollment"
       uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_eab_acmeprofile
@@ -403,7 +412,7 @@ jobs:
         sudo cp -rp acme-le-sim-1/ ${{ github.workspace }}/artifact/data/acme-le-sim-1/
         sudo cp -rp acme-le-sim-2/ ${{ github.workspace }}/artifact/data/acme-le-sim-2/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         docker logs acme-le-sim-1 > ${{ github.workspace }}/artifact/acme-le-sim-1.log
         docker logs acme-le-sim-2 > ${{ github.workspace }}/artifact/acme-le-sim-2.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data docker-compose.log acme-le-sim-1.log acme-le-sim-2.log
@@ -437,7 +446,10 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker-compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
@@ -483,7 +495,7 @@ jobs:
     - name: "Check acme account found in keyfile"
       run: |
         cd examples/Docker
-        docker-compose logs | grep -i "found in keyfile"
+        docker compose logs | grep -i "found in keyfile"
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
@@ -499,7 +511,7 @@ jobs:
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         cd examples/Docker
         docker logs step-ca > ${{ github.workspace }}/artifact/step-ca.log
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data docker-compose.log step-ca.log
 
     - name: "[ * ] uploading artifacts"
@@ -532,7 +544,10 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker-compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
@@ -618,7 +633,7 @@ jobs:
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 15/g" examples/Docker/data/acme_srv.cfg
 
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ACMEDNS_USERNAME: ${{ secrets.ACMEDNS_USERNAME }}
         ACMEDNS_PASSWORD: ${{ secrets.ACMEDNS_PASSWORD }}
@@ -634,7 +649,7 @@ jobs:
     - name: "Check acme account found in keyfile"
       run: |
         cd examples/Docker
-        docker-compose logs | grep -i "found in keyfile"
+        docker compose logs | grep -i "found in keyfile"
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
@@ -649,7 +664,7 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data docker-compose.log
 
     - name: "[ * ] uploading artifacts"

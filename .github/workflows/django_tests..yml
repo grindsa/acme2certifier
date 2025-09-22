@@ -39,7 +39,7 @@ jobs:
         sudo echo "[Directory]" >> data/acme_srv.cfg
         sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
         grep -i 'django.db.backends.mysql' data/settings.py
-        docker-compose restart
+        docker compose restart
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -59,7 +59,7 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp /tmp/acme2certifer.sql ${{ github.workspace }}/artifact/data/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
 
     - name: "[ * ] uploading artificates"
@@ -98,7 +98,7 @@ jobs:
         sudo echo "[Directory]" >> data/acme_srv.cfg
         sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
         grep -i 'django.db.backends.postgresql_psycopg2' data/settings.py
-        docker-compose restart
+        docker compose restart
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -118,7 +118,7 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp /tmp/acme2certifier.psql ${{ github.workspace }}/artifact/data/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
 
     - name: "[ * ] uploading artificates"
