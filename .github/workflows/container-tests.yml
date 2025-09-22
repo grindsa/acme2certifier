@@ -9,7 +9,7 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
-  docker compose:
+  dockercompose:
     name: "Docker compose - apache2 wsgi"
     runs-on: ubuntu-latest
     strategy:
