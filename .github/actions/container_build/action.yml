@@ -23,7 +23,7 @@ runs:
         curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
         echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
         sudo apt update
-        sudo apt install -y docker compose-plugin
+        sudo apt install -y docker-compose-plugin
         sed -i "s/wsgi/$DB_HANDLER/g" .env
         sed -i "s/apache2/$WEB_SRV/g" .env
         # cat .env

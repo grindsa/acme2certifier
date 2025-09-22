@@ -1,4 +1,4 @@
-name: Tests diable challengevalidation
+name: Tests disable challengevalidation
 
 on:
   push:
@@ -9,14 +9,14 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
-  disable_cvd_tests:
-    name: "disable_cvd_tests"
+  disable_cv_tests:
+    name: "disable_cv_tests"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['apache2']
-        dbhandler: ['wsgi']
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
 
     steps:
     - name: "Checkout GIT"
@@ -52,6 +52,11 @@ jobs:
         XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
     - name: "Install dehydrated"
       uses: ./.github/actions/wf_specific/disable_challengevalidation/dehydrated_install
 
@@ -69,9 +74,9 @@ jobs:
     - name: "Test enrollment"
       uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
 
-    - name: "Enble source address check"
+    - name: "Enable forward address check"
       run: |
-        sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: True\nsource_address_check: True/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: True\nforward_address_check: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
 
@@ -79,6 +84,27 @@ jobs:
       uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
       with:
         TO_FAIL: "true"
+
+    - name: "Check logs for forward check errors"
+      working-directory: examples/Docker
+      run: |
+        docker compose logs 2>&1 | grep "Challenge._forward_address_check(): Source address check returned invalid"
+
+    - name: "Enable reverse address check"
+      run: |
+        sudo sed -i "s/forward_address_check: True/reverse_address_check: True/g" examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker compose restart
+
+    - name: "Test enrollment"
+      uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+      with:
+        TO_FAIL: "true"
+
+    - name: "Check logs for reverse check errors"
+      working-directory: examples/Docker
+      run: |
+        docker compose logs 2>&1 | grep "Challenge._reverse_address_check(): ip address check failed"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -90,15 +116,15 @@ jobs:
         docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data lego
 
-    - name: "[ * ] uploading artificates"
+    - name: "[ * ] uploading artifacts"
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: disable_cvd_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+        name: disable_cv_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
-  disable_cvd_tests_rpm:
-    name: "disable_cvd_tests_rpm"
+  disable_cv_tests_rpm:
+    name: "disable_cv_tests_rpm"
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -193,15 +219,15 @@ jobs:
     - name: "Test enrollment"
       uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
 
-    - name: "Enble source address check"
+    - name: "Enable forward address check"
       if: matrix.execscript == 'rpm_tester.sh'
       run: |
-        sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: True\nsource_address_check: True/g" data/acme_srv.cfg
+        sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: True\nforward_address_check: True/g" data/acme_srv.cfg
 
-    - name: "Enble source address check"
+    - name: "Enable forward address check"
       if: matrix.execscript == 'django_tester.sh'
       run: |
-        sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: True\nsource_address_check: True/g" data/volume/acme_srv.cfg
+        sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: True\nforward_address_check: True/g" data/volume/acme_srv.cfg
 
     - name: "Reconfigure a2c"
       run: |
@@ -213,6 +239,37 @@ jobs:
       uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
       with:
         TO_FAIL: "true"
+
+    - name: "Check logs for forward check errors"
+      working-directory: examples/Docker
+      run: |
+        docker exec acme-srv grep "Challenge._forward_address_check(): Source address check returned invalid" /var/log/messages
+
+    - name: "Enable reverse address check"
+      if: matrix.execscript == 'rpm_tester.sh'
+      run: |
+        sudo sed -i "s/forward_address_check: True/reverse_address_check: True/g" data/acme_srv.cfg
+
+    - name: "Enable reverse address check"
+      if: matrix.execscript == 'django_tester.sh'
+      run: |
+        sudo sed -i "s/forward_address_check: True/reverse_address_check: True/g" data/volume/acme_srv.cfg
+
+    - name: "Reconfigure a2c"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+      env:
+        EXEC_SCRIPT: ${{ matrix.execscript }}
+
+    - name: "Test enrollment"
+      uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
+      with:
+        TO_FAIL: "true"
+
+    - name: "Check logs for reverse check errors"
+      working-directory: examples/Docker
+      run: |
+        docker exec acme-srv grep "Challenge._reverse_address_check(): ip address check failed" /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -230,5 +287,5 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: disable_cvd_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
+        name: disable_cv_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
