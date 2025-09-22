@@ -862,19 +862,16 @@ class Challenge(object):
             or challenge_validation_disable_eab_profile
         ):
             if self.challenge_validation_disable:
-                self.logger.warning(
-                    "Challenge validation is globally disabled."
-                )
+                self.logger.warning("Challenge validation is globally disabled.")
             else:
-                self.logger.info(
-                    "Challenge validation disabled via eab profile."
-                )
+                self.logger.info("Challenge validation disabled via eab profile.")
 
             if self.forward_address_check or self.reverse_address_check:
                 challenge_check, invalid = self._source_address_check(challenge_name)
             else:
                 self.logger.warning(
-                    "Source address checks are disabled. Setting challenge status to valid. This is not recommended as this is a severe security risk!")
+                    "Source address checks are disabled. Setting challenge status to valid. This is not recommended as this is a severe security risk!"
+                )
                 challenge_check = True
                 invalid = False
         else:
