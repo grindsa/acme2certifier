@@ -21,15 +21,15 @@ runs:
       sudo apt install -y docker-compose-plugin
       mkdir -p mailserver/docker-data/certs
       DMS_GITHUB_URL="https://raw.githubusercontent.com/docker-mailserver/docker-mailserver/master"
-      curl ${DMS_GITHUB_URL}/compose.yaml -o mailserver/docker compose.yaml
+      curl ${DMS_GITHUB_URL}/compose.yaml -o mailserver/docker-compose.yaml
       curl ${DMS_GITHUB_URL}/mailserver.env -o mailserver/mailserver.env
     shell: bash
 
   - name: "Modify downloaded files to reflect test-setup"
     run: |
-      echo -e "networks:\n  default:\n    external:\n      name: ${NAME_SPACE}" >> mailserver/docker compose.yaml
-      sudo sed -i "s/hostname: mail.example.com/hostname: mailserver.${NAME_SPACE}/g" mailserver/docker compose.yaml
-      sudo sed -i "s/- .\/docker-data\/dms\/config\/:\/tmp\/docker-mailserver/- .\/docker-data\/dms\/config\/:\/tmp\/docker-mailserver\n      - .\/docker-data\/certs:\/etc\/certs/g" mailserver/docker compose.yaml
+      echo -e "networks:\n  default:\n    external:\n      name: ${NAME_SPACE}" >> mailserver/docker-compose.yaml
+      sudo sed -i "s/hostname: mail.example.com/hostname: mailserver.${NAME_SPACE}/g" mailserver/docker-compose.yaml
+      sudo sed -i "s/- .\/docker-data\/dms\/config\/:\/tmp\/docker-mailserver/- .\/docker-data\/dms\/config\/:\/tmp\/docker-mailserver\n      - .\/docker-data\/certs:\/etc\/certs/g" mailserver/docker-compose.yaml
       sudo sed -i "s/ENABLE_OPENDKIM=1/ENABLE_OPENDKIM=0/g" mailserver/mailserver.env
       sudo sed -i "s/ENABLE_OPENDMARC=1/ENABLE_OPENDMARC=0/g" mailserver/mailserver.env
       sudo sed -i "s/ENABLE_POLICYD_SPF=1/ENABLE_POLICYD_SPF=0/g" mailserver/mailserver.env
@@ -38,7 +38,7 @@ runs:
       sudo sed -i "s/SSL_TYPE=/SSL_TYPE=manual/g" mailserver/mailserver.env
       sudo sed -i "s/SSL_CERT_PATH=/SSL_CERT_PATH=\/etc\/certs\/mailserver_crt.pem/g" mailserver/mailserver.env
       sudo sed -i "s/SSL_KEY_PATH=/SSL_KEY_PATH=\/etc\/certs\/mailserver_key.pem/g" mailserver/mailserver.env
-      cat mailserver/docker compose.yaml
+      cat mailserver/docker-compose.yaml
       echo ${MAILSERVER_CERT} | base64 -d > mailserver/docker-data/certs/mailserver_crt.pkcs12
       openssl pkcs12 -in mailserver/docker-data/certs/mailserver_crt.pkcs12 -nodes -nocerts -out mailserver/docker-data/certs/mailserver_key.pem -passin pass:
       openssl pkcs12 -in mailserver/docker-data/certs/mailserver_crt.pkcs12 -clcerts -nokeys -out mailserver/docker-data/certs/mailserver_crt.pem -passin pass:
