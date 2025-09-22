@@ -112,6 +112,7 @@ jobs:
         cat <<EOF > examples/Docker/data/krb5.conf
         $WES_KRB5_CONF
         EOF
+        exit 1
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
         WES_USER: ${{ secrets.WES_USER }}
