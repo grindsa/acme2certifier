@@ -43,8 +43,10 @@ runs:
   - name: "Prepare Environment"
     working-directory: ${{ inputs.WORKING_DIR }}
     run: |
-      sudo apt-get update
-      sudo apt-get install -y docker-compose
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      sudo apt update
+      sudo apt install -y docker-compose-plugin
       # docker network create acme
       mkdir -p vault/config
       sudo chmod -R 777 vault
@@ -74,7 +76,7 @@ runs:
   - name: "Instanciate vault server"
     working-directory: ${{ inputs.WORKING_DIR }}/vault
     run: |
-      docker-compose up -d
+      docker compose up -d
     shell: bash
 
   - name: "Sleep for 5s"

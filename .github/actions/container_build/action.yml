@@ -10,23 +10,24 @@ inputs:
     required: true
     default: "apache2"
   DOCKER_COMPOSE_FILE_PATH:
-    description: "Path to the docker-compose file"
+    description: "Path to the docker compose file"
     required: false
     default: "examples/Docker/"
 
 runs:
   using: "composite"
   steps:
-    - name: "Build docker-compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+    - name: "Build docker compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
       run: |
-        sudo apt-get update
-        #  sudo apt-get upgrade -y
-        sudo apt-get install -y docker-compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         sed -i "s/wsgi/$DB_HANDLER/g" .env
         sed -i "s/apache2/$WEB_SRV/g" .env
         # cat .env
-        docker-compose build
+        docker compose build
       shell: bash
       env:
         WEB_SRV: ${{ inputs.WEB_SRV }}

@@ -56,7 +56,7 @@ jobs:
         sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: a2c@mailserver.acme\npassword: a2cstarter\nemail_address: a2c@mailserver.acme/g" examples/Docker/data/acme_srv.cfg
 
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -78,7 +78,7 @@ jobs:
       run: |
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "enroll via acme-email"
       uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
@@ -94,7 +94,7 @@ jobs:
         sudo mkdir -p ${{ github.workspace }}/artifact/acme_email
         sudo cp acme_email/lets* ${{ github.workspace }}/artifact/acme_email/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         docker logs mailserver 2>&1 > ${{ github.workspace }}/artifact/mailserver.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log mailserver.log data acme_email mailserver
 

@@ -41,16 +41,19 @@ jobs:
     - name: "Build and start SOAP server"
       working-directory: examples/Docker/
       run: |
-        sudo apt-get install -y docker-compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         sudo mv ../../.dockerignore ../../.dockerignore.acme
-        docker-compose -f soap_srv.yml up -d
-        docker-compose -f soap_srv.yml logs
+        docker compose -f soap_srv.yml up -d
+        docker compose -f soap_srv.yml logs
 
-    - name: "Build docker-compose (apache2_wsgi)"
+    - name: "Build docker compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
         sudo mv ../../.dockerignore.acme ../../.dockerignore
-        docker-compose up -d
+        docker compose up -d
 
     - name: "Generate keys and certificates"
       uses: ./.github/actions/cert_gen
@@ -78,7 +81,7 @@ jobs:
         sudo echo "email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
         cat examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -94,8 +97,8 @@ jobs:
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log
-        docker-compose logs > ${{ github.workspace }}/artifact/a2c.log
+        docker compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log
+        docker compose logs > ${{ github.workspace }}/artifact/a2c.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz a2c.log data soap-srv.log acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
@@ -137,17 +140,20 @@ jobs:
     - name: "Build and start SOAP server"
       working-directory: examples/Docker/
       run: |
-        sudo apt-get install -y docker-compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         sudo mv ../../.dockerignore ../../.dockerignore.acme
-        docker-compose -f soap_srv.yml up -d
-        docker-compose -f soap_srv.yml logs
+        docker compose -f soap_srv.yml up -d
+        docker compose -f soap_srv.yml logs
 
-    - name: "Build docker-compose (apache2_wsgi)"
+    - name: "Build docker compose (apache2_wsgi)"
       working-directory: examples/Docker/
       run: |
         sudo mv ../../.dockerignore.acme ../../.dockerignore
-        docker-compose up -d
-        docker-compose logs
+        docker compose up -d
+        docker compose logs
 
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
@@ -181,7 +187,7 @@ jobs:
         sudo echo "email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
         cat examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -197,8 +203,8 @@ jobs:
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log
-        docker-compose logs > ${{ github.workspace }}/artifact/a2c.log
+        docker compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log
+        docker compose logs > ${{ github.workspace }}/artifact/a2c.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz a2c.log data soap-srv.log acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"

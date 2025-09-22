@@ -1,4 +1,4 @@
-name: Tests diable challengevalidation
+name: Tests disable challengevalidation
 
 on:
   push:
@@ -45,7 +45,7 @@ jobs:
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -69,7 +69,7 @@ jobs:
       run: |
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "Test enrollment"
       uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -78,7 +78,7 @@ jobs:
       run: |
         sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: True\nforward_address_check: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "Test enrollment"
       uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -88,13 +88,13 @@ jobs:
     - name: "Check logs for forward check errors"
       working-directory: examples/Docker
       run: |
-        docker-compose logs 2>&1 | grep "Challenge._forward_address_check(): Source address check returned invalid"
+        docker compose logs 2>&1 | grep "Challenge._forward_address_check(): Source address check returned invalid"
 
     - name: "Enable reverse address check"
       run: |
         sudo sed -i "s/forward_address_check: True/reverse_address_check: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "Test enrollment"
       uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -104,7 +104,7 @@ jobs:
     - name: "Check logs for reverse check errors"
       working-directory: examples/Docker
       run: |
-        docker-compose logs 2>&1 | grep "Challenge._reverse_address_check(): ip address check failed"
+        docker compose logs 2>&1 | grep "Challenge._reverse_address_check(): ip address check failed"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -113,7 +113,7 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
 
     - name: "[ * ] uploading artifacts"

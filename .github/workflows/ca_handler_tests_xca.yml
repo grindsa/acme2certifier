@@ -45,7 +45,7 @@ jobs:
         # sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -60,7 +60,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker-compose logs | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "No Template - enrollment"
       uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_no_template
@@ -82,7 +82,7 @@ jobs:
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -113,7 +113,7 @@ jobs:
         sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -157,7 +157,7 @@ jobs:
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -202,7 +202,7 @@ jobs:
         sudo sed -i "s/\"api_user\"\: \"api_user\",/\"subject\"\: \{\n        \"serialNumber\"\: \"*\",\n        \"organizationName\"\: \"acme corp\",\n        \"organizationalUnitName\"\: \[\"acme1\", \"acme2\"\],\n        \"countryName\"\: \"AC\"\n       \}/g" examples/Docker/data/kid_profiles.json
 
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -230,7 +230,7 @@ jobs:
         sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -274,7 +274,7 @@ jobs:
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -292,7 +292,7 @@ jobs:
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh lego
 
     - name: "[ * ] uploading artificates"
