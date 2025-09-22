@@ -52,7 +52,7 @@ runs:
       sudo chmod -R 777 vault
       sudo sh -c "echo '$VAULT_IP vault' >> /etc/hosts"
       cp vault/config.hcl vault/config/
-      cp vault/compose.yaml vault/docker compose.yaml
+      cp vault/compose.yaml vault/docker-compose.yaml
     env:
       VAULT_IP: ${{ inputs.RUNNER_IP }}
     shell: bash
