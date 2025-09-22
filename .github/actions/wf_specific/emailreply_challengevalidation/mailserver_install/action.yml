@@ -15,9 +15,10 @@ runs:
   steps:
   - name: "Install mailserver"
     run: |
-      sudo apt-get update
-      #  sudo apt-get upgrade -y
-      sudo apt-get install -y docker compose
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      sudo apt update
+      sudo apt install -y docker-compose-plugin
       mkdir -p mailserver/docker-data/certs
       DMS_GITHUB_URL="https://raw.githubusercontent.com/docker-mailserver/docker-mailserver/master"
       curl ${DMS_GITHUB_URL}/compose.yaml -o mailserver/docker compose.yaml

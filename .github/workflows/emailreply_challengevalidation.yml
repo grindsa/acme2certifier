@@ -94,9 +94,9 @@ jobs:
         sudo mkdir -p ${{ github.workspace }}/artifact/acme_email
         sudo cp acme_email/lets* ${{ github.workspace }}/artifact/acme_email/
         cd examples/Docker
-        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         docker logs mailserver 2>&1 > ${{ github.workspace }}/artifact/mailserver.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log mailserver.log data acme_email mailserver
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log mailserver.log data acme_email mailserver
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
