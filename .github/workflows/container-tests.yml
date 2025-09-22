@@ -66,8 +66,8 @@ jobs:
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         cd examples/Docker
-        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data acme-sh
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh
 
     - name: "[ * ] uploading artifacts"
       uses: actions/upload-artifact@v4

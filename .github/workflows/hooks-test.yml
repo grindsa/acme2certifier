@@ -50,7 +50,10 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
@@ -142,8 +145,8 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         cd examples/Docker
-        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
@@ -179,7 +182,10 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
@@ -349,8 +355,8 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         cd examples/Docker
-        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4

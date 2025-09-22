@@ -141,9 +141,9 @@ jobs:
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
-        # touch ${{ github.workspace }}/artifact/docker compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data acme-sh certbot lego
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        # touch ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4

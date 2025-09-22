@@ -85,8 +85,8 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp traefik/ ${{ github.workspace }}/artifact/traefik/
         cd examples/Docker
-        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data traefik
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data traefik
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
