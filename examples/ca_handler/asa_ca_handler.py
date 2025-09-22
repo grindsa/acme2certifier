@@ -22,11 +22,13 @@ from acme_srv.helper import (
     config_eab_profile_load,
     config_headerinfo_load,
     eab_profile_header_info_check,
+    eab_profile_revocation_check,
     config_enroll_config_log_load,
     config_profile_load,
     enrollment_config_log,
     config_allowed_domainlist_load,
     allowed_domainlist_check,
+    handler_config_check,
 )
 
 
@@ -526,6 +528,26 @@ class CAhandler(object):
         self.logger.debug("Certificate.enroll() ended with: %s", error)
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
+    def handler_check(self):
+        """check if handler is ready"""
+        self.logger.debug("CAhandler.check()")
+
+        error = handler_config_check(
+            self.logger,
+            self,
+            [
+                "api_host",
+                "api_user",
+                "api_password",
+                "api_key",
+                "ca_name",
+                "profile_name",
+            ],
+        )
+
+        self.logger.debug("CAhandler.check() ended with %s", error)
+        return error
+
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str
     ) -> Tuple[str, str, str, str, bool]:
@@ -552,6 +574,10 @@ class CAhandler(object):
         code = None
         message = None
         detail = None
+
+        # modify handler configuration in case of eab profiling
+        if self.eab_profiling:
+            eab_profile_revocation_check(self.logger, self, cert)
 
         cert_ski = cert_ski_get(
             self.logger, cert

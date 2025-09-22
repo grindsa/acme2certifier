@@ -8,9 +8,9 @@ from requests_pkcs12 import Pkcs12Adapter
 # pylint: disable=e0401
 from acme_srv.helper import (
     allowed_domainlist_check,
-    build_pem_file,
     b64_decode,
     b64_url_recode,
+    build_pem_file,
     cert_der2pem,
     cert_issuer_get,
     cert_serial_get,
@@ -23,8 +23,10 @@ from acme_srv.helper import (
     csr_cn_get,
     csr_san_get,
     eab_profile_header_info_check,
+    eab_profile_revocation_check,
     encode_url,
     enrollment_config_log,
+    handler_config_check,
     load_config,
 )
 
@@ -496,6 +498,24 @@ class CAhandler(object):
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
+    def handler_check(self):
+        """check if handler is ready"""
+        self.logger.debug("CAhandler.check()")
+        error = handler_config_check(
+            self.logger,
+            self,
+            [
+                "api_host",
+                "cert_profile_name",
+                "ee_profile_name",
+                "ca_name",
+                "username",
+                "enrollment_code",
+            ],
+        )
+        self.logger.debug("CAhandler.check() ended with %s", error)
+        return error
+
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str
     ) -> Tuple[str, str, str, str, bool]:
@@ -518,6 +538,10 @@ class CAhandler(object):
         code = None
         message = None
         detail = None
+
+        # modify handler configuration in case of eab profiling
+        if self.eab_profiling:
+            eab_profile_revocation_check(self.logger, self, cert)
 
         # get cert serial number and issuerdn
         cert_serial = cert_serial_get(self.logger, cert, hexformat=True)

@@ -852,9 +852,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_certid.called)
         self.assertFalse(mock_revoke.called)
 
+    @patch("examples.ca_handler.openxpki_ca_handler.eab_profile_revocation_check")
     @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._revoke")
     @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._cert_identifier_get")
-    def test_060_revoke(self, mock_certid, mock_revoke):
+    def test_060_revoke(self, mock_certid, mock_revoke, mock_eab):
         """test revoke"""
         mock_certid.return_value = "cert_identifier"
         mock_revoke.return_value = ("code", "error", "detail")
@@ -863,6 +864,28 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_certid.called)
         self.assertTrue(mock_revoke.called)
+        self.assertFalse(mock_eab.called)
+
+    @patch("examples.ca_handler.openxpki_ca_handler.eab_profile_revocation_check")
+    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._revoke")
+    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._cert_identifier_get")
+    def test_061_revoke(self, mock_certid, mock_revoke, mock_eab):
+        """test revoke"""
+        mock_certid.return_value = "cert_identifier"
+        mock_revoke.return_value = ("code", "error", "detail")
+        self.cahandler.eab_profiling = True
+        self.assertEqual(
+            ("code", "error", "detail"), self.cahandler.revoke("cert", "reason", "date")
+        )
+        self.assertTrue(mock_certid.called)
+        self.assertTrue(mock_revoke.called)
+        self.assertTrue(mock_eab.called)
+
+    @patch("examples.ca_handler.openxpki_ca_handler.handler_config_check")
+    def test_068_handler_check(self, mock_handler_check):
+        """test handler_check"""
+        mock_handler_check.return_value = "mock_handler_check"
+        self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
 
 if __name__ == "__main__":

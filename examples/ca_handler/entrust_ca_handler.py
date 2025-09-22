@@ -9,24 +9,26 @@ from requests_pkcs12 import Pkcs12Adapter
 
 # pylint: disable=e0401
 from acme_srv.helper import (
-    load_config,
-    cert_pem2der,
+    allowed_domainlist_check,
     b64_encode,
-    eab_profile_header_info_check,
-    uts_now,
-    uts_to_date_utc,
+    b64_url_recode,
+    cert_pem2der,
     cert_serial_get,
+    config_allowed_domainlist_load,
     config_eab_profile_load,
+    config_enroll_config_log_load,
     config_headerinfo_load,
     config_profile_load,
-    header_info_get,
-    b64_url_recode,
-    request_operation,
     csr_cn_lookup,
-    config_enroll_config_log_load,
+    eab_profile_header_info_check,
+    eab_profile_revocation_check,
     enrollment_config_log,
-    config_allowed_domainlist_load,
-    allowed_domainlist_check,
+    handler_config_check,
+    header_info_get,
+    load_config,
+    request_operation,
+    uts_now,
+    uts_to_date_utc,
 )
 
 
@@ -677,6 +679,15 @@ class CAhandler(object):
         self.logger.debug("Certificate.enroll() ended")
         return error, cert_bundle, cert_raw, poll_indentifier
 
+    def handler_check(self):
+        """check if handler is ready"""
+        self.logger.debug("CAhandler.handler_check()")
+        error = handler_config_check(
+            self.logger, self, ["username", "password", "organization_name"]
+        )
+        self.logger.debug("CAhandler.handler_check() ended with %s", error)
+        return error
+
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str
     ) -> Tuple[str, str, str, str, bool]:
@@ -703,6 +714,10 @@ class CAhandler(object):
         code = None
         message = None
         detail = None
+
+        # modify handler configuration in case of eab profiling
+        if self.eab_profiling:
+            eab_profile_revocation_check(self.logger, self, certificate_raw)
 
         # get tracking id as input for revocation call
         tracking_id = self._trackingid_get(certificate_raw)

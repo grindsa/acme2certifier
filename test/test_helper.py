@@ -144,6 +144,7 @@ class TestACMEHandler(unittest.TestCase):
             radomize_parameter_list,
             profile_lookup,
             eab_profile_revocation_check,
+            handler_config_check,
         )
 
         self.logger = logging.getLogger("test_a2c")
@@ -256,6 +257,7 @@ class TestACMEHandler(unittest.TestCase):
         self.profile_lookup = profile_lookup
         self.b64_url_decode = b64_url_decode
         self.eab_profile_revocation_check = eab_profile_revocation_check
+        self.handler_config_check = handler_config_check
 
     def test_001_helper_b64decode_pad(self):
         """test b64decode_pad() method with a regular base64 encoded string"""
@@ -4838,6 +4840,51 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.logger, self.cahandler, self.certificate_raw
             )
             mock_list_check.assert_called_once()
+
+    def test_445_missing_required_keys(self):
+        """test handler_config_check() with missing required keys"""
+
+        class DummyHandler(object):
+            def __init__(self):
+                self.vault_url = "url"
+                self.vault_token = None
+
+        dummy_handler = DummyHandler()
+        required_keys = ["vault_url", "vault_token"]
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                "vault_token parameter is missing in config file",
+                self.handler_config_check(self.logger, dummy_handler, required_keys),
+            )
+        self.assertIn(
+            "ERROR:test_a2c:Configuration check ended with error: vault_token parameter is missing in config file",
+            lcm.output,
+        )
+
+    def test_446_all_required_keys_present(self):
+        class DummyHandler(object):
+            def __init__(self):
+                self.vault_url = "url"
+                self.vault_token = "token"
+                self.another_param = "param"
+
+        dummy_handler = DummyHandler()
+        required_keys = ["vault_url", "vault_token"]
+        self.assertFalse(
+            self.handler_config_check(self.logger, dummy_handler, required_keys)
+        )
+
+    def test_447_empty_config(self):
+        class DummyHandler(object):
+            def __init__(self):
+                self.vault_url = "url"
+                self.vault_token = "token"
+
+        dummy_handler = DummyHandler()
+        required_keys = []
+        self.assertFalse(
+            self.handler_config_check(self.logger, dummy_handler, required_keys)
+        )
 
 
 if __name__ == "__main__":

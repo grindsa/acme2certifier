@@ -217,7 +217,7 @@ class TestACMEHandler(unittest.TestCase):
         """test _config_check()"""
         self.cahandler.api_url = "api_url"
         self.assertEqual(
-            "api_key parameter in missing in config file",
+            "api_key parameter is missing in config file",
             self.cahandler._config_check(),
         )
 
@@ -226,7 +226,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.api_url = "api_url"
         self.cahandler.api_key = "api_key"
         self.assertEqual(
-            "organization_name parameter in missing in config file",
+            "organization_name parameter is missing in config file",
             self.cahandler._config_check(),
         )
 
@@ -1013,13 +1013,26 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ordersend.called)
         self.assertTrue(mock_orderparse.called)
 
+    @patch("examples.ca_handler.digicert_ca_handler.CAhandler._config_check")
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._api_put")
     @patch("examples.ca_handler.digicert_ca_handler.cert_serial_get")
-    def test_058_revoke(self, mock_serial, mock_put):
+    def test_058_revoke(self, mock_serial, mock_put, mock_cfgchk):
         """test revoke()"""
         mock_serial.return_value = "serial"
         mock_put.return_value = ("code", "content")
         self.assertEqual(("code", None, "content"), self.cahandler.revoke("cert"))
+        self.assertFalse(mock_cfgchk.called)
+
+    @patch("examples.ca_handler.digicert_ca_handler.CAhandler._config_check")
+    @patch("examples.ca_handler.digicert_ca_handler.CAhandler._api_put")
+    @patch("examples.ca_handler.digicert_ca_handler.cert_serial_get")
+    def test_058_revoke(self, mock_serial, mock_put, mock_cfgchk):
+        """test revoke()"""
+        mock_serial.return_value = "serial"
+        mock_put.return_value = ("code", "content")
+        self.cahandler.eab_profiling = True
+        self.assertEqual(("code", None, "content"), self.cahandler.revoke("cert"))
+        self.assertTrue(mock_cfgchk.called)
 
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._api_put")
     @patch("examples.ca_handler.digicert_ca_handler.cert_serial_get")
@@ -1039,6 +1052,12 @@ class TestACMEHandler(unittest.TestCase):
         mock_serial.return_value = "serial"
         mock_put.return_value = (204, "content")
         self.assertEqual((200, None, "content"), self.cahandler.revoke("cert"))
+
+    @patch("examples.ca_handler.digicert_ca_handler.handler_config_check")
+    def test_061_handler_check(self, mock_handler_check):
+        """test handler_check"""
+        mock_handler_check.return_value = "mock_handler_check"
+        self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
 
 if __name__ == "__main__":
