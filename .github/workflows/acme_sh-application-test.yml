@@ -56,7 +56,7 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker-compose
+        sudo apt-get install -y docker compose
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         ls -la
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
@@ -165,8 +165,8 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh
+        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data acme-sh
 
     - name: "[ * ] uploading artifacts"
       uses: actions/upload-artifact@v4

@@ -51,7 +51,7 @@ jobs:
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -108,8 +108,8 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
+        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data lego
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
@@ -161,7 +161,7 @@ jobs:
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -191,7 +191,7 @@ jobs:
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -224,7 +224,7 @@ jobs:
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -271,7 +271,7 @@ jobs:
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -322,7 +322,7 @@ jobs:
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -359,7 +359,7 @@ jobs:
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -407,7 +407,7 @@ jobs:
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -442,8 +442,8 @@ jobs:
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
+        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4

@@ -56,7 +56,7 @@ jobs:
         sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -88,7 +88,7 @@ jobs:
     - name: "check header info"
       run: |
         cd examples/Docker/
-        docker-compose logs | grep foo-bar-doo | grep customized
+        docker compose logs | grep foo-bar-doo | grep customized
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -97,8 +97,8 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
+        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data lego
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4

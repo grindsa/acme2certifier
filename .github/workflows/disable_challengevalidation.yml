@@ -45,7 +45,7 @@ jobs:
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
         XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
@@ -64,7 +64,7 @@ jobs:
       run: |
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "Test enrollment"
       uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -73,7 +73,7 @@ jobs:
       run: |
         sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: True\nsource_address_check: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "Test enrollment"
       uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -87,8 +87,8 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
+        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data lego
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4

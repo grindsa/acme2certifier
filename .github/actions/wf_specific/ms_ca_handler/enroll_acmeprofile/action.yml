@@ -38,7 +38,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash
 
@@ -54,8 +54,8 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker-compose logs | grep "template: WebServer"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "template: WebServer"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
         docker exec -i acme-srv tail -n ${{ inputs.TAIL_NUMBER}} /var/log/messages | grep "template: WebServer"
       fi
@@ -85,8 +85,8 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker-compose logs | grep "unknown"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "unknown"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
         docker exec -i acme-srv tail -n ${{ inputs.TAIL_NUMBER}} /var/log/messages | grep unknown
       fi
@@ -104,8 +104,8 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker-compose logs | grep "template: WebServerModified"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "template: WebServerModified"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
         docker exec -i acme-srv tail -n ${{ inputs.TAIL_NUMBER}} /var/log/messages | grep "template: WebServerModified"
       fi

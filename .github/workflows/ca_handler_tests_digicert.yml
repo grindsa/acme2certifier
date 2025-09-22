@@ -48,7 +48,7 @@ jobs:
         sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
         DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
@@ -64,7 +64,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
@@ -100,7 +100,7 @@ jobs:
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
         DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
@@ -125,7 +125,7 @@ jobs:
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
 
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
         DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
@@ -165,7 +165,7 @@ jobs:
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
         DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
@@ -185,8 +185,8 @@ jobs:
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
+        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4

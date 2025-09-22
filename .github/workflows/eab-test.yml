@@ -44,7 +44,7 @@ jobs:
         sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/json_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/key_file.json" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -121,7 +121,7 @@ jobs:
       run: |
         sudo sed -i "s/keyid_02/keyid_12/g" examples/Docker/data/acme_ca/key_file.json
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "Enroll acme.sh with unknown kid - should fail"
       id: acmekidfail
@@ -139,7 +139,7 @@ jobs:
       run: |
         sudo echo "eabkid_check_disable: True" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "Enroll acme.sh with unknown kid - should work"
       # id: acmekidfail
@@ -153,8 +153,8 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
