@@ -44,13 +44,13 @@ runs:
     working-directory: ${{ inputs.WORKING_DIR }}
     run: |
       sudo apt-get update
-      sudo apt-get install -y docker-compose
+      sudo apt-get install -y docker compose
       # docker network create acme
       mkdir -p vault/config
       sudo chmod -R 777 vault
       sudo sh -c "echo '$VAULT_IP vault' >> /etc/hosts"
       cp vault/config.hcl vault/config/
-      cp vault/compose.yaml vault/docker-compose.yaml
+      cp vault/compose.yaml vault/docker compose.yaml
     env:
       VAULT_IP: ${{ inputs.RUNNER_IP }}
     shell: bash
@@ -74,7 +74,7 @@ runs:
   - name: "Instanciate vault server"
     working-directory: ${{ inputs.WORKING_DIR }}/vault
     run: |
-      docker-compose up -d
+      docker compose up -d
     shell: bash
 
   - name: "Sleep for 5s"

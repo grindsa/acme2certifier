@@ -10,7 +10,7 @@ inputs:
     required: true
     default: "apache2"
   DOCKER_COMPOSE_FILE_PATH:
-    description: "Path to the docker-compose file"
+    description: "Path to the docker compose file"
     required: false
     default: "examples/Docker/"
   NAME_SPACE:
@@ -24,8 +24,8 @@ runs:
     - name: "Spin-up a2c instance (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
       run: |
-          sed -i "s/name: acme/name: $NAME_SPACE/g" docker-compose.yml
-          docker-compose up -d --no-build
+          sed -i "s/name: acme/name: $NAME_SPACE/g" docker compose.yml
+          docker compose up -d --no-build
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
       shell: bash

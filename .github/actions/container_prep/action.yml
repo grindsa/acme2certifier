@@ -57,7 +57,7 @@ runs:
         IPV6: ${{ inputs.IPV6 }}
       shell: bash
 
-    - name: "Build docker-compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+    - name: "Build docker compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
       if: inputs.CONTAINER_BUILD == 'true'
       uses: ./.github/actions/container_build
       with:

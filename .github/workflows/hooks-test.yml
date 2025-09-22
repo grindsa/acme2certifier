@@ -50,7 +50,7 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker-compose
+        sudo apt-get install -y docker compose
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
@@ -83,7 +83,7 @@ jobs:
         sudo echo "$HOOKS_CHECKSUM" > examples/Docker/data/hooks/checksums.sha256
         # sudo cat examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
 
@@ -142,8 +142,8 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
@@ -179,7 +179,7 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker-compose
+        sudo apt-get install -y docker compose
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
@@ -213,8 +213,8 @@ jobs:
         sudo echo "raise_success_hook_exception: False" >> examples/Docker/data/acme_srv.cfg
         # sudo cat examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
+        docker compose restart
+        docker compose logs
       env:
         HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
 
@@ -246,8 +246,8 @@ jobs:
       run: |
         sudo sed -i "s/raise_pre_hook_exception: False/raise_pre_hook_exception: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-        docker-compose restart
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        docker compose restart
 
     - name: "[ FAIL ] acme.sh enrollment fails due to pre-hook exception (default behaviour)"
       id: prehookfailure
@@ -265,8 +265,8 @@ jobs:
       run: |
         sudo echo "ignore_pre_hook_failure: True" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-        docker-compose restart
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        docker compose restart
 
     - name: "[ ENROLL] acme.sh - ignore pre_hook_failures "
       run: |
@@ -278,8 +278,8 @@ jobs:
         sudo sed -i "s/raise_pre_hook_exception: True/raise_pre_hook_exception: False/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/raise_success_hook_exception: False/raise_success_hook_exception: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-        docker-compose restart
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        docker compose restart
 
     - name: "[ FAIL ] acme.sh enrollment fails due to success-hook exception (default behaviour) "
       id: successhookfailure
@@ -297,8 +297,8 @@ jobs:
       run: |
         sudo sed -i "s/ignore_pre_hook_failure: True/ignore_success_hook_failure: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-        docker-compose restart
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        docker compose restart
 
     - name: "[ ENROLL] acme.sh - ignore sucess_hook_failures "
       run: |
@@ -310,8 +310,8 @@ jobs:
         sudo sed -i "s/raise_success_hook_exception: True/raise_success_hook_exception: False/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/raise_post_hook_exception: False/raise_post_hook_exception: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-        docker-compose restart
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        docker compose restart
 
     - name: "[ ENROLL] acme.sh - ignore post_hook_failures (default behaviour) "
       run: |
@@ -322,8 +322,8 @@ jobs:
       run: |
         sudo sed -i "s/ignore_success_hook_failure: True/ignore_post_hook_failure: False/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-        docker-compose restart
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        docker compose restart
 
     - name: "[ FAIL ] acme.sh enrollment fails due to post-hook exception "
       id: posthookfailure
@@ -349,8 +349,8 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+        docker compose logs > ${{ github.workspace }}/artifact/docker compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker compose.log data
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
