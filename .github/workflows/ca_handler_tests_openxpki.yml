@@ -14,8 +14,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['apache2']
-        dbhandler: ['wsgi']
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -256,7 +256,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rhversion: [9]
+        rhversion: [8, 9]
     steps:
 
     - name: "checkout GIT"
