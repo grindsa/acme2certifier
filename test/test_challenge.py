@@ -2097,6 +2097,28 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.email_address)
         self.assertFalse(self.challenge.reverse_address_check)
 
+    @patch("acme_srv.challenge.load_config")
+    def test_119_config_load(self, mock_load_cfg):
+        """test _config_load sectigo_sim"""
+        parser = configparser.ConfigParser()
+        parser["Order"] = {"email_identifier_support": True}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.challenge._config_load()
+        self.assertIn(
+            'WARNING:test_a2c:Email identifier support is enabled but no email address is configured. Disabling email identifier support.',
+            lcm.output,
+        )
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.proxy_server_list)
+        self.assertFalse(self.challenge.sectigo_sim)
+        self.assertEqual(10, self.challenge.challenge_validation_timeout)
+        self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.email_identifier_support)
+        self.assertFalse(self.challenge.reverse_address_check)
+
     def test_119__name_get(self):
         """test name get no touch"""
         url = "foo"
@@ -3149,6 +3171,108 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(invalid)
         self.assertTrue(mock_forward.called)
         self.assertFalse(mock_reverse.called)
+
+
+    @patch('acme_srv.challenge.ptr_resolve')
+    def test_188_reverse_address_check_success(self, mock_ptr_resolve):
+        """Test successful reverse address check"""
+        challenge_dic = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com"
+        }
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        mock_ptr_resolve.return_value = ("test.example.com", False)
+        self.assertEqual((True, False), self.challenge._reverse_address_check(challenge_dic))
+        mock_ptr_resolve.assert_called_once_with(
+            self.logger, "192.168.1.100", ["8.8.8.8"]
+        )
+
+    @patch('acme_srv.challenge.ptr_resolve')
+    def test_189_reverse_address_check_failure_wrong_hostname(self, mock_ptr_resolve):
+        """Test reverse address check fails with wrong hostname"""
+        challenge_dic = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com"
+        }
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        mock_ptr_resolve.return_value = ("different.example.com", False)
+        self.assertEqual((False, True), self.challenge._reverse_address_check(challenge_dic))
+        mock_ptr_resolve.assert_called_once_with(
+            self.logger, "192.168.1.100", ["8.8.8.8"]
+        )
+
+    @patch('acme_srv.challenge.ptr_resolve')
+    def test_190_reverse_address_check_failure_no_response(self, mock_ptr_resolve):
+        """Test reverse address check fails with no PTR response"""
+        challenge_dic = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com"
+        }
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        mock_ptr_resolve.return_value = (None, False)
+        self.assertEqual((False, True), self.challenge._reverse_address_check(challenge_dic))
+
+    @patch('acme_srv.challenge.ptr_resolve')
+    def test_191_reverse_address_check_failure_ptr_invalid(self, mock_ptr_resolve):
+        """Test reverse address check fails with invalid PTR response"""
+        challenge_dic = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com"
+        }
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        mock_ptr_resolve.return_value = ("test.example.com", True)
+        self.assertEqual((True, False), self.challenge._reverse_address_check(challenge_dic))
+
+    def test_192_reverse_address_check_no_challenge_dic(self):
+        """Test reverse address check with no challenge dictionary"""
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.assertEqual((False, False), self.challenge._reverse_address_check(None))
+
+    def test_193_reverse_address_check_wrong_authorization_type(self):
+        """Test reverse address check with non-DNS authorization type"""
+        challenge_dic = {
+            "authorization__type": "ip",
+            "authorization__value": "192.168.1.1"
+        }
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+
+        result, invalid = self.challenge._reverse_address_check(challenge_dic)
+
+        self.assertFalse(result)
+        self.assertFalse(invalid)
+
+    def test_194_reverse_address_check_no_authorization_value(self):
+        """Test reverse address check with missing authorization value"""
+        challenge_dic = {
+            "authorization__type": "dns"
+        }
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.assertEqual((False, False), self.challenge._reverse_address_check(challenge_dic))
+
+    def test_195_reverse_address_check_no_source_address(self):
+        """Test reverse address check with no source address configured"""
+        self.challenge.source_address = None
+        challenge_dic = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com"
+        }
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.assertEqual((False, True), self.challenge._reverse_address_check(challenge_dic))
+
+    def test_196_reverse_address_check_empty_challenge_dic(self):
+        """Test reverse address check with empty challenge dictionary"""
+        challenge_dic = {}
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.assertEqual((False, False), self.challenge._reverse_address_check(challenge_dic))
 
 
 if __name__ == "__main__":

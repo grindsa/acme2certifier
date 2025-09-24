@@ -432,17 +432,14 @@ class Challenge(object):
                 "Order", "email_identifier_support", fallback=False
             )
 
-        if (
-            self.email_identifier_support
-            and "DEFAULT" in config_dic
-            and "email_address" in config_dic["DEFAULT"]
-        ):
-            self.email_address = config_dic["DEFAULT"].get("email_address")
-        else:
-            self.logger.warning(
-                "Email identifier support is enabled but no email address is configured. Disabling email identifier support."
-            )
-            self.email_identifier_support = False
+        if self.email_identifier_support:
+            if "DEFAULT" in config_dic and "email_address" in config_dic["DEFAULT"]:
+                self.email_address = config_dic["DEFAULT"].get("email_address")
+            else:
+                self.logger.warning(
+                    "Email identifier support is enabled but no email address is configured. Disabling email identifier support."
+                )
+                self.email_identifier_support = False
 
         if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
             self.path_dic = {
