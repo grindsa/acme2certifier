@@ -3,7 +3,8 @@ Description=uWSGI instance to serve acme2certifier
 
 [Service]
 RuntimeDirectory=uwsgi
-ExecStart=/usr/bin/bash -c 'cd /opt/acme2certifier; uwsgi --ini acme2certifier.ini'
+ExecStart=uwsgi --ini acme2certifier.ini
+WorkingDirectory=/opt/acme2certifier
 Restart=always
 Type=notify
 NotifyAccess=all
