@@ -695,8 +695,8 @@ class Challenge(object):
                 challenge_check = True
                 invalid = False
             else:
-                self.logger.debug(
-                    "Challenge._reverse_address_check(): ip address check failed for %s",
+                self.logger.error(
+                    "PTR check failed for %s",
                     self.source_address,
                 )
                 challenge_check = False
@@ -729,9 +729,9 @@ class Challenge(object):
                 invalid,
             )
             if invalid:
-                self.logger.debug(
-                    "Challenge._forward_address_check(): Source address check returned invalid for %s",
-                    self.source_address,
+                self.logger.error(
+                    "DNS check returned invalid for %s",
+                    challenge_dic.get("authorization__value"),
                 )
                 challenge_check = False
                 invalid = True
@@ -743,8 +743,9 @@ class Challenge(object):
                 challenge_check = True
                 invalid = False
             else:
-                self.logger.debug(
-                    "Challenge._forward_address_check(): Source address check failed for %s",
+                self.logger.error(
+                    "DNS check failed for %s/%s",
+                    challenge_dic.get("authorization__value"),
                     self.source_address,
                 )
                 challenge_check = False
