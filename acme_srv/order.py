@@ -459,6 +459,11 @@ class Order(object):
                 elif certificate_name == "timeout":
                     code = 200
                     message = certificate_name
+                elif (
+                    certificate_name == "urn:ietf:params:acme:error:rejectedIdentifier"
+                ):
+                    code = 401
+                    message = certificate_name
                 else:
                     message = certificate_name
                     detail = "enrollment failed"
@@ -547,6 +552,9 @@ class Order(object):
                     if not error:
                         code = 200
                         message = certificate_name
+                    elif error == "urn:ietf:params:acme:error:rejectedIdentifier":
+                        code = 401
+                        message = error
                     else:
                         code = 400
                         message = error

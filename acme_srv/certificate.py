@@ -675,9 +675,11 @@ class Certificate(object):
         # cover polling cases
         if poll_identifier:
             detail = poll_identifier
+        elif error == "Either CN or SANs are not allowed by configuration":
+            error = self.err_msg_dic["rejectedidentifier"]
+            detail = "CN or SANs are not allowed by configuration"
         else:
             error = self.err_msg_dic["serverinternal"]
-
         self.logger.debug("Certificate._enrollerror_handler() ended with: %s", result)
         return (result, error, detail)
 
@@ -750,7 +752,6 @@ class Certificate(object):
             poll_identifier,
             cert_reusage,
         ) = self._enroll(csr)
-
         if certificate:
             (result, error) = self._store(
                 certificate,
