@@ -105,7 +105,7 @@ jobs:
     - name: "Check logs for reverse check errors"
       working-directory: examples/Docker
       run: |
-        docker compose logs 2>&1 | grep "Challenge._reverse_address_check(): ip address check failed"
+        docker compose logs 2>&1 | grep "PTR check failed"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -271,7 +271,7 @@ jobs:
     - name: "Check logs for reverse check errors"
       working-directory: examples/Docker
       run: |
-        docker exec acme-srv grep "Challenge._reverse_address_check(): ip address check failed" /var/log/messages
+        docker exec acme-srv grep "PTR check failed" /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
