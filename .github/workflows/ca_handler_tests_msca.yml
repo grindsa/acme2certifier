@@ -27,7 +27,8 @@ jobs:
       run: |
         cd examples/Docker/$WEBSRV/$DBHANDLER
         sed -i '/RUN pip3 install impacket --break-system-packages && \\/d' Dockerfile
-
+        sed -i '/rm /usr/local/bin/*.py && \\/d' Dockerfile
+        sed -i '/rm -rf /usr/local/lib/python3.12/dist-packages/impacket/examples/* && \\/d' Dockerfile
         cat Dockerfile
         exit 1
       env:
