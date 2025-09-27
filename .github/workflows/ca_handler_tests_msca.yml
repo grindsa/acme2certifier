@@ -13,7 +13,6 @@ jobs:
   mscertsrv_wo_impacket_tests:
     name: "mscertsrv_wo_impacket_tests"
     runs-on: ubuntu-latest
-    needs: container_build
     strategy:
       fail-fast: false
       # max-parallel: 1
