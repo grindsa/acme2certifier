@@ -29,6 +29,7 @@ jobs:
         sed -i '/RUN pip3 install impacket --break-system-packages && \\/d' Dockerfile
         sed -i '/rm \/usr\/local\/bin\/\*.py && \\/d' Dockerfile
         sed -i '/rm -rf \/usr\/local\/lib\/python3.12\/dist-packages\/impacket\/examples\/\* && \\/d' Dockerfile
+        sed -i "s/    pip3 install -r/RUN pip3 install -r/g" Dockerfile
         cat Dockerfile
         exit 1
       env:
