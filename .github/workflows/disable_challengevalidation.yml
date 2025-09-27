@@ -241,6 +241,11 @@ jobs:
       with:
         TO_FAIL: "true"
 
+    - name: "Sleep for 15s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 15s
+
     - name: "Check logs for forward check errors"
       working-directory: examples/Docker
       run: |
@@ -267,6 +272,11 @@ jobs:
       uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
       with:
         TO_FAIL: "true"
+
+    - name: "Sleep for 15s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 15s
 
     - name: "Check logs for reverse check errors"
       working-directory: examples/Docker
