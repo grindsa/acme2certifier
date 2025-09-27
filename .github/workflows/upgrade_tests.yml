@@ -40,6 +40,12 @@ jobs:
         echo "" >> examples/Docker/data/acme_srv.cfg
         echo "handler_file: examples/ca_handler/openssl_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
 
+    - name: "Build container"
+      uses: ./.github/actions/container_build
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
     - name: "Install a2c 0.19.3"
       run: |
         docker run -d -p 80:80 -p 443:443 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:0.19.3-$WEBSRV-$DBHANDLER
@@ -58,13 +64,10 @@ jobs:
         docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
         docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
-    - name: "Build container"
-      uses: ./.github/actions/container_build
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
+    - name : "Stop and remove a2c instance"
+      run: docker stop acme-srv
 
-    - name: "Spin-up a2c instance"
+    - name: "Spin-up latest a2c instance"
       uses: ./.github/actions/container_up
       with:
         DB_HANDLER: ${{ matrix.dbhandler }}
