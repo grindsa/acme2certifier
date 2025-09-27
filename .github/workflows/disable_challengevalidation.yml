@@ -1,4 +1,4 @@
-name: Tests disable challengevalidation
+name: Disable challengevalidation tests
 
 on:
   push:
@@ -88,7 +88,8 @@ jobs:
     - name: "Check logs for forward check errors"
       working-directory: examples/Docker
       run: |
-        docker compose logs 2>&1 | grep "Challenge._forward_address_check(): Source address check returned invalid"
+        docker compose logs 2>&1 | grep "DNS check failed for www.dynamop.de/172.18.0.1"
+        docker compose logs 2>&1 | grep "DNS check returned invalid for lego-unknown.acme"
 
     - name: "Enable reverse address check"
       run: |
@@ -104,7 +105,7 @@ jobs:
     - name: "Check logs for reverse check errors"
       working-directory: examples/Docker
       run: |
-        docker compose logs 2>&1 | grep "Challenge._reverse_address_check(): ip address check failed"
+        docker compose logs 2>&1 | grep "PTR check failed"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -240,10 +241,16 @@ jobs:
       with:
         TO_FAIL: "true"
 
+    - name: "Sleep for 15s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 15s
+
     - name: "Check logs for forward check errors"
       working-directory: examples/Docker
       run: |
-        docker exec acme-srv grep "Challenge._forward_address_check(): Source address check returned invalid" /var/log/messages
+        docker exec acme-srv grep "DNS check failed for www.dynamop.de" /var/log/messages
+        docker exec acme-srv grep "DNS check returned invalid for lego-unknown.acme" /var/log/messages
 
     - name: "Enable reverse address check"
       if: matrix.execscript == 'rpm_tester.sh'
@@ -266,10 +273,15 @@ jobs:
       with:
         TO_FAIL: "true"
 
+    - name: "Sleep for 15s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 15s
+
     - name: "Check logs for reverse check errors"
       working-directory: examples/Docker
       run: |
-        docker exec acme-srv grep "Challenge._reverse_address_check(): ip address check failed" /var/log/messages
+        docker exec acme-srv grep "PTR check failed" /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
