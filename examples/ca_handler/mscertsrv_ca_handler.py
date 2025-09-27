@@ -259,27 +259,53 @@ class CAhandler(object):
         """convert pkcs7 to pem"""
         self.logger.debug("CAhandler._pkcs7_to_pem()")
 
-        try:
-            pkcs7_obj = load_pem_pkcs7_certificates(
-                convert_string_to_byte(pkcs7_content)
-            )
-        except Exception:
-            self.logger.debug("CAhandler._pkcs7_to_pem(): load pem failed. Try der...")
-            pkcs7_obj = load_der_pkcs7_certificates(pkcs7_content)
+        # Define loading strategies in order of preference
+        loading_strategies = [
+            # Strategy 1: Load as PEM directly
+            lambda content: load_pem_pkcs7_certificates(convert_string_to_byte(content)),
 
-        cert_pem_list = []
-        for cert in pkcs7_obj:
-            cert_pem_list.append(
-                convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM))
-            )
+            # Strategy 2: Replace CERTIFICATE with PKCS7 tag and load as PEM
+            lambda content: load_pem_pkcs7_certificates(
+                convert_string_to_byte(content.replace("CERTIFICATE", "PKCS7"))
+            ),
 
-        # define output format
-        if outform == "string":
-            result = "".join(cert_pem_list)
-        elif outform == "list":
-            result = cert_pem_list
-        else:
-            result = None
+            # Strategy 3: Load as DER
+            lambda content: load_der_pkcs7_certificates(content)
+        ]
+
+        pkcs7_obj = None
+        last_error = None
+
+        for i, strategy in enumerate(loading_strategies):
+            try:
+                pkcs7_obj = strategy(pkcs7_content)
+                if i == 1:  # Log only for the tag replacement strategy
+                    self.logger.error("PKCS7-TAG not found, updated content successfully")
+                break
+            except Exception as err:
+                last_error = err
+                if i == 0:
+                    self.logger.error("PKCS7-TAG not found updating content...")
+                elif i == 1:
+                    self.logger.debug("CAhandler._pkcs7_to_pem(): load pem failed. Try der...")
+
+        if pkcs7_obj is None:
+            self.logger.error("All PKCS7 loading strategies failed. Last error: %s", last_error)
+            raise last_error
+
+        # Convert certificates to PEM format
+        cert_pem_list = [
+            convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM))
+            for cert in pkcs7_obj
+        ]
+
+        # Define output format
+        output_formats = {
+            "string": lambda certs: "".join(certs),
+            "list": lambda certs: certs
+        }
+
+        result = output_formats.get(outform, lambda _: None)(cert_pem_list)
 
         self.logger.debug("Certificate._pkcs7_to_pem() ended")
         return result
