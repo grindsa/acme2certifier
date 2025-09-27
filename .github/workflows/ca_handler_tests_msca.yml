@@ -23,9 +23,9 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    - name: "modify dockerfile"
+    - name: "Modify Dockerfile"
       run: |
-        cd examples/Docker/${ matrix.websrv }/${{ matrix.dbhandler }}
+        cd examples/Docker/$WEBSRV/$DBHANDLER
         cat Dockerfile
         sed -i 's/RUN pip3 install impacket --break-system-packages && \\//d' Dockerfile
         exit 1
