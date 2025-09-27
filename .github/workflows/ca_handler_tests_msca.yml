@@ -27,7 +27,7 @@ jobs:
       run: |
         cd examples/Docker/$WEBSRV/$DBHANDLER
         cat Dockerfile
-        sed -i 's/RUN pip3 install impacket --break-system-packages && \\//d' Dockerfile
+        sed -i 's/RUN pip3 install impacket --break-system-packages &&//d' Dockerfile
         exit 1
       env:
         WEBSRV: ${{ matrix.websrv }}
