@@ -93,7 +93,14 @@ jobs:
         WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
         WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
 
-
+    - name: "Test enrollment"
+      uses: ./.github/actions/acme_clients
+      with:
+        REVOCATION: "false"
+        VERIFY_CERT: "false"
+        USE_CERTBOT: "false"
+        TEST_ADL: "false"
+        NAME_SPACE: local
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
