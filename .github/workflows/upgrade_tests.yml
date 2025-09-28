@@ -78,13 +78,20 @@ jobs:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
 
-    - name: "Install a2c 0.19.3"
-      run: |
-        docker run -d -p 80:80 -p 443:443 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:0.19.3-$WEBSRV-$DBHANDLER
-        docker logs acme-srv
-      env:
-        WEBSRV: ${{ matrix.websrv }}
-        DBHANDLER: ${{ matrix.dbhandler }}
+    #- name: "Install a2c 0.19.3"
+    #  run: |
+    #    docker run -d -p 80:80 -p 443:443 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:0.19.3-$WEBSRV-$DBHANDLER
+    #    docker logs acme-srv
+    #  env:
+    #    WEBSRV: ${{ matrix.websrv }}
+    #    DBHANDLER: ${{ matrix.dbhandler }}
+
+    - name: "Spin-up latest a2c instance"
+      uses: ./.github/actions/container_run
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        VERSION: "0.19.3"
 
     - name: "Enroll and renew certificates"
       uses: ./.github/actions/wf_specific/upgrade/enroll
