@@ -102,7 +102,6 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "HTTPS - Enroll certbot"
-      if: ${{ inputs.USE_CERTBOT == 'true' }}
       run: |
         echo "##### HTTPS - Enroll certbot #####"
         if [ "$USE_RSA" == "false" ]; then
@@ -131,5 +130,5 @@ runs:
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
         USE_RSA: ${{ inputs.USE_RSA }}
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
-        NAME_SPACE: ${{ inputs.RENEWAL }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
