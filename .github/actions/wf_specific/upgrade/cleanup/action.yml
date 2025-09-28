@@ -28,7 +28,7 @@ runs:
             echo "delete acme_srv.db" >> /proc/1/fd/1
             sudo rm -rf $(pwd)/data/acme_srv.db
         fi
-        ls -la examples/Docker/data/
+        sudo ls -la examples/Docker/data/
       shell: bash
 
 
