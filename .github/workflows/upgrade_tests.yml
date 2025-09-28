@@ -138,6 +138,9 @@ jobs:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
 
+    - name: "Cleanup environment"
+      uses: ./.github/actions/wf_specific/upgrade/cleanup
+
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
       with:
