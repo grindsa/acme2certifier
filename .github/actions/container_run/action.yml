@@ -12,7 +12,7 @@ inputs:
   DOCKER_COMPOSE_FILE_PATH:
     description: "Path to the docker compose file"
     required: false
-    default: "examples/Docker/"
+    default: "examples/Docker"
   NAME_SPACE:
     description: "namespace"
     required: true

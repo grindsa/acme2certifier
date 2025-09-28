@@ -86,7 +86,7 @@ jobs:
     #    WEBSRV: ${{ matrix.websrv }}
     #    DBHANDLER: ${{ matrix.dbhandler }}
 
-    - name: "Spin-up latest a2c instance"
+    - name: "Spin-up a2c 0.19.3 instance"
       uses: ./.github/actions/container_run
       with:
         DB_HANDLER: ${{ matrix.dbhandler }}
