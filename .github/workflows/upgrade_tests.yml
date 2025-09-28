@@ -30,8 +30,11 @@ jobs:
         releases-only: true  # We know that all relevant tags have a GitHub release for them.
       id: acme2certifier_ver  # The step ID to refer to later.
 
-    - name: Checkout code
-      uses: actions/checkout@v4
+    - name: "Retrieve version from version.py"
+      run: |
+        echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+        echo BUILD_NAME=${{ matrix.websrv }}-${{ matrix.dbhandler }} >> $GITHUB_ENV
 
     - name: "Retrieve 2nd last release tag"
       run: |
