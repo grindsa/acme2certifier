@@ -7,21 +7,22 @@ runs:
 
     - name: "Cleanup"
       run: |
-        if [ -d /var/www/acme2certifier/volume/migrations ]
+        if [ -d $(pwd)/data/migrations ]
         then
             echo "delete migration directory" >> /proc/1/fd/1
-            rm -rf /var/www/acme2certifier/acme_srv/migrations
+            rm -rf $(pwd)/data/migrations
         fi
-        if [ -d /var/www/acme2certifier/volume/db.sqlite3 ]
+        if [ -e $(pwd)/data/db.sqlite3 ]
         then
             echo "delete db.sqlite3" >> /proc/1/fd/1
-            rm -rf /var/www/acme2certifier/volume/db.sqlite3
+            rm -rf $(pwd)/data/db.sqlite3
         fi
-        if [ -d /var/www/acme2certifier/volume/acme_srv.db ]
+        if [ -e $(pwd)/data/acme_srv.db ]
         then
-            echo "delete db.sqlite3" >> /proc/1/fd/1
-            rm -rf /var/www/acme2certifier/volume/acme_srv.db
+            echo "delete acme_srv.db" >> /proc/1/fd/1
+            rm -rf $(pwd)/data/acme_srv.db
         fi
+        ls -la $(pwd)/data/
       shell: bash
 
 
