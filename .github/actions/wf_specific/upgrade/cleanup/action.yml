@@ -15,17 +15,17 @@ runs:
       run: |
         if [ -d $(pwd)/data/migrations ]
         then
-            echo "delete migration directory" >> /proc/1/fd/1
+            echo "delete migration directory"
             sudo rm -rf $(pwd)/data/migrations
         fi
         if [ -e $(pwd)/data/db.sqlite3 ]
         then
-            echo "delete db.sqlite3" >> /proc/1/fd/1
+            echo "delete db.sqlite3"
             sudo rm -rf $(pwd)/data/db.sqlite3
         fi
         if [ -e $(pwd)/data/acme_srv.db ]
         then
-            echo "delete acme_srv.db" >> /proc/1/fd/1
+            echo "delete acme_srv.db"
             sudo rm -rf $(pwd)/data/acme_srv.db
         fi
         sudo ls -la $(pwd)/examples/Docker/data/
