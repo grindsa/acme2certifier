@@ -1,11 +1,17 @@
 name: "Cleanup after testing upgrade"
 description: "Cleanup"
+inputs:
+  DOCKER_COMPOSE_FILE_PATH:
+    description: "Path to the docker compose file"
+    required: false
+    default: "examples/Docker/"
 
 runs:
   using: "composite"
   steps:
 
     - name: "Cleanup"
+      working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
       run: |
         if [ -d $(pwd)/data/migrations ]
         then
@@ -22,7 +28,7 @@ runs:
             echo "delete acme_srv.db" >> /proc/1/fd/1
             rm -rf $(pwd)/data/acme_srv.db
         fi
-        ls -la $(pwd)/data/
+        ls -la examples/Docker/data/
       shell: bash
 
 
