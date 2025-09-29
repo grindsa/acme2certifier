@@ -132,6 +132,12 @@ jobs:
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
 
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
     - name: "Stop a2c instance"
       uses: ./.github/actions/container_down
       with:
@@ -140,12 +146,6 @@ jobs:
 
     - name: "Cleanup environment"
       uses: ./.github/actions/wf_specific/upgrade/cleanup
-
-    - name: "Check container configuration"
-      uses: ./.github/actions/container_check
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
