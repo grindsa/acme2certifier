@@ -223,7 +223,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: apache2-wsgi-upgrade.tar.gz
+        name: upgrade-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   rpm_build:
