@@ -102,6 +102,7 @@ then
 fi
 
 echo "apply migrations"  >> /proc/1/fd/1
+touch /var/www/acme2certifier/acme_srv/migrations/__init__.py
 python3 /var/www/acme2certifier/tools/django_update.py
 python3 manage.py loaddata acme_srv/fixture/status.yaml
 
