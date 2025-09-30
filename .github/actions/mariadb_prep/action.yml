@@ -5,11 +5,16 @@ inputs:
     description: "Name space"
     required: true
     default: "acme"
+  INSTANCIATE:
+    description: "Instanciate mariadb"
+    required: true
+    default: "true"
 
 runs:
   using: "composite"
   steps:
     - name: "Instanciate Mariadb"
+      if: inputs.INSTANCIATE == 'true'
       run: |
         # sudo mkdir -p data/mysql
         docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
@@ -18,6 +23,7 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "Sleep for 10s"
+      if: inputs.INSTANCIATE == 'true'
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
