@@ -20,7 +20,6 @@ runs:
     - name: "Logs"
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
       run: |
-          ls -la data/
           docker compose logs | grep -i $WEB_SRV
           if [ "$DB_HANDLER" == "django" ]; then
               docker compose logs | grep -i migrations

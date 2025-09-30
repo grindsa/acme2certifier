@@ -5,6 +5,10 @@ inputs:
     description: "Path to the docker compose file"
     required: false
     default: "examples/Docker/"
+  DJANGO_DB:
+    description: "Database handler"
+    required: true
+    default: "sqlite"
 
 runs:
   using: "composite"
@@ -28,7 +32,10 @@ runs:
             echo "delete acme_srv.db"
             sudo rm -rf $(pwd)/data/acme_srv.db
         fi
-        sudo ls -la $(pwd)/data/
       shell: bash
 
-
+    - name: "Instanciate Mariadb"
+      if: inputs.DJANGO_DB == 'mariadb'
+      uses: ./.github/actions/mariadb_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}

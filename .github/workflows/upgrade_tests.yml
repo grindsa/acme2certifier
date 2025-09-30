@@ -121,6 +121,8 @@ jobs:
 
     - name: "Cleanup environment"
       uses: ./.github/actions/wf_specific/upgrade/cleanup
+      with:
+        DJANGO_DB: "mariadb"
 
     - name: "Spin-up a2c ${{ env.OLD_TAG_NAME }} instance"
       uses: ./.github/actions/container_run
