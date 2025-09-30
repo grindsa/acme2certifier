@@ -18,6 +18,7 @@ jobs:
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
+        django_db: ['mariadb', 'psql', 'sqlite3']
 
     steps:
     - name: "checkout GIT"
@@ -61,7 +62,7 @@ jobs:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
         CONTAINER_BUILD: false
-        DJANGO_DB: mariadb
+        DJANGO_DB: ${{ matrix.django_db }}
 
     - name: "Configure acme2certifier"
       run: |
@@ -122,7 +123,7 @@ jobs:
     - name: "Cleanup environment"
       uses: ./.github/actions/wf_specific/upgrade/cleanup
       with:
-        DJANGO_DB: "mariadb"
+        DJANGO_DB: ${{ matrix.django_db }}
 
     - name: "Spin-up a2c ${{ env.OLD_TAG_NAME }} instance"
       uses: ./.github/actions/container_run
@@ -167,6 +168,8 @@ jobs:
 
     - name: "Cleanup environment"
       uses: ./.github/actions/wf_specific/upgrade/cleanup
+      with:
+        DJANGO_DB: ${{ matrix.django_db }}
 
     - name: "Spin-up a2c ${{ env.TAG_NAME }} instance"
       uses: ./.github/actions/container_run
@@ -211,6 +214,8 @@ jobs:
 
     - name: "Cleanup environment"
       uses: ./.github/actions/wf_specific/upgrade/cleanup
+      with:
+        DJANGO_DB: ${{ matrix.django_db }}
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -227,7 +232,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: upgrade-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+        name: upgrade-${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ matrix.django_db }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   rpm_build:
