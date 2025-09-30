@@ -24,7 +24,7 @@ runs:
       shell: bash
 
     - name: "Install postgres"
-
+      if: inputs.INSTANCIATE == 'true'
       working-directory: /tmp
       run: |
         docker run --name postgresdbsrv --network $NAME_SPACE -e POSTGRES_PASSWORD=foobar -d postgres
