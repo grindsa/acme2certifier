@@ -40,3 +40,10 @@ runs:
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         INSTANCIATE: "false"
+
+    - name: "Instanciate Postgres"
+      if: inputs.DJANGO_DB == 'psql'
+      uses: ./.github/actions/psql_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        INSTANCIATE: "false"
