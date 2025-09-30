@@ -5,12 +5,17 @@ inputs:
     description: "Name space"
     required: true
     default: "acme"
+  INSTANCIATE:
+    description: "Instanciate mariadb"
+    required: true
+    default: "true"
 
 runs:
   using: "composite"
   steps:
 
     - name: "postgres environment"
+      if: inputs.INSTANCIATE == 'true'
       run: |
         sudo mkdir -p /tmp/data/pgsql
         sudo cp .github/a2c.psql /tmp/data/pgsql/a2c.psql
@@ -19,6 +24,7 @@ runs:
       shell: bash
 
     - name: "Install postgres"
+
       working-directory: /tmp
       run: |
         docker run --name postgresdbsrv --network $NAME_SPACE -e POSTGRES_PASSWORD=foobar -d postgres
@@ -27,6 +33,7 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "Sleep for 10s"
+      if: inputs.INSTANCIATE == 'true'
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
