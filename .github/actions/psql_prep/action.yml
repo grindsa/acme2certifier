@@ -52,7 +52,6 @@ runs:
       working-directory: /tmp
       run: |
         docker cp $(pwd)/data/pgsql/a2c.psql postgresdbsrv:/tmp/a2c.psql
-        docker exec postgresdbsrv ls -la /tmp
         docker exec postgresdbsrv psql -U postgres -f /tmp/a2c.psql
       shell: bash
       env:
