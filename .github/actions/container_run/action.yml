@@ -1,0 +1,39 @@
+name: "container_up"
+description: "instanciate a2c container"
+inputs:
+  DB_HANDLER:
+    description: "Database handler"
+    required: true
+    default: "wsgi"
+  WEB_SRV:
+    description: "Web server"
+    required: true
+    default: "apache2"
+  DOCKER_COMPOSE_FILE_PATH:
+    description: "Path to the docker compose file"
+    required: false
+    default: "examples/Docker"
+  NAME_SPACE:
+    description: "namespace"
+    required: true
+    default: "acme"
+  VERSION:
+    description: "a2c version"
+    required: false
+    default: "latest"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Spin-up a2c instance (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+      working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
+      run: |
+        docker run -d -p 80:80 -p 443:443 --rm -id --network $NAME_SPACE --name=acme-srv -v "$(pwd)/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:${{ inputs.VERSION }}-$WEBSRV-$DBHANDLER
+        docker logs acme-srv
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        WORKING_DIRECTORY: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
+        WEBSRV: ${{ inputs.WEB_SRV }}
+        DBHANDLER: ${{ inputs.DB_HANDLER }}
+        VERSION: ${{ inputs.VERSION }}
+      shell: bash
