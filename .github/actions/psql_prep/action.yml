@@ -51,7 +51,7 @@ runs:
       if: inputs.INSTANCIATE == 'false'
       working-directory: /tmp
       run: |
-        docker exec postgresdbsrv psql ls -la /tmp
+        docker exec postgresdbsrv ls -la /tmp
         docker exec postgresdbsrv psql -U postgres -f /tmp/a2c.psql
       shell: bash
       env:
