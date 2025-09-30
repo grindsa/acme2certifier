@@ -51,7 +51,7 @@ runs:
       if: inputs.INSTANCIATE == 'false'
       working-directory: /tmp
       run: |
-        docker exec -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" postgresdbsrv psql -U postgres -f /tmp/a2c.psql
+        docker exec postgresdbsrv psql -U postgres -f /tmp/a2c.psql
       shell: bash
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
