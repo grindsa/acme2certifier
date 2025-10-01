@@ -25,7 +25,7 @@ The following code describes the different input parameters provided by `acme2ce
 
 ```python
 class Hooks:
-    """EAB file handler"""
+    """Hooks file handler"""
 
     def __init__(self, logger) -> None:
         self.logger = logger
