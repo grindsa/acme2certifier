@@ -67,12 +67,12 @@ When using GSSAPI (Kerberos) authentication, you may encounter issues if the Mic
 To modify the EPA setting:
 
 1. Open **Internet Information Services (IIS) Manager** on the server hosting the Certificate Services Web Enrollment Service
-1. Navigate to the **Default Web Site** → **CertSrv** application
-1. Double-click on **Authentication** in the Features View
-1. Select **Windows Authentication** and click **Advanced Settings**
-1. In the **Extended Protection** dropdown, change from **Required** to **Accept**
-1. Click **OK** to apply the changes
-1. Restart the IIS service or the specific application pool
+2. Navigate to the **Default Web Site** → **CertSrv** application
+3. Double-click on **Authentication** in the Features View
+4. Select **Windows Authentication** and click **Advanced Settings**
+5. In the **Extended Protection** dropdown, change from **Required** to **Accept**
+6. Click **OK** to apply the changes
+7. Restart the IIS service or the specific application pool
 
 For detailed information about Extended Protection for Authentication, refer to the [Microsoft documentation on Extended Protection for Authentication Overview](https://docs.microsoft.com/en-us/iis/configuration/system.webserver/security/authentication/windowsauthentication/extendedprotection/).
 
