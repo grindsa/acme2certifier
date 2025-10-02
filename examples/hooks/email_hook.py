@@ -27,12 +27,6 @@ class Hooks:
     I will not be adding support here for anything other than localhost MTA with no auth.
     """
 
-    def _get_conf(self, key):
-        try:
-            return self.config_dic['Hooks'][key]
-        except KeyError as e:
-            raise ValueError(f'Config key {key} missing') from e
-
     def __init__(self, logger) -> None:
         self.logger = logger
 
@@ -41,9 +35,14 @@ class Hooks:
         self.msg: list[str] = []
         self.san = ''
 
-        self.appname = self._get_conf('appname')
-        self.sender = self._get_conf('sender')
-        self.rcpt = self._get_conf('rcpt')
+        # Mandatory keys
+        self.appname = self.config_dic['Hooks']['appname']
+        self.sender = self.config_dic['Hooks']['sender']
+        self.rcpt = self.config_dic['Hooks']['rcpt']
+
+        # Optionals, that default to True
+        self.report_failures  = self.config_dic.getboolean('Hooks', 'report_failures', fallback=True)
+        self.report_successes = self.config_dic.getboolean('Hooks', 'report_successes', fallback=True)
 
         self.envelope = MIMEMultipart()
         self.envelope['From'] = f'{self.appname} <{self.sender}>'
@@ -107,6 +106,10 @@ class Hooks:
     def post_hook(self, request_key, _order_name, csr, error) -> None:
         """run after *attempting* to obtain/renew certificates"""
         self.logger.debug('Hook.post_hook()')
+
+        if not self.report_failures:
+            return
+
         self.san = self._clean_san(csr_san_get(self.logger, csr))
 
         self.envelope['Subject'] = f'{self.appname} failure: {self.san}'
@@ -127,6 +130,10 @@ class Hooks:
     ) -> None:
         """run after each successful certificate enrollment/renewal"""
         self.logger.debug('Hook.success_hook()')
+
+        if not self.report_successes:
+            return
+
         self.san = self._clean_san(cert_san_get(self.logger, certificate_raw))
 
         self.envelope['Subject'] = f'{self.appname} success: {self.san}'
