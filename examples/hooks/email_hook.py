@@ -3,6 +3,20 @@
 # pylint: disable=r0913, w0613
 """email hook class"""
 
+'''
+Copy this file from examples to f.ex /opt/acme2certifier then add this config to acme_srv.cfg
+
+Example config:
+
+[Hooks]
+hooks_file: email_hooks.py
+appname: acme2certifier
+sender: acme2certifier@acme.example.com
+rcpt: admin@example.com
+report_failures: True
+report_successes: False
+'''
+
 import smtplib
 
 from acme_srv.helper import (
