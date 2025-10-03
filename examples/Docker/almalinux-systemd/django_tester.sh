@@ -8,7 +8,7 @@ case "$1" in
     #if [ -d /tmp/acme2certifier/acme_ca ]; then
     #  yes | cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
     #fi
-    if [ -d /tmp/acme2certifier/volume ]
+    if [[ -d /tmp/acme2certifier/volume ]]
       then
       echo "copying volume"
       mkdir -p /opt/acme2certifier/volume
