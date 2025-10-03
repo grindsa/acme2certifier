@@ -1329,7 +1329,7 @@ def fqdn_resolve(
 
 def ptr_resolve(
     logger: logging.Logger, ip_address: str, dnssrv: List[str] = None
-) -> str:
+) -> Tuple[str, bool]:
     """reverse dns resolver"""
     logger.debug("Helper.ptr_resolve(%s)", ip_address)
     req = dns.resolver.Resolver()

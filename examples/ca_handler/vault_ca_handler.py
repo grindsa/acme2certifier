@@ -214,6 +214,31 @@ class CAhandler(object):
         self.logger.debug("CAhandler._csr_check() ended with: %s", error)
         return error
 
+    def _enrollment_request_prepare(self, csr: str) -> Tuple[str, str, str]:
+        """prepare enrollment request"""
+        self.logger.debug("CAhandler._enrollment_request_prepare()")
+
+        csr_cn = csr_cn_lookup(self.logger, csr)
+        # reformat csr
+        # prepare the CSR to be signed
+        csr = build_pem_file(
+            self.logger, None, b64_url_recode(self.logger, csr), None, True
+        )
+
+        self.logger.debug("CAhandler._enrollment_request_prepare() ended")
+        return csr_cn, csr
+
+    def _preconfig_check(self, csr: str) -> str:
+        """check if config and csr is valid"""
+        self.logger.debug("CAhandler._preconfig_check()")
+
+        error = self._config_check()
+        if not error:
+            error = self._csr_check(csr)
+
+        self.logger.debug("CAhandler._preconfig_check() ended with %s", error)
+        return error
+
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """enroll certificate"""
         self.logger.debug("CAhandler.enroll()")
@@ -223,63 +248,56 @@ class CAhandler(object):
         cert_raw = None
         poll_indentifier = None
 
-        error = self._config_check()
+        # check config and csr
+        error = self._preconfig_check(csr)
 
         if not error:
-            error = self._csr_check(csr)
+            csr_cn, csr = self._enrollment_request_prepare(csr)
 
-            if not error:
-                csr_cn = csr_cn_lookup(self.logger, csr)
-                # reformat csr
-                # prepare the CSR to be signed
-                csr = build_pem_file(
-                    self.logger, None, b64_url_recode(self.logger, csr), None, True
+            data_dic = {
+                "csr": csr,
+                "common_name": csr_cn,
+            }
+            if self.issuer_ref:
+                enroll_url = f"{self.vault_url}/v1/{self.vault_path}/issuer/{self.issuer_ref}/sign/{self.vault_role}"
+            else:
+                enroll_url = (
+                    f"{self.vault_url}/v1/{self.vault_path}/sign/{self.vault_role}"
                 )
 
-                data_dic = {
-                    "csr": csr,
-                    "common_name": csr_cn,
-                }
-                if self.issuer_ref:
-                    enroll_url = f"{self.vault_url}/v1/{self.vault_path}/issuer/{self.issuer_ref}/sign/{self.vault_role}"
-                else:
-                    enroll_url = (
-                        f"{self.vault_url}/v1/{self.vault_path}/sign/{self.vault_role}"
-                    )
+            if self.enrollment_config_log:
+                self.enrollment_config_log_skip_list.extend(
+                    [
+                        "vault_token",
+                        "enrollment_config_log_skip_list",
+                        "enrollment_config_log",
+                    ]
+                )
+                enrollment_config_log(
+                    self.logger, self, self.enrollment_config_log_skip_list
+                )
 
-                if self.enrollment_config_log:
-                    self.enrollment_config_log_skip_list.extend(
-                        [
-                            "vault_token",
-                            "enrollment_config_log_skip_list",
-                            "enrollment_config_log",
-                        ]
-                    )
-                    enrollment_config_log(
-                        self.logger, self, self.enrollment_config_log_skip_list
-                    )
+            # enroll certificate
+            code, content = self._api_post(enroll_url, data_dic)
 
-                # enroll certificate
-                code, content = self._api_post(enroll_url, data_dic)
-
-                if (
-                    code in (200, 201)
-                    and content.get("data").get("certificate")
-                    and content.get("data").get("ca_chain")
-                ):
-                    cert_bundle = f'{content["data"]["certificate"]}\n' + "\n".join(
-                        content["data"]["ca_chain"]
-                    )
-                    cert_raw = b64_encode(
-                        self.logger, cert_pem2der(content["data"]["certificate"])
-                    )
-                else:
-                    error = (
-                        json.dumps(content["errors"])
-                        if "errors" in content
-                        else json.dumps(content)
-                    )
-                    self.logger.error("Failed to enroll certificate: %s", error)
+            if (
+                code in (200, 201)
+                and content.get("data").get("certificate")
+                and content.get("data").get("ca_chain")
+            ):
+                cert_bundle = f'{content["data"]["certificate"]}\n' + "\n".join(
+                    content["data"]["ca_chain"]
+                )
+                cert_raw = b64_encode(
+                    self.logger, cert_pem2der(content["data"]["certificate"])
+                )
+            else:
+                error = (
+                    json.dumps(content["errors"])
+                    if "errors" in content
+                    else json.dumps(content)
+                )
+                self.logger.error("Failed to enroll certificate: %s", error)
 
         self.logger.debug("Certificate.enroll() ended")
         return error, cert_bundle, cert_raw, poll_indentifier
