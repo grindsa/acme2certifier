@@ -28,13 +28,15 @@ runs:
   - name: "Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         docker-compose logs | grep "profile: profile_1"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n 500 /var/log/messages | grep "profile: profile_1"
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "EAB with ACME profile - 02a - Enroll lego with a profile taken NOT included in kid.json (to fail)"
     id: legofail01
@@ -60,14 +62,16 @@ runs:
   - name: "Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         echo "container deployment"
         docker-compose logs | grep "profile: profile_2"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n 500 /var/log/messages | grep "profile: profile_2"
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "EAB with ACME profile - 03 - Enroll lego with a profile/ca_name taken from kid.json"
     run: |
@@ -78,13 +82,15 @@ runs:
   - name: "Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         docker-compose logs | grep "profile: profile_2"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n 500 /var/log/messages | grep "profile: profile_2"
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "EAB with ACME profile - 04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
     id: legofail02
@@ -113,10 +119,12 @@ runs:
   - name: "Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         docker-compose logs | grep "profile: profile_1"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n 500 /var/log/messages | grep "profile: profile_1"
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
