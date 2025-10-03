@@ -1,4 +1,5 @@
 name: "enroll_acmeprofile"
+description: "Enroll an ACME profile"
 inputs:
   NAME_SPACE:
     description: "namespace"
