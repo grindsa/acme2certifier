@@ -34,10 +34,12 @@ runs:
   - name: "ACME Profile - 01 - Clear logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "ACME Profile - 02 - Enroll lego with a unknown template_name taken from profile"
     id: legofail01
@@ -57,13 +59,15 @@ runs:
   - name: "ACME Profile - 02 - Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker compose logs | grep "unknown"
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker-compose logs | grep "unknown"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n 250 /var/log/messages | grep unknown
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "ACME Profile - 03 - Enroll lego with am allowed template_name taken from profile"
     run: |
@@ -78,10 +82,12 @@ runs:
   - name: "ACME Profile - 03 - Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker compose logs | grep "cert_type: ssl_securesite_pro"
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker-compose logs | grep "cert_type: ssl_securesite_pro"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_type: ssl_securesite_pro"
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}

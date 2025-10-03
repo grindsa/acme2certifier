@@ -27,37 +27,45 @@ runs:
   - name: "Header-info - 01 - Enroll acme.sh with Profile 1"
     run: |
       sudo rm  -rf acme-sh/*
-      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' --useragent profile_name=${{ inputs.ASA_PROFILE1 }} -d acme-sh.acme --alpn --standalone --keylength 2048 --debug 3 --output-insecure
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' --useragent "profile_name=$ASA_PROFILE1" -d acme-sh.acme --alpn --standalone --keylength 2048 --debug 3 --output-insecure
       awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
       openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -texte -noout
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature"
     shell: bash
+    env:
+      ASA_PROFILE1: ${{ inputs.ASA_PROFILE1 }}
 
   - name: "Header-info - 01 - Enroll lego with Profile 1"
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --user-agent profile_name=${{ inputs.ASA_PROFILE1 }} -d lego.acme --key-type rsa2048 --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --user-agent "profile_name=$ASA_PROFILE1" -d lego.acme --key-type rsa2048 --http run
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Digital Signature"
     shell: bash
+    env:
+      ASA_PROFILE1: ${{ inputs.ASA_PROFILE1 }}
 
   - name: "Header-info - 02 - Enroll acme.sh with Profile 2"
     run: |
       sudo rm  -rf acme-sh/*
-      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' --useragent profile_name=${{ inputs.ASA_PROFILE2 }} -d acme-sh.acme --alpn --standalone --keylength 2048 --debug 3 --output-insecure
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv  --accountemail 'acme-sh@example.com' --useragent profile_name="$ASA_PROFILE2" -d acme-sh.acme --alpn --standalone --keylength 2048 --debug 3 --output-insecure
       awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
       openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -texte -noout
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
+    env:
+      ASA_PROFILE2: ${{ inputs.ASA_PROFILE2 }}
     shell: bash
 
   - name: "Header-info - 02 - Enroll lego with Profile 2"
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --user-agent profile_name=${{ inputs.ASA_PROFILE2 }} -d lego.acme --key-type rsa2048 --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --user-agent profile_name="$ASA_PROFILE2" -d lego.acme --key-type rsa2048 --http run
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
       # sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
+    env:
+      ASA_PROFILE2: ${{ inputs.ASA_PROFILE2 }}
     shell: bash

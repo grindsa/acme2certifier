@@ -32,9 +32,11 @@ runs:
       awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
       openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme/acme-sh.acme.cer
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
-      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME1 }}"
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i "$ASA_CA_NAME1"
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep -i "Key Encipherment, Data Encipherment"
     shell: bash
+    env:
+      ASA_CA_NAME1: ${{ inputs.ASA_CA_NAME1 }}
 
   - name: "EAB without headerinfo - 01 - Enroll lego without profile_name"
     run: |
@@ -42,9 +44,11 @@ runs:
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -k rsa2048 -d lego.acme --http run
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
-      sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME1 }}"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i "$ASA_CA_NAME1"
       sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep -i "Key Encipherment, Data Encipherment"
     shell: bash
+    env:
+      ASA_CA_NAME1: ${{ inputs.ASA_CA_NAME1 }}
 
   - name: "EAB without headerinfo - 02 - Enroll acme with a profile_name taken from header_info NOT included in kid.json (to be ignored)"
     run: |
@@ -53,9 +57,11 @@ runs:
       docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --useragent profile_name=unknown -d acme-sh.acme --standalone --keylength 2048 --debug 3 --output-insecure
       openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme/acme-sh.acme.cer
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
-      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME1 }}"
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i "$ASA_CA_NAME1"
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep -i "Key Encipherment, Data Encipherment"
     shell: bash
+    env:
+      ASA_CA_NAME1: ${{ inputs.ASA_CA_NAME1 }}
 
   - name: "EAB without headerinfo - 02 - Enroll lego  with a profile_name taken from header_info NOT included in kid.json (to be ignored)"
     run: |
@@ -63,9 +69,11 @@ runs:
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --user-agent profile_name=unknown -k rsa2048 -d lego.acme --http run
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
-      sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME1 }}"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i "$ASA_CA_NAME1"
       sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
     shell: bash
+    env:
+      ASA_CA_NAME1: ${{ inputs.ASA_CA_NAME1 }}
 
   - name: "EAB without headerinfo - 03 - Enroll acme with a profile_name/ca_name taken from kid.json"
     run: |
@@ -75,9 +83,11 @@ runs:
       awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
       openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme/acme-sh.acme.cer
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
-      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME2 }}"
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i "$ASA_CA_NAME2"
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep -i "Digital Signature"
     shell: bash
+    env:
+      ASA_CA_NAME2: ${{ inputs.ASA_CA_NAME2 }}
 
   - name: "EAB without headerinfo - 03 - Enroll lego with a profile_name/ca_name taken from kid.json"
     run: |
@@ -85,9 +95,11 @@ runs:
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg  -k rsa2048 -d lego.acme --http run
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
-      sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME2 }}"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i "$ASA_CA_NAME2"
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep -i "Digital Signature"
     shell: bash
+    env:
+      ASA_CA_NAME2: ${{ inputs.ASA_CA_NAME2 }}
 
   - name: "EAB without headerinfo - 04 - Enroll acme with a not allowed fqdn in kid.json (to fail)"
     id: acmefail02
@@ -128,9 +140,11 @@ runs:
       awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
       openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme/acme-sh.acme.cer
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -text -noout
-      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME1 }}"
+      openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -issuer --noout | grep -i "$ASA_CA_NAME1"
       openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Digital Signature"
     shell: bash
+    env:
+      ASA_CA_NAME1: ${{ inputs.ASA_CA_NAME1 }}
 
   - name: "EAB without headerinfo - 05 - Enroll lego with default values from acme.cfg"
     run: |
@@ -138,6 +152,8 @@ runs:
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr -k rsa2048 -d lego.acme --http run
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
-      sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i "${{ inputs.ASA_CA_NAME1 }}"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout | grep -i "$ASA_CA_NAME1"
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -ext keyUsage | grep "Digital Signature"
     shell: bash
+    env:
+      ASA_CA_NAME1: ${{ inputs.ASA_CA_NAME1 }}

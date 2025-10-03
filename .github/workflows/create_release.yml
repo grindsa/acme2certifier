@@ -24,12 +24,20 @@ jobs:
 
       - name: Retrieve Version from version.py
         run: |
-          echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
+          echo APP_NAME=$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $2}') >> $GITHUB_ENV
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
-      - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
-      - run: echo "APP tag is ${{ env.APP_NAME }}"
-      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+      - name: "Display version information"
+        run: |
+          echo "Repo is at version $ACME2CERTIFIER_VERSION"
+          echo "APP tag is $APP_NAME"
+          echo "Latest tag is $TAG_NAME"
+        env:
+          ACME2CERTIFIER_VERSION: ${{ steps.acme2certifier_ver.outputs.tag }}
+          APP_NAME: ${{ env.APP_NAME }}
+          TAG_NAME: ${{ env.TAG_NAME }}
 
       - name: Retrieve dbversion numbers from version.py and fixture.xml
         run: |

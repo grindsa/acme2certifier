@@ -28,7 +28,9 @@ jobs:
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_HOSTNAME=$(hostname -f) >> $GITHUB_ENV
 
-    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+    - run: echo "runner IP is $RUNNER_IP"
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
     - run: echo "runner hostname is ${{ env.RUNNER_HOSTNAME }}"
 
     - name: "Build container"
