@@ -44,7 +44,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "issued for account" | grep "with EAB KID keyid_00." | grep "Serial:" | grep "Common Name: lego.acme, SANs: \['DNS:lego.acme'\]"
+        docker composelogs | grep "issued for account" | grep "with EAB KID keyid_00." | grep "Serial:" | grep "Common Name: lego.acme, SANs: \['DNS:lego.acme'\]"
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv bash -c 'tail -n 500 /var/log/messages | grep "issued for account" | grep "with EAB KID keyid_00." | grep "Serial:" | grep "Common Name: lego.acme, SANs:"'
       fi
@@ -66,7 +66,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "revocation successful for account" | grep "with EAB KID" | grep "Serial" | grep "Common Name: lego.acme, SANs: \['DNS:lego.acme'\]"
+        docker composelogs | grep "revocation successful for account" | grep "with EAB KID" | grep "Serial" | grep "Common Name: lego.acme, SANs: \['DNS:lego.acme'\]"
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv bash -c 'tail -n 500 /var/log/messages | grep "revocation successful for account" | grep "with EAB KID keyid_00."| grep "Serial:" | grep "Common Name: lego.acme, SANs:"'
       fi
