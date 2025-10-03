@@ -24,7 +24,9 @@ jobs:
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+    - run: echo "runner IP is $RUNNER_IP"
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
 
     - name: "Instanciate OpenXPKI server"
       uses: ./.github/actions/wf_specific/openxpki_ca_handler/openxpki_prep
@@ -266,7 +268,9 @@ jobs:
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+    - run: echo "runner IP is $RUNNER_IP"
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
 
     - name: "Instanciate OpenXPKI server"
       uses: ./.github/actions/wf_specific/openxpki_ca_handler/openxpki_prep

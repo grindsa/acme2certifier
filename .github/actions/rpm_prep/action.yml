@@ -75,7 +75,9 @@ runs:
 
       shell: bash
 
-    - run: echo "RH_VERSION is ${{ inputs.RH_VERSION }}"
+    - run: echo "RH_VERSION is $RH_VERSION"
+      env:
+        RH_VERSION: ${{ inputs.RH_VERSION }}
       shell: bash
 
     - name: "Retrieve rpms from SBOM repo"

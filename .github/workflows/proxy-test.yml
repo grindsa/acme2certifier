@@ -29,7 +29,9 @@ jobs:
       run: |
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+    - run: echo "runner IP is $RUNNER_IP"
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
 
     - name: "Build container"
       uses: ./.github/actions/container_prep
@@ -128,14 +130,20 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_host: ${{ secrets.NCM_API_HOST }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_user: ${{ secrets.NCM_API_USER }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_password: ${{ secrets.NCM_API_PASSWORD }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_name: ${{ secrets.NCM_CA_NAME }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_bundle: ${{ secrets.NCM_CA_BUNDLE }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"ncm.nclm.eu\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
+      env:
+        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+        NCM_API_USER: ${{ secrets.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -237,15 +245,21 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: ${{ secrets.WES_HOST }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: ${{ secrets.WES_USER }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: ${{ secrets.WES_PASSWORD }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "auth_method: ${{ secrets.WES_AUTHMETHOD }}" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: ${{ secrets.WES_TEMPLATE }}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $WES_HOST" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "auth_method: $WES_AUTHMETHOD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"amazonaws.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
+      env:
+        WES_HOST: ${{ secrets.WES_HOST }}
+        WES_USER: ${{ secrets.WES_USER }}
+        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
+        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
+        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
 
     - name: "Prepare ssh environment on ramdisk "
       run: |
@@ -329,7 +343,9 @@ jobs:
         echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
-    - run: echo "runner IP is ${{ env.RUNNER_IP }}"
+    - run: echo "runner IP is $RUNNER_IP"
+      env:
+        RUNNER_IP: ${{ env.RUNNER_IP }}
 
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep

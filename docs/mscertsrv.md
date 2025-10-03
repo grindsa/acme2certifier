@@ -58,6 +58,26 @@ Set-Cookie: - removed - ; secure; path=/
 X-Powered-By: ASP.NET
 ```
 
+### Extended Protection for Authentication (EPA) Configuration
+
+When using GSSAPI (Kerberos) authentication, you may encounter issues if the Microsoft Certificate Services Web Enrollment Service has Extended Protection for Authentication (EPA) set to "Required". The current `requests-gssapi` library does not support EPA in "Required" mode, and the [developers are working on implementing this feature](https://github.com/pythongssapi/requests-gssapi/pull/57).
+
+**Solution**: Change the EPA setting from "Required" to "Accept" in the IIS configuration for the Certificate Services Web Enrollment Service.
+
+To modify the EPA setting:
+
+1. Open **Internet Information Services (IIS) Manager** on the server hosting the Certificate Services Web Enrollment Service
+1. Navigate to the **Default Web Site** → **CertSrv** application
+1. Double-click on **Authentication** in the Features View
+1. Select **Windows Authentication** and click **Advanced Settings**
+1. In the **Extended Protection** dropdown, change from **Required** to **Accept**
+1. Click **OK** to apply the changes
+1. Restart the IIS service or the specific application pool
+
+For detailed information about Extended Protection for Authentication, refer to the [Microsoft documentation on Extended Protection for Authentication Overview](https://docs.microsoft.com/en-us/iis/configuration/system.webserver/security/authentication/windowsauthentication/extendedprotection/).
+
+**Note**: This configuration change maintains security while ensuring compatibility with the current `requests-gssapi` implementation. The EPA feature in "Accept" mode still provides protection against authentication relay attacks when supported by the client.
+
 ## Installation
 
 - Allow the MD4 algorithm in `openssl.cnf`:
