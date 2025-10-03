@@ -29,7 +29,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker composelogs | grep "profile: profile_1"
+        docker compose logs | grep "profile: profile_1"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n 500 /var/log/messages | grep "profile: profile_1"
@@ -64,7 +64,7 @@ runs:
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         echo "container deployment"
-        docker composelogs | grep "profile: profile_2"
+        docker compose logs | grep "profile: profile_2"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n 500 /var/log/messages | grep "profile: profile_2"
@@ -83,7 +83,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker composelogs | grep "profile: profile_2"
+        docker compose logs | grep "profile: profile_2"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n 500 /var/log/messages | grep "profile: profile_2"
@@ -120,7 +120,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker composelogs | grep "profile: profile_1"
+        docker compose logs | grep "profile: profile_1"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n 500 /var/log/messages | grep "profile: profile_1"
