@@ -228,7 +228,7 @@ if __name__ == '__main__':
         '-----'
     )
 
-    # Generate the "certificate_raw" variable from the bundle in certificate_raw since it has all the info no need to duplicate it
+    # Generate the "certificate_raw" variable from the bundle in certificate since it has all the info no need to duplicate it
     cert, ca = x509.load_pem_x509_certificates(certificate.encode('utf-8'))
     certificate_raw = ''.join(cert.public_bytes(serialization.Encoding.PEM).decode('utf-8').splitlines()[1:-1])
 
