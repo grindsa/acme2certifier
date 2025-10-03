@@ -76,6 +76,9 @@ class Hooks:
             smtp.sendmail(self.sender, self.rcpt, self.envelope.as_string())
             smtp.quit()
 
+        subject = self.envelope['Subject']
+        self.logger.info(f'Hook.*_hook() sent a notification to {self.rcpt} Subject: {subject}')
+
     def _clean_san(self, sans):
         # Grab the first one, file names can't bee too long anyway
         sans = sans[0]
