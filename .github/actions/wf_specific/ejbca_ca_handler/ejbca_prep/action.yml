@@ -31,8 +31,10 @@ runs:
 
   - name: "Instanciate ejbca server"
     run: |
-      docker run -id --rm -p 80:8080 -p 443:8443 -e TLS_SETUP_ENABLED=true -v $(pwd)/examples/ejbca:/tmp/data  -v ${{ inputs.WORKING_DIR }}/data:/tmp/store --name "ejbca" -h ejbca keyfactor/ejbca-ce
+      docker run -id --rm -p 80:8080 -p 443:8443 -e TLS_SETUP_ENABLED=true -v $(pwd)/examples/ejbca:/tmp/data  -v "$WORKING_DIR/data":/tmp/store --name "ejbca" -h ejbca keyfactor/ejbca-ce
     shell: bash
+    env:
+      WORKING_DIR: ${{ inputs.WORKING_DIR }}
 
   - name: "Sleep for 180s"
     uses: juliangruber/sleep-action@v2.0.3
@@ -47,8 +49,11 @@ runs:
   - run: echo "Randmonly generated Superadmin password is ${{ env.SAEC }}"
     shell: bash
 
-  - run: sudo echo  ${{ env.SAEC }} >  ${{ inputs.WORKING_DIR }}/data/passphrase.txt
+  - run: sudo echo "$SAEC" > "$WORKING_DIR/data/passphrase.txt"
     shell: bash
+    env:
+      SAEC: ${{ env.SAEC }}
+      WORKING_DIR: ${{ inputs.WORKING_DIR }}
 
   - name: "Configure ejbca"
     run: |

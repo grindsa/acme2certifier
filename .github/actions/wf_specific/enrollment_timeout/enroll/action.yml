@@ -31,13 +31,15 @@ runs:
   - name: "Check timeout"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec acme-srv grep "Certificate.enroll_and_store() ended with: None:timeout" /var/log/messages
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "Sleep for 10s"
     uses: juliangruber/sleep-action@v2.0.3
@@ -57,14 +59,16 @@ runs:
   - name: "Check certificate reusage"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         docker-compose logs | grep "Reuse existing certificate"
         docker-compose logs | grep "issued for account" | grep "Serial:" | grep "reused: True"
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec acme-srv grep "Reuse existing certificate" /var/log/messages
         docker exec -i acme-srv bash -c 'tail -n 500 /var/log/messages | grep "issued for account" | grep "Serial:" | grep "reused: True"'
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "Enroll Lego"
     run: |
@@ -74,11 +78,13 @@ runs:
   - name: "Check timeout"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "Register certbot"
     run: |
@@ -93,8 +99,10 @@ runs:
   - name: "Check timeout"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}

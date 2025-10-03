@@ -47,13 +47,16 @@ runs:
   - name: "EAB with ACME Profile - 01a - Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         docker-compose logs | grep "template: WebServerModified"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
-        docker exec -i acme-srv tail -n ${{ inputs.TAIL_NUMBER}} /var/log/messages | grep "template: WebServerModified"
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServerModified"
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
 
   - name: "EAB with ACME Profile - 01b - enrollment with profile (pick value from list)"
     run: |
@@ -68,13 +71,16 @@ runs:
   - name: "EAB with ACME Profile - 01b - Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         docker-compose logs | grep "template: WebServer"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
-        docker exec -i acme-srv tail -n ${{ inputs.TAIL_NUMBER}} /var/log/messages | grep "template: WebServer"
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer"
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
 
   - name: "EAB with ACME Profile - 01c - enrollment with profile containing value not included in list (to fail)"
     id: legofail02
@@ -108,13 +114,16 @@ runs:
   - name: "EAB with ACME Profile - 02 - Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         docker-compose logs | grep "template: WebServer"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
-        docker exec -i acme-srv tail -n ${{ inputs.TAIL_NUMBER}} /var/log/messages | grep "template: WebServer"
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer"
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
 
   - name: "EAB with ACME Profile - 03 - domainlist validation fails (to fail)"
     id: legofail03
@@ -148,10 +157,13 @@ runs:
   - name: "EAB with ACME Profile - 04 - Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
         docker-compose logs | grep "template: WebServer"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
-        docker exec -i acme-srv tail -n ${{ inputs.TAIL_NUMBER}} /var/log/messages | grep "template: WebServer"
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer"
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
