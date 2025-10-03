@@ -43,12 +43,14 @@ runs:
   - name: "Check issuance log entry"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker compose logs | grep "issued for account" | grep "with EAB KID keyid_00." | grep "Serial:" | grep "Common Name: lego.acme, SANs: \['DNS:lego.acme'\]"
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker-compose logs | grep "issued for account" | grep "with EAB KID keyid_00." | grep "Serial:" | grep "Common Name: lego.acme, SANs: \['DNS:lego.acme'\]"
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv bash -c 'tail -n 500 /var/log/messages | grep "issued for account" | grep "with EAB KID keyid_00." | grep "Serial:" | grep "Common Name: lego.acme, SANs:"'
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "EAB with ACME Profile - 01 - revoke lego"
     run: |
@@ -63,12 +65,14 @@ runs:
   - name: "Check Revocation log entry"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker compose logs | grep "revocation successful for account" | grep "with EAB KID" | grep "Serial" | grep "Common Name: lego.acme, SANs: \['DNS:lego.acme'\]"
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker-compose logs | grep "revocation successful for account" | grep "with EAB KID" | grep "Serial" | grep "Common Name: lego.acme, SANs: \['DNS:lego.acme'\]"
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv bash -c 'tail -n 500 /var/log/messages | grep "revocation successful for account" | grep "with EAB KID keyid_00."| grep "Serial:" | grep "Common Name: lego.acme, SANs:"'
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "EAB with ACME Profile - 02a - Enroll lego with a template_name taken from header_info NOT included in kid.json (to fail)"
     id: legofail01

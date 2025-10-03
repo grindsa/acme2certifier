@@ -16,7 +16,15 @@ jobs:
     - name: "install awccli"
       run: |
         sudo apt-get update
-        pip3 install awscli --upgrade --user
+        pip3         run: |
+          sudo mkdir -p "$GITHUB_WORKSPACE/artifact/upload"
+          sudo cp -rp examples/Docker/data/ "$GITHUB_WORKSPACE/artifact/data/"
+          # sudo cp -rp acme-sh/ "$GITHUB_WORKSPACE/artifact/acme-sh/"
+          cd examples/Docker
+          docker logs acme-srv > "$GITHUB_WORKSPACE/artifact/acme-srv.log" 2>&1
+          sudo tar -C "$GITHUB_WORKSPACE/artifact/" -cvzf "$GITHUB_WORKSPACE/artifact/upload/artifact.tar.gz" acme-srv.log data # acme-sh
+        env:
+          GITHUB_WORKSPACE: ${{ github.workspace }} awscli --upgrade --user
         pip3 install boto3 --upgrade --user
         export PATH=$PATH:$HOME/.local/bin
 
@@ -81,9 +89,11 @@ jobs:
 
       - name: "Retrieve version from version.py"
         run: |
-          echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
+          echo APP_NAME=$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $2}') >> $GITHUB_ENV
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
           echo BUILD_NAME=${{ matrix.websrv }}-${{ matrix.dbhandler }} >> $GITHUB_ENV
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
 
       - name: "Retrieve 2nd last release tag"
         run: |
@@ -99,11 +109,19 @@ jobs:
                 fi
             done
 
-      - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
-      - run: echo "APP tag is ${{ env.APP_NAME }}"
-      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-      - run: echo "Old tag is ${{ env.OLD_TAG_NAME }}"
-      - run: echo "BUILD_NAME is ${{ env.BUILD_NAME}}"
+      - name: "Display version information"
+        run: |
+          echo "Repo is at version $ACME2CERTIFIER_VERSION"
+          echo "APP tag is $APP_NAME"
+          echo "Latest tag is $TAG_NAME"
+          echo "Old tag is $OLD_TAG_NAME"
+          echo "BUILD_NAME is $BUILD_NAME"
+        env:
+          ACME2CERTIFIER_VERSION: ${{ steps.acme2certifier_ver.outputs.tag }}
+          APP_NAME: ${{ env.APP_NAME }}
+          TAG_NAME: ${{ env.TAG_NAME }}
+          OLD_TAG_NAME: ${{ env.OLD_TAG_NAME }}
+          BUILD_NAME: ${{ env.BUILD_NAME }}
 
       - name: Checkout code for 2nd last release
         uses: actions/checkout@v4
@@ -230,8 +248,13 @@ jobs:
         run: |
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
 
-      - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
-      - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+      - name: "Display version information"
+        run: |
+          echo "Repo is at version $ACME2CERTIFIER_VERSION"
+          echo "Latest tag is $TAG_NAME"
+        env:
+          ACME2CERTIFIER_VERSION: ${{ steps.acme2certifier_ver.outputs.tag }}
+          TAG_NAME: ${{ env.TAG_NAME }}
 
       - name: "Prepare environment"
         run: |
@@ -391,8 +414,13 @@ jobs:
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
           echo UUID=$(uuidgen) >> $GITHUB_ENV
 
-      - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
-      - run: echo "UUID ${{ env.UUID }}"
+      - name: "Display version information"
+        run: |
+          echo "Repo is at version $ACME2CERTIFIER_VERSION"
+          echo "UUID $UUID"
+        env:
+          ACME2CERTIFIER_VERSION: ${{ steps.acme2certifier_ver.outputs.tag }}
+          UUID: ${{ env.UUID }}
 
       - name: "Prepare ssh environment in ramdisk"
         run: |
