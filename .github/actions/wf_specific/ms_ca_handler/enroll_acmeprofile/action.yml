@@ -58,7 +58,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker composelogs | grep "template: WebServer"
+        docker compose logs | grep "template: WebServer"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer"
@@ -94,7 +94,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker composelogs | grep "unknown"
+        docker compose logs | grep "unknown"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep unknown
@@ -118,7 +118,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker composelogs | grep "template: WebServerModified"
+        docker compose logs | grep "template: WebServerModified"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServerModified"
