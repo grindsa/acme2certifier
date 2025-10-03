@@ -125,6 +125,7 @@ class Hooks:
         self.logger.debug('Hook.post_hook()')
 
         if not self.report_failures:
+            self.logger.debug('Hook.post_hook() disabled because report_failures is False')
             return
 
         self.san = self._clean_san(csr_san_get(self.logger, csr))
@@ -149,6 +150,7 @@ class Hooks:
         self.logger.debug('Hook.success_hook()')
 
         if not self.report_successes:
+            self.logger.debug('Hook.success_hook() disabled because report_successes is False')
             return
 
         self.san = self._clean_san(cert_san_get(self.logger, certificate_raw))
