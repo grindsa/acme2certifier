@@ -131,4 +131,3 @@ runs:
         USE_RSA: ${{ inputs.USE_RSA }}
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
-

@@ -106,4 +106,3 @@ runs:
         sudo rm -rf acme-sh/*
         sudo rm -rf certbot/*
       shell: bash
-
