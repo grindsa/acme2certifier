@@ -71,7 +71,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)  # pragma: no cover
         return  # pragma: no cover
 
-    LOGGER.error("Uncaught exception")
+    LOGGER.exception("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
 
 
 # initialize logger
