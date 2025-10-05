@@ -12,6 +12,8 @@ jobs:
   disable_cvd_tests:
     name: "disable_cvd_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -100,6 +102,8 @@ jobs:
   disable_cvd_tests_rpm:
     name: "disable_cvd_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:

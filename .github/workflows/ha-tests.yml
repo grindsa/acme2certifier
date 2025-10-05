@@ -13,6 +13,8 @@ jobs:
   ha_django_mariadb_tests:
     name: "ha_django_mariadb_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4

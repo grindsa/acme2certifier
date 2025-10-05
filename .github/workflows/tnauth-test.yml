@@ -12,6 +12,8 @@ jobs:
   tnauth_tests:
     name: "tnauth_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -89,6 +91,8 @@ jobs:
   tnauth_rpm_tests:
     name: "tnauth_rpm_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:

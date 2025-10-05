@@ -14,6 +14,8 @@ jobs:
   est_handler_tests:
     name: "est_handler_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       max-parallel: 1
       fail-fast: false
@@ -85,6 +87,8 @@ jobs:
   est_handler_tests_rpm:
     name: "est_handler_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       max-parallel: 1
       fail-fast: false

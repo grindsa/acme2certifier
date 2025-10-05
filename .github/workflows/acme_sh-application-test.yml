@@ -12,6 +12,8 @@ jobs:
   container_build:
     name: "container_build"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -31,6 +33,8 @@ jobs:
   acme_container_tests:
     name: "acme_container_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: container_build
     strategy:
       fail-fast: false
@@ -178,6 +182,8 @@ jobs:
   cleanup:
     name: "cleanup"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: acme_container_tests
     strategy:
       fail-fast: false

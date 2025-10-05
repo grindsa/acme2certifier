@@ -11,6 +11,8 @@ jobs:
   instance_start:
     name: instance_start
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
 
     - name: "install awccli"
@@ -70,6 +72,8 @@ jobs:
   build_and_upload_images_to_hub:
     name: Push images to dockerhub and github
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: instance_start
     strategy:
       fail-fast: false
@@ -226,6 +230,8 @@ jobs:
   amd64_pull_and_test:
     name: amd64_pull_and_test
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: build_and_upload_images_to_hub
     strategy:
       fail-fast: false
@@ -391,6 +397,8 @@ jobs:
   arm64_pull_and_test:
     name: arm64_pull_and_test
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: build_and_upload_images_to_hub
     strategy:
       fail-fast: false
@@ -569,6 +577,8 @@ jobs:
   instance_stop:
     name: instance_stop
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: arm64_pull_and_test
     steps:
     - name: "install awccli"

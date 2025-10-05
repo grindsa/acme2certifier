@@ -12,6 +12,8 @@ jobs:
   a2_cust_db_file:
     name: "a2_cust_db_file"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -68,6 +70,8 @@ jobs:
   rpm_cust_db_file:
     name: "rpm_cust_db_file"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
