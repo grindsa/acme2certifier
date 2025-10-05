@@ -12,6 +12,8 @@ jobs:
   pkcs7_soap_handler_signint_tests:
     name: "pkcs7_soap_handler_tests internal signer"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -108,6 +110,8 @@ jobs:
   pkcs7_soap_handler_signext_tests:
     name: "pkcs7_soap_handler_tests external signer"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4

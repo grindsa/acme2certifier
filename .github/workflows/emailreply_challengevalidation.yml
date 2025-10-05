@@ -12,6 +12,8 @@ jobs:
   emailreply_challenge_tests:
     name: "emailreply_challenge_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -108,6 +110,8 @@ jobs:
   emailreply_challenge_tests_rpm:
     name: "emailreply_challenge_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:

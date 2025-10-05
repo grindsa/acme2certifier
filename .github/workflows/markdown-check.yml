@@ -14,6 +14,8 @@ jobs:
   markdown-link-check:
     # runs-on: ubuntu-latest
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - uses: actions/checkout@master
     - uses: umbrelladocs/action-linkspector@v1

@@ -13,6 +13,8 @@ jobs:
   container_upgrade:
     name: "container_upgrade"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -95,6 +97,8 @@ jobs:
   rpm_build:
     name: "rpm_build"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -130,6 +134,8 @@ jobs:
   rpm_wsgi_upgrade_nginx:
     name: "rpm_wsgi_upgrade_nginx"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: rpm_build
     steps:
     - name: "checkout GIT"
@@ -264,6 +270,8 @@ jobs:
   rpm_django_upgrade_nginx_mariadb:
     name: "rpm_django_upgrade_nginx_mariadb"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: rpm_build
     steps:
     - name: "checkout GIT"
@@ -409,6 +417,8 @@ jobs:
   rpm_django_upgrade_nginx_sqlite:
     name: "rpm_django_upgrade_nginx_sqlite"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: rpm_build
     steps:
     - name: "checkout GIT"
@@ -551,6 +561,8 @@ jobs:
   rpm_django_upgrade_nginx_psql:
     name: "rpm_django_upgrade_nginx_psql"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: rpm_build
     steps:
     - name: "checkout GIT"
@@ -696,6 +708,8 @@ jobs:
   deb_build:
     name: "deb_build"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
 
     - name: "checkout GIT"
@@ -708,6 +722,8 @@ jobs:
     name: "deb_upgrade_wsgi"
     needs: deb_build
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -849,6 +865,8 @@ jobs:
   deb_upgrade_django_sqlite:
     name: "deb_upgrade_django_sqlite"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: deb_build
     steps:
     - name: "checkout GIT"
@@ -999,6 +1017,8 @@ jobs:
   deb_upgrade_django_mariadb:
     name: "deb_upgrade_django_mariadb"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: deb_build
     steps:
     - name: "checkout GIT"
@@ -1165,6 +1185,8 @@ jobs:
   deb_upgrade_django_psql:
     name: "deb_upgrade_django_psql"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: deb_build
     steps:
     - name: "checkout GIT"

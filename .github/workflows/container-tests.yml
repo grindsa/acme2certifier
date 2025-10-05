@@ -12,6 +12,8 @@ jobs:
   docker-compose:
     name: "Docker compose - apache2 wsgi"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:

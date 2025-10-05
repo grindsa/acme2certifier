@@ -11,6 +11,8 @@ jobs:
   container_build:
     name: "container_build"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -30,6 +32,8 @@ jobs:
   acme_ca_handler_test:
     name: "acme_ca_handler_test"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: container_build
     strategy:
       fail-fast: false
@@ -150,6 +154,8 @@ jobs:
   acme_ca_handler_sectigo_test:
     name: "acme_ca_handler_sectigo_test"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: container_build
     strategy:
       fail-fast: false
@@ -234,6 +240,8 @@ jobs:
   acme_ca_handler_profiling_test:
     name: "acme_ca_handler_profiling_test"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: container_build
     strategy:
       fail-fast: false
@@ -418,6 +426,8 @@ jobs:
   acme_ca_handler_smallstep_test:
     name: "acme_ca_handler_smallstep_test"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: container_build
     strategy:
       fail-fast: false
@@ -512,6 +522,8 @@ jobs:
   acme_ca_handler_dns_test:
     name: "acme_ca_handler_dns_test"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: container_build
     strategy:
       max-parallel: 2
@@ -662,6 +674,8 @@ jobs:
   cleanup:
     name: "cleanup"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [acme_ca_handler_test, acme_ca_handler_sectigo_test, acme_ca_handler_profiling_test, acme_ca_handler_smallstep_test, acme_ca_handler_dns_test]
     strategy:
       fail-fast: false
@@ -677,6 +691,8 @@ jobs:
   rpm_build_and_upload:
     name: "rpm_build_and_upload"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -688,6 +704,8 @@ jobs:
   rpm_acme_ca_handler_test:
     name: "rpm_acme_ca_handler_test"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
@@ -795,6 +813,8 @@ jobs:
   rpm_acme_ca_handler_sectigo_test:
     name: "rpm_acme_ca_handler_sectigo_test"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
@@ -871,6 +891,8 @@ jobs:
   rpm_acme_ca_handler_profiling_test:
     name: "rpm_acme_ca_handler_profiling_test"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
@@ -1045,6 +1067,8 @@ jobs:
   rpm_acme_ca_handler_smallstep_test:
     name: "rpm_acme_ca_handler_smallstep_test"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
@@ -1128,6 +1152,8 @@ jobs:
   rpm_acme_ca_handler_dns_test:
     name: "rpm_acme_ca_handler_dns_test"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
@@ -1223,6 +1249,8 @@ jobs:
   rpm_cleanup:
     name: "rpm_cleanup"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [rpm_acme_ca_handler_test, rpm_acme_ca_handler_sectigo_test, rpm_acme_ca_handler_profiling_test, rpm_acme_ca_handler_smallstep_test, rpm_acme_ca_handler_dns_test]
     steps:
     - name: "Delete artifact"
