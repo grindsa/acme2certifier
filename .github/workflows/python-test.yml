@@ -12,6 +12,8 @@ on:
 jobs:
   unittest:
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       matrix:
         python_version: ['3.x', '3.12', '3.11', '3.10', '3.9', '3.8']
@@ -47,6 +49,8 @@ jobs:
 
   pylint:
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       matrix:
         python_version: ['3.x', '3.12', '3.11', '3.10', '3.9', '3.8']

@@ -13,6 +13,8 @@ jobs:
   win_acme:
     name: "win_acme"
     runs-on: windows-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
 
     steps:
     - name: "checkout GIT"

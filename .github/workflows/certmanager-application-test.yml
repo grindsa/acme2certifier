@@ -12,6 +12,8 @@ jobs:
   certmgr_http01_tests:
     name: certmgr_http01_tests
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -191,6 +193,8 @@ jobs:
   certmgr_dns01_tests:
     name: certmgr_dns01_tests
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -412,6 +416,8 @@ jobs:
   certmgr_eab_tests:
     name: certmgr_eab_tests
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:

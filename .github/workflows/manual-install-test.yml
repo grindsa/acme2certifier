@@ -12,6 +12,8 @@ jobs:
   apache2_wsgi:
     name: "apache2_wsgi"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -79,6 +81,8 @@ jobs:
   nginx_wsgi:
     name: "nginx_wsgi"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -145,6 +149,8 @@ jobs:
   alma_nginx_wsgi:
     name: "alma_nginx_wsgi"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -198,6 +204,8 @@ jobs:
   alma_nginx_wsgi_rpm:
     name: "alma_nginx_wsgi_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -249,6 +257,8 @@ jobs:
   deb_build:
     name: "deb_build"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
 
     - name: "checkout GIT"
@@ -260,6 +270,8 @@ jobs:
   deb_apache2:
     name: "deb_apache2"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: deb_build
     steps:
     - name: "checkout GIT"
@@ -351,6 +363,8 @@ jobs:
   deb_nginx:
     name: "deb_nginx"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: deb_build
     steps:
     - name: "checkout GIT"

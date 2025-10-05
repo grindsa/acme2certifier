@@ -12,6 +12,8 @@ jobs:
   header_info_tests:
     name: "header_info_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -110,6 +112,8 @@ jobs:
   header_info_tests_rpm:
     name: "header_info_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:

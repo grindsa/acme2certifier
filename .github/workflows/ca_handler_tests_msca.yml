@@ -12,6 +12,8 @@ jobs:
   container_build:
     name: "container_build"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -31,6 +33,8 @@ jobs:
   mscertsrv_handler_tests:
     name: "mscertsrv_handler_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: container_build
     strategy:
       fail-fast: false
@@ -310,6 +314,8 @@ jobs:
   mscertsrv_handler_eab_profiling_tests:
     name: "mscertsrv_handler_eab_profiling_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: container_build
     strategy:
       fail-fast: false
@@ -530,6 +536,8 @@ jobs:
   mswcce_handler_tests:
     name: "mswcce_handler_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: container_build
     strategy:
       fail-fast: false
@@ -836,6 +844,8 @@ jobs:
   mswcce_handler_eab_profiling_tests:
     name: "mswcce_handler_eab_profiling_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: container_build
     strategy:
       fail-fast: false
@@ -1070,6 +1080,8 @@ jobs:
   mscertsrv_wo_impacket_tests:
     name: "mscertsrv_wo_impacket_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       # max-parallel: 1
@@ -1178,6 +1190,8 @@ jobs:
   cleanup:
     name: "cleanup"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [mscertsrv_handler_tests, mswcce_handler_tests, mswcce_handler_eab_profiling_tests, mscertsrv_handler_eab_profiling_tests ]
     strategy:
       fail-fast: false
@@ -1193,6 +1207,8 @@ jobs:
   rpm_build_and_upload:
     name: "rpm_build_and_upload"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -1204,6 +1220,8 @@ jobs:
   mscertsrv_handler_tests_rpm:
     name: "mscertsrv_handler_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: rpm_build_and_upload
     strategy:
       max-parallel: 1
@@ -1415,6 +1433,8 @@ jobs:
   mscertsrv_handler_eab_profile_tests_rpm:
     name: "mscertsrv_handler_eab_profile_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: rpm_build_and_upload
     strategy:
       max-parallel: 1
@@ -1607,6 +1627,8 @@ jobs:
   mswcce_handler_tests_rpm:
     name: "mswcce_handler_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: rpm_build_and_upload
     strategy:
       max-parallel: 1
@@ -1850,6 +1872,8 @@ jobs:
   mswcce_handler_eab_profile_tests_rpm:
     name: "mswcce_handler_eab_profile_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: rpm_build_and_upload
     strategy:
       max-parallel: 1
@@ -2075,6 +2099,8 @@ jobs:
   rpm_cleanup:
     name: "rpm_cleanup"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [mscertsrv_handler_tests_rpm, mscertsrv_handler_eab_profile_tests_rpm, mswcce_handler_tests_rpm, mswcce_handler_eab_profile_tests_rpm]
     steps:
     - name: "Delete artifact"

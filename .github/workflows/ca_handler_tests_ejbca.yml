@@ -12,6 +12,8 @@ jobs:
   ejb_ca_tests:
     name: "ejbca_hander_handler_tests docker image"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -237,6 +239,8 @@ jobs:
   ejbca_ca_handler_tests_rpm:
     name: " ejbca_ca_handler_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:

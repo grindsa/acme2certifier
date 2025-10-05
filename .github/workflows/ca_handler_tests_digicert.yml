@@ -13,6 +13,8 @@ jobs:
   digicert_handler_tests:
     name: "digicert_handler_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       max-parallel: 1
       fail-fast: false
@@ -198,6 +200,8 @@ jobs:
   digicert_ca_handler_tests_rpm:
     name: "digicert_ca_handler_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       max-parallel: 1
       fail-fast: false

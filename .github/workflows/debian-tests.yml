@@ -13,6 +13,8 @@ jobs:
   deb_build:
     name: "deb_build"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
 
     - name: "checkout GIT"
@@ -25,6 +27,8 @@ jobs:
     name: "deb_tests"
     needs: deb_build
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:

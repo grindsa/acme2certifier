@@ -9,6 +9,8 @@ on:
 jobs:
   wiki-update:
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
       - uses: actions/checkout@v1
       # Additional steps to generate documentation in "Documentation" directory

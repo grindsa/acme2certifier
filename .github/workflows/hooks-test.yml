@@ -12,6 +12,8 @@ jobs:
   container_build:
     name: "container_build"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -31,6 +33,8 @@ jobs:
   hooks_tests:
     name: "hooks_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: container_build
     strategy:
       fail-fast: false
@@ -158,6 +162,8 @@ jobs:
   hooks_exception_handling:
     name: "hooks_exception_handling"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: container_build
     strategy:
       fail-fast: false
@@ -368,6 +374,8 @@ jobs:
   cleanup:
     name: "cleanup"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [hooks_tests, hooks_exception_handling]
     strategy:
       fail-fast: false
@@ -383,6 +391,8 @@ jobs:
   rpm_build_and_upload:
     name: "rpm_build_and_upload"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -394,6 +404,8 @@ jobs:
   hooks_test_rpm:
     name: "hooks_test_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: rpm_build_and_upload
     strategy:
       fail-fast: false
@@ -499,6 +511,8 @@ jobs:
   hooks_exception_handling_rpm:
     name: "hooks_exception_handling_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: rpm_build_and_upload
     strategy:
       fail-fast: false

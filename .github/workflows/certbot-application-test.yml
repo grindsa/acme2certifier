@@ -13,6 +13,8 @@ jobs:
   certbot_tests:
     name: "certbot_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:

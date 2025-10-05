@@ -12,6 +12,8 @@ jobs:
   alpn_container_tests:
     name: "alpn__container_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -89,6 +91,8 @@ jobs:
   alpn_wsgi_rpm:
     name: "alpn_wsgi_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:

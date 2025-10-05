@@ -12,6 +12,8 @@ jobs:
   asa_handler_headerinfo_tests:
     name: "asa_handler_headerinfo_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -121,6 +123,8 @@ jobs:
   asa_handler_tests:
     name: "asa_handler_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: asa_handler_headerinfo_tests
     strategy:
       max-parallel: 2
@@ -455,6 +459,8 @@ jobs:
   asa_handler_tests_rpm:
     name: "asa_handler_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: asa_handler_headerinfo_tests
     strategy:
       max-parallel: 1
