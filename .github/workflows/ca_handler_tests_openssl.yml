@@ -12,6 +12,8 @@ jobs:
   openssl_ca_handler_tests:
     name: "openssl_ca_handler_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -97,6 +99,8 @@ jobs:
   openssl_ca_handler_tests_rpm:
     name: "openssl_ca_handler_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:

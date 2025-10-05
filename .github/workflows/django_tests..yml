@@ -12,6 +12,8 @@ jobs:
   django_mariadb:
     name: "django_mariadb"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -72,6 +74,8 @@ jobs:
   django_psql:
     name: "django_psql"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -131,6 +135,8 @@ jobs:
   rpm_build_and_upload:
     name: "rpm_build_and_upload"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -142,6 +148,8 @@ jobs:
   nginx_django_rpm_sqlite:
     name: "nginx_django_rpm_sqlite"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: rpm_build_and_upload
     strategy:
       fail-fast: false
@@ -205,6 +213,8 @@ jobs:
   nginx_django_rpm_mariadb:
     name: "nginx_django_rpm_mariadb"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: rpm_build_and_upload
     strategy:
       fail-fast: false
@@ -275,6 +285,8 @@ jobs:
   nginx_django_rpm_psql:
     name: "nginx_django_rpm_psql"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: rpm_build_and_upload
     strategy:
       fail-fast: false
@@ -345,6 +357,8 @@ jobs:
   rpm_cleanup:
     name: "rpm_cleanup"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [nginx_django_rpm_psql, nginx_django_rpm_mariadb, nginx_django_rpm_sqlite]
     steps:
     - name: "Delete artifact"

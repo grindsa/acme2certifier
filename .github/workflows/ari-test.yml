@@ -13,6 +13,8 @@ jobs:
   ari_container_tests:
     name: "ari_container_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -93,6 +95,8 @@ jobs:
   ari_wsgi_rpm:
     name: "ari_wsgi_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -163,6 +167,8 @@ jobs:
   ari_django_rpm:
     name: "ari_django_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
