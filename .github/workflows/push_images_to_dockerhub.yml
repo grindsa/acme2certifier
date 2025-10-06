@@ -18,15 +18,7 @@ jobs:
     - name: "install awccli"
       run: |
         sudo apt-get update
-        pip3         run: |
-          sudo mkdir -p "$GITHUB_WORKSPACE/artifact/upload"
-          sudo cp -rp examples/Docker/data/ "$GITHUB_WORKSPACE/artifact/data/"
-          # sudo cp -rp acme-sh/ "$GITHUB_WORKSPACE/artifact/acme-sh/"
-          cd examples/Docker
-          docker logs acme-srv > "$GITHUB_WORKSPACE/artifact/acme-srv.log" 2>&1
-          sudo tar -C "$GITHUB_WORKSPACE/artifact/" -cvzf "$GITHUB_WORKSPACE/artifact/upload/artifact.tar.gz" acme-srv.log data # acme-sh
-        env:
-          GITHUB_WORKSPACE: ${{ github.workspace }} awscli --upgrade --user
+        pip3 install awscli --upgrade --user
         pip3 install boto3 --upgrade --user
         export PATH=$PATH:$HOME/.local/bin
 
