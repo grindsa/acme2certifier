@@ -1,5 +1,5 @@
-name: "ejbca_prep"
-description: "ejbca_prep"
+name: "OpenXPKI Prep"
+description: "OpenXPKI preparation steps"
 inputs:
   RUNNER_IP:
     description: "Runner IP"
