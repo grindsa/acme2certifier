@@ -342,7 +342,7 @@ jobs:
 
     - name: "Verify allowed_domainlist error"
       run: |
-        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
+        docker exec acme-srv grep -i "Either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -480,7 +480,7 @@ jobs:
 
     - name: "Verify allowed_domainlist error"
       run: |
-        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
+        docker exec acme-srv grep -i "Either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}

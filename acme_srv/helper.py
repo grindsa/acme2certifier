@@ -2073,7 +2073,7 @@ def allowed_domainlist_check(
             error = f"SAN list parsing failed {check_list}"
 
         logger.debug(
-            f'Helper._allowed_domainlist_check() ended with {error} for {",".join(invalid_domains)}'
+            f'Helper.allowed_domainlist_check() ended with {error} for {",".join(invalid_domains)}'
         )
     return error
 
