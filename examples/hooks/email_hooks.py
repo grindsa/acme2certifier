@@ -50,6 +50,16 @@ class Hooks:
         self.san = ''
 
         # Mandatory keys
+        required_keys = ['appname', 'sender', 'rcpt']
+        missing = []
+        if 'Hooks' not in self.config_dic:
+            raise ValueError("Missing 'Hooks' section in configuration.")
+        for key in required_keys:
+            if key not in self.config_dic['Hooks']:
+                missing.append(key)
+        if missing:
+            raise ValueError(f"Missing required configuration key(s) in [Hooks]: {', '.join(missing)}")
+
         self.appname = self.config_dic['Hooks']['appname']
         self.sender = self.config_dic['Hooks']['sender']
         self.rcpt = self.config_dic['Hooks']['rcpt']
@@ -66,7 +76,7 @@ class Hooks:
 
     def _done(self):
         if self.done:
-            raise Exception('unexpected usage')
+            raise RuntimeError('unexpected usage')
 
         self.done = True
 
@@ -80,7 +90,7 @@ class Hooks:
         self.logger.info(f'Hook.*_hook() sent a notification to {self.rcpt} Subject: {subject}')
 
     def _clean_san(self, sans):
-        # Grab the first one, file names can't bee too long anyway
+        # Grab the first one, file names can't be too long anyway
         sans = sans[0]
 
         # Format: DNS:a.example.com
@@ -101,7 +111,10 @@ class Hooks:
         # Add crt to email
         # But cannot send as .crt because Outlook blocks that, sooo I make a pfx to wrap it inside,
         # bonus, because of pfx, i can send the CA cert too!
-        cert, ca = x509.load_pem_x509_certificates(certificate.encode('utf-8'))
+        cert_list = x509.load_pem_x509_certificates(certificate.encode('utf-8'))
+        if len(cert_list) != 2:
+            raise ValueError(f"Expected exactly 2 certificates (cert and CA), but got {len(cert_list)}")
+        cert, ca = cert_list
         fn = f'{self.san}_{request_key}.pfx'
         pfx = pkcs12.serialize_key_and_certificates(
             self.san.encode('utf-8'),
