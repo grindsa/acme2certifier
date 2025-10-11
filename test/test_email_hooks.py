@@ -51,7 +51,7 @@ class MockConfigParser:
         if section in self._config and key in self._config[section]:
             value = self._config[section][key]
             if isinstance(value, str):
-                return value.lower() in ('true', '1', 'yes', 'on')
+                return value.lower() in ("true", "1", "yes", "on")
             return bool(value)
         return fallback
 
@@ -67,82 +67,96 @@ class MockHooks:
         self.config_dic = config_dic or {}
 
         self.msg = []
-        self.san = ''
+        self.san = ""
 
         # Mandatory keys validation
-        required_keys = ['appname', 'sender', 'rcpt']
+        required_keys = ["appname", "sender", "rcpt"]
         missing = []
-        if 'Hooks' not in self.config_dic:
+        if "Hooks" not in self.config_dic:
             raise ValueError("Missing 'Hooks' section in configuration.")
         for key in required_keys:
-            if key not in self.config_dic['Hooks']:
+            if key not in self.config_dic["Hooks"]:
                 missing.append(key)
         if missing:
-            raise ValueError(f"Missing required configuration key(s) in [Hooks]: {', '.join(missing)}")
+            raise ValueError(
+                f"Missing required configuration key(s) in [Hooks]: {', '.join(missing)}"
+            )
 
-        self.appname = self.config_dic['Hooks']['appname']
-        self.sender = self.config_dic['Hooks']['sender']
-        self.rcpt = self.config_dic['Hooks']['rcpt']
+        self.appname = self.config_dic["Hooks"]["appname"]
+        self.sender = self.config_dic["Hooks"]["sender"]
+        self.rcpt = self.config_dic["Hooks"]["rcpt"]
 
         # Optional configuration with defaults
-        self.report_failures = self.config_dic.getboolean('Hooks', 'report_failures', fallback=True)
-        self.report_successes = self.config_dic.getboolean('Hooks', 'report_successes', fallback=True)
+        self.report_failures = self.config_dic.getboolean(
+            "Hooks", "report_failures", fallback=True
+        )
+        self.report_successes = self.config_dic.getboolean(
+            "Hooks", "report_successes", fallback=True
+        )
 
         # Initialize email envelope
         self.envelope = MIMEMultipart()
-        self.envelope['From'] = f'{self.appname} <{self.sender}>'
-        self.envelope['To'] = self.rcpt
-        self.envelope['Date'] = formatdate()
+        self.envelope["From"] = f"{self.appname} <{self.sender}>"
+        self.envelope["To"] = self.rcpt
+        self.envelope["Date"] = formatdate()
         self.done = False
 
     def _done(self):
         """Send email and mark as done"""
         if self.done:
-            raise RuntimeError('unexpected usage')
+            raise RuntimeError("unexpected usage")
 
         self.done = True
 
-        with smtplib.SMTP('localhost') as smtp:
+        with smtplib.SMTP("localhost") as smtp:
             smtp.helo()
-            self.envelope.attach(MIMEText('\n\n'.join(self.msg), 'plain'))
+            self.envelope.attach(MIMEText("\n\n".join(self.msg), "plain"))
             smtp.sendmail(self.sender, self.rcpt, self.envelope.as_string())
             smtp.quit()
 
-        subject = self.envelope.get('Subject', 'No Subject')
-        self.logger.info(f'Hook sent notification to {self.rcpt} Subject: {subject}')
+        subject = self.envelope.get("Subject", "No Subject")
+        self.logger.info(f"Hook sent notification to {self.rcpt} Subject: {subject}")
 
     def _clean_san(self, sans):
         """Extract clean domain name from SAN list"""
         if not sans:
-            return 'unknown'
+            return "unknown"
 
         # Get first SAN and clean it
         san = sans[0]
         # Format: DNS:a.example.com, IP:1.2.3.4, etc.
-        if ':' in san:
-            return san.split(':', 1)[1].strip()
+        if ":" in san:
+            return san.split(":", 1)[1].strip()
         return san.strip()
 
     def _attach_csr(self, request_key, csr):
         """Attach CSR to email"""
-        fn = f'{self.san}_{request_key}.csr'
+        fn = f"{self.san}_{request_key}.csr"
         # In real implementation, this would create a MIMEApplication with CSR content
         # For testing, we'll just add to message list
-        self.msg.append(f'Attached CSR: {fn}')
-        self.msg.append(f'To read {fn} using CMD on Windows: certutil -dump %USERPROFILE%\\Downloads\\{fn}')
+        self.msg.append(f"Attached CSR: {fn}")
+        self.msg.append(
+            f"To read {fn} using CMD on Windows: certutil -dump %USERPROFILE%\\Downloads\\{fn}"
+        )
 
     def _attach_cert(self, request_key, certificate):
         """Attach certificate as PFX to email"""
-        fn = f'{self.san}_{request_key}.pfx'
+        fn = f"{self.san}_{request_key}.pfx"
 
         # Simulate certificate parsing (mock)
-        if not certificate or len(certificate) < 100:  # Simulate insufficient certificate data
-            raise ValueError("Expected exactly 2 certificates (cert and CA), but got insufficient data")
+        if (
+            not certificate or len(certificate) < 100
+        ):  # Simulate insufficient certificate data
+            raise ValueError(
+                "Expected exactly 2 certificates (cert and CA), but got insufficient data"
+            )
 
         # In real implementation, this would create PFX and attach
         # For testing, we'll just add to message list
-        self.msg.append(f'Attached certificate: {fn}')
-        self.msg.append(f'To read {fn} using CMD on Windows: certutil -dump %USERPROFILE%\\Downloads\\{fn}')
+        self.msg.append(f"Attached certificate: {fn}")
+        self.msg.append(
+            f"To read {fn} using CMD on Windows: certutil -dump %USERPROFILE%\\Downloads\\{fn}"
+        )
 
     def pre_hook(self, _certificate_name, _order_name, csr) -> None:
         """Pre-hook - currently does nothing"""
@@ -150,18 +164,20 @@ class MockHooks:
 
     def post_hook(self, request_key, _order_name, csr, error) -> None:
         """Handle certificate enrollment failure"""
-        self.logger.debug('Hook.post_hook()')
+        self.logger.debug("Hook.post_hook()")
 
         if not self.report_failures:
-            self.logger.debug('Hook.post_hook() disabled because report_failures is False')
+            self.logger.debug(
+                "Hook.post_hook() disabled because report_failures is False"
+            )
             return
 
         # Mock SAN extraction
-        mock_sans = ['DNS:something.example.com']  # Simulate csr_san_get result
+        mock_sans = ["DNS:something.example.com"]  # Simulate csr_san_get result
         self.san = self._clean_san(mock_sans)
 
-        self.envelope['Subject'] = f'{self.appname} failure: {self.san}'
-        m = f'{self.appname} failure for: {self.san}\n\n----\n{error}\n----'
+        self.envelope["Subject"] = f"{self.appname} failure: {self.san}"
+        m = f"{self.appname} failure for: {self.san}\n\n----\n{error}\n----"
         self.msg.append(m)
 
         self._attach_csr(request_key, csr)
@@ -177,18 +193,20 @@ class MockHooks:
         _poll_identifier,
     ) -> None:
         """Handle successful certificate enrollment"""
-        self.logger.debug('Hook.success_hook()')
+        self.logger.debug("Hook.success_hook()")
 
         if not self.report_successes:
-            self.logger.debug('Hook.success_hook() disabled because report_successes is False')
+            self.logger.debug(
+                "Hook.success_hook() disabled because report_successes is False"
+            )
             return
 
         # Mock SAN extraction
-        mock_sans = ['DNS:something.example.com']  # Simulate cert_san_get result
+        mock_sans = ["DNS:something.example.com"]  # Simulate cert_san_get result
         self.san = self._clean_san(mock_sans)
 
-        self.envelope['Subject'] = f'{self.appname} success: {self.san}'
-        m = f'{self.appname} success for: {self.san}'
+        self.envelope["Subject"] = f"{self.appname} success: {self.san}"
+        m = f"{self.appname} success for: {self.san}"
         self.msg.append(m)
 
         self._attach_csr(request_key, csr)
@@ -208,42 +226,48 @@ class TestEmailHooksStandalone(unittest.TestCase):
         self.logger.error = Mock()
 
         # Sample data
-        self.sample_csr = 'mock_csr_data_' + 'x' * 100  # Make it long enough
-        self.sample_certificate = 'mock_certificate_data_' + 'x' * 200  # Make it long enough
-        self.certificate_raw = 'mock_certificate_raw_data'
+        self.sample_csr = "mock_csr_data_" + "x" * 100  # Make it long enough
+        self.sample_certificate = (
+            "mock_certificate_data_" + "x" * 200
+        )  # Make it long enough
+        self.certificate_raw = "mock_certificate_raw_data"
 
     def test_01_init_success_minimal_config(self):
         """Test successful initialization with minimal configuration"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
-        self.assertEqual(hooks.appname, 'test_app')
-        self.assertEqual(hooks.sender, 'test@example.com')
-        self.assertEqual(hooks.rcpt, 'admin@example.com')
+        self.assertEqual(hooks.appname, "test_app")
+        self.assertEqual(hooks.sender, "test@example.com")
+        self.assertEqual(hooks.rcpt, "admin@example.com")
         self.assertTrue(hooks.report_failures)
         self.assertTrue(hooks.report_successes)
         self.assertFalse(hooks.done)
         self.assertEqual(hooks.msg, [])
-        self.assertEqual(hooks.san, '')
+        self.assertEqual(hooks.san, "")
 
     def test_02_init_success_full_config(self):
         """Test successful initialization with full configuration"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com',
-                'report_failures': 'False',
-                'report_successes': 'True'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                    "report_failures": "False",
+                    "report_successes": "True",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
@@ -261,12 +285,14 @@ class TestEmailHooksStandalone(unittest.TestCase):
 
     def test_04_init_missing_required_keys(self):
         """Test initialization failure when required keys are missing"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                # Missing 'sender' and 'rcpt'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    # Missing 'sender' and 'rcpt'
+                }
             }
-        })
+        )
 
         with self.assertRaises(ValueError) as context:
             MockHooks(self.logger, mock_config)
@@ -277,83 +303,93 @@ class TestEmailHooksStandalone(unittest.TestCase):
 
     def test_05_init_envelope_setup(self):
         """Test that email envelope is properly initialized"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
         self.assertIsInstance(hooks.envelope, MIMEMultipart)
-        self.assertEqual(hooks.envelope['From'], 'test_app <test@example.com>')
-        self.assertEqual(hooks.envelope['To'], 'admin@example.com')
-        self.assertIsNotNone(hooks.envelope['Date'])
+        self.assertEqual(hooks.envelope["From"], "test_app <test@example.com>")
+        self.assertEqual(hooks.envelope["To"], "admin@example.com")
+        self.assertIsNotNone(hooks.envelope["Date"])
 
     def test_06_clean_san_single_dns(self):
         """Test _clean_san method with single DNS entry"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
-        result = hooks._clean_san(['DNS:example.com'])
-        self.assertEqual(result, 'example.com')
+        result = hooks._clean_san(["DNS:example.com"])
+        self.assertEqual(result, "example.com")
 
     def test_07_clean_san_ip_address(self):
         """Test _clean_san method with IP address"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
-        result = hooks._clean_san(['IP:192.168.1.1'])
-        self.assertEqual(result, '192.168.1.1')
+        result = hooks._clean_san(["IP:192.168.1.1"])
+        self.assertEqual(result, "192.168.1.1")
 
     def test_08_clean_san_edge_cases(self):
         """Test _clean_san with edge cases"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
         # Test with extra whitespace
-        result = hooks._clean_san(['DNS:  example.com  '])
-        self.assertEqual(result, 'example.com')
+        result = hooks._clean_san(["DNS:  example.com  "])
+        self.assertEqual(result, "example.com")
 
         # Test with multiple colons
-        result = hooks._clean_san(['DNS:subdomain:example.com'])
-        self.assertEqual(result, 'subdomain:example.com')
+        result = hooks._clean_san(["DNS:subdomain:example.com"])
+        self.assertEqual(result, "subdomain:example.com")
 
         # Test with empty list
         result = hooks._clean_san([])
-        self.assertEqual(result, 'unknown')
+        self.assertEqual(result, "unknown")
 
-    @patch('smtplib.SMTP')
+    @patch("smtplib.SMTP")
     def test_09_done_success(self, mock_smtp_class):
         """Test _done method success"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
@@ -361,17 +397,15 @@ class TestEmailHooksStandalone(unittest.TestCase):
         mock_smtp = Mock()
         mock_smtp_class.return_value.__enter__.return_value = mock_smtp
 
-        hooks.msg = ['Test message']
-        hooks.envelope['Subject'] = 'Test Subject'
+        hooks.msg = ["Test message"]
+        hooks.envelope["Subject"] = "Test Subject"
 
         hooks._done()
 
         # Verify SMTP operations
         mock_smtp.helo.assert_called_once()
         mock_smtp.sendmail.assert_called_once_with(
-            'test@example.com',
-            'admin@example.com',
-            hooks.envelope.as_string()
+            "test@example.com", "admin@example.com", hooks.envelope.as_string()
         )
         mock_smtp.quit.assert_called_once()
 
@@ -380,13 +414,15 @@ class TestEmailHooksStandalone(unittest.TestCase):
 
     def test_10_done_already_done(self):
         """Test _done method when already done"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
         hooks.done = True
@@ -398,29 +434,33 @@ class TestEmailHooksStandalone(unittest.TestCase):
 
     def test_11_pre_hook(self):
         """Test pre_hook method (should do nothing)"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
         # Should not raise any exception
-        hooks.pre_hook('cert_name', 'order_name', 'csr_data')
+        hooks.pre_hook("cert_name", "order_name", "csr_data")
 
-    @patch('smtplib.SMTP')
+    @patch("smtplib.SMTP")
     def test_12_post_hook_success(self, mock_smtp_class):
         """Test post_hook method for failure notification"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
@@ -428,16 +468,18 @@ class TestEmailHooksStandalone(unittest.TestCase):
         mock_smtp = Mock()
         mock_smtp_class.return_value.__enter__.return_value = mock_smtp
 
-        error_msg = 'Certificate enrollment failed'
+        error_msg = "Certificate enrollment failed"
 
-        hooks.post_hook('req123', 'order1', self.sample_csr, error_msg)
+        hooks.post_hook("req123", "order1", self.sample_csr, error_msg)
 
         # Verify subject was set
-        self.assertEqual(hooks.envelope['Subject'], 'test_app failure: something.example.com')
+        self.assertEqual(
+            hooks.envelope["Subject"], "test_app failure: something.example.com"
+        )
 
         # Verify message content
         self.assertTrue(len(hooks.msg) >= 1)
-        self.assertIn('test_app failure for: something.example.com', hooks.msg[0])
+        self.assertIn("test_app failure for: something.example.com", hooks.msg[0])
         self.assertIn(error_msg, hooks.msg[0])
 
         # Verify _done was called (SMTP send)
@@ -446,33 +488,37 @@ class TestEmailHooksStandalone(unittest.TestCase):
 
     def test_13_post_hook_disabled(self):
         """Test post_hook method when failure reporting is disabled"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com',
-                'report_failures': 'False'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                    "report_failures": "False",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
-        hooks.post_hook('req123', 'order1', self.sample_csr, 'error')
+        hooks.post_hook("req123", "order1", self.sample_csr, "error")
 
         # Should not have modified anything
         self.assertEqual(len(hooks.msg), 0)
         self.assertFalse(hooks.done)
 
-    @patch('smtplib.SMTP')
+    @patch("smtplib.SMTP")
     def test_14_success_hook_success(self, mock_smtp_class):
         """Test success_hook method for success notification"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
@@ -480,15 +526,23 @@ class TestEmailHooksStandalone(unittest.TestCase):
         mock_smtp = Mock()
         mock_smtp_class.return_value.__enter__.return_value = mock_smtp
 
-        hooks.success_hook('req123', 'order1', self.sample_csr,
-                          self.sample_certificate, self.certificate_raw, 'poll1')
+        hooks.success_hook(
+            "req123",
+            "order1",
+            self.sample_csr,
+            self.sample_certificate,
+            self.certificate_raw,
+            "poll1",
+        )
 
         # Verify subject was set
-        self.assertEqual(hooks.envelope['Subject'], 'test_app success: something.example.com')
+        self.assertEqual(
+            hooks.envelope["Subject"], "test_app success: something.example.com"
+        )
 
         # Verify message content
         self.assertTrue(len(hooks.msg) >= 1)
-        self.assertIn('test_app success for: something.example.com', hooks.msg[0])
+        self.assertIn("test_app success for: something.example.com", hooks.msg[0])
 
         # Verify _done was called (SMTP send)
         mock_smtp.sendmail.assert_called_once()
@@ -496,19 +550,27 @@ class TestEmailHooksStandalone(unittest.TestCase):
 
     def test_15_success_hook_disabled(self):
         """Test success_hook method when success reporting is disabled"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com',
-                'report_successes': 'False'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                    "report_successes": "False",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
-        hooks.success_hook('req123', 'order1', self.sample_csr,
-                          self.sample_certificate, self.certificate_raw, 'poll1')
+        hooks.success_hook(
+            "req123",
+            "order1",
+            self.sample_csr,
+            self.sample_certificate,
+            self.certificate_raw,
+            "poll1",
+        )
 
         # Should not have modified anything
         self.assertEqual(len(hooks.msg), 0)
@@ -516,52 +578,58 @@ class TestEmailHooksStandalone(unittest.TestCase):
 
     def test_16_attach_csr_functionality(self):
         """Test _attach_csr method basic functionality"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
-        hooks.san = 'example.com'
+        hooks.san = "example.com"
 
-        hooks._attach_csr('req123', 'fake_csr')
+        hooks._attach_csr("req123", "fake_csr")
 
         # Check messages were added
         self.assertTrue(len(hooks.msg) >= 1)
-        self.assertIn('example.com_req123.csr', hooks.msg[0])
+        self.assertIn("example.com_req123.csr", hooks.msg[0])
 
     def test_17_attach_cert_insufficient_data(self):
         """Test _attach_cert method with insufficient certificate data"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
-        hooks.san = 'example.com'
+        hooks.san = "example.com"
 
         # Pass insufficient certificate data
         with self.assertRaises(ValueError) as context:
-            hooks._attach_cert('req123', 'short')
+            hooks._attach_cert("req123", "short")
 
         self.assertIn("Expected exactly 2 certificates", str(context.exception))
 
     def test_18_getboolean_fallback(self):
         """Test getboolean with fallback values"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
-                # Missing report_failures and report_successes
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com"
+                    # Missing report_failures and report_successes
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
@@ -571,15 +639,17 @@ class TestEmailHooksStandalone(unittest.TestCase):
 
     def test_19_getboolean_explicit_values(self):
         """Test getboolean with explicit string values"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com',
-                'report_failures': 'false',  # lowercase
-                'report_successes': 'TRUE'   # uppercase
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                    "report_failures": "false",  # lowercase
+                    "report_successes": "TRUE",  # uppercase
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
@@ -588,41 +658,45 @@ class TestEmailHooksStandalone(unittest.TestCase):
 
     def test_20_envelope_headers_format(self):
         """Test that envelope headers are properly formatted"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app_name',
-                'sender': 'sender@example.com',
-                'rcpt': 'recipient@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app_name",
+                    "sender": "sender@example.com",
+                    "rcpt": "recipient@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
         # Check From header format
-        self.assertEqual(hooks.envelope['From'], 'test_app_name <sender@example.com>')
-        self.assertEqual(hooks.envelope['To'], 'recipient@example.com')
-        self.assertIsNotNone(hooks.envelope['Date'])
+        self.assertEqual(hooks.envelope["From"], "test_app_name <sender@example.com>")
+        self.assertEqual(hooks.envelope["To"], "recipient@example.com")
+        self.assertIsNotNone(hooks.envelope["Date"])
 
     def test_21_date_header(self):
         """Test that date header is properly set"""
-        mock_config = MockConfigParser({
-            'Hooks': {
-                'appname': 'test_app',
-                'sender': 'test@example.com',
-                'rcpt': 'admin@example.com'
+        mock_config = MockConfigParser(
+            {
+                "Hooks": {
+                    "appname": "test_app",
+                    "sender": "test@example.com",
+                    "rcpt": "admin@example.com",
+                }
             }
-        })
+        )
 
         hooks = MockHooks(self.logger, mock_config)
 
         # Just verify that a date header exists and is not empty
-        self.assertIsNotNone(hooks.envelope['Date'])
-        self.assertNotEqual(hooks.envelope['Date'], '')
+        self.assertIsNotNone(hooks.envelope["Date"])
+        self.assertNotEqual(hooks.envelope["Date"], "")
         # Verify it looks like a date (contains a comma and numbers)
-        date_header = hooks.envelope['Date']
-        self.assertIn(',', date_header)
+        date_header = hooks.envelope["Date"]
+        self.assertIn(",", date_header)
         self.assertTrue(any(c.isdigit() for c in date_header))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
