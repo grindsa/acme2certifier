@@ -10,6 +10,7 @@ and pick the appropriate release branch.
 
 **Features and Improvements**:
 
+- **CA Handler**: A CA handler to support [Hashicorp Vault CA](https://developer.hashicorp.com/vault/tutorials/pki/pki-engine)
 - **EAB (External Account Binding)**: Improved comparison function between inner and outer JWK structures
 - **EAB Profiling**: Added support for revocation operations
 - **DNS Validation**: Added option for DNS reverse zone checking when challenge validation is disabled
