@@ -340,6 +340,11 @@ jobs:
         echo "legofail outcome is ${{steps.legofail01.outcome }}"
         exit 1
 
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
     - name: "Verify allowed_domainlist error"
       run: |
         docker exec acme-srv grep -i "Either CN or SANs are not allowed by configuration" /var/log/messages
@@ -477,6 +482,11 @@ jobs:
       run: |
         echo "legofail outcome is ${{steps.legofail01.outcome }}"
         exit 1
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
 
     - name: "Verify allowed_domainlist error"
       run: |
