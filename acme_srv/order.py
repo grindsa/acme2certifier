@@ -122,7 +122,7 @@ class Order(object):
             oid = self.dbstore.order_add(data_dic)
         except Exception as err_:
             self.logger.critical(
-                "acme2certifier database error in Order._add() order: %s", err_
+                "Database error: failed to add order: %s", err_
             )
             oid = None
 
@@ -148,7 +148,7 @@ class Order(object):
             else:
                 # profile check is enabled but no profiles are configured
                 self.logger.warning(
-                    "Order._add(): ignore submitted profile '%s' as no profiles are configured",
+                    "Ignore submitted profile '%s' as no profiles are configured.",
                     payload["profile"],
                 )
 
