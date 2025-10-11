@@ -1224,31 +1224,52 @@ def string_sanitize(logger: logging.Logger, unsafe_str: str) -> str:
     return re.sub(r"\s+", " ", safe_str)
 
 
-def _fqdn_resolve(req: dns.resolver.Resolver, host: str) -> Tuple[str, bool]:
+def _fqdn_resolve(
+    logger: logging.Logger,  # pylint: disable=W0613
+    req: dns.resolver.Resolver,
+    host: str,
+    catch_all: bool = False,
+) -> Tuple[str, bool]:
     """resolve hostname"""
+    logger.debug("Helper._fqdn_resolve(%s:%s)", host, catch_all)
+
+    if catch_all:
+        result = []
+    else:
+        result = None
+
+    invalid = True
     for rrtype in ["A", "AAAA"]:
         try:
-            result = None
-            invalid = True
             answers = req.resolve(host, rrtype)
+            logger.debug("Helper._fqdn_resolve() got answer: %s", list(answers))
             for rdata in answers:
-                result = str(rdata)
                 invalid = False
-                break
+                if catch_all:
+                    result.append(str(rdata))
+                else:
+                    result = str(rdata)
+                    break
         except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
-            result = None
-            invalid = True
-        except Exception:
-            result = None
+            logger.debug("No answer for %s with type %s", host, rrtype)
+            if not result:
+                invalid = True
+        except Exception as err:
+            logger.debug("Error while resolving %s with type %s: %s", host, rrtype, err)
             invalid = False
-        if result is not None:
+
+        if not catch_all and result is not None:
             break
 
+    logger.debug("Helper._fqdn_resolve(%s) ended with: %s, %s", host, result, invalid)
     return (result, invalid)
 
 
-def fqdn_resolve(host: str, dnssrv: List[str] = None) -> Tuple[str, bool]:
+def fqdn_resolve(
+    logger: logging.Logger, host: str, dnssrv: List[str] = None, catch_all: bool = False
+) -> Tuple[str, bool]:
     """dns resolver"""
+    logger.debug("Helper.fqdn_resolve(%s catch_all: %s)", host, catch_all)
     req = dns.resolver.Resolver()
 
     # hack to cover github workflows
@@ -1257,12 +1278,13 @@ def fqdn_resolve(host: str, dnssrv: List[str] = None) -> Tuple[str, bool]:
             # add specific dns server
             req.nameservers = dnssrv
         # resolve hostname
-        (result, invalid) = _fqdn_resolve(req, host)
+        (result, invalid) = _fqdn_resolve(logger, req, host, catch_all=catch_all)
 
     else:
         result = None
         invalid = False
 
+    logger.debug("Helper.fqdn_resolve(%s) ended with: %s, %s", host, result, invalid)
     return (result, invalid)
 
 
