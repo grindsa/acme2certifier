@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 # pylint: disable=r0913, w0613
-"""email hook class"""
-
 """
-Copy this file from examples to f.ex /opt/acme2certifier then add this config to acme_srv.cfg
+Email hook class
 
 Example config:
 
@@ -46,6 +44,7 @@ Configuration options:
 
 import smtplib
 import sys
+
 sys.path.insert(0, "...")
 sys.path.insert(1, "..")
 sys.path.insert(2, ".")
@@ -71,6 +70,7 @@ class Hooks:
     """Hook class to send email notifications on certificate events"""
 
     def __init__(self, logger) -> None:
+        """Initialize the Hooks class with configuration and logger"""
         self.logger = logger
 
         self.config_dic = load_config(self.logger, "Hooks")
@@ -124,7 +124,9 @@ class Hooks:
         # Validate SMTP timeout
         smtp_timeout = self.config_dic.getint("Hooks", "smtp_timeout", fallback=30)
         if smtp_timeout <= 0 or smtp_timeout > 300:
-            self.logger.error(f"Invalid SMTP timeout: {smtp_timeout}. Must be between 1-300 seconds")
+            self.logger.error(
+                f"Invalid SMTP timeout: {smtp_timeout}. Must be between 1-300 seconds"
+            )
 
         # Validate authentication configuration
         smtp_username = self.config_dic.get("Hooks", "smtp_username", fallback=None)
@@ -132,23 +134,35 @@ class Hooks:
 
         # Check if password is provided without username (we'll use sender as username)
         if smtp_password and not smtp_username:
-            self.logger.debug("Hooks._validate_smtp_configuration() - SMTP password provided without username - will use sender email as username")
+            self.logger.debug(
+                "Hooks._validate_smtp_configuration() - SMTP password provided without username - will use sender email as username"
+            )
         elif smtp_username and not smtp_password:
             self.logger.error("SMTP username provided but password is missing")
 
         # Warn about common configuration issues
-        smtp_use_tls = self.config_dic.getboolean("Hooks", "smtp_use_tls", fallback=False)
-        smtp_use_starttls = self.config_dic.getboolean("Hooks", "smtp_use_starttls", fallback=False)
+        smtp_use_tls = self.config_dic.getboolean(
+            "Hooks", "smtp_use_tls", fallback=False
+        )
+        smtp_use_starttls = self.config_dic.getboolean(
+            "Hooks", "smtp_use_starttls", fallback=False
+        )
 
         if smtp_use_tls and smtp_use_starttls:
-            self.logger.warning("Both smtp_use_tls and smtp_use_starttls are enabled. "
-                               "smtp_use_tls takes precedence.")
+            self.logger.warning(
+                "Both smtp_use_tls and smtp_use_starttls are enabled. "
+                "smtp_use_tls takes precedence."
+            )
 
         # Port-specific recommendations
         if smtp_port == 465 and not smtp_use_tls:
-            self.logger.info("Port 465 typically requires TLS. Consider setting smtp_use_tls=True")
+            self.logger.info(
+                "Port 465 typically requires TLS. Consider setting smtp_use_tls=True"
+            )
         elif smtp_port == 587 and not smtp_use_starttls and not smtp_use_tls:
-            self.logger.info("Port 587 typically requires STARTTLS. Consider setting smtp_use_starttls=True")
+            self.logger.info(
+                "Port 587 typically requires STARTTLS. Consider setting smtp_use_starttls=True"
+            )
 
         self.logger.debug("Hooks._validate_smtp_configuration() ended successfully")
 
@@ -178,17 +192,27 @@ class Hooks:
         self.smtp_timeout = self.config_dic.getint("Hooks", "smtp_timeout", fallback=30)
 
         # SMTP Authentication configuration
-        self.smtp_username = self.config_dic.get("Hooks", "smtp_username", fallback=None)
-        self.smtp_password = self.config_dic.get("Hooks", "smtp_password", fallback=None)
+        self.smtp_username = self.config_dic.get(
+            "Hooks", "smtp_username", fallback=None
+        )
+        self.smtp_password = self.config_dic.get(
+            "Hooks", "smtp_password", fallback=None
+        )
 
         # Use sender email as username if no explicit username provided but password is set
         if not self.smtp_username and self.smtp_password:
             self.smtp_username = self.sender
-            self.logger.debug(f"Hooks._load_configuration() - Using sender email as SMTP username: {self.smtp_username}")
+            self.logger.debug(
+                f"Hooks._load_configuration() - Using sender email as SMTP username: {self.smtp_username}"
+            )
 
         # SMTP Security configuration
-        self.smtp_use_tls = self.config_dic.getboolean("Hooks", "smtp_use_tls", fallback=True)
-        self.smtp_use_starttls = self.config_dic.getboolean("Hooks", "smtp_use_starttls", fallback=False)
+        self.smtp_use_tls = self.config_dic.getboolean(
+            "Hooks", "smtp_use_tls", fallback=True
+        )
+        self.smtp_use_starttls = self.config_dic.getboolean(
+            "Hooks", "smtp_use_starttls", fallback=False
+        )
 
         self._setup_email_envelope()
         self.logger.debug("Hooks._load_configuration() ended")
@@ -217,18 +241,30 @@ class Hooks:
             self.logger.debug(
                 f"Hooks._done() - Attempting to send email notification via {self.smtp_server}:{self.smtp_port} (timeout: {self.smtp_timeout}s)"
             )
-            self.logger.debug(f"Hooks._done() - TLS settings - use_tls: {self.smtp_use_tls}, use_starttls: {self.smtp_use_starttls}")
-            self.logger.debug(f"Hooks._done() - Authentication - username: {self.smtp_username}, password: {'***' if self.smtp_password else 'None'}")
+            self.logger.debug(
+                f"Hooks._done() - TLS settings - use_tls: {self.smtp_use_tls}, use_starttls: {self.smtp_use_starttls}"
+            )
+            self.logger.debug(
+                f"Hooks._done() - Authentication - username: {self.smtp_username}, password: {'***' if self.smtp_password else 'None'}"
+            )
 
             # Choose appropriate SMTP class based on TLS configuration
             if self.smtp_use_tls:
                 # Use SMTP_SSL for implicit TLS (usually port 465)
-                self.logger.debug("Hooks._done() - Using SMTP_SSL for implicit TLS connection")
-                smtp = smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, timeout=self.smtp_timeout)
+                self.logger.debug(
+                    "Hooks._done() - Using SMTP_SSL for implicit TLS connection"
+                )
+                smtp = smtplib.SMTP_SSL(
+                    self.smtp_server, self.smtp_port, timeout=self.smtp_timeout
+                )
             else:
                 # Use regular SMTP (usually port 25 or 587)
-                self.logger.debug("Hooks._done() - Using SMTP for plain or STARTTLS connection")
-                smtp = smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=self.smtp_timeout)
+                self.logger.debug(
+                    "Hooks._done() - Using SMTP for plain or STARTTLS connection"
+                )
+                smtp = smtplib.SMTP(
+                    self.smtp_server, self.smtp_port, timeout=self.smtp_timeout
+                )
 
             with smtp:
                 # Enable debug output for SMTP
@@ -245,25 +281,35 @@ class Hooks:
 
                 # Authenticate if credentials are provided
                 if self.smtp_username and self.smtp_password:
-                    self.logger.debug(f"Hooks._done() - Authenticating with username: {self.smtp_username}")
+                    self.logger.debug(
+                        f"Hooks._done() - Authenticating with username: {self.smtp_username}"
+                    )
                     smtp.login(self.smtp_username, self.smtp_password)
                     self.logger.debug("Hooks._done() - SMTP authentication successful")
                 else:
-                    self.logger.debug("Hooks._done() - No SMTP authentication configured")
+                    self.logger.debug(
+                        "Hooks._done() - No SMTP authentication configured"
+                    )
 
                 # Prepare and send the email
                 self.envelope.attach(MIMEText("\n\n".join(self.msg), "plain"))
 
                 # Log email details before sending
                 subject = self.envelope["Subject"]
-                self.logger.debug(f"Hooks._done() - Sending email - From: {self.sender}, To: {self.rcpt}, Subject: {subject}")
+                self.logger.debug(
+                    f"Hooks._done() - Sending email - From: {self.sender}, To: {self.rcpt}, Subject: {subject}"
+                )
 
                 smtp.sendmail(self.sender, self.rcpt, self.envelope.as_string())
 
-            self.logger.info(f"Email notification sent successfully to {self.rcpt} - Subject: {subject}")
+            self.logger.info(
+                f"Email notification sent successfully to {self.rcpt} - Subject: {subject}"
+            )
 
         except Exception as e:
-            error_msg = f"Failed to send email notification: {type(e).__name__} - {str(e)}"
+            error_msg = (
+                f"Failed to send email notification: {type(e).__name__} - {str(e)}"
+            )
             self.logger.error(f"Email sending failed: {error_msg}")
             return
 
@@ -323,7 +369,9 @@ class Hooks:
             self.msg.append(
                 f"To read {fn} using CMD on Windows:\\ncertutil -dump %USERPROFILE%\\Downloads\\{fn}"
             )
-            self.logger.debug(f"Successfully attached CSR file: {fn} ({len(csr_pem)} bytes)")
+            self.logger.debug(
+                f"Successfully attached CSR file: {fn} ({len(csr_pem)} bytes)"
+            )
 
         except Exception as e:
             error_msg = f"Failed to attach CSR: {e}"
@@ -361,7 +409,9 @@ class Hooks:
             self.msg.append(
                 f"To read {fn} using CMD on Windows:\\ncertutil -dump %USERPROFILE%\\Downloads\\{fn}"
             )
-            self.logger.debug(f"Successfully attached certificate file: {fn} ({len(pfx)} bytes)")
+            self.logger.debug(
+                f"Successfully attached certificate file: {fn} ({len(pfx)} bytes)"
+            )
 
         except Exception as e:
             error_msg = f"Certificate attachment failed: {type(e).__name__} - {str(e)}"
