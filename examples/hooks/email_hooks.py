@@ -614,9 +614,9 @@ if __name__ == "__main__":
     )
 
     # a Failure message
-    # request_key = generate_random_string(logger, 12)
-    # h = Hooks(logger)
-    # h.post_hook(request_key, "", csr, "urn:ietf:params:acme:error:rejectedIdentifier")
+    request_key = generate_random_string(logger, 12)
+    h = Hooks(logger)
+    h.post_hook(request_key, "", csr, "urn:ietf:params:acme:error:rejectedIdentifier")
 
     # a Success message
     request_key = generate_random_string(logger, 12)
