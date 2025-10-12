@@ -20,6 +20,11 @@ report_successes: False
 smtp_server: localhost
 smtp_port: 25
 subject_prefix: [ACME]
+smtp_timeout: 30
+smtp_username: your_smtp_user
+smtp_password: your_smtp_password
+smtp_use_tls: True
+smtp_use_starttls: False
 
 Configuration options:
 - hooks_file: Path to this hooks file (required)
@@ -31,9 +36,19 @@ Configuration options:
 - smtp_server: SMTP server hostname (default: localhost)
 - smtp_port: SMTP server port (default: 25)
 - subject_prefix: Prefix for email subjects (optional)
+- smtp_timeout: SMTP connection timeout in seconds (default: 30)
+- smtp_username: SMTP authentication username (optional, defaults to sender email if password is provided)
+- smtp_password: SMTP authentication password (optional)
+- smtp_use_tls: Use TLS/SSL encryption (default: False for port 25, True for 465/587)
+- smtp_use_starttls: Use STARTTLS encryption (default: False)
+
 """
 
 import smtplib
+import sys
+sys.path.insert(0, "...")
+sys.path.insert(1, "..")
+sys.path.insert(2, ".")
 
 from acme_srv.helper import (
     load_config,
@@ -65,6 +80,7 @@ class Hooks:
 
         # Enhanced configuration validation
         self._validate_configuration()
+        self._validate_smtp_configuration()
         self._load_configuration()
 
     def _validate_configuration(self) -> None:
@@ -98,6 +114,44 @@ class Hooks:
 
         self.logger.debug("Hooks._validate_configuration() ended successfully")
 
+    def _validate_smtp_configuration(self) -> None:
+        """Validate SMTP-specific configuration"""
+        self.logger.debug("Hooks._validate_smtp_configuration()")
+
+        # Validate SMTP port
+        smtp_port = self.config_dic.getint("Hooks", "smtp_port", fallback=25)
+
+        # Validate SMTP timeout
+        smtp_timeout = self.config_dic.getint("Hooks", "smtp_timeout", fallback=30)
+        if smtp_timeout <= 0 or smtp_timeout > 300:
+            self.logger.error(f"Invalid SMTP timeout: {smtp_timeout}. Must be between 1-300 seconds")
+
+        # Validate authentication configuration
+        smtp_username = self.config_dic.get("Hooks", "smtp_username", fallback=None)
+        smtp_password = self.config_dic.get("Hooks", "smtp_password", fallback=None)
+
+        # Check if password is provided without username (we'll use sender as username)
+        if smtp_password and not smtp_username:
+            self.logger.debug("Hooks._validate_smtp_configuration() - SMTP password provided without username - will use sender email as username")
+        elif smtp_username and not smtp_password:
+            self.logger.error("SMTP username provided but password is missing")
+
+        # Warn about common configuration issues
+        smtp_use_tls = self.config_dic.getboolean("Hooks", "smtp_use_tls", fallback=False)
+        smtp_use_starttls = self.config_dic.getboolean("Hooks", "smtp_use_starttls", fallback=False)
+
+        if smtp_use_tls and smtp_use_starttls:
+            self.logger.warning("Both smtp_use_tls and smtp_use_starttls are enabled. "
+                               "smtp_use_tls takes precedence.")
+
+        # Port-specific recommendations
+        if smtp_port == 465 and not smtp_use_tls:
+            self.logger.info("Port 465 typically requires TLS. Consider setting smtp_use_tls=True")
+        elif smtp_port == 587 and not smtp_use_starttls and not smtp_use_tls:
+            self.logger.info("Port 587 typically requires STARTTLS. Consider setting smtp_use_starttls=True")
+
+        self.logger.debug("Hooks._validate_smtp_configuration() ended successfully")
+
     def _load_configuration(self) -> None:
         """Load and assign configuration values"""
         self.logger.debug("Hooks._load_configuration()")
@@ -121,6 +175,20 @@ class Hooks:
         self.email_subject_prefix = self.config_dic.get(
             "Hooks", "subject_prefix", fallback=""
         )
+        self.smtp_timeout = self.config_dic.getint("Hooks", "smtp_timeout", fallback=30)
+
+        # SMTP Authentication configuration
+        self.smtp_username = self.config_dic.get("Hooks", "smtp_username", fallback=None)
+        self.smtp_password = self.config_dic.get("Hooks", "smtp_password", fallback=None)
+
+        # Use sender email as username if no explicit username provided but password is set
+        if not self.smtp_username and self.smtp_password:
+            self.smtp_username = self.sender
+            self.logger.debug(f"Hooks._load_configuration() - Using sender email as SMTP username: {self.smtp_username}")
+
+        # SMTP Security configuration
+        self.smtp_use_tls = self.config_dic.getboolean("Hooks", "smtp_use_tls", fallback=True)
+        self.smtp_use_starttls = self.config_dic.getboolean("Hooks", "smtp_use_starttls", fallback=False)
 
         self._setup_email_envelope()
         self.logger.debug("Hooks._load_configuration() ended")
@@ -137,39 +205,68 @@ class Hooks:
         self.logger.debug("Hooks._setup_email_envelope() ended")
 
     def _done(self):
-        """Send the email with enhanced error handling and logging"""
+        """Send the email"""
         self.logger.debug("Hooks._done()")
         if self.done:
-            raise RuntimeError("unexpected usage: email already sent")
+            self.logger.warning("_done() called multiple times - email already sent")
+            return
 
         self.done = True
 
         try:
             self.logger.debug(
-                f"Attempting to send email notification via {self.smtp_server}:{self.smtp_port}"
+                f"Hooks._done() - Attempting to send email notification via {self.smtp_server}:{self.smtp_port} (timeout: {self.smtp_timeout}s)"
             )
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as smtp:
-                smtp.helo()
+            self.logger.debug(f"Hooks._done() - TLS settings - use_tls: {self.smtp_use_tls}, use_starttls: {self.smtp_use_starttls}")
+            self.logger.debug(f"Hooks._done() - Authentication - username: {self.smtp_username}, password: {'***' if self.smtp_password else 'None'}")
+
+            # Choose appropriate SMTP class based on TLS configuration
+            if self.smtp_use_tls:
+                # Use SMTP_SSL for implicit TLS (usually port 465)
+                self.logger.debug("Hooks._done() - Using SMTP_SSL for implicit TLS connection")
+                smtp = smtplib.SMTP_SSL(self.smtp_server, self.smtp_port, timeout=self.smtp_timeout)
+            else:
+                # Use regular SMTP (usually port 25 or 587)
+                self.logger.debug("Hooks._done() - Using SMTP for plain or STARTTLS connection")
+                smtp = smtplib.SMTP(self.smtp_server, self.smtp_port, timeout=self.smtp_timeout)
+
+            with smtp:
+                # Enable debug output for SMTP
+                smtp.set_debuglevel(1)
+
+                self.logger.debug("Hooks._done() - Sending HELO/EHLO")
+                smtp.ehlo()  # Use EHLO instead of HELO for better compatibility
+
+                # Enable STARTTLS if configured (for port 587 typically)
+                if self.smtp_use_starttls and not self.smtp_use_tls:
+                    self.logger.debug("Hooks._done() - Enabling STARTTLS encryption")
+                    smtp.starttls()
+                    smtp.ehlo()  # Re-identify after STARTTLS
+
+                # Authenticate if credentials are provided
+                if self.smtp_username and self.smtp_password:
+                    self.logger.debug(f"Hooks._done() - Authenticating with username: {self.smtp_username}")
+                    smtp.login(self.smtp_username, self.smtp_password)
+                    self.logger.debug("Hooks._done() - SMTP authentication successful")
+                else:
+                    self.logger.debug("Hooks._done() - No SMTP authentication configured")
+
+                # Prepare and send the email
                 self.envelope.attach(MIMEText("\n\n".join(self.msg), "plain"))
 
                 # Log email details before sending
                 subject = self.envelope["Subject"]
-                self.logger.debug(
-                    f"Sending email - From: {self.sender}, To: {self.rcpt}, "
-                    f"Subject: {subject}"
-                )
+                self.logger.debug(f"Hooks._done() - Sending email - From: {self.sender}, To: {self.rcpt}, Subject: {subject}")
 
-                smtp.sendmail(self.sender, [self.rcpt], self.envelope.as_string())
-                smtp.quit()
+                smtp.sendmail(self.sender, self.rcpt, self.envelope.as_string())
 
-            recipient_info = f"{self.rcpt}"
-            self.logger.info(
-                f"Email notification sent successfully to {recipient_info} - Subject: {subject}"
-            )
+            self.logger.info(f"Email notification sent successfully to {self.rcpt} - Subject: {subject}")
 
         except Exception as e:
-            self.logger.error(f"Unexpected error occurred while sending email: {e}")
-            raise RuntimeError(f"Failed to send email notification: {e}") from e
+            error_msg = f"Failed to send email notification: {type(e).__name__} - {str(e)}"
+            self.logger.error(f"Email sending failed: {error_msg}")
+            return
+
         self.logger.debug("Hooks._done() ended")
 
     def _clean_san(self, sans):
@@ -207,18 +304,16 @@ class Hooks:
         return result
 
     def _attach_csr(self, request_key, csr):
-        """Attach CSR with enhanced error handling"""
+        """Attach CSR"""
         self.logger.debug(f"Attaching CSR for request_key: {request_key}")
         try:
-            self.logger.debug(f"Attaching CSR for request_key: {request_key}")
-
             # Attach CSR
             fn = f"{self.san}_{request_key}.csr"
             csr_pem = build_pem_file(self.logger, None, csr, 64, True)
 
             if not csr_pem:
                 self.logger.error("Failed to build PEM file from CSR")
-                raise ValueError("CSR PEM generation failed")
+                return
 
             part = MIMEApplication(csr_pem, Name=fn)
             part["Content-Disposition"] = f'attachment; filename="{fn}"'
@@ -228,11 +323,13 @@ class Hooks:
             self.msg.append(
                 f"To read {fn} using CMD on Windows:\\ncertutil -dump %USERPROFILE%\\Downloads\\{fn}"
             )
-            self.logger.debug(f"Successfully attached CSR file: {fn}")
+            self.logger.debug(f"Successfully attached CSR file: {fn} ({len(csr_pem)} bytes)")
 
         except Exception as e:
-            self.logger.error(f"Failed to attach CSR: {e}")
-            raise RuntimeError(f"CSR attachment failed: {e}") from e
+            error_msg = f"Failed to attach CSR: {e}"
+            self.logger.warning(f"{error_msg} (continuing without attachment")
+            self.msg.append(f"CSR attachment failed: {type(e).__name__}")
+
         self.logger.debug("Hooks._attach_csr() ended")
 
     def _attach_cert(self, request_key, certificate):
@@ -242,26 +339,20 @@ class Hooks:
             self.logger.debug(f"Attaching certificate for request_key: {request_key}")
 
             # Add crt to email
-            # But cannot send as .crt because Outlook blocks that, sooo I make a pfx to wrap it inside,
-            # bonus, because of pfx, i can send the CA cert too!
             cert_list = x509.load_pem_x509_certificates(certificate.encode("utf-8"))
 
-            if len(cert_list) != 2:
-                error_msg = f"Expected exactly 2 certificates (cert and CA), but got {len(cert_list)}"
-                self.logger.error(error_msg)
-                raise ValueError(error_msg)
+            # EE cert is at the start of the list
+            cert = cert_list.pop(0)
 
-            cert, ca = cert_list
             fn = f"{self.san}_{request_key}.pfx"
 
             pfx = pkcs12.serialize_key_and_certificates(
                 self.san.encode("utf-8"),
                 None,  # We don't even have the key, and obviously no need for it
                 cert,
-                [ca],
+                cert_list,
                 serialization.NoEncryption(),  # No keys included so no encryption needed
             )
-
             part = MIMEApplication(pfx, Name=fn)
             part["Content-Disposition"] = f'attachment; filename="{fn}"'
             part["Content-Type"] = "application/x-pkcs12"
@@ -270,10 +361,13 @@ class Hooks:
             self.msg.append(
                 f"To read {fn} using CMD on Windows:\\ncertutil -dump %USERPROFILE%\\Downloads\\{fn}"
             )
-            self.logger.debug(f"Successfully attached certificate file: {fn}")
+            self.logger.debug(f"Successfully attached certificate file: {fn} ({len(pfx)} bytes)")
+
         except Exception as e:
-            self.logger.error(f"Unexpected error while attaching certificate: {e}")
-            raise RuntimeError(f"Certificate attachment failed: {e}") from e
+            error_msg = f"Certificate attachment failed: {type(e).__name__} - {str(e)}"
+            self.logger.warning(f"{error_msg} (continuing without attachment)")
+            self.msg.append(f"Certificate attachment failed: {type(e).__name__}")
+
         self.logger.debug("Hooks._attach_cert() ended")
 
     def _format_subject(self, status: str, san: str) -> str:
@@ -333,8 +427,10 @@ class Hooks:
             self._done()
 
         except Exception as e:
-            self.logger.error(f"Error in post_hook: {e}")
-            raise RuntimeError(f"post_hook execution failed: {e}") from e
+            error_msg = f"Error in post_hook: {type(e).__name__} - {str(e)}"
+            self.logger.error(f"{error_msg}")
+            return
+
         self.logger.debug("Hooks.post_hook() ended")
 
     def success_hook(
@@ -391,8 +487,10 @@ class Hooks:
             self._done()
 
         except Exception as e:
-            self.logger.error(f"Error in success_hook: {e}")
-            raise RuntimeError(f"success_hook execution failed: {e}") from e
+            error_msg = f"Error in success_hook: {type(e).__name__} - {str(e)}"
+            self.logger.error(f"{error_msg})")
+            return
+
         self.logger.debug("Hooks.success_hook() ended")
 
 
@@ -466,9 +564,9 @@ if __name__ == "__main__":
     )
 
     # a Failure message
-    request_key = generate_random_string(logger, 12)
-    h = Hooks(logger)
-    h.post_hook(request_key, "", csr, "urn:ietf:params:acme:error:rejectedIdentifier")
+    # request_key = generate_random_string(logger, 12)
+    # h = Hooks(logger)
+    # h.post_hook(request_key, "", csr, "urn:ietf:params:acme:error:rejectedIdentifier")
 
     # a Success message
     request_key = generate_random_string(logger, 12)
