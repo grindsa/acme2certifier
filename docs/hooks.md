@@ -21,6 +21,8 @@ Creating your own hook handler is straightforward. All you need to do is create 
 
 The [skeleton_hooks.py](../examples/hooks/skeleton_hooks.py) file contains a template that can be used to create a customized handler.
 
+Further there is an [Email Hook](../examples/hooks/email_hooks.py) sending emails in case of successful or failed certificate enrollments.
+
 The following code describes the different input parameters provided by `acme2certifier`, as well as the expected return values:
 
 ```python
