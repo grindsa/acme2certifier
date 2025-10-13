@@ -2226,6 +2226,34 @@ def eab_profile_subject_check(
     return error
 
 
+def eab_profile_revocation_check(
+    logger: logging.Logger, cahandler, certificate_raw: str
+):
+    """check eab profile for revocation"""
+    logger.debug("Helper.eab_profile_revocation_check()")
+    with cahandler.eab_handler(logger) as eab_handler:
+        eab_profile_dic = eab_handler.eab_profile_get(
+            b64_url_recode(logger, certificate_raw), revocation=True
+        )
+        for key, value in eab_profile_dic.items():
+            if key in ["subject", "allowed_domainlist"]:
+                continue
+            elif isinstance(value, str):
+                eab_profile_string_check(logger, cahandler, key, value)
+            elif isinstance(value, list):
+                # check if we need to execute a function from the handler
+                if "eab_profile_list_check" in dir(cahandler):
+                    _result = cahandler.eab_profile_list_check(
+                        eab_handler, certificate_raw, key, value
+                    )
+                else:
+                    _result = eab_profile_list_check(
+                        logger, cahandler, eab_handler, certificate_raw, key, value
+                    )
+
+    logger.debug("Helper.eab_profile_revocation_check() ended")
+
+
 def eab_profile_check(
     logger: logging.Logger, cahandler, csr: str, handler_hifield: str
 ) -> str:
@@ -2467,3 +2495,20 @@ def radomize_parameter_list(
         # set parameter values
         for parameter, value_list in tmp_dic.items():
             setattr(ca_handler, parameter, value_list[index])
+
+
+def handler_config_check(logger, handler, parameterlist) -> str:
+    """check if handler config is valid"""
+    logger.debug("CAhandler._config_check()")
+    error = None
+
+    error = None
+    for ele in parameterlist:
+        if not getattr(handler, ele):
+
+            error = f"{ele} parameter is missing in config file"
+            logger.error("Configuration check ended with error: %s", error)
+            break
+
+    logger.debug("CAhandler._config_check() ended with %s", error)
+    return error
