@@ -469,7 +469,7 @@ class Order(object):
         elif "status" in order_dic and order_dic["status"] == "valid":
             # this is polling request via finalize call; lookup certificate
             self.logger.debug(
-                "Order._finalize(): order is already valid - we should never endup here - lookup certificate"
+                "Order._finalize(): kind of polling request - order is already valid - lookup certificate"
             )
             code = 200
             try:
