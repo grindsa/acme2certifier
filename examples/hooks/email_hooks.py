@@ -45,26 +45,25 @@ Configuration options:
 import smtplib
 import sys
 
-# noqa: E402
 sys.path.insert(0, "...")
 sys.path.insert(1, "..")
 sys.path.insert(2, ".")
 
-from acme_srv.helper import (
+from acme_srv.helper import (  # noqa: E402
     load_config,
     cert_san_get,
     csr_san_get,
     build_pem_file,
 )
 
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.utils import formatdate
+from email.mime.application import MIMEApplication  # noqa: E402
+from email.mime.multipart import MIMEMultipart  # noqa: E402
+from email.mime.text import MIMEText  # noqa: E402
+from email.utils import formatdate  # noqa: E402
 
-from cryptography import x509
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization import pkcs12
+from cryptography import x509  # noqa: E402
+from cryptography.hazmat.primitives import serialization  # noqa: E402
+from cryptography.hazmat.primitives.serialization import pkcs12  # noqa: E402
 
 
 class Hooks:
