@@ -284,7 +284,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_get.called)
         self.assertTrue(mock_post.called)
 
-    @patch('sys.__excepthook__')
+    @patch("sys.__excepthook__")
     def test_025_handle_exception_keyboard_interrupt(self, mock_excepthook):
         """test handle_exception with KeyboardInterrupt - should call sys.__excepthook__"""
         exc_type = KeyboardInterrupt
@@ -298,9 +298,10 @@ class TestACMEHandler(unittest.TestCase):
         # Verify function returned None (early return)
         self.assertIsNone(result)
 
-    @patch('sys.__excepthook__')
+    @patch("sys.__excepthook__")
     def test_026_handle_exception_keyboard_interrupt_subclass(self, mock_excepthook):
         """test handle_exception with KeyboardInterrupt subclass"""
+
         class CustomKeyboardInterrupt(KeyboardInterrupt):
             pass
 
@@ -314,8 +315,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_excepthook.assert_called_once_with(exc_type, exc_value, exc_traceback)
         self.assertIsNone(result)
 
-    @patch('examples.acme2certifier_wsgi.LOGGER')
-    @patch('sys.__excepthook__')
+    @patch("examples.acme2certifier_wsgi.LOGGER")
+    @patch("sys.__excepthook__")
     def test_027_handle_exception_regular_exception(self, mock_excepthook, mock_logger):
         """test handle_exception with regular exception - should log via LOGGER"""
         exc_type = ValueError
@@ -329,13 +330,12 @@ class TestACMEHandler(unittest.TestCase):
 
         # Verify that LOGGER.exception was called with correct parameters
         mock_logger.exception.assert_called_once_with(
-            "Uncaught exception",
-            exc_info=(exc_type, exc_value, exc_traceback)
+            "Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback)
         )
         self.assertIsNone(result)
 
-    @patch('examples.acme2certifier_wsgi.LOGGER')
-    @patch('sys.__excepthook__')
+    @patch("examples.acme2certifier_wsgi.LOGGER")
+    @patch("sys.__excepthook__")
     def test_028_handle_exception_runtime_error(self, mock_excepthook, mock_logger):
         """test handle_exception with RuntimeError"""
         exc_type = RuntimeError
@@ -346,13 +346,12 @@ class TestACMEHandler(unittest.TestCase):
 
         mock_excepthook.assert_not_called()
         mock_logger.exception.assert_called_once_with(
-            "Uncaught exception",
-            exc_info=(exc_type, exc_value, exc_traceback)
+            "Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback)
         )
         self.assertIsNone(result)
 
-    @patch('examples.acme2certifier_wsgi.LOGGER')
-    @patch('sys.__excepthook__')
+    @patch("examples.acme2certifier_wsgi.LOGGER")
+    @patch("sys.__excepthook__")
     def test_029_handle_exception_system_exit(self, mock_excepthook, mock_logger):
         """test handle_exception with SystemExit - should log, not call excepthook"""
         exc_type = SystemExit
@@ -364,14 +363,15 @@ class TestACMEHandler(unittest.TestCase):
         # SystemExit is not a subclass of KeyboardInterrupt, so should log
         mock_excepthook.assert_not_called()
         mock_logger.exception.assert_called_once_with(
-            "Uncaught exception",
-            exc_info=(exc_type, exc_value, exc_traceback)
+            "Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback)
         )
         self.assertIsNone(result)
 
-    @patch('examples.acme2certifier_wsgi.LOGGER')
-    @patch('sys.__excepthook__')
-    def test_030_handle_exception_exc_info_tuple_format(self, mock_excepthook, mock_logger):
+    @patch("examples.acme2certifier_wsgi.LOGGER")
+    @patch("sys.__excepthook__")
+    def test_030_handle_exception_exc_info_tuple_format(
+        self, mock_excepthook, mock_logger
+    ):
         """test that exc_info is passed as correct tuple format"""
         exc_type = RuntimeError
         exc_value = RuntimeError("Test runtime error")
@@ -384,8 +384,8 @@ class TestACMEHandler(unittest.TestCase):
         call_args = mock_logger.exception.call_args
 
         # Check the exc_info keyword argument
-        self.assertIn('exc_info', call_args.kwargs)
-        exc_info_tuple = call_args.kwargs['exc_info']
+        self.assertIn("exc_info", call_args.kwargs)
+        exc_info_tuple = call_args.kwargs["exc_info"]
 
         # Verify it's a tuple with 3 elements
         self.assertIsInstance(exc_info_tuple, tuple)
@@ -412,12 +412,14 @@ class TestACMEHandler(unittest.TestCase):
 
         for exc_type, should_call_excepthook in test_cases:
             with self.subTest(exc_type=exc_type):
-                with patch('examples.acme2certifier_wsgi.LOGGER') as mock_logger:
-                    with patch('sys.__excepthook__') as mock_excepthook:
+                with patch("examples.acme2certifier_wsgi.LOGGER") as mock_logger:
+                    with patch("sys.__excepthook__") as mock_excepthook:
                         exc_value = exc_type("Test exception")
                         exc_traceback = Mock()
 
-                        result = self.handle_exception(exc_type, exc_value, exc_traceback)
+                        result = self.handle_exception(
+                            exc_type, exc_value, exc_traceback
+                        )
 
                         if should_call_excepthook:
                             mock_excepthook.assert_called_once()
