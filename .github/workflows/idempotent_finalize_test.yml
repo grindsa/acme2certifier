@@ -1,4 +1,4 @@
-name: tests for idempotent_finalize option
+name: Idempotent_finalize option tests
 
 on:
   push:
