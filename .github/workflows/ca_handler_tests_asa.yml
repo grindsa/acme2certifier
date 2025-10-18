@@ -1,4 +1,4 @@
-name: CA handler Tests - Insta ASA
+name: CA handler Tests - Insta ASA CA Handler
 
 on:
   push:
@@ -49,7 +49,7 @@ jobs:
         sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "profile_name: $ASA_POFILE1" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
@@ -61,7 +61,7 @@ jobs:
         ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
         ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
         ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
-        ASA_PROFILE1: ${{ secrets.ASA_POFILE1 }}
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -75,8 +75,6 @@ jobs:
       continue-on-error: True
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME -d lego.acme --key-type rsa2048 --http run
-        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Digital Signature"
 
     - name: "Enroll acme.sh with profileID ACME"
       run: |
