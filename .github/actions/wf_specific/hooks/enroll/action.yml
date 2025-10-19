@@ -1,0 +1,103 @@
+name: "acme_email_enroll"
+description: "acme_email_enroll"
+inputs:
+  NAME_SPACE:
+    description: "namespace"
+    required: false
+    default: "acme"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: false
+    default: "container"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  HTTP_PORT:
+    description: "ACME server HTTP port"
+    required: false
+    default: "80"
+  HTTPS_PORT:
+    description: "ACME server HTTPS port"
+    required: false
+    default: "443"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Test if http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://$ACME_SERVER:$HTTP_PORT/directory
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTP_PORT: ${{ inputs.HTTP_PORT }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SERVER:$HTTPS_PORT/directory
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTP_PORT: ${{ inputs.HTTP_PORT }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Successful Enrollment triggering email success hook"
+    run: |
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+    shell: bash
+
+  - name: "Sleep for 15s to allow email to be sent"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 15s
+
+  - name: "Check logs for success hook"
+    working-directory: examples/Docker/
+    run: |
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "Email notification sent successfully to"
+        docker compose logs | grep "\[ACME\] acme2certifier success"
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "acme2certifier success"
+      fi
+    shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+  - name: "Failed Enrollment triggering email post_hook hook"
+    continue-on-error: true
+    id: legofail01
+    run: |
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.unknown --http run
+    shell: bash
+
+  - name: "check  result "
+    if: ${{ steps.legofail01.outcome != 'failure' }}
+    run: |
+      echo "legofail outcome is ${{steps.legofail01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Check logs for post_hook (failed)"
+    working-directory: examples/Docker/
+    run: |
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "\[ACME\] acme2certifier failure"
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "acme2certifier failure"
+      fi
+    shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
