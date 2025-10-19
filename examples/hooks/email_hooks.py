@@ -9,7 +9,7 @@ Example config:
 [Hooks]
 hooks_file: email_hooks.py
 appname: acme2certifier
-sender: acme2certifier@acme.example.com
+email_address: acme2certifier@acme.example.com
 rcpt: admin@example.com
 report_failures: True
 report_successes: False
@@ -19,12 +19,27 @@ smtp_server: localhost
 smtp_port: 25
 subject_prefix: [ACME]
 smtp_timeout: 30
-smtp_username: your_smtp_user
-smtp_password: your_smtp_password
+username: your_smtp_user
+password: your_smtp_password
 smtp_use_tls: True
 smtp_use_starttls: False
 
+Alternative config (using DEFAULT section):
+
+[DEFAULT]
+appname: acme2certifier
+email_address: acme2certifier@acme.example.com
+rcpt: admin@example.com
+smtp_server: localhost
+smtp_port: 25
+
+[Hooks]
+hooks_file: email_hooks.py
+# Other settings inherited from DEFAULT
+
 Configuration options:
+Configuration parameters can be placed in either the [Hooks] section or the [DEFAULT] section.
+Parameters in the [Hooks] section take precedence over those in [DEFAULT].
 - hooks_file: Path to this hooks file (required)
 - appname: Application name for email headers (required)
 - sender: Email sender address (required)
@@ -35,8 +50,8 @@ Configuration options:
 - smtp_port: SMTP server port (default: 25)
 - subject_prefix: Prefix for email subjects (optional)
 - smtp_timeout: SMTP connection timeout in seconds (default: 30)
-- smtp_username: SMTP authentication username (optional, defaults to sender email if password is provided)
-- smtp_password: SMTP authentication password (optional)
+- username: SMTP authentication username (optional, defaults to sender email if password is provided)
+- password: SMTP authentication password (optional)
 - smtp_use_tls: Use TLS/SSL encryption (default: False for port 25, True for 465/587)
 - smtp_use_starttls: Use STARTTLS encryption (default: False)
 
@@ -45,26 +60,25 @@ Configuration options:
 import smtplib
 import sys
 
-# noqa: E402
 sys.path.insert(0, "...")
 sys.path.insert(1, "..")
 sys.path.insert(2, ".")
 
-from acme_srv.helper import (
+from acme_srv.helper import (  # noqa: E402
     load_config,
     cert_san_get,
     csr_san_get,
     build_pem_file,
 )
 
-from email.mime.application import MIMEApplication
-from email.mime.multipart import MIMEMultipart
-from email.mime.text import MIMEText
-from email.utils import formatdate
+from email.mime.application import MIMEApplication  # noqa: E402
+from email.mime.multipart import MIMEMultipart  # noqa: E402
+from email.mime.text import MIMEText  # noqa: E402
+from email.utils import formatdate  # noqa: E402
 
-from cryptography import x509
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.serialization import pkcs12
+from cryptography import x509  # noqa: E402
+from cryptography.hazmat.primitives import serialization  # noqa: E402
+from cryptography.hazmat.primitives.serialization import pkcs12  # noqa: E402
 
 
 class Hooks:
@@ -90,48 +104,86 @@ class Hooks:
         if not self.config_dic:
             raise ValueError("Configuration dictionary is empty or None")
 
-        if "Hooks" not in self.config_dic:
-            raise ValueError("Missing 'Hooks' section in configuration.")
+        if "Hooks" not in self.config_dic and "DEFAULT" not in self.config_dic:
+            raise ValueError("Missing 'Hooks' or 'DEFAULT' section in configuration.")
 
         # Mandatory keys with validation
-        required_keys = ["appname", "sender", "rcpt"]
+        required_keys = ["appname"]
         missing = []
         empty = []
 
         for key in required_keys:
-            if key not in self.config_dic["Hooks"]:
+            value = self._get_config_value(key)
+            if value is None:
                 missing.append(key)
-            elif not self.config_dic["Hooks"][key].strip():
+            elif not value.strip():
                 empty.append(key)
 
         if missing:
             raise ValueError(
-                f"Missing required configuration key(s) in [Hooks]: {', '.join(missing)}"
+                f"Missing required configuration key(s) in [Hooks] or [DEFAULT]: {', '.join(missing)}"
             )
         if empty:
-            raise ValueError(
-                f"Empty required configuration key(s) in [Hooks]: {', '.join(empty)}"
-            )
+            raise ValueError(f"Empty required configuration key(s): {', '.join(empty)}")
 
         self.logger.debug("Hooks._validate_configuration() ended successfully")
+
+    def _get_config_value(self, key: str, fallback=None):
+        """Get configuration value from 'Hooks' section first, then 'DEFAULT' section"""
+        # First try 'Hooks' section
+        if "Hooks" in self.config_dic and key in self.config_dic["Hooks"]:
+            return self.config_dic["Hooks"][key]
+
+        # Then try 'DEFAULT' section
+        if "DEFAULT" in self.config_dic and key in self.config_dic["DEFAULT"]:
+            return self.config_dic["DEFAULT"][key]
+
+        # Return fallback if not found in either section
+        return fallback
+
+    def _get_config_int(self, key: str, fallback=None):
+        """Get integer configuration value from 'Hooks' or 'DEFAULT' section"""
+        value = self._get_config_value(key, fallback)
+        if value is None:
+            return fallback
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return fallback
+
+    def _get_config_boolean(self, key: str, fallback=None):
+        """Get boolean configuration value from 'Hooks' or 'DEFAULT' section"""
+        value = self._get_config_value(key, fallback)
+        if value is None:
+            return fallback
+        if isinstance(value, bool):
+            return value
+        return str(value).strip().lower() in ("true", "1", "yes", "on")
 
     def _validate_smtp_configuration(self) -> None:
         """Validate SMTP-specific configuration"""
         self.logger.debug("Hooks._validate_smtp_configuration()")
 
         # Validate SMTP port
-        smtp_port = self.config_dic.getint("Hooks", "smtp_port", fallback=25)
+        smtp_port = self._get_config_int("smtp_port", 25)
 
         # Validate SMTP timeout
-        smtp_timeout = self.config_dic.getint("Hooks", "smtp_timeout", fallback=30)
+        smtp_timeout = self._get_config_int("smtp_timeout", 0)
+        if not smtp_timeout:
+            smtp_timeout = self._get_config_int("connection_timeout", 30)
+
         if smtp_timeout <= 0 or smtp_timeout > 300:
             self.logger.error(
                 f"Invalid SMTP timeout: {smtp_timeout}. Must be between 1-300 seconds"
             )
 
         # Validate authentication configuration
-        smtp_username = self.config_dic.get("Hooks", "smtp_username", fallback=None)
-        smtp_password = self.config_dic.get("Hooks", "smtp_password", fallback=None)
+        smtp_username = self._get_config_value("smtp_username", None)
+        if not smtp_username:
+            smtp_username = self._get_config_value("username", None)
+        smtp_password = self._get_config_value("smtp_password", None)
+        if not smtp_password:  #
+            smtp_password = self._get_config_value("password", None)
 
         # Check if password is provided without username (we'll use sender as username)
         if smtp_password and not smtp_username:
@@ -142,12 +194,8 @@ class Hooks:
             self.logger.error("SMTP username provided but password is missing")
 
         # Warn about common configuration issues
-        smtp_use_tls = self.config_dic.getboolean(
-            "Hooks", "smtp_use_tls", fallback=False
-        )
-        smtp_use_starttls = self.config_dic.getboolean(
-            "Hooks", "smtp_use_starttls", fallback=False
-        )
+        smtp_use_tls = self._get_config_boolean("smtp_use_tls", False)
+        smtp_use_starttls = self._get_config_boolean("smtp_use_starttls", False)
 
         if smtp_use_tls and smtp_use_starttls:
             self.logger.warning(
@@ -170,9 +218,11 @@ class Hooks:
     def _load_configuration(self) -> None:
         """Load and assign configuration values"""
         self.logger.debug("Hooks._load_configuration()")
-        self.appname = self.config_dic["Hooks"]["appname"].strip()
-        self.sender = self.config_dic["Hooks"]["sender"].strip()
-        self.rcpt = self.config_dic["Hooks"]["rcpt"].strip()
+        self.appname = self._get_config_value("appname").strip()
+        self.sender = self._get_config_value("sender")
+        if not self.sender:
+            self.sender = self._get_config_value("email_address", None)
+        self.rcpt = self._get_config_value("rcpt")
 
         # Optionals, that default to True
         self.report_failures = self.config_dic.getboolean(
@@ -183,22 +233,18 @@ class Hooks:
         )
 
         # Additional email configuration options
-        self.smtp_server = self.config_dic.get(
-            "Hooks", "smtp_server", fallback="localhost"
-        )
-        self.smtp_port = self.config_dic.getint("Hooks", "smtp_port", fallback=25)
-        self.email_subject_prefix = self.config_dic.get(
-            "Hooks", "subject_prefix", fallback=""
-        )
-        self.smtp_timeout = self.config_dic.getint("Hooks", "smtp_timeout", fallback=30)
+        self.smtp_server = self._get_config_value("smtp_server", "localhost")
+        self.smtp_port = self._get_config_int("smtp_port", 25)
+        self.email_subject_prefix = self._get_config_value("subject_prefix", "")
+        self.smtp_timeout = self._get_config_int("smtp_timeout", 30)
 
         # SMTP Authentication configuration
-        self.smtp_username = self.config_dic.get(
-            "Hooks", "smtp_username", fallback=None
-        )
-        self.smtp_password = self.config_dic.get(
-            "Hooks", "smtp_password", fallback=None
-        )
+        self.smtp_username = self._get_config_value("smtp_username", None)
+        if not self.smtp_username:
+            self.smtp_username = self._get_config_value("username", None)
+        self.smtp_password = self._get_config_value("smtp_password", None)
+        if not self.smtp_password:
+            self.smtp_password = self._get_config_value("password", None)
 
         # Use sender email as username if no explicit username provided but password is set
         if not self.smtp_username and self.smtp_password:
@@ -208,12 +254,8 @@ class Hooks:
             )
 
         # SMTP Security configuration
-        self.smtp_use_tls = self.config_dic.getboolean(
-            "Hooks", "smtp_use_tls", fallback=True
-        )
-        self.smtp_use_starttls = self.config_dic.getboolean(
-            "Hooks", "smtp_use_starttls", fallback=False
-        )
+        self.smtp_use_tls = self._get_config_boolean("smtp_use_tls", True)
+        self.smtp_use_starttls = self._get_config_boolean("smtp_use_starttls", False)
 
         self._setup_email_envelope()
         self.logger.debug("Hooks._load_configuration() ended")
@@ -439,10 +481,9 @@ class Hooks:
         self.logger.debug("Hooks._format_message_header() ended")
         return "\n".join(header_lines)
 
-    def pre_hook(self, _certificate_name, _order_name, csr) -> None:
+    def pre_hook(self, _certificate_name, _order_name, _csr) -> None:
         """Hook called before certificate processing - currently no action needed"""
         self.logger.debug("Hook.pre_hook() called - no action required")
-        pass
 
     def post_hook(self, request_key, _order_name, csr, error) -> None:
         """run after *attempting* to obtain/renew certificates"""
@@ -512,15 +553,23 @@ class Hooks:
                         certificate.encode("utf-8")
                     )
                     if cert_list:
-                        self.logger.debug("Hook.success_hook(): Parsing certificate details for email")
+                        self.logger.debug(
+                            "Hook.success_hook(): Parsing certificate details for email"
+                        )
                         cert = cert_list[0]
                         success_details += f"\nSerial Number: {cert.serial_number}"
                         try:
-                            success_details += f"\nValid From: {cert.not_valid_before_utc}"
-                            success_details += f"\nValid Until: {cert.not_valid_after_utc}"
+                            success_details += (
+                                f"\nValid From: {cert.not_valid_before_utc}"
+                            )
+                            success_details += (
+                                f"\nValid Until: {cert.not_valid_after_utc}"
+                            )
                         except Exception:
                             # fallback to older cryptography versions
-                            self.logger.debug("Hook.success_hook(): Falling back to not_valid_before and not_valid_after for certificate dates")
+                            self.logger.debug(
+                                "Hook.success_hook(): Falling back to not_valid_before and not_valid_after for certificate dates"
+                            )
                             success_details += f"\nValid From: {cert.not_valid_before}"
                             success_details += f"\nValid Until: {cert.not_valid_after}"
                 except Exception as e:
