@@ -435,9 +435,261 @@ class TestHooks(unittest.TestCase):
             self.assertEqual(h.rcpt, "admin@example.com")  # From Hooks
             self.assertEqual(h.smtp_server, "default.smtp.com")  # From DEFAULT
 
+    def test_064_get_config_int_from_hooks_section(self):
+        """_get_config_int retrieves integer value from Hooks section"""
+        from examples.hooks.email_hooks import Hooks
+        cfg = {
+            "DEFAULT": {
+                "smtp_port": "25",
+                "timeout": "60"
+            },
+            "Hooks": {
+                "appname": "test-app",
+                "sender": "test@example.com",
+                "rcpt": "admin@example.com",
+                "smtp_port": "465",  # Should override DEFAULT
+                "connection_timeout": "30"
+            }
+        }
+        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+            h = Hooks(self.logger)
+            # Test values from Hooks section
+            self.assertEqual(h._get_config_int("smtp_port"), 465)
+            self.assertEqual(h._get_config_int("connection_timeout"), 30)
+            # Test value from DEFAULT section when not in Hooks
+            self.assertEqual(h._get_config_int("timeout"), 60)
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_065_get_config_int_fallback_to_default_section(self):
+        """_get_config_int falls back to DEFAULT section when key not in Hooks"""
+        from examples.hooks.email_hooks import Hooks
+        cfg = {
+            "DEFAULT": {
+                "smtp_port": "587",
+                "smtp_timeout": "45"
+            },
+            "Hooks": {
+                "appname": "test-app",
+                "sender": "test@example.com",
+                "rcpt": "admin@example.com"
+                # No smtp_port or smtp_timeout in Hooks
+            }
+        }
+        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+            h = Hooks(self.logger)
+            # Values should come from DEFAULT section
+            self.assertEqual(h._get_config_int("smtp_port"), 587)
+            self.assertEqual(h._get_config_int("smtp_timeout"), 45)
+
+    def test_066_get_config_int_with_fallback_value(self):
+        """_get_config_int returns fallback when key not found in either section"""
+        from examples.hooks.email_hooks import Hooks
+        cfg = {
+            "Hooks": {
+                "appname": "test-app",
+                "sender": "test@example.com",
+                "rcpt": "admin@example.com"
+            }
+        }
+        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+            h = Hooks(self.logger)
+            # Should return fallback value
+            self.assertEqual(h._get_config_int("missing_key", 999), 999)
+            self.assertIsNone(h._get_config_int("missing_key"))
+
+    def test_067_get_config_int_invalid_conversion(self):
+        """_get_config_int returns fallback when value cannot be converted to int"""
+        from examples.hooks.email_hooks import Hooks
+        cfg = {
+            "Hooks": {
+                "appname": "test-app",
+                "sender": "test@example.com",
+                "rcpt": "admin@example.com",
+                "invalid_port": "not_a_number",
+                "float_value": "25.5"
+            }
+        }
+        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+            h = Hooks(self.logger)
+            # Should return fallback for invalid values
+            self.assertEqual(h._get_config_int("invalid_port", 25), 25)
+            self.assertEqual(h._get_config_int("float_value", 80), 80)
+            self.assertIsNone(h._get_config_int("invalid_port"))
+
+    def test_068_get_config_int_edge_cases(self):
+        """_get_config_int handles edge cases like empty strings and zero"""
+        from examples.hooks.email_hooks import Hooks
+        cfg = {
+            "DEFAULT": {
+                "zero_value": "0",
+                "negative_value": "-1"
+            },
+            "Hooks": {
+                "appname": "test-app",
+                "sender": "test@example.com",
+                "rcpt": "admin@example.com",
+                "empty_value": "",
+                "whitespace_value": "  123  "
+            }
+        }
+        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+            h = Hooks(self.logger)
+            # Valid conversions
+            self.assertEqual(h._get_config_int("zero_value"), 0)
+            self.assertEqual(h._get_config_int("negative_value"), -1)
+            self.assertEqual(h._get_config_int("whitespace_value"), 123)
+            # Empty string should return fallback
+            self.assertEqual(h._get_config_int("empty_value", 42), 42)
+
+    def test_069_get_config_boolean_from_hooks_section(self):
+        """_get_config_boolean retrieves boolean value from Hooks section"""
+        from examples.hooks.email_hooks import Hooks
+        cfg = {
+            "DEFAULT": {
+                "ssl_use": "false",
+                "debug_mode": "0"
+            },
+            "Hooks": {
+                "appname": "test-app",
+                "sender": "test@example.com",
+                "rcpt": "admin@example.com",
+                "ssl_use": "true",  # Should override DEFAULT
+                "smtp_use_starttls": "yes"
+            }
+        }
+        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+            h = Hooks(self.logger)
+            # Test values from Hooks section
+            self.assertTrue(h._get_config_boolean("ssl_use"))
+            self.assertTrue(h._get_config_boolean("smtp_use_starttls"))
+            # Test value from DEFAULT section when not in Hooks
+            self.assertFalse(h._get_config_boolean("debug_mode"))
+
+    def test_070_get_config_boolean_fallback_to_default_section(self):
+        """_get_config_boolean falls back to DEFAULT section when key not in Hooks"""
+        from examples.hooks.email_hooks import Hooks
+        cfg = {
+            "DEFAULT": {
+                "smtp_use_tls": "true",
+                "ssl_noverify": "1"
+            },
+            "Hooks": {
+                "appname": "test-app",
+                "sender": "test@example.com",
+                "rcpt": "admin@example.com"
+                # No boolean values in Hooks
+            }
+        }
+        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+            h = Hooks(self.logger)
+            # Values should come from DEFAULT section
+            self.assertTrue(h._get_config_boolean("smtp_use_tls"))
+            self.assertTrue(h._get_config_boolean("ssl_noverify"))
+
+    def test_071_get_config_boolean_various_true_values(self):
+        """_get_config_boolean recognizes various true value formats"""
+        from examples.hooks.email_hooks import Hooks
+        cfg = {
+            "Hooks": {
+                "appname": "test-app",
+                "sender": "test@example.com",
+                "rcpt": "admin@example.com",
+                "bool_true": "true",
+                "bool_True": "True",
+                "bool_TRUE": "TRUE",
+                "bool_1": "1",
+                "bool_yes": "yes",
+                "bool_YES": "YES",
+                "bool_on": "on",
+                "bool_ON": "ON",
+                "bool_with_spaces": "  true  "
+            }
+        }
+        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+            h = Hooks(self.logger)
+            # All should evaluate to True
+            self.assertTrue(h._get_config_boolean("bool_true"))
+            self.assertTrue(h._get_config_boolean("bool_True"))
+            self.assertTrue(h._get_config_boolean("bool_TRUE"))
+            self.assertTrue(h._get_config_boolean("bool_1"))
+            self.assertTrue(h._get_config_boolean("bool_yes"))
+            self.assertTrue(h._get_config_boolean("bool_YES"))
+            self.assertTrue(h._get_config_boolean("bool_on"))
+            self.assertTrue(h._get_config_boolean("bool_ON"))
+            self.assertTrue(h._get_config_boolean("bool_with_spaces"))
+
+    def test_072_get_config_boolean_various_false_values(self):
+        """_get_config_boolean recognizes various false value formats"""
+        from examples.hooks.email_hooks import Hooks
+        cfg = {
+            "Hooks": {
+                "appname": "test-app",
+                "sender": "test@example.com",
+                "rcpt": "admin@example.com",
+                "bool_false": "false",
+                "bool_False": "False",
+                "bool_FALSE": "FALSE",
+                "bool_0": "0",
+                "bool_no": "no",
+                "bool_NO": "NO",
+                "bool_off": "off",
+                "bool_OFF": "OFF",
+                "bool_empty": "",
+                "bool_random": "random_text"
+            }
+        }
+        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+            h = Hooks(self.logger)
+            # All should evaluate to False
+            self.assertFalse(h._get_config_boolean("bool_false"))
+            self.assertFalse(h._get_config_boolean("bool_False"))
+            self.assertFalse(h._get_config_boolean("bool_FALSE"))
+            self.assertFalse(h._get_config_boolean("bool_0"))
+            self.assertFalse(h._get_config_boolean("bool_no"))
+            self.assertFalse(h._get_config_boolean("bool_NO"))
+            self.assertFalse(h._get_config_boolean("bool_off"))
+            self.assertFalse(h._get_config_boolean("bool_OFF"))
+            self.assertFalse(h._get_config_boolean("bool_empty"))
+            self.assertFalse(h._get_config_boolean("bool_random"))
+
+    def test_073_get_config_boolean_with_fallback_value(self):
+        """_get_config_boolean returns fallback when key not found in either section"""
+        from examples.hooks.email_hooks import Hooks
+        cfg = {
+            "Hooks": {
+                "appname": "test-app",
+                "sender": "test@example.com",
+                "rcpt": "admin@example.com"
+            }
+        }
+        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+            h = Hooks(self.logger)
+            # Should return fallback value
+            self.assertTrue(h._get_config_boolean("missing_key", True))
+            self.assertFalse(h._get_config_boolean("missing_key", False))
+            self.assertIsNone(h._get_config_boolean("missing_key"))
+
+    def test_074_get_config_boolean_already_boolean_type(self):
+        """_get_config_boolean handles values that are already boolean type"""
+        from examples.hooks.email_hooks import Hooks
+
+        cfg = {
+            "Hooks": {
+                "appname": "test-app",
+                "sender": "test@example.com",
+                "rcpt": "admin@example.com",
+                "bool_true": True,  # Actual boolean, not string
+                "bool_false": False  # Actual boolean, not string
+            }
+        }
+
+        # Extend DummyConfig to handle boolean types
+        config = DummyConfig(cfg)
+
+        with patch("examples.hooks.email_hooks.load_config", return_value=config):
+            h = Hooks(self.logger)
+            # Should handle actual boolean values correctly
+            self.assertTrue(h._get_config_boolean("bool_true"))
+            self.assertFalse(h._get_config_boolean("bool_false"))
 
     def test_021_done_handles_exception_and_logs_error(self):
         self.hooks.smtp_use_tls = True
