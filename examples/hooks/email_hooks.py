@@ -9,7 +9,7 @@ Example config:
 [Hooks]
 hooks_file: email_hooks.py
 appname: acme2certifier
-sender: acme2certifier@acme.example.com
+email_address: acme2certifier@acme.example.com
 rcpt: admin@example.com
 report_failures: True
 report_successes: False
@@ -19,8 +19,8 @@ smtp_server: localhost
 smtp_port: 25
 subject_prefix: [ACME]
 smtp_timeout: 30
-smtp_username: your_smtp_user
-smtp_password: your_smtp_password
+username: your_smtp_user
+password: your_smtp_password
 smtp_use_tls: True
 smtp_use_starttls: False
 
@@ -28,7 +28,7 @@ Alternative config (using DEFAULT section):
 
 [DEFAULT]
 appname: acme2certifier
-sender: acme2certifier@acme.example.com
+email_address: acme2certifier@acme.example.com
 rcpt: admin@example.com
 smtp_server: localhost
 smtp_port: 25
@@ -50,8 +50,8 @@ Parameters in the [Hooks] section take precedence over those in [DEFAULT].
 - smtp_port: SMTP server port (default: 25)
 - subject_prefix: Prefix for email subjects (optional)
 - smtp_timeout: SMTP connection timeout in seconds (default: 30)
-- smtp_username: SMTP authentication username (optional, defaults to sender email if password is provided)
-- smtp_password: SMTP authentication password (optional)
+- username: SMTP authentication username (optional, defaults to sender email if password is provided)
+- password: SMTP authentication password (optional)
 - smtp_use_tls: Use TLS/SSL encryption (default: False for port 25, True for 465/587)
 - smtp_use_starttls: Use STARTTLS encryption (default: False)
 
@@ -108,7 +108,7 @@ class Hooks:
             raise ValueError("Missing 'Hooks' or 'DEFAULT' section in configuration.")
 
         # Mandatory keys with validation
-        required_keys = ["appname", "sender", "rcpt"]
+        required_keys = ["appname"]
         missing = []
         empty = []
 
@@ -168,7 +168,10 @@ class Hooks:
         smtp_port = self._get_config_int("smtp_port", 25)
 
         # Validate SMTP timeout
-        smtp_timeout = self._get_config_int("smtp_timeout", 30)
+        smtp_timeout = self._get_config_int("smtp_timeout", 0)
+        if not smtp_timeout:
+            smtp_timeout = self._get_config_int("connection_timeout", 30)
+
         if smtp_timeout <= 0 or smtp_timeout > 300:
             self.logger.error(
                 f"Invalid SMTP timeout: {smtp_timeout}. Must be between 1-300 seconds"
@@ -176,7 +179,11 @@ class Hooks:
 
         # Validate authentication configuration
         smtp_username = self._get_config_value("smtp_username", None)
+        if not smtp_username:
+            smtp_username = self._get_config_value("username", None)
         smtp_password = self._get_config_value("smtp_password", None)
+        if not smtp_password:  #
+            smtp_password = self._get_config_value("password", None)
 
         # Check if password is provided without username (we'll use sender as username)
         if smtp_password and not smtp_username:
@@ -212,8 +219,10 @@ class Hooks:
         """Load and assign configuration values"""
         self.logger.debug("Hooks._load_configuration()")
         self.appname = self._get_config_value("appname").strip()
-        self.sender = self._get_config_value("sender").strip()
-        self.rcpt = self._get_config_value("rcpt").strip()
+        self.sender = self._get_config_value("sender")
+        if not self.sender:
+            self.sender = self._get_config_value("email_address", None)
+        self.rcpt = self._get_config_value("rcpt")
 
         # Optionals, that default to True
         self.report_failures = self.config_dic.getboolean(
@@ -231,7 +240,11 @@ class Hooks:
 
         # SMTP Authentication configuration
         self.smtp_username = self._get_config_value("smtp_username", None)
+        if not self.smtp_username:
+            self.smtp_username = self._get_config_value("username", None)
         self.smtp_password = self._get_config_value("smtp_password", None)
+        if not self.smtp_password:
+            self.smtp_password = self._get_config_value("password", None)
 
         # Use sender email as username if no explicit username provided but password is set
         if not self.smtp_username and self.smtp_password:
