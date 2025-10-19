@@ -98,3 +98,30 @@ runs:
         EE_CSR: ${{ inputs.EE_CSR }}
         EE_BUNDLE: ${{ inputs.EE_BUNDLE }}
         CA_BUNDLE: ${{ inputs.CA_BUNDLE }}
+
+    - name: "Generate Django secret key and update settings files"
+      run: |
+        # Generate a new Django secret key
+        DJANGO_SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(50))")
+        echo "Generated Django secret key"
+
+        # Add the secret key to all three Django settings files
+        echo "" >> .github/django_settings.py
+        echo "# SECURITY WARNING: keep the secret key used in production secret!" >> .github/django_settings.py
+        echo "SECRET_KEY = \"$DJANGO_SECRET\"" >> .github/django_settings.py
+
+        echo "" >> .github/django_settings_mariadb.py
+        echo "# SECURITY WARNING: keep the secret key used in production secret!" >> .github/django_settings_mariadb.py
+        echo "SECRET_KEY = \"$DJANGO_SECRET\"" >> .github/django_settings_mariadb.py
+
+        echo "" >> .github/django_settings_psql.py
+        echo "# SECURITY WARNING: keep the secret key used in production secret!" >> .github/django_settings_psql.py
+        echo "SECRET_KEY = \"$DJANGO_SECRET\"" >> .github/django_settings_psql.py
+
+        echo "Django secret key added to all settings files"
+
+        cat .github/django_settings.py
+        cat .github/django_settings_mariadb.py
+        cat .github/django_settings_psql.py
+      shell: bash
+
