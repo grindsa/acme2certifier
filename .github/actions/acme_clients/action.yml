@@ -339,6 +339,7 @@ runs:
       if: ${{ inputs.USE_CERTBOT == 'true' }}
       run: |
         echo "##### HTTP - Enroll certbot #####"
+        sudo rm -rf certbot/*
         if [ "$USE_RSA" == "false" ]; then
           docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://$ACME_SERVER:$HTTP_PORT --standalone --preferred-challenges http --agree-tos -m 'certbot@example.com' -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout 120
         else
@@ -359,6 +360,7 @@ runs:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        USE_RSA: ${{ inputs.USE_RSA }}
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 

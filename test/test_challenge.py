@@ -1674,7 +1674,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_098_config_load(self, mock_load_cfg):
@@ -1689,7 +1690,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_099_config_load(self, mock_load_cfg):
@@ -1704,7 +1706,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_100_config_load(self, mock_load_cfg):
@@ -1719,7 +1722,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_101_config_load(self, mock_load_cfg):
@@ -1734,7 +1738,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_102_config_load(self, mock_load_cfg):
@@ -1749,7 +1754,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_103_config_load(self, mock_load_cfg):
@@ -1764,7 +1770,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("json.loads")
     @patch("acme_srv.challenge.load_config")
@@ -1786,7 +1793,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_105_config_load(self, mock_load_cfg):
@@ -1808,7 +1816,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_106_config_load(self, mock_load_cfg):
@@ -1827,7 +1836,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_107_config_load(self, mock_load_cfg):
@@ -1847,7 +1857,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("json.loads")
     @patch("acme_srv.challenge.load_config")
@@ -1871,7 +1882,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_109_config_load(self, mock_load_cfg):
@@ -1886,7 +1898,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(5, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_110_config_load(self, mock_load_cfg):
@@ -1906,7 +1919,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_111_config_load(self, mock_load_cfg):
@@ -1921,7 +1935,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_112_config_load(self, mock_load_cfg):
@@ -1936,7 +1951,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_113_config_load(self, mock_load_cfg):
@@ -1951,7 +1967,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(20, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_114_config_load(self, mock_load_cfg):
@@ -1971,13 +1988,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_115_config_load(self, mock_load_cfg):
         """test _config_load sectigo_sim"""
         parser = configparser.ConfigParser()
-        parser["Challenge"] = {"source_address_check": True}
+        parser["Challenge"] = {"forward_address_check": True}
         mock_load_cfg.return_value = parser
         self.challenge._config_load()
         self.assertFalse(self.challenge.challenge_validation_disable)
@@ -1986,13 +2004,51 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertTrue(self.challenge.source_address_check)
+        self.assertTrue(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
+
+    @patch("acme_srv.challenge.load_config")
+    def test_215_config_load(self, mock_load_cfg):
+        """test _config_load sectigo_sim"""
+        parser = configparser.ConfigParser()
+        parser["Challenge"] = {"source_address_check": True}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.challenge._config_load()
+        self.assertIn(
+            "WARNING:test_a2c:source_address_check is deprecated, please use forward_address_check instead",
+            lcm.output,
+        )
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.proxy_server_list)
+        self.assertFalse(self.challenge.sectigo_sim)
+        self.assertEqual(10, self.challenge.challenge_validation_timeout)
+        self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertTrue(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
+
+    @patch("acme_srv.challenge.load_config")
+    def test_216_config_load(self, mock_load_cfg):
+        """test _config_load sectigo_sim"""
+        parser = configparser.ConfigParser()
+        parser["Challenge"] = {"reverse_address_check": True}
+        mock_load_cfg.return_value = parser
+        self.challenge._config_load()
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.proxy_server_list)
+        self.assertFalse(self.challenge.sectigo_sim)
+        self.assertEqual(10, self.challenge.challenge_validation_timeout)
+        self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertTrue(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_116_config_load(self, mock_load_cfg):
         """test _config_load sectigo_sim"""
         parser = configparser.ConfigParser()
-        parser["Challenge"] = {"source_address_check": False}
+        parser["Challenge"] = {"forward_address_check": False}
         mock_load_cfg.return_value = parser
         self.challenge._config_load()
         self.assertFalse(self.challenge.challenge_validation_disable)
@@ -2001,7 +2057,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_117_config_load(self, mock_load_cfg):
@@ -2017,9 +2074,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
         self.assertTrue(self.challenge.email_identifier_support)
         self.assertEqual("email@email.com", self.challenge.email_address)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     @patch("acme_srv.challenge.load_config")
     def test_118_config_load(self, mock_load_cfg):
@@ -2034,9 +2092,32 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.challenge.sectigo_sim)
         self.assertEqual(10, self.challenge.challenge_validation_timeout)
         self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
-        self.assertFalse(self.challenge.source_address_check)
+        self.assertFalse(self.challenge.forward_address_check)
         self.assertFalse(self.challenge.email_identifier_support)
         self.assertFalse(self.challenge.email_address)
+        self.assertFalse(self.challenge.reverse_address_check)
+
+    @patch("acme_srv.challenge.load_config")
+    def test_119_config_load(self, mock_load_cfg):
+        """test _config_load sectigo_sim"""
+        parser = configparser.ConfigParser()
+        parser["Order"] = {"email_identifier_support": True}
+        mock_load_cfg.return_value = parser
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.challenge._config_load()
+        self.assertIn(
+            "WARNING:test_a2c:Email identifier support is enabled but no email address is configured. Disabling email identifier support.",
+            lcm.output,
+        )
+        self.assertFalse(self.challenge.challenge_validation_disable)
+        self.assertFalse(self.challenge.tnauthlist_support)
+        self.assertFalse(self.challenge.proxy_server_list)
+        self.assertFalse(self.challenge.sectigo_sim)
+        self.assertEqual(10, self.challenge.challenge_validation_timeout)
+        self.assertEqual(0.5, self.challenge.dns_validation_pause_timer)
+        self.assertFalse(self.challenge.forward_address_check)
+        self.assertFalse(self.challenge.email_identifier_support)
+        self.assertFalse(self.challenge.reverse_address_check)
 
     def test_119__name_get(self):
         """test name get no touch"""
@@ -2078,13 +2159,13 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
         self.assertTrue(mock_aupdate.called)
 
-    @patch("acme_srv.challenge.Challenge._source_address_check")
+    @patch("acme_srv.challenge.Challenge._forward_address_check")
     @patch("acme_srv.challenge.Challenge._update_authz")
     @patch("acme_srv.challenge.Challenge._update")
     def test_124__validate(self, mock_update, mock_aupdate, mock_srcchk):
@@ -2097,14 +2178,14 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
         self.assertTrue(mock_aupdate.called)
         self.assertFalse(mock_srcchk.called)
 
-    @patch("acme_srv.challenge.Challenge._source_address_check")
+    @patch("acme_srv.challenge.Challenge._forward_address_check")
     @patch("acme_srv.challenge.Challenge._update_authz")
     @patch("acme_srv.challenge.Challenge._update")
     def test_125__validate(self, mock_update, mock_aupdate, mock_srcchk):
@@ -2115,11 +2196,11 @@ class TestACMEHandler(unittest.TestCase):
         mock_aupdate.return_value = True
         mock_srcchk.return_value = ["foo1", "foo2"]
         self.challenge.challenge_validation_disable = True
-        self.challenge.source_address_check = True
+        self.challenge.forward_address_check = True
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("foo1", self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -2140,7 +2221,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "INFO:test_a2c:Challenge validation disabled via eab profile. Setting challenge status to valid.",
+            "INFO:test_a2c:Challenge validation disabled via eab profile.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -2160,7 +2241,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -2195,7 +2276,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertTrue(self.challenge._validate(challenge_name, payload))
         self.assertIn(
-            "WARNING:test_a2c:Challenge validation is globally disabled. Setting challenge status to valid.",
+            "WARNING:test_a2c:Challenge validation is globally disabled.",
             lcm.output,
         )
         self.assertTrue(mock_update.called)
@@ -2471,73 +2552,60 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(cfg_load.called)
 
     @patch("acme_srv.challenge.fqdn_resolve")
-    def test_150__source_address_check(self, mock_resolv):
-        """test _source_address_check()"""
+    def test_150__forward_address_check(self, mock_resolv):
+        """test _forward_address_check()"""
         self.challenge.source_address = "ip1"
-        self.challenge.dbstore.challenge_lookup.return_value = {
+        challenge_dic = {
             "authorization__type": "dns",
             "authorization__value": "value",
         }
         mock_resolv.return_value = [["ip1", "ip2"], "invalid"]
         self.assertEqual(
-            (False, True), self.challenge._source_address_check("challenge_name")
+            (False, True),
+            self.challenge._forward_address_check(challenge_dic=challenge_dic),
         )
 
     @patch("acme_srv.challenge.fqdn_resolve")
-    def test_151__source_address_check(self, mock_resolv):
-        """test _source_address_check() fqdn_resolv returns invalid but the ip is in the content"""
+    def test_151__forward_address_check(self, mock_resolv):
+        """test _forward_address_check() fqdn_resolv returns invalid but the ip is in the content"""
         self.challenge.source_address = "ip2"
-        self.challenge.dbstore.challenge_lookup.return_value = {
+        challenge_dic = {
             "authorization__type": "dns",
             "authorization__value": "value",
         }
         mock_resolv.return_value = [["ip1", "ip2"], True]
         self.assertEqual(
-            (False, True), self.challenge._source_address_check("challenge_name")
+            (False, True),
+            self.challenge._forward_address_check(challenge_dic=challenge_dic),
         )
 
     @patch("acme_srv.challenge.fqdn_resolve")
-    def test_152__source_address_check(self, mock_resolv):
-        """test _source_address_check() - ip check fails"""
+    def test_152__forward_address_check(self, mock_resolv):
+        """test _forward_address_check() - ip check fails"""
         self.challenge.source_address = "ip3"
-        self.challenge.dbstore.challenge_lookup.return_value = {
+        challenge_dic = {
             "authorization__type": "dns",
             "authorization__value": "value",
         }
         mock_resolv.return_value = [["ip1", "ip2"], False]
         self.assertEqual(
-            (False, True), self.challenge._source_address_check("challenge_name")
+            (False, True),
+            self.challenge._forward_address_check(challenge_dic=challenge_dic),
         )
 
     @patch("acme_srv.challenge.fqdn_resolve")
-    def test_153__source_address_check(self, mock_resolv):
-        """test _source_address_check()"""
-        self.challenge.source_address = "ip3"
-        self.challenge.dbstore.challenge_lookup.side_effect = Exception("mock_lookup")
-        mock_resolv.return_value = [["ip1", "ip2"], "invalid"]
-
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(
-                (False, False), self.challenge._source_address_check("challenge_name")
-            )
-        self.assertIn(
-            "CRITICAL:test_a2c:Database error: failed to lookup challenge during challenge check:'challenge_name': mock_lookup",
-            lcm.output,
-        )
-        self.assertFalse(mock_resolv.called)
-
-    @patch("acme_srv.challenge.fqdn_resolve")
-    def test_154__source_address_check(self, mock_resolv):
-        """test _source_address_check()"""
+    def test_154__forward_address_check(self, mock_resolv):
+        """test _forward_address_check()"""
         self.challenge.source_address = "ip2"
-        self.challenge.dbstore.challenge_lookup.side_effect = None
-        self.challenge.dbstore.challenge_lookup.return_value = {
+
+        challenge_dic = {
             "authorization__type": "dns",
             "authorization__value": "value",
         }
         mock_resolv.return_value = [["ip1", "ip2"], False]
         self.assertEqual(
-            (True, False), self.challenge._source_address_check("challenge_name")
+            (True, False),
+            self.challenge._forward_address_check(challenge_dic=challenge_dic),
         )
 
     @patch("acme_srv.email_handler.EmailHandler.send")
@@ -2983,6 +3051,244 @@ class TestACMEHandler(unittest.TestCase):
             self.challenge._email_reply_challenge_create("ip", "192.0.2.1")
         )
         self.assertFalse(self.challenge._email_reply_challenge_create("other", "foo"))
+
+    @patch("acme_srv.challenge.fqdn_resolve")
+    def test_181_forward_address_check_success(self, mock_fqdn_resolve):
+        """Simulate DNS resolves to the correct address"""
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.challenge.forward_address_check = True
+        self.challenge.reverse_address_check = False
+        mock_fqdn_resolve.return_value = (["1.2.3.4"], False)
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        result, invalid = self.challenge._source_address_check("test_challenge")
+        self.assertTrue(result)
+        self.assertFalse(invalid)
+
+    @patch("acme_srv.challenge.fqdn_resolve")
+    def test_182_forward_address_check_fail(self, mock_fqdn_resolve):
+        """Simulate DNS resolves to a different address"""
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.challenge.forward_address_check = True
+        self.challenge.reverse_address_check = False
+        mock_fqdn_resolve.return_value = (["5.6.7.8"], False)
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        result, invalid = self.challenge._source_address_check("test_challenge")
+        self.assertFalse(result)
+        self.assertTrue(invalid)
+
+    def test_183_no_challenge_name(self):
+        """No challenge name provided"""
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        result, invalid = self.challenge._source_address_check(None)
+        self.assertTrue(result)
+        self.assertFalse(invalid)
+
+    @patch("acme_srv.challenge.Challenge._forward_address_check")
+    @patch("acme_srv.challenge.Challenge._reverse_address_check")
+    def test_184_reverse_address_check(self, mock_reverse, mock_forward):
+        """Both forward and reverse checks enabled all ok"""
+        mock_forward.return_value = (True, False)
+        mock_reverse.return_value = (True, False)
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.challenge.forward_address_check = True
+        self.challenge.reverse_address_check = True
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        result, invalid = self.challenge._source_address_check("test_challenge")
+        self.assertTrue(result)
+        self.assertFalse(invalid)
+        self.assertTrue(mock_forward.called)
+        self.assertTrue(mock_reverse.called)
+
+    @patch("acme_srv.challenge.Challenge._forward_address_check")
+    @patch("acme_srv.challenge.Challenge._reverse_address_check")
+    def test_185_reverse_address_check(self, mock_reverse, mock_forward):
+        """Both forward and reverse checks enabled forward fails"""
+        mock_forward.return_value = (False, True)
+        mock_reverse.return_value = (True, False)
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.challenge.forward_address_check = True
+        self.challenge.reverse_address_check = True
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        result, invalid = self.challenge._source_address_check("test_challenge")
+        self.assertFalse(result)
+        self.assertTrue(invalid)
+        self.assertTrue(mock_forward.called)
+        self.assertFalse(mock_reverse.called)
+
+    @patch("acme_srv.challenge.Challenge._forward_address_check")
+    @patch("acme_srv.challenge.Challenge._reverse_address_check")
+    def test_186_reverse_address_check(self, mock_reverse, mock_forward):
+        """Both forward and reverse checks enabled reverse fails"""
+        mock_forward.return_value = (True, False)
+        mock_reverse.return_value = (False, True)
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.challenge.forward_address_check = True
+        self.challenge.reverse_address_check = True
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        result, invalid = self.challenge._source_address_check("test_challenge")
+        self.assertFalse(result)
+        self.assertTrue(invalid)
+        self.assertTrue(mock_forward.called)
+        self.assertTrue(mock_reverse.called)
+
+    @patch("acme_srv.challenge.Challenge._forward_address_check")
+    @patch("acme_srv.challenge.Challenge._reverse_address_check")
+    def test_187_reverse_address_check(self, mock_reverse, mock_forward):
+        """Both forward and reverse checks enabled reverse fails but reverse check disabled"""
+        mock_forward.return_value = (True, False)
+        mock_reverse.return_value = (False, True)
+        self.challenge.source_address = "1.2.3.4"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.challenge.forward_address_check = True
+        self.challenge.reverse_address_check = False
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        result, invalid = self.challenge._source_address_check("test_challenge")
+        self.assertTrue(result)
+        self.assertFalse(invalid)
+        self.assertTrue(mock_forward.called)
+        self.assertFalse(mock_reverse.called)
+
+    @patch("acme_srv.challenge.ptr_resolve")
+    def test_188_reverse_address_check_success(self, mock_ptr_resolve):
+        """Test successful reverse address check"""
+        challenge_dic = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        mock_ptr_resolve.return_value = ("test.example.com", False)
+        self.assertEqual(
+            (True, False), self.challenge._reverse_address_check(challenge_dic)
+        )
+        mock_ptr_resolve.assert_called_once_with(
+            self.logger, "192.168.1.100", ["8.8.8.8"]
+        )
+
+    @patch("acme_srv.challenge.ptr_resolve")
+    def test_189_reverse_address_check_failure_wrong_hostname(self, mock_ptr_resolve):
+        """Test reverse address check fails with wrong hostname"""
+        challenge_dic = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        mock_ptr_resolve.return_value = ("different.example.com", False)
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                (False, True), self.challenge._reverse_address_check(challenge_dic)
+            )
+        self.assertIn(
+            "ERROR:test_a2c:PTR check failed for 192.168.1.100",
+            lcm.output,
+        )
+        mock_ptr_resolve.assert_called_once_with(
+            self.logger, "192.168.1.100", ["8.8.8.8"]
+        )
+
+    @patch("acme_srv.challenge.ptr_resolve")
+    def test_190_reverse_address_check_failure_no_response(self, mock_ptr_resolve):
+        """Test reverse address check fails with no PTR response"""
+        challenge_dic = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        mock_ptr_resolve.return_value = (None, False)
+        self.assertEqual(
+            (False, True), self.challenge._reverse_address_check(challenge_dic)
+        )
+
+    @patch("acme_srv.challenge.ptr_resolve")
+    def test_191_reverse_address_check_failure_ptr_invalid(self, mock_ptr_resolve):
+        """Test reverse address check fails with invalid PTR response"""
+        challenge_dic = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        mock_ptr_resolve.return_value = ("test.example.com", True)
+        self.assertEqual(
+            (True, False), self.challenge._reverse_address_check(challenge_dic)
+        )
+
+    def test_192_reverse_address_check_no_challenge_dic(self):
+        """Test reverse address check with no challenge dictionary"""
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.assertEqual((False, False), self.challenge._reverse_address_check(None))
+
+    def test_193_reverse_address_check_wrong_authorization_type(self):
+        """Test reverse address check with non-DNS authorization type"""
+        challenge_dic = {
+            "authorization__type": "ip",
+            "authorization__value": "192.168.1.1",
+        }
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+
+        result, invalid = self.challenge._reverse_address_check(challenge_dic)
+
+        self.assertFalse(result)
+        self.assertFalse(invalid)
+
+    def test_194_reverse_address_check_no_authorization_value(self):
+        """Test reverse address check with missing authorization value"""
+        challenge_dic = {"authorization__type": "dns"}
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.assertEqual(
+            (False, False), self.challenge._reverse_address_check(challenge_dic)
+        )
+
+    def test_195_reverse_address_check_no_source_address(self):
+        """Test reverse address check with no source address configured"""
+        self.challenge.source_address = None
+        challenge_dic = {
+            "authorization__type": "dns",
+            "authorization__value": "test.example.com",
+        }
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.assertEqual(
+            (False, True), self.challenge._reverse_address_check(challenge_dic)
+        )
+
+    def test_196_reverse_address_check_empty_challenge_dic(self):
+        """Test reverse address check with empty challenge dictionary"""
+        challenge_dic = {}
+        self.challenge.source_address = "192.168.1.100"
+        self.challenge.dns_server_list = ["8.8.8.8"]
+        self.assertEqual(
+            (False, False), self.challenge._reverse_address_check(challenge_dic)
+        )
 
 
 if __name__ == "__main__":

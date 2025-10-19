@@ -50,7 +50,7 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 300\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
     - name: "Enrollment"
       uses: ./.github/actions/wf_specific/enrollment_timeout/enroll
 
@@ -60,7 +60,7 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
     - name: "[ * ] uploading artifacts"
       uses: actions/upload-artifact@v4

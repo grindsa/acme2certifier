@@ -20,10 +20,43 @@ jobs:
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
+        django_db: ['mariadb', 'psql', 'sqlite3']
 
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
+
+    - name: "Get current version"
+      uses: oprypin/find-latest-tag@v1
+      with:
+        repository: ${{ github.repository }}  # The repository to scan.
+        releases-only: true  # We know that all relevant tags have a GitHub release for them.
+      id: acme2certifier_ver  # The step ID to refer to later.
+
+    - name: "Retrieve version from version.py"
+      run: |
+        echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
+        echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+        echo BUILD_NAME=${{ matrix.websrv }}-${{ matrix.dbhandler }} >> $GITHUB_ENV
+
+    - name: "Retrieve 2nd last release tag"
+      run: |
+        VERSION=$(echo ${{ env.TAG_NAME }} | awk -F. '{print $2}')
+        PRE_VERSION=$(($VERSION - 1))
+        echo $PRE_VERSION
+        for row in $(curl https://api.github.com/repos/grindsa/acme2certifier/tags | jq .[].name);
+          do
+              if [[ $row =~ $PRE_VERSION ]]; then
+                echo OLD_TAG_NAME=$(echo $row | sed s/\"//g) >> $GITHUB_ENV
+                echo $row
+                break
+              fi
+          done
+
+    - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
+    - run: echo "APP tag is ${{ env.APP_NAME }}"
+    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
+    - run: echo "Old tag is ${{ env.OLD_TAG_NAME }}"
 
     - name: "Prepare container environment"
       uses: ./.github/actions/container_prep
@@ -31,7 +64,7 @@ jobs:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
         CONTAINER_BUILD: false
-        DJANGO_DB: mariadb
+        DJANGO_DB: ${{ matrix.django_db }}
 
     - name: "Configure acme2certifier"
       run: |
@@ -42,32 +75,37 @@ jobs:
         echo "" >> examples/Docker/data/acme_srv.cfg
         echo "handler_file: examples/ca_handler/openssl_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
 
-    - name: "Install a2c 0.19.3"
-      run: |
-        docker run -d -p 80:80 -p 443:443 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:0.19.3-apache2-wsgi
-        docker logs acme-srv
-
-    - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
-
-    - name: "Delete acme-sh, letsencypt and lego folders"
-      run: |
-        docker stop acme-srv
-        sudo rm -rf  lego/*
-        sudo rm -rf  acme-sh/*
-        sudo rm -rf  certbot/*
-
     - name: "Build container"
       uses: ./.github/actions/container_build
       with:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
 
-    - name: "Spin-up a2c instance"
+    - name: "Spin-up a2c 0.19.3 instance"
+      uses: ./.github/actions/container_run
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        VERSION: "0.19.3"
+
+    - name: "Enroll and renew certificates"
+      uses: ./.github/actions/wf_specific/upgrade/enroll
+      with:
+        RENEWAL: true
+
+    - name : "Stop and remove a2c instance"
+      run: docker stop acme-srv
+
+    - name: "Spin-up latest a2c instance"
       uses: ./.github/actions/container_up
       with:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "Renew certificates"
+      uses: ./.github/actions/wf_specific/upgrade/renew
+      with:
+        CLEANUP: true
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -78,20 +116,125 @@ jobs:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
 
+    - name: "Stop a2c instance"
+      uses: ./.github/actions/container_down
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "Cleanup environment"
+      uses: ./.github/actions/wf_specific/upgrade/cleanup
+      with:
+        DJANGO_DB: ${{ matrix.django_db }}
+
+    - name: "Spin-up a2c ${{ env.OLD_TAG_NAME }} instance"
+      uses: ./.github/actions/container_run
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        VERSION: ${{ env.OLD_TAG_NAME }}
+
+    - name: "Enroll and renew certificates"
+      uses: ./.github/actions/wf_specific/upgrade/enroll
+      with:
+        RENEWAL: true
+
+    - name : "Stop and remove a2c instance"
+      run: docker stop acme-srv
+
+    - name: "Spin-up latest a2c instance"
+      uses: ./.github/actions/container_up
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "Renew certificates"
+      uses: ./.github/actions/wf_specific/upgrade/renew
+      with:
+        CLEANUP: true
+
+    - name: "Test enrollment"
+      uses: ./.github/actions/acme_clients
+
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "Stop a2c instance"
+      uses: ./.github/actions/container_down
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "Cleanup environment"
+      uses: ./.github/actions/wf_specific/upgrade/cleanup
+      with:
+        DJANGO_DB: ${{ matrix.django_db }}
+
+    - name: "Spin-up a2c ${{ env.TAG_NAME }} instance"
+      uses: ./.github/actions/container_run
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        VERSION: ${{ env.TAG_NAME }}
+
+    - name: "Enroll and renew certificates"
+      uses: ./.github/actions/wf_specific/upgrade/enroll
+      with:
+        RENEWAL: true
+
+    - name : "Stop and remove a2c instance"
+      run: docker stop acme-srv
+
+    - name: "Spin-up latest a2c instance"
+      uses: ./.github/actions/container_up
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "Renew certificates"
+      uses: ./.github/actions/wf_specific/upgrade/renew
+      with:
+        CLEANUP: true
+
+    - name: "Test enrollment"
+      uses: ./.github/actions/acme_clients
+
+    - name: "Check container configuration"
+      uses: ./.github/actions/container_check
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "Stop a2c instance"
+      uses: ./.github/actions/container_down
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+
+    - name: "Cleanup environment"
+      uses: ./.github/actions/wf_specific/upgrade/cleanup
+      with:
+        DJANGO_DB: ${{ matrix.django_db }}
+
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
       run: |
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+        docker logs acme-srv > ${{ github.workspace }}/artifact/acme-srv.log
+        # docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme-srv.log data
+        # sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: apache2-wsgi-upgrade.tar.gz
+        name: upgrade-${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ matrix.django_db }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   rpm_build:
@@ -215,7 +358,14 @@ jobs:
         docker exec acme-srv chmod -R 777 /opt/acme2certifier/volume
 
     - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
+
+    - name: "Test renewal"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
     - name: "Update acme2certifier"
       run: |
@@ -244,6 +394,13 @@ jobs:
       if: env.HASH1 != env.HASH2
       run: |
         exit 1
+
+    - name: "Test renewal again"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
+        sudo rm -rf $(pwd)/lego
+        sudo rm -rf $(pwd)/certbot
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -362,7 +519,14 @@ jobs:
         docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
 
     - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
+
+    - name: "Test renewal"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
     - name: "Update acme2certifier"
       run: |
@@ -391,6 +555,13 @@ jobs:
       if: env.HASH1 != env.HASH2
       run: |
         exit 1
+
+    - name: "Test renewal again"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
+        sudo rm -rf $(pwd)/lego
+        sudo rm -rf $(pwd)/certbot
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -506,7 +677,14 @@ jobs:
         docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
 
     - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
+
+    - name: "Test renewal"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
     - name: "Update acme2certifier"
       run: |
@@ -535,6 +713,13 @@ jobs:
       if: env.HASH1 != env.HASH2
       run: |
         exit 1
+
+    - name: "Test renewal again"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
+        sudo rm -rf $(pwd)/lego
+        sudo rm -rf $(pwd)/certbot
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -653,7 +838,15 @@ jobs:
         docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
 
     - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
+
+    - name: "Test renewal"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
+
 
     - name: "Update acme2certifier"
       run: |
@@ -682,6 +875,13 @@ jobs:
       if: env.HASH1 != env.HASH2
       run: |
         exit 1
+
+    - name: "Test renewal again"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
+        sudo rm -rf $(pwd)/lego
+        sudo rm -rf $(pwd)/certbot
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -812,7 +1012,14 @@ jobs:
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
+
+    - name: "Test renewal"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
     - name: "Upgrade a2c"
       run: |
@@ -840,6 +1047,13 @@ jobs:
       if: env.HASH1 != env.HASH2
       run: |
         exit 1
+
+    - name: "Test renewal again"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
+        sudo rm -rf $(pwd)/lego
+        sudo rm -rf $(pwd)/certbot
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -964,7 +1178,14 @@ jobs:
         time: 5s
 
     - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
+
+    - name: "Test renewal"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
     - name: "Upgrade a2c"
       run: |
@@ -992,6 +1213,13 @@ jobs:
       if: env.HASH1 != env.HASH2
       run: |
         exit 1
+
+    - name: "Test renewal again"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
+        sudo rm -rf $(pwd)/lego
+        sudo rm -rf $(pwd)/certbot
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -1130,7 +1358,14 @@ jobs:
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
+
+    - name: "Test renewal"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
     - name: "Upgrade a2c"
       run: |
@@ -1158,6 +1393,13 @@ jobs:
       if: env.HASH1 != env.HASH2
       run: |
         exit 1
+
+    - name: "Test renewal again"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
+        sudo rm -rf $(pwd)/lego
+        sudo rm -rf $(pwd)/certbot
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -1307,7 +1549,14 @@ jobs:
         XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
+
+    - name: "Test renewal"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
     - name: "Upgrade a2c"
       run: |
@@ -1335,6 +1584,13 @@ jobs:
       if: env.HASH1 != env.HASH2
       run: |
         exit 1
+
+    - name: "Test renewal again"
+      run: |
+        docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+        docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
+        sudo rm -rf $(pwd)/lego
+        sudo rm -rf $(pwd)/certbot
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients

@@ -32,6 +32,7 @@ from acme_srv.helper import (
     config_enroll_config_log_load,
     config_profile_load,
     eab_profile_header_info_check,
+    eab_profile_revocation_check,
     enrollment_config_log,
     jwk_thumbprint_get,
     load_config,
@@ -40,6 +41,7 @@ from acme_srv.helper import (
     txt_get,
     uts_now,
     uts_to_date_utc,
+    handler_config_check,
 )
 
 
@@ -676,6 +678,39 @@ class CAhandler(object):
                 # remove acc_path
                 self.account = self.account.replace(self.path_dic["acct_path"], "")
 
+    def _jwk_strip(self, user_key: josepy.jwk.JWKRSA) -> josepy.jwk.JWKRSA:
+        """
+        Returns a new josepy.jwk.JWKRSA object containing only the minimal required fields (kty, n, e).
+        """
+        self.logger.debug("CAhandler._jwk_strip()")
+
+        # Extract the minimal JWK dict
+        full_jwk = user_key.to_json()
+        if "kty" in full_jwk and full_jwk["kty"] == "RSA":
+            self.logger.debug("Stripping JWK to minimal fields for RSA key")
+            required_fields = ("kty", "n", "e")
+            missing_fields = [k for k in required_fields if k not in full_jwk]
+            if missing_fields:
+                self.logger.error(
+                    f"Missing required JWK fields for RSA key: {', '.join(missing_fields)}"
+                )
+                return None
+            minimal_jwk = {k: full_jwk[k] for k in required_fields}
+            # Reconstruct a JWKRSA object from the minimal dict
+            try:
+                result = josepy.JWKRSA.fields_from_json(minimal_jwk)
+            except Exception as e:
+                self.logger.error(
+                    "Failed to strip JWK to minimal fields. Input: %s, Error: %s",
+                    minimal_jwk,
+                    str(e),
+                )
+                result = None
+        else:
+            result = user_key
+        self.logger.debug("CAhandler._jwk_strip() ended")
+        return result
+
     def _account_create(
         self,
         acmeclient: client.ClientV2,
@@ -697,12 +732,19 @@ class CAhandler(object):
             if (
                 self.acme_url
                 and "host" in self.acme_url_dic
-                and self.acme_url_dic["host"].endswith("zerossl.com")
+                and (
+                    self.acme_url_dic["host"] == "zerossl.com"
+                    or self.acme_url_dic["host"].endswith(".zerossl.com")
+                )
             ):  # lgtm [py/incomplete-url-substring-sanitization]
                 # get zerossl eab credentials
                 self._zerossl_eab_get()
             if self.eab_kid and self.eab_hmac_key:
-                # we have to do some freaky eab to keep ZeroSSL happy
+                # use EAB credentials for registration
+                self.logger.info(
+                    "Using EAB key_id: %s for account registration", self.eab_kid
+                )
+                user_key = self._jwk_strip(user_key)
                 eab = messages.ExternalAccountBinding.from_data(
                     account_public_key=user_key,
                     kid=self.eab_kid,
@@ -1062,6 +1104,15 @@ class CAhandler(object):
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
+    def handler_check(self):
+        """check if handler is ready"""
+        self.logger.debug("CAhandler.check()")
+
+        error = handler_config_check(self.logger, self, ["acme_url", "email"])
+
+        self.logger.debug("CAhandler.check() ended with %s", error)
+        return error
+
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str
     ) -> Tuple[str, str, str, str, bool]:
@@ -1089,6 +1140,10 @@ class CAhandler(object):
         code = 500
         message = "urn:ietf:params:acme:error:serverInternal"
         detail = None
+
+        # modify handler configuration in case of eab profiling
+        if self.eab_profiling:
+            eab_profile_revocation_check(self.logger, self, _cert)
 
         try:
             if os.path.exists(self.acme_keyfile):

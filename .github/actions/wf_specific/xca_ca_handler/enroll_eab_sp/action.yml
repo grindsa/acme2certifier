@@ -97,9 +97,9 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs > docker-compose.log
+        docker compose logs > docker-compose.log
         cat docker-compose.log | grep "organizationalUnitName: value: acme3 expected: \['acme1', 'acme2'\]"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
       #  docker exec acme-srv grep "organizationalUnitName: value: acme3 expected: \['acme1', 'acme2'\]" /var/log/messages
       fi
@@ -135,9 +135,9 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs > docker-compose.log
+        docker compose logs > docker-compose.log
         cat docker-compose.log | grep "organizationalUnitName: value: acme3 expected: \['acme1', 'acme2'\]"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
       #  docker exec acme-srv grep "organizationalUnitName: value: acme3 expected: \['acme1', 'acme2'\]" /var/log/messages
       fi
@@ -174,9 +174,9 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs > docker-compose.log
+        docker compose logs > docker-compose.log
         cat docker-compose.log | grep "failed for: \['serialNumber'\]"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
       #  docker exec acme-srv grep "failed for: \['serialNumber'\]" /var/log/messages
       fi
@@ -212,9 +212,9 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs > docker-compose.log
+        docker compose logs > docker-compose.log
         cat docker-compose.log | grep "failed for: \['serialNumber'\]"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
       #  docker exec acme-srv grep "failed for: \['serialNumber'\]" /var/log/messages
       fi
@@ -251,9 +251,9 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs > docker-compose.log
+        docker compose logs > docker-compose.log
         cat docker-compose.log | grep "failed for: organizationName: value: noacme corp expected: acme corp"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
       #  docker exec acme-srv grep "failed for: organizationName: value: noacme corp expected: acme corp" /var/log/messages
       fi
@@ -289,9 +289,9 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs > docker-compose.log
+        docker compose logs > docker-compose.log
         cat docker-compose.log | grep "failed for: organizationName: value: noacme corp expected: acme corp"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
       #  docker exec acme-srv grep "failed for: organizationName: value: noacme corp expected: acme corp" /var/log/messages
       fi
@@ -328,9 +328,9 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs > docker-compose.log
+        docker compose logs > docker-compose.log
         cat docker-compose.log | grep "failed for: \['countryName'\]"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
       #  docker exec acme-srv grep "failed for: \['countryName'\]" /var/log/messages
       fi
@@ -366,9 +366,9 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs > docker-compose.log
+        docker compose logs > docker-compose.log
         cat docker-compose.log | grep "failed for: \['countryName'\]"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       # elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
       #  docker exec acme-srv grep "failed for: \['countryName'\]" /var/log/messages
       fi

@@ -123,13 +123,17 @@ plugins = python3
   %{buildroot}%{dest_dir}/%{projname}/acme2certifier.ini
 
 ## Configure and enable uWSGI service
-%{__sed} '
-/^User/i\
-WorkingDirectory=%{dest_dir}
-' \
-    examples/nginx/uwsgi.service > \
-    %{buildroot}%{_unitdir}/acme2certifier.service    # ugh
+# %{__sed} '
+# /^User/i\
+# WorkingDirectory=%{dest_dir}/acme2certifier
+# ' \
+#    examples/nginx/uwsgi.service > \
+#    %{buildroot}%{_unitdir}/acme2certifier.service    # ugh
 
+# copy and rename service file
+%{__cp} -a \
+    examples/nginx/uwsgi.service \
+    %{buildroot}%{_unitdir}/acme2certifier.service
 
 %clean
 %{__chmod} -R 777 $RPM_BUILD_ROOT

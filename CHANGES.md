@@ -6,6 +6,28 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.40
+
+**Features and Improvements**:
+
+- **CA Handler**: A CA handler to support [Hashicorp Vault CA](https://developer.hashicorp.com/vault/tutorials/pki/pki-engine)
+- **Order Processing**: [#269](https://github.com/grindsa/acme2certifier/issues/269) Added support of non-compliant order polling via finalize endpoint
+- **EAB (External Account Binding)**: Improved comparison function between inner and outer JWK structures
+- **EAB Profiling**: Added support for revocation operations
+- **DNS Validation**: Added option for DNS reverse zone checking when challenge validation is disabled
+- **Documentation**: Updated mscertsrv_handler documentation to clarify limitations when using GSSAPI authentication
+- **Cryptography Support**: Added support for cryptography module versions > 44.0.0 in mscertsrv_handler.py
+- **Error Messaging**: Enhanced error messages sent to clients when CN/SAN validation checks fail
+- **RPM Packaging**: Minor improvements to RPM service files and RPM spec configuration
+
+**Bug Fixes**:
+
+- [#269](https://github.com/grindsa/acme2certifier/issues/269)
+- Fixed LegacyKeyValueFormat warnings in Dockerfiles
+- **EAB**: Refactored comparison function between inner and outer JWK structures for better reliability
+- **Tools**: Fixed error handling in `tools/django_upgrade.py`
+- **ACME CA Handler**: Improved JWK handling by stripping to minimum required fields
+
 ## Changes in 0.39.2
 
 **Bug fixes**:

@@ -90,7 +90,7 @@ jobs:
         echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
     - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
 
-    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
+    - name: "Build docker compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       run: |
         cat examples/Docker/$WEB_SRV/$DB_HANDLER/Dockerfile | docker build -t grindsa/acme2certifier:devel -f - . --no-cache
         docker save grindsa/acme2certifier > a2c.tar
@@ -237,7 +237,7 @@ jobs:
         echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
     - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
 
-    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
+    - name: "Build docker compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       run: |
         cat examples/Docker/$WEB_SRV/$DB_HANDLER/Dockerfile | docker build -t grindsa/acme2certifier:devel -f - . --no-cache
         docker save grindsa/acme2certifier > a2c.tar
@@ -494,7 +494,7 @@ jobs:
         echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
     - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
 
-    - name: "Build docker-compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
+    - name: "Build docker compose (${{ matrix.websrv }}_${{ matrix.dbhandler }})"
       run: |
         cat examples/Docker/$WEB_SRV/$DB_HANDLER/Dockerfile | docker build -t grindsa/acme2certifier:devel -f - . --no-cache
         docker save grindsa/acme2certifier > a2c.tar

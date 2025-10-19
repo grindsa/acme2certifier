@@ -84,7 +84,7 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"acme-sh.acme\$\": \"socks5:\/\/proxy.acme:8080\", \"acme-sh.\$\": \"http\:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -139,7 +139,7 @@ jobs:
         sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"ncm.nclm.eu\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
         NCM_API_USER: ${{ secrets.NCM_API_USER }}
@@ -190,7 +190,7 @@ jobs:
         sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"testrfc7030.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -221,8 +221,8 @@ jobs:
     #    sudo echo "ca_id_list: [${{ secrets.NCLM_CA_ID_LIST }}]" >> examples/Docker/data/acme_srv.cfg
     #    sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"nclm.eu\$\": \"http:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
     #    cd examples/Docker/
-    #    docker-compose restart
-    #    docker-compose logs
+    #    docker compose restart
+    #    docker compose logs
 
     #- name: "Sleep for 5s"
     #  uses: juliangruber/sleep-action@v2.0.3
@@ -255,7 +255,7 @@ jobs:
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"amazonaws.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
         WES_USER: ${{ secrets.WES_USER }}
@@ -316,7 +316,7 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
 
     - name: "[ * ] uploading artificates"

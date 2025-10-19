@@ -39,8 +39,8 @@ jobs:
         sudo echo -e "\n\n[Renewalinfo]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "renewal_force: True" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
+        docker compose restart
+        docker compose logs
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -82,7 +82,7 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
 
     - name: "[ * ] uploading artificates"

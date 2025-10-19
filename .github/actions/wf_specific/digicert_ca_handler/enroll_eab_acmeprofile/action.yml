@@ -26,7 +26,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash
     env:
@@ -45,8 +45,8 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "cert_type: ssl_basic"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "cert_type: ssl_basic"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_type: ssl_basic"
       fi
@@ -73,8 +73,8 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "unknown"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "unknown"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         sleep 5
         docker exec -i acme-srv tail -n 500 /var/log/messages | grep "unknown"
@@ -97,8 +97,8 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "cert_type: ssl_securesite_pro"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "cert_type: ssl_securesite_pro"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_type: ssl_securesite_pro"
       fi
@@ -118,8 +118,8 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "cert_type: ssl_securesite_pro"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "cert_type: ssl_securesite_pro"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_type: ssl_securesite_pro"
       fi

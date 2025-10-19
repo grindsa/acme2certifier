@@ -11,19 +11,20 @@ from examples.ca_handler.ms_wcce.request import Request
 
 # pylint: disable=E0401
 from acme_srv.helper import (
-    load_config,
+    allowed_domainlist_check,
+    build_pem_file,
+    config_allowed_domainlist_load,
+    config_eab_profile_load,
+    config_enroll_config_log_load,
+    config_profile_load,
     convert_byte_to_string,
     convert_string_to_byte,
-    proxy_check,
-    build_pem_file,
-    header_info_get,
     eab_profile_header_info_check,
-    config_eab_profile_load,
     enrollment_config_log,
-    config_enroll_config_log_load,
-    config_allowed_domainlist_load,
-    config_profile_load,
-    allowed_domainlist_check,
+    handler_config_check,
+    header_info_get,
+    load_config,
+    proxy_check,
     radomize_parameter_list,
 )
 
@@ -360,6 +361,17 @@ class CAhandler(object):
 
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, None)
+
+    def handler_check(self):
+        """check if handler is ready"""
+        self.logger.debug("CAhandler.check()")
+        error = handler_config_check(
+            self.logger,
+            self,
+            ["host", "user", "password", "template", "ca_name", "target_domain"],
+        )
+        self.logger.debug("CAhandler.check() ended with %s", error)
+        return error
 
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str

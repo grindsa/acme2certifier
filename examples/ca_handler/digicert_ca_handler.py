@@ -5,22 +5,24 @@ from typing import Tuple, Dict
 
 # pylint: disable=e0401
 from acme_srv.helper import (
-    load_config,
-    cert_pem2der,
+    allowed_domainlist_check,
     b64_encode,
-    eab_profile_header_info_check,
-    uts_now,
-    uts_to_date_utc,
+    cert_pem2der,
     cert_serial_get,
+    config_allowed_domainlist_load,
     config_eab_profile_load,
+    config_enroll_config_log_load,
     config_headerinfo_load,
     config_profile_load,
-    request_operation,
     csr_cn_lookup,
-    config_enroll_config_log_load,
+    eab_profile_header_info_check,
+    eab_profile_revocation_check,
     enrollment_config_log,
-    config_allowed_domainlist_load,
-    allowed_domainlist_check,
+    handler_config_check,
+    load_config,
+    request_operation,
+    uts_now,
+    uts_to_date_utc,
 )
 
 
@@ -113,12 +115,9 @@ class CAhandler(object):
         """check config"""
         self.logger.debug("CAhandler._config_check()")
 
-        error = None
-        for ele in ["api_url", "api_key", "organization_name"]:
-            if not getattr(self, ele):
-                error = f"{ele} parameter in missing in config file"
-                self.logger.error("Configuration check ended with error: %s", error)
-                break
+        error = handler_config_check(
+            self.logger, self, ["api_url", "api_key", "organization_name"]
+        )
 
         self.logger.debug("CAhandler._config_check() ended with: %s", error)
         return error
@@ -342,6 +341,13 @@ class CAhandler(object):
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, poll_indentifier)
 
+    def handler_check(self):
+        """check if handler is ready"""
+        self.logger.debug("CAhandler.check()")
+        error = self._config_check()
+        self.logger.debug("CAhandler.check() ended with %s", error)
+        return error
+
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str
     ) -> Tuple[str, str, str, str, bool]:
@@ -372,6 +378,10 @@ class CAhandler(object):
         cert_serial = cert_serial_get(self.logger, certificate_raw, hexformat=True)
 
         if cert_serial:
+            # modify handler configuration in case of eab profiling
+            if self.eab_profiling:
+                self._config_check()
+
             revocation_url = f"{self.api_url}certificate/{cert_serial}/revoke"
             data_dic = {"skip_approval": True}
             code, detail = self._api_put(revocation_url, data_dic)

@@ -1459,15 +1459,30 @@ class TestACMEHandler(unittest.TestCase):
         mock_enroll.return_value = ("mock_err", "mock_bundle", "mock_raw", "mock_poll")
         self.assertEqual(("mock_chk", None, None, None), self.cahandler.enroll("csr"))
 
+    @patch("examples.ca_handler.entrust_ca_handler.eab_profile_revocation_check")
     @patch("examples.ca_handler.entrust_ca_handler.CAhandler._api_post")
     @patch("examples.ca_handler.entrust_ca_handler.CAhandler._trackingid_get")
-    def test_086_revoke(self, mock_track, mock_req):
+    def test_086_revoke(self, mock_track, mock_req, mock_eab):
         """test revoke()"""
         mock_track.return_value = "tracking_id"
         mock_req.return_value = (200, "response")
         self.assertEqual(
             (200, "Certificate revoked", None), self.cahandler.revoke("csr")
         )
+        self.assertFalse(mock_eab.called)
+
+    @patch("examples.ca_handler.entrust_ca_handler.eab_profile_revocation_check")
+    @patch("examples.ca_handler.entrust_ca_handler.CAhandler._api_post")
+    @patch("examples.ca_handler.entrust_ca_handler.CAhandler._trackingid_get")
+    def test_087_revoke(self, mock_track, mock_req, mock_eab):
+        """test revoke()"""
+        mock_track.return_value = "tracking_id"
+        mock_req.return_value = (200, "response")
+        self.cahandler.eab_profiling = True
+        self.assertEqual(
+            (200, "Certificate revoked", None), self.cahandler.revoke("csr")
+        )
+        self.assertTrue(mock_eab.called)
 
     @patch("examples.ca_handler.entrust_ca_handler.CAhandler._api_post")
     @patch("examples.ca_handler.entrust_ca_handler.CAhandler._trackingid_get")
@@ -1577,6 +1592,12 @@ class TestACMEHandler(unittest.TestCase):
             "INFO:test_a2c:Could not get get new certificate data in loop. Stopping the loop.",
             lcm.output,
         )
+
+    @patch("examples.ca_handler.entrust_ca_handler.handler_config_check")
+    def test_094_handler_check(self, mock_handler_check):
+        """test handler_check"""
+        mock_handler_check.return_value = "mock_handler_check"
+        self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
 
 if __name__ == "__main__":

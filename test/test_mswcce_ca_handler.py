@@ -1296,6 +1296,12 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
+    @patch("examples.ca_handler.mswcce_ca_handler.handler_config_check")
+    def test_068_handler_check(self, mock_handler_check):
+        """test handler_check"""
+        mock_handler_check.return_value = "mock_handler_check"
+        self.assertEqual("mock_handler_check", self.cahandler.handler_check())
+
 
 if __name__ == "__main__":
 

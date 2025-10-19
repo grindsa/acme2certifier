@@ -1,0 +1,108 @@
+name: "acme_clients - renew certificates"
+description: "Test if acme.sh, certbot and lego can renew certificates across upgrades"
+inputs:
+  ACME_SERVER:
+    description: "ACME server URL"
+    required: true
+    default: "acme-srv"
+  REVOCATION:
+    description: "Revocation method"
+    required: true
+    default: "true"
+  CLEANUP:
+    description: "Cleanup method"
+    required: true
+    default: "false"
+  USE_RSA:
+    description: "Use RSA"
+    required: true
+    default: "false"
+  HTTP_PORT:
+    description: "HTTP port"
+    required: true
+    default: "80"
+  HTTPS_PORT:
+    description: "HTTPS port"
+    required: true
+    default: "443"
+  HOSTNAME_SUFFIX:
+    description: "Hostname suffix"
+    required: true
+  NAME_SPACE:
+    description: "Namespace"
+    required: true
+    default: "acme"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "HTTPS - Renew lego"
+      run: |
+        echo "##### HTTP - Renew lego #####"
+        if [ "$USE_RSA" == "false" ]; then
+          echo "use ECC"
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls renew --days 364 --no-random-sleep
+        else
+          echo "use RSA"
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls renew --days 364 --no-random-sleep
+        fi
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        USE_RSA: ${{ inputs.USE_RSA }}
+        HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "HTTPS - Renew acme.sh"
+      run: |
+        echo "##### HTTPS - Renew acme.sh #####"
+        if [ "$USE_RSA" == "false" ]; then
+          echo "use ECC"
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE --name acme-sh$HOSTNAME_SUFFIX neilpang/acme.sh:latest --renew --force --server https://$ACME_SERVER:$HTTPS_PORT --accountemail 'acme-sh@example.com' -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --alpn --standalone --debug 1 --output-insecure --insecure
+          ECC="_ecc"
+        else
+          echo "use RSA"
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE --name acme-sh$HOSTNAME_SUFFIX neilpang/acme.sh:latest --renew --force --server https://$ACME_SERVER:$HTTPS_PORT --accountemail 'acme-sh@example.com' -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --alpn --standalone --keylength 2048 --debug 1 --output-insecure --insecure
+        fi
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        USE_RSA: ${{ inputs.USE_RSA }}
+        HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "HTTPS - Renew certbot"
+      if: ${{ inputs.USE_CERTBOT == 'true' }}
+      run: |
+        echo "##### HTTPS - Renew certbot #####"
+        if [ "$USE_RSA" == "false" ]; then
+          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout 120  --force-renewal
+        else
+          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout 120 --force-renewal
+        fi
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        USE_RSA: ${{ inputs.USE_RSA }}
+        HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
+
+    - name: "Cleanup certificates"
+      if: ${{ inputs.CLEANUP == 'true' }}
+      run: |
+        echo "##### Cleanup certificates #####"
+        sudo rm -rf lego/*
+        sudo rm -rf acme-sh/*
+        sudo rm -rf certbot/*
+      shell: bash

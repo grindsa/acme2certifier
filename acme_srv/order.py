@@ -429,6 +429,39 @@ class Order(object):
         )
         return result
 
+    def _csr_finalize(
+        self, order_name: str, payload: Dict[str, str], header: str = None
+    ) -> Tuple[int, str, str, str]:
+        """Handle CSR finalization for an order"""
+        self.logger.debug("Order._csr_finalize(%s)", order_name)
+
+        message = None
+
+        # lookup header information
+        header_info = self._header_info_lookup(header)
+
+        # this is a new request
+        (code, certificate_name, detail) = self._csr_process(
+            order_name, payload["csr"], header_info
+        )
+        # change status only if we do not have a poll_identifier (stored in detail variable)
+        if code == 200:
+            if not detail:
+                # update order_status / set to valid
+                self._update({"name": order_name, "status": "valid"})
+        elif certificate_name == "timeout":
+            code = 200
+            message = certificate_name
+        elif certificate_name == "urn:ietf:params:acme:error:rejectedIdentifier":
+            code = 401
+            message = certificate_name
+        else:
+            message = certificate_name
+            detail = "enrollment failed"
+
+        self.logger.debug("Order._csr_finalize() ended")
+        return (code, message, detail, certificate_name)
+
     def _finalize(
         self, order_name: str, payload: Dict[str, str], header: str = None
     ) -> Tuple[int, str, str, str]:
@@ -442,29 +475,13 @@ class Order(object):
         # lookup order-status (must be ready to proceed)
         order_dic = self._info(order_name)
 
-        # lookup header information
-        header_info = self._header_info_lookup(header)
-
         if "status" in order_dic and order_dic["status"] == "ready":
             # update order_status / set to processing
             self._update({"name": order_name, "status": "processing"})
             if "csr" in payload:
-                self.logger.debug("CSR found()")
-                # this is a new request
-                (code, certificate_name, detail) = self._csr_process(
-                    order_name, payload["csr"], header_info
+                (code, message, detail, certificate_name) = self._csr_finalize(
+                    order_name, payload, header
                 )
-                # change status only if we do not have a poll_identifier (stored in detail variable)
-                if code == 200:
-                    if not detail:
-                        # update order_status / set to valid
-                        self._update({"name": order_name, "status": "valid"})
-                elif certificate_name == "timeout":
-                    code = 200
-                    message = certificate_name
-                else:
-                    message = certificate_name
-                    detail = "enrollment failed"
             else:
                 code = 400
                 message = self.error_msg_dic["badcsr"]
@@ -572,6 +589,9 @@ class Order(object):
                     if not error:
                         code = 200
                         message = certificate_name
+                    elif error == "urn:ietf:params:acme:error:rejectedIdentifier":
+                        code = 401
+                        message = error
                     else:
                         code = 400
                         message = error

@@ -49,7 +49,13 @@ runs:
         if [ -z "$DJANGO_DB" ]; then
             sudo cp .github/django_settings.py examples/Docker/data/settings.py
         else
-            sudo cp .github/django_settings_$DJANGO_DB.py examples/Docker/data/settings.py
+            if [ "$DJANGO_DB" != "sqlite3" ]; then
+                echo "Using $DJANGO_DB as django database"
+                sudo cp .github/django_settings_$DJANGO_DB.py examples/Docker/data/settings.py
+            else
+                echo "Using sqlite3 as django database"
+                sudo cp .github/django_settings.py examples/Docker/data/settings.py
+            fi
         fi
       env:
         DJANGO_DB: ${{ inputs.DJANGO_DB }}
@@ -57,7 +63,7 @@ runs:
         IPV6: ${{ inputs.IPV6 }}
       shell: bash
 
-    - name: "Build docker-compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+    - name: "Build docker compose (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
       if: inputs.CONTAINER_BUILD == 'true'
       uses: ./.github/actions/container_build
       with:

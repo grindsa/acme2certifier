@@ -22,27 +22,28 @@ from cryptography.x509 import (
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from OpenSSL import crypto as pyossslcrypto
 from acme_srv.helper import (
-    load_config,
-    build_pem_file,
-    uts_now,
-    uts_to_date_utc,
-    b64_encode,
+    allowed_domainlist_check,
     b64_decode,
+    b64_encode,
     b64_url_recode,
+    build_pem_file,
     cert_serial_get,
-    convert_string_to_byte,
+    config_allowed_domainlist_load,
+    config_eab_profile_load,
+    config_enroll_config_log_load,
+    config_headerinfo_load,
+    config_profile_load,
     convert_byte_to_string,
+    convert_string_to_byte,
     csr_cn_get,
     csr_san_get,
-    error_dic_get,
-    config_headerinfo_load,
-    config_eab_profile_load,
-    config_profile_load,
     eab_profile_header_info_check,
-    config_enroll_config_log_load,
+    eab_profile_revocation_check,
     enrollment_config_log,
-    config_allowed_domainlist_load,
-    allowed_domainlist_check,
+    error_dic_get,
+    load_config,
+    uts_now,
+    uts_to_date_utc,
 )
 
 
@@ -615,7 +616,7 @@ class CAhandler(object):
         return db_result
 
     def _db_check(self):
-        """do verious checks on database"""
+        """do various checks on database"""
         self.logger.debug("CAhandler._db_check()")
         error = None
 
@@ -1476,6 +1477,10 @@ class CAhandler(object):
         self.logger.debug("CAhandler.revoke()")
 
         err_msg_dic = error_dic_get(self.logger)
+
+        # modify handler configuration in case of eab profiling
+        if self.eab_profiling:
+            eab_profile_revocation_check(self.logger, self, cert)
 
         if self.xdb_file:
             # load ca cert and key

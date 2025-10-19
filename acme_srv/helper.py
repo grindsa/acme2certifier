@@ -290,6 +290,30 @@ def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str,
     return allowed_domainlist
 
 
+def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
+    """load parameters"""
+    logger.debug("_config_proxy_load()")
+
+    proxy = {}
+    if "DEFAULT" in config_dic and "proxy_server_list" in config_dic["DEFAULT"]:
+        try:
+            proxy_list = json.loads(config_dic["DEFAULT"]["proxy_server_list"])
+            url_dic = parse_url(logger, host_name)
+            if "host" in url_dic:
+                # check if we need to set the proxy
+                (fqdn, _port) = url_dic["host"].split(":")
+                proxy_server = proxy_check(logger, fqdn, proxy_list)
+                proxy = {"http": proxy_server, "https": proxy_server}
+        except Exception as err_:
+            logger.warning(
+                "Failed to parse proxy_server_list from configuration: %s",
+                err_,
+            )
+
+    logger.debug("config_proxy_load() ended with: %s", proxy)
+    return proxy
+
+
 def eab_handler_load(
     logger: logging.Logger, config_dic: Dict
 ) -> importlib.import_module:
@@ -1303,6 +1327,30 @@ def fqdn_resolve(
     return (result, invalid)
 
 
+def ptr_resolve(
+    logger: logging.Logger, ip_address: str, dnssrv: List[str] = None
+) -> Tuple[str, bool]:
+    """reverse dns resolver"""
+    logger.debug("Helper.ptr_resolve(%s)", ip_address)
+    req = dns.resolver.Resolver()
+    invalid = True
+
+    if dnssrv:
+        # add specific dns server
+        req.nameservers = dnssrv
+    try:
+        reversed_dns = dns.reversename.from_address(ip_address)
+        answers = req.resolve(reversed_dns, "PTR")
+        result = str(answers[0])[:-1]  # remove trailing dot
+        invalid = False
+    except Exception as err:
+        logger.debug("Error while resolving %s: %s", ip_address, err)
+        result = None
+
+    logger.debug("Helper.ptr_resolve(%s) ended with: %s", ip_address, result)
+    return result, invalid
+
+
 def dns_server_list_load() -> List[str]:
     """load dns-server from config file"""
     config_dic = load_config()
@@ -1784,7 +1832,9 @@ def handle_exception(exc_type, exc_value, exc_traceback):  # pragma: no cover
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
 
-    logging.error("Uncaught exception")
+    logging.exception(
+        "Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback)
+    )
 
 
 def pembundle_to_list(logger: logging.Logger, pem_bundle: str) -> List[str]:
@@ -2025,7 +2075,7 @@ def allowed_domainlist_check(
             error = f"SAN list parsing failed {check_list}"
 
         logger.debug(
-            f'Helper._allowed_domainlist_check() ended with {error} for {",".join(invalid_domains)}'
+            f'Helper.allowed_domainlist_check() ended with {error} for {",".join(invalid_domains)}'
         )
     return error
 
@@ -2247,6 +2297,34 @@ def eab_profile_subject_check(
     return error
 
 
+def eab_profile_revocation_check(
+    logger: logging.Logger, cahandler, certificate_raw: str
+):
+    """check eab profile for revocation"""
+    logger.debug("Helper.eab_profile_revocation_check()")
+    with cahandler.eab_handler(logger) as eab_handler:
+        eab_profile_dic = eab_handler.eab_profile_get(
+            b64_url_recode(logger, certificate_raw), revocation=True
+        )
+        for key, value in eab_profile_dic.items():
+            if key in ["subject", "allowed_domainlist"]:
+                continue
+            elif isinstance(value, str):
+                eab_profile_string_check(logger, cahandler, key, value)
+            elif isinstance(value, list):
+                # check if we need to execute a function from the handler
+                if "eab_profile_list_check" in dir(cahandler):
+                    _result = cahandler.eab_profile_list_check(
+                        eab_handler, certificate_raw, key, value
+                    )
+                else:
+                    _result = eab_profile_list_check(
+                        logger, cahandler, eab_handler, certificate_raw, key, value
+                    )
+
+    logger.debug("Helper.eab_profile_revocation_check() ended")
+
+
 def eab_profile_check(
     logger: logging.Logger, cahandler, csr: str, handler_hifield: str
 ) -> str:
@@ -2362,6 +2440,7 @@ def request_operation(
     session=requests,
     method: str = "GET",
     payload: Dict[str, str] = None,
+    verify: bool = True,
 ):
     """check if a for a string value taken from profile if its a variable inside a class and apply value"""
     logger.debug("Helper.api_operation(): method: %s", method)
@@ -2369,15 +2448,25 @@ def request_operation(
     try:
         if method.lower() == "get":
             api_response = session.get(
-                url=url, headers=headers, proxies=proxy, timeout=timeout
+                url=url, headers=headers, proxies=proxy, timeout=timeout, verify=verify
             )
         elif method.lower() == "post":
             api_response = session.post(
-                url=url, headers=headers, proxies=proxy, timeout=timeout, json=payload
+                url=url,
+                headers=headers,
+                proxies=proxy,
+                timeout=timeout,
+                json=payload,
+                verify=verify,
             )
         elif method.lower() == "put":
             api_response = session.put(
-                url=url, headers=headers, proxies=proxy, timeout=timeout, json=payload
+                url=url,
+                headers=headers,
+                proxies=proxy,
+                timeout=timeout,
+                json=payload,
+                verify=verify,
             )
         else:
             logger.error("Unknown request method: %s", method)
@@ -2488,3 +2577,19 @@ def radomize_parameter_list(
         # set parameter values
         for parameter, value_list in tmp_dic.items():
             setattr(ca_handler, parameter, value_list[index])
+
+
+def handler_config_check(logger, handler, parameterlist) -> str:
+    """check if handler config is valid"""
+    logger.debug("Helper.handler_config_check()")
+    error = None
+
+    error = None
+    for ele in parameterlist:
+        if not getattr(handler, ele):
+            error = f"{ele} parameter is missing in config file"
+            logger.error("Configuration check ended with error: %s", error)
+            break
+
+    logger.debug("Helper.handler_config_check() ended with %s", error)
+    return error

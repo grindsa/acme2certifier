@@ -1,9 +1,9 @@
 FROM ubuntu:24.04
 LABEL maintainer="grindelsack@gmail.com"
 
-ENV APACHE_RUN_USER www-data
-ENV APACHE_RUN_GROUP www-data
-ENV APACHE_LOG_DIR /var/log/apache2
+ENV APACHE_RUN_USER=www-data
+ENV APACHE_RUN_GROUP=www-data
+ENV APACHE_LOG_DIR=/var/log/apache2
 
 RUN apt-get update  && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-install-recommends -y tzdata && \

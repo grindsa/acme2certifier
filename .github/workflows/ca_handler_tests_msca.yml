@@ -54,7 +54,10 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker-compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
@@ -178,7 +181,7 @@ jobs:
         $WES_KRB5_CONF
         EOF
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
         WES_USER: ${{ secrets.WES_USER }}
@@ -240,7 +243,7 @@ jobs:
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "NTLM Headerinfo - enrollment allowed domainlist"
       uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
@@ -250,7 +253,7 @@ jobs:
     - name: "NTLM Headerinfo - Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "NTLM ACME Profiling - Setup a2c with mscertsrv_ca_handler"
       run: |
@@ -298,7 +301,7 @@ jobs:
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego dnsmasq
 
     - name: "[ * ] uploading artificates"
@@ -338,7 +341,10 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker-compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
@@ -487,7 +493,7 @@ jobs:
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         WES_HOST: ${{ secrets.WES_HOST }}
         WES_USER: ${{ secrets.WES_USER }}
@@ -517,7 +523,7 @@ jobs:
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego dnsmasq
 
     - name: "[ * ] uploading artificates"
@@ -556,7 +562,10 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker-compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
@@ -692,7 +701,7 @@ jobs:
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServerModified\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         WCCE_USER: ${{ secrets.WCCE_USER }}
@@ -732,7 +741,7 @@ jobs:
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         DNSMASQ_IP: ${{ env.DNSMASQ_IP }}
@@ -757,7 +766,7 @@ jobs:
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
 
     - name: "KRB - enrollment allowed domainlist"
       uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
@@ -765,7 +774,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "KRB ACME Profile - Setup a2c with ms_wcce_ca_handler"
       run: |
@@ -790,7 +799,7 @@ jobs:
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServerModified\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         DNSMASQ_IP: ${{ env.DNSMASQ_IP }}
@@ -822,7 +831,7 @@ jobs:
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         sudo cp -rp dnsmasq/ ${{ github.workspace }}/artifact/dnsmasq/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data dnsmasq
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
@@ -904,7 +913,10 @@ jobs:
 
     - name: "Import container"
       run: |
-        sudo apt-get install -y docker-compose
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
         gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
         docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
         docker images
@@ -1028,7 +1040,7 @@ jobs:
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         DNSMASQ_IP: ${{ env.DNSMASQ_IP }}
@@ -1055,7 +1067,7 @@ jobs:
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         sudo cp -rp dnsmasq/ ${{ github.workspace }}/artifact/dnsmasq/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego dnsmasq
 
     - name: "[ * ] uploading artificates"
