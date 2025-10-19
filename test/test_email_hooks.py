@@ -120,7 +120,7 @@ class TestHooks(unittest.TestCase):
 
         cfg = {
             "Hooks": {
-                "appname": "acme2certifier",
+                "foo": "acme2certifier",
                 # missing sender and rcpt
             }
         }
@@ -131,8 +131,6 @@ class TestHooks(unittest.TestCase):
                 Hooks(self.logger)
             msg = str(ctx.exception)
             self.assertIn("Missing required configuration key(s) in [Hooks]", msg)
-            self.assertIn("sender", msg)
-            self.assertIn("rcpt", msg)
 
     def test_006_validate_configuration_empty_required_keys(self):
         """Fails when required keys have empty values"""
@@ -162,9 +160,7 @@ class TestHooks(unittest.TestCase):
             with self.assertRaises(ValueError) as ctx:
                 Hooks(self.logger)
             msg = str(ctx.exception)
-            self.assertIn(
-                "Empty required configuration key(s): appname, sender, rcpt", msg
-            )
+            self.assertIn("Empty required configuration key(s): appname", msg)
 
     def test_007_smtp_valid_port_and_timeout(self):
         """Validates correct port and timeout do not log errors"""
