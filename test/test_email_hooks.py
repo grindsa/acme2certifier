@@ -1,27 +1,33 @@
 import unittest
 from unittest.mock import patch, MagicMock, PropertyMock
 import sys
+
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
 
 
-
 class DummyConfig:
     """Shim to emulate config parser used by Hooks"""
+
     def __init__(self, data):
         self._data = data
+
     def __contains__(self, key):
         return key in self._data
+
     def __getitem__(self, key):
         return self._data[key]
+
     def get(self, section, key, fallback=None):
         return self._data.get(section, {}).get(key, fallback)
+
     def getint(self, section, key, fallback=None):
         val = self.get(section, key, fallback)
         try:
             return int(val) if val is not None else fallback
         except (TypeError, ValueError):
             return fallback
+
     def getboolean(self, section, key, fallback=None):
         val = self.get(section, key, fallback)
         if val is None:
@@ -33,6 +39,7 @@ class DummyConfig:
 
 class TestHooks(unittest.TestCase):
     """Tests for email_hooks.Hooks"""
+
     def setUp(self):
         import logging
 
@@ -41,18 +48,21 @@ class TestHooks(unittest.TestCase):
         # Start patching load_config before importing and instantiating Hooks
         self._config_patch = patch(
             "examples.hooks.email_hooks.load_config",
-            return_value=DummyConfig({
-                "Hooks": {
-                    "appname": "acme2certifier",
-                    "sender": "sender@example.com",
-                    "rcpt": "rcpt@example.com",
+            return_value=DummyConfig(
+                {
+                    "Hooks": {
+                        "appname": "acme2certifier",
+                        "sender": "sender@example.com",
+                        "rcpt": "rcpt@example.com",
+                    }
                 }
-            }),
+            ),
         )
         self._config_patch_started = self._config_patch.start()
         self.addCleanup(self._config_patch.stop)
 
         from examples.hooks.email_hooks import Hooks
+
         self.hooks = Hooks(self.logger)
 
     def test_001_init(self):
@@ -64,6 +74,7 @@ class TestHooks(unittest.TestCase):
     def test_002_validate_configuration_valid(self):
         """validate_configuration passes for complete config"""
         from examples.hooks.email_hooks import Hooks
+
         cfg = {
             "Hooks": {
                 "appname": "acme2certifier",
@@ -71,7 +82,9 @@ class TestHooks(unittest.TestCase):
                 "rcpt": "rcpt@example.com",
             }
         }
-        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+        with patch(
+            "examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)
+        ):
             h = Hooks(self.logger)
             self.assertEqual(h.appname, "acme2certifier")
             self.assertEqual(h.sender, "sender@example.com")
@@ -80,30 +93,40 @@ class TestHooks(unittest.TestCase):
     def test_003_validate_configuration_empty_config(self):
         """validate_configuration raises on None/empty config"""
         from examples.hooks.email_hooks import Hooks
+
         with patch("examples.hooks.email_hooks.load_config", return_value=None):
             with self.assertRaises(ValueError) as ctx:
                 Hooks(self.logger)
-            self.assertIn("Configuration dictionary is empty or None", str(ctx.exception))
+            self.assertIn(
+                "Configuration dictionary is empty or None", str(ctx.exception)
+            )
 
     def test_004_validate_configuration_missing_section(self):
-        """validate_configuration raises when [Hooks] missing"""
+        """Fails when both Hooks and DEFAULT sections are missing from configuration"""
         from examples.hooks.email_hooks import Hooks
-        cfg = {}
-        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+
+        config = DummyConfig({"SomeOther": {"key": "value"}})
+        with patch("examples.hooks.email_hooks.load_config", return_value=config):
             with self.assertRaises(ValueError) as ctx:
                 Hooks(self.logger)
-            self.assertIn("Missing 'Hooks' section in configuration", str(ctx.exception))
+            self.assertIn(
+                "Missing 'Hooks' or 'DEFAULT' section in configuration",
+                str(ctx.exception),
+            )
 
     def test_005_validate_configuration_missing_required_keys(self):
         """validate_configuration raises when required keys missing"""
         from examples.hooks.email_hooks import Hooks
+
         cfg = {
             "Hooks": {
                 "appname": "acme2certifier",
                 # missing sender and rcpt
             }
         }
-        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+        with patch(
+            "examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)
+        ):
             with self.assertRaises(ValueError) as ctx:
                 Hooks(self.logger)
             msg = str(ctx.exception)
@@ -112,31 +135,47 @@ class TestHooks(unittest.TestCase):
             self.assertIn("rcpt", msg)
 
     def test_006_validate_configuration_empty_required_keys(self):
-        """validate_configuration raises when required keys empty/whitespace"""
+        """Fails when required keys have empty values"""
         from examples.hooks.email_hooks import Hooks
-        cfg = {
-            "Hooks": {
-                "appname": " ",
-                "sender": "\t",
-                "rcpt": "",
+
+        config = DummyConfig(
+            {
+                "Hooks": {
+                    "appname": "",  # Empty required key
+                    "sender": "",  # Empty required key
+                    "rcpt": "",  # Empty required key
+                    "smtp_server": "smtp.example.com",
+                    "smtp_port": "25",
+                    "smtp_user": "",
+                    "smtp_password": "",
+                    "smtp_timeout": "",
+                    "ssl_use": "",
+                    "ssl_starttls": "",
+                    "ssl_noverify": "",
+                    "subject": "ACME certificate renewal",
+                    "body": "Certificate for {subject} expires on {expires}.",
+                    "certificate_list": "/path/to/certs",
+                }
             }
-        }
-        with patch("examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)):
+        )
+        with patch("examples.hooks.email_hooks.load_config", return_value=config):
             with self.assertRaises(ValueError) as ctx:
                 Hooks(self.logger)
             msg = str(ctx.exception)
-            self.assertIn("Empty required configuration key(s) in [Hooks]", msg)
-            # Ensure at least one of the empty keys is mentioned
-            self.assertTrue(any(k in msg for k in ["appname", "sender", "rcpt"]))
+            self.assertIn(
+                "Empty required configuration key(s): appname, sender, rcpt", msg
+            )
 
     def test_007_smtp_valid_port_and_timeout(self):
         """Validates correct port and timeout do not log errors"""
-        self.hooks.config_dic["Hooks"].update({
-            "smtp_port": 587,
-            "smtp_timeout": 30,
-            "smtp_username": "user",
-            "smtp_password": "pw"
-        })
+        self.hooks.config_dic["Hooks"].update(
+            {
+                "smtp_port": 587,
+                "smtp_timeout": 30,
+                "smtp_username": "user",
+                "smtp_password": "pw",
+            }
+        )
         # Should not raise or log errors for valid config
         self.hooks._validate_smtp_configuration()
 
@@ -153,7 +192,9 @@ class TestHooks(unittest.TestCase):
         self.hooks.config_dic["Hooks"]["smtp_password"] = "pw"
         with self.assertLogs(self.logger, level="DEBUG") as cm:
             self.hooks._validate_smtp_configuration()
-        self.assertTrue(any("SMTP password provided without username" in msg for msg in cm.output))
+        self.assertTrue(
+            any("SMTP password provided without username" in msg for msg in cm.output)
+        )
 
     def test_010_smtp_username_no_password(self):
         """Logs error when username is set but password is missing"""
@@ -161,7 +202,12 @@ class TestHooks(unittest.TestCase):
         self.hooks.config_dic["Hooks"].pop("smtp_password", None)
         with self.assertLogs(self.logger, level="ERROR") as cm:
             self.hooks._validate_smtp_configuration()
-        self.assertTrue(any("SMTP username provided but password is missing" in msg for msg in cm.output))
+        self.assertTrue(
+            any(
+                "SMTP username provided but password is missing" in msg
+                for msg in cm.output
+            )
+        )
 
     def test_011_smtp_both_tls_and_starttls(self):
         """Logs warning if both smtp_use_tls and smtp_use_starttls are True"""
@@ -169,7 +215,12 @@ class TestHooks(unittest.TestCase):
         self.hooks.config_dic["Hooks"]["smtp_use_starttls"] = True
         with self.assertLogs(self.logger, level="WARNING") as cm:
             self.hooks._validate_smtp_configuration()
-        self.assertTrue(any("Both smtp_use_tls and smtp_use_starttls are enabled" in msg for msg in cm.output))
+        self.assertTrue(
+            any(
+                "Both smtp_use_tls and smtp_use_starttls are enabled" in msg
+                for msg in cm.output
+            )
+        )
 
     def test_012_smtp_port_465_without_tls(self):
         """Logs info if port 465 is used without TLS"""
@@ -177,7 +228,9 @@ class TestHooks(unittest.TestCase):
         self.hooks.config_dic["Hooks"]["smtp_use_tls"] = False
         with self.assertLogs(self.logger, level="INFO") as cm:
             self.hooks._validate_smtp_configuration()
-        self.assertTrue(any("Port 465 typically requires TLS" in msg for msg in cm.output))
+        self.assertTrue(
+            any("Port 465 typically requires TLS" in msg for msg in cm.output)
+        )
 
     def test_013_smtp_port_587_without_tls_or_starttls(self):
         """Logs info if port 587 is used without TLS or STARTTLS"""
@@ -186,37 +239,45 @@ class TestHooks(unittest.TestCase):
         self.hooks.config_dic["Hooks"]["smtp_use_starttls"] = False
         with self.assertLogs(self.logger, level="INFO") as cm:
             self.hooks._validate_smtp_configuration()
-        self.assertTrue(any("Port 587 typically requires STARTTLS" in msg for msg in cm.output))
+        self.assertTrue(
+            any("Port 587 typically requires STARTTLS" in msg for msg in cm.output)
+        )
 
     def test_014_load_configuration_assigns_required_fields(self):
-        self.hooks.config_dic["Hooks"].update({
-            "appname": "TestApp",
-            "sender": "test@example.com",
-            "rcpt": "rcpt@example.com",
-        })
+        self.hooks.config_dic["Hooks"].update(
+            {
+                "appname": "TestApp",
+                "sender": "test@example.com",
+                "rcpt": "rcpt@example.com",
+            }
+        )
         self.hooks._load_configuration()
         self.assertEqual(self.hooks.appname, "TestApp")
         self.assertEqual(self.hooks.sender, "test@example.com")
         self.assertEqual(self.hooks.rcpt, "rcpt@example.com")
 
     def test_015_load_configuration_optional_booleans(self):
-        self.hooks.config_dic["Hooks"].update({
-            "appname": "TestApp",
-            "sender": "test@example.com",
-            "rcpt": "rcpt@example.com",
-            "report_failures": "False",
-            "report_successes": "True",
-        })
+        self.hooks.config_dic["Hooks"].update(
+            {
+                "appname": "TestApp",
+                "sender": "test@example.com",
+                "rcpt": "rcpt@example.com",
+                "report_failures": "False",
+                "report_successes": "True",
+            }
+        )
         self.hooks._load_configuration()
         self.assertFalse(self.hooks.report_failures)
         self.assertTrue(self.hooks.report_successes)
 
     def test_016_load_configuration_smtp_defaults(self):
-        self.hooks.config_dic["Hooks"].update({
-            "appname": "TestApp",
-            "sender": "test@example.com",
-            "rcpt": "rcpt@example.com",
-        })
+        self.hooks.config_dic["Hooks"].update(
+            {
+                "appname": "TestApp",
+                "sender": "test@example.com",
+                "rcpt": "rcpt@example.com",
+            }
+        )
         self.hooks._load_configuration()
         self.assertEqual(self.hooks.smtp_server, "localhost")
         self.assertEqual(self.hooks.smtp_port, 25)
@@ -227,19 +288,21 @@ class TestHooks(unittest.TestCase):
         self.assertFalse(self.hooks.smtp_use_starttls)
 
     def test_017_load_configuration_assigns_all_fields(self):
-        self.hooks.config_dic["Hooks"].update({
-            "appname": "TestApp",
-            "sender": "test@example.com",
-            "rcpt": "rcpt@example.com",
-            "smtp_server": "smtp.example.com",
-            "smtp_port": "2525",
-            "subject_prefix": "[PREFIX]",
-            "smtp_timeout": "42",
-            "smtp_username": "user",
-            "smtp_password": "pass",
-            "smtp_use_tls": "False",
-            "smtp_use_starttls": "True",
-        })
+        self.hooks.config_dic["Hooks"].update(
+            {
+                "appname": "TestApp",
+                "sender": "test@example.com",
+                "rcpt": "rcpt@example.com",
+                "smtp_server": "smtp.example.com",
+                "smtp_port": "2525",
+                "subject_prefix": "[PREFIX]",
+                "smtp_timeout": "42",
+                "smtp_username": "user",
+                "smtp_password": "pass",
+                "smtp_use_tls": "False",
+                "smtp_use_starttls": "True",
+            }
+        )
         self.hooks._load_configuration()
         self.assertEqual(self.hooks.smtp_server, "smtp.example.com")
         self.assertEqual(self.hooks.smtp_port, 2525)
@@ -251,23 +314,27 @@ class TestHooks(unittest.TestCase):
         self.assertTrue(self.hooks.smtp_use_starttls)
 
     def test_018_load_configuration_uses_sender_as_username_if_password_only(self):
-        self.hooks.config_dic["Hooks"].update({
-            "appname": "TestApp",
-            "sender": "test@example.com",
-            "rcpt": "rcpt@example.com",
-            "smtp_password": "pass",
-        })
+        self.hooks.config_dic["Hooks"].update(
+            {
+                "appname": "TestApp",
+                "sender": "test@example.com",
+                "rcpt": "rcpt@example.com",
+                "smtp_password": "pass",
+            }
+        )
         with self.assertLogs(self.logger, "DEBUG") as cm:
             self.hooks._load_configuration()
         self.assertEqual(self.hooks.smtp_username, "test@example.com")
         self.assertIn("Using sender email as SMTP username", "\n".join(cm.output))
 
     def test_019_load_configuration_sets_envelope_fields(self):
-        self.hooks.config_dic["Hooks"].update({
-            "appname": "TestApp",
-            "sender": "test@example.com",
-            "rcpt": "rcpt@example.com",
-        })
+        self.hooks.config_dic["Hooks"].update(
+            {
+                "appname": "TestApp",
+                "sender": "test@example.com",
+                "rcpt": "rcpt@example.com",
+            }
+        )
         self.hooks._load_configuration()
         self.assertIn("From", self.hooks.envelope)
         self.assertIn("To", self.hooks.envelope)
@@ -276,11 +343,105 @@ class TestHooks(unittest.TestCase):
         self.assertEqual(self.hooks.envelope["To"], "rcpt@example.com")
         self.assertFalse(self.hooks.done)
 
-    def test_020_done_multiple_calls_warns(self):
+    def test_059_done_already_sent_warning(self):
+        """_done warns when called multiple times"""
         self.hooks.done = True
-        with self.assertLogs(self.logger, "WARNING") as cm:
+
+        with self.assertLogs(self.logger, level="WARNING") as cm:
             self.hooks._done()
+
         self.assertIn("email already sent", "\n".join(cm.output))
+
+    def test_060_config_from_default_section(self):
+        """Configuration loads from DEFAULT section when Hooks section is missing values"""
+        from examples.hooks.email_hooks import Hooks
+
+        cfg = {
+            "DEFAULT": {
+                "appname": "default-app",
+                "sender": "default@example.com",
+                "rcpt": "admin@example.com",
+                "smtp_server": "default.smtp.com",
+                "smtp_port": "465",
+            },
+            "Hooks": {},
+        }
+        with patch(
+            "examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)
+        ):
+            h = Hooks(self.logger)
+            self.assertEqual(h.appname, "default-app")
+            self.assertEqual(h.sender, "default@example.com")
+            self.assertEqual(h.smtp_server, "default.smtp.com")
+            self.assertEqual(h.smtp_port, 465)
+
+    def test_061_config_hooks_precedence_over_default(self):
+        """Configuration in Hooks section takes precedence over DEFAULT section"""
+        from examples.hooks.email_hooks import Hooks
+
+        cfg = {
+            "DEFAULT": {
+                "appname": "default-app",
+                "sender": "default@example.com",
+                "rcpt": "admin@example.com",
+                "smtp_server": "default.smtp.com",
+                "smtp_port": "25",
+            },
+            "Hooks": {
+                "appname": "hooks-app",  # Should override DEFAULT
+                "sender": "hooks@example.com",  # Should override DEFAULT
+                "rcpt": "admin@example.com"
+                # smtp_server and smtp_port should come from DEFAULT
+            },
+        }
+        with patch(
+            "examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)
+        ):
+            h = Hooks(self.logger)
+            self.assertEqual(h.appname, "hooks-app")  # From Hooks section
+            self.assertEqual(h.sender, "hooks@example.com")  # From Hooks section
+            self.assertEqual(h.smtp_server, "default.smtp.com")  # From DEFAULT section
+            self.assertEqual(h.smtp_port, 25)  # From DEFAULT section
+
+    def test_062_config_missing_both_sections_fails(self):
+        """Configuration validation fails when neither Hooks nor DEFAULT section exists"""
+        from examples.hooks.email_hooks import Hooks
+
+        cfg = {"SomeOther": {"key": "value"}}
+        with patch(
+            "examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)
+        ):
+            with self.assertRaises(ValueError) as ctx:
+                Hooks(self.logger)
+            self.assertIn("Missing 'Hooks' or 'DEFAULT' section", str(ctx.exception))
+
+    def test_063_config_required_keys_from_mixed_sections(self):
+        """Required keys can be satisfied from a mix of Hooks and DEFAULT sections"""
+        from examples.hooks.email_hooks import Hooks
+
+        cfg = {
+            "DEFAULT": {
+                "sender": "default@example.com",
+                "smtp_server": "default.smtp.com",
+            },
+            "Hooks": {
+                "appname": "hooks-app",
+                "rcpt": "admin@example.com"
+                # sender comes from DEFAULT
+            },
+        }
+        with patch(
+            "examples.hooks.email_hooks.load_config", return_value=DummyConfig(cfg)
+        ):
+            h = Hooks(self.logger)
+            self.assertEqual(h.appname, "hooks-app")  # From Hooks
+            self.assertEqual(h.sender, "default@example.com")  # From DEFAULT
+            self.assertEqual(h.rcpt, "admin@example.com")  # From Hooks
+            self.assertEqual(h.smtp_server, "default.smtp.com")  # From DEFAULT
+
+
+if __name__ == "__main__":
+    unittest.main()
 
     def test_021_done_handles_exception_and_logs_error(self):
         self.hooks.smtp_use_tls = True
@@ -341,7 +502,10 @@ class TestHooks(unittest.TestCase):
         mock_build_pem.assert_called()
         mock_mimeapp.assert_called_with("PEM DATA", Name="example.com_reqkey.csr")
         self.hooks.envelope.attach.assert_called_with(part_mock)
-        self.assertIn("To read example.com_reqkey.csr using CMD on Windows", "\n".join(self.hooks.msg))
+        self.assertIn(
+            "To read example.com_reqkey.csr using CMD on Windows",
+            "\n".join(self.hooks.msg),
+        )
 
     @patch("examples.hooks.email_hooks.build_pem_file", return_value=None)
     @patch("examples.hooks.email_hooks.MIMEApplication")
@@ -356,7 +520,9 @@ class TestHooks(unittest.TestCase):
             self.hooks._attach_csr(request_key, csr)
         mock_build_pem.assert_called()
         mock_mimeapp.assert_not_called()
-        self.assertTrue(any("Failed to build PEM file from CSR" in msg for msg in cm.output))
+        self.assertTrue(
+            any("Failed to build PEM file from CSR" in msg for msg in cm.output)
+        )
 
     @patch("examples.hooks.email_hooks.build_pem_file", side_effect=Exception("fail"))
     @patch("examples.hooks.email_hooks.MIMEApplication")
@@ -372,10 +538,18 @@ class TestHooks(unittest.TestCase):
         self.assertTrue(any("Failed to attach CSR" in msg for msg in cm.output))
         self.assertIn("CSR attachment failed: Exception", self.hooks.msg[-1])
 
-    @patch("examples.hooks.email_hooks.x509.load_pem_x509_certificates", return_value=[MagicMock(), MagicMock()])
-    @patch("examples.hooks.email_hooks.pkcs12.serialize_key_and_certificates", return_value=b"PFXDATA")
+    @patch(
+        "examples.hooks.email_hooks.x509.load_pem_x509_certificates",
+        return_value=[MagicMock(), MagicMock()],
+    )
+    @patch(
+        "examples.hooks.email_hooks.pkcs12.serialize_key_and_certificates",
+        return_value=b"PFXDATA",
+    )
     @patch("examples.hooks.email_hooks.MIMEApplication")
-    def test_029_attach_cert_success(self, mock_mimeapp, mock_serialize, mock_load_x509):
+    def test_029_attach_cert_success(
+        self, mock_mimeapp, mock_serialize, mock_load_x509
+    ):
         """_attach_cert attaches certificate as expected when parsing and serialization succeed"""
         request_key = "reqkey"
         certificate = "CERTDATA"
@@ -389,12 +563,20 @@ class TestHooks(unittest.TestCase):
         mock_serialize.assert_called()
         mock_mimeapp.assert_called_with(b"PFXDATA", Name="example.com_reqkey.pfx")
         self.hooks.envelope.attach.assert_called_with(part_mock)
-        self.assertIn("To read example.com_reqkey.pfx using CMD on Windows", "\n".join(self.hooks.msg))
+        self.assertIn(
+            "To read example.com_reqkey.pfx using CMD on Windows",
+            "\n".join(self.hooks.msg),
+        )
 
-    @patch("examples.hooks.email_hooks.x509.load_pem_x509_certificates", side_effect=Exception("parsefail"))
+    @patch(
+        "examples.hooks.email_hooks.x509.load_pem_x509_certificates",
+        side_effect=Exception("parsefail"),
+    )
     @patch("examples.hooks.email_hooks.pkcs12.serialize_key_and_certificates")
     @patch("examples.hooks.email_hooks.MIMEApplication")
-    def test_030_attach_cert_parse_error(self, mock_mimeapp, mock_serialize, mock_load_x509):
+    def test_030_attach_cert_parse_error(
+        self, mock_mimeapp, mock_serialize, mock_load_x509
+    ):
         """_attach_cert logs warning and appends message if certificate parsing fails"""
         request_key = "reqkey"
         certificate = "CERTDATA"
@@ -403,14 +585,25 @@ class TestHooks(unittest.TestCase):
         self.hooks.msg = []
         with self.assertLogs(self.logger, level="WARNING") as cm:
             self.hooks._attach_cert(request_key, certificate)
-        self.assertTrue(any("Certificate attachment failed" in msg for msg in cm.output))
+        self.assertTrue(
+            any("Certificate attachment failed" in msg for msg in cm.output)
+        )
         self.assertIn("Certificate attachment failed: Exception", self.hooks.msg[-1])
         mock_serialize.assert_not_called()
         mock_mimeapp.assert_not_called()
-    @patch("examples.hooks.email_hooks.x509.load_pem_x509_certificates", return_value=[MagicMock(), MagicMock()])
-    @patch("examples.hooks.email_hooks.pkcs12.serialize_key_and_certificates", side_effect=Exception("serializefail"))
+
+    @patch(
+        "examples.hooks.email_hooks.x509.load_pem_x509_certificates",
+        return_value=[MagicMock(), MagicMock()],
+    )
+    @patch(
+        "examples.hooks.email_hooks.pkcs12.serialize_key_and_certificates",
+        side_effect=Exception("serializefail"),
+    )
     @patch("examples.hooks.email_hooks.MIMEApplication")
-    def test_031_attach_cert_serialize_error(self, mock_mimeapp, mock_serialize, mock_load_x509):
+    def test_031_attach_cert_serialize_error(
+        self, mock_mimeapp, mock_serialize, mock_load_x509
+    ):
         """_attach_cert logs warning and appends message if serialization fails"""
         request_key = "reqkey"
         certificate = "CERTDATA"
@@ -419,7 +612,9 @@ class TestHooks(unittest.TestCase):
         self.hooks.msg = []
         with self.assertLogs(self.logger, level="WARNING") as cm:
             self.hooks._attach_cert(request_key, certificate)
-        self.assertTrue(any("Certificate attachment failed" in msg for msg in cm.output))
+        self.assertTrue(
+            any("Certificate attachment failed" in msg for msg in cm.output)
+        )
         self.assertIn("Certificate attachment failed: Exception", self.hooks.msg[-1])
         mock_mimeapp.assert_not_called()
 
@@ -462,6 +657,7 @@ class TestHooks(unittest.TestCase):
     def test_036_post_hook_success(self, mock_csr_san_get):
         """post_hook sends failure email with correct subject and message"""
         from examples.hooks.email_hooks import Hooks
+
         # Setup a real Hooks instance with mocks for envelope and _done
         hooks = Hooks(self.logger)
         hooks.san = "example.com"
@@ -482,6 +678,7 @@ class TestHooks(unittest.TestCase):
     def test_037_post_hook_report_failures_false(self):
         """post_hook does nothing if report_failures is False"""
         from examples.hooks.email_hooks import Hooks
+
         hooks = Hooks(self.logger)
         hooks.report_failures = False
         hooks._done = MagicMock()
@@ -497,6 +694,7 @@ class TestHooks(unittest.TestCase):
     def test_038_post_hook_exception(self, mock_csr_san_get):
         """post_hook logs error if exception occurs"""
         from examples.hooks.email_hooks import Hooks
+
         hooks = Hooks(self.logger)
         hooks.report_failures = True
         hooks._done = MagicMock()
@@ -551,7 +749,9 @@ class TestHooks(unittest.TestCase):
         self.hooks.envelope = {"Subject": None}
         self.hooks.msg = []
         with self.assertLogs(self.logger, level="ERROR") as cm:
-            self.hooks.success_hook("reqkey", "order", "csr", "cert", "cert_raw", "pollid")
+            self.hooks.success_hook(
+                "reqkey", "order", "csr", "cert", "cert_raw", "pollid"
+            )
         self.assertTrue(any("Error in success_hook" in msg for msg in cm.output))
 
     @patch("examples.hooks.email_hooks.cert_san_get", return_value=["DNS:example.com"])
@@ -610,8 +810,12 @@ class TestHooks(unittest.TestCase):
         self.hooks.msg = []
         self.hooks.report_successes = True
         with self.assertLogs(self.logger, level="DEBUG") as cm:
-            self.hooks.success_hook("reqkey", "order", "csr", certificate, "cert_raw", "pollid")
-        self.assertTrue(any("Parsing certificate details for email" in msg for msg in cm.output))
+            self.hooks.success_hook(
+                "reqkey", "order", "csr", certificate, "cert_raw", "pollid"
+            )
+        self.assertTrue(
+            any("Parsing certificate details for email" in msg for msg in cm.output)
+        )
         self.assertEqual(self.hooks.envelope["Subject"], "subject-success-example.com")
         self.assertIn("header-success-example.com", self.hooks.msg[0])
         self.assertIn("Certificate issued successfully!", self.hooks.msg[1])
@@ -621,12 +825,16 @@ class TestHooks(unittest.TestCase):
 
     @patch("examples.hooks.email_hooks.cert_san_get", return_value=["DNS:example.com"])
     @patch("examples.hooks.email_hooks.x509.load_pem_x509_certificates")
-    def test_043_success_hook_cert_not_valid_before_utc_exception(self, mock_load_x509, mock_cert_san_get):
+    def test_043_success_hook_cert_not_valid_before_utc_exception(
+        self, mock_load_x509, mock_cert_san_get
+    ):
         """success_hook handles exception in cert.not_valid_before_utc and logs error"""
         # Create a mock cert with not_valid_before_utc raising
         cert_mock = MagicMock()
         type(cert_mock).serial_number = PropertyMock(return_value=123)
-        type(cert_mock).not_valid_before_utc = PropertyMock(side_effect=Exception("fail not_valid_before_utc"))
+        type(cert_mock).not_valid_before_utc = PropertyMock(
+            side_effect=Exception("fail not_valid_before_utc")
+        )
         type(cert_mock).not_valid_after_utc = PropertyMock(return_value="future")
         mock_load_x509.return_value = [cert_mock]
         self.hooks.report_successes = True
@@ -637,8 +845,16 @@ class TestHooks(unittest.TestCase):
         self.hooks.msg = []
         # This should not raise, but should log an error
         with self.assertLogs(self.logger, level="DEBUG") as cm:
-            self.hooks.success_hook("reqkey", "order", "csr", "cert", "cert_raw", "pollid")
-        self.assertTrue(any("Falling back to not_valid_before and not_valid_after for certificate dates" in msg for msg in cm.output))
+            self.hooks.success_hook(
+                "reqkey", "order", "csr", "cert", "cert_raw", "pollid"
+            )
+        self.assertTrue(
+            any(
+                "Falling back to not_valid_before and not_valid_after for certificate dates"
+                in msg
+                for msg in cm.output
+            )
+        )
 
     def test_044_pre_hook(self):
         """pre_hook handles missing CSR gracefully"""
@@ -757,7 +973,10 @@ class TestHooks(unittest.TestCase):
         self.assertIn("password: ***", log_output)
         self.assertTrue(self.hooks.done)
 
-    @patch("examples.hooks.email_hooks.smtplib.SMTP_SSL", side_effect=Exception("Connection failed"))
+    @patch(
+        "examples.hooks.email_hooks.smtplib.SMTP_SSL",
+        side_effect=Exception("Connection failed"),
+    )
     def test_049_done_handles_smtp_connection_error(self, mock_smtp_ssl):
         """_done handles SMTP connection errors gracefully"""
         self.hooks.smtp_use_tls = True
@@ -776,7 +995,10 @@ class TestHooks(unittest.TestCase):
         self.assertTrue(any("Connection failed" in msg for msg in cm.output))
         self.assertTrue(self.hooks.done)  # Still sets done=True even on error
 
-    @patch("examples.hooks.email_hooks.smtplib.SMTP", side_effect=Exception("Connection failed"))
+    @patch(
+        "examples.hooks.email_hooks.smtplib.SMTP",
+        side_effect=Exception("Connection failed"),
+    )
     def test_050_done_handles_smtp_auth_error(self, mock_smtp):
         """_done handles SMTP connection errors gracefully"""
         self.hooks.smtp_use_tls = False
