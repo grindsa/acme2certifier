@@ -32,7 +32,7 @@ jobs:
         # CONTAINER_BUILD: "false"
 
     - name: "Install mailserver"
-      uses: ./.github/actions/wf_specific/emailreply_challengevalidation/mailserver_install
+      uses: ./.github/actions/mailserver_install
       with:
         MAILSERVER_CERT: ${{ secrets.MAILSERVER_CERT }}
 
@@ -131,7 +131,7 @@ jobs:
         RH_VERSION: ${{ matrix.rhversion }}
 
     - name: "Install mailserver"
-      uses: ./.github/actions/wf_specific/emailreply_challengevalidation/mailserver_install
+      uses: ./.github/actions/mailserver_install
       with:
         MAILSERVER_CERT: ${{ secrets.MAILSERVER_CERT }}
 
