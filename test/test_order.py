@@ -742,7 +742,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.order.Order._info")
     def test_030_order__csr_process(self, mock_oinfo):
-        """test order prcoess_csr with empty order_dic"""
+        """test order process_csr with empty order_dic"""
         mock_oinfo.return_value = {}
         self.assertEqual(
             (
@@ -757,7 +757,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.certificate.Certificate.store_csr")
     @patch("acme_srv.order.Order._info")
     def test_031_order__csr_process(self, mock_oinfo, mock_certname, mock_import):
-        """test order prcoess_csr with failed csr dbsave"""
+        """test order process_csr with failed csr dbsave"""
         mock_oinfo.return_value = {"foo", "bar"}
         mock_certname.return_value = None
         mock_import.return_value = importlib.import_module(
@@ -775,7 +775,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_032_order__csr_process(
         self, mock_oinfo, mock_certname, mock_enroll, mock_import
     ):
-        """test order prcoess_csr with failed cert enrollment"""
+        """test order process_csr with failed cert enrollment"""
         mock_oinfo.return_value = {"foo", "bar"}
         mock_certname.return_value = "foo"
         mock_enroll.return_value = ("error", "detail")
@@ -794,7 +794,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_033_order__csr_process(
         self, mock_oinfo, mock_certname, mock_enroll, mock_import
     ):
-        """test order prcoess_csr with successful cert enrollment"""
+        """test order process_csr with successful cert enrollment"""
         mock_oinfo.return_value = {"foo", "bar"}
         mock_certname.return_value = "foo"
         mock_enroll.return_value = (None, None)
@@ -1341,8 +1341,20 @@ class TestACMEHandler(unittest.TestCase):
             ),
         )
 
-    def test_070_order__process(self):
-        """Order.prcoess() without url in protected header"""
+    @patch("acme_srv.order.Order._identifiers_allowed")
+    @patch("acme_srv.order.Order._email_identifier_rewrite")
+    def test_071_order__identifiers_check(self, mock_rew, mock_all):
+        """order identifiers check with correct identifier and email rewrite enabled"""
+        mock_all.return_value = None
+        self.order.email_identifier_support = True
+        self.order.email_identifier_rewrite = True
+        self.assertEqual(
+            None, self.order._identifiers_check([{"type": "dns", "value": "value"}])
+        )
+        self.assertTrue(mock_rew.called)
+
+    def test_072_order__process(self):
+        """Order.process() without url in protected header"""
         order_name = "order_name"
         protected = "protected"
         payload = "payload"
@@ -1356,8 +1368,8 @@ class TestACMEHandler(unittest.TestCase):
             self.order._process(order_name, protected, payload),
         )
 
-    def test_071_order__process(self):
-        """Order.prcoess() polling request with failed certificate lookup"""
+    def test_073_order__process(self):
+        """Order.process() polling request with failed certificate lookup"""
         order_name = "order_name"
         protected = {"url": "foo"}
         payload = "payload"
@@ -1366,8 +1378,8 @@ class TestACMEHandler(unittest.TestCase):
             (200, None, None, None), self.order._process(order_name, protected, payload)
         )
 
-    def test_072_order__process(self):
-        """Order.prcoess() polling request with successful certificate lookup"""
+    def test_074_order__process(self):
+        """Order.process() polling request with successful certificate lookup"""
         order_name = "order_name"
         protected = {"url": "foo"}
         payload = "payload"
@@ -1378,8 +1390,8 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme_srv.order.Order._info")
-    def test_073_order__process(self, mock_info):
-        """Order.prcoess() finalize request with empty orderinfo"""
+    def test_075_order__process(self, mock_info):
+        """Order.process() finalize request with empty orderinfo"""
         mock_info.return_value = {}
         order_name = "order_name"
         protected = {"url": {"finalize": "foo", "foo": "bar"}}
@@ -1395,8 +1407,8 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme_srv.order.Order._info")
-    def test_074_order__process(self, mock_info):
-        """Order.prcoess() finalize request with orderinfo without status"""
+    def test_076_order__process(self, mock_info):
+        """Order.process() finalize request with orderinfo without status"""
         mock_info.return_value = {"foo": "bar"}
         order_name = "order_name"
         protected = {"url": {"finalize": "foo", "foo": "bar"}}
@@ -1412,8 +1424,8 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme_srv.order.Order._info")
-    def test_075_order__process(self, mock_info):
-        """Order.prcoess() finalize request with orderinfo with wrong status"""
+    def test_077_order__process(self, mock_info):
+        """Order.process() finalize request with orderinfo with wrong status"""
         mock_info.return_value = {"status": "bar"}
         order_name = "order_name"
         protected = {"url": {"finalize": "foo", "foo": "bar"}}
@@ -1430,7 +1442,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.order.Order._info")
     def test_078_order__process(self, mock_info):
-        """Order.prcoess() finalize request with orderinfo with status valid"""
+        """Order.process() finalize request with orderinfo with status valid"""
         mock_info.return_value = {"status": "valid"}
         order_name = "order_name"
         protected = {"url": {"finalize": "foo", "foo": "bar"}}
@@ -1447,7 +1459,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.order.Order._info")
     def test_079_order__process(self, mock_info):
-        """Order.prcoess() finalize request with orderinfo with status valid and allowed polling via finalize"""
+        """Order.process() finalize request with orderinfo with status valid and allowed polling via finalize"""
         mock_info.return_value = {"status": "valid"}
         order_name = "order_name"
         protected = {"url": {"finalize": "foo", "foo": "bar"}}
@@ -1467,7 +1479,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.order.Order._info")
     def test_080_order__process(self, mock_info):
-        """Order.prcoess() finalize request with orderinfo with status valid and allowed polling via finalize"""
+        """Order.process() finalize request with orderinfo with status valid and allowed polling via finalize"""
         mock_info.return_value = {"status": "valid"}
         order_name = "order_name"
         protected = {"url": {"finalize": "foo", "foo": "bar"}}
@@ -1491,7 +1503,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.order.Order._info")
     def test_081_order__process(self, mock_info):
-        """Order.prcoess() finalize request without CSR"""
+        """Order.process() finalize request without CSR"""
         mock_info.return_value = {"status": "ready"}
         order_name = "order_name"
         protected = {"url": {"finalize": "foo", "foo": "bar"}}
@@ -1509,7 +1521,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.order.Order._csr_process")
     @patch("acme_srv.order.Order._info")
     def test_082_order__process(self, mock_info, mock_process_csr):
-        """Order.prcoess() finalize request with CSR but csr_process failed"""
+        """Order.process() finalize request with CSR but csr_process failed"""
         mock_info.return_value = {"status": "ready"}
         order_name = "order_name"
         protected = {"url": {"finalize": "foo", "foo": "bar"}}
@@ -1524,7 +1536,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.order.Order._csr_process")
     @patch("acme_srv.order.Order._info")
     def test_083_order__process(self, mock_info, mock_process_csr, mock_update):
-        """Order.prcoess() finalize request with CSR but all good"""
+        """Order.process() finalize request with CSR but all good"""
         mock_info.return_value = {"status": "ready"}
         order_name = "order_name"
         protected = {"url": {"finalize": "foo", "foo": "bar"}}
@@ -1541,7 +1553,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.order.Order._csr_process")
     @patch("acme_srv.order.Order._info")
     def test_084_order__process(self, mock_info, mock_process_csr, mock_update):
-        """Order.prcoess() timeout in csr processing"""
+        """Order.process() timeout in csr processing"""
         mock_info.return_value = {"status": "ready"}
         order_name = "order_name"
         protected = {"url": {"finalize": "foo", "foo": "bar"}}
@@ -1558,7 +1570,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.order.Order._csr_process")
     @patch("acme_srv.order.Order._info")
     def test_085_order__process(self, mock_info, mock_process_csr, mock_update):
-        """Order.prcoess() finalize request with detail none"""
+        """Order.process() finalize request with detail none"""
         mock_info.return_value = {"status": "ready"}
         order_name = "order_name"
         protected = {"url": {"finalize": "foo", "foo": "bar"}}
@@ -1578,7 +1590,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_086_order__csr_process(
         self, mock_oinfo, mock_certname, mock_enroll, mock_import
     ):
-        """test order prcoess_csr with failed cert enrollment with internal error (response code must be corrected by 500)"""
+        """test order process_csr with failed cert enrollment with internal error (response code must be corrected by 500)"""
         mock_oinfo.return_value = {"foo", "bar"}
         mock_certname.return_value = "foo"
         mock_import.return_value = importlib.import_module(
