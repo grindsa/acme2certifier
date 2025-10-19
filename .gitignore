@@ -144,6 +144,7 @@ acme_srv/ssl/*
 acme_srv/cn_dump/*
 acme_srv/fixture
 acme_srv/entrust/*
+acme_srv/vault/*
 *.dll
 acme_srv/cmp/WindowsCMPOpenSSL/openssl.exe
 acme_srv/migrations.old

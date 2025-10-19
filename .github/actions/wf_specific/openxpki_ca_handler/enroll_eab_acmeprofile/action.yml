@@ -26,7 +26,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash
     env:
@@ -50,10 +50,10 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "cert_profile_name: tls-server"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "cert_profile_name: tls-server"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_profile_name: tls-server"
+        docker exec -i acme-srv tail -n 800 /var/log/messages | grep "cert_profile_name: tls-server"
       fi
     shell: bash
     env:
@@ -83,10 +83,10 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "unknown"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "unknown"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 250 /var/log/messages | grep unknown
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep unknown
       fi
     shell: bash
     env:
@@ -111,10 +111,10 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "cert_profile_name: tls-client"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "cert_profile_name: tls-client"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_profile_name: tls-client"
+        docker exec -i acme-srv tail -n 800 /var/log/messages | grep "cert_profile_name: tls-client"
       fi
     shell: bash
     env:
@@ -137,10 +137,10 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "cert_profile_name: tls-client"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "cert_profile_name: tls-client"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "cert_profile_name: tls-client"
+        docker exec -i acme-srv tail -n 800 /var/log/messages | grep "cert_profile_name: tls-client"
       fi
     shell: bash
     env:

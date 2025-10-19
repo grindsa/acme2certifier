@@ -1,4 +1,4 @@
-name: tests for idempotent_finalize option
+name: Idempotent_finalize option tests
 
 on:
   push:
@@ -38,8 +38,7 @@ jobs:
         sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
+        docker compose restart
 
     - name: "Enroll via acmeshell"
       uses: ./.github/actions/acmeshell
@@ -51,8 +50,7 @@ jobs:
       run: |
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nidempotent_finalize: True/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
+        docker compose restart
 
     - name: "Enroll via acmeshell"
       uses: ./.github/actions/acmeshell

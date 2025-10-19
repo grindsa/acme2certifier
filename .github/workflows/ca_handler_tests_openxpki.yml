@@ -54,7 +54,9 @@ jobs:
         sudo echo "est_client_key: volume/acme_ca/client_key.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker ps -a
+        docker compose restart
+        docker ps -a
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -82,7 +84,7 @@ jobs:
         sudo echo "cert_passphrase: Test1234" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -112,7 +114,7 @@ jobs:
         sudo echo "polling_timeout: 60" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -124,7 +126,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "Delete acme-sh, letsencypt and lego folders"
       run: |
@@ -134,7 +136,8 @@ jobs:
 
     - name: "Reconfigure a2c (pkcs12 support)"
       run: |
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker ps -a
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "host: https://openxpki:8443" >> examples/Docker/data/acme_srv.cfg
@@ -147,7 +150,7 @@ jobs:
         sudo echo "polling_timeout: 60" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -159,11 +162,11 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "ACME Profiling - setup a2c with openxpki_ca_handler"
       run: |
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "host: https://openxpki:8443" >> examples/Docker/data/acme_srv.cfg
@@ -178,7 +181,7 @@ jobs:
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"tls-client\": \"http:\/\/foo.bar\/profile1\", \"tls-server\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -218,7 +221,7 @@ jobs:
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -237,8 +240,12 @@ jobs:
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/a2c.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz openxpki.log a2c.log data acme-sh certbot lego
+        docker ps -a
+        docker compose logs > ${{ github.workspace }}/artifact/a2c.log
+        docker exec  OpenXPKI_Server cat /var/log/openxpki-server/catchall.log >> ${{ github.workspace }}/artifact/openxpki_server.log
+        docker exec  OpenXPKI_Client cat /var/log/openxpki-client/est.log >> ${{ github.workspace }}/artifact/openxpki_client_est.log
+        docker exec  OpenXPKI_Client cat /var/log/openxpki-client/rpc.log >> ${{ github.workspace }}/artifact/openxpki_client_rpc.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz openxpki_server.log openxpki_client_est.log openxpki_client_rpc.log a2c.log data # acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4

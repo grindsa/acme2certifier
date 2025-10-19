@@ -32,8 +32,8 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec acme-srv grep "Certificate.enroll_and_store() ended with: None:timeout" /var/log/messages
       fi
@@ -60,8 +60,8 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "Reuse existing certificate"
-        docker-compose logs | grep "issued for account" | grep "Serial:" | grep "reused: True"
+        docker compose logs | grep "Reuse existing certificate"
+        docker compose logs | grep "issued for account" | grep "Serial:" | grep "reused: True"
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec acme-srv grep "Reuse existing certificate" /var/log/messages
         docker exec -i acme-srv bash -c 'tail -n 500 /var/log/messages | grep "issued for account" | grep "Serial:" | grep "reused: True"'
@@ -79,8 +79,8 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash
     env:
@@ -100,8 +100,8 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+        docker compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash
     env:

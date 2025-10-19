@@ -61,8 +61,8 @@ jobs:
         sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
+        docker compose restart
+        docker compose logs
       env:
         SAEC: ${{ env.SAEC }}
 
@@ -74,7 +74,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
       run: |
@@ -105,8 +105,8 @@ jobs:
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
+        docker compose restart
+        docker compose logs
       env:
         SAEC: ${{ env.SAEC }}
 
@@ -143,8 +143,8 @@ jobs:
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
+        docker compose restart
+        docker compose logs
       env:
         SAEC: ${{ env.SAEC }}
 
@@ -166,7 +166,7 @@ jobs:
         sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acmeca1\": \"http:\/\/foo.bar\/acmeca1\", \"acmeca2\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         SAEC: ${{ env.SAEC }}
 
@@ -203,7 +203,7 @@ jobs:
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         SAEC: ${{ env.SAEC }}
 
@@ -226,7 +226,7 @@ jobs:
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         docker logs ejbca > ${{ github.workspace }}/artifact/ejbca.log
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/a2c.log
+        docker compose logs > ${{ github.workspace }}/artifact/a2c.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz ejbca.log a2c.log data acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"

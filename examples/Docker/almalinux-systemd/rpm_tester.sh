@@ -1,6 +1,6 @@
 #!/bin/bash
 
-case "$1" in
+case "${1}" in
 
   "update")
     echo "update configuration only"

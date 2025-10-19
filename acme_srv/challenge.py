@@ -22,6 +22,7 @@ from acme_srv.helper import (
     load_config,
     parse_url,
     proxy_check,
+    ptr_resolve,
     servercert_get,
     sha256_hash,
     sha256_hash_hex,
@@ -66,7 +67,8 @@ class Challenge(object):
         self.dbstore = DBstore(debug, self.logger)
         self.err_msg_dic = error_dic_get(self.logger)
         self.message = Message(debug, self.server_name, self.logger)
-        self.source_address_check = False
+        self.forward_address_check = False
+        self.reverse_address_check = False
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -377,9 +379,23 @@ class Challenge(object):
             self.challenge_validation_disable = config_dic.getboolean(
                 "Challenge", "challenge_validation_disable", fallback=False
             )
-            self.source_address_check = config_dic.getboolean(
-                "Challenge", "source_address_check", fallback=False
+
+            if "source_address_check" in config_dic["Challenge"]:
+                self.logger.warning(
+                    "source_address_check is deprecated, please use forward_address_check instead"
+                )
+                self.forward_address_check = config_dic.getboolean(
+                    "Challenge", "source_address_check", fallback=False
+                )
+            else:
+                self.forward_address_check = config_dic.getboolean(
+                    "Challenge", "forward_address_check", fallback=False
+                )
+
+            self.reverse_address_check = config_dic.getboolean(
+                "Challenge", "reverse_address_check", fallback=False
             )
+
             self.sectigo_sim = config_dic.getboolean(
                 "Challenge", "sectigo_sim", fallback=False
             )
@@ -416,17 +432,14 @@ class Challenge(object):
                 "Order", "email_identifier_support", fallback=False
             )
 
-        if (
-            self.email_identifier_support
-            and "DEFAULT" in config_dic
-            and "email_address" in config_dic["DEFAULT"]
-        ):
-            self.email_address = config_dic["DEFAULT"].get("email_address")
-        else:
-            self.logger.warning(
-                "Email identifier support is enabled but no email address is configured. Disabling email identifier support."
-            )
-            self.email_identifier_support = False
+        if self.email_identifier_support:
+            if "DEFAULT" in config_dic and "email_address" in config_dic["DEFAULT"]:
+                self.email_address = config_dic["DEFAULT"].get("email_address")
+            else:
+                self.logger.warning(
+                    "Email identifier support is enabled but no email address is configured. Disabling email identifier support."
+                )
+                self.email_identifier_support = False
 
         if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
             self.path_dic = {
@@ -657,77 +670,89 @@ class Challenge(object):
         self.logger.debug("Challenge._parse() ended with: %s", code)
         return (code, message, detail, response_dic)
 
-    def _source_address_check(self, challenge_name: str = None) -> Tuple[bool, bool]:
+    def _reverse_address_check(self, challenge_dic: str = None) -> Tuple[bool, bool]:
         """check dns responses against a pre-defined ip"""
-        self.logger.debug("Challenge._source_address_check(%s)", challenge_name)
+        self.logger.debug("Challenge._reverse_address_check(%s)", challenge_dic)
 
         challenge_check = False
         invalid = False
 
-        if challenge_name:
-            try:
-                challenge_dic = self.dbstore.challenge_lookup(
-                    "name",
-                    challenge_name,
-                    [
-                        "authorization__name",
-                        "authorization__type",
-                        "authorization__value",
-                    ],
-                )
-            except Exception as err_:
-                self.logger.critical(
-                    "Database error: failed to lookup challenge during challenge check:'%s': %s",
-                    challenge_name,
-                    err_,
-                )
-                challenge_dic = {}
-
-            self.logger.debug(
-                "Challenge._source_address_check() challenge_dic: %s", challenge_dic
+        if (
+            challenge_dic
+            and challenge_dic.get("authorization__type", None) == "dns"
+            and challenge_dic.get("authorization__value", None)
+            and self.source_address
+        ):
+            response, invalid = ptr_resolve(
+                self.logger, self.source_address, self.dns_server_list
             )
 
-            if (
-                challenge_dic
-                and challenge_dic.get("authorization__type", None) == "dns"
-                and challenge_dic.get("authorization__value", None)
-                and self.source_address
-            ):
-                response_list, invalid = fqdn_resolve(
-                    self.logger,
-                    challenge_dic.get("authorization__value"),
-                    self.dns_server_list,
-                    catch_all=True,
-                )
+            if response and response == challenge_dic.get("authorization__value", None):
                 self.logger.debug(
-                    "Challenge._source_address_check(): fqdn_resolve() ended with: %s/%s",
-                    response_list,
-                    invalid,
+                    "Challenge._reverse_address_check(): ip address check succeeded for %s",
+                    self.source_address,
                 )
-                if invalid:
-                    self.logger.debug(
-                        "Challenge._source_address_check(): fqdn resolve give: invalid address check failed for %s",
-                        self.source_address,
-                    )
-                    challenge_check = False
-                    invalid = True
-                elif response_list and self.source_address in response_list:
-                    self.logger.debug(
-                        "Challenge._source_address_check(): Source address check passed for %s ",
-                        self.source_address,
-                    )
-                    challenge_check = True
-                    invalid = False
-                else:
-                    self.logger.debug(
-                        "Challenge._source_address_check(): Source address check failed for %s",
-                        self.source_address,
-                    )
-                    challenge_check = False
-                    invalid = True
+                challenge_check = True
+                invalid = False
+            else:
+                self.logger.error(
+                    "PTR check failed for %s",
+                    self.source_address,
+                )
+                challenge_check = False
+                invalid = True
+
+        return challenge_check, invalid
+
+    def _forward_address_check(self, challenge_dic: str = None) -> Tuple[bool, bool]:
+        """check dns responses against a pre-defined ip"""
+        self.logger.debug("Challenge._forward_address_check(%s)", challenge_dic)
+
+        challenge_check = False
+        invalid = False
+
+        if (
+            challenge_dic
+            and challenge_dic.get("authorization__type", None) == "dns"
+            and challenge_dic.get("authorization__value", None)
+            and self.source_address
+        ):
+            response_list, invalid = fqdn_resolve(
+                self.logger,
+                challenge_dic.get("authorization__value"),
+                self.dns_server_list,
+                catch_all=True,
+            )
+            self.logger.debug(
+                "Challenge._forward_address_check(): fqdn_resolve() ended with: %s/%s",
+                response_list,
+                invalid,
+            )
+            if invalid:
+                self.logger.error(
+                    "DNS check returned invalid for %s",
+                    challenge_dic.get("authorization__value"),
+                )
+                challenge_check = False
+                invalid = True
+            elif response_list and self.source_address in response_list:
+                self.logger.debug(
+                    "Challenge._forward_address_check(): Source address check passed for %s ",
+                    self.source_address,
+                )
+                challenge_check = True
+                invalid = False
+            else:
+                self.logger.error(
+                    "DNS check failed for %s/%s",
+                    challenge_dic.get("authorization__value"),
+                    self.source_address,
+                )
+                challenge_check = False
+                invalid = True
 
         self.logger.debug(
-            "Challenge._source_address_check() ended with %s/%s",
+            "Challenge._forward_address_check() ended with %s/%s",
             challenge_check,
             invalid,
         )
@@ -771,6 +796,54 @@ class Challenge(object):
 
         self.logger.debug("Challenge._update_authz() ended")
 
+    def _source_address_check(self, challenge_name: str) -> Tuple[bool, bool]:
+        """check dns responses against a pre-defined ip"""
+        self.logger.debug("Challenge._source_address_check(%s)", challenge_name)
+
+        challenge_check = True
+        invalid = False
+
+        challenge_dic = {}
+        if challenge_name:
+            try:
+                challenge_dic = self.dbstore.challenge_lookup(
+                    "name",
+                    challenge_name,
+                    [
+                        "authorization__name",
+                        "authorization__type",
+                        "authorization__value",
+                    ],
+                )
+            except Exception as err_:
+                self.logger.critical(
+                    "Database error: failed to lookup challenge during challenge check:'%s': %s",
+                    challenge_name,
+                    err_,
+                )
+
+            self.logger.debug(
+                "Challenge._source_address_check() challenge_dic: %s", challenge_dic
+            )
+
+        if self.forward_address_check:
+            (challenge_check, invalid) = self._forward_address_check(
+                challenge_dic=challenge_dic
+            )
+
+        if challenge_check and self.reverse_address_check:
+            # reverse address check only makes sense if forward address check failed
+            (challenge_check, invalid) = self._reverse_address_check(
+                challenge_dic=challenge_dic
+            )
+
+        self.logger.debug(
+            "Challenge._source_address_check() ended with %s/%s",
+            challenge_check,
+            invalid,
+        )
+        return challenge_check, invalid
+
     def _validate(self, challenge_name: str, payload: Dict[str, str]) -> bool:
         """validate challenge"""
         self.logger.debug("Challenge._validate(%s: %s)", challenge_name, payload)
@@ -787,22 +860,16 @@ class Challenge(object):
             or challenge_validation_disable_eab_profile
         ):
             if self.challenge_validation_disable:
-                self.logger.warning(
-                    "Challenge validation is globally disabled. Setting challenge status to valid."
-                )
+                self.logger.warning("Challenge validation is globally disabled.")
             else:
-                self.logger.info(
-                    "Challenge validation disabled via eab profile. Setting challenge status to valid."
-                )
+                self.logger.info("Challenge validation disabled via eab profile.")
 
-            if self.source_address_check:
+            if self.forward_address_check or self.reverse_address_check:
                 challenge_check, invalid = self._source_address_check(challenge_name)
-                self.logger.info(
-                    "Challenge._validate(): validate source_ip: %s ended with: %s",
-                    self.source_address,
-                    challenge_check,
-                )
             else:
+                self.logger.warning(
+                    "Source address checks are disabled. Setting challenge status to valid. This is not recommended as this is a severe security risk!"
+                )
                 challenge_check = True
                 invalid = False
         else:

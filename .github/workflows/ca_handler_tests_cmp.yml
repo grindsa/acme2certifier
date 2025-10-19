@@ -55,7 +55,7 @@ jobs:
           docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
       env:
         SSH_USER: ${{ secrets.CMP_SSH_USER }}
-        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
+        SSH_HOST: ${{ secrets.WCCE_SSH_HOST}}
         SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
@@ -84,7 +84,7 @@ jobs:
         sudo echo "cmp_recipient: $CMP_RECIPIENT" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         CMP_RECIPIENT: ${{ secrets.CMP_RECIPIENT }}
@@ -125,7 +125,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "Setup a2c with cmp_ca_handler with PSK refnum authentication"
       run: |
@@ -151,7 +151,7 @@ jobs:
         sudo echo "cmp_secret: $CMP_SECRET" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         RUNNER_IP: ${{ env.RUNNER_IP }}
         CMP_RECIPIENT: ${{ secrets.CMP_RECIPIENT }}
@@ -197,7 +197,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
@@ -214,7 +214,7 @@ jobs:
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
@@ -265,7 +265,7 @@ jobs:
           docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
       env:
         SSH_USER: ${{ secrets.CMP_SSH_USER }}
-        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
+        SSH_HOST: ${{ secrets.WCCE_SSH_HOST}}
         SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
@@ -340,9 +340,14 @@ jobs:
         echo "legofail outcome is ${{steps.legofail01.outcome }}"
         exit 1
 
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
     - name: "Verify allowed_domainlist error"
       run: |
-        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
+        docker exec acme-srv grep -i "Either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -403,7 +408,7 @@ jobs:
           docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
       env:
         SSH_USER: ${{ secrets.CMP_SSH_USER }}
-        SSH_HOST: ${{ secrets.CMP_SSH_HOST }}
+        SSH_HOST: ${{ secrets.WCCE_SSH_HOST}}
         SSH_PORT: ${{ secrets.CMP_SSH_PORT }}
         CMP_HOST: ${{ secrets.CMP_HOST }}
 
@@ -478,9 +483,14 @@ jobs:
         echo "legofail outcome is ${{steps.legofail01.outcome }}"
         exit 1
 
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
     - name: "Verify allowed_domainlist error"
       run: |
-        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
+        docker exec acme-srv grep -i "Either CN or SANs are not allowed by configuration" /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
