@@ -6,6 +6,12 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.39.2
+
+**Bug fixes**:
+
+- [#269](https://github.com/grindsa/acme2certifier/issues/269) allow non-compliant order polling via finalize endpoint
+
 ## Changes in 0.39.1
 
 **Bug fixes**:
