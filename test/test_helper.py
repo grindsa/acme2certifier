@@ -2426,7 +2426,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         }
         self.assertEqual("wildcard", self.proxy_check(self.logger, fqdn, proxy_list))
 
-    @patch('sys.__excepthook__')
+    @patch("sys.__excepthook__")
     def test_234_handle_exception_keyboard_interrupt(self, mock_excepthook):
         """test handle_exception with KeyboardInterrupt - should call sys.__excepthook__"""
         exc_type = KeyboardInterrupt
@@ -2440,7 +2440,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         # Verify function returned None (early return)
         self.assertIsNone(result)
 
-    @patch('logging.exception')
+    @patch("logging.exception")
     def test_235_handle_exception_regular_exception(self, mock_logging_exception):
         """test handle_exception with regular exception - should call logging.exception"""
         exc_type = ValueError
@@ -2456,7 +2456,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         # Verify function returned None
         self.assertIsNone(result)
 
-    @patch('logging.exception')
+    @patch("logging.exception")
     def test_236_handle_exception_runtime_error(self, mock_logging_exception):
         """test handle_exception with RuntimeError - should call logging.exception"""
         exc_type = RuntimeError
@@ -2472,7 +2472,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         # Verify function returned None
         self.assertIsNone(result)
 
-    @patch('logging.exception')
+    @patch("logging.exception")
     def test_237_handle_exception_type_error(self, mock_logging_exception):
         """test handle_exception with TypeError - should call logging.exception"""
         exc_type = TypeError
@@ -2488,9 +2488,11 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         # Verify function returned None
         self.assertIsNone(result)
 
-    @patch('sys.__excepthook__')
-    @patch('logging.exception')
-    def test_238_handle_exception_keyboard_interrupt_subclass(self, mock_logging_exception, mock_excepthook):
+    @patch("sys.__excepthook__")
+    @patch("logging.exception")
+    def test_238_handle_exception_keyboard_interrupt_subclass(
+        self, mock_logging_exception, mock_excepthook
+    ):
         """test handle_exception with KeyboardInterrupt subclass - should call sys.__excepthook__"""
         # Create a subclass of KeyboardInterrupt
         class CustomKeyboardInterrupt(KeyboardInterrupt):
@@ -2508,7 +2510,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         # Verify function returned None
         self.assertIsNone(result)
 
-    @patch('logging.exception')
+    @patch("logging.exception")
     def test_239_handle_exception_system_exit(self, mock_logging_exception):
         """test handle_exception with SystemExit - should call logging.exception"""
         exc_type = SystemExit
@@ -2524,7 +2526,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         # Verify function returned None
         self.assertIsNone(result)
 
-    @patch('logging.exception')
+    @patch("logging.exception")
     def test_240_handle_exception_custom_exception(self, mock_logging_exception):
         """test handle_exception with custom exception - should call logging.exception"""
         # Create a custom exception class
@@ -2543,8 +2545,6 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         )
         # Verify function returned None
         self.assertIsNone(result)
-
-
 
     def test_241_proxy_check(self):
         """check proxy - wildcard"""

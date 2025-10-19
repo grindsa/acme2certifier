@@ -1832,7 +1832,9 @@ def handle_exception(exc_type, exc_value, exc_traceback):  # pragma: no cover
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
 
-    logging.exception("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
+    logging.exception(
+        "Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback)
+    )
 
 
 def pembundle_to_list(logger: logging.Logger, pem_bundle: str) -> List[str]:
