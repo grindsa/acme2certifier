@@ -7,7 +7,9 @@ import os
 from typing import Dict, List, Tuple
 from .plugin_loader import eab_handler_load
 
+
 PARSING_ERR_MSG = "failed to parse"
+
 
 def config_check(logger: logging.Logger, config_dic: Dict):
     """check configuration"""
@@ -21,7 +23,6 @@ def config_check(logger: logging.Logger, config_dic: Dict):
                     section,
                     key,
                 )
-
 
 
 def config_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
@@ -38,7 +39,6 @@ def config_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
 
     logger.debug("Helper.config_profile_load() ended")
     return profiles
-
 
 
 def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
@@ -74,7 +74,6 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
     return eab_profiling, eab_handler
 
 
-
 def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
     """load parameters"""
     logger.debug("Helper.config_headerinfo_load()")
@@ -94,7 +93,6 @@ def config_headerinfo_load(logger: logging.Logger, config_dic: Dict[str, str]):
     #
     logger.debug("Helper.config_headerinfo_load() ended")
     return header_info_field
-
 
 
 def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, str]):
@@ -132,7 +130,6 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
     return enrollment_cfg_log, enrollment_cfg_log_skip_list
 
 
-
 def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str, str]):
     """load parameters"""
     logger.debug("Helper.config_allowed_domainlist_load()")
@@ -156,10 +153,12 @@ def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str,
     return allowed_domainlist
 
 
-
 def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
     """load parameters"""
     logger.debug("_config_proxy_load()")
+
+    # Lazy import to avoid circular dependency
+    from .network import parse_url, proxy_check  # pylint: disable=C0415
 
     proxy = {}
     if "DEFAULT" in config_dic and "proxy_server_list" in config_dic["DEFAULT"]:
@@ -181,7 +180,6 @@ def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
     return proxy
 
 
-
 def load_config(
     logger: logging.Logger = None, mfilter: str = None, cfg_file: str = None
 ) -> configparser.ConfigParser:
@@ -201,7 +199,6 @@ def load_config(
     return config
 
 
-
 def header_info_jsonify(logger: logging.Logger, header_info: str) -> Dict[str, str]:
     """jsonify header info"""
     logger.debug("Helper.header_info_json_parse()")
@@ -219,13 +216,12 @@ def header_info_jsonify(logger: logging.Logger, header_info: str) -> Dict[str, s
     return header_info_dic
 
 
-
 def header_info_lookup(logger, csr: str, header_info_field, key: str) -> str:
     """lookup header info"""
     logger.debug("Helper.header_info_lookup(%s)", key)
 
     # Lazy import to avoid circular dependency
-    from .network import header_info_get
+    from .network import header_info_get  # pylint: disable=C0415
 
     result = None
     header_info = header_info_get(logger, csr=csr)
@@ -243,6 +239,7 @@ def header_info_lookup(logger, csr: str, header_info_field, key: str) -> str:
             )
     logger.debug("Helper.header_info_lookup(%s) ended with: %s", key, result)
     return result
+
 
 def profile_lookup(logger: logging.Logger, csr: str) -> str:
     """get profile name from csr"""
@@ -303,6 +300,3 @@ def client_parameter_validate(
         error,
     )
     return value_to_set, error
-
-
-

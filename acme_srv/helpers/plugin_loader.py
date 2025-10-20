@@ -4,6 +4,8 @@ import importlib
 import importlib.util
 import logging
 from typing import Dict
+
+
 def ca_handler_load(
     logger: logging.Logger, config_dic: Dict
 ) -> importlib.import_module:
@@ -36,7 +38,6 @@ def ca_handler_load(
         ca_handler_module = None
 
     return ca_handler_module
-
 
 
 def eab_handler_load(
@@ -76,7 +77,6 @@ def eab_handler_load(
     return eab_handler_module
 
 
-
 def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_module:
     """load and return hooks"""
     logger.debug("Helper.hooks_load()")
@@ -97,6 +97,3 @@ def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_mod
             )
 
     return hooks_module
-
-
-

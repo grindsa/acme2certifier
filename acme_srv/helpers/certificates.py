@@ -8,8 +8,15 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.x509 import load_pem_x509_certificate, ocsp
 from OpenSSL import crypto
-from .encoding import convert_string_to_byte, convert_byte_to_string, build_pem_file, b64_url_recode, b64_decode
+from .encoding import (
+    convert_string_to_byte,
+    convert_byte_to_string,
+    build_pem_file,
+    b64_url_recode,
+    b64_decode,
+)
 from .datetime_utils import date_to_uts_utc
+
 
 def cert_aki_get(logger: logging.Logger, certificate: str) -> str:
     """get subject key identifier from certificate"""
@@ -23,7 +30,6 @@ def cert_aki_get(logger: logging.Logger, certificate: str) -> str:
         aki_value = cert_aki_pyopenssl_get(logger, certificate)
     logger.debug("cert_aki_get() ended with: %s", aki_value)
     return aki_value
-
 
 
 def cert_aki_pyopenssl_get(logger, certificate: str) -> str:
@@ -50,7 +56,6 @@ def cert_aki_pyopenssl_get(logger, certificate: str) -> str:
     return aki_hex
 
 
-
 def cert_load(
     logger: logging.Logger, certificate: str, recode: bool
 ) -> x509.Certificate:
@@ -66,7 +71,6 @@ def cert_load(
     cert = x509.load_pem_x509_certificate(pem_data, default_backend())
 
     return cert
-
 
 
 def cert_dates_get(logger: logging.Logger, certificate: str) -> Tuple[int, int]:
@@ -104,7 +108,6 @@ def cert_dates_get(logger: logging.Logger, certificate: str) -> Tuple[int, int]:
     return (issue_date, expiration_date)
 
 
-
 def cert_cn_get(logger: logging.Logger, certificate: str) -> str:
     """get cn from certificate"""
     logger.debug("Helper.cert_cn_get()")
@@ -121,13 +124,11 @@ def cert_cn_get(logger: logging.Logger, certificate: str) -> str:
     return result
 
 
-
 def cert_der2pem(der_cert: bytes) -> str:
     """convert certificate der to pem"""
     cert = x509.load_der_x509_certificate(der_cert)
     pem_cert = cert.public_bytes(serialization.Encoding.PEM)
     return pem_cert
-
 
 
 def cert_issuer_get(logger: logging.Logger, certificate: str) -> str:
@@ -140,13 +141,11 @@ def cert_issuer_get(logger: logging.Logger, certificate: str) -> str:
     return result
 
 
-
 def cert_pem2der(pem_cert: str) -> bytes:
     """convert certificate pem to der"""
     cert = x509.load_pem_x509_certificate(pem_cert.encode(), default_backend())
     der_cert = cert.public_bytes(serialization.Encoding.DER)
     return der_cert
-
 
 
 def cert_pubkey_get(logger: logging.Logger, certificate=str) -> str:
@@ -160,7 +159,6 @@ def cert_pubkey_get(logger: logging.Logger, certificate=str) -> str:
     )
     logger.debug("Helper.cert_pubkey_get() ended with: %s", pubkey_str)
     return convert_byte_to_string(pubkey_str)
-
 
 
 def cert_san_pyopenssl_get(logger, certificate, recode=True):
@@ -190,7 +188,6 @@ def cert_san_pyopenssl_get(logger, certificate, recode=True):
     return san
 
 
-
 def cert_san_get(
     logger: logging.Logger, certificate: str, recode: bool = True
 ) -> List[str]:
@@ -213,7 +210,6 @@ def cert_san_get(
 
     logger.debug("Helper.cert_san_get() ended")
     return sans
-
 
 
 def cert_ski_pyopenssl_get(logger, certificate: str) -> str:
@@ -240,7 +236,6 @@ def cert_ski_pyopenssl_get(logger, certificate: str) -> str:
     return ski_hex
 
 
-
 def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
     """get subject key identifier from certificate"""
     logger.debug("Helper.cert_ski_get()")
@@ -256,13 +251,13 @@ def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
     return ski_value
 
 
-
 def cryptography_version_get(logger: logging.Logger) -> int:
     """get version number of cryptography module"""
     logger.debug("Helper.cryptography_version_get()")
     # pylint: disable=c0415
     import cryptography
 
+    major_version = None
     try:
         version_list = cryptography.__version__.split(".")
         if version_list:
@@ -275,7 +270,6 @@ def cryptography_version_get(logger: logging.Logger) -> int:
 
     logger.debug("cryptography_version_get() ended with %s", major_version)
     return major_version
-
 
 
 def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool = True):
@@ -296,7 +290,6 @@ def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool =
 
     logger.debug("Helper.cert_extensions_get() ended with: %s", extension_list)
     return extension_list
-
 
 
 def cert_extensions_py_openssl_get(logger, certificate, recode=True):
@@ -320,7 +313,6 @@ def cert_extensions_py_openssl_get(logger, certificate, recode=True):
     return extension_list
 
 
-
 def cert_serial_get(logger: logging.Logger, certificate: str, hexformat: bool = False):
     """get serial number form certificate"""
     logger.debug("Helper.cert_serial_get()")
@@ -333,7 +325,6 @@ def cert_serial_get(logger: logging.Logger, certificate: str, hexformat: bool = 
         serial_number = cert.serial_number
     logger.debug("Helper.cert_serial_get() ended with: %s", serial_number)
     return serial_number
-
 
 
 def pembundle_to_list(logger: logging.Logger, pem_bundle: str) -> List[str]:
@@ -354,7 +345,6 @@ def pembundle_to_list(logger: logging.Logger, pem_bundle: str) -> List[str]:
     return cert_list
 
 
-
 def certid_asn1_get(logger: logging.Logger, cert_pem: str, issuer_pem: str) -> str:
     """get renewal information from certificate"""
     logger.debug("Helper.certid_asn1_get()")
@@ -373,7 +363,6 @@ def certid_asn1_get(logger: logging.Logger, cert_pem: str, issuer_pem: str) -> s
     return certid_hex
 
 
-
 def certid_hex_get(logger: logging.Logger, renewal_info: str) -> Tuple[str, str]:
     """get certid in hex from renewal_info field"""
     logger.debug("Helper.certid_hex_get()")
@@ -387,7 +376,6 @@ def certid_hex_get(logger: logging.Logger, renewal_info: str) -> Tuple[str, str]
 
     logger.debug("Helper.certid_hex_get() endet with %s", certid_renewal)
     return mda, certid_renewal
-
 
 
 def certid_check(
@@ -405,6 +393,3 @@ def certid_check(
 
     logger.debug("Helper.certid_check() ended with: %s", result)
     return result
-
-
-

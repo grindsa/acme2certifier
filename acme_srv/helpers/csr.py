@@ -4,9 +4,15 @@ import base64
 import logging
 from typing import List, Dict
 from cryptography import x509
-from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
-from .encoding import convert_string_to_byte, convert_byte_to_string, build_pem_file, b64_url_recode, b64_encode
+from .encoding import (
+    convert_string_to_byte,
+    convert_byte_to_string,
+    build_pem_file,
+    b64_url_recode,
+    b64_encode,
+)
+
 
 def csr_load(logger: logging.Logger, csr: str) -> x509.CertificateSigningRequest:
     """load certificate object from pem _Format"""
@@ -18,7 +24,6 @@ def csr_load(logger: logging.Logger, csr: str) -> x509.CertificateSigningRequest
     csr_data = x509.load_pem_x509_csr(pem_data)
 
     return csr_data
-
 
 
 def csr_cn_get(logger: logging.Logger, csr_pem: str) -> str:
@@ -37,7 +42,6 @@ def csr_cn_get(logger: logging.Logger, csr_pem: str) -> str:
     return common_name
 
 
-
 def csr_dn_get(logger: logging.Logger, csr: str) -> str:
     """get subject from certificate request in openssl notation"""
     logger.debug("Helper.csr_dn_get()")
@@ -47,7 +51,6 @@ def csr_dn_get(logger: logging.Logger, csr: str) -> str:
 
     logger.debug("Helper.csr_dn_get() ended with: %s", subject)
     return subject
-
 
 
 def csr_pubkey_get(logger: logging.Logger, csr, encoding="pem"):
@@ -79,7 +82,6 @@ def csr_pubkey_get(logger: logging.Logger, csr, encoding="pem"):
     return pubkey
 
 
-
 def csr_san_get(logger: logging.Logger, csr: str) -> List[str]:
     """get subject alternate names from certificate"""
     logger.debug("Helper.cert_san_get()")
@@ -107,7 +109,6 @@ def csr_san_get(logger: logging.Logger, csr: str) -> List[str]:
     return sans
 
 
-
 def csr_san_byte_get(logger: logging.Logger, csr: str) -> bytes:
     """get sans from CSR as base64 encoded byte squence"""
     # Load the CSR
@@ -133,7 +134,6 @@ def csr_san_byte_get(logger: logging.Logger, csr: str) -> bytes:
     return sans_base64
 
 
-
 def csr_extensions_get(logger: logging.Logger, csr: str) -> List[str]:
     """get extensions from certificate"""
     logger.debug("Helper.csr_extensions_get()")
@@ -150,7 +150,6 @@ def csr_extensions_get(logger: logging.Logger, csr: str) -> List[str]:
     return extension_list
 
 
-
 def csr_subject_get(logger: logging.Logger, csr: str) -> Dict[str, str]:
     """get subject from csr as a list of tuples"""
     logger.debug("Helper.csr_subject_get()")
@@ -165,7 +164,6 @@ def csr_subject_get(logger: logging.Logger, csr: str) -> Dict[str, str]:
 
     logger.debug("Helper.csr_subject_get() ended")
     return subject_dic
-
 
 
 def csr_cn_lookup(logger: logging.Logger, csr: str) -> str:
@@ -188,6 +186,3 @@ def csr_cn_lookup(logger: logging.Logger, csr: str) -> str:
 
     logger.debug("Helper._csr_cn_lookup() ended with: %s", csr_cn)
     return csr_cn
-
-
-

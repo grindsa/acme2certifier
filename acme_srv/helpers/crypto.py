@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 """Cryptographic operations for acme2certifier"""
-import base64
 import hashlib
 import json
 import logging
@@ -11,6 +10,8 @@ from typing import Dict, Tuple
 from jwcrypto import jwk, jws
 from .encoding import b64decode_pad, b64_encode
 from .validation import dkeys_lower
+
+
 def decode_deserialize(logger: logging.Logger, string: str) -> Dict:
     """decode and deserialize string"""
     logger.debug("Helper.decode_deserialize()")
@@ -24,7 +25,6 @@ def decode_deserialize(logger: logging.Logger, string: str) -> Dict:
             string_decode = "ERR: Json decoding error"
 
     return string_decode
-
 
 
 def decode_message(
@@ -56,13 +56,11 @@ def decode_message(
     return (result, error, protected, payload, signature)
 
 
-
 def generate_random_string(logger: logging.Logger, length: int) -> str:
     """generate random string to be used as name"""
     logger.debug("Helper.generate_random_string()")
     char_set = digits + ascii_letters
     return "".join(random.choice(char_set) for _ in range(length))
-
 
 
 def jwk_thumbprint_get(logger: logging.Logger, pub_key: Dict[str, str]) -> str:
@@ -82,7 +80,6 @@ def jwk_thumbprint_get(logger: logging.Logger, pub_key: Dict[str, str]) -> str:
     return thumbprint
 
 
-
 def sha256_hash(logger: logging.Logger, string: str) -> str:
     """hash string"""
     logger.debug("Helper.sha256_hash()")
@@ -94,14 +91,12 @@ def sha256_hash(logger: logging.Logger, string: str) -> str:
     return result
 
 
-
 def sha256_hash_hex(logger: logging.Logger, string: str) -> str:
     """hash string"""
     logger.debug("Helper.sha256_hash_hex()")
     result = hashlib.sha256(string.encode("utf-8")).hexdigest()
     logger.debug("Helper.sha256_hash_hex() ended with %s", result)
     return result
-
 
 
 def signature_check(
@@ -148,7 +143,6 @@ def signature_check(
     return (result, error)
 
 
-
 def string_sanitize(logger: logging.Logger, unsafe_str: str) -> str:
     """sanitize string"""
     logger.debug("Helper.string_sanitize()")
@@ -161,6 +155,3 @@ def string_sanitize(logger: logging.Logger, unsafe_str: str) -> str:
         elif cp_ == 9:
             safe_str += " " * 4
     return re.sub(r"\s+", " ", safe_str)
-
-
-

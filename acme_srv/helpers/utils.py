@@ -7,6 +7,7 @@ from typing import Dict, List
 
 PARSING_ERR_MSG = "failed to parse"
 
+
 def error_dic_get(logger: logging.Logger) -> Dict[str, str]:
     """load acme error messages"""
     logger.debug("Helper.error_dict_get()")
@@ -30,7 +31,6 @@ def error_dic_get(logger: logging.Logger) -> Dict[str, str]:
         "useractionrequired": "urn:ietf:params:acme:error:userActionRequired",
     }
     return error_dic
-
 
 
 def enrollment_config_log(
@@ -68,7 +68,6 @@ def enrollment_config_log(
         logger.info("Enrollment configuration: %s", enroll_parameter_list)
 
 
-
 def radomize_parameter_list(
     logger: logging.Logger, ca_handler: object, parameter_list: List[str] = None
 ):
@@ -98,7 +97,6 @@ def radomize_parameter_list(
             setattr(ca_handler, parameter, value_list[index])
 
 
-
 def handler_config_check(logger, handler, parameterlist) -> str:
     """check if handler config is valid"""
     logger.debug("Helper.handler_config_check()")
@@ -113,5 +111,3 @@ def handler_config_check(logger, handler, parameterlist) -> str:
 
     logger.debug("Helper.handler_config_check() ended with %s", error)
     return error
-
-
