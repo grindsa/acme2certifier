@@ -7,12 +7,12 @@ from typing import Dict
 import datetime
 from .config import load_config
 
+
 def _logger_nonce_modify(data_dic: Dict[str, str]) -> Dict[str, str]:
     """remove nonce from log entry"""
     if "header" in data_dic and "Replay-Nonce" in data_dic["header"]:
         data_dic["header"]["Replay-Nonce"] = "- modified -"
     return data_dic
-
 
 
 def _logger_certificate_modify(
@@ -24,13 +24,11 @@ def _logger_certificate_modify(
     return data_dic
 
 
-
 def _logger_token_modify(data_dic: Dict[str, str]) -> Dict[str, str]:
     """remove token from challenge"""
     if "token" in data_dic["data"]:
         data_dic["data"]["token"] = "- modified -"
     return data_dic
-
 
 
 def _logger_challenges_modify(data_dic: Dict[str, str]) -> Dict[str, str]:
@@ -42,7 +40,6 @@ def _logger_challenges_modify(data_dic: Dict[str, str]) -> Dict[str, str]:
                     (k, "- modified - ") for k, v in challenge.items() if k == "token"
                 )
     return data_dic
-
 
 
 def logger_info(
@@ -66,7 +63,6 @@ def logger_info(
     logger.info("%s %s %s", addr, locator, str(data_dic))
 
 
-
 def logger_setup(debug: bool) -> logging.Logger:
     """setup logger"""
     if debug:
@@ -86,12 +82,10 @@ def logger_setup(debug: bool) -> logging.Logger:
     return logger
 
 
-
 def print_debug(debug: bool, text: str):
     """little helper to print debug messages"""
     if debug:
         print(f"{datetime.datetime.now()}: {text}")
-
 
 
 def handle_exception(exc_type, exc_value, exc_traceback):  # pragma: no cover
@@ -103,6 +97,3 @@ def handle_exception(exc_type, exc_value, exc_traceback):  # pragma: no cover
     logging.exception(
         "Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback)
     )
-
-
-

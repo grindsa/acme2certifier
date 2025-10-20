@@ -4,21 +4,22 @@ import html
 import socket
 import ssl
 import logging
+import json
+import re
 from typing import List, Dict, Tuple
 from urllib.parse import urlparse, quote
 from urllib3.util import connection
 import socks
-import json
-import re
 import dns.resolver
 import requests
-import requests.packages.urllib3.util.connection as urllib3_cn
+import requests.packages.urllib3.util.connection as urllib3_cn  # pylint: disable=E0401
 from .config import load_config
 from .validation import ipv6_chk
 from .encoding import convert_string_to_byte, b64_encode
 
 USER_AGENT = "acme2certifier"
 PARSING_ERR_MSG = "failed to parse"
+
 
 def _fqdn_resolve(
     logger: logging.Logger,
@@ -56,7 +57,6 @@ def _fqdn_resolve(
     return (result, invalid)
 
 
-
 def fqdn_resolve(
     logger: logging.Logger, host: str, dnssrv: List[str] = None, catch_all: bool = False
 ) -> Tuple[str, bool]:
@@ -78,7 +78,6 @@ def fqdn_resolve(
 
     logger.debug("Helper.fqdn_resolve(%s) ended with: %s, %s", host, result, invalid)
     return (result, invalid)
-
 
 
 def ptr_resolve(
@@ -105,7 +104,6 @@ def ptr_resolve(
     return result, invalid
 
 
-
 def dns_server_list_load() -> List[str]:
     """load dns-server from config file"""
     config_dic = load_config()
@@ -125,7 +123,6 @@ def dns_server_list_load() -> List[str]:
         dns_server_list = default_dns_server_list
 
     return dns_server_list
-
 
 
 def patched_create_connection(address: List[str], *args, **kwargs):  # pragma: no cover
@@ -170,39 +167,6 @@ def proxy_check(
     return proxy
 
 
-
-def proxy_check(
-    logger: logging.Logger, fqdn: str, proxy_server_list: Dict[str, str]
-) -> str:
-    """check proxy server"""
-    logger.debug("Helper.proxy_check(%s)", fqdn)
-
-    # remove leading *.
-    proxy_server_list_new = {
-        k.replace("*.", ""): v for k, v in proxy_server_list.items()
-    }
-
-    proxy = None
-    for regex in sorted(proxy_server_list_new.keys(), reverse=True):
-        if regex != "*":
-            regex_compiled = re.compile(regex)
-            if bool(regex_compiled.search(fqdn)):
-                # parameter is in - set flag accordingly and stop loop
-                proxy = proxy_server_list_new[regex]
-                logger.debug(
-                    "Helper.proxy_check() match found: fqdn: %s, regex: %s", fqdn, regex
-                )
-                break
-
-    if "*" in proxy_server_list_new.keys() and not proxy:
-        logger.debug("Helper.proxy_check() wildcard match found: fqdn: %s", fqdn)
-        proxy = proxy_server_list_new["*"]
-
-    logger.debug("Helper.proxy_check() ended with %s", proxy)
-    return proxy
-
-
-
 def url_get_with_own_dns(logger: logging.Logger, url: str, verify: bool = True) -> str:
     """request by using an own dns resolver"""
     logger.debug("Helper.url_get_with_own_dns(%s)", url)
@@ -230,12 +194,10 @@ def url_get_with_own_dns(logger: logging.Logger, url: str, verify: bool = True) 
     return result
 
 
-
 def allowed_gai_family() -> socket.AF_INET:
     """set family"""
     family = socket.AF_INET  # force IPv4
     return family
-
 
 
 def url_get_with_default_dns(
@@ -285,7 +247,6 @@ def url_get_with_default_dns(
     return result
 
 
-
 def url_get(
     logger: logging.Logger,
     url: str,
@@ -311,7 +272,6 @@ def url_get(
     return result
 
 
-
 def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> List[str]:
     """dns query to get the TXt record"""
     logger.debug("Helper.txt_get(%s: %s)", fqdn, dns_srv)
@@ -329,7 +289,6 @@ def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> Lis
         logger.error("Could not get TXT record: %s", err_)
     logger.debug("Helper.txt_get() ended with: %s", txt_record_list)
     return txt_record_list
-
 
 
 def proxystring_convert(
@@ -392,7 +351,6 @@ def proxystring_convert(
         proxy_port,
     )
     return (proto_string, proxy_addr, proxy_port)
-
 
 
 def servercert_get(
@@ -467,7 +425,6 @@ def servercert_get(
     return pem_cert
 
 
-
 def v6_adjust(logger: logging.Logger, url: str) -> Tuple[Dict[str, str], str]:
     """corner case for v6 addresses"""
     logger.debug("Helper.v6_adjust(%s)", url)
@@ -489,7 +446,6 @@ def v6_adjust(logger: logging.Logger, url: str) -> Tuple[Dict[str, str], str]:
     return (headers, url)
 
 
-
 def header_info_get(
     logger: logging.Logger,
     csr: str,
@@ -509,7 +465,6 @@ def header_info_get(
         logger.error("Error while getting header_info from database: %s", err)
 
     return list(result)
-
 
 
 def get_url(environ: Dict[str, str], include_path: bool = False) -> str:
@@ -540,7 +495,6 @@ def get_url(environ: Dict[str, str], include_path: bool = False) -> str:
     return result
 
 
-
 def parse_url(logger: logging.Logger, url: str) -> Dict[str, str]:
     """split url into pieces"""
     logger.debug("Helper.parse_url()")
@@ -553,13 +507,11 @@ def parse_url(logger: logging.Logger, url: str) -> Dict[str, str]:
     return url_dic
 
 
-
 def encode_url(logger: logging.Logger, input_string: str) -> str:
     """urlencoding"""
     logger.debug("Helper.encode_url(%s)", input_string)
 
     return quote(input_string)
-
 
 
 def request_operation(
@@ -622,6 +574,3 @@ def request_operation(
 
     logger.debug("Helper.request_operation() ended with: %s", code)
     return code, content
-
-
-

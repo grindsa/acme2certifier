@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """Domain utilities for acme2certifier"""
-import re
 import logging
 from typing import List, Tuple
 import idna
 from .csr import csr_san_get, csr_cn_get
+
 
 def encode_domain(logger, domain: str) -> bytes:
     """encode domain"""
@@ -21,7 +21,6 @@ def encode_domain(logger, domain: str) -> bytes:
         logger.error(f"Invalid domain format in csr: {err}")
 
     return encoded_domain
-
 
 
 def wildcard_domain_check(
@@ -42,7 +41,6 @@ def wildcard_domain_check(
             result = True
     logger.debug("Helper.domain_check() ended with %s", result)
     return result
-
 
 
 def pattern_check(logger, domain, pattern):
@@ -69,7 +67,6 @@ def pattern_check(logger, domain, pattern):
     return result
 
 
-
 def is_domain_whitelisted(
     logger: logging.Logger, domain: str, whitelist: List[str]
 ) -> bool:
@@ -92,7 +89,6 @@ def is_domain_whitelisted(
 
     logger.debug("Helper.is_domain_whitelisted() ended with %s", result)
     return result
-
 
 
 def allowed_domainlist_check(
@@ -132,7 +128,6 @@ def allowed_domainlist_check(
     return error
 
 
-
 def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
     """create lists for san check"""
     logger.debug("Helper.sancheck_lists_create()")
@@ -168,7 +163,3 @@ def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
             san_list.append(cn)
 
     return (san_list, check_list)
-
-
-
-
