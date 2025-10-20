@@ -3,6 +3,8 @@
 import base64
 import textwrap
 import logging
+
+
 def b64decode_pad(logger: logging.Logger, string: str) -> bytes:
     """b64 decoding and padding of missing "=" """
     logger.debug("Helper.b64decode_pad()")
@@ -13,12 +15,10 @@ def b64decode_pad(logger: logging.Logger, string: str) -> bytes:
     return b64dec.decode("utf-8")
 
 
-
 def b64_decode(logger: logging.Logger, string: str) -> str:
     """b64 decoding"""
     logger.debug("Helper.b64decode()")
     return convert_byte_to_string(base64.b64decode(string))
-
 
 
 def b64_encode(logger: logging.Logger, string: str) -> str:
@@ -27,14 +27,12 @@ def b64_encode(logger: logging.Logger, string: str) -> str:
     return convert_byte_to_string(base64.b64encode(string))
 
 
-
 def b64_url_encode(logger: logging.Logger, string: str) -> str:
     """encode a bytestream in base64 url and remove padding"""
     logger.debug("Helper.b64_url_encode()")
     string = convert_string_to_byte(string)
     encoded = base64.urlsafe_b64encode(string)
     return encoded.rstrip(b"=")
-
 
 
 def b64_url_recode(logger: logging.Logger, string: str) -> str:
@@ -47,7 +45,6 @@ def b64_url_recode(logger: logging.Logger, string: str) -> str:
     return result
 
 
-
 def b64_url_decode(logger: logging.Logger, string: str) -> str:
     """decode base64url encoded string"""
     logger.debug("Helper.b64_url_decode()")
@@ -57,7 +54,6 @@ def b64_url_decode(logger: logging.Logger, string: str) -> str:
     pad = "=" * (-len(string) % 4)
     string_padded = string + pad
     return convert_byte_to_string(base64.urlsafe_b64decode(string_padded))
-
 
 
 def build_pem_file(logger: logging.Logger, existing, certificate, wrap, csr=False):
@@ -79,7 +75,6 @@ def build_pem_file(logger: logging.Logger, existing, certificate, wrap, csr=Fals
     return pem_file
 
 
-
 def convert_byte_to_string(value: bytes) -> str:
     """convert a variable to string if needed"""
     if hasattr(value, "decode"):
@@ -91,7 +86,6 @@ def convert_byte_to_string(value: bytes) -> str:
         return value
 
 
-
 def convert_string_to_byte(value: str) -> bytes:
     """convert a variable to byte if needed"""
     if hasattr(value, "encode"):
@@ -99,6 +93,3 @@ def convert_string_to_byte(value: str) -> bytes:
     else:
         result = value
     return result
-
-
-
