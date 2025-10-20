@@ -16,9 +16,7 @@ import requests.packages.urllib3.util.connection as urllib3_cn  # pylint: disabl
 from .config import load_config
 from .validation import ipv6_chk
 from .encoding import convert_string_to_byte, b64_encode
-
-USER_AGENT = "acme2certifier"
-PARSING_ERR_MSG = "failed to parse"
+from .global_variables import USER_AGENT
 
 
 def _fqdn_resolve(

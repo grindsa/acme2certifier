@@ -3,9 +3,7 @@
 import random
 import logging
 from typing import Dict, List
-
-
-PARSING_ERR_MSG = "failed to parse"
+from .global_variables import PARSING_ERR_MSG
 
 
 def error_dic_get(logger: logging.Logger) -> Dict[str, str]:
