@@ -20,7 +20,7 @@ inputs:
     description: "Namespace"
     required: true
     default: "acme"
-  INDEPOTENT_FINALIZE:
+  IDEMPOTENT_FINALIZE:
     description: "Enable idempotent finalize testing"
     required: true
     default: "false"
@@ -113,14 +113,14 @@ runs:
       shell: bash
 
     - name: "Check  result "
-      if:  ${{ (inputs.INDEPOTENT_FINALIZE == 'false') && (steps.acmeshell01.outcome != 'success')}}
+      if:  ${{ (inputs.IDEMPOTENT_FINALIZE == 'false') && (steps.acmeshell01.outcome != 'success')}}
       run: |
         echo "legofail outcome is ${{steps.acmeshell01.outcome }}"
         exit 1
       shell: bash
 
     - name: "Check  result "
-      if:  ${{ (inputs.INDEPOTENT_FINALIZE == 'true') && (steps.acmeshell01.outcome != 'failure')}}
+      if:  ${{ (inputs.IDEMPOTENT_FINALIZE == 'true') && (steps.acmeshell01.outcome != 'failure')}}
       run: |
         echo "legofail outcome is ${{steps.acmeshell01.outcome }}"
         exit 1
