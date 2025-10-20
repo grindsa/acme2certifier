@@ -190,7 +190,6 @@ def load_config(
         else:
             # go up one directory from helpers/ to acme_srv/ to find config file
             cfg_file = os.path.dirname(os.path.dirname(__file__)) + "/" + "acme_srv.cfg"
-            print(cfg_file)
     if logger:
         logger.debug("load_config(%s:%s)", mfilter, cfg_file)
     config = configparser.ConfigParser(interpolation=None)
