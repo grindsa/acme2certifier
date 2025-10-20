@@ -80,6 +80,7 @@ class Directory(object):
         """ " load config from file"""
         self.logger.debug("Directory._config_load()")
         config_dic = load_config(self.logger, "Directory")
+        print(dict(config_dic))
         if "Directory" in config_dic:
             cfg_dic = dict(config_dic["Directory"])
             self.tos_url = cfg_dic.get("tos_url", None)
