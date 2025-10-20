@@ -4,7 +4,8 @@ import re
 import logging
 import ipaddress
 from typing import List, Dict, Tuple
-import idna
+
+
 def dkeys_lower(tree: Dict[str, str]) -> Dict[str, str]:
     """lower characters in payload string"""
     if isinstance(tree, dict):
@@ -14,7 +15,6 @@ def dkeys_lower(tree: Dict[str, str]) -> Dict[str, str]:
     else:
         result = tree
     return result
-
 
 
 def fqdn_in_san_check(logger: logging.Logger, san_list: List[str], fqdn: str) -> bool:
@@ -36,12 +36,10 @@ def fqdn_in_san_check(logger: logging.Logger, san_list: List[str], fqdn: str) ->
     return result
 
 
-
 def validate_csr(logger: logging.Logger, order_dic: Dict[str, str], _csr) -> bool:
     """validate certificate signing request against order"""
     logger.debug("Helper.validate_csr(%s)", order_dic)
     return True
-
 
 
 def validate_email(logger: logging.Logger, contact_list: List[str]) -> bool:
@@ -68,7 +66,6 @@ def validate_email(logger: logging.Logger, contact_list: List[str]) -> bool:
     return result
 
 
-
 def validate_identifier(
     logger: logging.Logger,
     id_type: str,
@@ -93,7 +90,6 @@ def validate_identifier(
     return result
 
 
-
 def validate_ip(logger: logging.Logger, ip: str) -> bool:
     """validate ip address"""
     logger.debug("Helper.validate_ip()")
@@ -104,7 +100,6 @@ def validate_ip(logger: logging.Logger, ip: str) -> bool:
         result = False
     logger.debug("Helper.validate_ip() ended with: %s", result)
     return result
-
 
 
 def validate_fqdn(logger: logging.Logger, fqdn: str) -> bool:
@@ -130,7 +125,6 @@ def validate_fqdn(logger: logging.Logger, fqdn: str) -> bool:
     return result
 
 
-
 def ip_validate(logger: logging.Logger, ip_addr: str) -> Tuple[str, bool]:
     """validate ip address"""
     logger.debug("Helper.ip_validate(%s)", ip_addr)
@@ -143,7 +137,6 @@ def ip_validate(logger: logging.Logger, ip_addr: str) -> Tuple[str, bool]:
         invalid = True
     logger.debug("Helper.ip_validate() ended with: %s:%s", reverse_pointer, invalid)
     return (reverse_pointer, invalid)
-
 
 
 def ipv6_chk(logger: logging.Logger, address: str) -> bool:
@@ -164,7 +157,6 @@ def ipv6_chk(logger: logging.Logger, address: str) -> bool:
     return result
 
 
-
 def cn_validate(logger: logging.Logger, cn: str) -> bool:
     """validate common name"""
     logger.debug("Helper.cn_validate(%s)", cn)
@@ -183,6 +175,3 @@ def cn_validate(logger: logging.Logger, cn: str) -> bool:
 
     logger.debug("Helper.cn_validate() ended with: %s", error)
     return error
-
-
-

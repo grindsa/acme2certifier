@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """EAB (External Account Binding) utilities for acme2certifier"""
 import logging
-from typing import Dict, List, Tuple
 from .csr import csr_subject_get
 from .encoding import b64_url_recode
 from .config import client_parameter_validate, profile_lookup, header_info_lookup
 from .validation import cn_validate
 from .domain_utils import allowed_domainlist_check
+
 
 def eab_profile_header_info_check(
     logger: logging.Logger,
@@ -67,7 +67,6 @@ def eab_profile_header_info_check(
     return error
 
 
-
 def eab_profile_subject_string_check(
     logger: logging.Logger, profile_subject_dic, key: str, value: str
 ) -> str:
@@ -114,7 +113,6 @@ def eab_profile_subject_string_check(
     return error
 
 
-
 def eab_profile_subject_check(
     logger: logging.Logger, csr: str, profile_subject_dic: str
 ) -> str:
@@ -145,7 +143,6 @@ def eab_profile_subject_check(
     return error
 
 
-
 def eab_profile_revocation_check(
     logger: logging.Logger, cahandler, certificate_raw: str
 ):
@@ -172,7 +169,6 @@ def eab_profile_revocation_check(
                     )
 
     logger.debug("Helper.eab_profile_revocation_check() ended")
-
 
 
 def eab_profile_check(
@@ -215,7 +211,6 @@ def eab_profile_check(
 
     logger.debug("Helper.eab_profile_check() ended with: %s", result)
     return result
-
 
 
 def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
@@ -261,7 +256,6 @@ def eab_profile_list_check(logger, cahandler, eab_handler, csr, key, value):
     return result
 
 
-
 def eab_profile_string_check(logger, cahandler, key, value):
     """check if a for a string value taken from profile if its a variable inside a class and apply value"""
     logger.debug(
@@ -281,6 +275,3 @@ def eab_profile_string_check(logger, cahandler, key, value):
         )
 
     logger.debug("Helper.eab_profile_string_check() ended")
-
-
-
