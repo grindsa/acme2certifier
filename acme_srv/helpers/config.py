@@ -6,9 +6,7 @@ import logging
 import os
 from typing import Dict, List, Tuple
 from .plugin_loader import eab_handler_load
-
-
-PARSING_ERR_MSG = "failed to parse"
+from .global_variables import PARSING_ERR_MSG
 
 
 def config_check(logger: logging.Logger, config_dic: Dict):
