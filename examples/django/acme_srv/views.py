@@ -236,7 +236,12 @@ def authz(request):
 
 def chall(request):
     """challenge command"""
-    with Challenge(DEBUG, get_url(request.META), LOGGER) as challenge:
+    with Challenge(
+        debug=DEBUG,
+        srv_name=get_url(request.META),
+        source=request.META["REMOTE_ADDR"],
+        logger=LOGGER,
+    ) as challenge:
         # pylint: disable=R1705
         if request.method == "POST":
             response_dic = challenge.parse(request.body)

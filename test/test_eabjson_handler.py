@@ -117,7 +117,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eabhandler.mac_key_get("kid"))
         self.assertIn(
-            "ERROR:test_a2c:EABhandler.key_file_load() error: ex_json_load", lcm.output
+            "ERROR:test_a2c:Failed to load EAB key file: ex_json_load", lcm.output
         )
 
 

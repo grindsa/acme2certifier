@@ -1,0 +1,127 @@
+name: "cert_gen"
+description: "Generate Certificates"
+inputs:
+  ISSUING_CA_KEY:
+    description: "Path to the Issuing-CA private key"
+    required: true
+    default: "test/ca/sub-ca-key.pem"
+  ISSUING_CA_CERT:
+    description: "Path to the CA certificate"
+    required: true
+    default: "test/ca/sub-ca-cert.pem"
+  ISSUING_CA_PASSPHRASE:
+    description: "Passphrase for the private key"
+    required: true
+    default: "Test1234"
+  ROOT_CA_CERT:
+    description: "Path to the root CA certificate"
+    required: true
+    default: "test/ca/root-ca-cert.pem"
+  DESTINATION_PATH:
+    description: "Path for key and certificates"
+    required: false
+    default: ".github"
+  EE_KEY:
+    description: "Path to the end-entity private key"
+    required: true
+    default: "acme2certifier_key.pem"
+  EE_CERT:
+    description: "Path to the end-entity certificate"
+    required: true
+    default: "acme2certifier_cert.pem"
+  EE_CSR:
+    description: "Path to the end-entity certificate signing request"
+    required: true
+    default: "acme2certifier_csr.pem"
+  EE_BUNDLE:
+    description: "Path to the end-entity certificate bundle"
+    required: true
+    default: "acme2certifier.pem"
+  CA_BUNDLE:
+    description: "Path to the CA bundle"
+    required: true
+    default: "acme2certifier_cabundle.pem"
+  OS:
+    description: "Operating System"
+    required: true
+    default: "Linux"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "generate keys and certificates"
+      if: ${{ inputs.OS == 'Linux' }}
+      working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
+      run: |
+        openssl req -nodes -newkey rsa:2048 -keyout $DESTINATION_PATH/$EE_KEY -out $DESTINATION_PATH/$EE_CSR -batch -subj "/CN=acme_srv" -addext "subjectAltName=DNS:acme_srv,DNS:acme_srv.acme,DNS:localhost,DNS:acme-srv,DNS:acme-srv.acme" -addext "keyUsage = digitalSignature, keyEncipherment, dataEncipherment" -addext "extendedKeyUsage = serverAuth" -addext "basicConstraints=CA:false"
+        openssl x509 -req -in $DESTINATION_PATH/$EE_CSR -CA $ISSUING_CA_CERT -CAkey $ISSUING_CA_KEY -CAcreateserial -out $DESTINATION_PATH/$EE_CERT -copy_extensions copy -days 30 -sha256 --passin pass:$ISSUING_CA_PASSPHRASE
+        cp $DESTINATION_PATH/$EE_KEY $DESTINATION_PATH/$EE_BUNDLE
+        cat $DESTINATION_PATH/$EE_CERT >> $DESTINATION_PATH/$EE_BUNDLE
+        cat test/ca/sub-ca-cert.pem >> $DESTINATION_PATH/$EE_BUNDLE
+        cat test/ca/root-ca-cert.pem >> $DESTINATION_PATH/$EE_BUNDLE
+        cp test/ca/sub-ca-cert.pem $DESTINATION_PATH/$CA_BUNDLE
+        cat test/ca/root-ca-cert.pem >> $DESTINATION_PATH/$CA_BUNDLE
+      shell: bash
+      env:
+        ISSUING_CA_KEY: ${{ inputs.ISSUING_CA_KEY }}
+        ISSUING_CA_CERT: ${{ inputs.ISSUING_CA_CERT }}
+        ROOT_CA_CERT: ${{ inputs.ROOT_CA_CERT }}
+        ISSUING_CA_PASSPHRASE: ${{ inputs.ISSUING_CA_PASSPHRASE }}
+        DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
+        EE_KEY: ${{ inputs.EE_KEY }}
+        EE_CERT: ${{ inputs.EE_CERT }}
+        EE_CSR: ${{ inputs.EE_CSR }}
+        EE_BUNDLE: ${{ inputs.EE_BUNDLE }}
+        CA_BUNDLE: ${{ inputs.CA_BUNDLE }}
+
+    - name: "generate keys and certificates"
+      if: ${{ inputs.OS == 'Windows' }}
+      working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
+      run: |
+        openssl req -nodes -newkey rsa:2048 -keyout $DESTINATION_PATH/$EE_KEY -out $DESTINATION_PATH/$EE_CSR -batch -subj "//CN=acme_srv" -addext "subjectAltName=DNS:acme_srv,DNS:acme_srv.acme,DNS:localhost,DNS:acme-srv,DNS:acme-srv.acme" -addext "keyUsage = digitalSignature, keyEncipherment, dataEncipherment" -addext "extendedKeyUsage = serverAuth" -addext "basicConstraints=CA:false"
+        openssl x509 -req -in $DESTINATION_PATH/$EE_CSR -CA $ISSUING_CA_CERT -CAkey $ISSUING_CA_KEY -CAcreateserial -out $DESTINATION_PATH/$EE_CERT -copy_extensions copy -days 30 -sha256 --passin pass:$ISSUING_CA_PASSPHRASE
+        cp $DESTINATION_PATH/$EE_KEY $DESTINATION_PATH/$EE_BUNDLE
+        cat $DESTINATION_PATH/$EE_CERT >> $DESTINATION_PATH/$EE_BUNDLE
+        cat test/ca/sub-ca-cert.pem >> $DESTINATION_PATH/$EE_BUNDLE
+        cat test/ca/root-ca-cert.pem >> $DESTINATION_PATH/$EE_BUNDLE
+        cp test/ca/sub-ca-cert.pem $DESTINATION_PATH/$CA_BUNDLE
+        cat test/ca/root-ca-cert.pem >> $DESTINATION_PATH/$CA_BUNDLE
+      shell: bash
+      env:
+        ISSUING_CA_KEY: ${{ inputs.ISSUING_CA_KEY }}
+        ISSUING_CA_CERT: ${{ inputs.ISSUING_CA_CERT }}
+        ROOT_CA_CERT: ${{ inputs.ROOT_CA_CERT }}
+        ISSUING_CA_PASSPHRASE: ${{ inputs.ISSUING_CA_PASSPHRASE }}
+        DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
+        EE_KEY: ${{ inputs.EE_KEY }}
+        EE_CERT: ${{ inputs.EE_CERT }}
+        EE_CSR: ${{ inputs.EE_CSR }}
+        EE_BUNDLE: ${{ inputs.EE_BUNDLE }}
+        CA_BUNDLE: ${{ inputs.CA_BUNDLE }}
+
+    - name: "Generate Django secret key and update settings files"
+      run: |
+        # Generate a new Django secret key
+        DJANGO_SECRET=$(python3 -c "import secrets; print(secrets.token_urlsafe(50))")
+        echo "Generated Django secret key"
+
+        # Add the secret key to all three Django settings files
+        echo "" >> .github/django_settings.py
+        echo "# SECURITY WARNING: keep the secret key used in production secret!" >> .github/django_settings.py
+        echo "SECRET_KEY = \"$DJANGO_SECRET\"" >> .github/django_settings.py
+
+        echo "" >> .github/django_settings_mariadb.py
+        echo "# SECURITY WARNING: keep the secret key used in production secret!" >> .github/django_settings_mariadb.py
+        echo "SECRET_KEY = \"$DJANGO_SECRET\"" >> .github/django_settings_mariadb.py
+
+        echo "" >> .github/django_settings_psql.py
+        echo "# SECURITY WARNING: keep the secret key used in production secret!" >> .github/django_settings_psql.py
+        echo "SECRET_KEY = \"$DJANGO_SECRET\"" >> .github/django_settings_psql.py
+
+        echo "Django secret key added to all settings files"
+
+        cat .github/django_settings.py
+        cat .github/django_settings_mariadb.py
+        cat .github/django_settings_psql.py
+      shell: bash
+

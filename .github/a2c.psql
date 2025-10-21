@@ -1,3 +1,4 @@
+DROP DATABASE IF EXISTS acme2certifier;
 CREATE DATABASE acme2certifier;
 CREATE USER acme2certifier WITH PASSWORD '1mmSvDF';
 ALTER ROLE acme2certifier SET client_encoding TO 'utf8';

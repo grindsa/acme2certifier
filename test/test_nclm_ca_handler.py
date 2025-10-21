@@ -49,7 +49,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("exc_api_post", self.cahandler._api_post("url", "data"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._api_post() returned error: exc_api_post",
+            "ERROR:test_a2c:API POST request failed: exc_api_post",
             lcm.output,
         )
 
@@ -69,7 +69,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_check()
         self.assertEqual("api_host to be set in config file", self.cahandler.error)
-        self.assertIn('ERROR:test_a2c:"api_host" to be set in config file', lcm.output)
+        self.assertIn('ERROR:test_a2c:Missing "api_host" in configuration.', lcm.output)
 
     def test_006__config_check(self):
         """CAhandler._config.check() no api_user"""
@@ -77,7 +77,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_check()
         self.assertEqual("api_user to be set in config file", self.cahandler.error)
-        self.assertIn('ERROR:test_a2c:"api_user" to be set in config file', lcm.output)
+        self.assertIn('ERROR:test_a2c:Missing "api_user" in configuration.', lcm.output)
 
     def test_007__config_check(self):
         """CAhandler._config.check() no api_user"""
@@ -86,7 +86,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_check()
         self.assertEqual("api_user to be set in config file", self.cahandler.error)
-        self.assertIn('ERROR:test_a2c:"api_user" to be set in config file', lcm.output)
+        self.assertIn('ERROR:test_a2c:Missing "api_user" in configuration.', lcm.output)
 
     def test_008__config_check(self):
         """CAhandler._config.check() no api_password"""
@@ -96,7 +96,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_check()
         self.assertEqual("api_password to be set in config file", self.cahandler.error)
         self.assertIn(
-            'ERROR:test_a2c:"api_password" to be set in config file', lcm.output
+            'ERROR:test_a2c:Missing "api_password" in configuration.', lcm.output
         )
 
     def test_009__config_check(self):
@@ -107,7 +107,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_check()
         self.assertEqual("api_password to be set in config file", self.cahandler.error)
         self.assertIn(
-            'ERROR:test_a2c:"api_password" to be set in config file', lcm.output
+            'ERROR:test_a2c:Missing "api_password" in configuration.', lcm.output
         )
 
     def test_010__config_check(self):
@@ -163,7 +163,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._config_check()
         self.assertFalse(self.cahandler.error)
         self.assertIn(
-            'WARNING:test_a2c:"ca_bundle" set to "False" - validation of server certificate disabled',
+            'WARNING:test_a2c:CA bundle validation is disabled ("ca_bundle" set to False). Server certificate will not be validated.',
             lcm.output,
         )
 
@@ -257,7 +257,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "WARNING:test_a2c:CAhandler._config_names_load() tsg_name is deprecated. Use container_name instead.",
+            "WARNING:test_a2c:Configuration uses deprecated 'tsg_name'. Use 'container_name' instead.",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -346,7 +346,7 @@ class TestACMEHandler(unittest.TestCase):
             {"api_user": None, "api_password": None}, self.cahandler.credential_dic
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load user_variable:'does_not_exist'",
+            "ERROR:test_a2c:Unable to load API user from environment: 'does_not_exist'",
             lcm.output,
         )
 
@@ -367,9 +367,7 @@ class TestACMEHandler(unittest.TestCase):
             {"api_user": "api_user", "api_password": None},
             self.cahandler.credential_dic,
         )
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite api_user", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite api_user", lcm.output)
 
     @patch.dict("os.environ", {"api_password_var": "password_var"})
     @patch("examples.ca_handler.nclm_ca_handler.load_config")
@@ -399,7 +397,7 @@ class TestACMEHandler(unittest.TestCase):
             {"api_user": None, "api_password": None}, self.cahandler.credential_dic
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load() could not load password_variable:'does_not_exist'",
+            "ERROR:test_a2c:Could not load password_variable:'does_not_exist'",
             lcm.output,
         )
 
@@ -420,9 +418,7 @@ class TestACMEHandler(unittest.TestCase):
             {"api_password": "api_password", "api_user": None},
             self.cahandler.credential_dic,
         )
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._config_load() overwrite api_password", lcm.output
-        )
+        self.assertIn("INFO:test_a2c:Overwrite api_password", lcm.output)
 
     @patch("examples.ca_handler.nclm_ca_handler.parse_url")
     @patch("json.loads")
@@ -478,7 +474,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_chk.called)
         self.assertFalse(self.cahandler.proxy)
         self.assertIn(
-            "WARNING:test_a2c:Challenge._config_load() proxy_server_list failed with error: not enough values to unpack (expected 2, got 1)",
+            "WARNING:test_a2c:Failed to load proxy_server_list from configuration: not enough values to unpack (expected 2, got 1)",
             lcm.output,
         )
 
@@ -522,9 +518,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_get.return_value = mockresponse1
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._login()
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler._login() error during get: 500", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:Login failed. Error: 500", lcm.output)
         self.assertFalse(mock_post.called)
         self.assertFalse(self.cahandler.headers)
 
@@ -549,9 +543,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = mockresponse2
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._login()
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler._login() error during post: 500", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:Login Error: 500", lcm.output)
         self.assertTrue(mock_post.called)
         self.assertFalse(self.cahandler.headers)
         self.assertEqual("versionNumber", self.cahandler.nclm_version)
@@ -578,7 +570,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._login()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._login(): No token returned. Aborting.",
+            "ERROR:test_a2c:No token returned after logging in. Aborting.",
             lcm.output,
         )
         self.assertTrue(mock_post.called)
@@ -652,7 +644,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._container_id_lookup()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._container_id_lookup() incomplete response: {'name1': 'name1', 'id': 'id1'}",
+            "ERROR:test_a2c:Incomplete container response: {'name1': 'name1', 'id': 'id1'}",
             lcm.output,
         )
         self.assertEqual(
@@ -672,7 +664,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._container_id_lookup()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._container_id_lookup() no target-system-groups found for filter: name.",
+            "ERROR:test_a2c:No target system groups found for filter: name.",
             lcm.output,
         )
         self.assertEqual(
@@ -688,11 +680,11 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._container_id_lookup()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._container_id_lookup() returned error: exc_container_id_lookup",
+            "ERROR:test_a2c:Failed to retrieve container id: exc_container_id_lookup",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._container_id_lookup() no target-system-groups found for filter: name.",
+            "ERROR:test_a2c:No target system groups found for filter: name.",
             lcm.output,
         )
         self.assertEqual(
@@ -707,7 +699,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._template_id_lookup("caid")
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._template_id_lookup() no templates found for filter: None.",
+            "ERROR:test_a2c:No templates found for filter: None.",
             lcm.output,
         )
         self.assertFalse(mock_enum.called)
@@ -737,7 +729,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._template_list_get(6))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._template_list_get() returned error: req_exc",
+            "ERROR:test_a2c:Failed to retrieve template list: req_exc",
             lcm.output,
         )
 
@@ -894,7 +886,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._ca_id_get(ca_list))
         self.assertIn(
-            "ERROR:test_a2c:ca_id.lookup() policyLinkId field is missing  ...",
+            "ERROR:test_a2c:CA response missing policyLinkId field.",
             lcm.output,
         )
 
@@ -930,7 +922,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._ca_policylink_id_lookup())
         self.assertIn(
-            "ERROR:test_a2c:CAhandler_ca_policylink_id_lookup(): no policylink id found for None",
+            "ERROR:test_a2c:No policy link ID found for CA name: None",
             lcm.output,
         )
         self.assertTrue(mock_caid.called)
@@ -948,12 +940,10 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.cahandler._ca_policylink_id_lookup())
         self.assertIn(
-            "ERROR:test_a2c:CAhandler_ca_policylink_id_lookup(): no policylink id found for None",
+            "ERROR:test_a2c:No policy link ID found for CA name: None",
             lcm.output,
         )
-        self.assertIn(
-            "ERROR:test_a2c:ca_id.lookup() no CAs found in response ...", lcm.output
-        )
+        self.assertIn("ERROR:test_a2c:No CAs found in issuer response.", lcm.output)
         self.assertFalse(mock_caid.called)
 
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._cert_bundle_build")
@@ -986,7 +976,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._cert_enroll("cr", "policylink_id"),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.eroll(): certifcate_id lookup failed for job: mock_post",
+            "ERROR:test_a2c:Certificate ID lookup failed for job: mock_post",
             lcm.output,
         )
         self.assertTrue(mock_post.called)
@@ -1007,7 +997,8 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._cert_enroll("cr", "policylink_id"),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.eroll(): job_id lookup failed for job", lcm.output
+            "ERROR:test_a2c:Job ID lookup failed during certificate enrollment.",
+            lcm.output,
         )
         self.assertTrue(mock_post.called)
         self.assertFalse(mock_idget.called)
@@ -1156,7 +1147,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._certid_get_from_serial("cert_raw"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._certid_get_from_serial(): no certificate found for serial: mock_serial",
+            "ERROR:test_a2c:Failed to retrieve certificate by serial: mock_serial",
             lcm.output,
         )
 
@@ -1169,11 +1160,11 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._certid_get_from_serial("cert_raw"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._certid_get_from_serial(): request get aborted with err: mock_req",
+            "ERROR:test_a2c:API request to fetch certificates got aborted with err: mock_req",
             lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._certid_get_from_serial(): no certificate found for serial: mock_serial",
+            "ERROR:test_a2c:Failed to retrieve certificate by serial: mock_serial",
             lcm.output,
         )
 
@@ -1342,7 +1333,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.container_info_dic = {"name": "name", "id": None}
         self.assertEqual(
             (
-                'CAhandler.eroll(): ID lookup for container"name" failed.',
+                'ID lookup for container"name" failed.',
                 None,
                 None,
                 None,
@@ -1460,11 +1451,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_post.called)
         self.assertTrue(mock_poll.called)
 
+    @patch("examples.ca_handler.nclm_ca_handler.eab_profile_revocation_check")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._revocation_status_poll")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._api_post")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._cert_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.error_dic_get")
-    def test_100_revoke(self, mock_err, mock_idl, mock_post, mock_poll):
+    def test_100_revoke(self, mock_err, mock_idl, mock_post, mock_poll, mock_eab):
         """test revoke"""
         mock_err.return_value = {"foo": "bar", "serverinternal": "serverinternal"}
         mock_idl.return_value = "cert_id"
@@ -1478,6 +1470,35 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_idl.called)
         self.assertTrue(mock_post.called)
         self.assertFalse(mock_poll.called)
+        self.assertFalse(mock_eab.called)
+
+    @patch("examples.ca_handler.nclm_ca_handler.eab_profile_revocation_check")
+    @patch("examples.ca_handler.nclm_ca_handler.CAhandler._revocation_status_poll")
+    @patch("examples.ca_handler.nclm_ca_handler.CAhandler._api_post")
+    @patch("examples.ca_handler.nclm_ca_handler.CAhandler._cert_id_lookup")
+    @patch("examples.ca_handler.nclm_ca_handler.error_dic_get")
+    def test_101_revoke(self, mock_err, mock_idl, mock_post, mock_poll, mock_eab):
+        """test revoke"""
+        mock_err.return_value = {"foo": "bar", "serverinternal": "serverinternal"}
+        mock_idl.return_value = "cert_id"
+        mock_post.return_value = {"urls": {"foo": "foo"}}
+        mock_poll.return_value = (200, "message", "detail")
+        self.cahandler.eab_profiling = True
+        self.assertEqual(
+            (500, "serverinternal", "Revocation operation failed"),
+            self.cahandler.revoke("cert_raw"),
+        )
+        self.assertTrue(mock_err.called)
+        self.assertTrue(mock_idl.called)
+        self.assertTrue(mock_post.called)
+        self.assertFalse(mock_poll.called)
+        self.assertTrue(mock_eab.called)
+
+    @patch("examples.ca_handler.nclm_ca_handler.CAhandler._config_check")
+    def test_102_handler_check(self, mock_handler_check):
+        """test handler_check"""
+        self.cahandler.error = "mock_handler_check"
+        self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
 
 if __name__ == "__main__":

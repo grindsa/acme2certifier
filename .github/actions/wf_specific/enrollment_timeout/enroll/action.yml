@@ -31,42 +31,60 @@ runs:
   - name: "Check timeout"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
         docker exec acme-srv grep "Certificate.enroll_and_store() ended with: None:timeout" /var/log/messages
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 10s
 
   - name: "Enroll acme.sh"
     run: |
       docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme  --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
     shell: bash
 
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 10s
+
   - name: "Check certificate reusage"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker-compose logs | grep "Certificate._enroll(): reuse existing certificate"
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
-        docker exec acme-srv grep "Certificate._enroll(): reuse existing certificate" /var/log/messages
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "Reuse existing certificate"
+        docker compose logs | grep "issued for account" | grep "Serial:" | grep "reused: True"
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec acme-srv grep "Reuse existing certificate" /var/log/messages
+        docker exec -i acme-srv bash -c 'tail -n 500 /var/log/messages | grep "issued for account" | grep "Serial:" | grep "reused: True"'
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "Enroll Lego"
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 180 --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 180 --http run
     shell: bash
 
   - name: "Check timeout"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "Register certbot"
     run: |
@@ -81,8 +99,10 @@ runs:
   - name: "Check timeout"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker-compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}

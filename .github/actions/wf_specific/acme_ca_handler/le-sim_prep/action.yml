@@ -20,19 +20,23 @@ runs:
 
   - name: "Setup le-sim"
     run: |
-      sudo mkdir -p ${{ inputs.LESIM_NAME }}/acme_ca/certs
-      sudo cp examples/ca_handler/openssl_ca_handler.py ${{ inputs.LESIM_NAME }}/ca_handler.py
-      sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem ${{ inputs.LESIM_NAME }}/acme_ca/
-      sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg ${{ inputs.LESIM_NAME }}/acme_srv.cfg
-      sudo chmod 777 ${{ inputs.LESIM_NAME }}/acme_srv.cfg
-      if [ "${{ inputs.SECTIGO_SIM }}" == "true" ]; then
+      sudo mkdir -p "$LESIM_NAME/acme_ca/certs"
+      sudo cp examples/ca_handler/openssl_ca_handler.py "$LESIM_NAME/ca_handler.py"
+      sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem "$LESIM_NAME/acme_ca/"
+      sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg "$LESIM_NAME/acme_srv.cfg"
+      sudo chmod 777 "$LESIM_NAME/acme_srv.cfg"
+      if [ "$SECTIGO_SIM" == "true" ]; then
         echo "Sectigo sim enabled"
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True\nsectigo_sim: True/g" ${{ inputs.LESIM_NAME }}/acme_srv.cfg
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True\nsectigo_sim: True/g" "$LESIM_NAME/acme_srv.cfg"
       fi
-      sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" ${{ inputs.LESIM_NAME }}/acme_srv.cfg
-      docker run -d --rm -id --network ${{ inputs.NAME_SPACE }} --name=${{ inputs.LESIM_NAME }} -v "$(pwd)/${{ inputs.LESIM_NAME }}":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
-      cat ${{ inputs.LESIM_NAME }}/acme_srv.cfg
+      sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" "$LESIM_NAME/acme_srv.cfg"
+      docker run -d --rm -id --network "$NAME_SPACE" --name="$LESIM_NAME" -v "$(pwd)/$LESIM_NAME":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
+      cat "$LESIM_NAME/acme_srv.cfg"
     shell: bash
+    env:
+      LESIM_NAME: ${{ inputs.LESIM_NAME }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      SECTIGO_SIM: ${{ inputs.SECTIGO_SIM }}
 
   - name: "Sleep for 10s"
     uses: juliangruber/sleep-action@v2.0.3
@@ -40,14 +44,19 @@ runs:
       time: 10s
 
   - name: "Test http://acme-le-sim/directory is accessible"
-    run: docker run -i --rm --network ${{ inputs.NAME_SPACE }} curlimages/curl -f http://${{ inputs.LESIM_NAME }}/directory
+    run: docker run -i --rm --network "$NAME_SPACE" curlimages/curl -f http://"$LESIM_NAME"/directory
     shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      LESIM_NAME: ${{ inputs.LESIM_NAME }}
 
   - name: "Enroll from le-sim"
     run: |
       mkdir -p acme-sh/
-      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http:///${{ inputs.LESIM_NAME }} --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://"$LESIM_NAME" --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
       awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
       openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
       sudo rm -rf acme-sh/*
     shell: bash
+    env:
+      LESIM_NAME: ${{ inputs.LESIM_NAME }}

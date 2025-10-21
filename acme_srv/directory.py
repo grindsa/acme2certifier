@@ -130,7 +130,7 @@ class Directory(object):
             # store handler in variable
             self.cahandler = ca_handler_module.CAhandler
         else:
-            self.logger.critical("Certificate._config_load(): No ca_handler loaded")
+            self.logger.critical("No ca_handler loaded")
 
         # load parameters from config file
         self._config_parameters_load(config_dic)
@@ -193,16 +193,16 @@ class Directory(object):
                     d_dic["meta"]["db_check"] = "OK"
                 else:
                     self.logger.error(
-                        "acme2certifier database error: version mismatch: detected: %s/ expected: %s",
+                        "Database schema mismatch detected: detected: %s/ expected: %s",
                         version,
                         __dbversion__,
                     )
                     d_dic["meta"]["db_check"] = "NOK"
 
-            except Exception as err_:
+            except Exception as err:
                 self.logger.critical(
-                    "acme2certifier database error in Directory.dbversion_check(): %s",
-                    err_,
+                    "Database error: failed to check database version: %s",
+                    err,
                 )
                 d_dic["meta"]["db_check"] = "NOK"
 
@@ -230,7 +230,7 @@ class Directory(object):
         if not error:
             d_dic = self._directory_get()
         else:
-            self.logger.critical("Directory.directory_get() error: %s", error)
+            self.logger.critical("CA handler error during directory_get: %s", error)
             d_dic = {"error": "error in ca_handler configuration"}
 
         return d_dic
