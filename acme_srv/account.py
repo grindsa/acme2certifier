@@ -69,9 +69,7 @@ class Account(object):
         try:
             result = self.dbstore.account_lookup("jwk", json.dumps(jwk))
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Account._account_lookup(): %s", err_
-            )
+            self.logger.critical("Database error during account lookup: %s", err_)
             result = None
 
         if result:
@@ -97,7 +95,7 @@ class Account(object):
         try:
             (db_name, new) = self.dbstore.account_add(data_dic)
         except Exception as err_:
-            self.logger.critical("Account.account._add(): Database error: %s", err_)
+            self.logger.critical("Database error while adding account: %s", err_)
             db_name = None
             new = False
 
@@ -129,7 +127,7 @@ class Account(object):
             and "protected" in payload["externalaccountbinding"]
         ):
             eab_kid = self._eab_kid_get(payload["externalaccountbinding"]["protected"])
-            self.logger.info("add eab_kid: %s to data_dic", eab_kid)
+            self.logger.info("Add eab_kid: %s to data_dic", eab_kid)
             if eab_kid:
                 data_dic["eab_kid"] = eab_kid
 
@@ -240,10 +238,10 @@ class Account(object):
             data_dic = {"name": aname, "contact": json.dumps(payload["contact"])}
             try:
                 result = self.dbstore.account_update(data_dic)
-            except Exception as err_:
+            except Exception as err:
                 self.logger.critical(
-                    "acme2certifier database error in Account._contacts_update(): %s",
-                    err_,
+                    "Database error while updating account contacts: %s",
+                    err,
                 )
                 result = None
 
@@ -262,9 +260,7 @@ class Account(object):
         try:
             result = self.dbstore.account_delete(aname)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Account._delete(): %s", err_
-            )
+            self.logger.critical("Database error while deleting account: %s", err_)
             result = None
 
         if result:
@@ -290,9 +286,7 @@ class Account(object):
             }
             result = self.dbstore.account_update(data_dic, active=False)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Account._deactivate(): %s", err_
-            )
+            self.logger.critical("Database error while deactivating account: %s", err_)
             result = None
 
         if result:
@@ -314,14 +308,26 @@ class Account(object):
         self.logger.debug("Account._eab_jwk_compare()")
         result = False
         if "jwk" in protected:
+            self.logger.debug("compare jwk from outer and inner jws")
             # convert outer jwk into string for better comparison
             if isinstance(protected, dict):
-                jwk_outer = json.dumps(protected["jwk"])
+                # extract outer jwk
+                jwk_outer = protected["jwk"]
                 # decode inner jwk
                 jwk_inner = b64decode_pad(self.logger, payload)
-                jwk_inner = json.dumps(json.loads(jwk_inner))
-                if jwk_outer == jwk_inner:
+                jwk_inner = json.loads(jwk_inner)
+                if json.dumps(jwk_outer, sort_keys=True) == json.dumps(
+                    jwk_inner, sort_keys=True
+                ):
                     result = True
+                else:
+                    self.logger.error("jwk from outer and inner jws do not match")
+                    self.logger.debug("outer: %s", jwk_outer)
+                    self.logger.debug("inner: %s", jwk_inner)
+            else:
+                self.logger.error("Protected header: %s is not a dictionary", protected)
+        else:
+            self.logger.error("No jwk in protected header")
 
         self.logger.debug("_eab_jwk_compare() ended with: %s", result)
         return result
@@ -365,7 +371,7 @@ class Account(object):
                 code = 403
                 message = self.err_msg_dic["unauthorized"]
                 detail = "eab signature verification failed"
-                self.logger.error("Account._eab_check() returned error: %s", error)
+                self.logger.error("EAB verification returned an error: %s", error)
         else:
             code = 403
             message = self.err_msg_dic["unauthorized"]
@@ -580,7 +586,7 @@ class Account(object):
                 result = self.dbstore.account_update(data_dic)
             except Exception as err_:
                 self.logger.critical(
-                    "acme2certifier database error in Account._key_change(): %s", err_
+                    "Database error while updating account key: %s", err_
                 )
                 result = None
             if result:
@@ -655,9 +661,7 @@ class Account(object):
         try:
             pub_key = self.dbstore.jwk_load(aname)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Account._key_compare(): %s", err_
-            )
+            self.logger.critical("Database error while comparing account key: %s", err_)
             pub_key = None
 
         if old_key and pub_key:
@@ -725,9 +729,7 @@ class Account(object):
         try:
             result = self.dbstore.account_lookup(field, value)
         except Exception as err_:
-            self.logger.critical(
-                "acme2certifier database error in Account._lookup(): %s", err_
-            )
+            self.logger.critical("Database error during account lookup: %s", err_)
             result = None
         return result
 

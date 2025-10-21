@@ -5,12 +5,17 @@ inputs:
     description: "Name space"
     required: true
     default: "acme"
+  INSTANCIATE:
+    description: "Instanciate mariadb"
+    required: true
+    default: "true"
 
 runs:
   using: "composite"
   steps:
 
     - name: "postgres environment"
+      if: inputs.INSTANCIATE == 'true'
       run: |
         sudo mkdir -p /tmp/data/pgsql
         sudo cp .github/a2c.psql /tmp/data/pgsql/a2c.psql
@@ -19,6 +24,7 @@ runs:
       shell: bash
 
     - name: "Install postgres"
+      if: inputs.INSTANCIATE == 'true'
       working-directory: /tmp
       run: |
         docker run --name postgresdbsrv --network $NAME_SPACE -e POSTGRES_PASSWORD=foobar -d postgres
@@ -27,14 +33,26 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "Sleep for 10s"
+      if: inputs.INSTANCIATE == 'true'
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
 
     - name: "Configure postgres"
+      if: inputs.INSTANCIATE == 'true'
       working-directory: /tmp
       run: |
         docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network $NAME_SPACE postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Reset postgres"
+      if: inputs.INSTANCIATE == 'false'
+      working-directory: /tmp
+      run: |
+        docker cp $(pwd)/data/pgsql/a2c.psql postgresdbsrv:/tmp/a2c.psql
+        docker exec postgresdbsrv psql -U postgres -f /tmp/a2c.psql
       shell: bash
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}

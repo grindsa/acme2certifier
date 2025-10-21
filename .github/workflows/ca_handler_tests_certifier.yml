@@ -12,8 +12,10 @@ jobs:
   certifier_handler_tests:
     name: "certifier_handler_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
-      max-parallel: 2
+      max-parallel: 1
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
@@ -56,7 +58,7 @@ jobs:
         # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
         NCM_API_USER: ${{ secrets.NCM_API_USER }}
@@ -72,7 +74,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "No profile - Enrollmnet"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_no_profile
@@ -90,7 +92,7 @@ jobs:
         # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "profile_id: 101" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
         NCM_API_USER: ${{ secrets.NCM_API_USER }}
@@ -115,7 +117,7 @@ jobs:
         # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "profile_id: 102" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
         NCM_API_USER: ${{ secrets.NCM_API_USER }}
@@ -139,7 +141,7 @@ jobs:
         # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
         NCM_API_USER: ${{ secrets.NCM_API_USER }}
@@ -178,7 +180,7 @@ jobs:
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
         NCM_API_USER: ${{ secrets.NCM_API_USER }}
@@ -219,7 +221,7 @@ jobs:
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
         NCM_API_USER: ${{ secrets.NCM_API_USER }}
@@ -270,7 +272,7 @@ jobs:
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
         NCM_API_USER: ${{ secrets.NCM_API_USER }}
@@ -297,6 +299,7 @@ jobs:
         sudo echo "profile_id: 100" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
@@ -312,7 +315,7 @@ jobs:
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
         NCM_API_USER: ${{ secrets.NCM_API_USER }}
@@ -322,6 +325,8 @@ jobs:
 
     - name: "EAB ACME Profile - Enrollment"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
+      with:
+        DEPLOYMENT_TYPE: container
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
@@ -338,7 +343,7 @@ jobs:
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
@@ -351,6 +356,8 @@ jobs:
   certifier_handler_tests_rpm:
     name: "certifier_handler_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     # needs: certifier_handler_tests
     strategy:
       fail-fast: false
@@ -657,6 +664,7 @@ jobs:
         sudo echo "profile_id: 100" >> data/acme_srv.cfg
         sudo echo "eab_profiling: True" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_operations_log: True/g" data/acme_srv.cfg
         sudo echo -e "\n\n[EABhandler]" >> data/acme_srv.cfg
         sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
         sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
@@ -684,6 +692,8 @@ jobs:
 
     - name: "EAB ACME Profile - Enrollment"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
+      with:
+        DEPLOYMENT_TYPE: rpm
 
 
     - name: "[ * ] collecting test logs"

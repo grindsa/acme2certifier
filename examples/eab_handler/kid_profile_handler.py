@@ -56,9 +56,7 @@ class EABhandler(object):
                     # force check to fail as something went wrong during parsing
                     check_list.append(False)
                     self.logger.info(
-                        "EABhandler._csr_check(): san_list parsing failed at entry: {0}".format(
-                            san
-                        )
+                        "SAN list parsing failed at entry: {0}".format(san)
                     )
 
         self.logger.debug("EABhandler._chk_san_lists_get() ended")
@@ -144,16 +142,23 @@ class EABhandler(object):
         self.logger.debug("EABhandler.allowed_domains_check() ended with: %s", result)
         return result
 
-    def eab_kid_get(self, csr: str) -> str:
+    def eab_kid_get(self, csr: str, revocation=False) -> str:
         """get eab kid  from datbases based on csr"""
         self.logger.debug("EABhandler.eab_kid_get()")
         try:
             # look up eab_kid from database based on csr
             from acme_srv.db_handler import DBstore  # pylint: disable=c0415
 
+            if revocation:
+                # this is a lookup for a revocation request
+                search_key = "cert_raw"
+            else:
+                # this is a lookup for an enrollment request
+                search_key = "csr"
+
             dbstore = DBstore(False, self.logger)
             result_dic = dbstore.certificate_lookup(
-                "csr",
+                search_key,
                 csr,
                 vlist=[
                     "name",
@@ -167,15 +172,13 @@ class EABhandler(object):
             else:
                 eab_kid = None
         except Exception as err:
-            self.logger.error(
-                "EABhandler._eab_profile_get() database error: {0}".format(err)
-            )
+            self.logger.error("Database error while retrieving eab_kid: %s", err)
             eab_kid = None
 
         self.logger.debug("EABhandler.eab_kid_get() ended with: %s", eab_kid)
         return eab_kid
 
-    def eab_profile_get(self, csr: str) -> str:
+    def eab_profile_get(self, csr: str, revocation=False) -> str:
         """get eab profile"""
         self.logger.debug("EABhandler._eab_profile_get()")
 
@@ -183,7 +186,7 @@ class EABhandler(object):
         profiles_dic = self.key_file_load()
 
         # get eab_kid from database
-        eab_kid = self.eab_kid_get(csr)
+        eab_kid = self.eab_kid_get(csr, revocation=revocation)
 
         # get profile from profiles_dic
         if (
@@ -208,15 +211,11 @@ class EABhandler(object):
         try:
             profiles_dic = json.loads(key_file_content)
         except Exception as err:
-            self.logger.error(
-                "EABhandler.keyfile_content_load(): error: {0}".format(err)
-            )
+            self.logger.error("Failed to parse key file content as JSON: %s", err)
             try:
                 profiles_dic = yaml.safe_load(key_file_content)
             except Exception as err:
-                self.logger.error(
-                    "EABhandler.keyfile_content_load(): error: {0}".format(err)
-                )
+                self.logger.error("Failed to parse key file content as YAML: %s", err)
                 profiles_dic = {}
 
         self.logger.debug(
@@ -233,10 +232,10 @@ class EABhandler(object):
                 with open(self.key_file, encoding="utf8") as key_file_content:
                     profiles_dic = self.keyfile_content_load(key_file_content.read())
             except Exception as err:
-                self.logger.error("EABhandler.key_file_load() error: {0}".format(err))
+                self.logger.error("Failed to load key file: %s", err)
                 profiles_dic = {}
         else:
-            self.logger.error("EABhandler.key_file_load() no key_file specified")
+            self.logger.error("No key_file specified for EAB profile loading.")
             profiles_dic = {}
 
         self.logger.debug(
@@ -256,7 +255,7 @@ class EABhandler(object):
                     if kid in data_dic and "hmac" in data_dic[kid]:
                         mac_key = data_dic[kid]["hmac"]
         except Exception as err:
-            self.logger.error("EABhandler.mac_key_get() error: {0}".format(err))
+            self.logger.error("Failed to retrieve MAC key for kid '%s': %s", kid, err)
 
         self.logger.debug(
             "EABhandler.mac_key_get() ended with: {0}".format(bool(mac_key))

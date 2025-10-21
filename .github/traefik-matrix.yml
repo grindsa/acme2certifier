@@ -12,14 +12,18 @@ services:
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       - "--certificatesresolvers.a2c.acme.CHALLENGE_TYPE"
-      - "--certificatesresolvers.a2c.acme.caserver=http://acme-srv.acme/directory"
+      - "--certificatesresolvers.a2c.acme.caserver=https://acme-srv.acme/directory"
       - "--certificatesresolvers.a2c.acme.email=grindsa@foo.bar"
       - "--certificatesresolvers.a2c.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
       - "443:443"
       - "8080:8080"
+    environment:
+      - LEGO_CA_CERTIFICATES=/tmp/certs/acme2certifier_cabundle.pem
+
     volumes:
+      - "./certs:/tmp/certs"
       - "./letsencrypt:/letsencrypt"
       - "/var/run/docker.sock:/var/run/docker.sock"
 

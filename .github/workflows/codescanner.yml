@@ -17,6 +17,8 @@ jobs:
       actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
 
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
       - uses: actions/checkout@v4
       - name: Bandit Scan
@@ -42,6 +44,8 @@ jobs:
   codecov:
     name: Codecov Analysis
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
 
     steps:
       - uses: actions/checkout@v4
@@ -78,6 +82,8 @@ jobs:
   sonarcloud:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -117,6 +123,8 @@ jobs:
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
 
     steps:
     - name: Checkout repository
