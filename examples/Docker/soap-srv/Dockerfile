@@ -24,6 +24,7 @@ RUN pip3 install -r /tmp/requirements.txt &&\
 
 COPY examples/soap/mock_soap_srv.py /usr/local/soap-srv/
 COPY acme_srv/helper.py acme_srv/version.py /usr/local/soap-srv/acme_srv/
+COPY acme_srv/helpers /usr/local/soap-srv/acme_srv/helpers
 COPY examples/ca_handler/xca_ca_handler.py /usr/local/soap-srv/examples/ca_handler/xca_ca_handler.py
 COPY examples/Docker/soap-srv/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod a+rx /docker-entrypoint.sh
@@ -33,6 +34,5 @@ WORKDIR /tmp
 ENTRYPOINT ["/docker-entrypoint.sh"]
 
 CMD ["python3", "/usr/local/soap-srv/mock_soap_srv.py", "-d", "-c", "/etc/soap-srv/soap_srv.cfg"]
-# CMD ["/bin/bash"]
-
+# CMD ["tail" , "-f", "/dev/null"]
 EXPOSE 80
