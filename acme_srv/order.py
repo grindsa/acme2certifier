@@ -45,6 +45,7 @@ class Order(object):
         self.profiles = {}
         # turn off check by default
         self.profiles_check_disable = True
+        self.idempotent_finalize = False
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -226,7 +227,9 @@ class Order(object):
             self.expiry_check_disable = config_dic.getboolean(
                 "Order", "expiry_check_disable", fallback=False
             )
-
+            self.idempotent_finalize = config_dic.getboolean(
+                "Order", "idempotent_finalize", fallback=False
+            )
             try:
                 self.retry_after = int(
                     config_dic.get(
@@ -430,6 +433,28 @@ class Order(object):
                 code = 400
                 message = self.error_msg_dic["badcsr"]
                 detail = "csr is missing in payload"
+        elif (
+            "status" in order_dic
+            and order_dic["status"] == "valid"
+            and self.idempotent_finalize
+        ):
+            # this is polling request via finalize call; lookup certificate
+            self.logger.debug(
+                "Order._finalize(): kind of polling request - order is already valid - lookup certificate"
+            )
+            code = 200
+            try:
+                cert_dic = self.dbstore.certificate_lookup("order__name", order_name)
+            except Exception as err_:
+                self.logger.critical(
+                    "Database error: Certificate lookup failed: %s", err_
+                )
+                cert_dic = {}
+            if cert_dic:
+                # we found a cert in the database
+                # pylint: disable=R1715
+                if "name" in cert_dic:
+                    certificate_name = cert_dic["name"]
         else:
             code = 403
             message = self.error_msg_dic["ordernotready"]
