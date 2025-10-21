@@ -34,6 +34,9 @@ runs:
       id: rpm_build
       uses: ./.github/actions/rpm_build
 
+    - name: "Generate keys and certificates"
+      uses: ./.github/actions/cert_gen
+
     - name: "Setup environment for alma installation"
       run: |
         echo "IPv6 is $IPV6"
@@ -72,7 +75,9 @@ runs:
 
       shell: bash
 
-    - run: echo "RH_VERSION is ${{ inputs.RH_VERSION }}"
+    - run: echo "RH_VERSION is $RH_VERSION"
+      env:
+        RH_VERSION: ${{ inputs.RH_VERSION }}
       shell: bash
 
     - name: "Retrieve rpms from SBOM repo"

@@ -37,7 +37,7 @@ runs:
   - name: "EAB with ACME Profile - 01a - enrollment without profile (first value in list)"
     run: |
       sudo rm -rf lego/*
-      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego -s http://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.$NAME_SPACE --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
+      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.$NAME_SPACE --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run
       sudo openssl x509 -in lego/certificates/lego.$NAME_SPACE.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego.$NAME_SPACE.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
     shell: bash
@@ -47,18 +47,21 @@ runs:
   - name: "EAB with ACME Profile - 01a - Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker-compose logs | grep "template: WebServerModified"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
-        docker exec -i acme-srv tail -n ${{ inputs.TAIL_NUMBER}} /var/log/messages | grep "template: WebServerModified"
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "template: WebServerModified"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServerModified"
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
 
   - name: "EAB with ACME Profile - 01b - enrollment with profile (pick value from list)"
     run: |
       sudo rm -rf lego/*
-      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego -s http://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.$NAME_SPACE --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run --profile WebServer
+      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.$NAME_SPACE --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run --profile WebServer
       sudo openssl x509 -in lego/certificates/lego.$NAME_SPACE.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego.$NAME_SPACE.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
     shell: bash
@@ -68,20 +71,23 @@ runs:
   - name: "EAB with ACME Profile - 01b - Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker-compose logs | grep "template: WebServer"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
-        docker exec -i acme-srv tail -n ${{ inputs.TAIL_NUMBER}} /var/log/messages | grep "template: WebServer"
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "template: WebServer"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer"
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
 
   - name: "EAB with ACME Profile - 01c - enrollment with profile containing value not included in list (to fail)"
     id: legofail02
     continue-on-error: true
     run: |
       sudo rm -rf lego/*
-      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego -s http://acme-srv -a --email "lego@example.com"  --key-type=rsa2048 -d lego.$NAME_SPACE --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run --profile Unknown
+      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com"  --key-type=rsa2048 -d lego.$NAME_SPACE --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http run --profile Unknown
     shell: bash
     env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
@@ -98,7 +104,7 @@ runs:
   - name: "EAB with ACME Profile - 02 -  profile from eab profile"
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego -s http://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.$NAME_SPACE --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.$NAME_SPACE --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --http run
       sudo openssl x509 -in lego/certificates/lego.$NAME_SPACE.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego.$NAME_SPACE.crt -ext extendedKeyUsage -noout | grep "TLS Web Client"
     shell: bash
@@ -108,20 +114,23 @@ runs:
   - name: "EAB with ACME Profile - 02 - Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker-compose logs | grep "template: WebServer"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
-        docker exec -i acme-srv tail -n ${{ inputs.TAIL_NUMBER}} /var/log/messages | grep "template: WebServer"
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "template: WebServer"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer"
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
 
   - name: "EAB with ACME Profile - 03 - domainlist validation fails (to fail)"
     id: legofail03
     continue-on-error: true
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego -s http://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.$NAME_SPACE --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.$NAME_SPACE --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --http run
     shell: bash
     env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
@@ -138,7 +147,7 @@ runs:
   - name: "EAB with ACME Profile - 04 - Settings from acme_srv.cfg"
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego -s http://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.$NAME_SPACE --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.$NAME_SPACE --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr --http run
       sudo openssl x509 -in lego/certificates/lego.$NAME_SPACE.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego.$NAME_SPACE.crt -ext extendedKeyUsage -noout | grep "TLS Web Server"
     shell: bash
@@ -148,10 +157,13 @@ runs:
   - name: "EAB with ACME Profile - 04 - Check logs"
     working-directory: examples/Docker/
     run: |
-      if [ ${{ inputs.DEPLOYMENT_TYPE }} == "container" ]; then
-        docker-compose logs | grep "template: WebServer"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier_acme-srv_1)
-      elif [ ${{ inputs.DEPLOYMENT_TYPE }} == "rpm" ]; then
-        docker exec -i acme-srv tail -n ${{ inputs.TAIL_NUMBER}} /var/log/messages | grep "template: WebServer"
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "template: WebServer"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer"
       fi
     shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}

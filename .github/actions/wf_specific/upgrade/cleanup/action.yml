@@ -1,0 +1,49 @@
+name: "Cleanup after testing upgrade"
+description: "Cleanup"
+inputs:
+  DOCKER_COMPOSE_FILE_PATH:
+    description: "Path to the docker compose file"
+    required: false
+    default: "examples/Docker/"
+  DJANGO_DB:
+    description: "Database handler"
+    required: true
+    default: "sqlite"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "Cleanup"
+      working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
+      run: |
+        if [ -d $(pwd)/data/migrations ]
+        then
+            echo "delete migration directory"
+            sudo rm -rf $(pwd)/data/migrations
+        fi
+        if [ -e $(pwd)/data/db.sqlite3 ]
+        then
+            echo "delete db.sqlite3"
+            sudo rm -rf $(pwd)/data/db.sqlite3
+        fi
+        if [ -e $(pwd)/data/acme_srv.db ]
+        then
+            echo "delete acme_srv.db"
+            sudo rm -rf $(pwd)/data/acme_srv.db
+        fi
+      shell: bash
+
+    - name: "Instanciate Mariadb"
+      if: inputs.DJANGO_DB == 'mariadb'
+      uses: ./.github/actions/mariadb_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        INSTANCIATE: "false"
+
+    - name: "Instanciate Postgres"
+      if: inputs.DJANGO_DB == 'psql'
+      uses: ./.github/actions/psql_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        INSTANCIATE: "false"

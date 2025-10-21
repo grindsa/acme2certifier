@@ -9,26 +9,27 @@ import requests
 
 # pylint: disable=e0401, r0913
 from acme_srv.helper import (
-    load_config,
-    build_pem_file,
+    allowed_domainlist_check,
     b64_encode,
     b64_url_recode,
-    convert_string_to_byte,
+    build_pem_file,
     cert_serial_get,
-    uts_now,
+    config_allowed_domainlist_load,
+    config_eab_profile_load,
+    config_enroll_config_log_load,
+    config_headerinfo_load,
+    config_profile_load,
+    convert_string_to_byte,
+    eab_profile_header_info_check,
+    eab_profile_revocation_check,
+    enrollment_config_log,
+    error_dic_get,
+    header_info_get,
+    load_config,
     parse_url,
     proxy_check,
-    error_dic_get,
+    uts_now,
     uts_to_date_utc,
-    header_info_get,
-    eab_profile_header_info_check,
-    config_eab_profile_load,
-    config_profile_load,
-    config_headerinfo_load,
-    config_enroll_config_log_load,
-    enrollment_config_log,
-    config_allowed_domainlist_load,
-    allowed_domainlist_check,
 )
 
 
@@ -89,7 +90,7 @@ class CAhandler(object):
             except Exception:
                 api_response = {"status": response.status_code}
         except Exception as err_:
-            self.logger.error("CAhandler._api_post() returned error: %s", err_)
+            self.logger.error("API POST request failed: %s", err_)
             api_response = str(err_)
 
         self.logger.debug("CAhandler._api_post() ended with: %s", api_response)
@@ -108,9 +109,7 @@ class CAhandler(object):
                         ca_id = ca_["id"]
                         break
                     else:
-                        self.logger.error(
-                            "ca_id.lookup() policyLinkId field is missing  ..."
-                        )
+                        self.logger.error("CA response missing policyLinkId field.")
 
         self.logger.debug("CAhandler._ca_id_get() with %s", ca_id)
         return ca_id
@@ -132,14 +131,11 @@ class CAhandler(object):
         else:
             # log error
             ca_id = None
-            self.logger.error("ca_id.lookup() no CAs found in response ...")
+            self.logger.error("No CAs found in issuer response.")
 
         if not ca_id:
             # log error
-            self.logger.error(
-                "CAhandler_ca_policylink_id_lookup(): no policylink id found for %s",
-                self.ca_name,
-            )
+            self.logger.error("No policy link ID found for CA name: %s", self.ca_name)
         self.logger.debug("CAhandler._ca_policylink_id_lookup() ended with: %s", ca_id)
         return ca_id
 
@@ -160,12 +156,10 @@ class CAhandler(object):
             if cert_id:
                 (error, cert_bundle, cert_raw) = self._cert_bundle_build(cert_id)
             else:
-                self.logger.error(
-                    "CAhandler.eroll(): certifcate_id lookup failed for job: %s", job_id
-                )
+                self.logger.error("Certificate ID lookup failed for job: %s", job_id)
                 error = "Certifcate_id lookup failed"
         else:
-            self.logger.error("CAhandler.eroll(): job_id lookup failed for job")
+            self.logger.error("Job ID lookup failed during certificate enrollment.")
             error = "job_id lookup failed"
 
         self.logger.debug("CAhandler._cert_enroll() ended with error: %s", error)
@@ -325,10 +319,10 @@ class CAhandler(object):
                 proxies=self.proxy,
                 timeout=self.request_timeout,
             ).json()
-        except Exception as err_:
+        except Exception as err:
             self.logger.error(
-                "CAhandler._certid_get_from_serial(): request get aborted with err: %s",
-                err_,
+                "API request to fetch certificates got aborted with err: %s",
+                err,
             )
             cert_list = []
 
@@ -342,7 +336,7 @@ class CAhandler(object):
         else:
             cert_id = None
             self.logger.error(
-                "CAhandler._certid_get_from_serial(): no certificate found for serial: %s",
+                "Failed to retrieve certificate by serial: %s",
                 cert_serial,
             )
 
@@ -373,9 +367,7 @@ class CAhandler(object):
 
         if not cert_id:
             # lookup through NCLM API
-            self.logger.info(
-                "CAhandler._cert_id_lookup(): cert_id not found in database. Lookup trough NCLM API"
-            )
+            self.logger.info("Cert_id not found in database. Lookup trough NCLM API")
             cert_id = self._certid_get_from_serial(cert_raw)
 
         self.logger.debug("CAhandler._cert_id_lookup() ended with %s", cert_id)
@@ -386,18 +378,18 @@ class CAhandler(object):
         self.logger.debug("CAhandler._config_api_access_check()")
 
         if not self.api_host:
-            self.logger.error('"api_host" to be set in config file')
+            self.logger.error('Missing "api_host" in configuration.')
             self.error = "api_host to be set in config file"
 
         if not self.error and not self.credential_dic.get("api_user"):
-            self.logger.error('"api_user" to be set in config file')
+            self.logger.error('Missing "api_user" in configuration.')
             self.error = "api_user to be set in config file"
 
         if not self.error and not (
             "api_password" in self.credential_dic
             and self.credential_dic["api_password"]
         ):
-            self.logger.error('"api_password" to be set in config file')
+            self.logger.error('Missing "api_password" in configuration.')
             self.error = "api_password to be set in config file"
 
         self.logger.debug("CAhandler._config_api_access_check() ended")
@@ -416,7 +408,7 @@ class CAhandler(object):
 
         if not self.error and self.ca_bundle is False:
             self.logger.warning(
-                '"ca_bundle" set to "False" - validation of server certificate disabled'
+                'CA bundle validation is disabled ("ca_bundle" set to False). Server certificate will not be validated.'
             )
 
         self.logger.debug("CAhandler._config_names_check() ended")
@@ -440,12 +432,10 @@ class CAhandler(object):
                     config_dic.get("CAhandler", "api_user_variable")
                 ]
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._config_load() could not load user_variable:%s", err
-                )
+                self.logger.error("Unable to load API user from environment: %s", err)
         if "api_user" in config_dic["CAhandler"]:
             if self.credential_dic["api_user"]:
-                self.logger.info("CAhandler._config_load() overwrite api_user")
+                self.logger.info("Overwrite api_user")
             self.credential_dic["api_user"] = config_dic.get("CAhandler", "api_user")
 
         self.logger.debug("CAhandler._config_api_user_load() ended.")
@@ -460,12 +450,10 @@ class CAhandler(object):
                     config_dic.get("CAhandler", "api_password_variable")
                 ]
             except Exception as err:
-                self.logger.error(
-                    "CAhandler._config_load() could not load password_variable:%s", err
-                )
+                self.logger.error("Could not load password_variable:%s", err)
         if "api_password" in config_dic["CAhandler"]:
             if self.credential_dic["api_password"]:
-                self.logger.info("CAhandler._config_load() overwrite api_password")
+                self.logger.info("Overwrite api_password")
             self.credential_dic["api_password"] = config_dic.get(
                 "CAhandler", "api_password"
             )
@@ -488,7 +476,7 @@ class CAhandler(object):
         elif "tsg_name" in config_dic["CAhandler"]:
             # for backwards compatibility
             self.logger.warning(
-                "CAhandler._config_names_load() tsg_name is deprecated. Use container_name instead."
+                "Configuration uses deprecated 'tsg_name'. Use 'container_name' instead."
             )
             self.container_info_dic["name"] = config_dic.get(
                 "CAhandler", "tsg_name", fallback=None
@@ -510,10 +498,9 @@ class CAhandler(object):
                     self.proxy = {"http": proxy_server, "https": proxy_server}
             except Exception as err_:
                 self.logger.warning(
-                    "Challenge._config_load() proxy_server_list failed with error: %s",
+                    "Failed to load proxy_server_list from configuration: %s",
                     err_,
                 )
-
         self.logger.debug("CAhandler._config_proxy_load() ended")
 
     def _config_timer_load(self, config_dic: Dict[str, str]):
@@ -592,9 +579,7 @@ class CAhandler(object):
                 timeout=self.request_timeout,
             ).json()
         except Exception as err_:
-            self.logger.error(
-                "CAhandler._container_id_lookup() returned error: %s", err_
-            )
+            self.logger.error("Failed to retrieve container id: %s", err_)
             tsg_list = []
 
         if "items" in tsg_list:
@@ -604,12 +589,10 @@ class CAhandler(object):
                         self.container_info_dic["id"] = tsg["id"]
                         break
                 else:
-                    self.logger.error(
-                        "CAhandler._container_id_lookup() incomplete response: %s", tsg
-                    )
+                    self.logger.error("Incomplete container response: %s", tsg)
         else:
             self.logger.error(
-                "CAhandler._container_id_lookup() no target-system-groups found for filter: %s.",
+                "No target system groups found for filter: %s.",
                 self.container_info_dic["name"],
             )
         self.logger.debug(
@@ -622,7 +605,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._csr_check()")
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, "profile_id")
+        error = eab_profile_header_info_check(self.logger, self, csr, "template_name")
 
         if not error:
             # check for allowed domainlist
@@ -651,7 +634,7 @@ class CAhandler(object):
             (error, cert_bundle, cert_raw, cert_id) = self._cert_enroll(csr, ca_id)
         else:
             error = f'Enrollment aborted. ca: {ca_id}, tsg_id: {self.container_info_dic["id"]}'
-            self.logger.error(
+            self.logger.info(
                 "CAhandler.eroll(): Enrollment aborted. ca_id: %s, container: %s",
                 ca_id,
                 self.container_info_dic["id"],
@@ -708,18 +691,12 @@ class CAhandler(object):
                         _realms,
                     )
                 else:
-                    self.logger.error(
-                        "CAhandler._login(): No token returned. Aborting."
-                    )
+                    self.logger.error("No token returned after logging in. Aborting.")
             else:
-                self.logger.error(
-                    "CAhandler._login() error during post: %s", api_response.status_code
-                )
+                self.logger.error("Login Error: %s", api_response.status_code)
         else:
             # If response code is not ok (200), print the resulting http error code with description
-            self.logger.error(
-                "CAhandler._login() error during get: %s", api_response.status_code
-            )
+            self.logger.error("Login failed. Error: %s", api_response.status_code)
 
     def _revocation_status_poll(
         self, job_id: int, err_dic: Dict[str, str]
@@ -769,7 +746,7 @@ class CAhandler(object):
                 timeout=self.request_timeout,
             ).json()
         except Exception as err_:
-            self.logger.error("CAhandler._template_list_get() returned error: %s", err_)
+            self.logger.error("Failed to retrieve template list: %s", err_)
             template_list = []
 
         if "items" in template_list:
@@ -813,7 +790,7 @@ class CAhandler(object):
             self._templates_enumerate(template_list)
         else:
             self.logger.error(
-                "CAhandler._template_id_lookup() no templates found for filter: %s.",
+                "No templates found for filter: %s.",
                 self.template_info_dic["name"],
             )
 
@@ -853,17 +830,25 @@ class CAhandler(object):
                     (error, cert_bundle, cert_raw, cert_id) = self._enroll(csr, ca_id)
                 else:
                     self.logger.error(
-                        "CAhandler.eroll(): EAB profile lookup failed with error: %s",
+                        "EAB profile lookup failed with error: %s",
                         error,
                     )
             else:
-                error = f'CAhandler.eroll(): ID lookup for container"{self.container_info_dic["name"]}" failed.'
+                error = f'ID lookup for container"{self.container_info_dic["name"]}" failed.'
         else:
             error = self.error
             self.logger.error(self.error)
 
         self.logger.debug("CAhandler.enroll() ended")
         return (error, cert_bundle, cert_raw, cert_id)
+
+    def handler_check(self):
+        """check if handler is ready"""
+        self.logger.debug("CAhandler.check()")
+        self._config_check()
+
+        self.logger.debug("CAhandler.check() ended with %s", self.error)
+        return self.error
 
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str
@@ -894,6 +879,10 @@ class CAhandler(object):
         message = err_dic["serverinternal"]
         detail = "Revocation operation failed"
 
+        # modify handler configuration in case of eab profiling
+        if self.eab_profiling:
+            eab_profile_revocation_check(self.logger, self, cert)
+
         # get tracking id as input for revocation call
         cert_id = self._cert_id_lookup(cert)
 
@@ -908,7 +897,7 @@ class CAhandler(object):
             else:
                 job_id = None
                 self.logger.error(
-                    "CAhandler.revoke(): job_id lookup failed for certificate: %s",
+                    "Job ID lookup failed for certificate: %s",
                     cert_id,
                 )
 

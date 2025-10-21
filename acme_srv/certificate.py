@@ -245,7 +245,12 @@ class Certificate(object):
             cert_dic = self.dbstore.certificate_lookup(
                 "cert_raw",
                 b64_url_recode(self.logger, certificate),
-                ["name", "order__account__name", "order__account__eab_kid", "order__profile"]
+                [
+                    "name",
+                    "order__account__name",
+                    "order__account__eab_kid",
+                    "order__profile",
+                ],
             )
         except Exception as err:
             self.logger.error(
@@ -255,7 +260,9 @@ class Certificate(object):
             cert_dic = {}
 
         # construct log message including certificate name
-        self.logger.debug("Certificate._cert_revocation_log(%s)", cert_dic.get("name", ""))
+        self.logger.debug(
+            "Certificate._cert_revocation_log(%s)", cert_dic.get("name", "")
+        )
 
         data_dic = {
             "account_name": cert_dic.get("order__account__name", ""),
@@ -668,9 +675,11 @@ class Certificate(object):
         # cover polling cases
         if poll_identifier:
             detail = poll_identifier
+        elif error == "Either CN or SANs are not allowed by configuration":
+            error = self.err_msg_dic["rejectedidentifier"]
+            detail = "CN or SANs are not allowed by configuration"
         else:
             error = self.err_msg_dic["serverinternal"]
-
         self.logger.debug("Certificate._enrollerror_handler() ended with: %s", result)
         return (result, error, detail)
 
@@ -743,7 +752,6 @@ class Certificate(object):
             poll_identifier,
             cert_reusage,
         ) = self._enroll(csr)
-
         if certificate:
             (result, error) = self._store(
                 certificate,
@@ -1255,7 +1263,7 @@ class Certificate(object):
         cert_list = self.certlist_search(
             "issue_uts",
             0,
-            vlist=("id", "name", "cert", "cert_raw", "issue_uts", "expire_uts"),
+            vlist=["id", "name", "cert", "cert_raw", "issue_uts", "expire_uts"],
         )
         self.logger.debug("Got {%s} certificates to be updated...", len(cert_list))
         for cert in cert_list:

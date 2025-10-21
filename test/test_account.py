@@ -1466,7 +1466,7 @@ class TestACMEHandler(unittest.TestCase):
                 (201, "randowm_string", None),
                 self.account._add(content, payload, "foo@example.com"),
             )
-        self.assertIn("INFO:test_a2c:add eab_kid: eab_kid to data_dic", lcm.output)
+        self.assertIn("INFO:test_a2c:Add eab_kid: eab_kid to data_dic", lcm.output)
 
     @patch("acme_srv.nonce.Nonce.generate_and_add")
     @patch("acme_srv.message.Message.check")
@@ -1684,9 +1684,10 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._lookup("foo")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._lookup(): exc_acc_lookup",
+            "CRITICAL:test_a2c:Database error during account lookup: exc_acc_lookup",
             lcm.output,
         )
+        self.account.dbstore.account_lookup.side_effect = None
 
     def test_095_account__onlyreturnexisting(self):
         """test Account._onlyreturnexisting() if dbstore.account_lookup raises an exception"""
@@ -1698,7 +1699,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._onlyreturnexisting(protected, payload)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._account_lookup(): exc_acc_returnexit",
+            "CRITICAL:test_a2c:Database error during account lookup: exc_acc_returnexit",
             lcm.output,
         )
         self.account.dbstore.account_lookup.side_effect = None
@@ -1709,7 +1710,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._key_compare("foo", "bar")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._key_compare(): exc_key_compare",
+            "CRITICAL:test_a2c:Database error while comparing account key: exc_key_compare",
             lcm.output,
         )
         self.account.dbstore.jwk_load.side_effect = None
@@ -1732,7 +1733,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._key_change("aname", {}, protected)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._key_change(): exc_key_change",
+            "CRITICAL:test_a2c:Database error while updating account key: exc_key_change",
             lcm.output,
         )
 
@@ -1747,7 +1748,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._delete("foo")
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._delete(): exc_delete",
+            "CRITICAL:test_a2c:Database error while deleting account: exc_delete",
             lcm.output,
         )
 
@@ -1770,7 +1771,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.account._deactivate("foo"),
             )
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._deactivate(): exc_deactivate",
+            "CRITICAL:test_a2c:Database error while deactivating account: exc_deactivate",
             lcm.output,
         )
 
@@ -1787,7 +1788,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._contacts_update(aname, payload)
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Account._contacts_update(): exc_contact_upd",
+            "CRITICAL:test_a2c:Database error while updating account contacts: exc_contact_upd",
             lcm.output,
         )
 
@@ -1806,7 +1807,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.account._add(content, payload, "foo@example.com")
         self.assertIn(
-            "CRITICAL:test_a2c:Account.account._add(): Database error: exc_acc_add",
+            "CRITICAL:test_a2c:Database error while adding account: exc_acc_add",
             lcm.output,
         )
 
@@ -2256,36 +2257,59 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.account._eab_jwk_compare(protected, payload))
 
     def test_138__eab_jwk_compare(self):
+        """jwk inner ok - sorting the same"""
+        protected = {"jwk": {"foo": "bar", "baz": "foobar"}}
+        payload = "eyJmb28iOiAiYmFyIiwgImJheiI6ICJmb29iYXIifQ=="
+        self.assertTrue(self.account._eab_jwk_compare(protected, payload))
+
+    def test_139__eab_jwk_compare(self):
+        """jwk inner ok - sorting not equal"""
+        protected = {"jwk": {"baz": "foobar", "foo": "bar"}}
+        payload = "eyJmb28iOiAiYmFyIiwgImJheiI6ICJmb29iYXIifQ=="
+        self.assertTrue(self.account._eab_jwk_compare(protected, payload))
+
+    def test_140__eab_jwk_compare(self):
         """jwk inner ok no padding"""
         protected = {"jwk": "foobar"}
         payload = "ImZvb2JhciI"
         self.assertTrue(self.account._eab_jwk_compare(protected, payload))
 
-    def test_139__eab_jwk_compare(self):
+    def test_141__eab_jwk_compare(self):
         """jwk inner payload does not match"""
         protected = {"jwk": "foobar"}
         payload = "ImZvb2Ii"
-        self.assertFalse(self.account._eab_jwk_compare(protected, payload))
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.account._eab_jwk_compare(protected, payload))
+        self.assertIn(
+            "ERROR:test_a2c:jwk from outer and inner jws do not match", lcm.output
+        )
 
-    def test_140__eab_jwk_compare(self):
+    def test_142__eab_jwk_compare(self):
         """no jwk in protected"""
         protected = {"foo": "bar"}
         payload = "Zm9vYg"
         self.assertFalse(self.account._eab_jwk_compare(protected, payload))
 
-    def test_141__eab_jwk_compare(self):
+    def test_143__eab_jwk_compare(self):
         """protected is a string"""
         protected = "protected"
         payload = "Zm9vYg"
-        self.assertFalse(self.account._eab_jwk_compare(protected, payload))
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.account._eab_jwk_compare(protected, payload))
+        self.assertIn("ERROR:test_a2c:No jwk in protected header", lcm.output)
 
-    def test_142__eab_jwk_compare(self):
+    def test_144__eab_jwk_compare(self):
         """protected is a string containg jwk"""
         protected = "protected-jwk"
         payload = "Zm9vYg"
-        self.assertFalse(self.account._eab_jwk_compare(protected, payload))
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.account._eab_jwk_compare(protected, payload))
+        self.assertIn(
+            "ERROR:test_a2c:Protected header: protected-jwk is not a dictionary",
+            lcm.output,
+        )
 
-    def test_143__eab_signature_verify(self):
+    def test_145__eab_signature_verify(self):
         """content and mac_key are missing"""
         content = None
         mac_key = None
@@ -2293,7 +2317,7 @@ class TestACMEHandler(unittest.TestCase):
             (False, None), self.account._eab_signature_verify(content, mac_key)
         )
 
-    def test_144__eab_signature_verify(self):
+    def test_146__eab_signature_verify(self):
         """mac_key is issing"""
         content = "content"
         mac_key = None
@@ -2302,7 +2326,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme_srv.signature.Signature.eab_check")
-    def test_145__eab_signature_verify(self, mock_eabchk):
+    def test_147__eab_signature_verify(self, mock_eabchk):
         """result and error returned"""
         content = "content"
         mac_key = "mac_key"
@@ -2312,7 +2336,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme_srv.signature.Signature.eab_check")
-    def test_146__eab_signature_verify(self, mock_eabchk):
+    def test_148__eab_signature_verify(self, mock_eabchk):
         """result and no error returned"""
         content = "content"
         mac_key = "mac_key"
@@ -2322,7 +2346,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme_srv.signature.Signature.eab_check")
-    def test_147__eab_signature_verify(self, mock_eabchk):
+    def test_149__eab_signature_verify(self, mock_eabchk):
         """result and no error returned"""
         content = "content"
         mac_key = "mac_key"
@@ -2332,14 +2356,14 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme_srv.account.Account._config_load")
-    def test_148__enter__(self, mock_cfg):
+    def test_150__enter__(self, mock_cfg):
         """test enter"""
         mock_cfg.return_value = True
         self.account.__enter__()
         self.assertTrue(mock_cfg.called)
 
     @patch("acme_srv.account.date_to_datestr")
-    def test_149__info_(self, mock_date):
+    def test_151__info_(self, mock_date):
         """test Account.info() without eab"""
         account_obj = {
             "jwk": '["jwk"]',
@@ -2358,7 +2382,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme_srv.account.date_to_datestr")
-    def test_150__info_(self, mock_date):
+    def test_152__info_(self, mock_date):
         """test Account.info() with eab"""
         account_obj = {
             "jwk": '["jwk"]',
@@ -2378,13 +2402,13 @@ class TestACMEHandler(unittest.TestCase):
             self.account._info(account_obj),
         )
 
-    def test_151__account_tune(self):
+    def test_153__account_tune(self):
         """test Account._account_tune()"""
         input = {}
         jwk = {"foo": "bar"}
         self.assertEqual({"status": "valid"}, self.account._account_tune(input, jwk))
 
-    def test_152__account_tune(self):
+    def test_154__account_tune(self):
         """test Account._account_tune()"""
         input = {"jwk": "jwk"}
         jwk = {"foo": "bar"}
@@ -2393,7 +2417,7 @@ class TestACMEHandler(unittest.TestCase):
             self.account._account_tune(input, jwk),
         )
 
-    def test_153__account_tune(self):
+    def test_155__account_tune(self):
         """test Account._account_tune()"""
         input = {"contact": '{"foo": "bar"}'}
         jwk = {"foo": "bar"}
@@ -2403,7 +2427,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme_srv.account.date_to_datestr")
-    def test_154__account_tune(self, mock_date):
+    def test_156__account_tune(self, mock_date):
         """test Account._account_tune()"""
         input = {"created_at": "foo"}
         jwk = {"foo": "bar"}

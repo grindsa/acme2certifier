@@ -670,11 +670,11 @@ curl http://alma9-c2.bar.local/directory
 - Example for enrollment from alma9-c1
 
 ```bash
- docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://alma9-c1.bar.local -a --email "lego@example.com" -d lego01.bar.local --http run
+ docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://alma9-c1.bar.local -a --email "lego@example.com" -d lego01.bar.local --http run
 ```
 
 - Example for enrollment from alma9-c2
 
 ```bash
- docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://alma9-c2.bar.local -a --email "lego@example.com" -d lego01.bar.local --http run
+ docker run -i -p 80:80 -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://alma9-c2.bar.local -a --email "lego@example.com" -d lego01.bar.local --http run
 ```
