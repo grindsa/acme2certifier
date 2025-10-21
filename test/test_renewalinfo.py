@@ -96,7 +96,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(85, self.renewalinfo.renewaltreshold_pctg)
         self.assertEqual(86400, self.renewalinfo.retry_after_timeout)
         self.assertIn(
-            "ERROR:test_a2c:acme2certifier Renewalinfo._config_load() renewaltreshold_pctg parsing error: could not convert string to float: 'aa'",
+            "ERROR:test_a2c:renewaltreshold_pctg parsing error: could not convert string to float: 'aa'",
             lcm.output,
         )
         self.assertFalse(self.renewalinfo.renewal_force)
@@ -137,7 +137,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(85, self.renewalinfo.renewaltreshold_pctg)
         self.assertEqual(86400, self.renewalinfo.retry_after_timeout)
         self.assertIn(
-            "ERROR:test_a2c:acme2certifier Renewalinfo._config_load() retry_after_timeout parsing error: invalid literal for int() with base 10: 'aa'",
+            "ERROR:test_a2c:retry_after_timeout parsing error: invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertFalse(self.renewalinfo.renewal_force)
@@ -239,7 +239,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_update.called)
         self.assertTrue(mock_renstr_get.called)
         self.assertIn(
-            "ERROR:test_a2c:Renewalinfo.get() - error: renewalinfo_get", lcm.output
+            "ERROR:test_a2c:Error when getting renewal information: renewalinfo_get",
+            lcm.output,
         )
 
     @patch("acme_srv.message.Message.check")
@@ -444,7 +445,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.renewalinfo._draft01_lookup("certid_hex"))
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Renewalinfo._draft01_lookup(): cert_lookup",
+            "CRITICAL:test_a2c:Database error: failed to look up certificate for renewal info (draft01): cert_lookup",
             lcm.output,
         )
 
@@ -499,7 +500,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.renewalinfo._cert_table_update())
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Renewalinfo._cert_table_update(): certificates_search",
+            "CRITICAL:test_a2c:Database error: failed to retrieve certificate list for renewal info update: certificates_search",
             lcm.output,
         )
         self.assertFalse(mock_serial.called)
@@ -516,7 +517,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.renewalinfo._draft02_lookup("serial", "aki03"))
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Renewalinfo._draft02_lookup(): certificates_search",
+            "CRITICAL:test_a2c:Database error: failed to look up certificate for renewal info (draft02): certificates_search",
             lcm.output,
         )
 
@@ -528,7 +529,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.renewalinfo._draft02_lookup("serial", "aki03"))
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Renewalinfo._draft02_lookup(): certificates_search",
+            "CRITICAL:test_a2c:Database error: failed to look up certificate for renewal info (draft02): certificates_search",
             lcm.output,
         )
 

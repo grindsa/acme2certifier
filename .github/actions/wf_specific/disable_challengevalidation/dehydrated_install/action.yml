@@ -1,0 +1,17 @@
+name: "dehydrated_install"
+description: "dehydrated_install"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Install dehydrated"
+    run: |
+      git clone https://github.com/dehydrated-io/dehydrated
+      cd dehydrated/
+      mkdir -p /tmp/dehydrated/.well-known/acme-challenge
+      echo 'CHALLENGETYPE="http-01"' > config
+      echo 'WELLKNOWN="/tmp/dehydrated/.well-known/acme-challenge"' >> config
+      echo 'CONTACT_EMAIL="name@example.com"' >> config
+      # echo "dynamop.de www.dynamp.de" > domains.txt
+      sudo ./dehydrated --config ./config --ca http://127.0.0.1:22280 --register --accept-terms
+    shell: bash

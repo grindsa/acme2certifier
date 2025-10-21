@@ -71,8 +71,9 @@ def handle_exception(exc_type, exc_value, exc_traceback):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)  # pragma: no cover
         return  # pragma: no cover
 
-    # LOGGER.error("Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback))
-    LOGGER.error("Uncaught exception")
+    LOGGER.exception(
+        "Uncaught exception", exc_info=(exc_type, exc_value, exc_traceback)
+    )
 
 
 # initialize logger
@@ -587,7 +588,7 @@ def get_handler_cls():
 
 if __name__ == "__main__":
 
-    LOGGER.info("starting acme2certifier version %s", __version__)  # pragma: no cover
+    LOGGER.info("Starting acme2certifier version %s", __version__)  # pragma: no cover
 
     # check configuration for parameters masked in ""
     config_check(LOGGER, CONFIG)  # pragma: no cover

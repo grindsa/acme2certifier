@@ -12,6 +12,8 @@ jobs:
   nclm_handler_tests:
     name: "nclm_handler_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       max-parallel: 1
       fail-fast: false
@@ -51,7 +53,7 @@ jobs:
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         NCLM_API_HOST: ${{ secrets.NCLM_API_HOST }}
         NCLM_API_USER: ${{ secrets.NCLM_API_USER }}
@@ -70,7 +72,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker-compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
 
     - name: "Generate UUID"
       run: |
@@ -82,7 +84,7 @@ jobs:
         sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" examples/Docker/data/acme_srv.cfg
         sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         NCLM_MSCA_TEMPLATE_NAME: ${{ secrets.NCLM_MSCA_TEMPLATE_NAME }}
         NCLM_MSCA_NAME: ${{ secrets.NCLM_MSCA_NAME }}
@@ -105,7 +107,7 @@ jobs:
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/clients/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/clients/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data clients
 
     - name: "[ * ] uploading artificates"
@@ -119,6 +121,8 @@ jobs:
   nclm_handler_tests_rpm:
     name: "nclm_handler_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       max-parallel: 1

@@ -84,11 +84,11 @@ class CAhandler(object):
                 content = api_response.json()
             except Exception as err_:
                 self.logger.error(
-                    "CAhandler._api_get() returned error during json parsing: %s", err_
+                    "Could not parse the response for an API get() request: %s", err_
                 )
                 content = str(err_)
         except Exception as err_:
-            self.logger.error("CAhandler._api_get() returned error: %s", err_)
+            self.logger.error("API get() request returned error: %s", err_)
             code = 500
             content = str(err_)
 
@@ -115,14 +115,14 @@ class CAhandler(object):
                     content = api_response.json()
                 except Exception as err_:
                     self.logger.error(
-                        "CAhandler._api_post() returned error during json parsing: %s",
+                        "Could not parse the response for an API post() request: %s",
                         err_,
                     )
                     content = str(err_)
             else:
                 content = None
         except Exception as err_:
-            self.logger.error("CAhandler._api_post() returned error: %s", err_)
+            self.logger.error("API post() request returned an error: %s", err_)
             code = 500
             content = str(err_)
 
@@ -135,7 +135,7 @@ class CAhandler(object):
             self.auth = HTTPBasicAuth(self.api_user, self.api_password)
         else:
             self.logger.error(
-                'CAhandler._auth_set(): auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file'
+                'Auth information incomplete. Either "api_user" or "api_password" parameter is missing in config file'
             )
         self.logger.debug("CAhandler._auth_set() ended")
 
@@ -147,14 +147,12 @@ class CAhandler(object):
         if api_host_variable:
             self.api_host = os.environ.get(api_host_variable)
             if not self.api_host:
-                self.logger.error(
-                    f"CAhandler._config_host_load() could not load host_variable: {api_host_variable}"
-                )
+                self.logger.error(f"Could not load host_variable: {api_host_variable}")
 
         api_host = config_dic.get("api_host")
         if api_host:
             if self.api_host:
-                self.logger.info("CAhandler._config_host_load() overwrite api_host")
+                self.logger.info("Overwrite api_host parameter")
             self.api_host = api_host
 
         self.logger.debug("_config_host_load() ended")
@@ -177,14 +175,12 @@ class CAhandler(object):
         if api_key_variable:
             self.api_key = os.environ.get(api_key_variable)
             if not self.api_key:
-                self.logger.error(
-                    f"CAhandler._config_key_load() could not load key_variable: {api_key_variable}"
-                )
+                self.logger.error(f"Could not load key_variable: {api_key_variable}")
 
         api_key = config_dic.get("api_key")
         if api_key:
             if self.api_key:
-                self.logger.info("CAhandler._config_key_load() overwrite api_key")
+                self.logger.info("Overwrite api_key parameter")
             self.api_key = api_key
 
         self.logger.debug("_config_key_load() ended")
@@ -198,15 +194,13 @@ class CAhandler(object):
             self.api_password = os.environ.get(api_password_variable)
             if not self.api_password:
                 self.logger.error(
-                    f"CAhandler._config_password_load() could not load password_variable: {api_password_variable}"
+                    f"Could not load password_variable: {api_password_variable}"
                 )
 
         api_password = config_dic.get("api_password")
         if api_password:
             if self.api_password:
-                self.logger.info(
-                    "CAhandler._config_password_load() overwrite api_password"
-                )
+                self.logger.info("Overwrite api_password parameter")
             self.api_password = api_password
 
         self.logger.debug("_config_password_load() ended")
@@ -219,14 +213,12 @@ class CAhandler(object):
         if api_user_variable:
             self.api_user = os.environ.get(api_user_variable)
             if not self.api_user:
-                self.logger.error(
-                    f"CAhandler._config_user_load() could not load user_variable: {api_user_variable}"
-                )
+                self.logger.error(f"Could not load user_variable: {api_user_variable}")
 
         api_user = config_dic.get("api_user")
         if api_user:
             if self.api_user:
-                self.logger.info("CAhandler._config_user_load() overwrite api_user")
+                self.logger.info("Overwrite api_user parameter")
             self.api_user = api_user
 
         self.logger.debug("_config_user_load() ended")
@@ -257,18 +249,18 @@ class CAhandler(object):
                 self.request_timeout = int(
                     config_dic["CAhandler"].get("request_timeout", 10)
                 )
-            except Exception:
+            except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load(): request_timeout not an integer"
+                    "request_timeout parameter is not an integer. Error: %s", err
                 )
 
             try:
                 self.cert_validity_days = int(
                     config_dic["CAhandler"].get("cert_validity_days", 30)
                 )
-            except Exception:
+            except Exception as err:
                 self.logger.error(
-                    "CAhandler._config_load(): cert_validity_days not an integer"
+                    "cert_validity_days parameter is not an integer. Error: %s", err
                 )
 
         for ele in [
@@ -280,7 +272,9 @@ class CAhandler(object):
             "profile_name",
         ]:
             if not getattr(self, ele):
-                self.logger.error("CAhandler._config_load(): %s not set", ele)
+                self.logger.error(
+                    "Configuration incomplete. Variable %s has not been not set", ele
+                )
 
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
@@ -310,19 +304,17 @@ class CAhandler(object):
         cn = csr_cn_get(self.logger, csr)
 
         if not cn:
-            self.logger.info("CAhandler._csr_cn_get(): CN not found in CSR")
+            self.logger.info("CN not found in CSR")
             san_list = csr_san_get(self.logger, csr)
             if san_list:
                 (_type, san_value) = san_list[0].split(":")
                 cn = san_value
                 self.logger.info(
-                    "CAhandler._csr_cn_get(): CN not found in CSR. Using first SAN entry as CN: %s",
+                    "CN not found in CSR. Using first SAN entry as CN: %s",
                     san_value,
                 )
             else:
-                self.logger.error(
-                    "CAhandler._csr_cn_get(): CN not found in CSR. No SAN entries found"
-                )
+                self.logger.error("CN not found in CSR. No SAN entries found")
 
         self.logger.debug("CAhandler._csr_cn_get() ended with: %s", cn)
         return cn
@@ -341,9 +333,7 @@ class CAhandler(object):
                 self.logger.error("CAhandler.enroll(): CA %s not found", self.ca_name)
         else:
             error = "Malformed response"
-            self.logger.error(
-                'CAhandler.enroll(): "Malformed response. "issuers" key not found'
-            )
+            self.logger.error('Malformed response. "issuers" key not found')
 
         self.logger.debug("CAhandler._issuer_verify() ended with: %s", error)
         return error
@@ -378,14 +368,10 @@ class CAhandler(object):
                 error = None
             else:
                 error = f"Profile {self.profile_name} not found"
-                self.logger.error(
-                    "CAhandler.enroll(): Profile %s not found", self.profile_name
-                )
+                self.logger.error("Profile %s not found", self.profile_name)
         else:
             error = "Malformed response"
-            self.logger.error(
-                'CAhandler.enroll(): "Malformed response. "profiles" key not found'
-            )
+            self.logger.error('Malformed response. "profiles" key not found')
 
         self.logger.debug("CAhandler._profile_verify() ended with: %s", error)
         return error
@@ -426,7 +412,7 @@ class CAhandler(object):
         if "certs" in api_response:
             pem_chain = self._pem_cert_chain_generate(api_response["certs"])
         else:
-            self.logger.error('CAhandler._issuer_chain_get(): "certs" key not found')
+            self.logger.error('"certs" key in issuer chain not found')
             pem_chain = None
 
         self.logger.debug("CAhandler._issuer_chain_get() ended")
@@ -442,9 +428,7 @@ class CAhandler(object):
         if code == 200 and api_response:
             cert = api_response
         else:
-            self.logger.error(
-                "CAhandler._cert_get(): enrollment failed: %s/%s", code, api_response
-            )
+            self.logger.error("Enrollment failed: %s/%s", code, api_response)
             cert = None
 
         self.logger.debug("CAhandler._cert_get() ended")
@@ -490,9 +474,7 @@ class CAhandler(object):
             #    data_dic['extensions'] = [{'oid': '2.5.29.17', 'value': sans_base64}]  # 'Zm9vLmJhci5sb2NhbA=='
 
         else:
-            self.logger.error(
-                "CAhandler._enrollment_dic_create(): public key not found"
-            )
+            self.logger.error("Could not extract the public key from CSR")
             data_dic = None
 
         return data_dic
@@ -557,7 +539,16 @@ class CAhandler(object):
         self.logger.debug("CAhandler.check()")
 
         error = handler_config_check(
-            self.logger, self, ["api_host", "api_user", "api_password", "api_key", "ca_name", "profile_name"]
+            self.logger,
+            self,
+            [
+                "api_host",
+                "api_user",
+                "api_password",
+                "api_key",
+                "ca_name",
+                "profile_name",
+            ],
         )
 
         self.logger.debug("CAhandler.check() ended with %s", error)

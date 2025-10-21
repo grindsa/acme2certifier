@@ -18,7 +18,7 @@ profiles: {"profile1": "http://foo.bar/profile1", "profile2": "http://foo.bar/pr
 Below an example for lego submitting a profile "profile2":
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego -s http://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile profile2
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile profile2
 ```
 
 acme2certifier will check a submitted profile-name against the list of advertised profiles. If a client submits an order for an unknown profile the order the order will get refused with an "invalidProfile" error. acme2certifier can be configured to skip this check and accept any profile name as long as profiling gets enabled in the config.

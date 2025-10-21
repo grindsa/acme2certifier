@@ -1,5 +1,5 @@
-name: "ejbca_prep"
-description: "ejbca_prep"
+name: "OpenXPKI Prep"
+description: "OpenXPKI preparation steps"
 inputs:
   RUNNER_IP:
     description: "Runner IP"
@@ -25,56 +25,73 @@ runs:
       OPENXPKI_IP: ${{ inputs.RUNNER_IP }}
     shell: bash
 
+  - name: "Generate Vault Secret"
+    working-directory: /tmp/openxpki
+    run: |
+      echo ECN_TOK=$(openssl  rand -hex 32) >> $GITHUB_ENV
+    shell: bash
+
   - name: "Instanciate OpenXPKI server"
     working-directory: /tmp/openxpki
     run: |
-      sudo apt-get install -y docker-compose
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+      sudo apt update
+      sudo apt install -y docker-compose-plugin
+
       git clone https://github.com/openxpki/openxpki-docker.git
       cd openxpki-docker/
       git clone https://github.com/openxpki/openxpki-config.git  --single-branch --branch=community
-      cd openxpki-config/
-      # git checkout a86981e2929e68f3fe3530a83bdb7a4436dfd604
-      cd ..
-      sed -i "s/value: 0/value: 1/g"  openxpki-config/config.d/realm/democa/est/default.yaml
-      sed -i "s/cert_profile: tls_server/cert_profile: tls_client/g"  openxpki-config/config.d/realm/democa/est/default.yaml
-      sed -i "s/approval_points: 1/approval_points: 0/g" openxpki-config/config.d/realm/democa/rpc/enroll.yaml
-      sed -i "s/export_certificate: chain/export_certificate: fullchain/g" openxpki-config/config.d/realm/democa/rpc/enroll.yaml
-      sed -i "s/dn: CN=\[\% CN.0 \%\],DC=Test Deployment,DC=OpenXPKI,DC=org/dn: CN=\[\% SAN_DNS.0 \%\]/g" openxpki-config/config.d/realm.tpl/profile/tls_server.yaml
-      # cp contrib/wait_on_init.yaml  openxpki-config/config.d/system/local.yam
-      docker-compose up &
-    shell: bash
 
-  - name: "Sleep for 45s"
+      # modify configuration according to our needs
+      sed -i "s/value: 0/value: 1/g" openxpki-config/config.d/realm/democa/est/default.yaml
+      sed -i "s/approval_points: 1/approval_points: 0/g" openxpki-config/config.d/realm/democa/est/default.yaml
+      # sed -i "s/allow_man_approv: 1/allow_man_approv: 0/g" openxpki-config/config.d/realm/democa/est/default.yaml
+      sed -i "s/cert_profile: tls_server/cert_profile: tls_client/g" openxpki-config/config.d/realm/democa/est/default.yaml
+
+      sed -i "s/approval_points: 1/approval_points: 0/g"                   openxpki-config/config.d/realm/democa/rpc/generic.yaml
+      sed -i "s/export_certificate: chain/export_certificate: fullchain/g" openxpki-config/config.d/realm/democa/rpc/generic.yaml
+      sed -i "s/dn: CN=\[\% CN.0 \%\],DC=Test Deployment,DC=OpenXPKI,DC=org/dn: CN=\[\% SAN_DNS.0 \%\]/g" openxpki-config/config.d/realm.tpl/profile/tls_server.yaml
+
+      sudo cp openxpki-config/config.d/realm/democa/rpc/generic.yaml openxpki-config/config.d/realm/democa/rpc/enroll.yaml
+      sudo cp openxpki-config/client.d/service/rpc/generic.yaml openxpki-config/client.d/service/rpc/enroll.yaml
+
+      # add vault secret
+      sed -i "s/value: you must put your own 64 characters key here/value: $ECN_TOK/g" openxpki-config/config.d/system/crypto.yaml
+
+      # setup CLI authentication
+      openssl ecparam -name prime256v1 -genkey -noout -out config/client.key
+      chmod 644 config/client.key
+      openssl pkey -in config/client.key -pubout -out config/client.pub
+
+      {
+        echo "auth:";
+        echo "    admin:";
+        echo "        key: ";
+        sed 's/^/            /' config/client.pub;
+        echo "        role: RA Operator"
+      } > openxpki-config/config.d/system/cli.yaml
+      docker compose up -d web --wait
+    shell: bash
+    env:
+      $ECN_TOK: ${{ env.ECN_TOK }}
+
+  - name: "Sleep for 20s"
     uses: juliangruber/sleep-action@v2.0.3
     with:
-      time: 45s
-
-  # - name: "Fix 1st time start issues with OpenXPKI server"
-  #  working-directory: /tmp/openxpki/openxpki-docker
-  #  run: |
-  #    docker ps
-  #    docker stop OpenXPKI_Server
-  #    docker start OpenXPKI_Server
-  #   shell: bash
-
-  # - name: "Sleep for 10s"
-  #  uses: juliangruber/sleep-action@v2.0.3
-  #  with:
-  #    time: 10s
+      time: 20s
 
   - name: "Configure OpenXPKI server"
-    working-directory: /tmp/openxpki
+    working-directory: /tmp/openxpki/openxpki-docker
     run: |
       docker ps
-      docker exec -u root  -id OpenXPKI_Server /usr/share/doc/libopenxpki-perl/examples/sampleconfig.sh
-      # docker exec -id OpenXPKI_Server /bin/bash /etc/openxpki/contrib/sampleconfig.sh
-      docker exec -u root -id OpenXPKI_Client apt-get install -y libjson-pp-perl
+      docker compose exec -u pkiadm  server /bin/bash /etc/openxpki/contrib/sampleconfig.sh
     shell: bash
 
-  - name: "Sleep for 60s"
+  - name: "Sleep for 20s"
     uses: juliangruber/sleep-action@v2.0.3
     with:
-      time: 60s
+      time: 20s
 
   - name: "Enroll keys for Client-authentication via scep"
     working-directory: ${{ inputs.WORKING_DIR }}
@@ -82,6 +99,10 @@ runs:
       sudo openssl genrsa -out data/acme_ca/client_key.pem 2048
       sudo openssl req -new -key data/acme_ca/client_key.pem -subj '/CN=a2c:pkiclient,O=acme' -outform der | base64 > /tmp/request.pem
       curl -v -H "Content-Type: application/pkcs10" --data @/tmp/request.pem  https://$OPENXPKI_IP:8443/.well-known/est/simpleenroll --insecure  | base64 -d > /tmp/cert.p7b
+
+      # docker exec -u root OpenXPKI_Server cat /var/log/openxpki-server/catchall.log
+      # docker exec -u root OpenXPKI_Server openxpkiadm alias --realm democa
+
       sudo openssl pkcs7 -print_certs -in /tmp/cert.p7b -inform der -out data/acme_ca/client_crt.pem
       sudo openssl pkcs12 -export -out data/acme_ca/client_crt.p12 -inkey  data/acme_ca/client_key.pem -in data/acme_ca/client_crt.pem -passout pass:Test1234
       sudo openssl rsa -noout -modulus -in data/acme_ca/client_key.pem | openssl md5

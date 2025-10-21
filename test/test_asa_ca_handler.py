@@ -58,13 +58,16 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_user not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_password not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_key not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            lcm.output,
         )
         self.assertEqual("api_host", self.cahandler.api_host)
         self.assertFalse(self.cahandler.api_user)
@@ -83,13 +86,16 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_host not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_password not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_key not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
         self.assertEqual("api_user", self.cahandler.api_user)
@@ -108,13 +114,16 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_host not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_user not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_key not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
         self.assertFalse(self.cahandler.api_user)
@@ -133,13 +142,16 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_host not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_user not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_password not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
         self.assertFalse(self.cahandler.api_user)
@@ -179,16 +191,20 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_host not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_user not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_password not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_key not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
         self.assertFalse(self.cahandler.api_user)
@@ -207,16 +223,20 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_host not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_user not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_key not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_password not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
         self.assertFalse(self.cahandler.api_user)
@@ -235,19 +255,23 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_host not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_user not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_key not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_password not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): request_timeout not an integer",
+            "ERROR:test_a2c:request_timeout parameter is not an integer. Error: invalid literal for int() with base 10: 'aa'",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -267,16 +291,20 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_host not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_user not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_key not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_password not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            lcm.output,
         )
         # self.assertIn('ERROR:test_a2c:CAhandler._config_load(): request_timeout not an integer', lcm.output)
         self.assertFalse(self.cahandler.api_host)
@@ -296,19 +324,19 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_host not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_user not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_key not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_password not set", lcm.output
-        )
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): cert_validity_days not an integer",
+            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
             lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
@@ -328,16 +356,20 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_host not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_user not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_key not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_password not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
         self.assertFalse(self.cahandler.api_user)
@@ -356,16 +388,20 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_host not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_user not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_key not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_password not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
         self.assertFalse(self.cahandler.api_user)
@@ -384,16 +420,20 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.cahandler._config_load()
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_host not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_host has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_user not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_user has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_key not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_key has not been not set",
+            lcm.output,
         )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_load(): api_password not set", lcm.output
+            "ERROR:test_a2c:Configuration incomplete. Variable api_password has not been not set",
+            lcm.output,
         )
         self.assertFalse(self.cahandler.api_host)
         self.assertFalse(self.cahandler.api_user)
@@ -429,7 +469,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._api_post("url", "data"),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._api_post() returned error during json parsing: 'str' object is not callable",
+            "ERROR:test_a2c:Could not parse the response for an API post() request: 'str' object is not callable",
             lcm.output,
         )
 
@@ -453,7 +493,7 @@ class TestACMEHandler(unittest.TestCase):
                 (500, "exc_api_post"), self.cahandler._api_post("url", "data")
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._api_post() returned error: exc_api_post",
+            "ERROR:test_a2c:API post() request returned an error: exc_api_post",
             lcm.output,
         )
 
@@ -481,7 +521,7 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler._api_get("url"),
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._api_get() returned error during json parsing: 'str' object is not callable",
+            "ERROR:test_a2c:Could not parse the response for an API get() request: 'str' object is not callable",
             lcm.output,
         )
 
@@ -494,7 +534,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((500, "exc_api_get"), self.cahandler._api_get("url"))
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._api_get() returned error: exc_api_get",
+            "ERROR:test_a2c:API get() request returned error: exc_api_get",
             lcm.output,
         )
 
@@ -545,11 +585,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_san.return_value = ["dns:san0", "dns:san1"]
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("san0", self.cahandler._csr_cn_get("csr"))
+        self.assertIn("INFO:test_a2c:CN not found in CSR", lcm.output)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._csr_cn_get(): CN not found in CSR", lcm.output
-        )
-        self.assertIn(
-            "INFO:test_a2c:CAhandler._csr_cn_get(): CN not found in CSR. Using first SAN entry as CN: san0",
+            "INFO:test_a2c:CN not found in CSR. Using first SAN entry as CN: san0",
             lcm.output,
         )
         self.assertTrue(mock_san.called)
@@ -562,11 +600,9 @@ class TestACMEHandler(unittest.TestCase):
         mock_san.return_value = None
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(None, self.cahandler._csr_cn_get("csr"))
+        self.assertIn("INFO:test_a2c:CN not found in CSR", lcm.output)
         self.assertIn(
-            "INFO:test_a2c:CAhandler._csr_cn_get(): CN not found in CSR", lcm.output
-        )
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler._csr_cn_get(): CN not found in CSR. No SAN entries found",
+            "ERROR:test_a2c:CN not found in CSR. No SAN entries found",
             lcm.output,
         )
         self.assertTrue(mock_san.called)
@@ -597,7 +633,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("Malformed response", self.cahandler._issuer_verify())
         self.assertIn(
-            'ERROR:test_a2c:CAhandler.enroll(): "Malformed response. "issuers" key not found',
+            'ERROR:test_a2c:Malformed response. "issuers" key not found',
             lcm.output,
         )
 
@@ -618,7 +654,7 @@ class TestACMEHandler(unittest.TestCase):
                 "Profile profile_name not found", self.cahandler._profile_verify()
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler.enroll(): Profile profile_name not found",
+            "ERROR:test_a2c:Profile profile_name not found",
             lcm.output,
         )
 
@@ -630,7 +666,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual("Malformed response", self.cahandler._profile_verify())
         self.assertIn(
-            'ERROR:test_a2c:CAhandler.enroll(): "Malformed response. "profiles" key not found',
+            'ERROR:test_a2c:Malformed response. "profiles" key not found',
             lcm.output,
         )
 
@@ -1071,7 +1107,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
                 ("Enrollment failed", None, None, None), self.cahandler.enroll("csr")
             )
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._enrollment_dic_create(): public key not found",
+            "ERROR:test_a2c:Could not extract the public key from CSR",
             lcm.output,
         )
         self.assertTrue(mock_iv.called)
@@ -1170,7 +1206,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
             self.cahandler._config_user_load(config_dic)
         self.assertFalse(self.cahandler.api_user)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_user_load() could not load user_variable: does_not_exist",
+            "ERROR:test_a2c:Could not load user_variable: does_not_exist",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_name)
@@ -1201,7 +1237,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
             self.cahandler._config_host_load(config_dic)
         self.assertFalse(self.cahandler.api_host)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_host_load() could not load host_variable: does_not_exist",
+            "ERROR:test_a2c:Could not load host_variable: does_not_exist",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_name)
@@ -1232,7 +1268,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
             self.cahandler._config_key_load(config_dic)
         self.assertFalse(self.cahandler.api_key)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_key_load() could not load key_variable: does_not_exist",
+            "ERROR:test_a2c:Could not load key_variable: does_not_exist",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_name)
@@ -1263,7 +1299,7 @@ rJSbam5r3YoSelm94VwVyaSkfd+LT4YMAP7GDDvtT6Y=
             self.cahandler._config_password_load(config_dic)
         self.assertFalse(self.cahandler.api_password)
         self.assertIn(
-            "ERROR:test_a2c:CAhandler._config_password_load() could not load password_variable: does_not_exist",
+            "ERROR:test_a2c:Could not load password_variable: does_not_exist",
             lcm.output,
         )
         self.assertFalse(self.cahandler.profile_name)

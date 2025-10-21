@@ -5,11 +5,16 @@ inputs:
     description: "Name space"
     required: true
     default: "acme"
+  INSTANCIATE:
+    description: "Instanciate mariadb"
+    required: true
+    default: "true"
 
 runs:
   using: "composite"
   steps:
     - name: "Instanciate Mariadb"
+      if: inputs.INSTANCIATE == 'true'
       run: |
         # sudo mkdir -p data/mysql
         docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
@@ -18,6 +23,7 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "Sleep for 10s"
+      if: inputs.INSTANCIATE == 'true'
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s
@@ -25,6 +31,7 @@ runs:
     - name: "Configure mariadb"
       working-directory: examples/Docker/
       run: |
+        docker exec mariadbsrv mariadb -u root --password=foobar -e"DROP DATABASE IF EXISTS acme2certifier;"
         docker exec mariadbsrv mariadb -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
         docker exec mariadbsrv mariadb -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
         docker exec mariadbsrv mariadb -u root --password=foobar -e"FLUSH PRIVILEGES;"

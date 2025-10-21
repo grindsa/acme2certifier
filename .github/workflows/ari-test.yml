@@ -13,6 +13,8 @@ jobs:
   ari_container_tests:
     name: "ari_container_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -48,8 +50,8 @@ jobs:
         sudo echo -e "\n\n[Renewalinfo]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "renewal_force: True" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
+        docker compose restart
+        docker compose logs
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -68,15 +70,20 @@ jobs:
 
     - name: "Enroll lego"
       run: |
+<<<<<<< HEAD
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo chmod 777 lego/certificates/lego.acme.issuer.crt
         sudo cp lego/certificates/lego.acme.issuer.crt lego.acme.issuer.crt
         sudo awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < lego.acme.issuer.crt
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+=======
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+>>>>>>> devel
 
     - name: "Renew lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --no-random-sleep 2> ari.txt
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --no-random-sleep 2> ari.txt
         grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
         cat ari.txt
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
@@ -94,7 +101,7 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
 
     - name: "[ * ] uploading artificates"
@@ -107,6 +114,8 @@ jobs:
   ari_wsgi_rpm:
     name: "ari_wsgi_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -152,15 +161,20 @@ jobs:
 
     - name: "Enroll HTTP-01 single domain lego"
       run: |
+<<<<<<< HEAD
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo chmod 777 lego/certificates/lego.acme.issuer.crt
         sudo cp lego/certificates/lego.acme.issuer.crt lego.acme.issuer.crt
         sudo awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < lego.acme.issuer.crt
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+=======
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+>>>>>>> devel
 
     - name: "Renew HTTP-01 single domain lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --no-random-sleep 2> ari.txt
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --no-random-sleep 2> ari.txt
         grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
         cat ari.txt
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
@@ -189,6 +203,8 @@ jobs:
   ari_django_rpm:
     name: "ari_django_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -240,15 +256,20 @@ jobs:
 
     - name: "Enroll HTTP-01 single domain lego"
       run: |
+<<<<<<< HEAD
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http run
         sudo chmod 777 lego/certificates/lego.acme.issuer.crt
         sudo cp lego/certificates/lego.acme.issuer.crt lego.acme.issuer.crt
         sudo awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < lego.acme.issuer.crt
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+=======
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
+>>>>>>> devel
 
     - name: "Renew HTTP-01 single domain lego"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --no-random-sleep 2> ari.txt
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http renew --no-random-sleep 2> ari.txt
         grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
         cat ari.txt
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt

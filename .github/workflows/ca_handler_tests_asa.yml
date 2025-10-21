@@ -1,4 +1,4 @@
-name: CA handler Tests - Insta ASA
+name: CA handler Tests - Insta ASA CA Handler
 
 on:
   push:
@@ -12,6 +12,8 @@ jobs:
   asa_handler_headerinfo_tests:
     name: "asa_handler_headerinfo_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
@@ -47,11 +49,11 @@ jobs:
         sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "profile_name: $ASA_POFILE1" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -59,7 +61,7 @@ jobs:
         ASA_API_KEY: ${{ secrets.ASA_API_KEY }}
         ASA_CA_NAME: ${{ secrets.ASA_CA_NAME }}
         ASA_CA_BUNDLE: ${{ secrets.ASA_CA_BUNDLE }}
-        ASA_PROFILE1: ${{ secrets.ASA_POFILE1 }}
+        ASA_PROFILE1: ${{ secrets.ASA_PROFILE1 }}
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -72,9 +74,7 @@ jobs:
     - name: "Enroll lego with profileID ACME - could potenially fail"
       continue-on-error: True
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME -d lego.acme --key-type rsa2048 --http run
-        sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
-        sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Digital Signature"
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME -d lego.acme --key-type rsa2048 --http run
 
     - name: "Enroll acme.sh with profileID ACME"
       run: |
@@ -85,7 +85,7 @@ jobs:
 
     - name: "Enroll lego with profileID ACME"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME -d lego.acme --key-type rsa2048 --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME -d lego.acme --key-type rsa2048 --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Digital Signature"
 
@@ -97,7 +97,7 @@ jobs:
 
     - name: "Enroll lego with profileID ACME_2"
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s http://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME_2 -d lego.acme --key-type rsa2048 --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --user-agent profile_name=ACME_2 -d lego.acme --key-type rsa2048 --http run
         sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
         sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
 
@@ -108,7 +108,7 @@ jobs:
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
 
     - name: "[ * ] uploading artificates"
@@ -121,6 +121,8 @@ jobs:
   asa_handler_tests:
     name: "asa_handler_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: asa_handler_headerinfo_tests
     strategy:
       max-parallel: 2
@@ -161,7 +163,7 @@ jobs:
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -191,7 +193,7 @@ jobs:
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -224,7 +226,7 @@ jobs:
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -271,7 +273,7 @@ jobs:
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -322,7 +324,7 @@ jobs:
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -359,7 +361,7 @@ jobs:
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -407,7 +409,7 @@ jobs:
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
-        docker-compose restart
+        docker compose restart
       env:
         ASA_API_HOST: ${{ secrets.ASA_API_HOST }}
         ASA_API_USER: ${{ secrets.ASA_API_USER }}
@@ -442,7 +444,7 @@ jobs:
         sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
         sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
 
     - name: "[ * ] uploading artificates"
@@ -455,6 +457,8 @@ jobs:
   asa_handler_tests_rpm:
     name: "asa_handler_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     needs: asa_handler_headerinfo_tests
     strategy:
       fail-fast: false

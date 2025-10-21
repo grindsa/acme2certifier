@@ -207,7 +207,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             result = self.directory.directory_get()
         self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Directory.dbversion_check(): exc_dbversion_get",
+            "CRITICAL:test_a2c:Database error: failed to check database version: exc_dbversion_get",
             lcm.output,
         )
         self.assertTrue(output_dic.items() <= result.items())
@@ -659,7 +659,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(False, self.directory.suppress_product_information)
         self.assertEqual(["foo.bar"], self.directory.caaidentities)
         self.assertIn(
-            "CRITICAL:test_a2c:Certificate._config_load(): No ca_handler loaded",
+            "CRITICAL:test_a2c:No ca_handler loaded",
             lcm.output,
         )
         self.assertFalse(self.directory.profiles)

@@ -18,9 +18,9 @@ mkdir /opt/acme2certifier
 echo "## Download software from github"
 # 3. download archive
 cd /tmp
-curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/master -o a2c-master.tgz
-tar xvfz a2c-master.tgz
-cd /tmp/acme2certifier-master
+# curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/master -o a2c-master.tgz
+# tar xvfz a2c-master.tgz
+cd /tmp/acme2certifier
 
 # 4 install modules
 echo "## Install missing python modules"

@@ -12,6 +12,8 @@ jobs:
   dns_challenge_tests:
     name: "dns_challenge_tests"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -46,8 +48,7 @@ jobs:
     - name: "Restart a2c"
       run: |
         cd examples/Docker/
-        docker-compose restart
-        docker-compose logs
+        docker compose restart
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -72,11 +73,11 @@ jobs:
     - name: "Set DNS server"
       run: |
         cd examples/Docker/
-        docker-compose stop
+        docker compose stop
         docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh
         sudo sed -i "s/DNS-IP/$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)/g" data/acme_srv.cfg
-        docker-compose start
-        docker-compose logs
+        docker compose start
+        docker compose logs
 
     - name: "Enroll acme.sh - single domain"
       run: |
@@ -110,7 +111,7 @@ jobs:
         docker exec -i acme-sh ps -a
         docker exec -i acme-sh netstat -anu
         cd examples/Docker/
-        docker-compose logs
+        docker compose logs
         dig -t TXT _acme-challenge.acme-sh.single @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
         dig -t TXT _acme-challenge.acme-sh.first @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
         dig -t TXT _acme-challenge.acme-sh.second @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
@@ -124,7 +125,7 @@ jobs:
         mkdir -p ${{ github.workspace }}/artifact/upload
         sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
         cd examples/Docker
-        docker-compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
         sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
 
     - name: "[ * ] uploading artificates"
@@ -138,6 +139,8 @@ jobs:
   dns_challenge_tests_rpm:
     name: "dns_challenge_tests_rpm"
     runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       max-parallel: 1
@@ -223,7 +226,7 @@ jobs:
         docker exec -i acme-sh ps -a
         docker exec -i acme-sh netstat -anu
         cd examples/Docker/
-        docker-compose logs
+        docker compose logs
         dig -t TXT _acme-challenge.acme-sh.single @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
         dig -t TXT _acme-challenge.acme-sh.first @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
         dig -t TXT _acme-challenge.acme-sh.second @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)

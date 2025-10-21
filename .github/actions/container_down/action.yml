@@ -1,0 +1,31 @@
+name: "container_down"
+description: "Stop a2c container"
+inputs:
+  DB_HANDLER:
+    description: "Database handler"
+    required: true
+    default: "wsgi"
+  WEB_SRV:
+    description: "Web server"
+    required: true
+    default: "apache2"
+  DOCKER_COMPOSE_FILE_PATH:
+    description: "Path to the docker compose file"
+    required: false
+    default: "examples/Docker/"
+  NAME_SPACE:
+    description: "namespace"
+    required: true
+    default: "acme"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Stop a2c instance (${{ inputs.WEB_SRV }}_${{ inputs.DB_HANDLER }})"
+      working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
+      run: |
+          # sed -i "s/name: acme/name: $NAME_SPACE/g" docker-compose.yml
+          docker compose down
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      shell: bash

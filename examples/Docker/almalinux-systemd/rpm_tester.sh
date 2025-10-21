@@ -1,6 +1,6 @@
 #!/bin/bash
 
-case "$1" in
+case "${1}" in
 
   "update")
     echo "update configuration only"
@@ -28,13 +28,13 @@ case "$1" in
     mkdir -p /opt/acme2certifier/volume/
 
     yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
-    if [ -d /tmp/acme2certifier/acme_ca ]
+    if [[ -d /tmp/acme2certifier/acme_ca ]]
       then
       mkdir -p /opt/acme2certifier/volume/acme_ca/certs
       cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
     fi
 
-    if [ -d /tmp/acme2certifier/nginx ]
+    if [[ -d /tmp/acme2certifier/nginx ]]
       then
       mkdir -p /etc/nginx
       yes | cp -R /tmp/acme2certifier/nginx/* /etc/nginx/
