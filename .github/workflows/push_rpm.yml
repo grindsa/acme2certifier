@@ -53,6 +53,9 @@ jobs:
         with:
           spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
 
+      - name: "Generate keys and certificates"
+        uses: ./.github/actions/cert_gen
+
       - name: "[ PREPARE ] setup environment for alma installation"
         run: |
           docker network create acme
