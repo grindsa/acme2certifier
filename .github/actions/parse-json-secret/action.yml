@@ -35,6 +35,7 @@ runs:
         INPUT_UPPERCASE: ${{ inputs.uppercase }}
       run: |
         # Validate inputs
+        echo ${JSON_SECRET}
         if [ -z "$JSON_SECRET" ]; then
           echo "❌ Error: json_secret input is required"
           exit 1
