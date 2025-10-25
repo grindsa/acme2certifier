@@ -23,18 +23,18 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
-    #- name: "Build container"
-    #  uses: ./.github/actions/container_build_upload
-    #  with:
-    #    DB_HANDLER: ${{ matrix.dbhandler }}
-    #    WEB_SRV: ${{ matrix.websrv }}
+    - name: "Build container"
+      uses: ./.github/actions/container_build_upload
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
   harica_ca_handler_test:
     name: "harica_ca_handler_test"
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    # needs: container_build
+    needs: container_build
     strategy:
       fail-fast: false
       matrix:
@@ -50,28 +50,28 @@ jobs:
       with:
         json_secret: ${{ secrets.HARICA_CFG }}
 
-    #- name: "Download container"
-    #  uses: actions/download-artifact@v4
-    #  with:
-    #    name: a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
-    #    path: /tmp
+    - name: "Download container"
+      uses: actions/download-artifact@v4
+      with:
+        name: a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+        path: /tmp
 
-    #- name: "Import container"
-    #  run: |
-    #    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-    #    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-    #    sudo apt update
-    #    sudo apt install -y docker-compose-plugin
-    #    gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
-    #    docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-    #    docker images
+    - name: "Import container"
+      run: |
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
+        gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+        docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+        docker images
 
-    #- name: "Prepare container environment"
-    #  uses: ./.github/actions/container_prep
-    #  with:
-    #    DB_HANDLER: ${{ matrix.dbhandler }}
-    #    WEB_SRV: ${{ matrix.websrv }}
-    #    CONTAINER_BUILD: false
+    - name: "Prepare container environment"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
+        CONTAINER_BUILD: false
 
     - name: "Generate UUID"
       run: |
@@ -97,11 +97,11 @@ jobs:
       env:
         ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
 
-    #- name: "Bring up a2c container"
-    #  uses: ./.github/actions/container_up
-    #  with:
-    #    DB_HANDLER: ${{ matrix.dbhandler }}
-    #    WEB_SRV: ${{ matrix.websrv }}
+    - name: "Bring up a2c container"
+      uses: ./.github/actions/container_up
+      with:
+        DB_HANDLER: ${{ matrix.dbhandler }}
+        WEB_SRV: ${{ matrix.websrv }}
 
     - name: "Test enrollment"
       uses: ./.github/actions/wf_specific/acme_ca_handler/harica_enroll

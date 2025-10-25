@@ -18,15 +18,15 @@ runs:
     with:
       time: 5s
 
-  #- name: "EAB - Test http://acme-srv/directory is accessible"
-  #  run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-  #  shell: bash
+  - name: "EAB - Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    shell: bash
 
-  #- name: "EAB - Test if https://acme-srv/directory is accessible"
-  #  run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-  #  shell: bash
+  - name: "EAB - Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
 
-  - name: "Enroll lego with without template"
+  - name: "Enroll lego"
     run: |
       echo $DOMAIN
       echo "Derived domain: $HOSTNAME_SUFFIX"
