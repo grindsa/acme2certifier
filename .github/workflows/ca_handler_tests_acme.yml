@@ -50,46 +50,28 @@ jobs:
       with:
         json_secret: ${{ secrets.HARICA_CFG }}
 
-    - name: Show parsing results
-      run: |
-        echo "Created ${{ steps.parse-config.outputs.variable_count }} variables"
-        echo "Variables: ${{ steps.parse-config.outputs.variable_names }}"
+    #- name: "Download container"
+    #  uses: actions/download-artifact@v4
+    #  with:
+    #    name: a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+    #    path: /tmp
 
-    - name: Use the variables
-      run: |
-        echo "ACME URL: $ACME_URL"
-        echo "Domain: $DOMAIN"
-        echo "EAB KID: $EAB_KID"
+    #- name: "Import container"
+    #  run: |
+    #    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+    #    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+    #    sudo apt update
+    #    sudo apt install -y docker-compose-plugin
+    #    gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+    #    docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+    #    docker images
 
-    - name: "exit 1"
-      run: |
-        exit 1
-
-    - name: "Download container"
-      uses: actions/download-artifact@v4
-      with:
-        name: a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
-        path: /tmp
-
-    - name: "Import container"
-      run: |
-        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-        sudo apt update
-        sudo apt install -y docker-compose-plugin
-        gunzip /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
-        docker load -i /tmp/a2c-${{ github.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-        docker images
-
-    - name: "Prepare container environment"
-      uses: ./.github/actions/container_prep
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
-        CONTAINER_BUILD: false
-
-    - name: "Setup acme-le-sim"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+    #- name: "Prepare container environment"
+    #  uses: ./.github/actions/container_prep
+    #  with:
+    #    DB_HANDLER: ${{ matrix.dbhandler }}
+    #    WEB_SRV: ${{ matrix.websrv }}
+    #    CONTAINER_BUILD: false
 
     - name: "Setup acme ca_handler"
       run: |
@@ -99,11 +81,19 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "acme_url: http://acme-le-sim" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "acme_keyfile: volume/acme/harica_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "acme_url: ${ACME_URL}" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "acme_account_email: ${ACME_ACCOUNT_EMAIL}" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "allowed_domainlist: [\"${DOMAIN}\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
+        cat examples/Docker/data/acme_srv.cfg
+        exit 1
+      with:
+        ACME_URL: $ACME_URL
+        ACME_ACCOUNT_EMAIL: ${ secrets.EMAIL }
+        EAB_KID: $EAB_KID
+        EAB_HMAC: $EAB_HMAC
+        DOMAIN: $DOMAIN
 
     - name: "Bring up a2c container"
       uses: ./.github/actions/container_up
