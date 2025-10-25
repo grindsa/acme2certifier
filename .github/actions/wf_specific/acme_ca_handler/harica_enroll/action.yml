@@ -57,7 +57,7 @@ runs:
 
   - name: "Enroll Certbot"
     run: |
-      docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/ certbot certonly --manual --preferred-challenges http --server  https://acme-srv\ --email grindsa@foo.bar --agree-tos --no-eff-email --no-verify-ssl -d "certbot$HOSTNAME_SUFFIX.acme.dynamop.de" --issuance-timeout $CERT_TIMEOUT
+      docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --manual --preferred-challenges http --server  https://acme-srv\ --email grindsa@foo.bar --agree-tos --no-eff-email --no-verify-ssl -d "certbot$HOSTNAME_SUFFIX.acme.dynamop.de" --issuance-timeout $CERT_TIMEOUT
     shell: bash
     env:
       HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
