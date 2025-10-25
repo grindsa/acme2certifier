@@ -37,6 +37,16 @@ runs:
     env:
       HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
 
+  - name: "Enroll Certbot"
+    run: |
+      echo $DOMAIN
+      echo "Derived domain: $HOSTNAME_SUFFIX"
+      docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/ certbot certonly --manual --preferred-challenges http --server  https://acme-srv\ --email grindsa@foo.bar --agree-tos --no-eff-email --no-verify-ssl -d "certbot$HOSTNAME_SUFFIX.acme.dynamop.de"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+    shell: bash
+    env:
+      HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+1
   - name: "Sleep for 5s"
     uses: juliangruber/sleep-action@v2.0.3
     with:
