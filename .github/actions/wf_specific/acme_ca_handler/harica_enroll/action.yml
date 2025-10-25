@@ -46,9 +46,5 @@ runs:
     shell: bash
     env:
       HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
-1
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.3
-    with:
-      time: 5s
+
 
