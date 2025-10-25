@@ -90,7 +90,7 @@ jobs:
         sudo echo "acme_url: $ACME_URL" >> examples/Docker/data/acme_srv.cfg
         sudo echo "acme_account_email: $ACME_ACCOUNT_EMAIL" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_kid: $EAB_KID" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "eab_hmac: $EAB_HMAC_KEY‚" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_hmac_key: $EAB_HMAC_KEY‚" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"*.$DOMAIN\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
       env:
