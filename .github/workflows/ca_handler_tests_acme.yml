@@ -91,11 +91,7 @@ jobs:
         cat examples/Docker/data/acme_srv.cfg
         exit 1
       env:
-        ACME_URL: $ACME_URL
         ACME_ACCOUNT_EMAIL: ${ secrets.EMAIL }
-        EAB_KID: $EAB_KID
-        EAB_HMAC: $EAB_HMAC
-        DOMAIN: $DOMAIN
 
     - name: "Bring up a2c container"
       uses: ./.github/actions/container_up
