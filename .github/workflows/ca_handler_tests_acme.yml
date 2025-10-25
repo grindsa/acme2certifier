@@ -73,7 +73,7 @@ jobs:
     #    WEB_SRV: ${{ matrix.websrv }}
     #    CONTAINER_BUILD: false
 
-    - name: "Setup acme ca_handler"
+    - name: "Setup acme_ca_handler"
       run: |
         sudo mkdir -p examples/Docker/data/acme
         sudo chmod -R 777 examples/Docker/data/acme
@@ -89,20 +89,19 @@ jobs:
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"*.$DOMAIN\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cat examples/Docker/data/acme_srv.cfg
-        exit 1
       env:
         ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
 
-    - name: "Bring up a2c container"
-      uses: ./.github/actions/container_up
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
+    #- name: "Bring up a2c container"
+    #  uses: ./.github/actions/container_up
+    #  with:
+    #    DB_HANDLER: ${{ matrix.dbhandler }}
+    #    WEB_SRV: ${{ matrix.websrv }}
 
     - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
+      uses: ./.github/actions/wf_specific/acme_ca_handler/harica_enroll
       with:
-        TEST_ADL: "true"
+        DEPLOYMENT_TYPE: "container"
 
     - name: "Verify allowed_domainlist error"
       run: |
