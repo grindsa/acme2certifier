@@ -30,13 +30,22 @@ runs:
     run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
     shell: bash
 
-  - name: "Enroll lego"
+  - name: "Enroll lego might fail"
+    continue-on-error: true
     run: |
-      echo $DOMAIN
-      echo "Derived domain: $HOSTNAME_SUFFIX"
       sudo rm -rf lego/*
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$DOMAIN --cert.timeout $CERT_TIMEOUT --http run
-      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+      # sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+    shell: bash
+    env:
+      HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+      CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
+
+  - name: "Enroll lego"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$DOMAIN --cert.timeout $CERT_TIMEOUT --http run
+      sudo openssl x509 -in lego/certificates/lego$HOSTNAME_SUFFIX.$DOMAIN.crt -text -noout
     shell: bash
     env:
       HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
@@ -44,10 +53,7 @@ runs:
 
   - name: "Enroll Certbot"
     run: |
-      echo $DOMAIN
-      echo "Derived domain: $HOSTNAME_SUFFIX"
       docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/ certbot certonly --manual --preferred-challenges http --server  https://acme-srv\ --email grindsa@foo.bar --agree-tos --no-eff-email --no-verify-ssl -d "certbot$HOSTNAME_SUFFIX.acme.dynamop.de" --issuance-timeout $CERT_TIMEOUT
-      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
     shell: bash
     env:
       HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
