@@ -36,7 +36,7 @@ runs:
   #    sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
     shell: bash
     env:
-      DOMAIN: $HOSTNAME_SUFFIX
+      DOMAIN: ${{ inputs.HOSTNAME_SUFFIX }}
 
 
 
