@@ -73,6 +73,11 @@ jobs:
     #    WEB_SRV: ${{ matrix.websrv }}
     #    CONTAINER_BUILD: false
 
+    - name: "Generate UUID"
+      run: |
+        echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+    - run: echo "UUID ${{ env.UUID }}"
+
     - name: "Setup acme_ca_handler"
       run: |
         sudo mkdir -p examples/Docker/data/acme
@@ -102,6 +107,7 @@ jobs:
       uses: ./.github/actions/wf_specific/acme_ca_handler/harica_enroll
       with:
         DEPLOYMENT_TYPE: "container"
+        HOSTNAME_SUFFIX: -${{ env.UUID }}
 
     - name: "Verify allowed_domainlist error"
       run: |
@@ -118,30 +124,6 @@ jobs:
       with:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
-
-    - name: "ACME Profile - Setup acme ca_handler"
-      run: |
-        sudo mkdir -p examples/Docker/data/acme
-        sudo chmod -R 777 examples/Docker/data/acme
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "acme_url: http://acme-le-sim" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile1\": \"http:\/\/foo.bar\/profile1\", \"profile2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker compose restart
-
-    - name: "ACME Profile - enrollment"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_acmeprofile
-      with:
-        DEPLOYMENT_TYPE: "container"
-
 
     - name: "[ * ] collecting test data"
       if: ${{ failure() }}
