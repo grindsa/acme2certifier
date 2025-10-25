@@ -48,7 +48,7 @@ jobs:
     - name: Parse HARICA config
       uses: ./.github/actions/parse-json-secret
       with:
-        json_secret: ${{ secrets.HARICA }}
+        json_secret: ${{ secrets.HARICA_CFG }}
 
     - name: Show parsing results
       run: |
