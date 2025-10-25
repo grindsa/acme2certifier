@@ -91,7 +91,7 @@ jobs:
         cat examples/Docker/data/acme_srv.cfg
         exit 1
       env:
-        ACME_ACCOUNT_EMAIL: ${ secrets.EMAIL }
+        ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
 
     - name: "Bring up a2c container"
       uses: ./.github/actions/container_up
