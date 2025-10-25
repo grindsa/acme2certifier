@@ -31,7 +31,7 @@ runs:
       echo $DOMAIN
       echo "Derived domain: $HOSTNAME_SUFFIX"
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$DOMAIN --eab --kid $EAB_KID --hmac $EAB_HMAC --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$DOMAIN --eab --kid $EAB_KID --hmac $EAB_EAB_HMAC_KEY --http run
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
     shell: bash
     env:
