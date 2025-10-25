@@ -88,7 +88,7 @@ jobs:
         sudo echo "allowed_domainlist: [\"${DOMAIN}\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cat examples/Docker/data/acme_srv.cfg
         exit 1
-      with:
+      env:
         ACME_URL: $ACME_URL
         ACME_ACCOUNT_EMAIL: ${ secrets.EMAIL }
         EAB_KID: $EAB_KID
