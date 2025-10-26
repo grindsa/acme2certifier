@@ -1,0 +1,89 @@
+name: 'Parse JSON Secret'
+description: 'Parse a JSON secret and create environment variables for each key-value pair'
+author: 'grindsa'
+
+inputs:
+  json_secret:
+    description: 'The JSON secret to parse'
+    required: true
+  prefix:
+    description: 'Optional prefix for environment variable names'
+    required: false
+    default: ''
+  uppercase:
+    description: 'Convert keys to uppercase'
+    required: false
+    default: 'true'
+
+outputs:
+  variable_count:
+    description: 'Number of variables created'
+    value: ${{ steps.parse.outputs.variable_count }}
+  variable_names:
+    description: 'Comma-separated list of variable names created'
+    value: ${{ steps.parse.outputs.variable_names }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Parse JSON secret to environment variables
+      id: parse
+      shell: bash
+      env:
+        JSON_SECRET: ${{ inputs.json_secret }}
+        INPUT_PREFIX: ${{ inputs.prefix }}
+        INPUT_UPPERCASE: ${{ inputs.uppercase }}
+      run: |
+        # Validate inputs
+        echo ${JSON_SECRET}
+        if [ -z "$JSON_SECRET" ]; then
+          echo "❌ Error: json_secret input is required"
+          exit 1
+        fi
+
+        # Validate JSON
+        if ! echo "$JSON_SECRET" | jq empty 2>/dev/null; then
+          echo "❌ Error: Invalid JSON provided"
+          exit 1
+        fi
+
+        echo "🔧 Parsing JSON secret..."
+
+        # Determine prefix
+        PREFIX="$INPUT_PREFIX"
+        if [ -n "$PREFIX" ]; then
+          PREFIX="${PREFIX}_"
+        fi
+
+        # Parse JSON and create environment variables
+        if [ "$INPUT_UPPERCASE" = "true" ]; then
+          echo "$JSON_SECRET" | jq -r --arg prefix "$PREFIX" '
+            to_entries[] |
+            "\($prefix)\(.key | ascii_upcase)=\(.value)"
+          ' >> $GITHUB_ENV
+
+          # Get variable names for output
+          VARIABLE_NAMES=$(echo "$JSON_SECRET" | jq -r --arg prefix "$PREFIX" '
+            [to_entries[] | "\($prefix)\(.key | ascii_upcase)"] | join(",")
+          ')
+        else
+          echo "$JSON_SECRET" | jq -r --arg prefix "$PREFIX" '
+            to_entries[] |
+            "\($prefix)\(.key)=\(.value)"
+          ' >> $GITHUB_ENV
+
+          # Get variable names for output
+          VARIABLE_NAMES=$(echo "$JSON_SECRET" | jq -r --arg prefix "$PREFIX" '
+            [to_entries[] | "\($prefix)\(.key)"] | join(",")
+          ')
+        fi
+
+        # Count variables
+        VARIABLE_COUNT=$(echo "$JSON_SECRET" | jq '. | length')
+
+        # Set outputs
+        echo "variable_count=$VARIABLE_COUNT" >> $GITHUB_OUTPUT
+        echo "variable_names=$VARIABLE_NAMES" >> $GITHUB_OUTPUT
+
+        echo "✅ Created $VARIABLE_COUNT environment variables"
+        echo "📋 Variables: $VARIABLE_NAMES"
