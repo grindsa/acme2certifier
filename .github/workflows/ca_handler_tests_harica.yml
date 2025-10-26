@@ -2,7 +2,7 @@ name: Harica CA tests
 
 on:
   push:
-    branches: [ 'devel', 'master', 'wf_harica', 'bug_harica' ]
+    branches: [ 'devel', 'master']
   pull_request:
     branches: [ devel ]
   schedule:
