@@ -259,6 +259,11 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret - XCA_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
+
     - name: "Download container"
       uses: actions/download-artifact@v4
       with:
@@ -310,10 +315,10 @@ jobs:
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" acme-le-sim-2/acme_srv.cfg
         docker run -d --rm -id --network acme --name=acme-le-sim-2 -v "$(pwd)/acme-le-sim-2":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
       env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
+        XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
+        XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
+        XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
+        XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -548,6 +553,16 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret - ACMEDNS_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.ACMEDNS_CFG }}
+
+    - name: "Parse JSON secret - CF_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.CF_CFG }}
+
     - name: "Download container"
       uses: actions/download-artifact@v4
       with:
@@ -597,8 +612,8 @@ jobs:
         # sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 15/g" examples/Docker/data/acme_srv.cfg
 
       env:
-        CF_TOKEN: ${{ secrets.CF_TOKEN }}
-        CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+        CF_TOKEN: ${{ env.CF_TOKEN }}
+        CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
 
     - name: "CloudFlare - Bring up a2c container"
       uses: ./.github/actions/container_up
@@ -647,9 +662,9 @@ jobs:
         cd examples/Docker/
         docker compose restart
       env:
-        ACMEDNS_USERNAME: ${{ secrets.ACMEDNS_USERNAME }}
-        ACMEDNS_PASSWORD: ${{ secrets.ACMEDNS_PASSWORD }}
-        ACMEDNS_SUBDOMAIN: ${{ secrets.ACMEDNS_SUBDOMAIN }}
+        ACMEDNS_USERNAME: ${{ env.ACMEDNS_USERNAME }}
+        ACMEDNS_PASSWORD: ${{ env.ACMEDNS_PASSWORD }}
+        ACMEDNS_SUBDOMAIN: ${{ env.ACMEDNS_SUBDOMAIN }}
 
     - name: "ACMEDNS - WC - Enrollment"
       uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns_wc
@@ -731,11 +746,16 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret - GH_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
         RPM_BUILD: false
 
@@ -840,11 +860,16 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret - GH_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
         RPM_BUILD: false
 
@@ -917,11 +942,21 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret - XCA_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
+
+    - name: "Parse JSON secret - GH_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
         RPM_BUILD: false
 
@@ -960,10 +995,10 @@ jobs:
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" acme-le-sim-2/acme_srv.cfg
         docker run -d --rm -id --network acme --name=acme-le-sim-2 -v "$(pwd)/acme-le-sim-2":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
       env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
+        XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
+        XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
+        XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
+        XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -1093,11 +1128,16 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret - GH_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
         RPM_BUILD: false
 
@@ -1179,11 +1219,21 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret - CF_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.CF_CFG }}
+
+    - name: "Parse JSON secret - GH_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
         RPM_BUILD: false
         NAME_SPACE: acme.dynamop.de
@@ -1217,8 +1267,8 @@ jobs:
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
       env:
-        CF_TOKEN: ${{ secrets.CF_TOKEN }}
-        CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+        CF_TOKEN: ${{ env.CF_TOKEN }}
+        CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
 
     - name: "Run Execute install scipt"
       run: |

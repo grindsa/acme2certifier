@@ -18,6 +18,11 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
+
     - name: "Prepare SOAP server"
       run: |
         sudo mkdir -p examples/Docker/data
@@ -34,11 +39,6 @@ jobs:
         sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/soap_srv.cfg
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/soap_srv.cfg
         sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/soap_srv.cfg
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Build and start SOAP server"
       working-directory: examples/Docker/
@@ -119,6 +119,11 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
+
     - name: "Prepare SOAP server"
       run: |
         sudo mkdir -p examples/Docker/data
@@ -135,11 +140,6 @@ jobs:
         sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/soap_srv.cfg
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/soap_srv.cfg
         sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/soap_srv.cfg
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Build and start SOAP server"
       working-directory: examples/Docker/

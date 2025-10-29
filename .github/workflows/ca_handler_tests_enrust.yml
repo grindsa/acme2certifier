@@ -26,6 +26,11 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse ENTRUST_CFG JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        secret: ${{ secrets.ENTRUST_CFG }}
+
     - name: "create folder"
       run: |
         mkdir lego
@@ -63,12 +68,12 @@ jobs:
         # cd examples/Docker/
         # docker compose restart
       env:
-        ENTRUST_CERT: ${{ secrets.ENTRUST_CERT }}
-        ENTRUST_CERT_PASSPHRASE: ${{ secrets.ENTRUST_CERT_PASSPHRASE }}
-        ENTRUST_ORGNAME: ${{ secrets.ENTRUST_ORGNAME }}
-        ENTRUST_USERNAME: ${{ secrets.ENTRUST_USER }}
-        ENTRUST_PASSWORD: ${{ secrets.ENTRUST_PASSWORD }}
-        ENTRUST_CERTTYPE: ${{ secrets.ENTRUST_CERTTYPE }}
+        ENTRUST_CERT: ${{ env.ENTRUST_CERT }}
+        ENTRUST_CERT_PASSPHRASE: ${{ env.ENTRUST_CERT_PASSPHRASE }}
+        ENTRUST_ORGNAME: ${{ env.ENTRUST_ORGNAME }}
+        ENTRUST_USERNAME: ${{ env.ENTRUST_USERNAME }}
+        ENTRUST_PASSWORD: ${{ env.ENTRUST_PASSWORD }}
+        ENTRUST_CERTTYPE: ${{ env.ENTRUST_CERTTYPE }}
 
     - name: "Test enrollment"
       uses: ./.github/actions/wf_specific/entrust_ca_handler/enroll
@@ -116,12 +121,12 @@ jobs:
         cd examples/Docker/
         docker compose restart
       env:
-        ENTRUST_CERT: ${{ secrets.ENTRUST_CERT }}
-        ENTRUST_CERT_PASSPHRASE: ${{ secrets.ENTRUST_CERT_PASSPHRASE }}
-        ENTRUST_ORGNAME: ${{ secrets.ENTRUST_ORGNAME }}
-        ENTRUST_USERNAME: ${{ secrets.ENTRUST_USER }}
-        ENTRUST_PASSWORD: ${{ secrets.ENTRUST_PASSWORD }}
-        ENTRUST_CERTTYPE: ${{ secrets.ENTRUST_CERTTYPE }}
+        ENTRUST_CERT: ${{ env.ENTRUST_CERT }}
+        ENTRUST_CERT_PASSPHRASE: ${{ env.ENTRUST_CERT_PASSPHRASE }}
+        ENTRUST_ORGNAME: ${{ env.ENTRUST_ORGNAME }}
+        ENTRUST_USERNAME: ${{ env.ENTRUST_USERNAME }}
+        ENTRUST_PASSWORD: ${{ env.ENTRUST_PASSWORD }}
+        ENTRUST_CERTTYPE: ${{ env.ENTRUST_CERTTYPE }}
 
     - name: "Test enrollment"
       uses: ./.github/actions/wf_specific/entrust_ca_handler/enroll_eab
