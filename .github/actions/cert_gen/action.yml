@@ -124,4 +124,3 @@ runs:
         cat .github/django_settings_mariadb.py
         cat .github/django_settings_psql.py
       shell: bash
-

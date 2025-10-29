@@ -24,6 +24,17 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse NCM configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.NCM_CFG }}
+
+    - name: "Parse SSH tunnel configuration"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+        uppercase: 'true'
+
     - name: "Build container"
       uses: ./.github/actions/container_prep
       with:
@@ -33,14 +44,14 @@ jobs:
     - name: "Setup tunnel"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
       with:
-        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
-        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        SSH_USER: ${{ env.SSH_USER }}
+        SSH_HOST: ${{ env.SSH_HOST }}
+        SSH_PORT: ${{ env.SSH_PORT }}
+        SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+        SSH_KEY: ${{ env.SSH_KEY }}
+        NCM_API_HOST: ${{ env.NCM_API_HOST }}
+        NCM_API_USER: ${{ env.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
 
     - name: "No profile - Setup a2c with certifier_ca_handler"
       run: |
@@ -59,12 +70,6 @@ jobs:
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -93,13 +98,6 @@ jobs:
         sudo echo "profile_id: 101" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
-        PROFILE: ${{ secrets.PROFILE }}
 
     - name: "Profile 101 - Enrollmnet"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_101_profile
@@ -118,12 +116,6 @@ jobs:
         sudo echo "profile_id: 102" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Profile 102 - Enrollmnet"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_102_profile
@@ -142,12 +134,6 @@ jobs:
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Header-info - Enrollmnet"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_headerinfo
@@ -181,12 +167,6 @@ jobs:
 
         cd examples/Docker/
         docker compose restart
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "EAB without headerinfo - Enrollment"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_wo_headerinfo
@@ -222,12 +202,6 @@ jobs:
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
         docker compose restart
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "EAB with headerinfo - Enrollment"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -273,12 +247,6 @@ jobs:
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "ACME Profile - Enrollmnet"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
@@ -316,12 +284,6 @@ jobs:
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
         docker compose restart
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "EAB ACME Profile - Enrollment"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
@@ -368,24 +330,40 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse NCM_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.NCM_CFG }}
+
+    - name: "Parse SSH tunnel configuration"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+        uppercase: 'true'
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
 
     - name: "Setup tunnel"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/tunnel_setup
       with:
-        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
-        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+        SSH_USER: ${{ env.SSH_USER }}
+        SSH_HOST: ${{ env.SSH_HOST }}
+        SSH_PORT: ${{ env.SSH_PORT }}
+        SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+        SSH_KEY: ${{ env.SSH_KEY }}
+        NCM_API_HOST: ${{ env.NCM_API_HOST }}
+        NCM_API_USER: ${{ env.NCM_API_USER }}
+        NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
 
     - name: "No profile - Setup a2c with certifier_ca_handler"
       run: |
@@ -403,12 +381,6 @@ jobs:
         sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
         # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
 
     - name: "Execute install scipt"
       run: |
@@ -438,13 +410,6 @@ jobs:
         sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
         # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
         sudo echo "profile_id: 101" >> data/acme_srv.cfg
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
-        PROFILE: ${{ secrets.PROFILE }}
 
     - name: "Profile 101 - Reconfigure a2c "
       run: |
@@ -465,13 +430,6 @@ jobs:
         sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
         # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
         sudo echo "profile_id: 102" >> data/acme_srv.cfg
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
-        PROFILE: ${{ secrets.PROFILE }}
 
     - name: "Profile 102 - Reconfigure a2c "
       run: |
@@ -492,13 +450,6 @@ jobs:
         sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
         # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
-        PROFILE: ${{ secrets.PROFILE }}
 
     - name: "Header-info - Reconfigure a2c "
       run: |
@@ -533,13 +484,6 @@ jobs:
         sudo sed -i "s/example.net/acme/g" data/acme_ca/kid_profiles.json
         sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
         sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
-        PROFILE: ${{ secrets.PROFILE }}
 
     - name: "EAB without headerinfo - Reconfigure a2c "
       run: |
@@ -575,13 +519,6 @@ jobs:
         sudo sed -i "s/example.net/acme/g" data/acme_ca/kid_profiles.json
         sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
         sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
-        PROFILE: ${{ secrets.PROFILE }}
 
     - name: "EAB with headerinfo - Reconfigure a2c "
       run: |
@@ -635,13 +572,6 @@ jobs:
         sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
         # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/acme_srv.cfg
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
-        PROFILE: ${{ secrets.PROFILE }}
 
     - name: "ACME Profile - Reconfigure a2c "
       run: |
@@ -678,13 +608,6 @@ jobs:
         sudo sed -i "s/example.net/acme/g" data/acme_ca/kid_profiles.json
         sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
         sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
-      env:
-        NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
-        NCM_API_USER: ${{ secrets.NCM_API_USER }}
-        NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
-        NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
-        NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
-        PROFILE: ${{ secrets.PROFILE }}
 
     - name: "EAB ACME Profile - Reconfigure a2c "
       run: |

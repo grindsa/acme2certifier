@@ -1,8 +1,7 @@
 name: arm64_tests
 on:
   push:
-    branches:
-      - "devel"
+    branches: [ 'devel']
 jobs:
   instance_start:
     name: instance_start
@@ -10,6 +9,14 @@ jobs:
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     steps:
+
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: "Parse AWS_CFG JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.AWS_CFG }}
 
     - name: "install awccli"
       run: |
@@ -25,9 +32,9 @@ jobs:
         aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
         aws configure set default.region $AWS_REGION
       env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
+        AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ env.AWS_REGION }}
 
     - name: "check instance status"
       run: |
@@ -35,15 +42,15 @@ jobs:
         chmod a+rx ./aws_ec_mgr.py
         python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_INSTANCE_ID | grep -i "stopped"
       env:
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        AWS_INSTANCE_ID: ${{ secrets.AWS_INSTANCE_ID }}
+        AWS_REGION: ${{ env.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ env.AWS_INSTANCE_ID }}
 
     - name: "start instance"
       run: |
         python3 ./aws_ec_mgr.py -a start -r $AWS_REGION -i $AWS_INSTANCE_ID
       env:
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        AWS_INSTANCE_ID: ${{ secrets.AWS_INSTANCE_ID }}
+        AWS_REGION: ${{ env.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ env.AWS_INSTANCE_ID }}
 
     - name: "[ WAIT ] Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -54,8 +61,8 @@ jobs:
       run: |
         python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_INSTANCE_ID | grep -i "running"
       env:
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        AWS_INSTANCE_ID: ${{ secrets.AWS_INSTANCE_ID }}
+        AWS_REGION: ${{ env.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ env.AWS_INSTANCE_ID }}
 
   build_test:
     name: build_test
@@ -73,6 +80,11 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse AWS_CFG JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.AWS_CFG }}
+
     - name: "Retrieve Version from version.py"
       run: |
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
@@ -89,8 +101,8 @@ jobs:
         sudo chmod 600 /tmp/rd/ak.tmp
         sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
       env:
-        SSH_KEY: ${{ secrets.AWS_SSH_KEY }}
-        KNOWN_HOSTS: ${{ secrets.AWS_SSH_KNOWN_HOSTS }}
+        SSH_KEY: ${{ env.AWS_SSH_KEY }}
+        KNOWN_HOSTS: ${{ env.AWS_SSH_KNOWN_HOSTS }}
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
@@ -130,15 +142,15 @@ jobs:
     - name: "Create working directory on remote host"
       run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts  mkdir -p /tmp/a2c/$UUID
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         UUID: ${{ env.UUID }}
 
     - name: "Copy image to remote host"
       run: sudo scp -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts /tmp/a2c-image-$WEB_SRV-$DB_HANDLER.tar.gz $SSH_USER@$SSH_HOST:/tmp/a2c/$UUID/
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
         UUID: ${{ env.UUID }}
@@ -146,8 +158,8 @@ jobs:
     - name: "Unpack image on remote host"
       run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts  gunzip /tmp/a2c/$UUID/a2c-image-$WEB_SRV-$DB_HANDLER.tar.gz
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
         UUID: ${{ env.UUID }}
@@ -155,8 +167,8 @@ jobs:
     - name: "Load image on remote host"
       run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts  "docker load < /tmp/a2c/$UUID/a2c-image-$WEB_SRV-$DB_HANDLER.tar"
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
         UUID: ${{ env.UUID }}
@@ -177,8 +189,8 @@ jobs:
     - name: "Copy data package to remote host"
       run: sudo scp -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts -r /tmp/data $SSH_USER@$SSH_HOST:/tmp/a2c/$UUID/
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
         UUID: ${{ env.UUID }}
@@ -194,8 +206,8 @@ jobs:
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker network create $UUID"
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -d --rm -id --platform linux/arm64 --network $UUID --name=acme-srv-$UUID -v /tmp/a2c/$UUID/data:/var/www/acme2certifier/volume/ grindsa/acme2certifier:$WEB_SRV-$DB_HANDLER-$UUID"
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
         UUID: ${{ env.UUID }}
@@ -208,15 +220,15 @@ jobs:
     - name: "Test http://acme-srv/directory internally"
       run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --network $UUID curlimages/curl -f http://acme-srv-$UUID/directory"
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         UUID: ${{ env.UUID }}
 
     - name: "Test if https://acme-srv/directory internally"
       run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --network $UUID curlimages/curl --insecure -f https://acme-srv-$UUID/directory"
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         UUID: ${{ env.UUID }}
 
     - name: "acme.sh enroll"
@@ -226,16 +238,16 @@ jobs:
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run --rm -id -v /tmp/a2c/$UUID/acme-sh:/acme.sh --network $UUID --name=acme-sh-$UUID neilpang/acme.sh:latest daemon"
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker exec -i acme-sh-$UUID acme.sh --server http://acme-srv-$UUID  --accountemail 'acme-sh@example.com' --issue -d acme-sh-$UUID --standalone --debug 3 --output-insecure --force"
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         UUID: ${{ env.UUID }}
 
     - name: "acme.sh revoke"
       run: |
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker exec -i acme-sh-$UUID acme.sh --server http://acme-srv-$UUID --revoke -d acme-sh-$UUID --standalone --debug 3 --output-insecure"
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         UUID: ${{ env.UUID }}
 
     - name: "Certbot enroll"
@@ -245,16 +257,16 @@ jobs:
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --name certbot-$UUID --network $UUID -v /tmp/a2c/$UUID/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv-$UUID --no-eff-email"
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --name certbot-$UUID --network $UUID -v /tmp/a2c/$UUID/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv-$UUID --standalone --preferred-challenges http -d certbot-$UUID --cert-name certbot-$UUID"
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         UUID: ${{ env.UUID }}
 
     - name: "Certbot revoke"
       run: |
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --name certbot-$UUID --network $UUID -v /tmp/a2c/$UUID/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv-$UUID -d certbot-$UUID --cert-name certbot-$UUID"
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         UUID: ${{ env.UUID }}
 
     - name: "Lego enroll"
@@ -263,16 +275,16 @@ jobs:
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "mkdir -p /tmp/a2c/$UUID/lego"
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID --network $UUID goacme/lego -s https://acme-srv-$UUID/directory --tls-skip-verify -a --email lego@example.com -d lego-$UUID --http run"
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         UUID: ${{ env.UUID }}
 
     - name: "Lego revoke"
       run: |
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID  --network $UUID goacme/lego -s https://acme-srv-$UUID --tls-skip-verify -a --email "lego@example.com" -d lego-$UUID revoke"
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         UUID: ${{ env.UUID }}
 
     - name: "Cleanup on remote host"
@@ -283,8 +295,8 @@ jobs:
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker image rm grindsa/acme2certifier:$WEB_SRV-$DB_HANDLER-$UUID"
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "sudo rm -rf /tmp/a2c/$UUID"
       env:
-        SSH_USER: ${{ secrets.AWS_SSH_USER }}
-        SSH_HOST: ${{ secrets.AWS_SSH_HOST }}
+        SSH_USER: ${{ env.AWS_SSH_USER }}
+        SSH_HOST: ${{ env.AWS_SSH_HOST }}
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
         UUID: ${{ env.UUID }}
@@ -296,6 +308,15 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     needs: build_test
     steps:
+
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: "Parse AWS_CFG JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.AWS_CFG }}
+
     - name: "install awccli"
       run: |
         sudo apt-get update
@@ -310,9 +331,9 @@ jobs:
         aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
         aws configure set default.region $AWS_REGION
       env:
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ secrets.AWS_REGION }}
+        AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ env.AWS_REGION }}
 
     - name: "stop instance"
       run: |
@@ -321,5 +342,5 @@ jobs:
         python3 ./aws_ec_mgr.py -a stop -r $AWS_REGION -i $AWS_INSTANCE_ID
         python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_INSTANCE_ID
       env:
-        AWS_REGION: ${{ secrets.AWS_REGION }}
-        AWS_INSTANCE_ID: ${{ secrets.AWS_INSTANCE_ID }}
+        AWS_REGION: ${{ env.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ env.AWS_INSTANCE_ID }}

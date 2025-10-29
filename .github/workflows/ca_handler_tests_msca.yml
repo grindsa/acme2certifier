@@ -46,6 +46,21 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse MSCA_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.MSCA_CFG }}
+
+    - name: "Parse GH_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse SSH_TUNNEL_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+
     - name: "Download container"
       uses: actions/download-artifact@v4
       with:
@@ -82,14 +97,14 @@ jobs:
     - name: "Setup tunnel"
       uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
       with:
-        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
-        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        SSH_USER: ${{ env.SSH_USER }}
+        SSH_HOST: ${{ env.SSH_HOST }}
+        SSH_PORT: ${{ env.SSH_PORT }}
+        MSCA_IP: ${{ env.MSCA_IP }}
+        MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+        MSCA_FQDN: ${{ env.MSCA_FQDN }}
+        SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+        SSH_KEY: ${{ env.SSH_KEY }}
         NAME_SPACE: local
 
     - name: "KRB Headerinfo - Setup a2c with mscertsrv_ca_handler"
@@ -101,11 +116,11 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "auth_method: gssapi" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "krb5_config: /var/www/acme2certifier/volume/krb5.conf" >> examples/Docker/data/acme_srv.cfg
         sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
@@ -116,19 +131,8 @@ jobs:
         sudo touch examples/Docker/data/krb5.conf
         sudo chmod 777 examples/Docker/data/krb5.conf
         cat <<EOF > examples/Docker/data/krb5.conf
-        $WES_KRB5_CONF
+        $KRB5_CONF
         EOF
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
 
     - name: "Bring up a2c container"
       uses: ./.github/actions/container_up
@@ -162,11 +166,11 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "auth_method: gssapi" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "krb5_config: /var/www/acme2certifier/volume/krb5.conf" >> examples/Docker/data/acme_srv.cfg
         sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
@@ -178,21 +182,10 @@ jobs:
         sudo touch examples/Docker/data/krb5.conf
         sudo chmod 777 examples/Docker/data/krb5.conf
         cat <<EOF > examples/Docker/data/krb5.conf
-        $WES_KRB5_CONF
+        $KRB5_CONF
         EOF
         cd examples/Docker/
         docker compose restart
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
 
     - name: "Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -211,27 +204,16 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "auth_method: ntlm" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
         sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
 
     - name: "NTLM Headerinfo - Enrollment"
       uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -261,28 +243,17 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "auth_method: ntlm" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
         sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServerModified\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
 
     - name: "NTLM ACME Profiling - Enrollment"
       uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
@@ -327,6 +298,21 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse MSCA_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.MSCA_CFG }}
+
+    - name: "Parse GH_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse SSH_TUNNEL_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+
     - name: "create folders and networks"
       run: |
         mkdir lego
@@ -363,20 +349,18 @@ jobs:
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
     - run: echo "runner IP is $RUNNER_IP"
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
 
     - name: "Setup tunnel"
       uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
       with:
-        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
-        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        SSH_USER: ${{ env.SSH_USER }}
+        SSH_HOST: ${{ env.SSH_HOST }}
+        SSH_PORT: ${{ env.SSH_PORT }}
+        MSCA_IP: ${{ env.MSCA_IP }}
+        MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+        MSCA_FQDN: ${{ env.MSCA_FQDN }}
+        SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+        SSH_KEY: ${{ env.SSH_KEY }}
         NAME_SPACE: local
 
     - name: "EAB with headerinfo - Setup a2c with mscertsrv_ca_handler using kerberos"
@@ -388,11 +372,11 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "auth_method: gssapi" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "krb5_config: /var/www/acme2certifier/volume/krb5.conf" >> examples/Docker/data/acme_srv.cfg
         sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
@@ -408,7 +392,7 @@ jobs:
         sudo touch examples/Docker/data/krb5.conf
         sudo chmod 777 examples/Docker/data/krb5.conf
         cat <<EOF > examples/Docker/data/krb5.conf
-        $WES_KRB5_CONF
+        $KRB5_CONF
         EOF
 
         sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
@@ -420,17 +404,6 @@ jobs:
         sudo sed -i "s/example.net/local/g" examples/Docker/data/kid_profiles.json
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
 
     - name: "Bring up a2c container"
       uses: ./.github/actions/container_up
@@ -459,11 +432,11 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "auth_method: gssapi" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "krb5_config: /var/www/acme2certifier/volume/krb5.conf" >> examples/Docker/data/acme_srv.cfg
         sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
@@ -480,7 +453,7 @@ jobs:
         sudo touch examples/Docker/data/krb5.conf
         sudo chmod 777 examples/Docker/data/krb5.conf
         cat <<EOF > examples/Docker/data/krb5.conf
-        $WES_KRB5_CONF
+        $KRB5_CONF
         EOF
 
         sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
@@ -494,17 +467,6 @@ jobs:
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
         docker compose restart
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
 
     - name: "EAB ACME Profiling - Enrollment"
       uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
@@ -548,6 +510,21 @@ jobs:
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
+
+    - name: "Parse MSCA_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.MSCA_CFG }}
+
+    - name: "Parse GH_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse SSH_TUNNEL_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
 
     - name: "create folders"
       run: |
@@ -595,40 +572,31 @@ jobs:
         sudo cp .github/dnsmasq.conf dnsmasq/
         sudo chmod -R 777 dnsmasq/dnsmasq.conf
         sudo sed -i "s/RUNNER_IP/$RUNNER_IP/g" dnsmasq/dnsmasq.conf
-        sudo echo "address=/$WCCE_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-        sudo echo "address=/$WCCE_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
+        sudo echo "address=/$MSCA_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
+        sudo echo "address=/$MSCA_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
         sudo echo "address=/$WES_HOST/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
         cat dnsmasq/dnsmasq.conf
         sudo cp dnsmasq/dnsmasq.conf /etc/
         sudo systemctl enable dnsmasq
         sudo systemctl start dnsmasq
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WES_HOST: ${{ secrets.WES_HOST }}
 
     - name: "[ PREPARE ] test dns resulution"
       run: |
-        host $WCCE_ADS_DOMAIN 127.0.0.1
-        host $WCCE_FQDN 127.0.0.1
+        host $MSCA_ADS_DOMAIN 127.0.0.1
+        host $MSCA_FQDN 127.0.0.1
         host $WES_HOST 127.0.0.1
-      env:
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WES_HOST: ${{ secrets.WES_HOST }}
 
     - name: "Setup tunnel"
       uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
       with:
-        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
-        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        SSH_USER: ${{ env.SSH_USER }}
+        SSH_HOST: ${{ env.SSH_HOST }}
+        SSH_PORT: ${{ env.SSH_PORT }}
+        MSCA_IP: ${{ env.MSCA_IP }}
+        MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+        MSCA_FQDN: ${{ env.MSCA_FQDN }}
+        SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+        SSH_KEY: ${{ env.SSH_KEY }}
 
 
     - name: "NTLM Headerinfo - Setup a2c with ms_wcce_ca_handler"
@@ -636,33 +604,22 @@ jobs:
         sudo cp .github/django_settings.py examples/Docker/data/settings.py
         sudo touch examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/ca_certs.pem
-        sudo echo "$WCCE_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
+        sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "host: $RUNNER_IP" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WCCE_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WCCE_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WCCE_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_name: $WCCE_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $MSCA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "timeout: 20" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ssh_host: $SSH_HOST:$SSH_PORT" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        WCCE_USER: ${{ secrets.WCCE_USER }}
-        WCCE_PASSWORD: ${{ secrets.WCCE_PASSWORD }}
-        WCCE_TEMPLATE: ${{ secrets.WCCE_TEMPLATE }}
-        WCCE_CA_NAME: ${{ secrets.WCCE_CA_NAME }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
 
     - name: "NTLM Headerinfo - Bring up a2c container"
       uses: ./.github/actions/container_up
@@ -683,17 +640,17 @@ jobs:
       run: |
         sudo touch examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/ca_certs.pem
-        sudo echo "$WCCE_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
+        sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "host: $RUNNER_IP" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WCCE_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WCCE_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WCCE_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_name: $WCCE_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $MSCA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "timeout: 20" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ssh_host: $SSH_HOST:$SSH_PORT" >> examples/Docker/data/acme_srv.cfg
@@ -702,17 +659,6 @@ jobs:
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        WCCE_USER: ${{ secrets.WCCE_USER }}
-        WCCE_PASSWORD: ${{ secrets.WCCE_PASSWORD }}
-        WCCE_TEMPLATE: ${{ secrets.WCCE_TEMPLATE }}
-        WCCE_CA_NAME: ${{ secrets.WCCE_CA_NAME }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
 
     - name: "NTLM ACME Profiling - Enrollment"
       uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
@@ -723,17 +669,17 @@ jobs:
       run: |
         sudo touch examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/ca_certs.pem
-        sudo echo "$WCCE_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
+        sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WCCE_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WCCE_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WCCE_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_name: $WCCE_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $MSCA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
         sudo echo "domain_controller: $RUNNER_IP" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "timeout: 20" >> examples/Docker/data/acme_srv.cfg
@@ -742,16 +688,6 @@ jobs:
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        DNSMASQ_IP: ${{ env.DNSMASQ_IP }}
-        WCCE_USER: ${{ secrets.WCCE_USER }}
-        WCCE_PASSWORD: ${{ secrets.WCCE_PASSWORD }}
-        WCCE_TEMPLATE: ${{ secrets.WCCE_TEMPLATE }}
-        WCCE_CA_NAME: ${{ secrets.WCCE_CA_NAME }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
 
     - name: "KRB Headerinfo - Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -780,17 +716,17 @@ jobs:
       run: |
         sudo touch examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/ca_certs.pem
-        sudo echo "$WCCE_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
+        sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WCCE_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WCCE_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WCCE_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_name: $WCCE_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $MSCA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
         sudo echo "domain_controller: $RUNNER_IP" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "timeout: 20" >> examples/Docker/data/acme_srv.cfg
@@ -800,16 +736,6 @@ jobs:
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        DNSMASQ_IP: ${{ env.DNSMASQ_IP }}
-        WCCE_USER: ${{ secrets.WCCE_USER }}
-        WCCE_PASSWORD: ${{ secrets.WCCE_PASSWORD }}
-        WCCE_TEMPLATE: ${{ secrets.WCCE_TEMPLATE }}
-        WCCE_CA_NAME: ${{ secrets.WCCE_CA_NAME }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
 
     - name: "KRB ACME Profile - Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -857,6 +783,21 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse MSCA_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.MSCA_CFG }}
+
+    - name: "Parse GH_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse SSH_TUNNEL_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+
     - name: "create folders"
       run: |
         mkdir lego
@@ -882,28 +823,19 @@ jobs:
         sudo cp .github/dnsmasq.conf dnsmasq/
         sudo chmod -R 777 dnsmasq/dnsmasq.conf
         sudo sed -i "s/RUNNER_IP/$RUNNER_IP/g" dnsmasq/dnsmasq.conf
-        sudo echo "address=/$WCCE_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-        sudo echo "address=/$WCCE_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
+        sudo echo "address=/$MSCA_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
+        sudo echo "address=/$MSCA_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
         sudo echo "address=/$WES_HOST/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
         cat dnsmasq/dnsmasq.conf
         sudo cp dnsmasq/dnsmasq.conf /etc/
         sudo systemctl enable dnsmasq
         sudo systemctl start dnsmasq
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WES_HOST: ${{ secrets.WES_HOST }}
 
     - name: "[ PREPARE ] test dns resulution"
       run: |
-        host $WCCE_ADS_DOMAIN 127.0.0.1
-        host $WCCE_FQDN 127.0.0.1
+        host $MSCA_ADS_DOMAIN 127.0.0.1
+        host $MSCA_FQDN 127.0.0.1
         host $WES_HOST 127.0.0.1
-      env:
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WES_HOST: ${{ secrets.WES_HOST }}
 
     - name: "Download container"
       uses: actions/download-artifact@v4
@@ -931,30 +863,30 @@ jobs:
     - name: "Setup tunnel"
       uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
       with:
-        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
-        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        SSH_USER: ${{ env.SSH_USER }}
+        SSH_HOST: ${{ env.SSH_HOST }}
+        SSH_PORT: ${{ env.SSH_PORT }}
+        MSCA_IP: ${{ env.MSCA_IP }}
+        MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+        MSCA_FQDN: ${{ env.MSCA_FQDN }}
+        SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+        SSH_KEY: ${{ env.SSH_KEY }}
 
     - name: "EAB with headerinfo - Setup a2c with ms_wcce_ca_handler (Kerboros)"
       run: |
         sudo touch examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/ca_certs.pem
-        sudo echo "$WCCE_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
+        sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WCCE_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WCCE_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WCCE_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_name: $WCCE_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $MSCA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
         sudo echo "domain_controller: $RUNNER_IP" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "timeout: 20" >> examples/Docker/data/acme_srv.cfg
@@ -976,16 +908,6 @@ jobs:
         sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
         sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        DNSMASQ_IP: ${{ env.DNSMASQ_IP }}
-        WCCE_USER: ${{ secrets.WCCE_USER }}
-        WCCE_PASSWORD: ${{ secrets.WCCE_PASSWORD }}
-        WCCE_TEMPLATE: ${{ secrets.WCCE_TEMPLATE }}
-        WCCE_CA_NAME: ${{ secrets.WCCE_CA_NAME }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
 
     - name: "Bring up a2c container"
       uses: ./.github/actions/container_up
@@ -1006,17 +928,17 @@ jobs:
       run: |
         sudo touch examples/Docker/data/ca_certs.pem
         sudo chmod 777 examples/Docker/data/ca_certs.pem
-        sudo echo "$WCCE_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
+        sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
         sudo touch examples/Docker/data/acme_srv.cfg
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WCCE_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WCCE_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WCCE_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_name: $WCCE_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_name: $MSCA_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
         sudo echo "domain_controller: $RUNNER_IP" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "timeout: 20" >> examples/Docker/data/acme_srv.cfg
@@ -1041,16 +963,6 @@ jobs:
         sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
         cd examples/Docker/
         docker compose restart
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        DNSMASQ_IP: ${{ env.DNSMASQ_IP }}
-        WCCE_USER: ${{ secrets.WCCE_USER }}
-        WCCE_PASSWORD: ${{ secrets.WCCE_PASSWORD }}
-        WCCE_TEMPLATE: ${{ secrets.WCCE_TEMPLATE }}
-        WCCE_CA_NAME: ${{ secrets.WCCE_CA_NAME }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
 
     - name: "EAB ACME Profiling - Enrollment"
       uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
@@ -1092,6 +1004,21 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse MSCA_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.MSCA_CFG }}
+
+    - name: "Parse GH_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse SSH_TUNNEL_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+
     - name: "Modify Dockerfile"
       run: |
         cd examples/Docker/$WEBSRV/$DBHANDLER
@@ -1113,14 +1040,14 @@ jobs:
     - name: "Setup tunnel"
       uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
       with:
-        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
-        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        SSH_USER: ${{ env.SSH_USER }}
+        SSH_HOST: ${{ env.SSH_HOST }}
+        SSH_PORT: ${{ env.SSH_PORT }}
+        MSCA_IP: ${{ env.MSCA_IP }}
+        MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+        MSCA_FQDN: ${{ env.MSCA_FQDN }}
+        SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+        SSH_KEY: ${{ env.SSH_KEY }}
         NAME_SPACE: local
 
     - name: "KRB - Setup a2c with mscertsrv_ca_handler"
@@ -1132,11 +1059,11 @@ jobs:
         sudo chmod 777 examples/Docker/data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
         sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
         sudo echo "auth_method: gssapi" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
         sudo echo "krb5_config: /var/www/acme2certifier/volume/krb5.conf" >> examples/Docker/data/acme_srv.cfg
         sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
@@ -1146,21 +1073,10 @@ jobs:
         sudo touch examples/Docker/data/krb5.conf
         sudo chmod 777 examples/Docker/data/krb5.conf
         cat <<EOF > examples/Docker/data/krb5.conf
-        $WES_KRB5_CONF
+        $KRB5_CONF
         EOF
         cd examples/Docker/
         docker compose restart
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -1232,11 +1148,26 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse MSCA_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.MSCA_CFG }}
+
+    - name: "Parse GH_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse SSH_TUNNEL_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
         RPM_BUILD: false
         NAME_SPACE: "local"
@@ -1253,20 +1184,18 @@ jobs:
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
     - run: echo "runner IP is $RUNNER_IP"
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
 
     - name: "Setup tunnel"
       uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
       with:
-        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
-        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        SSH_USER: ${{ env.SSH_USER }}
+        SSH_HOST: ${{ env.SSH_HOST }}
+        SSH_PORT: ${{ env.SSH_PORT }}
+        MSCA_IP: ${{ env.MSCA_IP }}
+        MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+        MSCA_FQDN: ${{ env.MSCA_FQDN }}
+        SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+        SSH_KEY: ${{ env.SSH_KEY }}
         NAME_SPACE: local
 
     - name: "KRB - Setup a2c with mscertsrv_ca_handler using kerberos"
@@ -1277,11 +1206,11 @@ jobs:
         sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> data/acme_srv.cfg
         sudo echo "auth_method: gssapi" >> data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> data/acme_srv.cfg
         sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
         sudo echo "krb5_config: volume/acme_ca/krb5.conf" >> data/acme_srv.cfg
         sudo echo "verify: False" >> data/acme_srv.cfg
@@ -1292,17 +1221,9 @@ jobs:
         sudo touch data/acme_ca/krb5.conf
         sudo chmod 777 data/acme_ca/krb5.conf
         cat <<EOF > data/acme_ca/krb5.conf
-        $WES_KRB5_CONF
+        $KRB5_CONF
         EOF
 
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
 
     - name: "KRB - Execute install scipt"
       run: |
@@ -1318,23 +1239,16 @@ jobs:
       run: |
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> data/acme_srv.cfg
-        sudo echo "auth_method: $WES_AUTHMETHOD" >> data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "auth_method: ntlm" >> data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> data/acme_srv.cfg
         sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
         sudo echo "verify: False" >> data/acme_srv.cfg
         sudo echo "request_timeout: 30" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/acme_srv.cfg
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
 
     - name: "NTLM - Reconfigure a2c "
       run: |
@@ -1371,11 +1285,11 @@ jobs:
         sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> data/acme_srv.cfg
         sudo echo "auth_method: gssapi" >> data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> data/acme_srv.cfg
         sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
         sudo echo "krb5_config: volume/acme_ca/krb5.conf" >> data/acme_srv.cfg
         sudo echo "verify: False" >> data/acme_srv.cfg
@@ -1387,17 +1301,9 @@ jobs:
         sudo touch data/acme_ca/krb5.conf
         sudo chmod 777 data/acme_ca/krb5.conf
         cat <<EOF > data/acme_ca/krb5.conf
-        $WES_KRB5_CONF
+        $KRB5_CONF
         EOF
 
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
 
     - name: "KRB ACME Profiling - Reconfigure a2c "
       run: |
@@ -1445,11 +1351,26 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse MSCA_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.MSCA_CFG }}
+
+    - name: "Parse GH_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse SSH_TUNNEL_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
         RPM_BUILD: false
         NAME_SPACE: "local"
@@ -1466,20 +1387,18 @@ jobs:
         echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
     - run: echo "runner IP is $RUNNER_IP"
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
 
     - name: "Setup tunnel"
       uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
       with:
-        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
-        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        SSH_USER: ${{ env.SSH_USER }}
+        SSH_HOST: ${{ env.SSH_HOST }}
+        SSH_PORT: ${{ env.SSH_PORT }}
+        MSCA_IP: ${{ env.MSCA_IP }}
+        MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+        MSCA_FQDN: ${{ env.MSCA_FQDN }}
+        SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+        SSH_KEY: ${{ env.SSH_KEY }}
         NAME_SPACE: local
 
     - name: "EAB with headerinfo - Setup a2c with mscertsrv_ca_handler using kerberos"
@@ -1490,11 +1409,11 @@ jobs:
         sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> data/acme_srv.cfg
         sudo echo "auth_method: gssapi" >> data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> data/acme_srv.cfg
         sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
         sudo echo "krb5_config: volume/acme_ca/krb5.conf" >> data/acme_srv.cfg
         sudo echo "verify: False" >> data/acme_srv.cfg
@@ -1520,16 +1439,8 @@ jobs:
         sudo touch data/acme_ca/krb5.conf
         sudo chmod 777 data/acme_ca/krb5.conf
         cat <<EOF > data/acme_ca/krb5.conf
-        $WES_KRB5_CONF
+        $KRB5_CONF
         EOF
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
 
     - name: "KRB - Execute install scipt"
       run: |
@@ -1549,11 +1460,11 @@ jobs:
         sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
-        sudo echo "user: $WES_USER" >> data/acme_srv.cfg
-        sudo echo "password: $WES_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> data/acme_srv.cfg
         sudo echo "auth_method: gssapi" >> data/acme_srv.cfg
-        sudo echo "template: $WES_TEMPLATE" >> data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> data/acme_srv.cfg
         sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
         sudo echo "krb5_config: volume/acme_ca/krb5.conf" >> data/acme_srv.cfg
         sudo echo "verify: False" >> data/acme_srv.cfg
@@ -1580,16 +1491,8 @@ jobs:
         sudo touch data/acme_ca/krb5.conf
         sudo chmod 777 data/acme_ca/krb5.conf
         cat <<EOF > data/acme_ca/krb5.conf
-        $WES_KRB5_CONF
+        $KRB5_CONF
         EOF
-      env:
-        WES_HOST: ${{ secrets.WES_HOST }}
-        WES_USER: ${{ secrets.WES_USER }}
-        WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
-        WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
-        WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WES_KRB5_CONF: ${{ secrets.WES_KRB5_CONF }}
 
     - name: "EAB ACME Profiling - Execute install scipt"
       run: |
@@ -1639,11 +1542,26 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse MSCA_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.MSCA_CFG }}
+
+    - name: "Parse JSON secret - GH_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse JSON secret - SSH_TUNNEL_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
         DJANGO_DB: psql
         RPM_BUILD: false
@@ -1675,29 +1593,20 @@ jobs:
         sudo cp .github/dnsmasq.conf dnsmasq/
         sudo chmod -R 777 dnsmasq/dnsmasq.conf
         sudo sed -i "s/RUNNER_IP/$RUNNER_IP/g" dnsmasq/dnsmasq.conf
-        sudo echo "address=/$WCCE_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-        sudo echo "address=/$WCCE_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
+        sudo echo "address=/$MSCA_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
+        sudo echo "address=/$MSCA_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
         sudo echo "address=/$WES_HOST/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
         cat dnsmasq/dnsmasq.conf
         sudo cp dnsmasq/dnsmasq.conf /etc/
         sudo sed -i "s/ --local-service/ /g" /etc/init.d/dnsmasq
         sudo systemctl enable dnsmasq
         sudo systemctl start dnsmasq
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WES_HOST: ${{ secrets.WES_HOST }}
 
     - name: "Test dns resulution"
       run: |
-        host $WCCE_ADS_DOMAIN ${{ env.RUNNER_IP }}
-        host $WCCE_FQDN ${{ env.RUNNER_IP }}
+        host $MSCA_ADS_DOMAIN ${{ env.RUNNER_IP }}
+        host $MSCA_FQDN ${{ env.RUNNER_IP }}
         host $WES_HOST 127.0.0.1
-      env:
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WES_HOST: ${{ secrets.WES_HOST }}
 
     - name: "Create letsencrypt and lego folder"
       run: |
@@ -1708,43 +1617,35 @@ jobs:
     - name: "Setup tunnel"
       uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
       with:
-        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
-        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        SSH_USER: ${{ env.SSH_USER }}
+        SSH_HOST: ${{ env.SSH_HOST }}
+        SSH_PORT: ${{ env.SSH_PORT }}
+        MSCA_IP: ${{ env.MSCA_IP }}
+        MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+        MSCA_FQDN: ${{ env.MSCA_FQDN }}
+        SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+        SSH_KEY: ${{ env.SSH_KEY }}
 
     - name: "NTLM - Prepare acme_srv.cfg with ms_wcce_ca_handler"
       run: |
         mkdir -p data/acme_ca
         sudo touch data/acme_ca/ca_certs.pem
         sudo chmod 777 data/acme_ca/ca_certs.pem
-        sudo echo "$WCCE_CA_BUNDLE" > data/acme_ca/ca_certs.pem
+        sudo echo "$MSCA_CA_BUNDLE" > data/acme_ca/ca_certs.pem
         sudo touch data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/acme_srv.cfg
         sudo echo "host: $RUNNER_IP" >> data/acme_srv.cfg
-        sudo echo "user: $WCCE_USER" >> data/acme_srv.cfg
-        sudo echo "password: $WCCE_PASSWORD" >> data/acme_srv.cfg
-        sudo echo "template: $WCCE_TEMPLATE" >> data/acme_srv.cfg
-        sudo echo "ca_name: $WCCE_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> data/acme_srv.cfg
+        sudo echo "ca_name: $MSCA_NAME" >> data/acme_srv.cfg
+        sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> data/acme_srv.cfg
         sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
         sudo echo "timeout: 20" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/acme_srv.cfg
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        WCCE_USER: ${{ secrets.WCCE_USER }}
-        WCCE_PASSWORD: ${{ secrets.WCCE_PASSWORD }}
-        WCCE_TEMPLATE: ${{ secrets.WCCE_TEMPLATE }}
-        WCCE_CA_NAME: ${{ secrets.WCCE_CA_NAME }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
 
     - name: "NTLM - Execute install scipt"
       run: |
@@ -1758,32 +1659,23 @@ jobs:
         mkdir -p data/acme_ca
         sudo touch data/acme_ca/ca_certs.pem
         sudo chmod 777 data/acme_ca/ca_certs.pem
-        sudo echo "$WCCE_CA_BUNDLE" > data/acme_ca/ca_certs.pem
+        sudo echo "$MSCA_CA_BUNDLE" > data/acme_ca/ca_certs.pem
         sudo touch data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
-        sudo echo "user: $WCCE_USER" >> data/acme_srv.cfg
-        sudo echo "password: $WCCE_PASSWORD" >> data/acme_srv.cfg
-        sudo echo "template: $WCCE_TEMPLATE" >> data/acme_srv.cfg
-        sudo echo "ca_name: $WCCE_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> data/acme_srv.cfg
+        sudo echo "ca_name: $MSCA_NAME" >> data/acme_srv.cfg
+        sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> data/acme_srv.cfg
         sudo echo "domain_controller: $RUNNER_IP" >> data/acme_srv.cfg
         sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
         sudo echo "timeout: 20" >> data/acme_srv.cfg
         sudo echo "use_kerberos: True" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/acme_srv.cfg
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        WCCE_USER: ${{ secrets.WCCE_USER }}
-        WCCE_PASSWORD: ${{ secrets.WCCE_PASSWORD }}
-        WCCE_TEMPLATE: ${{ secrets.WCCE_TEMPLATE }}
-        WCCE_CA_NAME: ${{ secrets.WCCE_CA_NAME }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
 
     - name: "KRB - Reconfigure a2c "
       run: |
@@ -1814,12 +1706,12 @@ jobs:
         sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
-        sudo echo "user: $WCCE_USER" >> data/acme_srv.cfg
-        sudo echo "password: $WCCE_PASSWORD" >> data/acme_srv.cfg
-        sudo echo "template: $WCCE_TEMPLATE" >> data/acme_srv.cfg
-        sudo echo "ca_name: $WCCE_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> data/acme_srv.cfg
+        sudo echo "ca_name: $MSCA_NAME" >> data/acme_srv.cfg
+        sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> data/acme_srv.cfg
         sudo echo "domain_controller: $RUNNER_IP" >> data/acme_srv.cfg
         sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
         sudo echo "timeout: 20" >> data/acme_srv.cfg
@@ -1827,16 +1719,6 @@ jobs:
         sudo echo "enrollment_config_log: True" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServerModified\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/acme_srv.cfg
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        DNSMASQ_IP: ${{ env.DNSMASQ_IP }}
-        WCCE_USER: ${{ secrets.WCCE_USER }}
-        WCCE_PASSWORD: ${{ secrets.WCCE_PASSWORD }}
-        WCCE_TEMPLATE: ${{ secrets.WCCE_TEMPLATE }}
-        WCCE_CA_NAME: ${{ secrets.WCCE_CA_NAME }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
 
     - name: "ACME Profiling - Execute install scipt"
       run: |
@@ -1884,11 +1766,26 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse MSCA_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.MSCA_CFG }}
+
+    - name: "Parse JSON secret - GH_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse JSON secret - SSH_TUNNEL_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
         DJANGO_DB: psql
         RPM_BUILD: false
@@ -1920,29 +1817,20 @@ jobs:
         sudo cp .github/dnsmasq.conf dnsmasq/
         sudo chmod -R 777 dnsmasq/dnsmasq.conf
         sudo sed -i "s/RUNNER_IP/$RUNNER_IP/g" dnsmasq/dnsmasq.conf
-        sudo echo "address=/$WCCE_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-        sudo echo "address=/$WCCE_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
+        sudo echo "address=/$MSCA_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
+        sudo echo "address=/$MSCA_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
         sudo echo "address=/$WES_HOST/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
         cat dnsmasq/dnsmasq.conf
         sudo cp dnsmasq/dnsmasq.conf /etc/
         sudo sed -i "s/ --local-service/ /g" /etc/init.d/dnsmasq
         sudo systemctl enable dnsmasq
         sudo systemctl start dnsmasq
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WES_HOST: ${{ secrets.WES_HOST }}
 
     - name: "Test dns resulution"
       run: |
-        host $WCCE_ADS_DOMAIN ${{ env.RUNNER_IP }}
-        host $WCCE_FQDN ${{ env.RUNNER_IP }}
+        host $MSCA_ADS_DOMAIN ${{ env.RUNNER_IP }}
+        host $MSCA_FQDN ${{ env.RUNNER_IP }}
         host $WES_HOST 127.0.0.1
-      env:
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WES_HOST: ${{ secrets.WES_HOST }}
 
     - name: "Create letsencrypt and lego folder"
       run: |
@@ -1953,31 +1841,31 @@ jobs:
     - name: "Setup tunnel"
       uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
       with:
-        WCCE_SSH_USER: ${{ secrets.WCCE_SSH_USER }}
-        WCCE_SSH_HOST: ${{ secrets.WCCE_SSH_HOST }}
-        WCCE_SSH_PORT: ${{ secrets.WCCE_SSH_PORT }}
-        WCCE_HOST: ${{ secrets.WCCE_HOST }}
-        WCCE_FQDN_WOTLD: ${{ secrets.WCCE_FQDN_WOTLD }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
-        WCCE_SSH_KNOWN_HOSTS: ${{ secrets.WCCE_SSH_KNOWN_HOSTS }}
-        WCCE_SSH_ACCESS_KEY: ${{ secrets.WCCE_SSH_ACCESS_KEY }}
+        SSH_USER: ${{ env.SSH_USER }}
+        SSH_HOST: ${{ env.SSH_HOST }}
+        SSH_PORT: ${{ env.SSH_PORT }}
+        MSCA_IP: ${{ env.MSCA_IP }}
+        MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+        MSCA_FQDN: ${{ env.MSCA_FQDN }}
+        SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+        SSH_KEY: ${{ env.SSH_KEY }}
 
     - name: "EAB with headerinfo - Setup a2c with ms_wcce_ca_handler (Kerberos)"
       run: |
         mkdir -p data/acme_ca
         sudo touch data/acme_ca/ca_certs.pem
         sudo chmod 777 data/acme_ca/ca_certs.pem
-        sudo echo "$WCCE_CA_BUNDLE" > data/acme_ca/ca_certs.pem
+        sudo echo "$MSCA_CA_BUNDLE" > data/acme_ca/ca_certs.pem
         sudo touch data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
-        sudo echo "user: $WCCE_USER" >> data/acme_srv.cfg
-        sudo echo "password: $WCCE_PASSWORD" >> data/acme_srv.cfg
-        sudo echo "template: $WCCE_TEMPLATE" >> data/acme_srv.cfg
-        sudo echo "ca_name: $WCCE_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> data/acme_srv.cfg
+        sudo echo "ca_name: $MSCA_NAME" >> data/acme_srv.cfg
+        sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> data/acme_srv.cfg
         sudo echo "domain_controller: $RUNNER_IP" >> data/acme_srv.cfg
         sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
         sudo echo "timeout: 20" >> data/acme_srv.cfg
@@ -2000,15 +1888,6 @@ jobs:
         sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
         sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
 
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        WCCE_USER: ${{ secrets.WCCE_USER }}
-        WCCE_PASSWORD: ${{ secrets.WCCE_PASSWORD }}
-        WCCE_TEMPLATE: ${{ secrets.WCCE_TEMPLATE }}
-        WCCE_CA_NAME: ${{ secrets.WCCE_CA_NAME }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
 
     - name: "EAB with headerinfo - Execute install scipt"
       run: |
@@ -2022,17 +1901,17 @@ jobs:
         mkdir -p data/acme_ca
         sudo touch data/acme_ca/ca_certs.pem
         sudo chmod 777 data/acme_ca/ca_certs.pem
-        sudo echo "$WCCE_CA_BUNDLE" > data/acme_ca/ca_certs.pem
+        sudo echo "$MSCA_CA_BUNDLE" > data/acme_ca/ca_certs.pem
         sudo touch data/acme_srv.cfg
         sudo chmod 777 data/acme_srv.cfg
         sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
         sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "host: $WCCE_FQDN" >> data/acme_srv.cfg
-        sudo echo "user: $WCCE_USER" >> data/acme_srv.cfg
-        sudo echo "password: $WCCE_PASSWORD" >> data/acme_srv.cfg
-        sudo echo "template: $WCCE_TEMPLATE" >> data/acme_srv.cfg
-        sudo echo "ca_name: $WCCE_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "target_domain: $WCCE_ADS_DOMAIN" >> data/acme_srv.cfg
+        sudo echo "host: $MSCA_FQDN" >> data/acme_srv.cfg
+        sudo echo "user: $MSCA_USER" >> data/acme_srv.cfg
+        sudo echo "password: $MSCA_PASSWORD" >> data/acme_srv.cfg
+        sudo echo "template: $MSCA_TEMPLATE" >> data/acme_srv.cfg
+        sudo echo "ca_name: $MSCA_NAME" >> data/acme_srv.cfg
+        sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> data/acme_srv.cfg
         sudo echo "domain_controller: $RUNNER_IP" >> data/acme_srv.cfg
         sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/acme_srv.cfg
         sudo echo "timeout: 20" >> data/acme_srv.cfg
@@ -2056,15 +1935,6 @@ jobs:
         sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
         sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
 
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        WCCE_USER: ${{ secrets.WCCE_USER }}
-        WCCE_PASSWORD: ${{ secrets.WCCE_PASSWORD }}
-        WCCE_TEMPLATE: ${{ secrets.WCCE_TEMPLATE }}
-        WCCE_CA_NAME: ${{ secrets.WCCE_CA_NAME }}
-        WCCE_ADS_DOMAIN: ${{ secrets.WCCE_ADS_DOMAIN }}
-        WCCE_CA_BUNDLE: ${{ secrets.WCCE_CA_BUNDLE }}
-        WCCE_FQDN: ${{ secrets.WCCE_FQDN }}
 
     - name: "EAB ACME Profiling - Execute install scipt"
       run: |
