@@ -1,10 +1,10 @@
 name: "deb_prep"
 description: "Prepare environment for deb installation"
 inputs:
-  GH_SBOM_USER:
+  GH_USER:
     description: "GIT user for SBOM repo"
     required: true
-  GH_SBOM_TOKEN:
+  GH_SBOM_REPO_TOKEN:
     description: "GIT token for SBOM repo"
     required: true
   DJANGO_DB:

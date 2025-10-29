@@ -206,6 +206,11 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.CF_CFG }}
+
     - name: "[ PREPARE ] change dns"
       run: |
         sudo mkdir -p data
@@ -295,7 +300,6 @@ jobs:
         sudo sed -i "s/k8.acme.dynamop.de/k8.$WEB_SRV-$DB_HANDLER.acme.dynamop.de/g" data/k8s-cert-mgr-dns-01.yml
       env:
         ACME_IP: ${{ env.ACME_IP }}
-        CF_TOKEN: ${{ secrets.CF_TOKEN }}
         EMAIL: ${{ secrets.EMAIL }}
         WEB_SRV: ${{ matrix.websrv }}
         DB_HANDLER: ${{ matrix.dbhandler }}
@@ -427,6 +431,11 @@ jobs:
 
     - name: "checkout GIT"
       uses: actions/checkout@v4
+
+    - name: "Parse JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
 
     - name: "Get runner ip"
       run: |

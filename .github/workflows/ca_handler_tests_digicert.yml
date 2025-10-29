@@ -2,7 +2,7 @@ name: CA handler Tests - Digicert CertCentral
 
 on:
   push:
-    branches: [ 'devel', 'master', 'profile_wf']
+    branches: [ 'devel', 'master', 'wf_secret_optimization' , 'secret_optimization']
   pull_request:
     branches: [ devel ]
   schedule:
@@ -24,6 +24,11 @@ jobs:
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
+
+    - name: "Parse DIGICERT_CFG JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.DIGICERT_CFG }}
 
     - name: "create folders"
       run: |
@@ -52,9 +57,9 @@ jobs:
         cd examples/Docker/
         docker compose restart
       env:
-        DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ secrets.DIGICERT_DOMAIN }}
+        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -104,9 +109,9 @@ jobs:
         cd examples/Docker/
         docker compose restart
       env:
-        DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ secrets.DIGICERT_DOMAIN }}
+        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
     - name: "EAB - Test enrollment"
       uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_eab
@@ -129,9 +134,9 @@ jobs:
         cd examples/Docker/
         docker compose restart
       env:
-        DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ secrets.DIGICERT_DOMAIN }}
+        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
     - name: "ACME Profile - Test enrollment"
       uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_acmeprofile
@@ -169,9 +174,9 @@ jobs:
         cd examples/Docker/
         docker compose restart
       env:
-        DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ secrets.DIGICERT_DOMAIN }}
+        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
     - name: "EAB ACME Profile - Test enrollment"
       uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_eab_acmeprofile
@@ -213,11 +218,21 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse DIGICERT_CFG JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.DIGICERT_CFG }}
+
+    - name: "Parse GH_CFG JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
         NAME_SPACE: acme.dynamop.de
 
@@ -235,9 +250,9 @@ jobs:
         sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
       env:
-        DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ secrets.DIGICERT_DOMAIN }}
+        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
     - name: "Setup a2c with digicert_ca_handler for django"
       if: matrix.execscript == 'django_tester.sh'
@@ -253,9 +268,9 @@ jobs:
         sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
       env:
-        DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ secrets.DIGICERT_DOMAIN }}
+        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
     - name: "Execute install scipt"
       run: |
@@ -302,9 +317,9 @@ jobs:
         sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
         sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
       env:
-        DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ secrets.DIGICERT_DOMAIN }}
+        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
     - name: "EAB - Setup a2c with digicert_ca_handler"
       if: matrix.execscript == 'django_tester.sh'
@@ -335,9 +350,9 @@ jobs:
         sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
         sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
       env:
-        DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ secrets.DIGICERT_DOMAIN }}
+        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
     - name: "Reconfigure a2c"
       run: |
@@ -363,9 +378,9 @@ jobs:
         sudo echo "enrollment_config_log: True" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/acme_srv.cfg
       env:
-        DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ secrets.DIGICERT_DOMAIN }}
+        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
     - name: "ACME Profile -  - Setup a2c with digicert_ca_handler"
       if: matrix.execscript == 'django_tester.sh'
@@ -383,9 +398,9 @@ jobs:
         sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
       env:
-        DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ secrets.DIGICERT_DOMAIN }}
+        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
     - name: "Reconfigure a2c"
       run: |
@@ -427,9 +442,9 @@ jobs:
         sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
         sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
       env:
-        DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ secrets.DIGICERT_DOMAIN }}
+        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
     - name: "EAB ACME Profile - Setup a2c with digicert_ca_handler"
       if: matrix.execscript == 'django_tester.sh'
@@ -461,9 +476,9 @@ jobs:
         sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
         sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
       env:
-        DIGICERT_API_KEY: ${{ secrets.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ secrets.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ secrets.DIGICERT_DOMAIN }}
+        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
     - name: "Reconfigure a2c"
       run: |

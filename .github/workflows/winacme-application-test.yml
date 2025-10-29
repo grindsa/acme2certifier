@@ -20,6 +20,11 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret - CF_CFG"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.CF_CFG }}
+
     - name: "[ PREPARE ] get RunnerIP"
       run: |
         Get-NetIPAddress -AddressFamily IPv4
@@ -35,10 +40,10 @@ jobs:
         Invoke-RestMethod -ContentType "application/json" -Method PUT -Uri "${{ env.CF_DYNAMOP_URL }}" -Headers @{Authorization="Bearer ${{ env.CF_TOKEN }}" } -UseBasicParsing -Body '{"type":"A","name":"${{ env.CF_WINACME1_NAME }}","content":"${{ env.RUNNER_IP }}","ttl":120,"proxied":false}'
       shell: pwsh
       env:
-        CF_DYNAMOP_URL: ${{ secrets.CF_DYNAMOP_URL }}
-        CF_TOKEN: ${{ secrets.CF_TOKEN }}
-        CF_WINACME1_NAME: ${{ secrets.CF_WINACME1_NAME }}
-        CF_WINACME2_NAME: ${{ secrets.CF_WINACME2_NAME }}
+        CF_DYNAMOP_URL: ${{ env.CF_DYNAMOP_URL }}
+        CF_TOKEN: ${{ env.CF_TOKEN }}
+        CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
+        CF_WINACME2_NAME: ${{ env.CF_WINACME2_NAME }}
 
     - name: "Generate keys and certificates"
       uses: ./.github/actions/cert_gen
@@ -100,8 +105,8 @@ jobs:
         .\win-acme\wacs.exe --baseuri http://127.0.0.1:8080 --emailaddress=grindsa@bar.local --pemfilespath win-acme\certs --source manual --host "%CF_WINACME1_NAME%","%CF_WINACME2_NAME%" --store pemfiles --force
       shell: cmd
       env:
-        CF_WINACME1_NAME: ${{ secrets.CF_WINACME1_NAME }}
-        CF_WINACME2_NAME: ${{ secrets.CF_WINACME2_NAME }}
+        CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
+        CF_WINACME2_NAME: ${{ env.CF_WINACME2_NAME }}
 
     - name: "[ PREPARE ] try to get up the sslserver"
       run: |
@@ -155,7 +160,7 @@ jobs:
         New-PACertificate ${{ env.CF_WINACME1_NAME }} -Plugin WebSelfHost -PluginArgs @{}  -Force
       shell: pwsh
       env:
-        CF_WINACME1_NAME: ${{ secrets.CF_WINACME1_NAME }}
+        CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
 
 
     - name: "[ * ] collecting test logs"
