@@ -284,6 +284,16 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
+
     - name: Retrieve Version from version.py
       run: |
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
@@ -318,11 +328,8 @@ jobs:
 
     - name: "Retrieve rpms from SBOM repo"
       run: |
-        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
         cp /tmp/sbom/rpm-repo/RPMs/rhel9/*.rpm  data
-      env:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
     - name: "Prepare acme_srv.cfg with openssl_ca_handler"
       run: |
@@ -339,11 +346,6 @@ jobs:
         sudo echo "passphrase: $XCA_PASSPHRASE" >> data/acme_srv.cfg
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/acme_srv.cfg
         sudo echo "template_name: $XCA_TEMPLATE" >> data/acme_srv.cfg
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Almalinux instance"
       run: |
@@ -434,6 +436,16 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
+
     - name: Retrieve Version from version.py
       run: |
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
@@ -483,11 +495,8 @@ jobs:
 
     - name: "Retrieve rpms from SBOM repo"
       run: |
-        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
         cp /tmp/sbom/rpm-repo/RPMs/rhel9/*.rpm  data
-      env:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
     - name: "Configure acme2certifier"
       run: |
@@ -503,11 +512,6 @@ jobs:
         sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
         sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Almalinux instance"
       run: |
@@ -595,6 +599,16 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
+
     - name: Retrieve Version from version.py
       run: |
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
@@ -641,11 +655,8 @@ jobs:
 
     - name: "Retrieve rpms from SBOM repo"
       run: |
-        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
         cp /tmp/sbom/rpm-repo/RPMs/rhel9/*.rpm  data
-      env:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
     - name: "Configure acme2certifier"
       run: |
@@ -661,11 +672,6 @@ jobs:
         sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
         sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Almalinux instance"
       run: |
@@ -753,6 +759,16 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
+
     - name: Retrieve Version from version.py
       run: |
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
@@ -802,11 +818,8 @@ jobs:
 
     - name: "Retrieve rpms from SBOM repo"
       run: |
-        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
         cp /tmp/sbom/rpm-repo/RPMs/rhel9/*.rpm  data
-      env:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
 
     - name: "Configure acme2certifier"
       run: |
@@ -822,11 +835,6 @@ jobs:
         sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
         sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Almalinux instance"
       run: |
@@ -928,6 +936,11 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
+
     - name: "Prepare environment"
       run: |
         docker network create acme
@@ -1005,11 +1018,6 @@ jobs:
         docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
         docker exec acme-srv systemctl restart apache2
         docker exec acme-srv systemctl status apache2
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Test enrollment"
       run: |
@@ -1085,6 +1093,11 @@ jobs:
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
+
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
 
     - name: "Prepare environment"
       run: |
@@ -1166,11 +1179,6 @@ jobs:
         docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
         docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
         docker exec acme-srv systemctl restart apache2
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
@@ -1251,6 +1259,11 @@ jobs:
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
+
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
 
     - name: "Prepare environment"
       run: |
@@ -1351,11 +1364,6 @@ jobs:
         docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
         docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
         docker exec acme-srv systemctl restart apache2
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Test enrollment"
       run: |
@@ -1433,6 +1441,11 @@ jobs:
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
+
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
 
     - name: "Prepare environment"
       run: |
@@ -1542,11 +1555,6 @@ jobs:
         docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
         docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
         docker exec acme-srv systemctl restart apache2
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Test enrollment"
       run: |

@@ -23,6 +23,11 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
+
     - name: "Build container"
       uses: ./.github/actions/container_prep
       with:
@@ -48,11 +53,6 @@ jobs:
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -85,11 +85,6 @@ jobs:
         sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -116,11 +111,6 @@ jobs:
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Header-info - enrollment"
       uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_headerinfo
@@ -160,11 +150,6 @@ jobs:
 
         cd examples/Docker/
         docker compose restart
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "EAB - enrollment"
       uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab
@@ -205,11 +190,6 @@ jobs:
 
         cd examples/Docker/
         docker compose restart
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "EAB subject profiling - enrollment"
       uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_sp
@@ -233,11 +213,6 @@ jobs:
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "ACME Profile - enrollment"
       uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_acmeprofile
@@ -277,11 +252,6 @@ jobs:
 
         cd examples/Docker/
         docker compose restart
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "EAB ACME Profile - enrollment"
       uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_acmeprofile
@@ -317,11 +287,21 @@ jobs:
     - name: "checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
 
     - name: "No template - Setup a2c with xca_ca_handler"
@@ -340,11 +320,6 @@ jobs:
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/acme_srv.cfg
         # sudo echo "template_name: $XCA_TEMPLATE" >> data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "No template - Execute install scipt"
       run: |
@@ -377,11 +352,6 @@ jobs:
         sudo echo "passphrase: $XCA_PASSPHRASE" >> data/acme_srv.cfg
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/acme_srv.cfg
         sudo echo "template_name: $XCA_TEMPLATE" >> data/acme_srv.cfg
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Template - Reconfigure a2c "
       run: |
@@ -411,11 +381,6 @@ jobs:
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
         sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
         sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Header-info - Reconfigure a2c "
       run: |
@@ -455,11 +420,6 @@ jobs:
         sudo sed -i "s/www.example.com/www.example.local/g" data/acme_ca/kid_profiles.json
         sudo sed -i '22,24d' data/acme_ca/kid_profiles.json
         sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "EAB - Reconfigure a2c "
       run: |
@@ -499,11 +459,6 @@ jobs:
         sudo sed -i '22,24d' data/acme_ca/kid_profiles.json
         sudo sed -i '9d' data/acme_ca/kid_profiles.json
         sudo sed -i "s/\"api_user\"\: \"api_user\",/\"subject\"\: \{\n        \"serialNumber\"\: \"*\",\n        \"organizationName\"\: \"acme corp\",\n        \"organizationalUnitName\"\: \[\"acme1\", \"acme2\"\],\n        \"countryName\"\: \"AC\"\n       \}/g" data/acme_ca/kid_profiles.json
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "EAB subject profiling - Reconfigure a2c "
       run: |
@@ -531,11 +486,6 @@ jobs:
         sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/acme_srv.cfg
         sudo echo "template_name: $XCA_TEMPLATE" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/acme_srv.cfg
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "ACME Profile - Reconfigure a2c "
       run: |
@@ -574,11 +524,6 @@ jobs:
         sudo sed -i "s/www.example.com/www.example.local/g" data/acme_ca/kid_profiles.json
         sudo sed -i '22,24d' data/acme_ca/kid_profiles.json
         sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "EAB ACME Profile - Reconfigure a2c "
       run: |
