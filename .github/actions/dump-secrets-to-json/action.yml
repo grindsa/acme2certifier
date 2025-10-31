@@ -1,0 +1,107 @@
+name: 'Dump Secrets to JSON'
+description: 'Dumps a list of secrets into a JSON structure with secret names as keys and content as values'
+
+inputs:
+  secret_names:
+    description: 'Comma-separated list of secret names to dump'
+    required: true
+  output_file:
+    description: 'Output file path for the JSON structure'
+    required: false
+    default: 'secrets.json'
+  mask_values:
+    description: 'Whether to mask secret values in logs (true/false)'
+    required: false
+    default: 'true'
+
+outputs:
+  json_file:
+    description: 'Path to the generated JSON file'
+    value: ${{ steps.create-json.outputs.json_file }}
+  secret_count:
+    description: 'Number of secrets processed'
+    value: ${{ steps.create-json.outputs.secret_count }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Create secrets JSON
+      id: create-json
+      shell: bash
+      env:
+        SECRET_NAMES: ${{ inputs.secret_names }}
+        OUTPUT_FILE: ${{ inputs.output_file }}
+        MASK_VALUES: ${{ inputs.mask_values }}
+      run: |
+        # Initialize JSON object
+        echo "{" > "$OUTPUT_FILE"
+
+        # Convert comma-separated list to array
+        IFS=',' read -ra SECRETS <<< "$SECRET_NAMES"
+        secret_count=0
+        total_secrets=${#SECRETS[@]}
+
+        echo "Processing $total_secrets secrets..."
+
+        for i in "${!SECRETS[@]}"; do
+          secret_name=$(echo "${SECRETS[$i]}" | xargs)  # Trim whitespace
+          secret_count=$((secret_count + 1))
+
+          # Get the secret value from environment
+          secret_value="${!secret_name}"
+
+          if [ -n "$secret_value" ]; then
+            # Escape JSON special characters in the secret value
+            escaped_value=$(echo "$secret_value" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g')
+
+            # Add comma if not the first entry
+            if [ $i -gt 0 ]; then
+              echo "," >> "$OUTPUT_FILE"
+            fi
+
+            # Add the key-value pair
+            echo -n "  \"$secret_name\": \"$escaped_value\"" >> "$OUTPUT_FILE"
+
+            if [ "$MASK_VALUES" = "true" ]; then
+              echo "✓ Added secret: $secret_name (value masked)"
+            else
+              echo "✓ Added secret: $secret_name"
+            fi
+          else
+            echo "⚠️  Warning: Secret '$secret_name' is empty or not found"
+
+            # Add comma if not the first entry
+            if [ $i -gt 0 ]; then
+              echo "," >> "$OUTPUT_FILE"
+            fi
+
+            # Add null value for missing secrets
+            echo -n "  \"$secret_name\": null" >> "$OUTPUT_FILE"
+          fi
+        done
+
+        # Close JSON object
+        echo "" >> "$OUTPUT_FILE"
+        echo "}" >> "$OUTPUT_FILE"
+
+        echo "json_file=$OUTPUT_FILE" >> $GITHUB_OUTPUT
+        echo "secret_count=$secret_count" >> $GITHUB_OUTPUT
+
+        echo "JSON file created: $OUTPUT_FILE"
+        echo "Secrets processed: $secret_count"
+
+        # Show file size
+        file_size=$(wc -c < "$OUTPUT_FILE")
+        echo "File size: $file_size bytes"
+
+        # Validate JSON syntax
+        if command -v jq >/dev/null 2>&1; then
+          if jq empty "$OUTPUT_FILE" 2>/dev/null; then
+            echo "✓ JSON syntax is valid"
+          else
+            echo "❌ JSON syntax is invalid"
+            exit 1
+          fi
+        else
+          echo "⚠️  jq not available, skipping JSON validation"
+        fi

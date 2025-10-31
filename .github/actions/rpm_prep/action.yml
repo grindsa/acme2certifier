@@ -1,10 +1,10 @@
 name: "rpm_prep"
 description: "Prepare environment for RPM installation"
 inputs:
-  GH_SBOM_USER:
+  GH_USER:
     description: "GIT user for SBOM repo"
     required: true
-  GH_SBOM_TOKEN:
+  GH_SBOM_REPO_TOKEN:
     description: "GIT token for SBOM repo"
     required: true
   RH_VERSION:
@@ -82,11 +82,11 @@ runs:
 
     - name: "Retrieve rpms from SBOM repo"
       run: |
-        git clone https://$GH_SBOM_USER:$GH_SBOM_TOKEN@github.com/$GH_SBOM_USER/sbom /tmp/sbom
+        git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
         cp /tmp/sbom/rpm-repo/RPMs/rhel$RH_VERSION/*.rpm  data
       env:
-        GH_SBOM_USER: ${{ inputs.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ inputs.GH_SBOM_TOKEN }}
+        GH_USER: ${{ inputs.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ inputs.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ inputs.RH_VERSION }}
       shell: bash
 
