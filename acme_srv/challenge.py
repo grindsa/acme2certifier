@@ -115,7 +115,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 name=name,
                 type=challenge_dic.get("type", ""),
                 token=challenge_dic.get("token", ""),
-                status=challenge_dic.get("status__name", "pending"),
+                status=challenge_dic.get("status", "pending"),
                 authorization_name="",  # Would need additional query
                 authorization_type="",  # Would need additional query
                 authorization_value="",  # Would need additional query
@@ -291,9 +291,6 @@ class Challenge:
         """Create standardized success response."""
         self.logger.debug("Challenge._create_success_response() called")
         status_dic = {"code": 200, "type": None, "detail": None}
-        print(response_dic)
-
-        raise NotImplementedError("is_supported() not implemented")
         return self.message.prepare_response(response_dic, status_dic)
 
     def _execute_challenge_validation(
@@ -591,12 +588,7 @@ class Challenge:
 
             # Perform actual validation
             validation_result = self._execute_challenge_validation(challenge_name, payload)
-
-            # Update challenge state based on result
-            self.logger.debug("Challenge._perform_challenge_validation() ended")
-            return self._update_challenge_state_from_validation(
-                challenge_name, validation_result
-            )
+            result = self._update_challenge_state_from_validation(challenge_name, validation_result)
 
         except Exception as err:
             error_detail = self.error_handler.handle_error(
@@ -610,7 +602,12 @@ class Challenge:
                 self.config.source_address
             )
             self.logger.debug("Challenge._perform_challenge_validation() ended with error")
-            return False
+            result = False
+
+        # Update challenge state based on result
+        self.logger.debug("Challenge._perform_challenge_validation() ended with: %s", result)
+        # raise Exception('bump')
+        return result
 
     def _perform_source_address_validation(self, challenge_name: str) -> Tuple[bool, bool]:
         """Perform source address validation checks."""
