@@ -66,9 +66,10 @@ class ChallengeConfiguration:
 class DatabaseChallengeRepository(ChallengeRepository):
     """Database implementation of challenge repository."""
 
-    def __init__(self, dbstore: DBstore, logger):
+    def __init__(self, dbstore: DBstore, logger, expiry: float = 3600):
         self.dbstore = dbstore
         self.logger = logger
+        self.expiry = expiry
 
     def find_challenges_by_authorization(self, authorization_name: str) -> List[ChallengeInfo]:
         """Find all challenges for a given authorization."""
@@ -120,7 +121,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 authorization_type="",  # Would need additional query
                 authorization_value="",  # Would need additional query
                 url="",  # Will be constructed later
-                validated=challenge_dic.get("validated")
+                validated=uts_to_date_utc(challenge_dic.get("validated")) if challenge_dic.get("status") == "valid" else None
             )
         except Exception as err:
             self.logger.critical("Database error: failed to lookup challenge: %s", err)
@@ -133,7 +134,8 @@ class DatabaseChallengeRepository(ChallengeRepository):
             challenge_name = generate_random_string(self.logger, 12)
             data_dic = {
                 "name": challenge_name,
-                "expires": request.expiry,
+                "expires": uts_now() + self.expiry,
+                # "expires": request.expires if request.expires else uts_now() + self.expiry,
                 "type": request.challenge_type,
                 "token": request.token,
                 "authorization": request.authorization_name,
@@ -375,7 +377,6 @@ class Challenge:
             self.logger.debug("Challenge._get_challenge_validation_details() ended with error")
             return None
 
-
     def _handle_challenge_validation_request(
         self,
         code: int,
@@ -411,6 +412,10 @@ class Challenge:
                 "Link": f'<{self.server_name}{self.path_dic["authz_path"]}>;rel="up"'
             }
         }
+
+        # add validated flag if challenge is valid
+        if updated_challenge_info.validated and updated_challenge_info.status == "valid":
+            response_dic["data"]["validated"] = updated_challenge_info.validated
 
         self.logger.debug("Challenge._handle_challenge_validation_request() ended")
         return self._create_success_response(response_dic)
