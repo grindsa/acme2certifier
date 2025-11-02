@@ -37,7 +37,7 @@ from acme_srv.challenge_business_logic import (
 )
 from acme_srv.challenge_error_handling import (
     ErrorHandler,
-    #    ChallengeError,
+    ChallengeError,
     ValidationError,
     DatabaseError,
     UnsupportedChallengeTypeError
@@ -242,6 +242,7 @@ class Challenge:
         self.expiry = expiry
         self.server_name = srv_name
         self.path_dic = {"chall_path": "/acme/chall/", "authz_path": "/acme/authz/"}
+        self.source_address = source
 
         # Initialize core components
         self.dbstore = DBstore(debug, self.logger)
@@ -435,11 +436,11 @@ class Challenge:
             invalid = False
 
         if invalid:
-            self.state_manager.transition_to_invalid(challenge_name, self.config.source_address)
+            self.state_manager.transition_to_invalid(challenge_name, self.source_address)
         elif challenge_check:
             self.state_manager.transition_to_valid(
                 challenge_name,
-                self.config.source_address,
+                self.source_address,
                 uts_now()
             )
         self.logger.debug("Challenge._handle_validation_disabled() ended with: %s", challenge_check)
@@ -604,7 +605,7 @@ class Challenge:
             # Mark challenge as invalid on error
             self.state_manager.transition_to_invalid(
                 challenge_name,
-                self.config.source_address
+                self.source_address
             )
             self.logger.debug("Challenge._perform_challenge_validation() ended with error")
             result = False
@@ -618,6 +619,8 @@ class Challenge:
         """Perform source address validation checks."""
         # This would implement the source address checking logic
         # from the original _source_address_check method
+
+        raise NotImplementedError("Source address validation not implemented yet")
         return True, False  # Placeholder implementation
 
     def _perform_validation_with_retry(
@@ -663,13 +666,13 @@ class Challenge:
         if validation_result.invalid:
             self.state_manager.transition_to_invalid(
                 challenge_name,
-                self.config.source_address
+                self.source_address
             )
             return False
         elif validation_result.success:
             self.state_manager.transition_to_valid(
                 challenge_name,
-                self.config.source_address,
+                self.source_address,
                 uts_now()
             )
             return True
