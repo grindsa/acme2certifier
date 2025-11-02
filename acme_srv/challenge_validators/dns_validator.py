@@ -14,6 +14,7 @@ class DnsChallengeValidator(ChallengeValidator):
 
     def perform_validation(self, context: ChallengeContext) -> ValidationResult:
         """Perform DNS-01 challenge validation."""
+        self.logger.debug("DnsChallengeValidator.perform_validation()")
         try:
             from acme_srv.helper import b64_url_encode, sha256_hash, txt_get
         except ImportError as e:
@@ -39,7 +40,13 @@ class DnsChallengeValidator(ChallengeValidator):
         # Query DNS
         txt_records = txt_get(self.logger, dns_record_name, context.dns_servers)
 
-        success = expected_hash in txt_records
+        if expected_hash in txt_records:
+            success = True
+        else:
+            success = False
+            self.logger.debug("DnsChallengeValidator.perform_validation(): Expected hash %s not found in DNS records: %s", expected_hash, txt_records)
+
+        self.logger.debug("DnsChallengeValidator.perform_validation() ended with: %s", success)
         return ValidationResult(
             success=success,
             invalid=not success,
@@ -53,6 +60,9 @@ class DnsChallengeValidator(ChallengeValidator):
 
     def _handle_wildcard_domain(self, fqdn: str) -> str:
         """Handle wildcard domain by removing the '*.' prefix."""
+        self.logger.debug("DnsChallengeValidator._handle_wildcard_domain() called with: %s", fqdn)
         if fqdn.startswith("*."):
-            return fqdn[2:]
+            fqdn = fqdn[2:]
+            self.logger.debug("DnsChallengeValidator._handle_wildcard_domain(): Wildcard domain detected, updated FQDN: %s", fqdn)
+        self.logger.debug("DnsChallengeValidator._handle_wildcard_domain() returning: %s", fqdn)
         return fqdn

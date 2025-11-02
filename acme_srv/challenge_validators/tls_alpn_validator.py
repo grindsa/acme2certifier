@@ -14,6 +14,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
 
     def perform_validation(self, context: ChallengeContext) -> ValidationResult:
         """Perform TLS-ALPN-01 challenge validation."""
+        self.logger.debug("TlsAlpnChallengeValidator.perform_validation()")
         try:
             from acme_srv.helper import (
                 fqdn_resolve, ip_validate, proxy_check, servercert_get,
@@ -86,6 +87,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
             cert, extension_value, context.authorization_value
         )
 
+        self.logger.debug("TlsAlpnChallengeValidator.perform_validation() ended with: %s", success)
         return ValidationResult(
             success=success,
             invalid=not success,
@@ -98,6 +100,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
 
     def _validate_certificate_extensions(self, cert: str, extension_value: str, fqdn: str) -> bool:
         """Validate certificate extensions for TLS-ALPN challenge."""
+        self.logger.debug("TlsAlpnChallengeValidator._validate_certificate_extensions()")
         try:
             from acme_srv.helper import cert_san_get, fqdn_in_san_check, cert_extensions_get
         except ImportError:
@@ -108,13 +111,13 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         fqdn_in_san = fqdn_in_san_check(self.logger, san_list, fqdn)
 
         if not fqdn_in_san:
-            self.logger.debug("FQDN check against SAN failed")
+            self.logger.debug("TlsAlpnChallengeValidator._validate_certificate_extensions(): FQDN check against SAN failed")
             return False
 
         extension_list = cert_extensions_get(self.logger, cert, recode=False)
         if extension_value in extension_list:
-            self.logger.debug("TLS-ALPN validation successful")
+            self.logger.debug("TlsAlpnChallengeValidator._validate_certificate_extensions(): TLS-ALPN validation successful")
             return True
         else:
-            self.logger.debug("TLS-ALPN validation not successful")
+            self.logger.debug("TlsAlpnChallengeValidator._validate_certificate_extensions(): TLS-ALPN validation not successful")
             return False
