@@ -22,7 +22,7 @@ class DnsChallengeValidator(ChallengeValidator):
                 success=False,
                 invalid=True,
                 error_message=f"Required dependencies not available: {e}",
-                details={"import_error": str(e)}
+                details={"import_error": str(e)},
             )
 
         # Handle wildcard domain
@@ -34,7 +34,7 @@ class DnsChallengeValidator(ChallengeValidator):
         # Compute expected hash
         expected_hash = b64_url_encode(
             self.logger,
-            sha256_hash(self.logger, f"{context.token}.{context.jwk_thumbprint}")
+            sha256_hash(self.logger, f"{context.token}.{context.jwk_thumbprint}"),
         )
 
         # Query DNS
@@ -44,9 +44,15 @@ class DnsChallengeValidator(ChallengeValidator):
             success = True
         else:
             success = False
-            self.logger.debug("DnsChallengeValidator.perform_validation(): Expected hash %s not found in DNS records: %s", expected_hash, txt_records)
+            self.logger.debug(
+                "DnsChallengeValidator.perform_validation(): Expected hash %s not found in DNS records: %s",
+                expected_hash,
+                txt_records,
+            )
 
-        self.logger.debug("DnsChallengeValidator.perform_validation() ended with: %s", success)
+        self.logger.debug(
+            "DnsChallengeValidator.perform_validation() ended with: %s", success
+        )
         return ValidationResult(
             success=success,
             invalid=not success,
@@ -54,15 +60,22 @@ class DnsChallengeValidator(ChallengeValidator):
             details={
                 "dns_record": dns_record_name,
                 "expected_hash": expected_hash,
-                "found_records": txt_records
-            }
+                "found_records": txt_records,
+            },
         )
 
     def _handle_wildcard_domain(self, fqdn: str) -> str:
         """Handle wildcard domain by removing the '*.' prefix."""
-        self.logger.debug("DnsChallengeValidator._handle_wildcard_domain() called with: %s", fqdn)
+        self.logger.debug(
+            "DnsChallengeValidator._handle_wildcard_domain() called with: %s", fqdn
+        )
         if fqdn.startswith("*."):
             fqdn = fqdn[2:]
-            self.logger.debug("DnsChallengeValidator._handle_wildcard_domain(): Wildcard domain detected, updated FQDN: %s", fqdn)
-        self.logger.debug("DnsChallengeValidator._handle_wildcard_domain() returning: %s", fqdn)
+            self.logger.debug(
+                "DnsChallengeValidator._handle_wildcard_domain(): Wildcard domain detected, updated FQDN: %s",
+                fqdn,
+            )
+        self.logger.debug(
+            "DnsChallengeValidator._handle_wildcard_domain() returning: %s", fqdn
+        )
         return fqdn

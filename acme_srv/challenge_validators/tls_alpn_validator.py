@@ -17,15 +17,19 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         self.logger.debug("TlsAlpnChallengeValidator.perform_validation()")
         try:
             from acme_srv.helper import (
-                fqdn_resolve, ip_validate, proxy_check, servercert_get,
-                sha256_hash_hex, b64_encode
+                fqdn_resolve,
+                ip_validate,
+                proxy_check,
+                servercert_get,
+                sha256_hash_hex,
+                b64_encode,
             )
         except ImportError as e:
             return ValidationResult(
                 success=False,
                 invalid=True,
                 error_message=f"Required dependencies not available: {e}",
-                details={"import_error": str(e)}
+                details={"import_error": str(e)},
             )
 
         # Determine SNI value
@@ -37,7 +41,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                 return ValidationResult(
                     success=False,
                     invalid=True,
-                    error_message="DNS resolution failed for TLS-ALPN validation"
+                    error_message="DNS resolution failed for TLS-ALPN validation",
                 )
             sni = context.authorization_value
         elif context.authorization_type == "ip":
@@ -46,13 +50,13 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                 return ValidationResult(
                     success=False,
                     invalid=True,
-                    error_message="Invalid IP address for TLS-ALPN validation"
+                    error_message="Invalid IP address for TLS-ALPN validation",
                 )
         else:
             return ValidationResult(
                 success=False,
                 invalid=True,
-                error_message="Unsupported authorization type for TLS-ALPN"
+                error_message="Unsupported authorization type for TLS-ALPN",
             )
 
         # Compute expected extension value
@@ -79,7 +83,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
             return ValidationResult(
                 success=False,
                 invalid=False,
-                error_message="Unable to retrieve server certificate"
+                error_message="Unable to retrieve server certificate",
             )
 
         # Validate certificate extensions
@@ -87,37 +91,54 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
             cert, extension_value, context.authorization_value
         )
 
-        self.logger.debug("TlsAlpnChallengeValidator.perform_validation() ended with: %s", success)
+        self.logger.debug(
+            "TlsAlpnChallengeValidator.perform_validation() ended with: %s", success
+        )
         return ValidationResult(
             success=success,
             invalid=not success,
-            error_message=None if success else "Certificate extension validation failed",
-            details={
-                "expected_extension": extension_value,
-                "sni": sni
-            }
+            error_message=None
+            if success
+            else "Certificate extension validation failed",
+            details={"expected_extension": extension_value, "sni": sni},
         )
 
-    def _validate_certificate_extensions(self, cert: str, extension_value: str, fqdn: str) -> bool:
+    def _validate_certificate_extensions(
+        self, cert: str, extension_value: str, fqdn: str
+    ) -> bool:
         """Validate certificate extensions for TLS-ALPN challenge."""
-        self.logger.debug("TlsAlpnChallengeValidator._validate_certificate_extensions()")
+        self.logger.debug(
+            "TlsAlpnChallengeValidator._validate_certificate_extensions()"
+        )
         try:
-            from acme_srv.helper import cert_san_get, fqdn_in_san_check, cert_extensions_get
+            from acme_srv.helper import (
+                cert_san_get,
+                fqdn_in_san_check,
+                cert_extensions_get,
+            )
         except ImportError:
-            self.logger.error("Required helper functions not available for certificate validation")
+            self.logger.error(
+                "Required helper functions not available for certificate validation"
+            )
             return False
 
         san_list = cert_san_get(self.logger, cert, recode=False)
         fqdn_in_san = fqdn_in_san_check(self.logger, san_list, fqdn)
 
         if not fqdn_in_san:
-            self.logger.debug("TlsAlpnChallengeValidator._validate_certificate_extensions(): FQDN check against SAN failed")
+            self.logger.debug(
+                "TlsAlpnChallengeValidator._validate_certificate_extensions(): FQDN check against SAN failed"
+            )
             return False
 
         extension_list = cert_extensions_get(self.logger, cert, recode=False)
         if extension_value in extension_list:
-            self.logger.debug("TlsAlpnChallengeValidator._validate_certificate_extensions(): TLS-ALPN validation successful")
+            self.logger.debug(
+                "TlsAlpnChallengeValidator._validate_certificate_extensions(): TLS-ALPN validation successful"
+            )
             return True
         else:
-            self.logger.debug("TlsAlpnChallengeValidator._validate_certificate_extensions(): TLS-ALPN validation not successful")
+            self.logger.debug(
+                "TlsAlpnChallengeValidator._validate_certificate_extensions(): TLS-ALPN validation not successful"
+            )
             return False
