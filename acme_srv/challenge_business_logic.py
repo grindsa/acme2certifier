@@ -412,6 +412,16 @@ class ChallengeService:
 
         challenge_list = []
 
+        if email_identifier_support and "@" in id_value:
+            # in case of an email identifier we return only one challenge
+            self.logger.debug(
+                "ChallengeService._create_new_challenge_set(): Creating email-reply-00 challenge for email identifier"
+            )
+            challenge = self.factory.create_email_reply_challenge(
+                authorization_name, token, id_value
+            )
+            return [challenge] if challenge else []
+
         if tnauthlist_support:
             challenge = self.factory.create_tkauth_challenge(authorization_name, token)
             challenge_list.append(challenge) if challenge else None
@@ -419,12 +429,6 @@ class ChallengeService:
         if sectigo_sim:
             challenge = self.factory._create_single_challenge(
                 authorization_name, "sectigo-email-01", token
-            )
-            challenge_list.append(challenge) if challenge else None
-
-        if email_identifier_support and "@" in id_value:
-            challenge = self.factory.create_email_reply_challenge(
-                authorization_name, token, id_value
             )
             challenge_list.append(challenge) if challenge else None
 
