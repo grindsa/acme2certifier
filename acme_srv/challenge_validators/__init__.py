@@ -20,7 +20,7 @@ from .base import (
     ValidationResult,
     ChallengeValidationError,
     ValidationTimeoutError,
-    InvalidChallengeTypeError
+    InvalidChallengeTypeError,
 )
 
 # Import registry
@@ -32,23 +32,23 @@ from .dns_validator import DnsChallengeValidator
 from .tls_alpn_validator import TlsAlpnChallengeValidator
 from .email_reply_validator import EmailReplyChallengeValidator
 from .tkauth_validator import TkauthChallengeValidator
+from .source_address_validator import SourceAddressValidator
 
 __all__ = [
     # Base classes
-    'ChallengeValidator',
-    'ChallengeContext',
-    'ValidationResult',
-    'ChallengeValidationError',
-    'ValidationTimeoutError',
-    'InvalidChallengeTypeError',
-
+    "ChallengeValidator",
+    "ChallengeContext",
+    "ValidationResult",
+    "ChallengeValidationError",
+    "ValidationTimeoutError",
+    "InvalidChallengeTypeError",
     # Registry
-    'ChallengeValidatorRegistry',
-
+    "ChallengeValidatorRegistry",
     # Validators
-    'HttpChallengeValidator',
-    'DnsChallengeValidator',
-    'TlsAlpnChallengeValidator',
-    'EmailReplyChallengeValidator',
-    'TkauthChallengeValidator'
+    "HttpChallengeValidator",
+    "DnsChallengeValidator",
+    "TlsAlpnChallengeValidator",
+    "EmailReplyChallengeValidator",
+    "TkauthChallengeValidator",
+    "SourceAddressValidator",
 ]

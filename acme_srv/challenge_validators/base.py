@@ -13,6 +13,7 @@ import logging
 @dataclass
 class ValidationResult:
     """Structured result from challenge validation."""
+
     success: bool
     invalid: bool
     error_message: Optional[str] = None
@@ -22,6 +23,7 @@ class ValidationResult:
 @dataclass
 class ChallengeContext:
     """Context information for challenge validation."""
+
     challenge_name: str
     token: str
     jwk_thumbprint: str
@@ -30,20 +32,24 @@ class ChallengeContext:
     dns_servers: Optional[List[str]] = None
     proxy_servers: Optional[Dict[str, str]] = None
     timeout: int = 10
+    source_address: Optional[str] = None  # For source address validation
 
 
 class ChallengeValidationError(Exception):
     """Base exception for challenge validation errors."""
+
     pass
 
 
 class ValidationTimeoutError(ChallengeValidationError):
     """Raised when validation times out."""
+
     pass
 
 
 class InvalidChallengeTypeError(ChallengeValidationError):
     """Raised when an unsupported challenge type is encountered."""
+
     pass
 
 
@@ -84,7 +90,7 @@ class ChallengeValidator(ABC):
         self.logger.debug(
             "Starting %s validation for challenge: %s",
             self.get_challenge_type(),
-            context.challenge_name
+            context.challenge_name,
         )
 
         try:
@@ -94,7 +100,7 @@ class ChallengeValidator(ABC):
                 self.get_challenge_type(),
                 context.challenge_name,
                 result.success,
-                result.invalid
+                result.invalid,
             )
             return result
         except Exception as e:
@@ -102,11 +108,11 @@ class ChallengeValidator(ABC):
                 "%s validation failed for %s: %s",
                 self.get_challenge_type(),
                 context.challenge_name,
-                str(e)
+                str(e),
             )
             return ValidationResult(
                 success=False,
                 invalid=True,
                 error_message=str(e),
-                details={"exception_type": type(e).__name__}
+                details={"exception_type": type(e).__name__},
             )

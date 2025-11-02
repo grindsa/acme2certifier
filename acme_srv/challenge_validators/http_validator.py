@@ -23,7 +23,7 @@ class HttpChallengeValidator(ChallengeValidator):
                 success=False,
                 invalid=True,
                 error_message=f"Required dependencies not available: {e}",
-                details={"import_error": str(e)}
+                details={"import_error": str(e)},
             )
 
         # Determine if we're dealing with DNS or IP
@@ -36,7 +36,7 @@ class HttpChallengeValidator(ChallengeValidator):
                     success=False,
                     invalid=True,
                     error_message="DNS resolution failed",
-                    details={"fqdn": context.authorization_value}
+                    details={"fqdn": context.authorization_value},
                 )
         elif context.authorization_type == "ip":
             _, invalid = ip_validate(self.logger, context.authorization_value)
@@ -45,14 +45,14 @@ class HttpChallengeValidator(ChallengeValidator):
                     success=False,
                     invalid=True,
                     error_message="Invalid IP address",
-                    details={"ip": context.authorization_value}
+                    details={"ip": context.authorization_value},
                 )
         else:
             return ValidationResult(
                 success=False,
                 invalid=True,
                 error_message="Unsupported authorization type",
-                details={"type": context.authorization_type}
+                details={"type": context.authorization_type},
             )
 
         # Check for proxy configuration
@@ -78,7 +78,7 @@ class HttpChallengeValidator(ChallengeValidator):
                 success=False,
                 invalid=False,
                 error_message="HTTP request failed",
-                details={"url": url}
+                details={"url": url},
             )
 
         response_got = req.splitlines()[0]
@@ -92,6 +92,6 @@ class HttpChallengeValidator(ChallengeValidator):
             details={
                 "expected": response_expected,
                 "received": response_got,
-                "url": url
-            }
+                "url": url,
+            },
         )

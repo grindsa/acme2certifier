@@ -20,7 +20,7 @@ class TkauthChallengeValidator(ChallengeValidator):
         self.logger.debug(
             "TKAuth validation for challenge %s with authorization value %s",
             context.challenge_name,
-            context.authorization_value
+            context.authorization_value,
         )
 
         return ValidationResult(
@@ -28,6 +28,6 @@ class TkauthChallengeValidator(ChallengeValidator):
             invalid=False,
             details={
                 "validation_type": "tkauth-01",
-                "authorization_value": context.authorization_value
-            }
+                "authorization_value": context.authorization_value,
+            },
         )

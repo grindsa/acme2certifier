@@ -32,19 +32,27 @@ class TestChallengeComprehensive(unittest.TestCase):
         self.mock_dbstore.challenge_lookup.return_value = {}
         self.mock_dbstore.challenges_search.return_value = []
         self.mock_dbstore.challenge_add.return_value = "test_challenge_name"
-        self.mock_dbstore.authorization_lookup.return_value = {'name': 'test_authz'}
+        self.mock_dbstore.authorization_lookup.return_value = {"name": "test_authz"}
 
         # Create patches for external modules/functions only - NO INTERNAL CHALLENGE METHODS
         self.patches = [
-            patch('acme_srv.challenge.DBstore', return_value=self.mock_dbstore),
-            patch('acme_srv.challenge.Message', return_value=self.mock_message),
-            patch('acme_srv.challenge.EmailHandler', return_value=self.mock_email_handler),
-            patch('acme_srv.challenge.load_config'),
-            patch('acme_srv.challenge.error_dic_get', return_value={'malformed': 'malformed request'}),
-            patch('acme_srv.challenge.generate_random_string', return_value='random_string'),
-            patch('acme_srv.challenge.uts_now', return_value=1609459200),
-            patch('acme_srv.challenge.time.sleep'),
-            patch('acme_srv.challenge.ThreadWithReturnValue'),
+            patch("acme_srv.challenge.DBstore", return_value=self.mock_dbstore),
+            patch("acme_srv.challenge.Message", return_value=self.mock_message),
+            patch(
+                "acme_srv.challenge.EmailHandler", return_value=self.mock_email_handler
+            ),
+            patch("acme_srv.challenge.load_config"),
+            patch(
+                "acme_srv.challenge.error_dic_get",
+                return_value={"malformed": "malformed request"},
+            ),
+            patch(
+                "acme_srv.challenge.generate_random_string",
+                return_value="random_string",
+            ),
+            patch("acme_srv.challenge.uts_now", return_value=1609459200),
+            patch("acme_srv.challenge.time.sleep"),
+            patch("acme_srv.challenge.ThreadWithReturnValue"),
         ]
 
         # Start all patches
@@ -60,7 +68,7 @@ class TestChallengeComprehensive(unittest.TestCase):
             srv_name="http://test.local",
             logger=self.logger,
             source="test_source",
-            expiry=3600
+            expiry=3600,
         )
 
     def tearDown(self):
@@ -86,17 +94,17 @@ class TestChallengeComprehensive(unittest.TestCase):
         # Mock existing challenges from database
         existing_challenges = [
             {
-                'name': 'chall1',
-                'type': 'http-01',
-                'token': 'token1',
-                'status__name': 'pending'
+                "name": "chall1",
+                "type": "http-01",
+                "token": "token1",
+                "status__name": "pending",
             },
             {
-                'name': 'chall2',
-                'type': 'dns-01',
-                'token': 'token2',
-                'status__name': 'pending'
-            }
+                "name": "chall2",
+                "type": "dns-01",
+                "token": "token2",
+                "status__name": "pending",
+            },
         ]
 
         self.mock_dbstore.challenges_search.return_value = existing_challenges
@@ -112,15 +120,17 @@ class TestChallengeComprehensive(unittest.TestCase):
 
         # Verify challenge structure
         for challenge in result:
-            self.assertIn('type', challenge)
-            self.assertIn('token', challenge)
-            self.assertIn('url', challenge)
-            self.assertIn('status', challenge)
-            self.assertTrue(challenge['url'].startswith('http://test.local/acme/chall/'))
+            self.assertIn("type", challenge)
+            self.assertIn("token", challenge)
+            self.assertIn("url", challenge)
+            self.assertIn("status", challenge)
+            self.assertTrue(
+                challenge["url"].startswith("http://test.local/acme/chall/")
+            )
 
         # Verify database was called correctly
         self.mock_dbstore.challenges_search.assert_called_once_with(
-            'authorization__name', authz_name, ('name', 'type', 'status__name', 'token')
+            "authorization__name", authz_name, ("name", "type", "status__name", "token")
         )
 
     def test_challengeset_get_no_existing_challenges(self):
@@ -156,9 +166,7 @@ class TestChallengeComprehensive(unittest.TestCase):
         self.mock_dbstore.challenges_search.return_value = []
 
         # Act - Real end-to-end execution
-        result = self.challenge.challengeset_get(
-            authz_name, auth_status, token, tnauth
-        )
+        result = self.challenge.challengeset_get(authz_name, auth_status, token, tnauth)
 
         # Assert
         self.assertIsInstance(result, list)
@@ -175,9 +183,7 @@ class TestChallengeComprehensive(unittest.TestCase):
         self.mock_dbstore.challenges_search.side_effect = Exception("Database error")
 
         # Act - Real method execution with error handling
-        result = self.challenge.challengeset_get(
-            authz_name, auth_status, token, tnauth
-        )
+        result = self.challenge.challengeset_get(authz_name, auth_status, token, tnauth)
 
         # Assert - should fallback to creating new challenges
         self.assertIsInstance(result, list)
@@ -193,9 +199,7 @@ class TestChallengeComprehensive(unittest.TestCase):
         self.mock_dbstore.challenges_search.return_value = []
 
         # Act
-        result = self.challenge.challengeset_get(
-            authz_name, auth_status, token, tnauth
-        )
+        result = self.challenge.challengeset_get(authz_name, auth_status, token, tnauth)
 
         # Assert
         self.assertIsInstance(result, list)
@@ -211,9 +215,7 @@ class TestChallengeComprehensive(unittest.TestCase):
         self.mock_dbstore.challenges_search.return_value = []
 
         # Act
-        result = self.challenge.challengeset_get(
-            authz_name, auth_status, token, tnauth
-        )
+        result = self.challenge.challengeset_get(authz_name, auth_status, token, tnauth)
 
         # Assert
         self.assertIsInstance(result, list)
@@ -229,10 +231,10 @@ class TestChallengeComprehensive(unittest.TestCase):
 
         # Mock database lookup to return challenge data
         challenge_data = {
-            'type': 'http-01',
-            'token': 'test_token',
-            'status__name': 'pending',
-            'validated': None
+            "type": "http-01",
+            "token": "test_token",
+            "status__name": "pending",
+            "validated": None,
         }
         self.mock_dbstore.challenge_lookup.return_value = challenge_data
 
@@ -241,8 +243,8 @@ class TestChallengeComprehensive(unittest.TestCase):
 
         # Assert
         self.assertIsInstance(result, dict)
-        self.assertIn('code', result)
-        self.assertEqual(result['code'], 200)
+        self.assertIn("code", result)
+        self.assertEqual(result["code"], 200)
 
     def test_get_with_invalid_url(self):
         """Test get method with invalid URL format"""
@@ -254,8 +256,8 @@ class TestChallengeComprehensive(unittest.TestCase):
 
         # Assert
         self.assertIsInstance(result, dict)
-        self.assertIn('code', result)
-        self.assertEqual(result['code'], 200)
+        self.assertIn("code", result)
+        self.assertEqual(result["code"], 200)
 
     def test_get_challenge_not_found(self):
         """Test get method when challenge is not found"""
@@ -270,8 +272,8 @@ class TestChallengeComprehensive(unittest.TestCase):
 
         # Assert
         self.assertIsInstance(result, dict)
-        self.assertIn('code', result)
-        self.assertEqual(result['code'], 200)
+        self.assertIn("code", result)
+        self.assertEqual(result["code"], 200)
 
     def test_get_empty_url(self):
         """Test get method with empty URL"""
@@ -283,7 +285,7 @@ class TestChallengeComprehensive(unittest.TestCase):
 
         # Assert
         self.assertIsInstance(result, dict)
-        self.assertIn('code', result)
+        self.assertIn("code", result)
 
     # ===================================================================
     # Tests for new_set() method - NO INTERNAL MOCKING
@@ -366,24 +368,26 @@ class TestChallengeComprehensive(unittest.TestCase):
 
         # Mock message.check to return success
         self.mock_message.check.return_value = (
-            200, "OK", "",
-            {'url': 'http://test.local/acme/chall/test'},
+            200,
+            "OK",
+            "",
+            {"url": "http://test.local/acme/chall/test"},
             {},
-            "test_account"
+            "test_account",
         )
 
         # Mock database lookup for challenge
         challenge_data = {
-            'type': 'http-01',
-            'token': 'test_token',
-            'status__name': 'pending',
-            'validated': None,
-            'authorization__name': 'test_authz'
+            "type": "http-01",
+            "token": "test_token",
+            "status__name": "pending",
+            "validated": None,
+            "authorization__name": "test_authz",
         }
         self.mock_dbstore.challenge_lookup.return_value = challenge_data
 
         # Mock message.prepare_response
-        expected_response = {'status': 'pending', 'type': 'http-01'}
+        expected_response = {"status": "pending", "type": "http-01"}
         self.mock_message.prepare_response.return_value = expected_response
 
         # Act - Real method execution, no internal mocking
@@ -400,10 +404,15 @@ class TestChallengeComprehensive(unittest.TestCase):
 
         # Mock message.check to return error
         self.mock_message.check.return_value = (
-            400, "malformed", "Invalid JSON", {}, {}, None
+            400,
+            "malformed",
+            "Invalid JSON",
+            {},
+            {},
+            None,
         )
 
-        expected_response = {'error': 'malformed request'}
+        expected_response = {"error": "malformed request"}
         self.mock_message.prepare_response.return_value = expected_response
 
         # Act - Real method execution
@@ -419,10 +428,18 @@ class TestChallengeComprehensive(unittest.TestCase):
         content = '{"protected": "eyJhbGciOiJSUzI1NiJ9", "payload": "e30=", "signature": "test"}'
 
         self.mock_message.check.return_value = (
-            200, "OK", "", {}, {}, "test_account"  # Empty protected header
+            200,
+            "OK",
+            "",
+            {},
+            {},
+            "test_account",  # Empty protected header
         )
 
-        expected_response = {'error': 'malformed', 'detail': 'url missing in protected header'}
+        expected_response = {
+            "error": "malformed",
+            "detail": "url missing in protected header",
+        }
         self.mock_message.prepare_response.return_value = expected_response
 
         # Act - Real method execution
@@ -438,18 +455,20 @@ class TestChallengeComprehensive(unittest.TestCase):
         content = '{"protected": "eyJ1cmwiOiJodHRwOi8vdGVzdC5sb2NhbC9hY21lL2NoYWxsL25vbmV4aXN0ZW50In0=", "payload": "e30=", "signature": "test"}'
 
         self.mock_message.check.return_value = (
-            200, "OK", "",
-            {'url': 'http://test.local/acme/chall/nonexistent'},
+            200,
+            "OK",
+            "",
+            {"url": "http://test.local/acme/chall/nonexistent"},
             {},
-            "test_account"
+            "test_account",
         )
 
         # Mock database lookup to return empty dict (challenge not found)
         self.mock_dbstore.challenge_lookup.return_value = {}
 
         expected_response = {
-            'error': 'malformed',
-            'detail': 'invalid challenge: nonexistent'
+            "error": "malformed",
+            "detail": "invalid challenge: nonexistent",
         }
         self.mock_message.prepare_response.return_value = expected_response
 
@@ -466,10 +485,15 @@ class TestChallengeComprehensive(unittest.TestCase):
         content = ""
 
         self.mock_message.check.return_value = (
-            400, "malformed", "Empty content", {}, {}, None
+            400,
+            "malformed",
+            "Empty content",
+            {},
+            {},
+            None,
         )
 
-        expected_response = {'error': 'malformed'}
+        expected_response = {"error": "malformed"}
         self.mock_message.prepare_response.return_value = expected_response
 
         # Act
@@ -485,10 +509,15 @@ class TestChallengeComprehensive(unittest.TestCase):
         content = None
 
         self.mock_message.check.return_value = (
-            400, "malformed", "None content", {}, {}, None
+            400,
+            "malformed",
+            "None content",
+            {},
+            {},
+            None,
         )
 
-        expected_response = {'error': 'malformed'}
+        expected_response = {"error": "malformed"}
         self.mock_message.prepare_response.return_value = expected_response
 
         # Act
@@ -532,7 +561,7 @@ class TestChallengeComprehensive(unittest.TestCase):
             srv_name="https://custom.server.com",
             logger=self.logger,
             source="custom_source",
-            expiry=7200
+            expiry=7200,
         )
 
         # Assert
@@ -567,9 +596,15 @@ class TestChallengeComprehensive(unittest.TestCase):
         self.mock_dbstore.challenges_search.return_value = []
 
         # Act - Test all parameter combinations - NO INTERNAL MOCKING
-        result1 = self.challenge.challengeset_get(authz_name, auth_status, token, tnauth)
-        result2 = self.challenge.challengeset_get(authz_name, auth_status, token, tnauth, id_type)
-        result3 = self.challenge.challengeset_get(authz_name, auth_status, token, tnauth, id_type, id_value)
+        result1 = self.challenge.challengeset_get(
+            authz_name, auth_status, token, tnauth
+        )
+        result2 = self.challenge.challengeset_get(
+            authz_name, auth_status, token, tnauth, id_type
+        )
+        result3 = self.challenge.challengeset_get(
+            authz_name, auth_status, token, tnauth, id_type, id_value
+        )
 
         # Assert - All should return lists
         for result in [result1, result2, result3]:
@@ -585,7 +620,7 @@ class TestChallengeComprehensive(unittest.TestCase):
 
         # Assert
         self.assertIsInstance(result, dict)
-        self.assertIn('code', result)
+        self.assertIn("code", result)
 
     def test_new_set_signature_compliance(self):
         """Test new_set method signature compliance"""
@@ -633,21 +668,28 @@ class TestChallengeComprehensive(unittest.TestCase):
         self.mock_dbstore.challenges_search.return_value = []
 
         challenge_data = {
-            'type': 'http-01',
-            'token': token,
-            'status__name': 'pending',
-            'validated': None,
-            'authorization__name': authz_name
+            "type": "http-01",
+            "token": token,
+            "status__name": "pending",
+            "validated": None,
+            "authorization__name": authz_name,
         }
         self.mock_dbstore.challenge_lookup.return_value = challenge_data
 
         self.mock_message.check.return_value = (
-            200, "OK", "", {'url': url}, {}, "account"
+            200,
+            "OK",
+            "",
+            {"url": url},
+            {},
+            "account",
         )
-        self.mock_message.prepare_response.return_value = {'status': 'pending'}
+        self.mock_message.prepare_response.return_value = {"status": "pending"}
 
         # Act - All real method executions, NO INTERNAL MOCKING
-        challenges = self.challenge.challengeset_get(authz_name, "pending", token, False)
+        challenges = self.challenge.challengeset_get(
+            authz_name, "pending", token, False
+        )
         get_result = self.challenge.get(url)
         parse_result = self.challenge.parse(content)
 
@@ -656,9 +698,9 @@ class TestChallengeComprehensive(unittest.TestCase):
         self.assertIsInstance(get_result, dict)
         self.assertIsInstance(parse_result, dict)
 
-        self.assertEqual(get_result['code'], 200)
-        self.assertEqual(parse_result['status'], 'pending')
+        self.assertEqual(get_result["code"], 200)
+        self.assertEqual(parse_result["status"], "pending")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
