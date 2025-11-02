@@ -409,22 +409,33 @@ class ChallengeService:
         self.logger.debug(
             "ChallengeService._create_new_challenge_set(%s)", authorization_name
         )
+
+        challenge_list = []
+
         if tnauthlist_support:
             challenge = self.factory.create_tkauth_challenge(authorization_name, token)
-            return [challenge] if challenge else []
+            challenge_list.append(challenge) if challenge else None
 
         if sectigo_sim:
             challenge = self.factory._create_single_challenge(
                 authorization_name, "sectigo-email-01", token
             )
-            return [challenge] if challenge else []
+            challenge_list.append(challenge) if challenge else None
 
         if email_identifier_support and "@" in id_value:
             challenge = self.factory.create_email_reply_challenge(
                 authorization_name, token, id_value
             )
-            return [challenge] if challenge else []
+            challenge_list.append(challenge) if challenge else None
 
-        return self.factory.create_standard_challenge_set(
-            authorization_name, token, id_type, id_value
+        challenge_list.extend(
+            self.factory.create_standard_challenge_set(
+                authorization_name, token, id_type, id_value
+            )
         )
+
+        self.logger.debug(
+            "ChallengeService._create_new_challenge_set() ended with %s challenges",
+            len(challenge_list),
+        )
+        return challenge_list
