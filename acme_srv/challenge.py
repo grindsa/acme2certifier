@@ -40,7 +40,7 @@ from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 from acme_srv.challenge_validators import (
     ChallengeValidatorRegistry,
     ChallengeContext,
-    ValidationResult
+    ValidationResult,
 )
 from acme_srv.challenge_registry_setup import create_challenge_validator_registry
 
@@ -51,14 +51,14 @@ from acme_srv.challenge_business_logic import (
     ChallengeService,
     ChallengeInfo,
     ChallengeCreationRequest,
-    ChallengeUpdateRequest
+    ChallengeUpdateRequest,
 )
 from acme_srv.challenge_error_handling import (
     ErrorHandler,
     ChallengeError,
     ValidationError,
     DatabaseError,
-    UnsupportedChallengeTypeError
+    UnsupportedChallengeTypeError,
 )
 
 
@@ -89,14 +89,19 @@ class DatabaseChallengeRepository(ChallengeRepository):
         self.logger = logger
         self.expiry = expiry
 
-    def find_challenges_by_authorization(self, authorization_name: str) -> List[ChallengeInfo]:
+    def find_challenges_by_authorization(
+        self, authorization_name: str
+    ) -> List[ChallengeInfo]:
         """Find all challenges for a given authorization."""
-        self.logger.debug("DatabaseChallengeRepository.find_challenges_by_authorization(%s)", authorization_name)
+        self.logger.debug(
+            "DatabaseChallengeRepository.find_challenges_by_authorization(%s)",
+            authorization_name,
+        )
         try:
             challenge_list = self.dbstore.challenges_search(
                 "authorization__name",
                 authorization_name,
-                ("name", "type", "status__name", "token")
+                ("name", "type", "status__name", "token"),
             )
 
             result = []
@@ -109,14 +114,19 @@ class DatabaseChallengeRepository(ChallengeRepository):
                     authorization_name=authorization_name,
                     authorization_type="",  # Would need additional query
                     authorization_value="",  # Would need additional query
-                    url=""  # Will be constructed later
+                    url="",  # Will be constructed later
                 )
                 result.append(challenge_info)
 
-            self.logger.debug("DatabaseChallengeRepository.find_challenges_by_authorization() ended: found %d challenges", len(result))
+            self.logger.debug(
+                "DatabaseChallengeRepository.find_challenges_by_authorization() ended: found %d challenges",
+                len(result),
+            )
             return result
         except Exception as err:
-            self.logger.critical("Database error: failed to search for challenges: %s", err)
+            self.logger.critical(
+                "Database error: failed to search for challenges: %s", err
+            )
             raise DatabaseError(f"Failed to search challenges: {err}")
 
     def get_challenge_by_name(self, name: str) -> Optional[ChallengeInfo]:
@@ -124,10 +134,23 @@ class DatabaseChallengeRepository(ChallengeRepository):
         self.logger.debug("DatabaseChallengeRepository.get_challenge_by_name(%s)", name)
         try:
             challenge_dic = self.dbstore.challenge_lookup(
-                "name", name,
-                vlist=("type", "token", "status__name", "validated")
+                "name",
+                name,
+                vlist=(
+                    "type",
+                    "token",
+                    "status__name",
+                    "authorization__name",
+                    "authorization__type",
+                    "authorization__value",
+                    "validated",
+                ),
             )
-            self.logger.debug("DatabaseChallengeRepository.get_challenge_by_name() ended: found challenge %s", challenge_dic)
+
+            self.logger.debug(
+                "DatabaseChallengeRepository.get_challenge_by_name() ended: found challenge %s",
+                challenge_dic,
+            )
             if not challenge_dic:
                 return None
             return ChallengeInfo(
@@ -135,11 +158,13 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 type=challenge_dic.get("type", ""),
                 token=challenge_dic.get("token", ""),
                 status=challenge_dic.get("status", "pending"),
-                authorization_name="",  # Would need additional query
-                authorization_type="",  # Would need additional query
-                authorization_value="",  # Would need additional query
+                authorization_name=challenge_dic.get("authorization__name", ""),
+                authorization_type=challenge_dic.get("authorization__type", ""),
+                authorization_value=challenge_dic.get("authorization__value", ""),
                 url="",  # Will be constructed later
-                validated=uts_to_date_utc(challenge_dic.get("validated")) if challenge_dic.get("status") == "valid" else None
+                validated=uts_to_date_utc(challenge_dic.get("validated"))
+                if challenge_dic.get("status") == "valid"
+                else None,
             )
         except Exception as err:
             self.logger.critical("Database error: failed to lookup challenge: %s", err)
@@ -168,8 +193,14 @@ class DatabaseChallengeRepository(ChallengeRepository):
             elif request.challenge_type == "sectigo-email-01":
                 data_dic["status"] = 5  # valid
 
-            chid = self.dbstore.challenge_add(request.value, request.challenge_type, data_dic)
-            self.logger.debug("DatabaseChallengeRepository.create_challenge() ended: created challenge %s/%s", challenge_name, chid)
+            chid = self.dbstore.challenge_add(
+                request.value, request.challenge_type, data_dic
+            )
+            self.logger.debug(
+                "DatabaseChallengeRepository.create_challenge() ended: created challenge %s/%s",
+                challenge_name,
+                chid,
+            )
             return challenge_name if chid else None
 
         except Exception as err:
@@ -178,7 +209,9 @@ class DatabaseChallengeRepository(ChallengeRepository):
 
     def update_challenge(self, request: ChallengeUpdateRequest) -> bool:
         """Update an existing challenge."""
-        self.logger.debug("DatabaseChallengeRepository.update_challenge(%s)", request.name)
+        self.logger.debug(
+            "DatabaseChallengeRepository.update_challenge(%s)", request.name
+        )
         try:
             data_dic = {"name": request.name}
 
@@ -192,7 +225,10 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 data_dic["keyauthorization"] = request.keyauthorization
 
             self.dbstore.challenge_update(data_dic)
-            self.logger.debug("DatabaseChallengeRepository.update_challenge() ended: updated challenge %s", request.name)
+            self.logger.debug(
+                "DatabaseChallengeRepository.update_challenge() ended: updated challenge %s",
+                request.name,
+            )
             return True
         except Exception as err:
             self.logger.critical("Database error: failed to update challenge: %s", err)
@@ -200,7 +236,11 @@ class DatabaseChallengeRepository(ChallengeRepository):
 
     def update_authorization_status(self, challenge_name: str, status: str) -> bool:
         """Update authorization status based on challenge."""
-        self.logger.debug("DatabaseChallengeRepository.update_authorization_status(%s, %s)", challenge_name, status)
+        self.logger.debug(
+            "DatabaseChallengeRepository.update_authorization_status(%s, %s)",
+            challenge_name,
+            status,
+        )
         try:
             result = False
             # Get authorization name from challenge
@@ -209,34 +249,42 @@ class DatabaseChallengeRepository(ChallengeRepository):
             )
 
             if authz_info and "authorization" in authz_info:
-                data_dic = {
-                    "name": authz_info["authorization"],
-                    "status": status
-                }
+                data_dic = {"name": authz_info["authorization"], "status": status}
                 self.dbstore.authorization_update(data_dic)
                 result = True
 
-            self.logger.debug("DatabaseChallengeRepository.update_authorization_status() ended: updated authorization for challenge %s/%s", challenge_name, result)
+            self.logger.debug(
+                "DatabaseChallengeRepository.update_authorization_status() ended: updated authorization for challenge %s/%s",
+                challenge_name,
+                result,
+            )
             return result
 
         except Exception as err:
-            self.logger.critical("Database error: failed to update authorization: %s", err)
+            self.logger.critical(
+                "Database error: failed to update authorization: %s", err
+            )
             raise DatabaseError(f"Failed to update authorization: {err}")
 
     def get_account_jwk(self, challenge_name: str) -> Optional[Dict[str, Any]]:
         """Get JWK for the account associated with the challenge."""
-        self.logger.debug("DatabaseChallengeRepository.get_account_jwk(%s)", challenge_name)
+        self.logger.debug(
+            "DatabaseChallengeRepository.get_account_jwk(%s)", challenge_name
+        )
         try:
             challenge_dic = self.dbstore.challenge_lookup(
-                "name", challenge_name,
-                ["authorization__order__account__name"]
+                "name", challenge_name, ["authorization__order__account__name"]
             )
             result = None
             if challenge_dic and "authorization__order__account__name" in challenge_dic:
                 result = self.dbstore.jwk_load(
                     challenge_dic["authorization__order__account__name"]
                 )
-            self.logger.debug("DatabaseChallengeRepository.get_account_jwk() ended: retrieved JWK for challenge %s/%s", challenge_name, result)
+            self.logger.debug(
+                "DatabaseChallengeRepository.get_account_jwk() ended: retrieved JWK for challenge %s/%s",
+                challenge_name,
+                result,
+            )
             return result
         except Exception as err:
             self.logger.critical("Database error: failed to get account JWK: %s", err)
@@ -281,13 +329,10 @@ class Challenge:
             self.logger,
             self.server_name,
             self.path_dic["chall_path"],
-            self.config.email_address
+            self.config.email_address,
         )
         self.service = ChallengeService(
-            self.repository,
-            self.state_manager,
-            self.factory,
-            self.logger
+            self.repository, self.state_manager, self.factory, self.logger
         )
 
         # Initialize validation components
@@ -301,7 +346,9 @@ class Challenge:
     def __exit__(self, *args):
         """close the connection at the end of the context"""
 
-    def _create_error_response(self, code: int, message: str, detail: str) -> Dict[str, str]:
+    def _create_error_response(
+        self, code: int, message: str, detail: str
+    ) -> Dict[str, str]:
         """Create standardized error response."""
         self.logger.debug("Challenge._create_error_response() called")
         status_dic = {"code": code, "type": message, "detail": detail}
@@ -314,9 +361,7 @@ class Challenge:
         return self.message.prepare_response(response_dic, status_dic)
 
     def _execute_challenge_validation(
-        self,
-        challenge_name: str,
-        payload: Dict[str, str]
+        self, challenge_name: str, payload: Dict[str, str]
     ) -> ValidationResult:
         """Execute challenge validation using registry."""
         self.logger.debug("Challenge._execute_challenge_validation(%s)", challenge_name)
@@ -331,8 +376,7 @@ class Challenge:
         # Check if challenge type is supported
         if not self.validator_registry.is_supported(challenge_type):
             raise UnsupportedChallengeTypeError(
-                challenge_type,
-                self.validator_registry.get_supported_types()
+                challenge_type, self.validator_registry.get_supported_types()
             )
 
         # Create validation context
@@ -344,7 +388,7 @@ class Challenge:
             authorization_value=challenge_details["authorization_value"],
             dns_servers=self.config.dns_server_list,
             proxy_servers=self.config.proxy_server_list,
-            timeout=self.config.validation_timeout
+            timeout=self.config.validation_timeout,
         )
 
         # Perform validation with retry logic for DNS challenges
@@ -359,17 +403,27 @@ class Challenge:
             (challenge_name, _suffix) = challenge_name.split("/", 1)
         return challenge_name
 
-    def _get_challenge_validation_details(self, challenge_name: str) -> Optional[Dict[str, str]]:
+    def _get_challenge_validation_details(
+        self, challenge_name: str
+    ) -> Optional[Dict[str, str]]:
         """Get all details needed for challenge validation."""
-        self.logger.debug("Challenge._get_challenge_validation_details(%s)", challenge_name)
+        self.logger.debug(
+            "Challenge._get_challenge_validation_details(%s)", challenge_name
+        )
         try:
             challenge_dic = self.dbstore.challenge_lookup(
-                "name", challenge_name,
+                "name",
+                challenge_name,
                 [
-                    "type", "status__name", "token",
-                    "authorization__name", "authorization__type", "authorization__value",
-                    "authorization__token", "authorization__order__account__name",
-                ]
+                    "type",
+                    "status__name",
+                    "token",
+                    "authorization__name",
+                    "authorization__type",
+                    "authorization__value",
+                    "authorization__token",
+                    "authorization__order__account__name",
+                ],
             )
 
             if not challenge_dic:
@@ -387,12 +441,14 @@ class Challenge:
                 "token": challenge_dic["token"],
                 "authorization_type": challenge_dic["authorization__type"],
                 "authorization_value": challenge_dic["authorization__value"],
-                "jwk_thumbprint": jwk_thumbprint
+                "jwk_thumbprint": jwk_thumbprint,
             }
 
         except Exception as err:
             self.logger.error("Failed to get challenge validation details: %s", err)
-            self.logger.debug("Challenge._get_challenge_validation_details() ended with error")
+            self.logger.debug(
+                "Challenge._get_challenge_validation_details() ended with error"
+            )
             return None
 
     def _handle_challenge_validation_request(
@@ -401,13 +457,17 @@ class Challenge:
         payload: Dict[str, str],
         protected: Dict[str, str],
         challenge_name: str,
-        challenge_info: ChallengeInfo
+        challenge_info: ChallengeInfo,
     ) -> Dict[str, str]:
         """Handle challenge validation request with improved flow."""
-        self.logger.debug("Challenge._handle_challenge_validation_request(%s)", challenge_name)
+        self.logger.debug(
+            "Challenge._handle_challenge_validation_request(%s)", challenge_name
+        )
         # Check tnauthlist payload if needed
         if self.config.tnauthlist_support:
-            tnauthlist_result = self._validate_tnauthlist_payload(payload, challenge_info)
+            tnauthlist_result = self._validate_tnauthlist_payload(
+                payload, challenge_info
+            )
             if tnauthlist_result["code"] != 200:
                 return tnauthlist_result
 
@@ -424,15 +484,18 @@ class Challenge:
                 "type": updated_challenge_info.type,
                 "status": updated_challenge_info.status,
                 "token": updated_challenge_info.token,
-                "url": protected["url"]
+                "url": protected["url"],
             },
             "header": {
                 "Link": f'<{self.server_name}{self.path_dic["authz_path"]}>;rel="up"'
-            }
+            },
         }
 
         # add validated flag if challenge is valid
-        if updated_challenge_info.validated and updated_challenge_info.status == "valid":
+        if (
+            updated_challenge_info.validated
+            and updated_challenge_info.status == "valid"
+        ):
             response_dic["data"]["validated"] = updated_challenge_info.validated
 
         self.logger.debug("Challenge._handle_challenge_validation_request() ended")
@@ -443,7 +506,9 @@ class Challenge:
         self.logger.debug("Challenge._handle_validation_disabled(%s)", challenge_name)
         if self.config.forward_address_check or self.config.reverse_address_check:
             # Perform source address checks even when validation is disabled
-            challenge_check, invalid = self._perform_source_address_validation(challenge_name)
+            challenge_check, invalid = self._perform_source_address_validation(
+                challenge_name
+            )
         else:
             self.logger.warning(
                 "Source address checks are disabled. Setting challenge status to valid. "
@@ -453,14 +518,16 @@ class Challenge:
             invalid = False
 
         if invalid:
-            self.state_manager.transition_to_invalid(challenge_name, self.source_address)
+            self.state_manager.transition_to_invalid(
+                challenge_name, self.source_address
+            )
         elif challenge_check:
             self.state_manager.transition_to_valid(
-                challenge_name,
-                self.source_address,
-                uts_now()
+                challenge_name, self.source_address, uts_now()
             )
-        self.logger.debug("Challenge._handle_validation_disabled() ended with: %s", challenge_check)
+        self.logger.debug(
+            "Challenge._handle_validation_disabled() ended with: %s", challenge_check
+        )
         return challenge_check
 
     def _load_address_check_configuration(self, config_dic: Dict[str, str]):
@@ -555,15 +622,11 @@ class Challenge:
                 jwk_thumbprint,
             )
         else:
-            self.logger.error(
-                'Unknown challenge type "%s". Setting check result to False',
-                challenge_dic["type"],
+            self.config.forward_address_check = config_dic.getboolean(
+                "Challenge", "forward_address_check", fallback=False
             )
-            result = False
-            invalid = True
-
-        self.logger.debug(
-            "Challenge._challenge_validate_loop() ended with: %s/%s", result, invalid
+        self.config.reverse_address_check = config_dic.getboolean(
+            "Challenge", "reverse_address_check", fallback=False
         )
         return (result, invalid)
 
@@ -943,7 +1006,9 @@ class Challenge:
         """new challenge"""
         self.logger.debug("Challenge._new(%s:%s:%s)", authz_name, mtype, value)
 
-    def _perform_challenge_validation(self, challenge_name: str, payload: Dict[str, str]) -> bool:
+    def _perform_challenge_validation(
+        self, challenge_name: str, payload: Dict[str, str]
+    ) -> bool:
         """Perform complete challenge validation process."""
         self.logger.debug("Challenge._perform_challenge_validation(%s)", challenge_name)
         try:
@@ -956,40 +1021,100 @@ class Challenge:
                 return self._handle_validation_disabled(challenge_name)
 
             # Perform actual validation
-            validation_result = self._execute_challenge_validation(challenge_name, payload)
-            result = self._update_challenge_state_from_validation(challenge_name, validation_result)
+            validation_result = self._execute_challenge_validation(
+                challenge_name, payload
+            )
+            result = self._update_challenge_state_from_validation(
+                challenge_name, validation_result
+            )
 
         except Exception as err:
             error_detail = self.error_handler.handle_error(
-                err,
-                context={"challenge_name": challenge_name}
+                err, context={"challenge_name": challenge_name}
             )
 
             # Mark challenge as invalid on error
             self.state_manager.transition_to_invalid(
-                challenge_name,
-                self.source_address
+                challenge_name, self.source_address
             )
-            self.logger.debug("Challenge._perform_challenge_validation() ended with error")
+            self.logger.debug(
+                "Challenge._perform_challenge_validation() ended with error"
+            )
             result = False
 
         # Update challenge state based on result
-        self.logger.debug("Challenge._perform_challenge_validation() ended with: %s", result)
-        # raise Exception('bump')
+        self.logger.debug(
+            "Challenge._perform_challenge_validation() ended with: %s", result
+        )
         return result
 
-    def _perform_source_address_validation(self, challenge_name: str) -> Tuple[bool, bool]:
-        """Perform source address validation checks."""
-        # This would implement the source address checking logic
-        # from the original _source_address_check method
+    def _perform_source_address_validation(
+        self, challenge_name: str
+    ) -> Tuple[bool, bool]:
+        """Perform source address validation checks using the validator registry."""
+        self.logger.debug(
+            "Challenge._perform_source_address_validation(%s)", challenge_name
+        )
 
-        raise NotImplementedError("Source address validation not implemented yet")
-        return True, False  # Placeholder implementation
+        # If no address checking is configured, skip validation
+        if not (self.config.forward_address_check or self.config.reverse_address_check):
+            self.logger.debug("Source address validation disabled")
+            return True, False
+
+        challenge_info = self.repository.get_challenge_by_name(challenge_name)
+        self.logger.debug(
+            "Challenge._perform_source_address_validation() found: %s", challenge_info
+        )
+
+        if not challenge_info:
+            self.logger.error("Challenge not found: %s", challenge_name)
+            return False, True
+
+        # Create challenge context for source address validation
+        try:
+            from .challenge_validators import ChallengeContext
+
+            context = ChallengeContext(
+                challenge_name=challenge_name,
+                token=challenge_info.token,
+                jwk_thumbprint="",  # Not needed for source validation
+                authorization_type="dns",  # Default, will be determined from challenge
+                authorization_value=challenge_info.authorization_value,
+                source_address=self.source_address,
+                dns_servers=self.config.dns_server_list,
+                timeout=self.config.validation_timeout,
+            )
+            print("#######################")
+            # Use the source address validator from registry
+            if self.validator_registry.is_supported("source-address"):
+                result = self.validator_registry.validate_challenge(
+                    "source-address", context
+                )
+
+                if result.success:
+                    self.logger.debug(
+                        "Source address validation passed for %s", challenge_name
+                    )
+                    return True, False
+                else:
+                    self.logger.warning(
+                        "Source address validation failed for %s: %s",
+                        challenge_name,
+                        result.error_message,
+                    )
+                    return False, result.invalid
+            else:
+                self.logger.warning("Source address validator not available")
+                return True, False  # Don't fail if validator not available
+
+        except Exception as e:
+            self.logger.error(
+                "Source address validation error for %s: %s", challenge_name, str(e)
+            )
+            return False, True
 
     def _perform_validation_with_retry(
-        self,
-        challenge_type: str,
-        context: ChallengeContext
+        self, challenge_type: str, context: ChallengeContext
     ) -> ValidationResult:
         """Perform validation with retry logic for certain challenge types."""
 
@@ -1013,58 +1138,49 @@ class Challenge:
         """Start asynchronous challenge validation."""
         self.logger.debug("Challenge._start_async_validation(%s)", challenge_name)
         twrv = ThreadWithReturnValue(
-            target=self._perform_challenge_validation,
-            args=(challenge_name, payload)
+            target=self._perform_challenge_validation, args=(challenge_name, payload)
         )
         twrv.start()
         _validation = twrv.join(timeout=self.config.validation_timeout)
 
     def _update_challenge_state_from_validation(
-        self,
-        challenge_name: str,
-        validation_result: ValidationResult
+        self, challenge_name: str, validation_result: ValidationResult
     ) -> bool:
         """Update challenge state based on validation result."""
 
         if validation_result.invalid:
             self.state_manager.transition_to_invalid(
-                challenge_name,
-                self.source_address
+                challenge_name, self.source_address
             )
             return False
         elif validation_result.success:
             self.state_manager.transition_to_valid(
-                challenge_name,
-                self.source_address,
-                uts_now()
+                challenge_name, self.source_address, uts_now()
             )
             return True
         else:
             # Validation inconclusive - keep in processing state
             return False
 
-
     def _validate_tnauthlist_payload(
-        self,
-        payload: Dict[str, str],
-        challenge_info: ChallengeInfo
+        self, payload: Dict[str, str], challenge_info: ChallengeInfo
     ) -> Dict[str, str]:
         """Validate tnauthlist payload."""
         self.logger.debug("Challenge._validate_tnauthlist_payload()")
         if challenge_info.type == "tkauth-01":
             if "atc" not in payload:
-                self.logger.error("TNauthlist payload validation failed. atc claim is missing")
+                self.logger.error(
+                    "TNauthlist payload validation failed. atc claim is missing"
+                )
                 return self._create_error_response(
-                    400,
-                    self.err_msg_dic["malformed"],
-                    "atc claim is missing"
+                    400, self.err_msg_dic["malformed"], "atc claim is missing"
                 )
             if not payload["atc"]:
-                self.logger.error("TNauthlist payload validation failed. SPC token is missing")
+                self.logger.error(
+                    "TNauthlist payload validation failed. SPC token is missing"
+                )
                 return self._create_error_response(
-                    400,
-                    self.err_msg_dic["malformed"],
-                    "SPC token is missing"
+                    400, self.err_msg_dic["malformed"], "SPC token is missing"
                 )
 
         return {"code": 200}
@@ -1077,7 +1193,14 @@ class Challenge:
 
         try:
             # Check message format
-            (code, message, detail, protected, payload, _account_name) = self.message.check(content)
+            (
+                code,
+                message,
+                detail,
+                protected,
+                payload,
+                _account_name,
+            ) = self.message.check(content)
 
             if code != 200:
                 return self._create_error_response(code, message, detail)
@@ -1086,15 +1209,13 @@ class Challenge:
                 return self._create_error_response(
                     400,
                     self.err_msg_dic["malformed"],
-                    "url missing in protected header"
+                    "url missing in protected header",
                 )
 
             challenge_name = self._extract_challenge_name_from_url(protected["url"])
             if not challenge_name:
                 return self._create_error_response(
-                    400,
-                    self.err_msg_dic["malformed"],
-                    "could not get challenge"
+                    400, self.err_msg_dic["malformed"], "could not get challenge"
                 )
 
             challenge_info = self.repository.get_challenge_by_name(challenge_name)
@@ -1102,7 +1223,7 @@ class Challenge:
                 return self._create_error_response(
                     400,
                     self.err_msg_dic["malformed"],
-                    f"invalid challenge: {challenge_name}"
+                    f"invalid challenge: {challenge_name}",
                 )
 
             return self._handle_challenge_validation_request(
