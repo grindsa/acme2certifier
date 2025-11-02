@@ -12,13 +12,13 @@ from .challenge_validators import (
     DnsChallengeValidator,
     TlsAlpnChallengeValidator,
     EmailReplyChallengeValidator,
-    TkauthChallengeValidator
+    TkauthChallengeValidator,
+    SourceAddressValidator,
 )
 
 
 def create_challenge_validator_registry(
-    logger: logging.Logger,
-    config: Optional[Dict[str, Any]] = None
+    logger: logging.Logger, config: Optional[Dict[str, Any]] = None
 ) -> ChallengeValidatorRegistry:
     """Create a fully configured challenge validator registry with all standard validators"""
 
@@ -37,11 +37,20 @@ def create_challenge_validator_registry(
         # Register Tkauth challenge validator if configured
         registry.register_validator(TkauthChallengeValidator(logger))
 
+    # Register Source Address validator if address checking is enabled
+    if config.forward_address_check or config.reverse_address_check:
+        registry.register_validator(
+            SourceAddressValidator(
+                logger,
+                forward_check=config.forward_address_check,
+                reverse_check=config.reverse_address_check,
+            )
+        )
 
     logger.info(
         "Challenge validator registry created with %d validators: %s",
         len(registry.get_supported_types()),
-        ", ".join(registry.get_supported_types())
+        ", ".join(registry.get_supported_types()),
     )
 
     logger.debug("challenge_registry_setup.create_challenge_validator_registry() ended")
@@ -51,7 +60,7 @@ def create_challenge_validator_registry(
 def create_custom_registry(
     logger: logging.Logger,
     validator_classes: list,
-    config: Optional[Dict[str, Any]] = None
+    config: Optional[Dict[str, Any]] = None,
 ) -> ChallengeValidatorRegistry:
     """
     Create a custom challenge validator registry with specified validators.
@@ -72,7 +81,7 @@ def create_custom_registry(
 
     logger.info(
         "Custom challenge validator registry created with %d validators",
-        len(registry.get_supported_types())
+        len(registry.get_supported_types()),
     )
 
     return registry

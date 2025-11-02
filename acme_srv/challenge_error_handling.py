@@ -13,6 +13,7 @@ import logging
 
 class ErrorCategory(Enum):
     """Categories of errors that can occur during challenge processing."""
+
     VALIDATION_ERROR = "validation_error"
     NETWORK_ERROR = "network_error"
     DATABASE_ERROR = "database_error"
@@ -25,6 +26,7 @@ class ErrorCategory(Enum):
 
 class ErrorSeverity(Enum):
     """Severity levels for errors."""
+
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
@@ -34,6 +36,7 @@ class ErrorSeverity(Enum):
 @dataclass
 class ErrorDetail:
     """Detailed error information."""
+
     category: ErrorCategory
     severity: ErrorSeverity
     message: str
@@ -52,7 +55,7 @@ class ChallengeError(Exception):
         severity: ErrorSeverity = ErrorSeverity.MEDIUM,
         details: Optional[Dict[str, Any]] = None,
         suggestion: Optional[str] = None,
-        error_code: Optional[str] = None
+        error_code: Optional[str] = None,
     ):
         super().__init__(message)
         self.error_detail = ErrorDetail(
@@ -61,7 +64,7 @@ class ChallengeError(Exception):
             message=message,
             details=details or {},
             suggestion=suggestion,
-            error_code=error_code
+            error_code=error_code,
         )
 
 
@@ -69,22 +72,14 @@ class ValidationError(ChallengeError):
     """Raised when challenge validation fails."""
 
     def __init__(self, message: str, **kwargs):
-        super().__init__(
-            message,
-            category=ErrorCategory.VALIDATION_ERROR,
-            **kwargs
-        )
+        super().__init__(message, category=ErrorCategory.VALIDATION_ERROR, **kwargs)
 
 
 class NetworkError(ChallengeError):
     """Raised when network operations fail."""
 
     def __init__(self, message: str, **kwargs):
-        super().__init__(
-            message,
-            category=ErrorCategory.NETWORK_ERROR,
-            **kwargs
-        )
+        super().__init__(message, category=ErrorCategory.NETWORK_ERROR, **kwargs)
 
 
 class DatabaseError(ChallengeError):
@@ -95,7 +90,7 @@ class DatabaseError(ChallengeError):
             message,
             category=ErrorCategory.DATABASE_ERROR,
             severity=ErrorSeverity.HIGH,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -107,7 +102,7 @@ class ConfigurationError(ChallengeError):
             message,
             category=ErrorCategory.CONFIGURATION_ERROR,
             severity=ErrorSeverity.HIGH,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -119,7 +114,7 @@ class AuthenticationError(ChallengeError):
             message,
             category=ErrorCategory.AUTHENTICATION_ERROR,
             severity=ErrorSeverity.HIGH,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -127,22 +122,14 @@ class MalformedRequestError(ChallengeError):
     """Raised when request is malformed."""
 
     def __init__(self, message: str, **kwargs):
-        super().__init__(
-            message,
-            category=ErrorCategory.MALFORMED_REQUEST,
-            **kwargs
-        )
+        super().__init__(message, category=ErrorCategory.MALFORMED_REQUEST, **kwargs)
 
 
 class TimeoutError(ChallengeError):
     """Raised when operations timeout."""
 
     def __init__(self, message: str, **kwargs):
-        super().__init__(
-            message,
-            category=ErrorCategory.TIMEOUT_ERROR,
-            **kwargs
-        )
+        super().__init__(message, category=ErrorCategory.TIMEOUT_ERROR, **kwargs)
 
 
 class UnsupportedChallengeTypeError(ValidationError):
@@ -154,10 +141,10 @@ class UnsupportedChallengeTypeError(ValidationError):
             message,
             details={
                 "challenge_type": challenge_type,
-                "supported_types": supported_types
+                "supported_types": supported_types,
             },
             suggestion=f"Use one of the supported types: {', '.join(supported_types)}",
-            error_code="UNSUPPORTED_CHALLENGE_TYPE"
+            error_code="UNSUPPORTED_CHALLENGE_TYPE",
         )
 
 
@@ -168,12 +155,9 @@ class DNSResolutionError(NetworkError):
         message = f"DNS resolution failed for domain: {domain}"
         super().__init__(
             message,
-            details={
-                "domain": domain,
-                "dns_servers": dns_servers
-            },
+            details={"domain": domain, "dns_servers": dns_servers},
             suggestion="Check domain validity and DNS server configuration",
-            error_code="DNS_RESOLUTION_FAILED"
+            error_code="DNS_RESOLUTION_FAILED",
         )
 
 
@@ -187,10 +171,10 @@ class HTTPChallengeError(ValidationError):
             details={
                 "url": url,
                 "expected_response": expected,
-                "received_response": received
+                "received_response": received,
             },
             suggestion="Ensure the challenge file is accessible and contains the correct token",
-            error_code="HTTP_CHALLENGE_FAILED"
+            error_code="HTTP_CHALLENGE_FAILED",
         )
 
 
@@ -204,10 +188,10 @@ class DNSChallengeError(ValidationError):
             details={
                 "dns_record": dns_record,
                 "expected_hash": expected_hash,
-                "found_records": found_records
+                "found_records": found_records,
             },
             suggestion="Ensure the DNS TXT record is properly configured",
-            error_code="DNS_CHALLENGE_FAILED"
+            error_code="DNS_CHALLENGE_FAILED",
         )
 
 
@@ -218,12 +202,9 @@ class TLSALPNChallengeError(ValidationError):
         message = f"TLS-ALPN challenge validation failed for {domain}"
         super().__init__(
             message,
-            details={
-                "domain": domain,
-                "expected_extension": expected_extension
-            },
+            details={"domain": domain, "expected_extension": expected_extension},
             suggestion="Ensure the TLS certificate contains the required extension",
-            error_code="TLS_ALPN_CHALLENGE_FAILED"
+            error_code="TLS_ALPN_CHALLENGE_FAILED",
         )
 
 
@@ -235,9 +216,7 @@ class ErrorHandler:
         self.error_counts: Dict[ErrorCategory, int] = {}
 
     def handle_error(
-        self,
-        error: Exception,
-        context: Optional[Dict[str, Any]] = None
+        self, error: Exception, context: Optional[Dict[str, Any]] = None
     ) -> ErrorDetail:
         """Handle and log an error, returning structured error information."""
         self.logger.debug("ErrorHandler.handle_error(): %s", str(error))
@@ -249,7 +228,7 @@ class ErrorHandler:
                 category=ErrorCategory.UNKNOWN_ERROR,
                 severity=ErrorSeverity.MEDIUM,
                 message=str(error),
-                details={"exception_type": type(error).__name__}
+                details={"exception_type": type(error).__name__},
             )
 
         # Add context information
@@ -285,21 +264,25 @@ class ErrorHandler:
         if self.logger.isEnabledFor(logging.DEBUG):
             self.logger.debug(
                 "Stack trace for error: %s",
-                "".join(traceback.format_exception(type(original_error), original_error, original_error.__traceback__))
+                "".join(
+                    traceback.format_exception(
+                        type(original_error),
+                        original_error,
+                        original_error.__traceback__,
+                    )
+                ),
             )
 
-    #def _update_error_counts(self, category: ErrorCategory):
+    # def _update_error_counts(self, category: ErrorCategory):
     #    """Update error counts for monitoring."""
     #    self.error_counts[category] = self.error_counts.get(category, 0) + 1
 
-    #def get_error_statistics(self) -> Dict[str, int]:
+    # def get_error_statistics(self) -> Dict[str, int]:
     #    """Get error statistics for monitoring."""
     #    return {category.value: count for category, count in self.error_counts.items()}
 
     def create_acme_error_response(
-        self,
-        error_detail: ErrorDetail,
-        status_code: int = 400
+        self, error_detail: ErrorDetail, status_code: int = 400
     ) -> Dict[str, Any]:
         """Create an ACME-compliant error response."""
 
@@ -312,18 +295,15 @@ class ErrorHandler:
             ErrorCategory.TIMEOUT_ERROR: "connection",
             ErrorCategory.CONFIGURATION_ERROR: "serverInternal",
             ErrorCategory.DATABASE_ERROR: "serverInternal",
-            ErrorCategory.UNKNOWN_ERROR: "serverInternal"
+            ErrorCategory.UNKNOWN_ERROR: "serverInternal",
         }
 
-        acme_type = acme_error_type_map.get(
-            error_detail.category,
-            "serverInternal"
-        )
+        acme_type = acme_error_type_map.get(error_detail.category, "serverInternal")
 
         response = {
             "code": status_code,
             "type": f"urn:ietf:params:acme:error:{acme_type}",
-            "detail": error_detail.message
+            "detail": error_detail.message,
         }
 
         # Add additional context if available
@@ -347,14 +327,17 @@ class ErrorRecovery:
             return False
 
         # Retry network errors and timeouts
-        if error_detail.category in [ErrorCategory.NETWORK_ERROR, ErrorCategory.TIMEOUT_ERROR]:
+        if error_detail.category in [
+            ErrorCategory.NETWORK_ERROR,
+            ErrorCategory.TIMEOUT_ERROR,
+        ]:
             return True
 
         # Don't retry validation errors, malformed requests, or authentication errors
         if error_detail.category in [
             ErrorCategory.VALIDATION_ERROR,
             ErrorCategory.MALFORMED_REQUEST,
-            ErrorCategory.AUTHENTICATION_ERROR
+            ErrorCategory.AUTHENTICATION_ERROR,
         ]:
             return False
 
@@ -366,4 +349,4 @@ class ErrorRecovery:
 
     def get_retry_delay(self, attempt_count: int) -> float:
         """Get delay before retry with exponential backoff."""
-        return min(2 ** attempt_count, 30)  # Max 30 seconds
+        return min(2**attempt_count, 30)  # Max 30 seconds

@@ -22,7 +22,7 @@ class EmailReplyChallengeValidator(ChallengeValidator):
                 success=False,
                 invalid=True,
                 error_message=f"Email handler not available: {e}",
-                details={"import_error": str(e)}
+                details={"import_error": str(e)},
             )
 
         calculated_keyauth, rfc_token1 = self._generate_email_keyauth(
@@ -38,29 +38,32 @@ class EmailReplyChallengeValidator(ChallengeValidator):
                 return ValidationResult(
                     success=False,
                     invalid=False,
-                    error_message="No email received or email body missing"
+                    error_message="No email received or email body missing",
                 )
 
             email_keyauth = self._extract_email_keyauth(email_receive["body"])
 
-            if email_keyauth and calculated_keyauth and email_keyauth == calculated_keyauth:
+            if (
+                email_keyauth
+                and calculated_keyauth
+                and email_keyauth == calculated_keyauth
+            ):
                 return ValidationResult(
                     success=True,
                     invalid=False,
-                    details={"calculated_keyauth": calculated_keyauth}
+                    details={"calculated_keyauth": calculated_keyauth},
                 )
             else:
                 return ValidationResult(
                     success=False,
                     invalid=True,
                     error_message="Email keyauthorization mismatch",
-                    details={
-                        "expected": calculated_keyauth,
-                        "received": email_keyauth
-                    }
+                    details={"expected": calculated_keyauth, "received": email_keyauth},
                 )
 
-    def _generate_email_keyauth(self, challenge_name: str, token: str, jwk_thumbprint: str) -> Tuple[str, str]:
+    def _generate_email_keyauth(
+        self, challenge_name: str, token: str, jwk_thumbprint: str
+    ) -> Tuple[str, str]:
         """Generate email keyauthorization - placeholder for actual implementation."""
         # This would contain the actual implementation from the original class
         # For now, returning placeholders to maintain interface
