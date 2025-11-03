@@ -422,9 +422,13 @@ class ChallengeService:
             )
             return [challenge] if challenge else []
 
-        if tnauthlist_support:
+        if tnauthlist_support and id_type.lower() == "tnauthlist":
+            # in case of an tnauthlist identifier we return only one challenge
+            self.logger.debug(
+                "ChallengeService._create_new_challenge_set(): Creating tkauth-01 challenge for tnauthlist identifier"
+            )
             challenge = self.factory.create_tkauth_challenge(authorization_name, token)
-            challenge_list.append(challenge) if challenge else None
+            return [challenge] if challenge else []
 
         if sectigo_sim:
             challenge = self.factory._create_single_challenge(
