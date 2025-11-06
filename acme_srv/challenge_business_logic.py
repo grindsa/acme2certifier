@@ -228,12 +228,14 @@ class ChallengeFactory:
         return challenges
 
     def create_email_reply_challenge(
-        self, authorization_name: str, token: str, email_address: str
+        self, authorization_name: str, token: str, email_address: str, sender_address: str,
     ) -> Optional[Dict[str, Any]]:
         """Create email-reply-00 challenge."""
         self.logger.debug(
             "ChallengeFactory.create_email_reply_challenge(%s)", email_address
         )
+        if sender_address:
+            self.email_address = sender_address
 
         result = self._create_single_challenge(
             authorization_name, "email-reply-00", token, email_address
@@ -326,9 +328,7 @@ class ChallengeService:
         token: str,
         id_type: str,
         id_value: str,
-        tnauthlist_support: bool,
-        email_identifier_support: bool = False,
-        sectigo_sim: bool = False,
+        config: Dict[str, Any],
         url: str = "",
     ) -> List[Dict[str, Any]]:
         """Get challenge set for an authorization."""
@@ -358,11 +358,9 @@ class ChallengeService:
         return self._create_new_challenge_set(
             authorization_name,
             token,
-            tnauthlist_support,
             id_type,
             id_value,
-            email_identifier_support,
-            sectigo_sim,
+            config,
         )
 
     def _format_existing_challenges(
@@ -399,11 +397,9 @@ class ChallengeService:
         self,
         authorization_name: str,
         token: str,
-        tnauthlist_support: bool,
         id_type: str,
         id_value: str,
-        email_identifier_support: bool,
-        sectigo_sim: bool,
+        config: Dict[str, Any],
     ) -> List[Dict[str, Any]]:
         """Create a new challenge set based on configuration."""
         self.logger.debug(
@@ -412,17 +408,17 @@ class ChallengeService:
 
         challenge_list = []
 
-        if email_identifier_support and "@" in id_value:
+        if config.email_identifier_support and config.email_address and "@" in id_value:
             # in case of an email identifier we return only one challenge
             self.logger.debug(
                 "ChallengeService._create_new_challenge_set(): Creating email-reply-00 challenge for email identifier"
             )
             challenge = self.factory.create_email_reply_challenge(
-                authorization_name, token, id_value
+                authorization_name, token, id_value, config.email_address
             )
             return [challenge] if challenge else []
 
-        if tnauthlist_support and id_type.lower() == "tnauthlist":
+        if config.tnauthlist_support and id_type.lower() == "tnauthlist":
             # in case of an tnauthlist identifier we return only one challenge
             self.logger.debug(
                 "ChallengeService._create_new_challenge_set(): Creating tkauth-01 challenge for tnauthlist identifier"
@@ -430,7 +426,7 @@ class ChallengeService:
             challenge = self.factory.create_tkauth_challenge(authorization_name, token)
             return [challenge] if challenge else []
 
-        if sectigo_sim:
+        if config.sectigo_sim:
             challenge = self.factory._create_single_challenge(
                 authorization_name, "sectigo-email-01", token
             )
