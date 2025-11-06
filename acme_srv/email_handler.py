@@ -97,6 +97,10 @@ class EmailHandler:
 
             # Authentication
             self.username = config_dic.get("DEFAULT", "username", fallback=None)
+            if not self.username:
+                # Fallback to 'user' if 'username' is not set
+                self.logger.debug("Falling back to 'user' for username")
+                self.username = config_dic.get("DEFAULT", "user", fallback=None)
             self.password = config_dic.get("DEFAULT", "password", fallback=None)
             self.email_address = config_dic.get(
                 "DEFAULT", "email_address", fallback=self.username
