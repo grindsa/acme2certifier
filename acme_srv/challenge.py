@@ -894,9 +894,7 @@ class Challenge:
                 token=token,
                 id_type=id_type,
                 id_value=id_value,
-                tnauthlist_support=self.config.tnauthlist_support,
-                email_identifier_support=self.config.email_identifier_support,
-                sectigo_sim=self.config.sectigo_sim,
+                config=self.config,
                 url=f"{self.server_name}{self.path_dic['chall_path']}",
             )
         except Exception as err:
