@@ -491,6 +491,10 @@ class Challenge:
             },
         }
 
+        if updated_challenge_info.type == "email-reply-00" and self.config.email_address:
+            # add from address in response for email challenges
+            response_dic["data"]["from"] = self.config.email_address
+
         # add validated flag if challenge is valid
         if (
             updated_challenge_info.validated
@@ -1084,7 +1088,7 @@ class Challenge:
                 dns_servers=self.config.dns_server_list,
                 timeout=self.config.validation_timeout,
             )
-            print("#######################")
+
             # Use the source address validator from registry
             if self.validator_registry.is_supported("source-address"):
                 result = self.validator_registry.validate_challenge(
