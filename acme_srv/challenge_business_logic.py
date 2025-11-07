@@ -347,7 +347,7 @@ class ChallengeService:
                 "ChallengeService.get_challenge_set_for_authorization(): Found existing challenges"
             )
             return self._format_existing_challenges(
-                challenges=existing_challenges, url=url
+                challenges=existing_challenges, url=url, config=config
             )
 
         # Create new challenge set
@@ -364,7 +364,7 @@ class ChallengeService:
         )
 
     def _format_existing_challenges(
-        self, challenges: List[ChallengeInfo], url: str = ""
+        self, challenges: List[ChallengeInfo], url: str = "", config: Dict[str, Any] = {}
     ) -> List[Dict[str, Any]]:
         """Format existing challenges for response."""
         self.logger.debug(
@@ -380,10 +380,11 @@ class ChallengeService:
             }
 
             # Add email address for email-reply challenges
-            if challenge.type == "email-reply-00" and hasattr(
-                self.factory, "email_address"
-            ):
-                challenge_dict["from"] = self.factory.email_address
+            #if challenge.type == "email-reply-00" and hasattr(
+            #    self.factory, "email_address"
+            #):
+            if challenge.type == "email-reply-00" and config.email_address:
+                challenge_dict["from"] = config.email_address
 
             challenge_list.append(challenge_dict)
 
