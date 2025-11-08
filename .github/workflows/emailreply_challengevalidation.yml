@@ -24,6 +24,11 @@ jobs:
     - name: "Checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
+
     - name: "Build container"
       uses: ./.github/actions/container_prep
       with:
@@ -59,11 +64,6 @@ jobs:
 
         cd examples/Docker/
         docker compose restart
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -123,11 +123,21 @@ jobs:
     - name: "Checkout GIT"
       uses: actions/checkout@v4
 
+    - name: "Parse JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse XCA configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.XCA_CFG }}
+
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
 
     - name: "Install mailserver"
@@ -154,11 +164,6 @@ jobs:
 
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" data/acme_srv.cfg
         sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: a2c@mailserver.acme\npassword: a2cstarter\nemail_address: a2c@mailserver.acme/g" data/acme_srv.cfg
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Django - Setup acme_srv.cfg with xca_ca_handler"
       if: matrix.execscript == 'django_tester.sh'
@@ -179,11 +184,6 @@ jobs:
 
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" data/volume/acme_srv.cfg
         sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: a2c@mailserver.acme\npassword: a2cstarter\nemail_address: a2c@mailserver.acme/g" data/volume/acme_srv.cfg
-      env:
-        XCA_PASSPHRASE: ${{ secrets.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ secrets.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ secrets.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ secrets.XCA_DB_NAME }}
 
     - name: "Execute install scipt"
       run: |

@@ -28,6 +28,12 @@ and pick the appropriate release branch.
 - **Tools**: Fixed error handling in `tools/django_upgrade.py`
 - **ACME CA Handler**: Improved JWK handling by stripping to minimum required fields
 
+## Changes in 0.39.2
+
+**Bug fixes**:
+
+- [#269](https://github.com/grindsa/acme2certifier/issues/269) allow non-compliant order polling via finalize endpoint
+
 ## Changes in 0.39.1
 
 **Bug fixes**:
