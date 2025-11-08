@@ -211,7 +211,6 @@ class ChallengeFactory:
         )
 
         challenge_types = ["http-01", "dns-01", "tls-alpn-01"]
-
         # Skip DNS challenge for IP identifiers
         if id_type == "ip":
             self.logger.debug(
@@ -233,11 +232,7 @@ class ChallengeFactory:
         return challenges
 
     def create_email_reply_challenge(
-        self,
-        authorization_name: str,
-        token: str,
-        email_address: str,
-        sender_address: str,
+        self, authorization_name: str, token: str, email_address: str, sender_address: str,
     ) -> Optional[Dict[str, Any]]:
         """Create email-reply-00 challenge."""
         self.logger.debug(
@@ -302,23 +297,12 @@ class ChallengeFactory:
         # Add type-specific properties
         if challenge_type == "email-reply-00" and self.email_address:
             challenge_dict["from"] = self.email_address
-            result = self.repository.get_challengeinfo_by_challengename(
-                challenge_name,
-                vlist=("name", "keyauthorization", "authorization__value"),
-            )
-            if (
-                result
-                and "keyauthorization" in result
-                and "authorization__value" in result
-            ):
+            result = self.repository.get_challengeinfo_by_challengename(challenge_name, vlist=("name", "keyauthorization", "authorization__value"))
+            if result and 'keyauthorization' in result and 'authorization__value' in result:
                 # send challange email
                 from acme_srv.email_handler import EmailHandler
-
                 with EmailHandler(logger=self.logger) as email_handler:
-                    email_handler.send_email_challenge(
-                        to_address=result["authorization__value"],
-                        token1=result["keyauthorization"],
-                    )
+                    email_handler.send_email_challenge(to_address=result['authorization__value'], token1=result['keyauthorization'])
 
         elif challenge_type == "tkauth-01":
             challenge_dict["tkauth-type"] = "atc"
@@ -382,6 +366,7 @@ class ChallengeService:
             "ChallengeService.get_challenge_set_for_authorization(%s): Creating new challenge set",
             authorization_name,
         )
+
         return self._create_new_challenge_set(
             authorization_name,
             token,
@@ -391,10 +376,7 @@ class ChallengeService:
         )
 
     def _format_existing_challenges(
-        self,
-        challenges: List[ChallengeInfo],
-        url: str = "",
-        config: Dict[str, Any] = {},
+        self, challenges: List[ChallengeInfo], url: str = "", config: Dict[str, Any] = {}
     ) -> List[Dict[str, Any]]:
         """Format existing challenges for response."""
         self.logger.debug(
@@ -410,9 +392,9 @@ class ChallengeService:
             }
 
             # Add email address for email-reply challenges
-            # if challenge.type == "email-reply-00" and hasattr(
+            #if challenge.type == "email-reply-00" and hasattr(
             #    self.factory, "email_address"
-            # ):
+            #):
             if challenge.type == "email-reply-00" and config.email_address:
                 challenge_dict["from"] = config.email_address
 
