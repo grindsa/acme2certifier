@@ -111,7 +111,37 @@ class DatabaseChallengeRepository(ChallengeRepository):
             )
             raise DatabaseError(f"Failed to search challenges: {err}")
 
-    def get_challenge_by_name(self, name: str) -> Optional[ChallengeInfo]:
+    def get_challengeinfo_by_challengename(
+        self, name: str, vlist: Optional[List[str]] = ("name", "type", "status__name")
+    ) -> Optional[str]:
+        """Get challenge information challenge name."""
+        self.logger.debug(
+            "DatabaseChallengeRepository.get_challengeinfo_by_challengename(%s)", name
+        )
+        try:
+            challenge_dic = self.dbstore.challenge_lookup(
+                "name",
+                name,
+                vlist=vlist,
+            )
+
+            self.logger.debug(
+                "DatabaseChallengeRepository.get_challengeinfo_by_challengename() ended: found challenge %s",
+                challenge_dic,
+            )
+            if not challenge_dic:
+                return None
+            return challenge_dic
+
+        except Exception as err:
+            self.logger.critical(
+                "Database error: failed to lookup challenge keyauthorization: %s", err
+            )
+            raise DatabaseError(f"Failed to lookup challenge keyauthorization: {err}")
+
+    def get_challenge_by_name(
+        self, name: str, vlist: Optional[List[str]] = None
+    ) -> Optional[ChallengeInfo]:
         """Get challenge information by name."""
         self.logger.debug("DatabaseChallengeRepository.get_challenge_by_name(%s)", name)
         try:
@@ -367,6 +397,7 @@ class Challenge:
             challenge_name=challenge_name,
             token=challenge_details["token"],
             jwk_thumbprint=challenge_details["jwk_thumbprint"],
+            keyauthorization=challenge_details["keyauthorization"],
             authorization_type=challenge_details["authorization_type"],
             authorization_value=challenge_details["authorization_value"],
             dns_servers=self.config.dns_server_list,
@@ -401,6 +432,7 @@ class Challenge:
                     "type",
                     "status__name",
                     "token",
+                    "keyauthorization",
                     "authorization__name",
                     "authorization__type",
                     "authorization__value",
@@ -425,6 +457,7 @@ class Challenge:
                 "authorization_type": challenge_dic["authorization__type"],
                 "authorization_value": challenge_dic["authorization__value"],
                 "jwk_thumbprint": jwk_thumbprint,
+                "keyauthorization": challenge_dic["keyauthorization"],
             }
 
         except Exception as err:
@@ -474,7 +507,10 @@ class Challenge:
             },
         }
 
-        if updated_challenge_info.type == "email-reply-00" and self.config.email_address:
+        if (
+            updated_challenge_info.type == "email-reply-00"
+            and self.config.email_address
+        ):
             # add from address in response for email challenges
             response_dic["data"]["from"] = self.config.email_address
 
