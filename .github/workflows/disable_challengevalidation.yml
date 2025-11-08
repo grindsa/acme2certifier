@@ -90,8 +90,8 @@ jobs:
     - name: "Check logs for forward check errors"
       working-directory: examples/Docker
       run: |
-        docker compose logs 2>&1 | grep "DNS check failed for www.dynamop.de/172.18.0.1"
-        docker compose logs 2>&1 | grep "DNS check returned invalid for lego-unknown.acme"
+        docker compose logs 2>&1 | grep "Forward check failed for www.dynamop.de"
+        docker compose logs 2>&1 | grep "Forward check failed for lego-unknown.acme"
 
     - name: "Enable reverse address check"
       run: |
@@ -107,7 +107,8 @@ jobs:
     - name: "Check logs for reverse check errors"
       working-directory: examples/Docker
       run: |
-        docker compose logs 2>&1 | grep "PTR check failed"
+        docker compose logs 2>&1 | grep "Reverse address check failed"
+        docker compose logs 2>&1 | grep "Reverse check passed for lego.acme"
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -253,8 +254,8 @@ jobs:
     - name: "Check logs for forward check errors"
       working-directory: examples/Docker
       run: |
-        docker exec acme-srv grep "DNS check failed for www.dynamop.de" /var/log/messages
-        docker exec acme-srv grep "DNS check returned invalid for lego-unknown.acme" /var/log/messages
+        docker exec acme-srv grep "Forward check failed for www.dynamop.de" /var/log/messages
+        docker exec acme-srv grep "Forward check failed for lego-unknown.acme" /var/log/messages
 
     - name: "Enable reverse address check"
       if: matrix.execscript == 'rpm_tester.sh'
@@ -285,7 +286,8 @@ jobs:
     - name: "Check logs for reverse check errors"
       working-directory: examples/Docker
       run: |
-        docker exec acme-srv grep "PTR check failed" /var/log/messages
+        docker exec acme-srv grep "Reverse address check failed" /var/log/messages
+        docker exec acme-srv grep "Reverse check passed for lego.acme" /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
