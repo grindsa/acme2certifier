@@ -182,8 +182,10 @@ class SourceAddressValidator(ChallengeValidator):
 
     def _domain_matches(self, requested_domain: str, resolved_domain: str) -> bool:
         """Check if domains match (exact or subdomain)."""
-        requested_domain = requested_domain.lower().rstrip(".")
-        resolved_domain = resolved_domain.lower().rstrip(".")
+        if requested_domain:
+            requested_domain = requested_domain.lower().rstrip(".")
+        if resolved_domain:
+            resolved_domain = resolved_domain.lower().rstrip(".")
 
         # Exact match
         if requested_domain == resolved_domain:
