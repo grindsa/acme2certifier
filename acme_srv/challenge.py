@@ -335,17 +335,10 @@ class Challenge:
         self.repository = DatabaseChallengeRepository(self.dbstore, self.logger)
         # class managing challenge state transitions
         self.state_manager = ChallengeStateManager(self.repository, self.logger)
-        # class creating and managing the different challenges
-        self.factory = ChallengeFactory(
-            self.repository,
-            self.logger,
-            self.server_name,
-            self.path_dic["chall_path"],
-            self.config.email_address,
-        )
-        self.service = ChallengeService(
-            self.repository, self.state_manager, self.factory, self.logger
-        )
+
+        # These will be initialized after configuration is loaded
+        self.factory = None
+        self.service = None
 
         # Initialize validation components
         self.validator_registry = None
@@ -684,7 +677,33 @@ class Challenge:
                 self.logger, self.config
             )
 
+            # Initialize factory and service after configuration is loaded
+            self._initialize_business_logic_components()
+
         self.logger.debug("Challenge._load_configuration() ended")
+
+    def _initialize_business_logic_components(self):
+        """Initialize factory and service components that depend on configuration."""
+        self.logger.debug("Challenge._initialize_business_logic_components()")
+
+        # class creating and managing the different challenges
+        self.factory = ChallengeFactory(
+            self.repository,
+            self.logger,
+            self.server_name,
+            self.path_dic["chall_path"],
+            self.config.email_address,
+        )
+        self.service = ChallengeService(
+            self.repository, self.state_manager, self.factory, self.logger
+        )
+
+        self.logger.debug("Challenge._initialize_business_logic_components() ended")
+
+    def _ensure_components_initialized(self):
+        """Ensure factory and service components are initialized."""
+        if self.factory is None or self.service is None:
+            raise RuntimeError("Challenge components not initialized. Call _load_configuration() first or use as context manager.")
 
     def _perform_challenge_validation(
         self, challenge_name: str, payload: Dict[str, str]
@@ -871,6 +890,8 @@ class Challenge:
         """Process challenge request (replaces parse)."""
         self.logger.debug("Challenge.process_challenge_request()")
 
+        self._ensure_components_initialized()
+
         try:
             # Check message format
             (
@@ -927,6 +948,9 @@ class Challenge:
         self.logger.debug(
             "Challenge.retrieve_challenge_set() for auth: %s:%s", authz_name, id_value
         )
+
+        self._ensure_components_initialized()
+
         result = []
         try:
             result = self.service.get_challenge_set_for_authorization(
@@ -946,6 +970,7 @@ class Challenge:
         self.logger.debug(
             "Challenge.retrieve_challenge_set() ended with %d challenges", len(result)
         )
+
         return result
 
     # === Legacy API Compatibility ===
