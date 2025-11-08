@@ -29,6 +29,7 @@ class ChallengeContext:
     jwk_thumbprint: str
     authorization_type: str  # 'dns' or 'ip'
     authorization_value: str
+    keyauthorization: Optional[str] = None
     dns_servers: Optional[List[str]] = None
     proxy_servers: Optional[Dict[str, str]] = None
     timeout: int = 10

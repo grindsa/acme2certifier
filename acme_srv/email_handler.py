@@ -133,6 +133,24 @@ class EmailHandler:
 
         self.logger.debug("EmailHandler._config_load() ended")
 
+    def send_email_challenge(self, to_address: str = None, token1: str = None):
+        """send challenge email"""
+        self.logger.debug("Challenge._email_send(%s)", to_address)
+        message_text = f"""
+This is an automatically generated ACME challenge for the email address
+"{to_address}". If you did not request an S/MIME certificate for this
+address, please disregard this message and consider taking appropriate
+security precautions.
+
+If you did initiate the request, your email client may be able to process
+this challenge automatically. Alternatively, you may need to manually
+copy the first token and paste it into the designated verification tool
+or application."""
+
+        self.send(
+            to_address=to_address, subject=f"ACME: {token1}", message=message_text
+        )
+
     def send(
         self,
         to_address: str,
@@ -255,7 +273,7 @@ class EmailHandler:
                     break
                 else:
                     self.logger.debug(
-                        "mailHandler.receive(): email did not pass filter: %s",
+                        "EmailHandler.receive(): email did not pass filter: %s",
                         parsed_email["subject"],
                     )
             else:
