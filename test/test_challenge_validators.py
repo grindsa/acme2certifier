@@ -24,9 +24,13 @@ from acme_srv.challenge_validators.registry import ChallengeValidatorRegistry
 from acme_srv.challenge_validators.http_validator import HttpChallengeValidator
 from acme_srv.challenge_validators.dns_validator import DnsChallengeValidator
 from acme_srv.challenge_validators.tls_alpn_validator import TlsAlpnChallengeValidator
-from acme_srv.challenge_validators.email_reply_validator import EmailReplyChallengeValidator
+from acme_srv.challenge_validators.email_reply_validator import (
+    EmailReplyChallengeValidator,
+)
 from acme_srv.challenge_validators.tkauth_validator import TkauthChallengeValidator
-from acme_srv.challenge_validators.source_address_validator import SourceAddressValidator
+from acme_srv.challenge_validators.source_address_validator import (
+    SourceAddressValidator,
+)
 
 
 class TestValidationResult(unittest.TestCase):
@@ -45,10 +49,7 @@ class TestValidationResult(unittest.TestCase):
         """Test ValidationResult creation with all parameters"""
         details = {"key": "value", "count": 42}
         result = ValidationResult(
-            success=False,
-            invalid=True,
-            error_message="Test error",
-            details=details
+            success=False, invalid=True, error_message="Test error", details=details
         )
 
         self.assertFalse(result.success)
@@ -80,7 +81,7 @@ class TestChallengeContext(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumbprint",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         self.assertEqual(context.challenge_name, "test_challenge")
@@ -110,7 +111,7 @@ class TestChallengeContext(unittest.TestCase):
             dns_servers=dns_servers,
             proxy_servers=proxy_servers,
             timeout=30,
-            source_address="192.168.1.100"
+            source_address="192.168.1.100",
         )
 
         self.assertEqual(context.challenge_name, "full_challenge")
@@ -131,21 +132,21 @@ class TestChallengeContext(unittest.TestCase):
             token="token",
             jwk_thumbprint="thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
         context2 = ChallengeContext(
             challenge_name="test",
             token="token",
             jwk_thumbprint="thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
         context3 = ChallengeContext(
             challenge_name="different",
             token="token",
             jwk_thumbprint="thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         # Test equality
@@ -216,7 +217,7 @@ class TestChallengeValidator(unittest.TestCase):
             token="token",
             jwk_thumbprint="thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         result = validator.validate_challenge(context)
@@ -244,7 +245,7 @@ class TestChallengeValidator(unittest.TestCase):
             token="token",
             jwk_thumbprint="thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         result = validator.validate_challenge(context)
@@ -361,7 +362,7 @@ class TestChallengeValidatorRegistry(unittest.TestCase):
             token="token",
             jwk_thumbprint="thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         result = self.registry.validate_challenge("test-01", context)
@@ -377,7 +378,7 @@ class TestChallengeValidatorRegistry(unittest.TestCase):
             token="token",
             jwk_thumbprint="thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         with self.assertRaises(InvalidChallengeTypeError) as cm:
@@ -424,13 +425,18 @@ class TestHttpChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         # Mock the import to raise ImportError
-        with patch('builtins.__import__', side_effect=ImportError("Module not found")) as mock_import:
+        with patch(
+            "builtins.__import__", side_effect=ImportError("Module not found")
+        ) as mock_import:
+
             def selective_import_error(name, *args, **kwargs):
-                if name == 'acme_srv.helper' or (len(args) > 0 and 'acme_srv.helper' in str(args)):
+                if name == "acme_srv.helper" or (
+                    len(args) > 0 and "acme_srv.helper" in str(args)
+                ):
                     raise ImportError("Module not found")
                 return mock_import.return_value
 
@@ -444,10 +450,12 @@ class TestHttpChallengeValidator(unittest.TestCase):
             self.assertIn("import_error", result.details)
             self.assertIn("import_error", result.details)
 
-    @patch('acme_srv.helper.fqdn_resolve')
-    @patch('acme_srv.helper.url_get')
-    @patch('acme_srv.helper.proxy_check')
-    def test_003_perform_validation_dns_success(self, mock_proxy_check, mock_url_get, mock_fqdn_resolve):
+    @patch("acme_srv.helper.fqdn_resolve")
+    @patch("acme_srv.helper.url_get")
+    @patch("acme_srv.helper.proxy_check")
+    def test_003_perform_validation_dns_success(
+        self, mock_proxy_check, mock_url_get, mock_fqdn_resolve
+    ):
         """Test successful DNS-based HTTP validation"""
         # Setup mocks
         mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
@@ -461,7 +469,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
             authorization_value="example.com",
-            timeout=10
+            timeout=10,
         )
 
         result = self.validator.perform_validation(context)
@@ -473,19 +481,17 @@ class TestHttpChallengeValidator(unittest.TestCase):
         self.assertEqual(result.details["received"], expected_response)
 
         # Verify function calls
-        mock_fqdn_resolve.assert_called_once_with(
-            self.logger, "example.com", None
-        )
+        mock_fqdn_resolve.assert_called_once_with(self.logger, "example.com", None)
         mock_url_get.assert_called_once_with(
             self.logger,
             "http://example.com/.well-known/acme-challenge/test_token",
             dns_server_list=None,
             proxy_server=None,
             verify=False,
-            timeout=10
+            timeout=10,
         )
 
-    @patch('acme_srv.helper.fqdn_resolve')
+    @patch("acme_srv.helper.fqdn_resolve")
     def test_004_perform_validation_dns_resolution_failed(self, mock_fqdn_resolve):
         """Test HTTP validation with DNS resolution failure"""
         mock_fqdn_resolve.return_value = ([], True)
@@ -495,7 +501,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="invalid.example.com"
+            authorization_value="invalid.example.com",
         )
 
         result = self.validator.perform_validation(context)
@@ -505,10 +511,12 @@ class TestHttpChallengeValidator(unittest.TestCase):
         self.assertEqual(result.error_message, "DNS resolution failed")
         self.assertEqual(result.details["fqdn"], "invalid.example.com")
 
-    @patch('acme_srv.helper.ip_validate')
-    @patch('acme_srv.helper.url_get')
-    @patch('acme_srv.helper.proxy_check')
-    def test_005_perform_validation_ip_success(self, mock_proxy_check, mock_url_get, mock_ip_validate):
+    @patch("acme_srv.helper.ip_validate")
+    @patch("acme_srv.helper.url_get")
+    @patch("acme_srv.helper.proxy_check")
+    def test_005_perform_validation_ip_success(
+        self, mock_proxy_check, mock_url_get, mock_ip_validate
+    ):
         """Test successful IP-based HTTP validation"""
         # Setup mocks
         mock_ip_validate.return_value = ("192.168.1.1", False)
@@ -521,7 +529,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="ip",
-            authorization_value="192.168.1.1"
+            authorization_value="192.168.1.1",
         )
 
         result = self.validator.perform_validation(context)
@@ -532,7 +540,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
         # Verify function calls
         mock_ip_validate.assert_called_once_with(self.logger, "192.168.1.1")
 
-    @patch('acme_srv.helper.ip_validate')
+    @patch("acme_srv.helper.ip_validate")
     def test_006_perform_validation_invalid_ip(self, mock_ip_validate):
         """Test HTTP validation with invalid IP address"""
         mock_ip_validate.return_value = ("", True)
@@ -542,7 +550,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="ip",
-            authorization_value="invalid.ip"
+            authorization_value="invalid.ip",
         )
 
         result = self.validator.perform_validation(context)
@@ -559,7 +567,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="unsupported",
-            authorization_value="test.example.com"
+            authorization_value="test.example.com",
         )
 
         result = self.validator.perform_validation(context)
@@ -569,10 +577,12 @@ class TestHttpChallengeValidator(unittest.TestCase):
         self.assertEqual(result.error_message, "Unsupported authorization type")
         self.assertEqual(result.details["type"], "unsupported")
 
-    @patch('acme_srv.helper.fqdn_resolve')
-    @patch('acme_srv.helper.url_get')
-    @patch('acme_srv.helper.proxy_check')
-    def test_008_perform_validation_http_request_failed(self, mock_proxy_check, mock_url_get, mock_fqdn_resolve):
+    @patch("acme_srv.helper.fqdn_resolve")
+    @patch("acme_srv.helper.url_get")
+    @patch("acme_srv.helper.proxy_check")
+    def test_008_perform_validation_http_request_failed(
+        self, mock_proxy_check, mock_url_get, mock_fqdn_resolve
+    ):
         """Test HTTP validation with failed HTTP request"""
         mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
         mock_proxy_check.return_value = None
@@ -583,7 +593,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         result = self.validator.perform_validation(context)
@@ -593,10 +603,12 @@ class TestHttpChallengeValidator(unittest.TestCase):
         self.assertEqual(result.error_message, "HTTP request failed")
         self.assertIn("url", result.details)
 
-    @patch('acme_srv.helper.fqdn_resolve')
-    @patch('acme_srv.helper.url_get')
-    @patch('acme_srv.helper.proxy_check')
-    def test_009_perform_validation_response_mismatch(self, mock_proxy_check, mock_url_get, mock_fqdn_resolve):
+    @patch("acme_srv.helper.fqdn_resolve")
+    @patch("acme_srv.helper.url_get")
+    @patch("acme_srv.helper.proxy_check")
+    def test_009_perform_validation_response_mismatch(
+        self, mock_proxy_check, mock_url_get, mock_fqdn_resolve
+    ):
         """Test HTTP validation with response mismatch"""
         mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
         mock_proxy_check.return_value = None
@@ -607,7 +619,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         result = self.validator.perform_validation(context)
@@ -618,10 +630,12 @@ class TestHttpChallengeValidator(unittest.TestCase):
         self.assertEqual(result.details["expected"], "test_token.test_thumb")
         self.assertEqual(result.details["received"], "wrong_response")
 
-    @patch('acme_srv.helper.fqdn_resolve')
-    @patch('acme_srv.helper.url_get')
-    @patch('acme_srv.helper.proxy_check')
-    def test_010_perform_validation_with_proxy(self, mock_proxy_check, mock_url_get, mock_fqdn_resolve):
+    @patch("acme_srv.helper.fqdn_resolve")
+    @patch("acme_srv.helper.url_get")
+    @patch("acme_srv.helper.proxy_check")
+    def test_010_perform_validation_with_proxy(
+        self, mock_proxy_check, mock_url_get, mock_fqdn_resolve
+    ):
         """Test HTTP validation with proxy server"""
         mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
         mock_proxy_check.return_value = "http://proxy.example.com:8080"
@@ -634,7 +648,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
             authorization_value="example.com",
-            proxy_servers={"http": "http://proxy.example.com:8080"}
+            proxy_servers={"http": "http://proxy.example.com:8080"},
         )
 
         result = self.validator.perform_validation(context)
@@ -653,7 +667,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
             dns_server_list=None,
             proxy_server="http://proxy.example.com:8080",
             verify=False,
-            timeout=10
+            timeout=10,
         )
 
 
@@ -677,13 +691,18 @@ class TestDnsChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         # Mock the import to raise ImportError
-        with patch('builtins.__import__', side_effect=ImportError("Module not found")) as mock_import:
+        with patch(
+            "builtins.__import__", side_effect=ImportError("Module not found")
+        ) as mock_import:
+
             def selective_import_error(name, *args, **kwargs):
-                if name == 'acme_srv.helper' or (len(args) > 0 and 'acme_srv.helper' in str(args)):
+                if name == "acme_srv.helper" or (
+                    len(args) > 0 and "acme_srv.helper" in str(args)
+                ):
                     raise ImportError("Module not found")
                 return mock_import.return_value
 
@@ -696,13 +715,15 @@ class TestDnsChallengeValidator(unittest.TestCase):
             self.assertIn("Required dependencies not available", result.error_message)
             self.assertIn("import_error", result.details)
 
-    @patch('acme_srv.helper.txt_get')
-    @patch('acme_srv.helper.b64_url_encode')
-    @patch('acme_srv.helper.sha256_hash')
-    def test_003_perform_validation_basic_functionality(self, mock_sha256, mock_b64_encode, mock_txt_get):
+    @patch("acme_srv.helper.txt_get")
+    @patch("acme_srv.helper.b64_url_encode")
+    @patch("acme_srv.helper.sha256_hash")
+    def test_003_perform_validation_basic_functionality(
+        self, mock_sha256, mock_b64_encode, mock_txt_get
+    ):
         """Test perform_validation basic functionality"""
         # Mock all external calls to avoid actual DNS lookups
-        mock_sha256.return_value = b'mocked_hash'
+        mock_sha256.return_value = b"mocked_hash"
         mock_b64_encode.return_value = "mocked_encoded_hash"
         mock_txt_get.return_value = []  # Empty DNS response
 
@@ -711,20 +732,22 @@ class TestDnsChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         # This should not crash and return a ValidationResult
         result = self.validator.perform_validation(context)
         self.assertIsInstance(result, ValidationResult)
 
-    @patch('acme_srv.helper.b64_url_encode')
-    @patch('acme_srv.helper.sha256_hash')
-    @patch('acme_srv.helper.txt_get')
-    def test_004_perform_validation_success(self, mock_txt_get, mock_sha256_hash, mock_b64_url_encode):
+    @patch("acme_srv.helper.b64_url_encode")
+    @patch("acme_srv.helper.sha256_hash")
+    @patch("acme_srv.helper.txt_get")
+    def test_004_perform_validation_success(
+        self, mock_txt_get, mock_sha256_hash, mock_b64_url_encode
+    ):
         """Test successful DNS validation"""
         # Setup mocks
-        mock_sha256_hash.return_value = b'mocked_hash'
+        mock_sha256_hash.return_value = b"mocked_hash"
         mock_b64_url_encode.return_value = "expected_hash"
         mock_txt_get.return_value = ["expected_hash", "other_record"]
 
@@ -733,7 +756,7 @@ class TestDnsChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         result = self.validator.perform_validation(context)
@@ -743,20 +766,26 @@ class TestDnsChallengeValidator(unittest.TestCase):
         self.assertIsNone(result.error_message)
         self.assertEqual(result.details["dns_record"], "_acme-challenge.example.com")
         self.assertEqual(result.details["expected_hash"], "expected_hash")
-        self.assertEqual(result.details["found_records"], ["expected_hash", "other_record"])
+        self.assertEqual(
+            result.details["found_records"], ["expected_hash", "other_record"]
+        )
 
         # Verify function calls
         mock_sha256_hash.assert_called_once_with(self.logger, "test_token.test_thumb")
-        mock_b64_url_encode.assert_called_once_with(self.logger, b'mocked_hash')
-        mock_txt_get.assert_called_once_with(self.logger, "_acme-challenge.example.com", None)
+        mock_b64_url_encode.assert_called_once_with(self.logger, b"mocked_hash")
+        mock_txt_get.assert_called_once_with(
+            self.logger, "_acme-challenge.example.com", None
+        )
 
-    @patch('acme_srv.helper.b64_url_encode')
-    @patch('acme_srv.helper.sha256_hash')
-    @patch('acme_srv.helper.txt_get')
-    def test_005_perform_validation_hash_not_found(self, mock_txt_get, mock_sha256_hash, mock_b64_url_encode):
+    @patch("acme_srv.helper.b64_url_encode")
+    @patch("acme_srv.helper.sha256_hash")
+    @patch("acme_srv.helper.txt_get")
+    def test_005_perform_validation_hash_not_found(
+        self, mock_txt_get, mock_sha256_hash, mock_b64_url_encode
+    ):
         """Test DNS validation when expected hash is not found"""
         # Setup mocks
-        mock_sha256_hash.return_value = b'mocked_hash'
+        mock_sha256_hash.return_value = b"mocked_hash"
         mock_b64_url_encode.return_value = "expected_hash"
         mock_txt_get.return_value = ["wrong_hash", "other_record"]
 
@@ -765,7 +794,7 @@ class TestDnsChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         result = self.validator.perform_validation(context)
@@ -774,15 +803,19 @@ class TestDnsChallengeValidator(unittest.TestCase):
         self.assertTrue(result.invalid)
         self.assertEqual(result.error_message, "DNS record not found or incorrect")
         self.assertEqual(result.details["expected_hash"], "expected_hash")
-        self.assertEqual(result.details["found_records"], ["wrong_hash", "other_record"])
+        self.assertEqual(
+            result.details["found_records"], ["wrong_hash", "other_record"]
+        )
 
-    @patch('acme_srv.helper.b64_url_encode')
-    @patch('acme_srv.helper.sha256_hash')
-    @patch('acme_srv.helper.txt_get')
-    def test_006_perform_validation_wildcard_domain(self, mock_txt_get, mock_sha256_hash, mock_b64_url_encode):
+    @patch("acme_srv.helper.b64_url_encode")
+    @patch("acme_srv.helper.sha256_hash")
+    @patch("acme_srv.helper.txt_get")
+    def test_006_perform_validation_wildcard_domain(
+        self, mock_txt_get, mock_sha256_hash, mock_b64_url_encode
+    ):
         """Test DNS validation with wildcard domain"""
         # Setup mocks
-        mock_sha256_hash.return_value = b'mocked_hash'
+        mock_sha256_hash.return_value = b"mocked_hash"
         mock_b64_url_encode.return_value = "expected_hash"
         mock_txt_get.return_value = ["expected_hash"]
 
@@ -791,7 +824,7 @@ class TestDnsChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="*.example.com"
+            authorization_value="*.example.com",
         )
 
         result = self.validator.perform_validation(context)
@@ -800,15 +833,19 @@ class TestDnsChallengeValidator(unittest.TestCase):
         self.assertFalse(result.invalid)
 
         # Verify that wildcard was handled correctly
-        mock_txt_get.assert_called_once_with(self.logger, "_acme-challenge.example.com", None)
+        mock_txt_get.assert_called_once_with(
+            self.logger, "_acme-challenge.example.com", None
+        )
 
-    @patch('acme_srv.helper.b64_url_encode')
-    @patch('acme_srv.helper.sha256_hash')
-    @patch('acme_srv.helper.txt_get')
-    def test_007_perform_validation_with_dns_servers(self, mock_txt_get, mock_sha256_hash, mock_b64_url_encode):
+    @patch("acme_srv.helper.b64_url_encode")
+    @patch("acme_srv.helper.sha256_hash")
+    @patch("acme_srv.helper.txt_get")
+    def test_007_perform_validation_with_dns_servers(
+        self, mock_txt_get, mock_sha256_hash, mock_b64_url_encode
+    ):
         """Test DNS validation with custom DNS servers"""
         # Setup mocks
-        mock_sha256_hash.return_value = b'mocked_hash'
+        mock_sha256_hash.return_value = b"mocked_hash"
         mock_b64_url_encode.return_value = "expected_hash"
         mock_txt_get.return_value = ["expected_hash"]
 
@@ -819,7 +856,7 @@ class TestDnsChallengeValidator(unittest.TestCase):
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
             authorization_value="example.com",
-            dns_servers=dns_servers
+            dns_servers=dns_servers,
         )
 
         result = self.validator.perform_validation(context)
@@ -827,7 +864,9 @@ class TestDnsChallengeValidator(unittest.TestCase):
         self.assertTrue(result.success)
 
         # Verify DNS servers were passed to txt_get
-        mock_txt_get.assert_called_once_with(self.logger, "_acme-challenge.example.com", dns_servers)
+        mock_txt_get.assert_called_once_with(
+            self.logger, "_acme-challenge.example.com", dns_servers
+        )
 
     def test_008_handle_wildcard_domain_with_wildcard(self):
         """Test _handle_wildcard_domain with wildcard domain"""
@@ -844,13 +883,15 @@ class TestDnsChallengeValidator(unittest.TestCase):
         result = self.validator._handle_wildcard_domain("*.sub.example.com")
         self.assertEqual(result, "sub.example.com")
 
-    @patch('acme_srv.helper.b64_url_encode')
-    @patch('acme_srv.helper.sha256_hash')
-    @patch('acme_srv.helper.txt_get')
-    def test_011_perform_validation_empty_dns_records(self, mock_txt_get, mock_sha256_hash, mock_b64_url_encode):
+    @patch("acme_srv.helper.b64_url_encode")
+    @patch("acme_srv.helper.sha256_hash")
+    @patch("acme_srv.helper.txt_get")
+    def test_011_perform_validation_empty_dns_records(
+        self, mock_txt_get, mock_sha256_hash, mock_b64_url_encode
+    ):
         """Test DNS validation with empty DNS records"""
         # Setup mocks
-        mock_sha256_hash.return_value = b'mocked_hash'
+        mock_sha256_hash.return_value = b"mocked_hash"
         mock_b64_url_encode.return_value = "expected_hash"
         mock_txt_get.return_value = []
 
@@ -859,7 +900,7 @@ class TestDnsChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         result = self.validator.perform_validation(context)
@@ -889,13 +930,18 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         # Mock the import to raise ImportError
-        with patch('builtins.__import__', side_effect=ImportError("Module not found")) as mock_import:
+        with patch(
+            "builtins.__import__", side_effect=ImportError("Module not found")
+        ) as mock_import:
+
             def selective_import_error(name, *args, **kwargs):
-                if name == 'acme_srv.helper' or (len(args) > 0 and 'acme_srv.helper' in str(args)):
+                if name == "acme_srv.helper" or (
+                    len(args) > 0 and "acme_srv.helper" in str(args)
+                ):
                     raise ImportError("Module not found")
                 return mock_import.return_value
 
@@ -908,16 +954,25 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             self.assertIn("Required dependencies not available", result.error_message)
             self.assertIn("import_error", result.details)
 
-    @patch('acme_srv.helper.fqdn_resolve')
-    @patch('acme_srv.helper.sha256_hash_hex')
-    @patch('acme_srv.helper.b64_encode')
-    @patch('acme_srv.helper.servercert_get')
-    @patch('acme_srv.helper.proxy_check')
-    def test_003_perform_validation_basic_functionality(self, mock_proxy_check, mock_servercert_get, mock_b64_encode, mock_sha256_hash_hex, mock_fqdn_resolve):
+    @patch("acme_srv.helper.fqdn_resolve")
+    @patch("acme_srv.helper.sha256_hash_hex")
+    @patch("acme_srv.helper.b64_encode")
+    @patch("acme_srv.helper.servercert_get")
+    @patch("acme_srv.helper.proxy_check")
+    def test_003_perform_validation_basic_functionality(
+        self,
+        mock_proxy_check,
+        mock_servercert_get,
+        mock_b64_encode,
+        mock_sha256_hash_hex,
+        mock_fqdn_resolve,
+    ):
         """Test perform_validation basic functionality"""
         # Mock all external calls to avoid actual network operations
         mock_fqdn_resolve.return_value = ([], True)  # DNS resolution failed
-        mock_sha256_hash_hex.return_value = "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+        mock_sha256_hash_hex.return_value = (
+            "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+        )
         mock_b64_encode.return_value = "mocked_extension"
         mock_servercert_get.return_value = None
         mock_proxy_check.return_value = None
@@ -927,35 +982,46 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         # This should not crash and return a ValidationResult
         result = self.validator.perform_validation(context)
         self.assertIsInstance(result, ValidationResult)
 
-    @patch('acme_srv.helper.fqdn_resolve')
-    @patch('acme_srv.helper.sha256_hash_hex')
-    @patch('acme_srv.helper.b64_encode')
-    @patch('acme_srv.helper.servercert_get')
-    @patch('acme_srv.helper.proxy_check')
-    def test_003_perform_validation_dns_success(self, mock_proxy_check, mock_servercert_get, mock_b64_encode, mock_sha256_hash_hex, mock_fqdn_resolve):
+    @patch("acme_srv.helper.fqdn_resolve")
+    @patch("acme_srv.helper.sha256_hash_hex")
+    @patch("acme_srv.helper.b64_encode")
+    @patch("acme_srv.helper.servercert_get")
+    @patch("acme_srv.helper.proxy_check")
+    def test_003_perform_validation_dns_success(
+        self,
+        mock_proxy_check,
+        mock_servercert_get,
+        mock_b64_encode,
+        mock_sha256_hash_hex,
+        mock_fqdn_resolve,
+    ):
         """Test successful TLS-ALPN validation with DNS"""
         # Setup mocks
         mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
-        mock_sha256_hash_hex.return_value = "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+        mock_sha256_hash_hex.return_value = (
+            "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+        )
         mock_b64_encode.return_value = "expected_extension"
         mock_servercert_get.return_value = "mock_certificate"
         mock_proxy_check.return_value = None
 
         # Mock the certificate validation method
-        with patch.object(self.validator, '_validate_certificate_extensions', return_value=True):
+        with patch.object(
+            self.validator, "_validate_certificate_extensions", return_value=True
+        ):
             context = ChallengeContext(
                 challenge_name="test",
                 token="test_token",
                 jwk_thumbprint="test_thumb",
                 authorization_type="dns",
-                authorization_value="example.com"
+                authorization_value="example.com",
             )
 
             result = self.validator.perform_validation(context)
@@ -966,10 +1032,14 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
 
             # Verify function calls
             mock_fqdn_resolve.assert_called_once_with(self.logger, "example.com", None)
-            mock_sha256_hash_hex.assert_called_once_with(self.logger, "test_token.test_thumb")
-            mock_servercert_get.assert_called_once_with(self.logger, "example.com", 443, None, "example.com")
+            mock_sha256_hash_hex.assert_called_once_with(
+                self.logger, "test_token.test_thumb"
+            )
+            mock_servercert_get.assert_called_once_with(
+                self.logger, "example.com", 443, None, "example.com"
+            )
 
-    @patch('acme_srv.helper.fqdn_resolve')
+    @patch("acme_srv.helper.fqdn_resolve")
     def test_004_perform_validation_dns_resolution_failed(self, mock_fqdn_resolve):
         """Test TLS-ALPN validation with DNS resolution failure"""
         mock_fqdn_resolve.return_value = ([], True)
@@ -979,37 +1049,50 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="invalid.example.com"
+            authorization_value="invalid.example.com",
         )
 
         result = self.validator.perform_validation(context)
 
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
-        self.assertEqual(result.error_message, "DNS resolution failed for TLS-ALPN validation")
+        self.assertEqual(
+            result.error_message, "DNS resolution failed for TLS-ALPN validation"
+        )
 
-    @patch('acme_srv.helper.ip_validate')
-    @patch('acme_srv.helper.sha256_hash_hex')
-    @patch('acme_srv.helper.b64_encode')
-    @patch('acme_srv.helper.servercert_get')
-    @patch('acme_srv.helper.proxy_check')
-    def test_005_perform_validation_ip_success(self, mock_proxy_check, mock_servercert_get, mock_b64_encode, mock_sha256_hash_hex, mock_ip_validate):
+    @patch("acme_srv.helper.ip_validate")
+    @patch("acme_srv.helper.sha256_hash_hex")
+    @patch("acme_srv.helper.b64_encode")
+    @patch("acme_srv.helper.servercert_get")
+    @patch("acme_srv.helper.proxy_check")
+    def test_005_perform_validation_ip_success(
+        self,
+        mock_proxy_check,
+        mock_servercert_get,
+        mock_b64_encode,
+        mock_sha256_hash_hex,
+        mock_ip_validate,
+    ):
         """Test successful TLS-ALPN validation with IP"""
         # Setup mocks
         mock_ip_validate.return_value = ("192.168.1.1", False)
-        mock_sha256_hash_hex.return_value = "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+        mock_sha256_hash_hex.return_value = (
+            "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+        )
         mock_b64_encode.return_value = "expected_extension"
         mock_servercert_get.return_value = "mock_certificate"
         mock_proxy_check.return_value = None
 
         # Mock the certificate validation method
-        with patch.object(self.validator, '_validate_certificate_extensions', return_value=True):
+        with patch.object(
+            self.validator, "_validate_certificate_extensions", return_value=True
+        ):
             context = ChallengeContext(
                 challenge_name="test",
                 token="test_token",
                 jwk_thumbprint="test_thumb",
                 authorization_type="ip",
-                authorization_value="192.168.1.1"
+                authorization_value="192.168.1.1",
             )
 
             result = self.validator.perform_validation(context)
@@ -1020,7 +1103,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             # Verify IP validation was called
             mock_ip_validate.assert_called_once_with(self.logger, "192.168.1.1")
 
-    @patch('acme_srv.helper.ip_validate')
+    @patch("acme_srv.helper.ip_validate")
     def test_006_perform_validation_invalid_ip(self, mock_ip_validate):
         """Test TLS-ALPN validation with invalid IP"""
         mock_ip_validate.return_value = ("", True)
@@ -1030,14 +1113,16 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="ip",
-            authorization_value="invalid.ip"
+            authorization_value="invalid.ip",
         )
 
         result = self.validator.perform_validation(context)
 
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
-        self.assertEqual(result.error_message, "Invalid IP address for TLS-ALPN validation")
+        self.assertEqual(
+            result.error_message, "Invalid IP address for TLS-ALPN validation"
+        )
 
     def test_007_perform_validation_unsupported_authorization_type(self):
         """Test TLS-ALPN validation with unsupported authorization type"""
@@ -1046,25 +1131,36 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="unsupported",
-            authorization_value="test.example.com"
+            authorization_value="test.example.com",
         )
 
         result = self.validator.perform_validation(context)
 
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
-        self.assertEqual(result.error_message, "Unsupported authorization type for TLS-ALPN")
+        self.assertEqual(
+            result.error_message, "Unsupported authorization type for TLS-ALPN"
+        )
 
-    @patch('acme_srv.helper.fqdn_resolve')
-    @patch('acme_srv.helper.sha256_hash_hex')
-    @patch('acme_srv.helper.b64_encode')
-    @patch('acme_srv.helper.servercert_get')
-    @patch('acme_srv.helper.proxy_check')
-    def test_008_perform_validation_cert_retrieval_failed(self, mock_proxy_check, mock_servercert_get, mock_b64_encode, mock_sha256_hash_hex, mock_fqdn_resolve):
+    @patch("acme_srv.helper.fqdn_resolve")
+    @patch("acme_srv.helper.sha256_hash_hex")
+    @patch("acme_srv.helper.b64_encode")
+    @patch("acme_srv.helper.servercert_get")
+    @patch("acme_srv.helper.proxy_check")
+    def test_008_perform_validation_cert_retrieval_failed(
+        self,
+        mock_proxy_check,
+        mock_servercert_get,
+        mock_b64_encode,
+        mock_sha256_hash_hex,
+        mock_fqdn_resolve,
+    ):
         """Test TLS-ALPN validation with certificate retrieval failure"""
         # Setup mocks
         mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
-        mock_sha256_hash_hex.return_value = "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+        mock_sha256_hash_hex.return_value = (
+            "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+        )
         mock_b64_encode.return_value = "expected_extension"
         mock_servercert_get.return_value = None  # Simulate failure
         mock_proxy_check.return_value = None
@@ -1074,7 +1170,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         result = self.validator.perform_validation(context)
@@ -1083,79 +1179,103 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         self.assertFalse(result.invalid)
         self.assertEqual(result.error_message, "Unable to retrieve server certificate")
 
-    @patch('acme_srv.helper.fqdn_resolve')
-    @patch('acme_srv.helper.sha256_hash_hex')
-    @patch('acme_srv.helper.b64_encode')
-    @patch('acme_srv.helper.servercert_get')
-    @patch('acme_srv.helper.proxy_check')
-    def test_009_perform_validation_cert_validation_failed(self, mock_proxy_check, mock_servercert_get, mock_b64_encode, mock_sha256_hash_hex, mock_fqdn_resolve):
+    @patch("acme_srv.helper.fqdn_resolve")
+    @patch("acme_srv.helper.sha256_hash_hex")
+    @patch("acme_srv.helper.b64_encode")
+    @patch("acme_srv.helper.servercert_get")
+    @patch("acme_srv.helper.proxy_check")
+    def test_009_perform_validation_cert_validation_failed(
+        self,
+        mock_proxy_check,
+        mock_servercert_get,
+        mock_b64_encode,
+        mock_sha256_hash_hex,
+        mock_fqdn_resolve,
+    ):
         """Test TLS-ALPN validation with certificate validation failure"""
         # Setup mocks
         mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
-        mock_sha256_hash_hex.return_value = "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+        mock_sha256_hash_hex.return_value = (
+            "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+        )
         mock_b64_encode.return_value = "expected_extension"
         mock_servercert_get.return_value = "mock_certificate"
         mock_proxy_check.return_value = None
 
         # Mock the certificate validation method to return False
-        with patch.object(self.validator, '_validate_certificate_extensions', return_value=False):
+        with patch.object(
+            self.validator, "_validate_certificate_extensions", return_value=False
+        ):
             context = ChallengeContext(
                 challenge_name="test",
                 token="test_token",
                 jwk_thumbprint="test_thumb",
                 authorization_type="dns",
-                authorization_value="example.com"
+                authorization_value="example.com",
             )
 
             result = self.validator.perform_validation(context)
 
             self.assertFalse(result.success)
             self.assertTrue(result.invalid)
-            self.assertEqual(result.error_message, "Certificate extension validation failed")
+            self.assertEqual(
+                result.error_message, "Certificate extension validation failed"
+            )
 
-    @patch('acme_srv.helper.cert_san_get')
-    @patch('acme_srv.helper.fqdn_in_san_check')
-    @patch('acme_srv.helper.cert_extensions_get')
-    def test_010_validate_certificate_extensions_success(self, mock_cert_extensions_get, mock_fqdn_in_san_check, mock_cert_san_get):
+    @patch("acme_srv.helper.cert_san_get")
+    @patch("acme_srv.helper.fqdn_in_san_check")
+    @patch("acme_srv.helper.cert_extensions_get")
+    def test_010_validate_certificate_extensions_success(
+        self, mock_cert_extensions_get, mock_fqdn_in_san_check, mock_cert_san_get
+    ):
         """Test _validate_certificate_extensions with successful validation"""
         # Setup mocks
         mock_cert_san_get.return_value = ["example.com", "www.example.com"]
         mock_fqdn_in_san_check.return_value = True
-        mock_cert_extensions_get.return_value = ["expected_extension", "other_extension"]
+        mock_cert_extensions_get.return_value = [
+            "expected_extension",
+            "other_extension",
+        ]
 
         result = self.validator._validate_certificate_extensions(
-            cert="mock_cert",
-            extension_value="expected_extension",
-            fqdn="example.com"
+            cert="mock_cert", extension_value="expected_extension", fqdn="example.com"
         )
 
         self.assertTrue(result)
 
         # Verify function calls
-        mock_cert_san_get.assert_called_once_with(self.logger, "mock_cert", recode=False)
-        mock_fqdn_in_san_check.assert_called_once_with(self.logger, ["example.com", "www.example.com"], "example.com")
-        mock_cert_extensions_get.assert_called_once_with(self.logger, "mock_cert", recode=False)
+        mock_cert_san_get.assert_called_once_with(
+            self.logger, "mock_cert", recode=False
+        )
+        mock_fqdn_in_san_check.assert_called_once_with(
+            self.logger, ["example.com", "www.example.com"], "example.com"
+        )
+        mock_cert_extensions_get.assert_called_once_with(
+            self.logger, "mock_cert", recode=False
+        )
 
-    @patch('acme_srv.helper.cert_san_get')
-    @patch('acme_srv.helper.fqdn_in_san_check')
-    def test_011_validate_certificate_extensions_fqdn_not_in_san(self, mock_fqdn_in_san_check, mock_cert_san_get):
+    @patch("acme_srv.helper.cert_san_get")
+    @patch("acme_srv.helper.fqdn_in_san_check")
+    def test_011_validate_certificate_extensions_fqdn_not_in_san(
+        self, mock_fqdn_in_san_check, mock_cert_san_get
+    ):
         """Test _validate_certificate_extensions with FQDN not in SAN"""
         # Setup mocks
         mock_cert_san_get.return_value = ["other.example.com"]
         mock_fqdn_in_san_check.return_value = False
 
         result = self.validator._validate_certificate_extensions(
-            cert="mock_cert",
-            extension_value="expected_extension",
-            fqdn="example.com"
+            cert="mock_cert", extension_value="expected_extension", fqdn="example.com"
         )
 
         self.assertFalse(result)
 
-    @patch('acme_srv.helper.cert_san_get')
-    @patch('acme_srv.helper.fqdn_in_san_check')
-    @patch('acme_srv.helper.cert_extensions_get')
-    def test_012_validate_certificate_extensions_extension_not_found(self, mock_cert_extensions_get, mock_fqdn_in_san_check, mock_cert_san_get):
+    @patch("acme_srv.helper.cert_san_get")
+    @patch("acme_srv.helper.fqdn_in_san_check")
+    @patch("acme_srv.helper.cert_extensions_get")
+    def test_012_validate_certificate_extensions_extension_not_found(
+        self, mock_cert_extensions_get, mock_fqdn_in_san_check, mock_cert_san_get
+    ):
         """Test _validate_certificate_extensions with extension not found"""
         # Setup mocks
         mock_cert_san_get.return_value = ["example.com"]
@@ -1163,17 +1283,17 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         mock_cert_extensions_get.return_value = ["other_extension", "wrong_extension"]
 
         result = self.validator._validate_certificate_extensions(
-            cert="mock_cert",
-            extension_value="expected_extension",
-            fqdn="example.com"
+            cert="mock_cert", extension_value="expected_extension", fqdn="example.com"
         )
 
         self.assertFalse(result)
 
-    @patch('acme_srv.helper.cert_san_get')
-    @patch('acme_srv.helper.fqdn_in_san_check')
-    @patch('acme_srv.helper.cert_extensions_get')
-    def test_013_validate_certificate_extensions_basic_functionality(self, mock_cert_extensions_get, mock_fqdn_in_san_check, mock_cert_san_get):
+    @patch("acme_srv.helper.cert_san_get")
+    @patch("acme_srv.helper.fqdn_in_san_check")
+    @patch("acme_srv.helper.cert_extensions_get")
+    def test_013_validate_certificate_extensions_basic_functionality(
+        self, mock_cert_extensions_get, mock_fqdn_in_san_check, mock_cert_san_get
+    ):
         """Test _validate_certificate_extensions basic functionality"""
         # Setup mocks to avoid actual certificate parsing
         mock_cert_san_get.return_value = ["example.com"]
@@ -1181,9 +1301,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         mock_cert_extensions_get.return_value = ["expected_extension"]
 
         result = self.validator._validate_certificate_extensions(
-            cert="mock_cert",
-            extension_value="expected_extension",
-            fqdn="example.com"
+            cert="mock_cert", extension_value="expected_extension", fqdn="example.com"
         )
 
         # Should return True when everything matches
@@ -1192,9 +1310,14 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     def test_014_validate_certificate_extensions_import_error(self):
         """Test _validate_certificate_extensions with import error"""
         # Mock the import to raise ImportError for the helper functions
-        with patch('builtins.__import__', side_effect=ImportError("Module not found")) as mock_import:
+        with patch(
+            "builtins.__import__", side_effect=ImportError("Module not found")
+        ) as mock_import:
+
             def selective_import_error(name, *args, **kwargs):
-                if name == 'acme_srv.helper' or (len(args) > 0 and 'acme_srv.helper' in str(args)):
+                if name == "acme_srv.helper" or (
+                    len(args) > 0 and "acme_srv.helper" in str(args)
+                ):
                     raise ImportError("Module not found")
                 return mock_import.return_value
 
@@ -1203,37 +1326,53 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             result = self.validator._validate_certificate_extensions(
                 cert="mock_cert",
                 extension_value="expected_extension",
-                fqdn="example.com"
+                fqdn="example.com",
             )
 
             # Should return False when import fails
             self.assertFalse(result)
 
-    @patch('acme_srv.helper.fqdn_resolve')
-    @patch('acme_srv.helper.sha256_hash_hex')
-    @patch('acme_srv.helper.b64_encode')
-    @patch('acme_srv.helper.servercert_get')
-    @patch('acme_srv.helper.proxy_check')
-    def test_015_perform_validation_with_proxy_servers(self, mock_proxy_check, mock_servercert_get, mock_b64_encode, mock_sha256_hash_hex, mock_fqdn_resolve):
+    @patch("acme_srv.helper.fqdn_resolve")
+    @patch("acme_srv.helper.sha256_hash_hex")
+    @patch("acme_srv.helper.b64_encode")
+    @patch("acme_srv.helper.servercert_get")
+    @patch("acme_srv.helper.proxy_check")
+    def test_015_perform_validation_with_proxy_servers(
+        self,
+        mock_proxy_check,
+        mock_servercert_get,
+        mock_b64_encode,
+        mock_sha256_hash_hex,
+        mock_fqdn_resolve,
+    ):
         """Test TLS-ALPN validation with proxy servers configured"""
         # Setup mocks
         mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
-        mock_sha256_hash_hex.return_value = "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+        mock_sha256_hash_hex.return_value = (
+            "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
+        )
         mock_b64_encode.return_value = "expected_extension"
         mock_servercert_get.return_value = "mock_certificate"
-        mock_proxy_check.return_value = "proxy.example.com:8080"  # Return a proxy server
+        mock_proxy_check.return_value = (
+            "proxy.example.com:8080"  # Return a proxy server
+        )
 
         # Mock the certificate validation method
-        with patch.object(self.validator, '_validate_certificate_extensions', return_value=True):
+        with patch.object(
+            self.validator, "_validate_certificate_extensions", return_value=True
+        ):
             context = ChallengeContext(
                 challenge_name="test",
                 token="test_token",
                 jwk_thumbprint="test_thumb",
                 authorization_type="dns",
-                authorization_value="example.com"
+                authorization_value="example.com",
             )
             # Set proxy_servers to trigger the proxy_check code path (line 73)
-            context.proxy_servers = ["proxy1.example.com:8080", "proxy2.example.com:8080"]
+            context.proxy_servers = [
+                "proxy1.example.com:8080",
+                "proxy2.example.com:8080",
+            ]
 
             result = self.validator.perform_validation(context)
 
@@ -1242,9 +1381,15 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             self.assertIsNone(result.error_message)
 
             # Verify that proxy_check was called with the correct parameters
-            mock_proxy_check.assert_called_once_with(self.logger, "example.com", ["proxy1.example.com:8080", "proxy2.example.com:8080"])
+            mock_proxy_check.assert_called_once_with(
+                self.logger,
+                "example.com",
+                ["proxy1.example.com:8080", "proxy2.example.com:8080"],
+            )
             # Verify that servercert_get was called with the proxy server
-            mock_servercert_get.assert_called_once_with(self.logger, "example.com", 443, "proxy.example.com:8080", "example.com")
+            mock_servercert_get.assert_called_once_with(
+                self.logger, "example.com", 443, "proxy.example.com:8080", "example.com"
+            )
 
 
 class TestEmailReplyChallengeValidator(unittest.TestCase):
@@ -1267,13 +1412,18 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         # Mock the import to raise ImportError
-        with patch('builtins.__import__', side_effect=ImportError("Module not found")) as mock_import:
+        with patch(
+            "builtins.__import__", side_effect=ImportError("Module not found")
+        ) as mock_import:
+
             def selective_import_error(name, *args, **kwargs):
-                if name == 'acme_srv.email_handler' or (len(args) > 0 and 'acme_srv.email_handler' in str(args)):
+                if name == "acme_srv.email_handler" or (
+                    len(args) > 0 and "acme_srv.email_handler" in str(args)
+                ):
                     raise ImportError("Module not found")
                 return mock_import.return_value
 
@@ -1286,7 +1436,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
             self.assertIn("Email handler not available", result.error_message)
             self.assertIn("import_error", result.details)
 
-    @patch('acme_srv.email_handler.EmailHandler')
+    @patch("acme_srv.email_handler.EmailHandler")
     def test_003_perform_validation_basic_functionality(self, mock_email_handler):
         """Test perform_validation basic functionality"""
         # Setup a basic mock that doesn't crash
@@ -1299,17 +1449,19 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="email",
-            authorization_value="test@example.com"
+            authorization_value="test@example.com",
         )
 
         # This should not crash and return a ValidationResult
         result = self.validator.perform_validation(context)
         self.assertIsInstance(result, ValidationResult)
 
-    @patch('acme_srv.email_handler.EmailHandler')
-    @patch.object(EmailReplyChallengeValidator, '_generate_email_keyauth')
-    @patch.object(EmailReplyChallengeValidator, '_extract_email_keyauth')
-    def test_004_perform_validation_success(self, mock_extract, mock_generate, mock_email_handler):
+    @patch("acme_srv.email_handler.EmailHandler")
+    @patch.object(EmailReplyChallengeValidator, "_generate_email_keyauth")
+    @patch.object(EmailReplyChallengeValidator, "_extract_email_keyauth")
+    def test_004_perform_validation_success(
+        self, mock_extract, mock_generate, mock_email_handler
+    ):
         """Test successful email reply validation"""
         # Setup mocks
         mock_generate.return_value = ("expected_keyauth", "rfc_token1")
@@ -1325,7 +1477,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
             jwk_thumbprint="test_thumb",
             authorization_type="email",
             authorization_value="test@example.com",
-            keyauthorization="test_keyauth"
+            keyauthorization="test_keyauth",
         )
 
         result = self.validator.perform_validation(context)
@@ -1335,9 +1487,11 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
         self.assertIsNone(result.error_message)
         self.assertEqual(result.details["calculated_keyauth"], "expected_keyauth")
 
-    @patch('acme_srv.email_handler.EmailHandler')
-    @patch.object(EmailReplyChallengeValidator, '_generate_email_keyauth')
-    def test_005_perform_validation_no_email_received(self, mock_generate, mock_email_handler):
+    @patch("acme_srv.email_handler.EmailHandler")
+    @patch.object(EmailReplyChallengeValidator, "_generate_email_keyauth")
+    def test_005_perform_validation_no_email_received(
+        self, mock_generate, mock_email_handler
+    ):
         """Test validation with no email received"""
         # Setup mocks
         mock_generate.return_value = ("expected_keyauth", "rfc_token1")
@@ -1351,18 +1505,22 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="email",
-            authorization_value="test@example.com"
+            authorization_value="test@example.com",
         )
 
         result = self.validator.perform_validation(context)
 
         self.assertFalse(result.success)
         self.assertFalse(result.invalid)
-        self.assertEqual(result.error_message, "No email received or email body missing")
+        self.assertEqual(
+            result.error_message, "No email received or email body missing"
+        )
 
-    @patch('acme_srv.email_handler.EmailHandler')
-    @patch.object(EmailReplyChallengeValidator, '_generate_email_keyauth')
-    def test_006_perform_validation_email_missing_body(self, mock_generate, mock_email_handler):
+    @patch("acme_srv.email_handler.EmailHandler")
+    @patch.object(EmailReplyChallengeValidator, "_generate_email_keyauth")
+    def test_006_perform_validation_email_missing_body(
+        self, mock_generate, mock_email_handler
+    ):
         """Test validation with email missing body"""
         # Setup mocks
         mock_generate.return_value = ("expected_keyauth", "rfc_token1")
@@ -1376,19 +1534,23 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="email",
-            authorization_value="test@example.com"
+            authorization_value="test@example.com",
         )
 
         result = self.validator.perform_validation(context)
 
         self.assertFalse(result.success)
         self.assertFalse(result.invalid)
-        self.assertEqual(result.error_message, "No email received or email body missing")
+        self.assertEqual(
+            result.error_message, "No email received or email body missing"
+        )
 
-    @patch('acme_srv.email_handler.EmailHandler')
-    @patch.object(EmailReplyChallengeValidator, '_generate_email_keyauth')
-    @patch.object(EmailReplyChallengeValidator, '_extract_email_keyauth')
-    def test_007_perform_validation_keyauth_mismatch(self, mock_extract, mock_generate, mock_email_handler):
+    @patch("acme_srv.email_handler.EmailHandler")
+    @patch.object(EmailReplyChallengeValidator, "_generate_email_keyauth")
+    @patch.object(EmailReplyChallengeValidator, "_extract_email_keyauth")
+    def test_007_perform_validation_keyauth_mismatch(
+        self, mock_extract, mock_generate, mock_email_handler
+    ):
         """Test validation with keyauth mismatch"""
         # Setup mocks
         mock_generate.return_value = ("expected_keyauth", "rfc_token1")
@@ -1403,7 +1565,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="email",
-            authorization_value="test@example.com"
+            authorization_value="test@example.com",
         )
 
         result = self.validator.perform_validation(context)
@@ -1414,20 +1576,22 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
         self.assertEqual(result.details["expected"], "expected_keyauth")
         self.assertEqual(result.details["received"], "wrong_keyauth")
 
-    @patch('acme_srv.challenge_validators.email_reply_validator.convert_byte_to_string')
-    @patch('acme_srv.challenge_validators.email_reply_validator.b64_url_encode')
-    @patch('acme_srv.challenge_validators.email_reply_validator.sha256_hash')
-    def test_007_generate_email_keyauth(self, mock_sha256, mock_b64_encode, mock_convert):
+    @patch("acme_srv.challenge_validators.email_reply_validator.convert_byte_to_string")
+    @patch("acme_srv.challenge_validators.email_reply_validator.b64_url_encode")
+    @patch("acme_srv.challenge_validators.email_reply_validator.sha256_hash")
+    def test_007_generate_email_keyauth(
+        self, mock_sha256, mock_b64_encode, mock_convert
+    ):
         """Test _generate_email_keyauth method"""
-        mock_sha256.return_value = b'hash_result'
-        mock_b64_encode.return_value = b'encoded_result'
+        mock_sha256.return_value = b"hash_result"
+        mock_b64_encode.return_value = b"encoded_result"
         mock_convert.return_value = "string_result"
 
         result, rfc_token = self.validator._generate_email_keyauth(
             challenge_name="test_challenge",
             rfc_token2="token2",
             jwk_thumbprint="thumb",
-            rfc_token1="token1"
+            rfc_token1="token1",
         )
 
         self.assertEqual(result, "string_result")
@@ -1435,15 +1599,12 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
 
         # Verify function calls
         mock_sha256.assert_called_once_with(self.logger, "token1token2.thumb")
-        mock_b64_encode.assert_called_once_with(self.logger, b'hash_result')
-        mock_convert.assert_called_once_with(b'encoded_result')
+        mock_b64_encode.assert_called_once_with(self.logger, b"hash_result")
+        mock_convert.assert_called_once_with(b"encoded_result")
 
     def test_008_filter_email_matching_subject(self):
         """Test _filter_email with matching subject"""
-        email_data = {
-            "subject": "ACME: token123",
-            "body": "test email body"
-        }
+        email_data = {"subject": "ACME: token123", "body": "test email body"}
         rfc_token1 = "token123"
 
         result = self.validator._filter_email(email_data, rfc_token1)
@@ -1452,10 +1613,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
 
     def test_009_filter_email_non_matching_subject(self):
         """Test _filter_email with non-matching subject"""
-        email_data = {
-            "subject": "Different subject",
-            "body": "test email body"
-        }
+        email_data = {"subject": "Different subject", "body": "test email body"}
         rfc_token1 = "token123"
 
         result = self.validator._filter_email(email_data, rfc_token1)
@@ -1464,9 +1622,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
 
     def test_010_filter_email_missing_subject(self):
         """Test _filter_email with missing subject"""
-        email_data = {
-            "body": "test email body"
-        }
+        email_data = {"body": "test email body"}
         rfc_token1 = "token123"
 
         result = self.validator._filter_email(email_data, rfc_token1)
@@ -1545,7 +1701,7 @@ class TestTkauthChallengeValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
 
         result = self.validator.perform_validation(context)
@@ -1564,7 +1720,9 @@ class TestSourceAddressValidator(unittest.TestCase):
     def setUp(self):
         """Setup for Source Address validator tests"""
         self.logger = Mock(spec=logging.Logger)
-        self.validator = SourceAddressValidator(self.logger, forward_check=True, reverse_check=True)
+        self.validator = SourceAddressValidator(
+            self.logger, forward_check=True, reverse_check=True
+        )
 
     def test_001_get_challenge_type(self):
         """Test get_challenge_type returns correct type"""
@@ -1578,14 +1736,19 @@ class TestSourceAddressValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
         context.source_address = "192.168.1.1"
 
         # Mock the import to raise ImportError
-        with patch('builtins.__import__', side_effect=ImportError("Module not found")) as mock_import:
+        with patch(
+            "builtins.__import__", side_effect=ImportError("Module not found")
+        ) as mock_import:
+
             def selective_import_error(name, *args, **kwargs):
-                if name == 'acme_srv.helper' or (len(args) > 0 and 'acme_srv.helper' in str(args)):
+                if name == "acme_srv.helper" or (
+                    len(args) > 0 and "acme_srv.helper" in str(args)
+                ):
                     raise ImportError("Module not found")
                 return mock_import.return_value
 
@@ -1598,9 +1761,11 @@ class TestSourceAddressValidator(unittest.TestCase):
             self.assertIn("Required dependencies not available", result.error_message)
             self.assertIn("import_error", result.details)
 
-    @patch('acme_srv.helper.ptr_resolve')
-    @patch('acme_srv.helper.fqdn_resolve')
-    def test_003_perform_validation_basic_functionality(self, mock_fqdn_resolve, mock_ptr_resolve):
+    @patch("acme_srv.helper.ptr_resolve")
+    @patch("acme_srv.helper.fqdn_resolve")
+    def test_003_perform_validation_basic_functionality(
+        self, mock_fqdn_resolve, mock_ptr_resolve
+    ):
         """Test perform_validation basic functionality"""
         # Mock DNS resolution to prevent network calls
         mock_fqdn_resolve.return_value = (["192.168.1.1"], [])
@@ -1611,7 +1776,7 @@ class TestSourceAddressValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
         context.source_address = "192.168.1.1"
 
@@ -1626,7 +1791,7 @@ class TestSourceAddressValidator(unittest.TestCase):
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
         # No source_address set
 
@@ -1634,22 +1799,32 @@ class TestSourceAddressValidator(unittest.TestCase):
 
         self.assertTrue(result.success)
         self.assertFalse(result.invalid)
-        self.assertEqual(result.details["message"], "No source address provided, skipping validation")
+        self.assertEqual(
+            result.details["message"], "No source address provided, skipping validation"
+        )
 
-    @patch.object(SourceAddressValidator, '_perform_forward_check')
-    @patch.object(SourceAddressValidator, '_perform_reverse_check')
-    def test_005_perform_validation_both_checks_success(self, mock_reverse, mock_forward):
+    @patch.object(SourceAddressValidator, "_perform_forward_check")
+    @patch.object(SourceAddressValidator, "_perform_reverse_check")
+    def test_005_perform_validation_both_checks_success(
+        self, mock_reverse, mock_forward
+    ):
         """Test successful validation with both checks enabled"""
         # Setup mocks
-        mock_forward.return_value = {"forward_check_passed": True, "resolved_ips": ["192.168.1.1"]}
-        mock_reverse.return_value = {"reverse_check_passed": True, "reverse_domains": ["example.com"]}
+        mock_forward.return_value = {
+            "forward_check_passed": True,
+            "resolved_ips": ["192.168.1.1"],
+        }
+        mock_reverse.return_value = {
+            "reverse_check_passed": True,
+            "reverse_domains": ["example.com"],
+        }
 
         context = ChallengeContext(
             challenge_name="test",
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
         context.source_address = "192.168.1.1"
         context.dns_servers = []
@@ -1663,17 +1838,20 @@ class TestSourceAddressValidator(unittest.TestCase):
         mock_forward.assert_called_once_with("example.com", "192.168.1.1", [])
         mock_reverse.assert_called_once_with("example.com", "192.168.1.1", [])
 
-    @patch.object(SourceAddressValidator, '_perform_forward_check')
+    @patch.object(SourceAddressValidator, "_perform_forward_check")
     def test_006_perform_validation_forward_check_failed(self, mock_forward):
         """Test validation with forward check failure"""
-        mock_forward.return_value = {"forward_check_passed": False, "resolved_ips": ["192.168.1.100"]}
+        mock_forward.return_value = {
+            "forward_check_passed": False,
+            "resolved_ips": ["192.168.1.100"],
+        }
 
         context = ChallengeContext(
             challenge_name="test",
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
         context.source_address = "192.168.1.1"
         context.dns_servers = []
@@ -1684,19 +1862,27 @@ class TestSourceAddressValidator(unittest.TestCase):
         self.assertTrue(result.invalid)
         self.assertEqual(result.error_message, "Forward address check failed")
 
-    @patch.object(SourceAddressValidator, '_perform_forward_check')
-    @patch.object(SourceAddressValidator, '_perform_reverse_check')
-    def test_007_perform_validation_reverse_check_failed(self, mock_reverse, mock_forward):
+    @patch.object(SourceAddressValidator, "_perform_forward_check")
+    @patch.object(SourceAddressValidator, "_perform_reverse_check")
+    def test_007_perform_validation_reverse_check_failed(
+        self, mock_reverse, mock_forward
+    ):
         """Test validation with reverse check failure"""
-        mock_forward.return_value = {"forward_check_passed": True, "resolved_ips": ["192.168.1.1"]}
-        mock_reverse.return_value = {"reverse_check_passed": False, "reverse_domains": ["other.com"]}
+        mock_forward.return_value = {
+            "forward_check_passed": True,
+            "resolved_ips": ["192.168.1.1"],
+        }
+        mock_reverse.return_value = {
+            "reverse_check_passed": False,
+            "reverse_domains": ["other.com"],
+        }
 
         context = ChallengeContext(
             challenge_name="test",
             token="test_token",
             jwk_thumbprint="test_thumb",
             authorization_type="dns",
-            authorization_value="example.com"
+            authorization_value="example.com",
         )
         context.source_address = "192.168.1.1"
         context.dns_servers = []
@@ -1709,17 +1895,22 @@ class TestSourceAddressValidator(unittest.TestCase):
 
     def test_008_perform_validation_forward_only(self):
         """Test validation with only forward check enabled"""
-        validator = SourceAddressValidator(self.logger, forward_check=True, reverse_check=False)
+        validator = SourceAddressValidator(
+            self.logger, forward_check=True, reverse_check=False
+        )
 
-        with patch.object(validator, '_perform_forward_check') as mock_forward:
-            mock_forward.return_value = {"forward_check_passed": True, "resolved_ips": ["192.168.1.1"]}
+        with patch.object(validator, "_perform_forward_check") as mock_forward:
+            mock_forward.return_value = {
+                "forward_check_passed": True,
+                "resolved_ips": ["192.168.1.1"],
+            }
 
             context = ChallengeContext(
                 challenge_name="test",
                 token="test_token",
                 jwk_thumbprint="test_thumb",
                 authorization_type="dns",
-                authorization_value="example.com"
+                authorization_value="example.com",
             )
             context.source_address = "192.168.1.1"
             context.dns_servers = []
@@ -1730,7 +1921,7 @@ class TestSourceAddressValidator(unittest.TestCase):
             self.assertFalse(result.invalid)
             mock_forward.assert_called_once()
 
-    @patch('acme_srv.helper.fqdn_resolve')
+    @patch("acme_srv.helper.fqdn_resolve")
     def test_009_perform_forward_check_success(self, mock_fqdn_resolve):
         """Test _perform_forward_check success"""
         mock_fqdn_resolve.return_value = (["192.168.1.1", "192.168.1.2"], False)
@@ -1741,7 +1932,7 @@ class TestSourceAddressValidator(unittest.TestCase):
         self.assertEqual(result["resolved_ips"], ["192.168.1.1", "192.168.1.2"])
         self.assertEqual(result["domain"], "example.com")
 
-    @patch('acme_srv.helper.fqdn_resolve')
+    @patch("acme_srv.helper.fqdn_resolve")
     def test_010_perform_forward_check_failure(self, mock_fqdn_resolve):
         """Test _perform_forward_check failure"""
         mock_fqdn_resolve.return_value = (["192.168.1.100"], False)  # Different IP
@@ -1751,7 +1942,7 @@ class TestSourceAddressValidator(unittest.TestCase):
         self.assertFalse(result["forward_check_passed"])
         self.assertEqual(result["resolved_ips"], ["192.168.1.100"])
 
-    @patch('acme_srv.helper.fqdn_resolve')
+    @patch("acme_srv.helper.fqdn_resolve")
     def test_011_perform_forward_check_exception(self, mock_fqdn_resolve):
         """Test _perform_forward_check with exception"""
         mock_fqdn_resolve.side_effect = Exception("DNS error")
@@ -1761,28 +1952,34 @@ class TestSourceAddressValidator(unittest.TestCase):
         self.assertFalse(result["forward_check_passed"])
         self.assertEqual(result["error"], "DNS error")
 
-    @patch('acme_srv.helper.ptr_resolve')
+    @patch("acme_srv.helper.ptr_resolve")
     def test_012_perform_reverse_check_success(self, mock_ptr_resolve):
         """Test _perform_reverse_check success"""
         mock_ptr_resolve.return_value = ["example.com", "www.example.com"]
 
-        with patch.object(self.validator, '_domain_matches', return_value=True):
-            result = self.validator._perform_reverse_check("example.com", "192.168.1.1", [])
+        with patch.object(self.validator, "_domain_matches", return_value=True):
+            result = self.validator._perform_reverse_check(
+                "example.com", "192.168.1.1", []
+            )
 
             self.assertTrue(result["reverse_check_passed"])
-            self.assertEqual(result["reverse_domains"], ["example.com", "www.example.com"])
+            self.assertEqual(
+                result["reverse_domains"], ["example.com", "www.example.com"]
+            )
 
-    @patch('acme_srv.helper.ptr_resolve')
+    @patch("acme_srv.helper.ptr_resolve")
     def test_013_perform_reverse_check_failure(self, mock_ptr_resolve):
         """Test _perform_reverse_check failure"""
         mock_ptr_resolve.return_value = ["other.com"]
 
-        with patch.object(self.validator, '_domain_matches', return_value=False):
-            result = self.validator._perform_reverse_check("example.com", "192.168.1.1", [])
+        with patch.object(self.validator, "_domain_matches", return_value=False):
+            result = self.validator._perform_reverse_check(
+                "example.com", "192.168.1.1", []
+            )
 
             self.assertFalse(result["reverse_check_passed"])
 
-    @patch('acme_srv.helper.ptr_resolve')
+    @patch("acme_srv.helper.ptr_resolve")
     def test_014_perform_reverse_check_exception(self, mock_ptr_resolve):
         """Test _perform_reverse_check with exception"""
         mock_ptr_resolve.side_effect = Exception("PTR error")
@@ -1818,5 +2015,5 @@ class TestSourceAddressValidator(unittest.TestCase):
         self.assertTrue(result)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

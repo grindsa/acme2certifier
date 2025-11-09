@@ -19,6 +19,7 @@ class TestChallengeInfo(unittest.TestCase):
     def setUp(self):
         """Setup for tests"""
         from acme_srv.challenge_business_logic import ChallengeInfo
+
         self.ChallengeInfo = ChallengeInfo
 
     def test_001_challenge_info_creation_basic(self):
@@ -31,7 +32,7 @@ class TestChallengeInfo(unittest.TestCase):
             authorization_name="test-auth",
             authorization_type="dns",
             authorization_value="example.com",
-            url="http://example.com/challenge"
+            url="http://example.com/challenge",
         )
 
         self.assertEqual(challenge.name, "test-challenge")
@@ -55,7 +56,7 @@ class TestChallengeInfo(unittest.TestCase):
             authorization_type="dns",
             authorization_value="example.com",
             url="http://example.com/challenge",
-            validated="2023-01-01T00:00:00Z"
+            validated="2023-01-01T00:00:00Z",
         )
 
         self.assertEqual(challenge.validated, "2023-01-01T00:00:00Z")
@@ -71,7 +72,7 @@ class TestChallengeInfo(unittest.TestCase):
             authorization_name="test-auth",
             authorization_type="dns",
             authorization_value="example.com",
-            url="http://example.com/challenge"
+            url="http://example.com/challenge",
         )
 
         challenge2 = self.ChallengeInfo(
@@ -82,7 +83,7 @@ class TestChallengeInfo(unittest.TestCase):
             authorization_name="test-auth",
             authorization_type="dns",
             authorization_value="example.com",
-            url="http://example.com/challenge"
+            url="http://example.com/challenge",
         )
 
         self.assertEqual(challenge1, challenge2)
@@ -97,7 +98,7 @@ class TestChallengeInfo(unittest.TestCase):
             authorization_name="test-auth",
             authorization_type="dns",
             authorization_value="example.com",
-            url="http://example.com/challenge"
+            url="http://example.com/challenge",
         )
 
         challenge2 = self.ChallengeInfo(
@@ -108,7 +109,7 @@ class TestChallengeInfo(unittest.TestCase):
             authorization_name="test-auth",
             authorization_type="dns",
             authorization_value="example.com",
-            url="http://example.com/challenge"
+            url="http://example.com/challenge",
         )
 
         self.assertNotEqual(challenge1, challenge2)
@@ -120,14 +121,13 @@ class TestChallengeCreationRequest(unittest.TestCase):
     def setUp(self):
         """Setup for tests"""
         from acme_srv.challenge_business_logic import ChallengeCreationRequest
+
         self.ChallengeCreationRequest = ChallengeCreationRequest
 
     def test_005_creation_request_basic(self):
         """Test basic ChallengeCreationRequest creation"""
         request = self.ChallengeCreationRequest(
-            authorization_name="test-auth",
-            challenge_type="http-01",
-            token="test-token"
+            authorization_name="test-auth", challenge_type="http-01", token="test-token"
         )
 
         self.assertEqual(request.authorization_name, "test-auth")
@@ -142,7 +142,7 @@ class TestChallengeCreationRequest(unittest.TestCase):
             authorization_name="test-auth",
             challenge_type="dns-01",
             token="test-token",
-            value="example.com"
+            value="example.com",
         )
 
         self.assertEqual(request.value, "example.com")
@@ -153,7 +153,7 @@ class TestChallengeCreationRequest(unittest.TestCase):
             authorization_name="test-auth",
             challenge_type="http-01",
             token="test-token",
-            expiry=7200
+            expiry=7200,
         )
 
         self.assertEqual(request.expiry, 7200)
@@ -165,7 +165,7 @@ class TestChallengeCreationRequest(unittest.TestCase):
             challenge_type="email-reply-00",
             token="test-token",
             value="user@example.com",
-            expiry=1800
+            expiry=1800,
         )
 
         self.assertEqual(request.challenge_type, "email-reply-00")
@@ -179,6 +179,7 @@ class TestChallengeUpdateRequest(unittest.TestCase):
     def setUp(self):
         """Setup for tests"""
         from acme_srv.challenge_business_logic import ChallengeUpdateRequest
+
         self.ChallengeUpdateRequest = ChallengeUpdateRequest
 
     def test_009_update_request_basic(self):
@@ -194,8 +195,7 @@ class TestChallengeUpdateRequest(unittest.TestCase):
     def test_010_update_request_status_only(self):
         """Test ChallengeUpdateRequest with status update"""
         request = self.ChallengeUpdateRequest(
-            name="test-challenge",
-            status="processing"
+            name="test-challenge", status="processing"
         )
 
         self.assertEqual(request.name, "test-challenge")
@@ -208,7 +208,7 @@ class TestChallengeUpdateRequest(unittest.TestCase):
             status="valid",
             source="192.168.1.1",
             validated=1640995200,
-            keyauthorization="test-key-auth"
+            keyauthorization="test-key-auth",
         )
 
         self.assertEqual(request.name, "test-challenge")
@@ -220,9 +220,7 @@ class TestChallengeUpdateRequest(unittest.TestCase):
     def test_012_update_request_partial(self):
         """Test ChallengeUpdateRequest with partial updates"""
         request = self.ChallengeUpdateRequest(
-            name="test-challenge",
-            status="invalid",
-            source="192.168.1.100"
+            name="test-challenge", status="invalid", source="192.168.1.100"
         )
 
         self.assertEqual(request.status, "invalid")
@@ -240,11 +238,11 @@ class MockChallengeRepository:
         self.call_log = []
 
     def find_challenges_by_authorization(self, authorization_name: str):
-        self.call_log.append(('find_challenges_by_authorization', authorization_name))
+        self.call_log.append(("find_challenges_by_authorization", authorization_name))
         return self.challenges.get(authorization_name, [])
 
     def get_challenge_by_name(self, name: str):
-        self.call_log.append(('get_challenge_by_name', name))
+        self.call_log.append(("get_challenge_by_name", name))
         for challenges in self.challenges.values():
             for challenge in challenges:
                 if challenge.name == name:
@@ -252,31 +250,31 @@ class MockChallengeRepository:
         return None
 
     def get_challengeinfo_by_challengename(self, name: str, vlist=None):
-        self.call_log.append(('get_challengeinfo_by_challengename', name, vlist))
+        self.call_log.append(("get_challengeinfo_by_challengename", name, vlist))
         # Mock response for email challenge
         if name == "email-challenge-1":
             return {
-                'name': name,
-                'keyauthorization': 'test-key-auth',
-                'authorization__value': 'test@example.com'
+                "name": name,
+                "keyauthorization": "test-key-auth",
+                "authorization__value": "test@example.com",
             }
         return None
 
     def create_challenge(self, request):
-        self.call_log.append(('create_challenge', request))
+        self.call_log.append(("create_challenge", request))
         challenge_name = f"{request.challenge_type}-{request.authorization_name}-1"
         return challenge_name
 
     def update_challenge(self, request):
-        self.call_log.append(('update_challenge', request))
+        self.call_log.append(("update_challenge", request))
         return True
 
     def update_authorization_status(self, challenge_name: str, status: str):
-        self.call_log.append(('update_authorization_status', challenge_name, status))
+        self.call_log.append(("update_authorization_status", challenge_name, status))
         return True
 
     def get_account_jwk(self, challenge_name: str):
-        self.call_log.append(('get_account_jwk', challenge_name))
+        self.call_log.append(("get_account_jwk", challenge_name))
         return {"kty": "RSA", "n": "test", "e": "AQAB"}
 
 
@@ -306,7 +304,7 @@ class TestChallengeStateManager(unittest.TestCase):
         # Check that repository was called correctly
         calls = self.repository.call_log
         self.assertEqual(len(calls), 1)
-        self.assertEqual(calls[0][0], 'update_challenge')
+        self.assertEqual(calls[0][0], "update_challenge")
         update_request = calls[0][1]
         self.assertEqual(update_request.name, "test-challenge")
         self.assertEqual(update_request.status, "processing")
@@ -325,7 +323,7 @@ class TestChallengeStateManager(unittest.TestCase):
         result = self.state_manager.transition_to_valid(
             "test-challenge",
             source_address="192.168.1.1",
-            validated_timestamp=1640995200
+            validated_timestamp=1640995200,
         )
 
         self.assertTrue(result)
@@ -335,7 +333,7 @@ class TestChallengeStateManager(unittest.TestCase):
         self.assertEqual(len(calls), 2)
 
         # First call should update challenge
-        self.assertEqual(calls[0][0], 'update_challenge')
+        self.assertEqual(calls[0][0], "update_challenge")
         update_request = calls[0][1]
         self.assertEqual(update_request.name, "test-challenge")
         self.assertEqual(update_request.status, "valid")
@@ -343,7 +341,7 @@ class TestChallengeStateManager(unittest.TestCase):
         self.assertEqual(update_request.validated, 1640995200)
 
         # Second call should update authorization
-        self.assertEqual(calls[1][0], 'update_authorization_status')
+        self.assertEqual(calls[1][0], "update_authorization_status")
         self.assertEqual(calls[1][1], "test-challenge")
         self.assertEqual(calls[1][2], "valid")
 
@@ -380,8 +378,7 @@ class TestChallengeStateManager(unittest.TestCase):
     def test_020_transition_to_invalid_success(self):
         """Test successful transition to invalid state"""
         result = self.state_manager.transition_to_invalid(
-            "test-challenge",
-            source_address="192.168.1.100"
+            "test-challenge", source_address="192.168.1.100"
         )
 
         self.assertTrue(result)
@@ -396,7 +393,7 @@ class TestChallengeStateManager(unittest.TestCase):
         self.assertEqual(update_request.source, "192.168.1.100")
 
         # Check authorization update
-        self.assertEqual(calls[1][0], 'update_authorization_status')
+        self.assertEqual(calls[1][0], "update_authorization_status")
         self.assertEqual(calls[1][2], "invalid")
 
     def test_021_transition_to_invalid_with_defaults(self):
@@ -427,8 +424,7 @@ class TestChallengeStateManager(unittest.TestCase):
     def test_024_update_key_authorization_success(self):
         """Test successful key authorization update"""
         result = self.state_manager.update_key_authorization(
-            "test-challenge",
-            "test-key-auth"
+            "test-challenge", "test-key-auth"
         )
 
         self.assertTrue(result)
@@ -446,18 +442,14 @@ class TestChallengeStateManager(unittest.TestCase):
         self.repository.update_challenge = Mock(return_value=False)
 
         result = self.state_manager.update_key_authorization(
-            "test-challenge",
-            "test-key-auth"
+            "test-challenge", "test-key-auth"
         )
 
         self.assertFalse(result)
 
     def test_026_update_key_authorization_empty_string(self):
         """Test key authorization update with empty string"""
-        result = self.state_manager.update_key_authorization(
-            "test-challenge",
-            ""
-        )
+        result = self.state_manager.update_key_authorization("test-challenge", "")
 
         self.assertTrue(result)
         update_request = self.repository.call_log[0][1]
@@ -508,8 +500,7 @@ class TestChallengeStateManager(unittest.TestCase):
         large_timestamp = 9999999999  # Year 2286
 
         result = self.state_manager.transition_to_valid(
-            "test-challenge",
-            validated_timestamp=large_timestamp
+            "test-challenge", validated_timestamp=large_timestamp
         )
 
         self.assertTrue(result)
@@ -531,7 +522,7 @@ class TestChallengeFactory(unittest.TestCase):
             logger=self.logger,
             server_name="https://example.com",
             challenge_path="/acme/chall/",
-            email_address="admin@example.com"
+            email_address="admin@example.com",
         )
 
     def test_033_factory_initialization(self):
@@ -548,21 +539,23 @@ class TestChallengeFactory(unittest.TestCase):
             authorization_name="test-auth",
             token="test-token",
             id_type="dns",
-            value="example.com"
+            value="example.com",
         )
 
         self.assertEqual(len(challenges), 3)  # http-01, dns-01, tls-alpn-01
 
-        types = [c['type'] for c in challenges]
-        self.assertIn('http-01', types)
-        self.assertIn('dns-01', types)
-        self.assertIn('tls-alpn-01', types)
+        types = [c["type"] for c in challenges]
+        self.assertIn("http-01", types)
+        self.assertIn("dns-01", types)
+        self.assertIn("tls-alpn-01", types)
 
         # Check common properties
         for challenge in challenges:
-            self.assertEqual(challenge['token'], 'test-token')
-            self.assertEqual(challenge['status'], 'pending')
-            self.assertTrue(challenge['url'].startswith('https://example.com/acme/chall/'))
+            self.assertEqual(challenge["token"], "test-token")
+            self.assertEqual(challenge["status"], "pending")
+            self.assertTrue(
+                challenge["url"].startswith("https://example.com/acme/chall/")
+            )
 
     def test_035_create_standard_challenge_set_ip_identifier(self):
         """Test creating standard challenge set for IP identifier (no DNS)"""
@@ -570,15 +563,15 @@ class TestChallengeFactory(unittest.TestCase):
             authorization_name="test-auth",
             token="test-token",
             id_type="ip",
-            value="192.168.1.1"
+            value="192.168.1.1",
         )
 
         self.assertEqual(len(challenges), 2)  # http-01, tls-alpn-01 (no dns-01)
 
-        types = [c['type'] for c in challenges]
-        self.assertIn('http-01', types)
-        self.assertIn('tls-alpn-01', types)
-        self.assertNotIn('dns-01', types)
+        types = [c["type"] for c in challenges]
+        self.assertIn("http-01", types)
+        self.assertIn("tls-alpn-01", types)
+        self.assertNotIn("dns-01", types)
 
     def test_036_create_standard_challenge_set_repository_failure(self):
         """Test standard challenge set creation when repository fails"""
@@ -588,7 +581,7 @@ class TestChallengeFactory(unittest.TestCase):
             authorization_name="test-auth",
             token="test-token",
             id_type="dns",
-            value="example.com"
+            value="example.com",
         )
 
         self.assertEqual(len(challenges), 0)
@@ -599,15 +592,15 @@ class TestChallengeFactory(unittest.TestCase):
             authorization_name="test-auth",
             token="test-token",
             email_address="user@example.com",
-            sender_address="sender@example.com"
+            sender_address="sender@example.com",
         )
 
         self.assertIsNotNone(challenge)
-        self.assertEqual(challenge['type'], 'email-reply-00')
-        self.assertEqual(challenge['token'], 'test-token')
-        self.assertEqual(challenge['status'], 'pending')
-        self.assertEqual(challenge['from'], 'sender@example.com')
-        self.assertTrue(challenge['url'].startswith('https://example.com/acme/chall/'))
+        self.assertEqual(challenge["type"], "email-reply-00")
+        self.assertEqual(challenge["token"], "test-token")
+        self.assertEqual(challenge["status"], "pending")
+        self.assertEqual(challenge["from"], "sender@example.com")
+        self.assertTrue(challenge["url"].startswith("https://example.com/acme/chall/"))
 
     def test_038_create_email_reply_challenge_no_sender(self):
         """Test email-reply challenge creation without sender address"""
@@ -615,11 +608,11 @@ class TestChallengeFactory(unittest.TestCase):
             authorization_name="test-auth",
             token="test-token",
             email_address="user@example.com",
-            sender_address=""
+            sender_address="",
         )
 
         self.assertIsNotNone(challenge)
-        self.assertEqual(challenge['from'], 'admin@example.com')  # Uses factory default
+        self.assertEqual(challenge["from"], "admin@example.com")  # Uses factory default
 
     def test_039_create_email_reply_challenge_repository_failure(self):
         """Test email-reply challenge creation when repository fails"""
@@ -629,7 +622,7 @@ class TestChallengeFactory(unittest.TestCase):
             authorization_name="test-auth",
             token="test-token",
             email_address="user@example.com",
-            sender_address="sender@example.com"
+            sender_address="sender@example.com",
         )
 
         self.assertIsNone(challenge)
@@ -637,23 +630,21 @@ class TestChallengeFactory(unittest.TestCase):
     def test_040_create_tkauth_challenge_success(self):
         """Test successful tkauth challenge creation"""
         challenge = self.factory.create_tkauth_challenge(
-            authorization_name="test-auth",
-            token="test-token"
+            authorization_name="test-auth", token="test-token"
         )
 
         self.assertIsNotNone(challenge)
-        self.assertEqual(challenge['type'], 'tkauth-01')
-        self.assertEqual(challenge['token'], 'test-token')
-        self.assertEqual(challenge['status'], 'pending')
-        self.assertEqual(challenge['tkauth-type'], 'atc')
+        self.assertEqual(challenge["type"], "tkauth-01")
+        self.assertEqual(challenge["token"], "test-token")
+        self.assertEqual(challenge["status"], "pending")
+        self.assertEqual(challenge["tkauth-type"], "atc")
 
     def test_041_create_tkauth_challenge_repository_failure(self):
         """Test tkauth challenge creation when repository fails"""
         self.repository.create_challenge = Mock(return_value=None)
 
         challenge = self.factory.create_tkauth_challenge(
-            authorization_name="test-auth",
-            token="test-token"
+            authorization_name="test-auth", token="test-token"
         )
 
         self.assertIsNone(challenge)
@@ -664,85 +655,88 @@ class TestChallengeFactory(unittest.TestCase):
             authorization_name="test-auth",
             challenge_type="http-01",
             token="test-token",
-            value="example.com"
+            value="example.com",
         )
 
         self.assertIsNotNone(challenge)
-        self.assertEqual(challenge['type'], 'http-01')
-        self.assertEqual(challenge['token'], 'test-token')
-        self.assertEqual(challenge['status'], 'pending')
+        self.assertEqual(challenge["type"], "http-01")
+        self.assertEqual(challenge["token"], "test-token")
+        self.assertEqual(challenge["status"], "pending")
 
     def test_043_create_single_challenge_sectigo_email(self):
         """Test creating sectigo-email challenge"""
         challenge = self.factory._create_single_challenge(
             authorization_name="test-auth",
             challenge_type="sectigo-email-01",
-            token="test-token"
+            token="test-token",
         )
 
         self.assertIsNotNone(challenge)
-        self.assertEqual(challenge['type'], 'sectigo-email-01')
-        self.assertEqual(challenge['status'], 'valid')  # Sectigo challenges are pre-validated
-        self.assertNotIn('token', challenge)  # Token is removed for sectigo
+        self.assertEqual(challenge["type"], "sectigo-email-01")
+        self.assertEqual(
+            challenge["status"], "valid"
+        )  # Sectigo challenges are pre-validated
+        self.assertNotIn("token", challenge)  # Token is removed for sectigo
 
-    @patch.dict('sys.modules', {'acme_srv.email_handler': Mock()})
+    @patch.dict("sys.modules", {"acme_srv.email_handler": Mock()})
     def test_044_create_single_challenge_email(self):
         """Test creating email-reply challenge"""
         # Set up the factory with an email address
         self.factory.email_address = "foo@example.com"
-        
+
         # Mock the repository method directly on the instance
-        self.repository.get_challengeinfo_by_challengename = Mock(return_value={
-            "name": "email-reply-00-test-auth-1",
-            "keyauthorization": "keyauthorization-value",
-            "authorization__value": "user@example.com"
-        })
-        
+        self.repository.get_challengeinfo_by_challengename = Mock(
+            return_value={
+                "name": "email-reply-00-test-auth-1",
+                "keyauthorization": "keyauthorization-value",
+                "authorization__value": "user@example.com",
+            }
+        )
+
         # Create a mock EmailHandler class and instance
         mock_email_handler_instance = Mock()
         mock_email_handler_class = Mock()
-        mock_email_handler_class.return_value.__enter__ = Mock(return_value=mock_email_handler_instance)
+        mock_email_handler_class.return_value.__enter__ = Mock(
+            return_value=mock_email_handler_instance
+        )
         mock_email_handler_class.return_value.__exit__ = Mock(return_value=None)
-        
+
         # Mock the email_handler module
         import sys
-        sys.modules['acme_srv.email_handler'].EmailHandler = mock_email_handler_class
-        
+
+        sys.modules["acme_srv.email_handler"].EmailHandler = mock_email_handler_class
+
         challenge = self.factory._create_single_challenge(
             authorization_name="test-auth",
             challenge_type="email-reply-00",
-            token="test-token"
+            token="test-token",
         )
 
         self.assertIsNotNone(challenge)
-        self.assertEqual(challenge['type'], 'email-reply-00')
-        self.assertEqual(challenge['status'], 'pending')
-        self.assertEqual(challenge['from'], 'foo@example.com')
-        
+        self.assertEqual(challenge["type"], "email-reply-00")
+        self.assertEqual(challenge["status"], "pending")
+        self.assertEqual(challenge["from"], "foo@example.com")
+
         # Verify the repository method was called with the right parameters
         self.repository.get_challengeinfo_by_challengename.assert_called_once_with(
-            "email-reply-00-test-auth-1", 
-            vlist=("name", "keyauthorization", "authorization__value")
-        )
-        
-        # Verify EmailHandler was created with logger
-        mock_email_handler_class.assert_called_once_with(logger=self.factory.logger)
-        
-        # Verify send_email_challenge was called with correct parameters
-        mock_email_handler_instance.send_email_challenge.assert_called_once_with(
-            to_address="user@example.com",
-            token1="keyauthorization-value"
+            "email-reply-00-test-auth-1",
+            vlist=("name", "keyauthorization", "authorization__value"),
         )
 
+        # Verify EmailHandler was created with logger
+        mock_email_handler_class.assert_called_once_with(logger=self.factory.logger)
+
+        # Verify send_email_challenge was called with correct parameters
+        mock_email_handler_instance.send_email_challenge.assert_called_once_with(
+            to_address="user@example.com", token1="keyauthorization-value"
+        )
 
     def test_045_create_single_challenge_repository_failure(self):
         """Test single challenge creation when repository fails"""
         self.repository.create_challenge = Mock(return_value=None)
 
         challenge = self.factory._create_single_challenge(
-            authorization_name="test-auth",
-            challenge_type="http-01",
-            token="test-token"
+            authorization_name="test-auth", challenge_type="http-01", token="test-token"
         )
 
         self.assertIsNone(challenge)
@@ -755,7 +749,7 @@ class TestChallengeFactory(unittest.TestCase):
             repository=self.repository,
             logger=self.logger,
             server_name="https://example.com",
-            challenge_path="/acme/chall/"
+            challenge_path="/acme/chall/",
         )
 
         self.assertIsNone(factory.email_address)
@@ -775,13 +769,13 @@ class TestChallengeFactory(unittest.TestCase):
             authorization_name="test-auth",
             challenge_type="http-01",  # Use http instead of email to avoid import
             token="test-token",
-            value="example.com"
+            value="example.com",
         )
 
         self.assertIsNotNone(challenge)
-        self.assertEqual(challenge['type'], 'http-01')
-        self.assertEqual(challenge['token'], 'test-token')
-        self.assertEqual(challenge['status'], 'pending')
+        self.assertEqual(challenge["type"], "http-01")
+        self.assertEqual(challenge["token"], "test-token")
+        self.assertEqual(challenge["status"], "pending")
 
     def test_049_create_single_challenge_invalid_type(self):
         """Test creating challenge with unknown type"""
@@ -789,12 +783,12 @@ class TestChallengeFactory(unittest.TestCase):
             authorization_name="test-auth",
             challenge_type="unknown-01",
             token="test-token",
-            value="test-value"
+            value="test-value",
         )
 
         self.assertIsNotNone(challenge)
-        self.assertEqual(challenge['type'], 'unknown-01')
-        self.assertEqual(challenge['status'], 'pending')
+        self.assertEqual(challenge["type"], "unknown-01")
+        self.assertEqual(challenge["status"], "pending")
 
     def test_050_create_standard_challenge_set_empty_types(self):
         """Test challenge set creation when no types remain"""
@@ -806,7 +800,7 @@ class TestChallengeFactory(unittest.TestCase):
             authorization_name="test-auth",
             token="test-token",
             id_type="dns",
-            value="example.com"
+            value="example.com",
         )
 
         self.assertEqual(len(challenges), 0)
@@ -820,28 +814,28 @@ class TestChallengeFactory(unittest.TestCase):
             repository=self.repository,
             logger=self.logger,
             server_name="https://example.com",
-            challenge_path="/acme/chall/"
+            challenge_path="/acme/chall/",
         )
 
         challenge = factory_no_email._create_single_challenge(
             authorization_name="test-auth",
             challenge_type="email-reply-00",
             token="test-token",
-            value="test@example.com"
+            value="test@example.com",
         )
 
         self.assertIsNotNone(challenge)
-        self.assertNotIn('from', challenge)
+        self.assertNotIn("from", challenge)
 
 
 class MockConfig:
     """Mock configuration object for testing"""
 
     def __init__(self, **kwargs):
-        self.email_identifier_support = kwargs.get('email_identifier_support', False)
-        self.email_address = kwargs.get('email_address', None)
-        self.tnauthlist_support = kwargs.get('tnauthlist_support', False)
-        self.sectigo_sim = kwargs.get('sectigo_sim', False)
+        self.email_identifier_support = kwargs.get("email_identifier_support", False)
+        self.email_address = kwargs.get("email_address", None)
+        self.tnauthlist_support = kwargs.get("tnauthlist_support", False)
+        self.sectigo_sim = kwargs.get("sectigo_sim", False)
 
 
 class TestChallengeService(unittest.TestCase):
@@ -853,7 +847,7 @@ class TestChallengeService(unittest.TestCase):
             ChallengeService,
             ChallengeStateManager,
             ChallengeFactory,
-            ChallengeInfo
+            ChallengeInfo,
         )
 
         self.logger = Mock(spec=logging.Logger)
@@ -865,7 +859,7 @@ class TestChallengeService(unittest.TestCase):
             repository=self.repository,
             state_manager=self.state_manager,
             factory=self.factory,
-            logger=self.logger
+            logger=self.logger,
         )
 
         self.ChallengeInfo = ChallengeInfo
@@ -888,11 +882,13 @@ class TestChallengeService(unittest.TestCase):
                 authorization_name="test-auth",
                 authorization_type="dns",
                 authorization_value="example.com",
-                url=""
+                url="",
             )
         ]
 
-        self.repository.find_challenges_by_authorization = Mock(return_value=existing_challenges)
+        self.repository.find_challenges_by_authorization = Mock(
+            return_value=existing_challenges
+        )
 
         config = MockConfig()
         result = self.service.get_challenge_set_for_authorization(
@@ -901,20 +897,22 @@ class TestChallengeService(unittest.TestCase):
             id_type="dns",
             id_value="example.com",
             config=config,
-            url="https://example.com/acme/chall/"
+            url="https://example.com/acme/chall/",
         )
 
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]['type'], 'http-01')
-        self.assertEqual(result[0]['url'], 'https://example.com/acme/chall/challenge-1')
+        self.assertEqual(result[0]["type"], "http-01")
+        self.assertEqual(result[0]["url"], "https://example.com/acme/chall/challenge-1")
 
     def test_054_get_challenge_set_create_new_standard(self):
         """Test creating new standard challenge set"""
         self.repository.find_challenges_by_authorization = Mock(return_value=[])
-        self.factory.create_standard_challenge_set = Mock(return_value=[
-            {'type': 'http-01', 'token': 'test-token', 'status': 'pending'},
-            {'type': 'dns-01', 'token': 'test-token', 'status': 'pending'}
-        ])
+        self.factory.create_standard_challenge_set = Mock(
+            return_value=[
+                {"type": "http-01", "token": "test-token", "status": "pending"},
+                {"type": "dns-01", "token": "test-token", "status": "pending"},
+            ]
+        )
 
         config = MockConfig()
         result = self.service.get_challenge_set_for_authorization(
@@ -922,7 +920,7 @@ class TestChallengeService(unittest.TestCase):
             token="test-token",
             id_type="dns",
             id_value="example.com",
-            config=config
+            config=config,
         )
 
         self.assertEqual(len(result), 2)
@@ -933,15 +931,16 @@ class TestChallengeService(unittest.TestCase):
     def test_055_get_challenge_set_email_identifier(self):
         """Test creating challenge set for email identifier"""
         self.repository.find_challenges_by_authorization = Mock(return_value=[])
-        self.factory.create_email_reply_challenge = Mock(return_value={
-            'type': 'email-reply-00',
-            'token': 'test-token',
-            'status': 'pending'
-        })
+        self.factory.create_email_reply_challenge = Mock(
+            return_value={
+                "type": "email-reply-00",
+                "token": "test-token",
+                "status": "pending",
+            }
+        )
 
         config = MockConfig(
-            email_identifier_support=True,
-            email_address="admin@example.com"
+            email_identifier_support=True, email_address="admin@example.com"
         )
 
         result = self.service.get_challenge_set_for_authorization(
@@ -949,11 +948,11 @@ class TestChallengeService(unittest.TestCase):
             token="test-token",
             id_type="email",
             id_value="user@example.com",
-            config=config
+            config=config,
         )
 
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]['type'], 'email-reply-00')
+        self.assertEqual(result[0]["type"], "email-reply-00")
         self.factory.create_email_reply_challenge.assert_called_once_with(
             "test-auth", "test-token", "user@example.com", "admin@example.com"
         )
@@ -970,7 +969,7 @@ class TestChallengeService(unittest.TestCase):
             token="test-token",
             id_type="email",
             id_value="user@example.com",
-            config=config
+            config=config,
         )
 
         # Should fall through to standard challenge creation
@@ -979,11 +978,13 @@ class TestChallengeService(unittest.TestCase):
     def test_057_get_challenge_set_tnauthlist_identifier(self):
         """Test creating challenge set for tnauthlist identifier"""
         self.repository.find_challenges_by_authorization = Mock(return_value=[])
-        self.factory.create_tkauth_challenge = Mock(return_value={
-            'type': 'tkauth-01',
-            'token': 'test-token',
-            'status': 'pending'
-        })
+        self.factory.create_tkauth_challenge = Mock(
+            return_value={
+                "type": "tkauth-01",
+                "token": "test-token",
+                "status": "pending",
+            }
+        )
 
         config = MockConfig(tnauthlist_support=True)
 
@@ -992,11 +993,11 @@ class TestChallengeService(unittest.TestCase):
             token="test-token",
             id_type="tnauthlist",
             id_value="test-value",
-            config=config
+            config=config,
         )
 
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]['type'], 'tkauth-01')
+        self.assertEqual(result[0]["type"], "tkauth-01")
         self.factory.create_tkauth_challenge.assert_called_once_with(
             "test-auth", "test-token"
         )
@@ -1004,13 +1005,14 @@ class TestChallengeService(unittest.TestCase):
     def test_058_get_challenge_set_sectigo_simulation(self):
         """Test creating challenge set with Sectigo simulation"""
         self.repository.find_challenges_by_authorization = Mock(return_value=[])
-        self.factory._create_single_challenge = Mock(return_value={
-            'type': 'sectigo-email-01',
-            'status': 'valid'
-        })
-        self.factory.create_standard_challenge_set = Mock(return_value=[
-            {'type': 'http-01', 'token': 'test-token', 'status': 'pending'}
-        ])
+        self.factory._create_single_challenge = Mock(
+            return_value={"type": "sectigo-email-01", "status": "valid"}
+        )
+        self.factory.create_standard_challenge_set = Mock(
+            return_value=[
+                {"type": "http-01", "token": "test-token", "status": "pending"}
+            ]
+        )
 
         config = MockConfig(sectigo_sim=True)
 
@@ -1019,13 +1021,13 @@ class TestChallengeService(unittest.TestCase):
             token="test-token",
             id_type="dns",
             id_value="example.com",
-            config=config
+            config=config,
         )
 
         self.assertEqual(len(result), 2)  # Sectigo + standard challenges
-        types = [c['type'] for c in result]
-        self.assertIn('sectigo-email-01', types)
-        self.assertIn('http-01', types)
+        types = [c["type"] for c in result]
+        self.assertIn("sectigo-email-01", types)
+        self.assertIn("http-01", types)
 
     def test_059_format_existing_challenges_basic(self):
         """Test formatting existing challenges"""
@@ -1038,7 +1040,7 @@ class TestChallengeService(unittest.TestCase):
                 authorization_name="test-auth",
                 authorization_type="dns",
                 authorization_value="example.com",
-                url=""
+                url="",
             ),
             self.ChallengeInfo(
                 name="challenge-2",
@@ -1048,21 +1050,21 @@ class TestChallengeService(unittest.TestCase):
                 authorization_name="test-auth",
                 authorization_type="dns",
                 authorization_value="example.com",
-                url=""
-            )
+                url="",
+            ),
         ]
 
         result = self.service._format_existing_challenges(
             challenges=challenges,
             url="https://example.com/acme/chall/",
-            config=MockConfig()
+            config=MockConfig(),
         )
 
         self.assertEqual(len(result), 2)
-        self.assertEqual(result[0]['type'], 'http-01')
-        self.assertEqual(result[0]['url'], 'https://example.com/acme/chall/challenge-1')
-        self.assertEqual(result[1]['type'], 'dns-01')
-        self.assertEqual(result[1]['status'], 'valid')
+        self.assertEqual(result[0]["type"], "http-01")
+        self.assertEqual(result[0]["url"], "https://example.com/acme/chall/challenge-1")
+        self.assertEqual(result[1]["type"], "dns-01")
+        self.assertEqual(result[1]["status"], "valid")
 
     def test_060_format_existing_challenges_email_reply(self):
         """Test formatting existing email-reply challenges"""
@@ -1075,26 +1077,26 @@ class TestChallengeService(unittest.TestCase):
                 authorization_name="test-auth",
                 authorization_type="email",
                 authorization_value="user@example.com",
-                url=""
+                url="",
             )
         ]
 
         config = MockConfig(email_address="admin@example.com")
         result = self.service._format_existing_challenges(
-            challenges=challenges,
-            url="https://example.com/acme/chall/",
-            config=config
+            challenges=challenges, url="https://example.com/acme/chall/", config=config
         )
 
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]['type'], 'email-reply-00')
-        self.assertEqual(result[0]['from'], 'admin@example.com')
+        self.assertEqual(result[0]["type"], "email-reply-00")
+        self.assertEqual(result[0]["from"], "admin@example.com")
 
     def test_061_create_new_challenge_set_empty_config(self):
         """Test creating new challenge set with minimal configuration"""
-        self.factory.create_standard_challenge_set = Mock(return_value=[
-            {'type': 'http-01', 'token': 'test-token', 'status': 'pending'}
-        ])
+        self.factory.create_standard_challenge_set = Mock(
+            return_value=[
+                {"type": "http-01", "token": "test-token", "status": "pending"}
+            ]
+        )
 
         config = MockConfig()
 
@@ -1103,7 +1105,7 @@ class TestChallengeService(unittest.TestCase):
             token="test-token",
             id_type="dns",
             id_value="example.com",
-            config=config
+            config=config,
         )
 
         self.assertEqual(len(result), 1)
@@ -1115,8 +1117,7 @@ class TestChallengeService(unittest.TestCase):
         self.factory.create_email_reply_challenge = Mock(return_value=None)
 
         config = MockConfig(
-            email_identifier_support=True,
-            email_address="admin@example.com"
+            email_identifier_support=True, email_address="admin@example.com"
         )
 
         result = self.service.get_challenge_set_for_authorization(
@@ -1124,7 +1125,7 @@ class TestChallengeService(unittest.TestCase):
             token="test-token",
             id_type="email",
             id_value="user@example.com",
-            config=config
+            config=config,
         )
 
         self.assertEqual(len(result), 0)
@@ -1141,7 +1142,7 @@ class TestChallengeService(unittest.TestCase):
             token="test-token",
             id_type="TNAUTHLIST",  # Test case insensitive
             id_value="test-value",
-            config=config
+            config=config,
         )
 
         self.assertEqual(len(result), 0)
@@ -1171,7 +1172,7 @@ class TestChallengeService(unittest.TestCase):
             token="test-token",
             id_type="dns",
             id_value="example.com",
-            config=config
+            config=config,
         )
 
         # Should still return standard challenges even if sectigo fails
@@ -1189,20 +1190,22 @@ class TestChallengeService(unittest.TestCase):
             token="test-token",
             id_type="email",
             id_value="user@example.com",
-            config=config
+            config=config,
         )
 
         # Should fall through to standard challenges
         self.factory.create_standard_challenge_set.assert_called_once()
 
         # Test with email_address but no @ in id_value
-        config = MockConfig(email_identifier_support=True, email_address="admin@example.com")
+        config = MockConfig(
+            email_identifier_support=True, email_address="admin@example.com"
+        )
         result = self.service.get_challenge_set_for_authorization(
             authorization_name="test-auth",
             token="test-token",
             id_type="email",
             id_value="notanemail",
-            config=config
+            config=config,
         )
 
         # Should still try to create email challenge
@@ -1210,7 +1213,9 @@ class TestChallengeService(unittest.TestCase):
 
     def test_067_service_repository_exception_handling(self):
         """Test service behavior when repository raises exceptions"""
-        self.repository.find_challenges_by_authorization = Mock(side_effect=Exception("Database error"))
+        self.repository.find_challenges_by_authorization = Mock(
+            side_effect=Exception("Database error")
+        )
         config = MockConfig()
 
         # The implementation doesn't handle exceptions, so this will raise
@@ -1222,9 +1227,7 @@ class TestChallengeService(unittest.TestCase):
     def test_068_format_existing_challenges_empty_list(self):
         """Test formatting empty challenge list"""
         result = self.service._format_existing_challenges(
-            challenges=[],
-            url="https://example.com/acme/chall/",
-            config=MockConfig()
+            challenges=[], url="https://example.com/acme/chall/", config=MockConfig()
         )
 
         self.assertEqual(len(result), 0)
@@ -1241,33 +1244,31 @@ class TestChallengeService(unittest.TestCase):
                 authorization_name="test-auth",
                 authorization_type="dns",
                 authorization_value="example.com",
-                url=""
+                url="",
             )
         ]
 
         result = self.service._format_existing_challenges(
-            challenges=challenges,
-            url="",
-            config=MockConfig()
+            challenges=challenges, url="", config=MockConfig()
         )
 
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]['url'], 'challenge-1')  # Just the challenge name
+        self.assertEqual(result[0]["url"], "challenge-1")  # Just the challenge name
 
     def test_070_create_new_challenge_set_all_types_enabled(self):
         """Test creating challenge set with all special types enabled"""
-        self.factory.create_email_reply_challenge = Mock(return_value={
-            'type': 'email-reply-00', 'status': 'pending'
-        })
-        self.factory.create_tkauth_challenge = Mock(return_value={
-            'type': 'tkauth-01', 'status': 'pending'
-        })
-        self.factory._create_single_challenge = Mock(return_value={
-            'type': 'sectigo-email-01', 'status': 'valid'
-        })
-        self.factory.create_standard_challenge_set = Mock(return_value=[
-            {'type': 'http-01', 'status': 'pending'}
-        ])
+        self.factory.create_email_reply_challenge = Mock(
+            return_value={"type": "email-reply-00", "status": "pending"}
+        )
+        self.factory.create_tkauth_challenge = Mock(
+            return_value={"type": "tkauth-01", "status": "pending"}
+        )
+        self.factory._create_single_challenge = Mock(
+            return_value={"type": "sectigo-email-01", "status": "valid"}
+        )
+        self.factory.create_standard_challenge_set = Mock(
+            return_value=[{"type": "http-01", "status": "pending"}]
+        )
 
         # Test email identifier with tnauthlist and sectigo enabled
         # (should only create email challenge)
@@ -1275,7 +1276,7 @@ class TestChallengeService(unittest.TestCase):
             email_identifier_support=True,
             email_address="admin@example.com",
             tnauthlist_support=True,
-            sectigo_sim=True
+            sectigo_sim=True,
         )
 
         result = self.service._create_new_challenge_set(
@@ -1283,11 +1284,11 @@ class TestChallengeService(unittest.TestCase):
             token="test-token",
             id_type="email",
             id_value="user@example.com",
-            config=config
+            config=config,
         )
 
         self.assertEqual(len(result), 1)
-        self.assertEqual(result[0]['type'], 'email-reply-00')
+        self.assertEqual(result[0]["type"], "email-reply-00")
 
         # Standard and other challenges should not be called for email identifier
         self.factory.create_tkauth_challenge.assert_not_called()
@@ -1297,9 +1298,9 @@ class TestChallengeService(unittest.TestCase):
     def test_071_get_challenge_set_mixed_case_id_types(self):
         """Test challenge set creation with mixed case ID types"""
         self.repository.find_challenges_by_authorization = Mock(return_value=[])
-        self.factory.create_tkauth_challenge = Mock(return_value={
-            'type': 'tkauth-01', 'status': 'pending'
-        })
+        self.factory.create_tkauth_challenge = Mock(
+            return_value={"type": "tkauth-01", "status": "pending"}
+        )
 
         config = MockConfig(tnauthlist_support=True)
 
@@ -1310,12 +1311,12 @@ class TestChallengeService(unittest.TestCase):
                 token="test-token",
                 id_type=id_type,
                 id_value="test-value",
-                config=config
+                config=config,
             )
 
             self.assertEqual(len(result), 1)
-            self.assertEqual(result[0]['type'], 'tkauth-01')
+            self.assertEqual(result[0]["type"], "tkauth-01")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

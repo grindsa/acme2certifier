@@ -14,11 +14,12 @@ sys.path.insert(1, "..")
 
 class MockConfig:
     """Mock configuration object for testing"""
+
     def __init__(self, **kwargs):
-        self.email_identifier_support = kwargs.get('email_identifier_support', False)
-        self.tnauthlist_support = kwargs.get('tnauthlist_support', False)
-        self.forward_address_check = kwargs.get('forward_address_check', False)
-        self.reverse_address_check = kwargs.get('reverse_address_check', False)
+        self.email_identifier_support = kwargs.get("email_identifier_support", False)
+        self.tnauthlist_support = kwargs.get("tnauthlist_support", False)
+        self.forward_address_check = kwargs.get("forward_address_check", False)
+        self.reverse_address_check = kwargs.get("reverse_address_check", False)
 
 
 class TestChallengeRegistrySetup(unittest.TestCase):
@@ -29,20 +30,27 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         self.logger = Mock(spec=logging.Logger)
         self.config = MockConfig()
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_001_create_challenge_validator_registry_basic(self):
         """Test basic challenge validator registry creation with minimal config"""
 
         # Mock all the validator classes
         mock_registry = Mock()
         mock_registry_instance = Mock()
-        mock_registry_instance.get_supported_types.return_value = ['http-01', 'dns-01', 'tls-alpn-01']
+        mock_registry_instance.get_supported_types.return_value = [
+            "http-01",
+            "dns-01",
+            "tls-alpn-01",
+        ]
         mock_registry.return_value = mock_registry_instance
 
         mock_http_validator = Mock()
@@ -61,24 +69,28 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_tls_validator.return_value = mock_tls_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry,
-                          HttpChallengeValidator=mock_http_validator,
-                          DnsChallengeValidator=mock_dns_validator,
-                          TlsAlpnChallengeValidator=mock_tls_validator,
-                          EmailReplyChallengeValidator=mock_email_validator,
-                          TkauthChallengeValidator=mock_tkauth_validator,
-                          SourceAddressValidator=mock_source_validator):
+        with patch.multiple(
+            "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ):
 
             # Import and test
-            from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+            from acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
 
             # Test with minimal config (no optional validators)
             config = MockConfig(
                 email_identifier_support=False,
                 tnauthlist_support=False,
                 forward_address_check=False,
-                reverse_address_check=False
+                reverse_address_check=False,
             )
 
             result = create_challenge_validator_registry(self.logger, config)
@@ -97,7 +109,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 call.register_validator(mock_dns_instance),
                 call.register_validator(mock_tls_instance),
             ]
-            mock_registry_instance.register_validator.assert_has_calls(expected_calls, any_order=True)
+            mock_registry_instance.register_validator.assert_has_calls(
+                expected_calls, any_order=True
+            )
 
             # Verify optional validators NOT called
             mock_email_validator.assert_not_called()
@@ -105,19 +119,28 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             mock_source_validator.assert_not_called()
 
             # Verify logging
-            self.logger.debug.assert_has_calls([
-                call("challenge_registry_setup.create_challenge_validator_registry()"),
-                call("challenge_registry_setup.create_challenge_validator_registry() ended")
-            ])
+            self.logger.debug.assert_has_calls(
+                [
+                    call(
+                        "challenge_registry_setup.create_challenge_validator_registry()"
+                    ),
+                    call(
+                        "challenge_registry_setup.create_challenge_validator_registry() ended"
+                    ),
+                ]
+            )
             self.logger.info.assert_called_once()
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_002_create_challenge_validator_registry_email_support(self):
         """Test registry creation with email identifier support enabled"""
 
@@ -125,7 +148,10 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry = Mock()
         mock_registry_instance = Mock()
         mock_registry_instance.get_supported_types.return_value = [
-            'http-01', 'dns-01', 'tls-alpn-01', 'email-reply-00'
+            "http-01",
+            "dns-01",
+            "tls-alpn-01",
+            "email-reply-00",
         ]
         mock_registry.return_value = mock_registry_instance
 
@@ -140,16 +166,20 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_email_validator.return_value = mock_email_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry,
-                          HttpChallengeValidator=mock_http_validator,
-                          DnsChallengeValidator=mock_dns_validator,
-                          TlsAlpnChallengeValidator=mock_tls_validator,
-                          EmailReplyChallengeValidator=mock_email_validator,
-                          TkauthChallengeValidator=mock_tkauth_validator,
-                          SourceAddressValidator=mock_source_validator):
+        with patch.multiple(
+            "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ):
 
-            from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+            from acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
 
             # Test with email support enabled
             config = MockConfig(email_identifier_support=True)
@@ -158,19 +188,24 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             # Verify email validator registered
             mock_email_validator.assert_called_once_with(self.logger)
-            mock_registry_instance.register_validator.assert_any_call(mock_email_instance)
+            mock_registry_instance.register_validator.assert_any_call(
+                mock_email_instance
+            )
 
             # Verify tkauth and source validators NOT called
             mock_tkauth_validator.assert_not_called()
             mock_source_validator.assert_not_called()
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_003_create_challenge_validator_registry_all_enabled(self):
         """Test registry creation with all optional features enabled"""
 
@@ -178,7 +213,12 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry = Mock()
         mock_registry_instance = Mock()
         mock_registry_instance.get_supported_types.return_value = [
-            'http-01', 'dns-01', 'tls-alpn-01', 'email-reply-00', 'tkauth-01', 'source-address'
+            "http-01",
+            "dns-01",
+            "tls-alpn-01",
+            "email-reply-00",
+            "tkauth-01",
+            "source-address",
         ]
         mock_registry.return_value = mock_registry_instance
 
@@ -204,23 +244,27 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_source_validator.return_value = mock_source_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry,
-                          HttpChallengeValidator=mock_http_validator,
-                          DnsChallengeValidator=mock_dns_validator,
-                          TlsAlpnChallengeValidator=mock_tls_validator,
-                          EmailReplyChallengeValidator=mock_email_validator,
-                          TkauthChallengeValidator=mock_tkauth_validator,
-                          SourceAddressValidator=mock_source_validator):
+        with patch.multiple(
+            "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ):
 
-            from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+            from acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
 
             # Test with all features enabled
             config = MockConfig(
                 email_identifier_support=True,
                 tnauthlist_support=True,
                 forward_address_check=True,
-                reverse_address_check=True
+                reverse_address_check=True,
             )
 
             result = create_challenge_validator_registry(self.logger, config)
@@ -232,9 +276,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             mock_email_validator.assert_called_once_with(self.logger)
             mock_tkauth_validator.assert_called_once_with(self.logger)
             mock_source_validator.assert_called_once_with(
-                self.logger,
-                forward_check=True,
-                reverse_check=True
+                self.logger, forward_check=True, reverse_check=True
             )
 
             expected_calls = [
@@ -245,19 +287,40 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 call.register_validator(mock_tkauth_instance),
                 call.register_validator(mock_source_instance),
             ]
-            mock_registry_instance.register_validator.assert_has_calls(expected_calls, any_order=True)
+            mock_registry_instance.register_validator.assert_has_calls(
+                expected_calls, any_order=True
+            )
 
             # Verify logging with all validators
             info_call_args = self.logger.info.call_args[0]
-            self.assertIn("Challenge validator registry created with 6 validators", info_call_args[0] % (6, ", ".join(['http-01', 'dns-01', 'tls-alpn-01', 'email-reply-00', 'tkauth-01', 'source-address'])))
+            self.assertIn(
+                "Challenge validator registry created with 6 validators",
+                info_call_args[0]
+                % (
+                    6,
+                    ", ".join(
+                        [
+                            "http-01",
+                            "dns-01",
+                            "tls-alpn-01",
+                            "email-reply-00",
+                            "tkauth-01",
+                            "source-address",
+                        ]
+                    ),
+                ),
+            )
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_004_create_challenge_validator_registry_none_config(self):
         """Test registry creation with None config"""
 
@@ -274,16 +337,20 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_source_validator = Mock()
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry,
-                          HttpChallengeValidator=mock_http_validator,
-                          DnsChallengeValidator=mock_dns_validator,
-                          TlsAlpnChallengeValidator=mock_tls_validator,
-                          EmailReplyChallengeValidator=mock_email_validator,
-                          TkauthChallengeValidator=mock_tkauth_validator,
-                          SourceAddressValidator=mock_source_validator):
+        with patch.multiple(
+            "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ):
 
-            from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+            from acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
 
             # Test with None config - should handle gracefully
             try:
@@ -294,13 +361,16 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 # Expected behavior
                 pass
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_005_create_challenge_validator_registry_registry_exception(self):
         """Test registry creation when registry constructor raises exception"""
 
@@ -316,16 +386,20 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_source_validator = Mock()
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry,
-                          HttpChallengeValidator=mock_http_validator,
-                          DnsChallengeValidator=mock_dns_validator,
-                          TlsAlpnChallengeValidator=mock_tls_validator,
-                          EmailReplyChallengeValidator=mock_email_validator,
-                          TkauthChallengeValidator=mock_tkauth_validator,
-                          SourceAddressValidator=mock_source_validator):
+        with patch.multiple(
+            "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ):
 
-            from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+            from acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
 
             config = MockConfig()
 
@@ -334,25 +408,29 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             self.assertEqual(str(context.exception), "Registry creation failed")
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_006_create_custom_registry_basic(self):
         """Test basic custom registry creation"""
 
         # Mock all the validator classes
         mock_registry = Mock()
         mock_registry_instance = Mock()
-        mock_registry_instance.get_supported_types.return_value = ['mock-01', 'mock-02']
+        mock_registry_instance.get_supported_types.return_value = ["mock-01", "mock-02"]
         mock_registry.return_value = mock_registry_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry):
+        with patch.multiple(
+            "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
 
@@ -380,20 +458,28 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 call.register_validator(mock_validator1),
                 call.register_validator(mock_validator2),
             ]
-            mock_registry_instance.register_validator.assert_has_calls(expected_calls, any_order=True)
+            mock_registry_instance.register_validator.assert_has_calls(
+                expected_calls, any_order=True
+            )
 
             # Verify logging
             self.logger.info.assert_called_once()
             info_call_args = self.logger.info.call_args[0]
-            self.assertIn("Custom challenge validator registry created with 2 validators", info_call_args[0] % 2)
+            self.assertIn(
+                "Custom challenge validator registry created with 2 validators",
+                info_call_args[0] % 2,
+            )
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_007_create_custom_registry_empty_validators(self):
         """Test custom registry creation with empty validator list"""
 
@@ -404,8 +490,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry.return_value = mock_registry_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry):
+        with patch.multiple(
+            "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
 
@@ -423,15 +510,21 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             # Verify logging
             self.logger.info.assert_called_once()
             info_call_args = self.logger.info.call_args[0]
-            self.assertIn("Custom challenge validator registry created with 0 validators", info_call_args[0] % 0)
+            self.assertIn(
+                "Custom challenge validator registry created with 0 validators",
+                info_call_args[0] % 0,
+            )
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_008_create_custom_registry_none_validator_classes(self):
         """Test custom registry creation with None validator classes"""
 
@@ -441,8 +534,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry.return_value = mock_registry_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry):
+        with patch.multiple(
+            "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
 
@@ -450,13 +544,16 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             with self.assertRaises(TypeError):
                 create_custom_registry(self.logger, None)
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_009_create_custom_registry_validator_exception(self):
         """Test custom registry creation when validator constructor raises exception"""
 
@@ -466,8 +563,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry.return_value = mock_registry_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry):
+        with patch.multiple(
+            "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
 
@@ -481,25 +579,31 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             self.assertEqual(str(context.exception), "Validator creation failed")
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_010_create_custom_registry_registration_exception(self):
         """Test custom registry creation when validator registration raises exception"""
 
         # Mock all the validator classes
         mock_registry = Mock()
         mock_registry_instance = Mock()
-        mock_registry_instance.register_validator.side_effect = Exception("Registration failed")
+        mock_registry_instance.register_validator.side_effect = Exception(
+            "Registration failed"
+        )
         mock_registry.return_value = mock_registry_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry):
+        with patch.multiple(
+            "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
 
@@ -514,13 +618,16 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             self.assertEqual(str(context.exception), "Registration failed")
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_011_create_challenge_validator_registry_tnauthlist_support(self):
         """Test registry creation with tnauthlist support enabled"""
 
@@ -528,7 +635,10 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry = Mock()
         mock_registry_instance = Mock()
         mock_registry_instance.get_supported_types.return_value = [
-            'http-01', 'dns-01', 'tls-alpn-01', 'tkauth-01'
+            "http-01",
+            "dns-01",
+            "tls-alpn-01",
+            "tkauth-01",
         ]
         mock_registry.return_value = mock_registry_instance
 
@@ -543,16 +653,20 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_tkauth_validator.return_value = mock_tkauth_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry,
-                          HttpChallengeValidator=mock_http_validator,
-                          DnsChallengeValidator=mock_dns_validator,
-                          TlsAlpnChallengeValidator=mock_tls_validator,
-                          EmailReplyChallengeValidator=mock_email_validator,
-                          TkauthChallengeValidator=mock_tkauth_validator,
-                          SourceAddressValidator=mock_source_validator):
+        with patch.multiple(
+            "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ):
 
-            from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+            from acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
 
             # Test with tnauthlist support enabled
             config = MockConfig(tnauthlist_support=True)
@@ -561,19 +675,24 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             # Verify tkauth validator registered
             mock_tkauth_validator.assert_called_once_with(self.logger)
-            mock_registry_instance.register_validator.assert_any_call(mock_tkauth_instance)
+            mock_registry_instance.register_validator.assert_any_call(
+                mock_tkauth_instance
+            )
 
             # Verify email and source validators NOT called
             mock_email_validator.assert_not_called()
             mock_source_validator.assert_not_called()
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_012_create_challenge_validator_registry_forward_address_check(self):
         """Test registry creation with forward address checking enabled"""
 
@@ -581,7 +700,10 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry = Mock()
         mock_registry_instance = Mock()
         mock_registry_instance.get_supported_types.return_value = [
-            'http-01', 'dns-01', 'tls-alpn-01', 'source-address'
+            "http-01",
+            "dns-01",
+            "tls-alpn-01",
+            "source-address",
         ]
         mock_registry.return_value = mock_registry_instance
 
@@ -596,16 +718,20 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_source_validator.return_value = mock_source_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry,
-                          HttpChallengeValidator=mock_http_validator,
-                          DnsChallengeValidator=mock_dns_validator,
-                          TlsAlpnChallengeValidator=mock_tls_validator,
-                          EmailReplyChallengeValidator=mock_email_validator,
-                          TkauthChallengeValidator=mock_tkauth_validator,
-                          SourceAddressValidator=mock_source_validator):
+        with patch.multiple(
+            "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ):
 
-            from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+            from acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
 
             # Test with forward address check enabled
             config = MockConfig(forward_address_check=True)
@@ -614,23 +740,26 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             # Verify source address validator registered with correct parameters
             mock_source_validator.assert_called_once_with(
-                self.logger,
-                forward_check=True,
-                reverse_check=False
+                self.logger, forward_check=True, reverse_check=False
             )
-            mock_registry_instance.register_validator.assert_any_call(mock_source_instance)
+            mock_registry_instance.register_validator.assert_any_call(
+                mock_source_instance
+            )
 
             # Verify email and tkauth validators NOT called
             mock_email_validator.assert_not_called()
             mock_tkauth_validator.assert_not_called()
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_013_create_challenge_validator_registry_reverse_address_check(self):
         """Test registry creation with reverse address checking enabled"""
 
@@ -638,7 +767,10 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry = Mock()
         mock_registry_instance = Mock()
         mock_registry_instance.get_supported_types.return_value = [
-            'http-01', 'dns-01', 'tls-alpn-01', 'source-address'
+            "http-01",
+            "dns-01",
+            "tls-alpn-01",
+            "source-address",
         ]
         mock_registry.return_value = mock_registry_instance
 
@@ -653,16 +785,20 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_source_validator.return_value = mock_source_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry,
-                          HttpChallengeValidator=mock_http_validator,
-                          DnsChallengeValidator=mock_dns_validator,
-                          TlsAlpnChallengeValidator=mock_tls_validator,
-                          EmailReplyChallengeValidator=mock_email_validator,
-                          TkauthChallengeValidator=mock_tkauth_validator,
-                          SourceAddressValidator=mock_source_validator):
+        with patch.multiple(
+            "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ):
 
-            from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+            from acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
 
             # Test with reverse address check enabled
             config = MockConfig(reverse_address_check=True)
@@ -671,19 +807,22 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             # Verify source address validator registered with correct parameters
             mock_source_validator.assert_called_once_with(
-                self.logger,
-                forward_check=False,
-                reverse_check=True
+                self.logger, forward_check=False, reverse_check=True
             )
-            mock_registry_instance.register_validator.assert_any_call(mock_source_instance)
+            mock_registry_instance.register_validator.assert_any_call(
+                mock_source_instance
+            )
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_014_create_challenge_validator_registry_both_address_checks(self):
         """Test registry creation with both forward and reverse address checking enabled"""
 
@@ -691,7 +830,10 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry = Mock()
         mock_registry_instance = Mock()
         mock_registry_instance.get_supported_types.return_value = [
-            'http-01', 'dns-01', 'tls-alpn-01', 'source-address'
+            "http-01",
+            "dns-01",
+            "tls-alpn-01",
+            "source-address",
         ]
         mock_registry.return_value = mock_registry_instance
 
@@ -706,51 +848,54 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_source_validator.return_value = mock_source_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry,
-                          HttpChallengeValidator=mock_http_validator,
-                          DnsChallengeValidator=mock_dns_validator,
-                          TlsAlpnChallengeValidator=mock_tls_validator,
-                          EmailReplyChallengeValidator=mock_email_validator,
-                          TkauthChallengeValidator=mock_tkauth_validator,
-                          SourceAddressValidator=mock_source_validator):
+        with patch.multiple(
+            "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ):
 
-            from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+            from acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
 
             # Test with both address checks enabled
-            config = MockConfig(
-                forward_address_check=True,
-                reverse_address_check=True
-            )
+            config = MockConfig(forward_address_check=True, reverse_address_check=True)
 
             result = create_challenge_validator_registry(self.logger, config)
 
             # Verify source address validator registered with both checks
             mock_source_validator.assert_called_once_with(
-                self.logger,
-                forward_check=True,
-                reverse_check=True
+                self.logger, forward_check=True, reverse_check=True
             )
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_015_create_custom_registry_with_config(self):
         """Test custom registry creation with config parameter"""
 
         # Mock all the validator classes
         mock_registry = Mock()
         mock_registry_instance = Mock()
-        mock_registry_instance.get_supported_types.return_value = ['mock-01']
+        mock_registry_instance.get_supported_types.return_value = ["mock-01"]
         mock_registry.return_value = mock_registry_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry):
+        with patch.multiple(
+            "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
 
@@ -766,27 +911,35 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             # Verify registry creation (config not used in current implementation)
             mock_registry.assert_called_once_with(self.logger)
             mock_validator_class.assert_called_once_with(self.logger)
-            mock_registry_instance.register_validator.assert_called_once_with(mock_validator)
+            mock_registry_instance.register_validator.assert_called_once_with(
+                mock_validator
+            )
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_016_create_custom_registry_get_supported_types_exception(self):
         """Test custom registry creation when get_supported_types raises exception"""
 
         # Mock all the validator classes
         mock_registry = Mock()
         mock_registry_instance = Mock()
-        mock_registry_instance.get_supported_types.side_effect = Exception("Get types failed")
+        mock_registry_instance.get_supported_types.side_effect = Exception(
+            "Get types failed"
+        )
         mock_registry.return_value = mock_registry_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry):
+        with patch.multiple(
+            "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
 
@@ -801,25 +954,33 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             self.assertEqual(str(context.exception), "Get types failed")
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_017_create_custom_registry_mixed_validator_types(self):
         """Test custom registry creation with different validator types"""
 
         # Mock all the validator classes
         mock_registry = Mock()
         mock_registry_instance = Mock()
-        mock_registry_instance.get_supported_types.return_value = ['http-01', 'custom-01', 'test-01']
+        mock_registry_instance.get_supported_types.return_value = [
+            "http-01",
+            "custom-01",
+            "test-01",
+        ]
         mock_registry.return_value = mock_registry_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry):
+        with patch.multiple(
+            "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
 
@@ -836,7 +997,11 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             mock_test_validator = Mock()
             mock_test_validator_class.return_value = mock_test_validator
 
-            validator_classes = [MockHttpValidator, MockCustomValidator, mock_test_validator_class]
+            validator_classes = [
+                MockHttpValidator,
+                MockCustomValidator,
+                mock_test_validator_class,
+            ]
 
             result = create_custom_registry(self.logger, validator_classes)
 
@@ -846,13 +1011,16 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             # Verify all validator types were handled
             self.assertEqual(mock_registry_instance.register_validator.call_count, 3)
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_018_create_challenge_validator_registry_validator_exception(self):
         """Test registry creation when validator constructor raises exception"""
 
@@ -870,16 +1038,20 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_source_validator = Mock()
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry,
-                          HttpChallengeValidator=mock_http_validator,
-                          DnsChallengeValidator=mock_dns_validator,
-                          TlsAlpnChallengeValidator=mock_tls_validator,
-                          EmailReplyChallengeValidator=mock_email_validator,
-                          TkauthChallengeValidator=mock_tkauth_validator,
-                          SourceAddressValidator=mock_source_validator):
+        with patch.multiple(
+            "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ):
 
-            from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+            from acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
 
             config = MockConfig()
 
@@ -888,13 +1060,16 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             self.assertEqual(str(context.exception), "Validator creation failed")
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_019_create_challenge_validator_registry_missing_config_attributes(self):
         """Test registry creation with config missing some attributes"""
 
@@ -911,16 +1086,20 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_source_validator = Mock()
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry,
-                          HttpChallengeValidator=mock_http_validator,
-                          DnsChallengeValidator=mock_dns_validator,
-                          TlsAlpnChallengeValidator=mock_tls_validator,
-                          EmailReplyChallengeValidator=mock_email_validator,
-                          TkauthChallengeValidator=mock_tkauth_validator,
-                          SourceAddressValidator=mock_source_validator):
+        with patch.multiple(
+            "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ):
 
-            from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+            from acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
 
             # Create config with missing attributes
             class PartialConfig:
@@ -933,20 +1112,25 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             with self.assertRaises(AttributeError):
                 create_challenge_validator_registry(self.logger, config)
 
-    @patch.dict('sys.modules', {
-        'OpenSSL': Mock(),
-        'OpenSSL.crypto': Mock(),
-        'acme_srv.helper': Mock(),
-        'acme_srv.helpers.certificates': Mock(),
-        'acme_srv.challenge_validators': Mock(),
-    })
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_020_create_challenge_validator_registry_registration_exception(self):
         """Test registry creation when validator registration raises exception"""
 
         # Mock all the validator classes
         mock_registry = Mock()
         mock_registry_instance = Mock()
-        mock_registry_instance.register_validator.side_effect = Exception("Registration failed")
+        mock_registry_instance.register_validator.side_effect = Exception(
+            "Registration failed"
+        )
         mock_registry.return_value = mock_registry_instance
 
         mock_http_validator = Mock()
@@ -960,16 +1144,20 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_http_validator.return_value = mock_http_instance
 
         # Patch the challenge_validators module attributes
-        with patch.multiple('acme_srv.challenge_validators',
-                          ChallengeValidatorRegistry=mock_registry,
-                          HttpChallengeValidator=mock_http_validator,
-                          DnsChallengeValidator=mock_dns_validator,
-                          TlsAlpnChallengeValidator=mock_tls_validator,
-                          EmailReplyChallengeValidator=mock_email_validator,
-                          TkauthChallengeValidator=mock_tkauth_validator,
-                          SourceAddressValidator=mock_source_validator):
+        with patch.multiple(
+            "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ):
 
-            from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+            from acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
 
             config = MockConfig()
 
@@ -979,5 +1167,5 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             self.assertEqual(str(context.exception), "Registration failed")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
