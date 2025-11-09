@@ -38,19 +38,19 @@ class ChallengeContext:
 class ChallengeValidationError(Exception):
     """Base exception for challenge validation errors."""
 
-    pass
+    pass  # pragma: no cover
 
 
 class ValidationTimeoutError(ChallengeValidationError):
     """Raised when validation times out."""
 
-    pass
+    pass  # pragma: no cover
 
 
 class InvalidChallengeTypeError(ChallengeValidationError):
     """Raised when an unsupported challenge type is encountered."""
 
-    pass
+    pass  # pragma: no cover
 
 
 class ChallengeValidator(ABC):
@@ -62,7 +62,7 @@ class ChallengeValidator(ABC):
     @abstractmethod
     def get_challenge_type(self) -> str:
         """Return the challenge type this validator handles (e.g., 'http-01')."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def perform_validation(self, context: ChallengeContext) -> ValidationResult:
@@ -75,7 +75,7 @@ class ChallengeValidator(ABC):
         Returns:
             ValidationResult: Structured result with success/failure status
         """
-        pass
+        pass  # pragma: no cover
 
     def validate_challenge(self, context: ChallengeContext) -> ValidationResult:
         """
