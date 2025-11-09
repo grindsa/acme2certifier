@@ -1023,7 +1023,9 @@ class Challenge:
     def _ensure_components_initialized(self):
         """Ensure factory and service components are initialized."""
         if self.factory is None or self.service is None:
-            raise RuntimeError("Challenge components not initialized. Call _load_configuration() first or use as context manager.")
+            raise RuntimeError(
+                "Challenge components not initialized. Call _load_configuration() first or use as context manager."
+            )
 
     def _perform_challenge_validation(
         self, challenge_name: str, payload: Dict[str, str]
