@@ -43,7 +43,9 @@ class TestErrorCategory(unittest.TestCase):
         self.assertEqual(ErrorCategory.NETWORK_ERROR.value, "network_error")
         self.assertEqual(ErrorCategory.DATABASE_ERROR.value, "database_error")
         self.assertEqual(ErrorCategory.CONFIGURATION_ERROR.value, "configuration_error")
-        self.assertEqual(ErrorCategory.AUTHENTICATION_ERROR.value, "authentication_error")
+        self.assertEqual(
+            ErrorCategory.AUTHENTICATION_ERROR.value, "authentication_error"
+        )
         self.assertEqual(ErrorCategory.MALFORMED_REQUEST.value, "malformed_request")
         self.assertEqual(ErrorCategory.TIMEOUT_ERROR.value, "timeout_error")
         self.assertEqual(ErrorCategory.UNKNOWN_ERROR.value, "unknown_error")
@@ -108,7 +110,7 @@ class TestErrorDetail(unittest.TestCase):
         detail = ErrorDetail(
             category=ErrorCategory.VALIDATION_ERROR,
             severity=ErrorSeverity.MEDIUM,
-            message="Test error message"
+            message="Test error message",
         )
 
         self.assertEqual(detail.category, ErrorCategory.VALIDATION_ERROR)
@@ -127,7 +129,7 @@ class TestErrorDetail(unittest.TestCase):
             message="Network timeout",
             details=test_details,
             suggestion="Check network connectivity",
-            error_code="NET_001"
+            error_code="NET_001",
         )
 
         self.assertEqual(detail.category, ErrorCategory.NETWORK_ERROR)
@@ -142,17 +144,17 @@ class TestErrorDetail(unittest.TestCase):
         detail1 = ErrorDetail(
             category=ErrorCategory.VALIDATION_ERROR,
             severity=ErrorSeverity.MEDIUM,
-            message="Test"
+            message="Test",
         )
         detail2 = ErrorDetail(
             category=ErrorCategory.VALIDATION_ERROR,
             severity=ErrorSeverity.MEDIUM,
-            message="Test"
+            message="Test",
         )
         detail3 = ErrorDetail(
             category=ErrorCategory.NETWORK_ERROR,
             severity=ErrorSeverity.MEDIUM,
-            message="Test"
+            message="Test",
         )
 
         # Test equality
@@ -189,7 +191,7 @@ class TestChallengeError(unittest.TestCase):
             severity=ErrorSeverity.HIGH,
             details=test_details,
             suggestion="Fix the validation",
-            error_code="VAL_001"
+            error_code="VAL_001",
         )
 
         self.assertEqual(str(error), "Detailed error")
@@ -234,7 +236,7 @@ class TestValidationError(unittest.TestCase):
             "Validation failed",
             severity=ErrorSeverity.HIGH,
             details={"field": "test"},
-            suggestion="Check field format"
+            suggestion="Check field format",
         )
 
         self.assertEqual(error.error_detail.category, ErrorCategory.VALIDATION_ERROR)
@@ -258,9 +260,7 @@ class TestNetworkError(unittest.TestCase):
     def test_002_network_error_with_kwargs(self):
         """Test NetworkError with additional parameters"""
         error = NetworkError(
-            "Connection timeout",
-            severity=ErrorSeverity.HIGH,
-            details={"timeout": 30}
+            "Connection timeout", severity=ErrorSeverity.HIGH, details={"timeout": 30}
         )
 
         self.assertEqual(error.error_detail.category, ErrorCategory.NETWORK_ERROR)
@@ -285,7 +285,7 @@ class TestDatabaseError(unittest.TestCase):
         error = DatabaseError(
             "Query failed",
             details={"query": "SELECT * FROM users"},
-            suggestion="Check database schema"
+            suggestion="Check database schema",
         )
 
         self.assertEqual(error.error_detail.category, ErrorCategory.DATABASE_ERROR)
@@ -310,7 +310,7 @@ class TestConfigurationError(unittest.TestCase):
         error = ConfigurationError(
             "Missing required setting",
             details={"setting": "api_key"},
-            error_code="CONF_001"
+            error_code="CONF_001",
         )
 
         self.assertEqual(error.error_detail.category, ErrorCategory.CONFIGURATION_ERROR)
@@ -328,7 +328,9 @@ class TestAuthenticationError(unittest.TestCase):
 
         self.assertIsInstance(error, ChallengeError)
         self.assertEqual(str(error), "Invalid credentials")
-        self.assertEqual(error.error_detail.category, ErrorCategory.AUTHENTICATION_ERROR)
+        self.assertEqual(
+            error.error_detail.category, ErrorCategory.AUTHENTICATION_ERROR
+        )
         self.assertEqual(error.error_detail.severity, ErrorSeverity.HIGH)
 
     def test_002_authentication_error_with_kwargs(self):
@@ -336,10 +338,12 @@ class TestAuthenticationError(unittest.TestCase):
         error = AuthenticationError(
             "Token expired",
             details={"token_type": "JWT"},
-            suggestion="Refresh the authentication token"
+            suggestion="Refresh the authentication token",
         )
 
-        self.assertEqual(error.error_detail.category, ErrorCategory.AUTHENTICATION_ERROR)
+        self.assertEqual(
+            error.error_detail.category, ErrorCategory.AUTHENTICATION_ERROR
+        )
         self.assertEqual(error.error_detail.severity, ErrorSeverity.HIGH)
         self.assertEqual(error.error_detail.details, {"token_type": "JWT"})
 
@@ -361,7 +365,7 @@ class TestMalformedRequestError(unittest.TestCase):
         error = MalformedRequestError(
             "Missing required field",
             details={"field": "challenge_type"},
-            error_code="MALFORMED_001"
+            error_code="MALFORMED_001",
         )
 
         self.assertEqual(error.error_detail.category, ErrorCategory.MALFORMED_REQUEST)
@@ -386,11 +390,13 @@ class TestTimeoutError(unittest.TestCase):
         error = TimeoutError(
             "HTTP request timeout",
             details={"timeout": 30, "url": "https://example.com"},
-            suggestion="Increase timeout or check network connection"
+            suggestion="Increase timeout or check network connection",
         )
 
         self.assertEqual(error.error_detail.category, ErrorCategory.TIMEOUT_ERROR)
-        self.assertEqual(error.error_detail.details, {"timeout": 30, "url": "https://example.com"})
+        self.assertEqual(
+            error.error_detail.details, {"timeout": 30, "url": "https://example.com"}
+        )
 
 
 class TestUnsupportedChallengeTypeError(unittest.TestCase):
@@ -409,10 +415,13 @@ class TestUnsupportedChallengeTypeError(unittest.TestCase):
 
         expected_details = {
             "challenge_type": "custom-challenge",
-            "supported_types": supported_types
+            "supported_types": supported_types,
         }
         self.assertEqual(error.error_detail.details, expected_details)
-        self.assertEqual(error.error_detail.suggestion, "Use one of the supported types: http-01, dns-01, tls-alpn-01")
+        self.assertEqual(
+            error.error_detail.suggestion,
+            "Use one of the supported types: http-01, dns-01, tls-alpn-01",
+        )
 
     def test_002_unsupported_challenge_type_error_empty_supported_types(self):
         """Test UnsupportedChallengeTypeError with empty supported types"""
@@ -420,7 +429,9 @@ class TestUnsupportedChallengeTypeError(unittest.TestCase):
 
         self.assertEqual(str(error), "Unsupported challenge type: unknown")
         self.assertEqual(error.error_detail.details["supported_types"], [])
-        self.assertEqual(error.error_detail.suggestion, "Use one of the supported types: ")
+        self.assertEqual(
+            error.error_detail.suggestion, "Use one of the supported types: "
+        )
 
 
 class TestDNSResolutionError(unittest.TestCase):
@@ -436,23 +447,22 @@ class TestDNSResolutionError(unittest.TestCase):
         self.assertEqual(error.error_detail.category, ErrorCategory.NETWORK_ERROR)
         self.assertEqual(error.error_detail.error_code, "DNS_RESOLUTION_FAILED")
 
-        expected_details = {
-            "domain": "example.com",
-            "dns_servers": None
-        }
+        expected_details = {"domain": "example.com", "dns_servers": None}
         self.assertEqual(error.error_detail.details, expected_details)
-        self.assertEqual(error.error_detail.suggestion, "Check domain validity and DNS server configuration")
+        self.assertEqual(
+            error.error_detail.suggestion,
+            "Check domain validity and DNS server configuration",
+        )
 
     def test_002_dns_resolution_error_with_dns_servers(self):
         """Test DNSResolutionError creation with DNS servers"""
         dns_servers = ["8.8.8.8", "1.1.1.1"]
         error = DNSResolutionError("test.example.com", dns_servers)
 
-        self.assertEqual(str(error), "DNS resolution failed for domain: test.example.com")
-        expected_details = {
-            "domain": "test.example.com",
-            "dns_servers": dns_servers
-        }
+        self.assertEqual(
+            str(error), "DNS resolution failed for domain: test.example.com"
+        )
+        expected_details = {"domain": "test.example.com", "dns_servers": dns_servers}
         self.assertEqual(error.error_detail.details, expected_details)
 
 
@@ -476,10 +486,13 @@ class TestHTTPChallengeError(unittest.TestCase):
         expected_details = {
             "url": url,
             "expected_response": expected,
-            "received_response": received
+            "received_response": received,
         }
         self.assertEqual(error.error_detail.details, expected_details)
-        self.assertEqual(error.error_detail.suggestion, "Ensure the challenge file is accessible and contains the correct token")
+        self.assertEqual(
+            error.error_detail.suggestion,
+            "Ensure the challenge file is accessible and contains the correct token",
+        )
 
     def test_002_http_challenge_error_empty_responses(self):
         """Test HTTPChallengeError with empty responses"""
@@ -502,17 +515,22 @@ class TestDNSChallengeError(unittest.TestCase):
 
         self.assertIsInstance(error, ValidationError)
         self.assertIsInstance(error, ChallengeError)
-        self.assertEqual(str(error), f"DNS challenge validation failed for {dns_record}")
+        self.assertEqual(
+            str(error), f"DNS challenge validation failed for {dns_record}"
+        )
         self.assertEqual(error.error_detail.category, ErrorCategory.VALIDATION_ERROR)
         self.assertEqual(error.error_detail.error_code, "DNS_CHALLENGE_FAILED")
 
         expected_details = {
             "dns_record": dns_record,
             "expected_hash": expected_hash,
-            "found_records": found_records
+            "found_records": found_records,
         }
         self.assertEqual(error.error_detail.details, expected_details)
-        self.assertEqual(error.error_detail.suggestion, "Ensure the DNS TXT record is properly configured")
+        self.assertEqual(
+            error.error_detail.suggestion,
+            "Ensure the DNS TXT record is properly configured",
+        )
 
     def test_002_dns_challenge_error_empty_found_records(self):
         """Test DNSChallengeError with empty found records"""
@@ -533,16 +551,18 @@ class TestTLSALPNChallengeError(unittest.TestCase):
 
         self.assertIsInstance(error, ValidationError)
         self.assertIsInstance(error, ChallengeError)
-        self.assertEqual(str(error), f"TLS-ALPN challenge validation failed for {domain}")
+        self.assertEqual(
+            str(error), f"TLS-ALPN challenge validation failed for {domain}"
+        )
         self.assertEqual(error.error_detail.category, ErrorCategory.VALIDATION_ERROR)
         self.assertEqual(error.error_detail.error_code, "TLS_ALPN_CHALLENGE_FAILED")
 
-        expected_details = {
-            "domain": domain,
-            "expected_extension": expected_extension
-        }
+        expected_details = {"domain": domain, "expected_extension": expected_extension}
         self.assertEqual(error.error_detail.details, expected_details)
-        self.assertEqual(error.error_detail.suggestion, "Ensure the TLS certificate contains the required extension")
+        self.assertEqual(
+            error.error_detail.suggestion,
+            "Ensure the TLS certificate contains the required extension",
+        )
 
 
 class TestErrorHandler(unittest.TestCase):
@@ -602,7 +622,7 @@ class TestErrorHandler(unittest.TestCase):
             category=ErrorCategory.DATABASE_ERROR,
             severity=ErrorSeverity.CRITICAL,
             message="Critical database error",
-            details={"connection": "lost"}
+            details={"connection": "lost"},
         )
         original_error = Exception("Test error")
 
@@ -619,7 +639,7 @@ class TestErrorHandler(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.CONFIGURATION_ERROR,
             severity=ErrorSeverity.HIGH,
-            message="High severity error"
+            message="High severity error",
         )
         original_error = Exception("Test error")
 
@@ -635,7 +655,7 @@ class TestErrorHandler(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.VALIDATION_ERROR,
             severity=ErrorSeverity.MEDIUM,
-            message="Medium severity error"
+            message="Medium severity error",
         )
         original_error = Exception("Test error")
 
@@ -651,7 +671,7 @@ class TestErrorHandler(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.UNKNOWN_ERROR,
             severity=ErrorSeverity.LOW,
-            message="Low severity error"
+            message="Low severity error",
         )
         original_error = Exception("Test error")
 
@@ -669,19 +689,18 @@ class TestErrorHandler(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.NETWORK_ERROR,
             severity=ErrorSeverity.MEDIUM,
-            message="Debug mode error"
+            message="Debug mode error",
         )
         original_error = Exception("Debug error")
 
-        with patch('traceback.format_exception') as mock_format:
+        with patch("traceback.format_exception") as mock_format:
             mock_format.return_value = ["Traceback line 1\n", "Traceback line 2\n"]
 
             self.error_handler._log_error(error_detail, original_error)
 
             self.logger.warning.assert_called_once()
             self.logger.debug.assert_called_with(
-                "Stack trace for error: %s",
-                "Traceback line 1\nTraceback line 2\n"
+                "Stack trace for error: %s", "Traceback line 1\nTraceback line 2\n"
             )
 
     def test_010_log_error_without_details(self):
@@ -689,7 +708,7 @@ class TestErrorHandler(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.TIMEOUT_ERROR,
             severity=ErrorSeverity.MEDIUM,
-            message="Simple timeout error"
+            message="Simple timeout error",
         )
         original_error = Exception("Test error")
 
@@ -707,7 +726,7 @@ class TestErrorHandler(unittest.TestCase):
             category=ErrorCategory.VALIDATION_ERROR,
             severity=ErrorSeverity.MEDIUM,
             message="Invalid challenge response",
-            suggestion="Check token format"
+            suggestion="Check token format",
         )
 
         response = self.error_handler.create_acme_error_response(error_detail, 400)
@@ -715,7 +734,7 @@ class TestErrorHandler(unittest.TestCase):
         expected_response = {
             "code": 400,
             "type": "urn:ietf:params:acme:error:incorrectResponse",
-            "detail": "Invalid challenge response Suggestion: Check token format"
+            "detail": "Invalid challenge response Suggestion: Check token format",
         }
         self.assertEqual(response, expected_response)
 
@@ -724,7 +743,7 @@ class TestErrorHandler(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.NETWORK_ERROR,
             severity=ErrorSeverity.HIGH,
-            message="Connection failed"
+            message="Connection failed",
         )
 
         response = self.error_handler.create_acme_error_response(error_detail, 502)
@@ -732,7 +751,7 @@ class TestErrorHandler(unittest.TestCase):
         expected_response = {
             "code": 502,
             "type": "urn:ietf:params:acme:error:connection",
-            "detail": "Connection failed"
+            "detail": "Connection failed",
         }
         self.assertEqual(response, expected_response)
 
@@ -741,7 +760,7 @@ class TestErrorHandler(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.MALFORMED_REQUEST,
             severity=ErrorSeverity.MEDIUM,
-            message="Invalid JSON format"
+            message="Invalid JSON format",
         )
 
         response = self.error_handler.create_acme_error_response(error_detail)
@@ -749,7 +768,7 @@ class TestErrorHandler(unittest.TestCase):
         expected_response = {
             "code": 400,
             "type": "urn:ietf:params:acme:error:malformed",
-            "detail": "Invalid JSON format"
+            "detail": "Invalid JSON format",
         }
         self.assertEqual(response, expected_response)
 
@@ -758,7 +777,7 @@ class TestErrorHandler(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.AUTHENTICATION_ERROR,
             severity=ErrorSeverity.HIGH,
-            message="Invalid credentials"
+            message="Invalid credentials",
         )
 
         response = self.error_handler.create_acme_error_response(error_detail, 401)
@@ -766,7 +785,7 @@ class TestErrorHandler(unittest.TestCase):
         expected_response = {
             "code": 401,
             "type": "urn:ietf:params:acme:error:unauthorized",
-            "detail": "Invalid credentials"
+            "detail": "Invalid credentials",
         }
         self.assertEqual(response, expected_response)
 
@@ -775,7 +794,7 @@ class TestErrorHandler(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.TIMEOUT_ERROR,
             severity=ErrorSeverity.MEDIUM,
-            message="Request timeout"
+            message="Request timeout",
         )
 
         response = self.error_handler.create_acme_error_response(error_detail, 408)
@@ -783,26 +802,32 @@ class TestErrorHandler(unittest.TestCase):
         expected_response = {
             "code": 408,
             "type": "urn:ietf:params:acme:error:connection",
-            "detail": "Request timeout"
+            "detail": "Request timeout",
         }
         self.assertEqual(response, expected_response)
 
     def test_016_create_acme_error_response_server_errors(self):
         """Test creating ACME error response for server-side errors"""
-        for category in [ErrorCategory.CONFIGURATION_ERROR, ErrorCategory.DATABASE_ERROR, ErrorCategory.UNKNOWN_ERROR]:
+        for category in [
+            ErrorCategory.CONFIGURATION_ERROR,
+            ErrorCategory.DATABASE_ERROR,
+            ErrorCategory.UNKNOWN_ERROR,
+        ]:
             with self.subTest(category=category):
                 error_detail = ErrorDetail(
                     category=category,
                     severity=ErrorSeverity.HIGH,
-                    message="Server error"
+                    message="Server error",
                 )
 
-                response = self.error_handler.create_acme_error_response(error_detail, 500)
+                response = self.error_handler.create_acme_error_response(
+                    error_detail, 500
+                )
 
                 expected_response = {
                     "code": 500,
                     "type": "urn:ietf:params:acme:error:serverInternal",
-                    "detail": "Server error"
+                    "detail": "Server error",
                 }
                 self.assertEqual(response, expected_response)
 
@@ -811,7 +836,7 @@ class TestErrorHandler(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.VALIDATION_ERROR,
             severity=ErrorSeverity.MEDIUM,
-            message="Simple validation error"
+            message="Simple validation error",
         )
 
         response = self.error_handler.create_acme_error_response(error_detail)
@@ -819,7 +844,7 @@ class TestErrorHandler(unittest.TestCase):
         expected_response = {
             "code": 400,
             "type": "urn:ietf:params:acme:error:incorrectResponse",
-            "detail": "Simple validation error"
+            "detail": "Simple validation error",
         }
         self.assertEqual(response, expected_response)
 
@@ -841,7 +866,7 @@ class TestErrorRecovery(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.NETWORK_ERROR,
             severity=ErrorSeverity.MEDIUM,
-            message="Network failure"
+            message="Network failure",
         )
 
         # Should retry for attempts 1 and 2
@@ -855,7 +880,7 @@ class TestErrorRecovery(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.TIMEOUT_ERROR,
             severity=ErrorSeverity.MEDIUM,
-            message="Timeout"
+            message="Timeout",
         )
 
         # Should retry for attempts 1 and 2
@@ -869,7 +894,7 @@ class TestErrorRecovery(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.DATABASE_ERROR,
             severity=ErrorSeverity.HIGH,
-            message="Database error"
+            message="Database error",
         )
 
         # Should retry for attempts 1 and 2
@@ -883,7 +908,7 @@ class TestErrorRecovery(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.VALIDATION_ERROR,
             severity=ErrorSeverity.MEDIUM,
-            message="Validation failed"
+            message="Validation failed",
         )
 
         # Should never retry validation errors
@@ -895,7 +920,7 @@ class TestErrorRecovery(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.MALFORMED_REQUEST,
             severity=ErrorSeverity.MEDIUM,
-            message="Malformed request"
+            message="Malformed request",
         )
 
         # Should never retry malformed requests
@@ -906,7 +931,7 @@ class TestErrorRecovery(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.AUTHENTICATION_ERROR,
             severity=ErrorSeverity.HIGH,
-            message="Authentication failed"
+            message="Authentication failed",
         )
 
         # Should never retry authentication errors
@@ -917,7 +942,7 @@ class TestErrorRecovery(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.UNKNOWN_ERROR,
             severity=ErrorSeverity.MEDIUM,
-            message="Unknown error"
+            message="Unknown error",
         )
 
         # Should not retry unknown errors by default
@@ -928,7 +953,7 @@ class TestErrorRecovery(unittest.TestCase):
         error_detail = ErrorDetail(
             category=ErrorCategory.CONFIGURATION_ERROR,
             severity=ErrorSeverity.HIGH,
-            message="Configuration error"
+            message="Configuration error",
         )
 
         # Should not retry configuration errors
@@ -940,18 +965,22 @@ class TestErrorRecovery(unittest.TestCase):
         self.assertEqual(self.error_recovery.get_retry_delay(1), 2)  # 2^1
         self.assertEqual(self.error_recovery.get_retry_delay(2), 4)  # 2^2
         self.assertEqual(self.error_recovery.get_retry_delay(3), 8)  # 2^3
-        self.assertEqual(self.error_recovery.get_retry_delay(4), 16) # 2^4
+        self.assertEqual(self.error_recovery.get_retry_delay(4), 16)  # 2^4
 
     def test_011_get_retry_delay_max_cap(self):
         """Test retry delay maximum cap"""
         # Test maximum cap of 30 seconds
-        self.assertEqual(self.error_recovery.get_retry_delay(10), 30)  # 2^10 = 1024, capped at 30
-        self.assertEqual(self.error_recovery.get_retry_delay(20), 30)  # Should still be capped
+        self.assertEqual(
+            self.error_recovery.get_retry_delay(10), 30
+        )  # 2^10 = 1024, capped at 30
+        self.assertEqual(
+            self.error_recovery.get_retry_delay(20), 30
+        )  # Should still be capped
 
     def test_012_get_retry_delay_zero_attempts(self):
         """Test retry delay with zero attempts"""
         self.assertEqual(self.error_recovery.get_retry_delay(0), 1)  # 2^0 = 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
