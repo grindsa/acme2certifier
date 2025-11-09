@@ -55,19 +55,24 @@ class EmailReplyChallengeValidator(ChallengeValidator):
                 and calculated_keyauth
                 and email_keyauth == calculated_keyauth
             ):
+                self.logger.debug(
+                    "EmailReplyChallengeValidator.perform_validation() complete"
+                )
                 return ValidationResult(
                     success=True,
                     invalid=False,
                     details={"calculated_keyauth": calculated_keyauth},
                 )
             else:
+                self.logger.error(
+                    "Email keyauthorization does not match calculated keyauthorization"
+                )
                 return ValidationResult(
                     success=False,
                     invalid=True,
                     error_message="Email keyauthorization mismatch",
                     details={"expected": calculated_keyauth, "received": email_keyauth},
                 )
-        self.logger.debug("EmailReplyChallengeValidator.perform_validation() complete")
 
     def _generate_email_keyauth(
         self, challenge_name: str, rfc_token2: str, jwk_thumbprint: str, rfc_token1: str
