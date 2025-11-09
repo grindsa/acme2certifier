@@ -54,37 +54,37 @@ class ChallengeRepository(ABC):
         self, authorization_name: str
     ) -> List[ChallengeInfo]:
         """Find all challenges for a given authorization."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def get_challenge_by_name(self, name: str) -> Optional[ChallengeInfo]:
         """Get challenge information by name."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def get_challengeinfo_by_challengename(self, name: str) -> Optional[ChallengeInfo]:
         """Get challenge information by challenge name."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def create_challenge(self, request: ChallengeCreationRequest) -> Optional[str]:
         """Create a new challenge and return its name."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def update_challenge(self, request: ChallengeUpdateRequest) -> bool:
         """Update an existing challenge."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def update_authorization_status(self, challenge_name: str, status: str) -> bool:
         """Update authorization status based on challenge."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def get_account_jwk(self, challenge_name: str) -> Optional[Dict[str, Any]]:
         """Get JWK for the account associated with the challenge."""
-        pass
+        pass  # pragma: no cover
 
 
 class ChallengeStateManager:
@@ -232,7 +232,11 @@ class ChallengeFactory:
         return challenges
 
     def create_email_reply_challenge(
-        self, authorization_name: str, token: str, email_address: str, sender_address: str,
+        self,
+        authorization_name: str,
+        token: str,
+        email_address: str,
+        sender_address: str,
     ) -> Optional[Dict[str, Any]]:
         """Create email-reply-00 challenge."""
         self.logger.debug(
@@ -297,12 +301,24 @@ class ChallengeFactory:
         # Add type-specific properties
         if challenge_type == "email-reply-00" and self.email_address:
             challenge_dict["from"] = self.email_address
-            result = self.repository.get_challengeinfo_by_challengename(challenge_name, vlist=("name", "keyauthorization", "authorization__value"))
-            if result and 'keyauthorization' in result and 'authorization__value' in result:
+            result = self.repository.get_challengeinfo_by_challengename(
+                challenge_name,
+                vlist=("name", "keyauthorization", "authorization__value"),
+            )
+            if (
+                result
+                and "keyauthorization" in result
+                and "authorization__value" in result
+            ):
+                print("jupp", result)
                 # send challange email
                 from acme_srv.email_handler import EmailHandler
+
                 with EmailHandler(logger=self.logger) as email_handler:
-                    email_handler.send_email_challenge(to_address=result['authorization__value'], token1=result['keyauthorization'])
+                    email_handler.send_email_challenge(
+                        to_address=result["authorization__value"],
+                        token1=result["keyauthorization"],
+                    )
 
         elif challenge_type == "tkauth-01":
             challenge_dict["tkauth-type"] = "atc"
@@ -376,7 +392,10 @@ class ChallengeService:
         )
 
     def _format_existing_challenges(
-        self, challenges: List[ChallengeInfo], url: str = "", config: Dict[str, Any] = {}
+        self,
+        challenges: List[ChallengeInfo],
+        url: str = "",
+        config: Dict[str, Any] = {},
     ) -> List[Dict[str, Any]]:
         """Format existing challenges for response."""
         self.logger.debug(
@@ -392,9 +411,9 @@ class ChallengeService:
             }
 
             # Add email address for email-reply challenges
-            #if challenge.type == "email-reply-00" and hasattr(
+            # if challenge.type == "email-reply-00" and hasattr(
             #    self.factory, "email_address"
-            #):
+            # ):
             if challenge.type == "email-reply-00" and config.email_address:
                 challenge_dict["from"] = config.email_address
 
