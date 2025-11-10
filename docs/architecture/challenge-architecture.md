@@ -10,12 +10,12 @@ The refactored challenge system implements a clean, modular architecture using e
 
 ### Design Patterns Implemented
 
-1. **Strategy Pattern**: Separate validation algorithms for each challenge type
-2. **Registry Pattern**: Dynamic discovery and management of validators
-3. **Repository Pattern**: Clean separation of data access logic
-4. **State Pattern**: Challenge lifecycle management
-5. **Factory Pattern**: Challenge creation and configuration
-6. **Context Manager Pattern**: Resource management and initialization
+- **Strategy Pattern**: Separate validation algorithms for each challenge type
+- **Registry Pattern**: Dynamic discovery and management of validators
+- **Repository Pattern**: Clean separation of data access logic
+- **State Pattern**: Challenge lifecycle management
+- **Factory Pattern**: Challenge creation and configuration
+- **Context Manager Pattern**: Resource management and initialization
 
 ### Component Structure
 
@@ -75,11 +75,11 @@ challenge_validators/
 #### Implemented Validators
 
 1. **`HttpChallengeValidator`**: HTTP-01 challenge validation
-2. **`DnsChallengeValidator`**: DNS-01 challenge validation
-3. **`TlsAlpnChallengeValidator`**: TLS-ALPN-01 challenge validation
-4. **`EmailReplyChallengeValidator`**: Email-reply-00 challenge validation
-5. **`TkauthChallengeValidator`**: TKAuth-01 challenge validation
-6. **`SourceAddressValidator`**: Source address validation support
+1. **`DnsChallengeValidator`**: DNS-01 challenge validation
+1. **`TlsAlpnChallengeValidator`**: TLS-ALPN-01 challenge validation
+1. **`EmailReplyChallengeValidator`**: Email-reply-00 challenge validation
+1. **`TkauthChallengeValidator`**: TKAuth-01 challenge validation
+1. **`SourceAddressValidator`**: Source address validation support
 
 ### 2. Business Logic Layer (`/acme_srv/challenge_business_logic.py`)
 
@@ -112,6 +112,7 @@ Factory functions for creating and configuring the validator registry:
 The Challenge class serves as the main entry point:
 
 - **Public API Methods**:
+
   - `process_challenge_request()`: Handle ACME challenge requests
   - `retrieve_challenge_set()`: Get or create challenge sets
   - `challengeset_get()`: Legacy API compatibility
@@ -149,6 +150,7 @@ class NewChallengeValidator(ChallengeValidator):
     def perform_validation(self, context: ChallengeContext) -> ValidationResult:
         # Implement validation logic
         pass
+
 
 # Register with the system
 registry.register_validator(NewChallengeValidator(logger))
@@ -261,7 +263,9 @@ class MyChallengeValidator(ChallengeValidator):
                 details={"exception": str(e)},
             )
 
-    def _perform_my_validation(self, token: str, jwk_thumbprint: str, auth_value: str) -> bool:
+    def _perform_my_validation(
+        self, token: str, jwk_thumbprint: str, auth_value: str
+    ) -> bool:
         """Implement your specific validation logic."""
         # Add your challenge-specific validation code here
         # This is where you implement the actual challenge verification
@@ -306,7 +310,7 @@ def create_challenge_validator_registry(
     registry.register_validator(TlsAlpnChallengeValidator(logger))
 
     # Add your new validator (conditionally if needed)
-    if config and getattr(config, 'mychallengie_support', False):
+    if config and getattr(config, "mychallengie_support", False):
         registry.register_validator(MyChallengeValidator(logger))
 
     return registry
@@ -396,7 +400,7 @@ class TestMyChallengeValidator(unittest.TestCase):
             authorization_value="example.com",
         )
 
-        with patch.object(self.validator, '_perform_my_validation', return_value=True):
+        with patch.object(self.validator, "_perform_my_validation", return_value=True):
             result = self.validator.perform_validation(context)
 
         self.assertTrue(result.success)
@@ -413,7 +417,7 @@ class TestMyChallengeValidator(unittest.TestCase):
             authorization_value="example.com",
         )
 
-        with patch.object(self.validator, '_perform_my_validation', return_value=False):
+        with patch.object(self.validator, "_perform_my_validation", return_value=False):
             result = self.validator.perform_validation(context)
 
         self.assertFalse(result.success)
@@ -432,8 +436,8 @@ if __name__ == "__main__":
 Update documentation:
 
 1. Add your validator to the README in `/acme_srv/challenge_validators/README.md`
-2. Document configuration options
-3. Add usage examples
+1. Document configuration options
+1. Add usage examples
 
 ### Step 8: Integration Testing
 

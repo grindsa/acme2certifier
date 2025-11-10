@@ -79,6 +79,7 @@ class ChallengeConfiguration:
     reverse_address_check: bool = False
     source_address: Optional[str] = None
     eab_profiling: bool = False
+    eab_handler: Optional[Any] = None
 
 
 class DatabaseChallengeRepository(ChallengeRepository):
@@ -1027,6 +1028,62 @@ class Challenge:
                 "Challenge components not initialized. Call _load_configuration() first or use as context manager."
             )
 
+    def _check_cvd_via_eabprofile(self, challenge_name: str) -> bool:
+        """check challenge validation disabled via eab profiling"""
+        self.logger.debug("Challenge._check_cvd_via_eabprofile(%s)", challenge_name)
+        challenge_validation_disable = False
+        if self.config.eab_profiling and self.config.eab_handler:
+            # get challenge info to retrieve eab_kid
+            challenge_dic = self.repository.get_challengeinfo_by_challengename(
+                challenge_name,
+                vlist=(
+                    "name",
+                    "status__name",
+                    "authorization__order__account__name",
+                    "authorization__order__account__eab_kid",
+                ),
+            )
+            if (
+                "authorization__order__account__eab_kid" in challenge_dic
+                and challenge_dic["authorization__order__account__eab_kid"]
+            ):
+                # if eab_kid is set, we need to return the profile
+                eab_kid = challenge_dic["authorization__order__account__eab_kid"]
+                self.logger.debug(
+                    "Challenge._check_cvd_via_eabprofile(): found eab kid: %s", eab_kid
+                )
+                # eab_profile =
+                with self.config.eab_handler(self.logger) as eab_handler:
+                    profile_dic = eab_handler.key_file_load()
+                    if (
+                        eab_kid in profile_dic
+                        and "challenge" in profile_dic[eab_kid]
+                        and "challenge_validation_disable"
+                        in profile_dic[eab_kid]["challenge"]
+                    ):
+                        challenge_validation_disable = (
+                            profile_dic.get(eab_kid, {})
+                            .get("challenge", {})
+                            .get("challenge_validation_disable", False)
+                        )
+                        print(
+                            "challenge_validation_disable:",
+                            challenge_validation_disable,
+                            type(challenge_validation_disable),
+                        )
+                        # raise(NotImplementedError("debug"))
+                        self.logger.debug(
+                            "Challenge._check_cvd_via_eabprofile(): found challenge_validation_disable parameter for kid: %s/%s",
+                            eab_kid,
+                            challenge_validation_disable,
+                        )
+
+        self.logger.debug(
+            "Challenge._check_cvd_via_eabprofile() ended with: %s",
+            challenge_validation_disable,
+        )
+        return challenge_validation_disable
+
     def _perform_challenge_validation(
         self, challenge_name: str, payload: Dict[str, str]
     ) -> bool:
@@ -1036,9 +1093,17 @@ class Challenge:
             # Transition to processing state
             self.state_manager.transition_to_processing(challenge_name)
 
+            # check if challenge validation got disabled via eab profiling
+            challenge_validation_disabled_via_eab = self._check_cvd_via_eabprofile(
+                challenge_name
+            )
+
             # Check if validation is disabled
             if self.config.validation_disabled:
                 self.logger.warning("Challenge validation is globally disabled.")
+                return self._handle_validation_disabled(challenge_name)
+            elif challenge_validation_disabled_via_eab:
+                self.logger.info("Challenge validation is disabled via EAB profiling.")
                 return self._handle_validation_disabled(challenge_name)
 
             # Perform actual validation
