@@ -41,8 +41,16 @@ class TestChallengeConfiguration(unittest.TestCase):
 
 class TestDatabaseChallengeRepository(unittest.TestCase):
     def setUp(self):
+        import logging
+
         self.dbstore = Mock()
-        self.logger = Mock()
+        # Create a real logger for testing
+        self.logger = logging.getLogger("test_a2c")
+        self.logger.setLevel(logging.DEBUG)
+        # Remove any existing handlers to avoid duplicate logs
+        for handler in self.logger.handlers[:]:
+            self.logger.removeHandler(handler)
+
         self.repo = DatabaseChallengeRepository(self.dbstore, self.logger)
 
     def test_0002_find_challenges_by_authorization_success(self):
@@ -56,8 +64,18 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
 
     def test_0003_find_challenges_by_authorization_db_error(self):
         self.dbstore.challenges_search.side_effect = Exception("db fail")
-        with self.assertRaises(DatabaseError):
-            self.repo.find_challenges_by_authorization("authz1")
+        with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+            with self.assertRaises(DatabaseError):
+                self.repo.find_challenges_by_authorization("authz1")
+        # Verify the critical log message was generated
+        self.assertTrue(
+            any(
+                "Database error: failed to search for challenges: db fail"
+                in record.message
+                for record in log_context.records
+                if record.levelname == "CRITICAL"
+            )
+        )
 
     def test_0004_get_challengeinfo_by_challengename_success(self):
         self.dbstore.challenge_lookup.return_value = {"name": "c1", "type": "dns-01"}
@@ -66,8 +84,18 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
 
     def test_0005_get_challengeinfo_by_challengename_db_error(self):
         self.dbstore.challenge_lookup.side_effect = Exception("db fail")
-        with self.assertRaises(DatabaseError):
-            self.repo.get_challengeinfo_by_challengename("c1")
+        with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+            with self.assertRaises(DatabaseError):
+                self.repo.get_challengeinfo_by_challengename("c1")
+        # Verify the critical log message was generated
+        self.assertTrue(
+            any(
+                "Database error: failed to lookup challenge keyauthorization: db fail"
+                in record.message
+                for record in log_context.records
+                if record.levelname == "CRITICAL"
+            )
+        )
 
     def test_0006_get_challenge_by_name_success(self):
         self.dbstore.challenge_lookup.return_value = {
@@ -89,8 +117,17 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
 
     def test_0007_get_challenge_by_name_db_error(self):
         self.dbstore.challenge_lookup.side_effect = Exception("db fail")
-        with self.assertRaises(DatabaseError):
-            self.repo.get_challenge_by_name("c1")
+        with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+            with self.assertRaises(DatabaseError):
+                self.repo.get_challenge_by_name("c1")
+        # Verify the critical log message was generated
+        self.assertTrue(
+            any(
+                "Database error: failed to lookup challenge: db fail" in record.message
+                for record in log_context.records
+                if record.levelname == "CRITICAL"
+            )
+        )
 
     def test_0008_create_challenge_success(self):
         self.dbstore.challenge_add.return_value = 1
@@ -107,8 +144,18 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
             "acme_srv.challenge.generate_random_string", return_value="c1"
         ), patch("acme_srv.challenge.uts_now", return_value=1000):
             req = ChallengeCreationRequest("dns-01", "tok", "authz", "val")
-            with self.assertRaises(DatabaseError):
-                self.repo.create_challenge(req)
+            with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+                with self.assertRaises(DatabaseError):
+                    self.repo.create_challenge(req)
+            # Verify the critical log message was generated
+            self.assertTrue(
+                any(
+                    "Database error: failed to add new challenge: db fail"
+                    in record.message
+                    for record in log_context.records
+                    if record.levelname == "CRITICAL"
+                )
+            )
 
     def test_0010_update_challenge_success(self):
         self.dbstore.challenge_update.return_value = None
@@ -118,8 +165,17 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
     def test_0011_update_challenge_db_error(self):
         self.dbstore.challenge_update.side_effect = Exception("db fail")
         req = ChallengeUpdateRequest("c1", status=2)
-        with self.assertRaises(DatabaseError):
-            self.repo.update_challenge(req)
+        with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+            with self.assertRaises(DatabaseError):
+                self.repo.update_challenge(req)
+        # Verify the critical log message was generated
+        self.assertTrue(
+            any(
+                "Database error: failed to update challenge: db fail" in record.message
+                for record in log_context.records
+                if record.levelname == "CRITICAL"
+            )
+        )
 
     def test_0012_update_authorization_status_success(self):
         self.dbstore.challenge_lookup.return_value = {"authorization": "authz1"}
@@ -128,8 +184,18 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
 
     def test_0013_update_authorization_status_db_error(self):
         self.dbstore.challenge_lookup.side_effect = Exception("db fail")
-        with self.assertRaises(DatabaseError):
-            self.repo.update_authorization_status("c1", "valid")
+        with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+            with self.assertRaises(DatabaseError):
+                self.repo.update_authorization_status("c1", "valid")
+        # Verify the critical log message was generated
+        self.assertTrue(
+            any(
+                "Database error: failed to update authorization: db fail"
+                in record.message
+                for record in log_context.records
+                if record.levelname == "CRITICAL"
+            )
+        )
 
     def test_0014_get_account_jwk_success(self):
         self.dbstore.challenge_lookup.return_value = {
@@ -145,7 +211,15 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
 
 class TestChallenge(unittest.TestCase):
     def setUp(self):
-        self.logger = Mock()
+        import logging
+
+        # Create a real logger for testing
+        self.logger = logging.getLogger("test_a2c")
+        self.logger.setLevel(logging.DEBUG)
+        # Remove any existing handlers to avoid duplicate logs
+        for handler in self.logger.handlers[:]:
+            self.logger.removeHandler(handler)
+
         self.challenge = Challenge(debug=True, logger=self.logger, srv_name="srv")
         self.challenge.dbstore = Mock()
         self.challenge.repository = Mock()
@@ -204,7 +278,12 @@ class TestChallenge(unittest.TestCase):
 
     def test_0022_get_challenge_validation_details_exception(self):
         self.challenge.dbstore.challenge_lookup.side_effect = Exception("fail")
-        self.assertIsNone(self.challenge._get_challenge_validation_details("c1"))
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.assertIsNone(self.challenge._get_challenge_validation_details("c1"))
+        self.assertIn(
+            "ERROR:test_a2c:Failed to get challenge validation details: fail",
+            lcm.output,
+        )
 
     def test_0023_handle_challenge_validation_request_valid(self):
         info = ChallengeInfo(
@@ -253,7 +332,12 @@ class TestChallenge(unittest.TestCase):
         self.challenge.config.forward_address_check = False
         self.challenge.config.reverse_address_check = False
         self.challenge.state_manager.transition_to_valid = Mock()
-        self.assertTrue(self.challenge._handle_validation_disabled("c1"))
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.assertTrue(self.challenge._handle_validation_disabled("c1"))
+        self.assertIn(
+            "WARNING:test_a2c:Source address checks are disabled. Setting challenge status to valid. This is not recommended as this is a severe security risk!",
+            lcm.output,
+        )
 
     def test_0027_handle_validation_disabled_invalid(self):
         self.challenge.config.forward_address_check = True
@@ -264,15 +348,22 @@ class TestChallenge(unittest.TestCase):
         self.assertFalse(self.challenge._handle_validation_disabled("c1"))
 
     def test_0028_load_address_check_configuration(self):
+        import logging
         from configparser import ConfigParser
 
         config_dic = ConfigParser()
         config_dic.add_section("Challenge")
         config_dic.set("Challenge", "forward_address_check", "True")
         config_dic.set("Challenge", "reverse_address_check", "True")
-        self.challenge._load_address_check_configuration(config_dic)
+        config_dic.set("Challenge", "challenge_validation_disable", "True")
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.challenge._load_address_check_configuration(config_dic)
         self.assertTrue(self.challenge.config.forward_address_check)
         self.assertTrue(self.challenge.config.reverse_address_check)
+        self.assertTrue(self.challenge.config.validation_disabled)
+        self.assertIn(
+            "INFO:test_a2c:Challenge validation is globally disabled.", lcm.output
+        )
 
     def test_0029_load_dns_configuration(self):
         config_dic = {
@@ -294,8 +385,17 @@ class TestChallenge(unittest.TestCase):
                 "dns_validation_pause_timer": "bad",
             }
         }
-        self.challenge._load_dns_configuration(config_dic)
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.challenge._load_dns_configuration(config_dic)
         self.assertIsInstance(self.challenge.config.dns_server_list, type(None))
+        self.assertIn(
+            "WARNING:test_a2c:Failed to load dns_server_list from configuration: Expecting value: line 1 column 1 (char 0)",
+            lcm.output,
+        )
+        self.assertIn(
+            "WARNING:test_a2c:Failed to parse dns_validation_pause_timer from configuration: invalid literal for int() with base 10: 'bad'",
+            lcm.output,
+        )
 
     def test_0031_load_proxy_configuration(self):
         config_dic = {"DEFAULT": {"proxy_server_list": '{"http": "proxy"}'}}
@@ -304,8 +404,13 @@ class TestChallenge(unittest.TestCase):
 
     def test_0032_load_proxy_configuration_fail(self):
         config_dic = {"DEFAULT": {"proxy_server_list": "badjson"}}
-        self.challenge._load_proxy_configuration(config_dic)
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.challenge._load_proxy_configuration(config_dic)
         self.assertFalse(hasattr(self.challenge, "proxy_server_list"))
+        self.assertIn(
+            "WARNING:test_a2c:Failed to load proxy_server_list from configuration: Expecting value: line 1 column 1 (char 0)",
+            lcm.output,
+        )
 
     def test_0033_load_configuration(self):
         from configparser import ConfigParser
@@ -372,8 +477,10 @@ class TestChallenge(unittest.TestCase):
     def test_0039_perform_source_address_validation_not_found(self):
         self.challenge.config.forward_address_check = True
         self.challenge.repository.get_challenge_by_name.return_value = None
-        result = self.challenge._perform_source_address_validation("c1")
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            result = self.challenge._perform_source_address_validation("c1")
         self.assertEqual(result, (False, True))
+        self.assertIn("ERROR:test_a2c:Challenge not found: c1", lcm.output)
 
     def test_0040_perform_source_address_validation_success(self):
         self.challenge.config.forward_address_check = True
@@ -396,7 +503,11 @@ class TestChallenge(unittest.TestCase):
         self.challenge.validator_registry.is_supported.return_value = True
         mock_result = Mock(success=False, invalid=True, error_message="fail")
         self.challenge.validator_registry.validate_challenge.return_value = mock_result
-        result = self.challenge._perform_source_address_validation("c1")
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            result = self.challenge._perform_source_address_validation("c1")
+        self.assertIn(
+            "WARNING:test_a2c:Source address validation failed for c1: fail", lcm.output
+        )
         self.assertEqual(result, (False, True))
 
     def test_0042_perform_source_address_validation_validator_not_available(self):
@@ -406,7 +517,11 @@ class TestChallenge(unittest.TestCase):
         )
         self.challenge.repository.get_challenge_by_name.return_value = info
         self.challenge.validator_registry.is_supported.return_value = False
-        result = self.challenge._perform_source_address_validation("c1")
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            result = self.challenge._perform_source_address_validation("c1")
+        self.assertIn(
+            "WARNING:test_a2c:Source address validator not available", lcm.output
+        )
         self.assertEqual(result, (True, False))
 
     def test_0043_perform_source_address_validation_exception(self):
@@ -416,7 +531,11 @@ class TestChallenge(unittest.TestCase):
         )
         self.challenge.repository.get_challenge_by_name.return_value = info
         self.challenge.validator_registry.is_supported.side_effect = Exception("fail")
-        result = self.challenge._perform_source_address_validation("c1")
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            result = self.challenge._perform_source_address_validation("c1")
+        self.assertIn(
+            "ERROR:test_a2c:Source address validation error for c1: fail", lcm.output
+        )
         self.assertEqual(result, (False, True))
 
     def test_0044_perform_validation_with_retry_success(self):
@@ -488,7 +607,12 @@ class TestChallenge(unittest.TestCase):
         self.challenge._create_error_response = Mock(
             return_value={"code": 400, "error": "fail"}
         )
-        result = self.challenge._validate_tnauthlist_payload(payload, info)
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            result = self.challenge._validate_tnauthlist_payload(payload, info)
+        self.assertIn(
+            "ERROR:test_a2c:TNauthlist payload validation failed. atc claim is missing",
+            lcm.output,
+        )
         self.assertEqual(result["code"], 400)
 
     def test_0052_validate_tnauthlist_payload_missing_spc(self):
@@ -499,7 +623,12 @@ class TestChallenge(unittest.TestCase):
         self.challenge._create_error_response = Mock(
             return_value={"code": 400, "error": "fail"}
         )
-        result = self.challenge._validate_tnauthlist_payload(payload, info)
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            result = self.challenge._validate_tnauthlist_payload(payload, info)
+        self.assertIn(
+            "ERROR:test_a2c:TNauthlist payload validation failed. SPC token is missing",
+            lcm.output,
+        )
         self.assertEqual(result["code"], 400)
 
     def test_0053_process_challenge_request_success(self):
@@ -548,9 +677,19 @@ class TestChallenge(unittest.TestCase):
             Exception("fail")
         )
         self.challenge.error_handler.handle_error.return_value = Mock(message="fail")
-        self.challenge.logger.error = Mock()
-        resp = self.challenge.retrieve_challenge_set("authz", "valid", "tok", False)
+
+        with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+            resp = self.challenge.retrieve_challenge_set("authz", "valid", "tok", False)
+
         self.assertEqual(resp, [])
+        # Verify the error log message was generated
+        self.assertTrue(
+            any(
+                "Failed to retrieve challenge set: fail" in record.message
+                for record in log_context.records
+                if record.levelname == "ERROR"
+            )
+        )
 
     def test_0057_challengeset_get_and_parse(self):
         self.challenge.retrieve_challenge_set = Mock(return_value=[{"foo": "bar"}])
@@ -601,10 +740,24 @@ class TestChallenge(unittest.TestCase):
     def test_0061_get_account_jwk_exception(self):
         """Test get_account_jwk with database exception"""
         self.challenge.repository = DatabaseChallengeRepository(Mock(), self.logger)
+        # Set up challenge_lookup to return a valid response so jwk_load gets called
+        self.challenge.repository.dbstore.challenge_lookup.return_value = {
+            "authorization__order__account__name": "account_name"
+        }
         self.challenge.repository.dbstore.jwk_load.side_effect = Exception("DB error")
 
-        with self.assertRaises(DatabaseError):
-            self.challenge.repository.get_account_jwk("account_name")
+        with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+            with self.assertRaises(DatabaseError):
+                self.challenge.repository.get_account_jwk("account_name")
+
+        # Verify the critical log message was generated
+        self.assertTrue(
+            any(
+                "Database error: failed to get account JWK: DB error" in record.message
+                for record in log_context.records
+                if record.levelname == "CRITICAL"
+            )
+        )
 
     def test_0062_get_challengeinfo_by_challengename_none_result(self):
         """Test get_challengeinfo_by_challengename when no challenge found"""
