@@ -1299,7 +1299,7 @@ class Challenge:
             target=self._perform_challenge_validation, args=(challenge_name, payload)
         )
         twrv.start()
-        _validation = twrv.join(timeout=self.config.validation_timeout)
+        # _validation = twrv.join(timeout=self.config.validation_timeout)
 
     def _update_challenge_state_from_validation(
         self, challenge_name: str, validation_result: ValidationResult
