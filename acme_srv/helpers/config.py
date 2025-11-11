@@ -52,20 +52,24 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
             "EABhandler", "eab_profiling", fallback=False
         )
     except Exception as err:
-        logger.warning("Failed to load eabprofile from configuration: %s", err_)
+        logger.error("Failed to load eabprofile from configuration: %s", err)
         eab_profiling = False
 
-    if "CAHandler" in config_dic and "eab_profiling" in config_dic["CAHandler"]:
+    if (
+        not eab_profiling
+        and "CAhandler" in config_dic
+        and "eab_profiling" in config_dic["CAhandler"]
+    ):
         # load eab_profiling from CAHandler section - deprecated
         logger.warning(
-            "eab_profiling found in CAHandler section - this is deprecated, please use EABhandler section"
+            "eab_profiling found in CAhandler section - this is deprecated, please use EABhandler section"
         )
         try:
             eab_profiling = config_dic.getboolean(
                 "CAhandler", "eab_profiling", fallback=False
             )
         except Exception as err:
-            logger.warning("Failed to load eabprofile from configuration: %s", err)
+            logger.error("Failed to load eabprofile from configuration: %s", err)
             eab_profiling = False
 
     if eab_profiling:
