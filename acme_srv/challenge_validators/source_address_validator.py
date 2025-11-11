@@ -44,6 +44,15 @@ class SourceAddressValidator(ChallengeValidator):
             self.reverse_check,
         )
 
+        # Update forward and reverse check settings from context options if available
+        if context.options:
+            self.forward_check = context.options.get(
+                "forward_address_check", self.forward_check
+            )
+            self.reverse_check = context.options.get(
+                "reverse_address_check", self.reverse_check
+            )
+
         # Get source address from context
         source_address = getattr(context, "source_address", None)
         if not source_address:
