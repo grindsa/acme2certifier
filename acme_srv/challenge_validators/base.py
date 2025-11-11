@@ -34,6 +34,7 @@ class ChallengeContext:
     proxy_servers: Optional[Dict[str, str]] = None
     timeout: int = 10
     source_address: Optional[str] = None  # For source address validation
+    options: Optional[Dict[str, Any]] = None  # Additional options
 
 
 class ChallengeValidationError(Exception):

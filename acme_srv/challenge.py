@@ -554,6 +554,8 @@ class Challenge:
         self.config.validation_disabled = config_dic.getboolean(
             "Challenge", "challenge_validation_disable", fallback=False
         )
+        if self.config.validation_disabled:
+            self.logger.info("Challenge validation is globally disabled.")
         if "source_address_check" in config_dic["Challenge"]:
             self.logger.warning(
                 "source_address_check is deprecated, please use forward_address_check instead"
@@ -708,12 +710,11 @@ class Challenge:
                 "Challenge components not initialized. Call _load_configuration() first or use as context manager."
             )
 
-    def _check_cvd_via_eabprofile(self, challenge_name: str) -> bool:
-        """check challenge validation disabled via eab profiling"""
-        self.logger.debug("Challenge._check_cvd_via_eabprofile(%s)", challenge_name)
-        challenge_validation_disable = False
-        if self.config.eab_profiling and self.config.eab_handler:
-            # get challenge info to retrieve eab_kid
+    def _get_eab_kid_from_challenge(self, challenge_name: str) -> Optional[str]:
+        """Extract EAB kid from challenge information."""
+        self.logger.debug("Challenge._get_eab_kid_from_challenge(%s)", challenge_name)
+
+        try:
             challenge_dic = self.repository.get_challengeinfo_by_challengename(
                 challenge_name,
                 vlist=(
@@ -723,46 +724,119 @@ class Challenge:
                     "authorization__order__account__eab_kid",
                 ),
             )
-            if (
-                "authorization__order__account__eab_kid" in challenge_dic
-                and challenge_dic["authorization__order__account__eab_kid"]
-            ):
-                # if eab_kid is set, we need to return the profile
-                eab_kid = challenge_dic["authorization__order__account__eab_kid"]
+
+            eab_kid = challenge_dic.get("authorization__order__account__eab_kid")
+            if eab_kid:
                 self.logger.debug(
-                    "Challenge._check_cvd_via_eabprofile(): found eab kid: %s", eab_kid
+                    "Challenge._get_eab_kid_from_challenge(): found eab kid: %s",
+                    eab_kid,
                 )
-                # eab_profile =
-                with self.config.eab_handler(self.logger) as eab_handler:
-                    profile_dic = eab_handler.key_file_load()
-                    if (
-                        eab_kid in profile_dic
-                        and "challenge" in profile_dic[eab_kid]
-                        and "challenge_validation_disable"
-                        in profile_dic[eab_kid]["challenge"]
-                    ):
-                        challenge_validation_disable = (
-                            profile_dic.get(eab_kid, {})
-                            .get("challenge", {})
-                            .get("challenge_validation_disable", False)
-                        )
-                        print(
-                            "challenge_validation_disable:",
-                            challenge_validation_disable,
-                            type(challenge_validation_disable),
-                        )
-                        # raise(NotImplementedError("debug"))
-                        self.logger.debug(
-                            "Challenge._check_cvd_via_eabprofile(): found challenge_validation_disable parameter for kid: %s/%s",
-                            eab_kid,
-                            challenge_validation_disable,
-                        )
+                return eab_kid
+
+            return None
+
+        except Exception as err:
+            self.logger.error(
+                "Failed to get EAB kid from challenge %s: %s", challenge_name, err
+            )
+            return None
+
+    def _get_challenge_profile_settings(
+        self, profile_dic: Dict[str, Any], eab_kid: str
+    ) -> Dict[str, bool]:
+        """Extract challenge-related settings from EAB profile."""
+        self.logger.debug(
+            "Challenge._get_challenge_profile_settings() for kid: %s", eab_kid
+        )
+
+        if eab_kid not in profile_dic:
+            return {}
+
+        challenge_profile = profile_dic.get(eab_kid, {}).get("challenge", {})
+
+        settings = {
+            "challenge_validation_disable": challenge_profile.get(
+                "challenge_validation_disable", False
+            ),
+            "forward_address_check": challenge_profile.get(
+                "forward_address_check", False
+            ),
+            "reverse_address_check": challenge_profile.get(
+                "reverse_address_check", False
+            ),
+        }
 
         self.logger.debug(
-            "Challenge._check_cvd_via_eabprofile() ended with: %s",
-            challenge_validation_disable,
+            "Challenge._get_challenge_profile_settings(): extracted settings for kid %s: %s",
+            eab_kid,
+            settings,
         )
-        return challenge_validation_disable
+
+        self.logger.debug("Challenge._get_challenge_profile_settings() ended")
+        return settings
+
+    def _apply_eab_profile_settings(self, settings: Dict[str, bool], eab_kid: str):
+        """Apply EAB profile settings to challenge configuration."""
+        self.logger.debug(
+            "Challenge._apply_eab_profile_settings() for kid: %s", eab_kid
+        )
+
+        if settings.get("challenge_validation_disable"):
+            self.logger.info(
+                "Challenge validation is disabled via EAB profiling (eab_kid: %s).",
+                eab_kid,
+            )
+            self.config.validation_disabled = True
+
+        if settings.get("forward_address_check"):
+            self.logger.info(
+                "Forward address check is enabled via EAB profiling (eab_kid: %s).",
+                eab_kid,
+            )
+            self.config.forward_address_check = True
+
+        if settings.get("reverse_address_check"):
+            self.logger.info(
+                "Reverse address check is enabled via EAB profiling (eab_kid: %s).",
+                eab_kid,
+            )
+            self.config.reverse_address_check = True
+
+    def _check_challenge_validation_eabprofile(self, challenge_name: str):
+        """Check and apply challenge validation settings from EAB profiling."""
+        self.logger.debug(
+            "Challenge._check_challenge_validation_eabprofile(%s)", challenge_name
+        )
+
+        # Early return if EAB profiling is not enabled
+        if not (self.config.eab_profiling and self.config.eab_handler):
+            return
+
+        # Get EAB kid from challenge
+        eab_kid = self._get_eab_kid_from_challenge(challenge_name)
+        if not eab_kid:
+            return
+
+        # Load and apply EAB profile settings
+        try:
+            with self.config.eab_handler(self.logger) as eab_handler:
+                profile_dic = eab_handler.key_file_load()
+
+                # Check if profile contains challenge settings
+                if eab_kid in profile_dic and "challenge" in profile_dic[eab_kid]:
+
+                    settings = self._get_challenge_profile_settings(
+                        profile_dic, eab_kid
+                    )
+                    self._apply_eab_profile_settings(settings, eab_kid)
+
+        except Exception as err:
+            self.logger.error(
+                "Failed to process EAB profile for challenge %s (kid: %s): %s",
+                challenge_name,
+                eab_kid,
+                err,
+            )
 
     def _perform_challenge_validation(
         self, challenge_name: str, payload: Dict[str, str]
@@ -773,17 +847,10 @@ class Challenge:
             # Transition to processing state
             self.state_manager.transition_to_processing(challenge_name)
 
-            # check if challenge validation got disabled via eab profiling
-            challenge_validation_disabled_via_eab = self._check_cvd_via_eabprofile(
-                challenge_name
-            )
-
+            # check if challenge validation/source address checking got configured via eab profiling
+            self._check_challenge_validation_eabprofile(challenge_name)
             # Check if validation is disabled
             if self.config.validation_disabled:
-                self.logger.warning("Challenge validation is globally disabled.")
-                return self._handle_validation_disabled(challenge_name)
-            elif challenge_validation_disabled_via_eab:
-                self.logger.info("Challenge validation is disabled via EAB profiling.")
                 return self._handle_validation_disabled(challenge_name)
 
             # Perform actual validation
@@ -849,6 +916,10 @@ class Challenge:
                 source_address=self.source_address,
                 dns_servers=self.config.dns_server_list,
                 timeout=self.config.validation_timeout,
+                options={
+                    "forward_address_check": self.config.forward_address_check,
+                    "reverse_address_check": self.config.reverse_address_check,
+                },
             )
 
             # Use the source address validator from registry
