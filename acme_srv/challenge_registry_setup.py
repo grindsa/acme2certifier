@@ -38,14 +38,14 @@ def create_challenge_validator_registry(
         registry.register_validator(TkauthChallengeValidator(logger))
 
     # Register Source Address validator if address checking is enabled
-    if config.forward_address_check or config.reverse_address_check:
-        registry.register_validator(
-            SourceAddressValidator(
-                logger,
-                forward_check=config.forward_address_check,
-                reverse_check=config.reverse_address_check,
-            )
+    # if config.forward_address_check or config.reverse_address_check:
+    registry.register_validator(
+        SourceAddressValidator(
+            logger,
+            forward_check=config.forward_address_check,
+            reverse_check=config.reverse_address_check,
         )
+    )
 
     logger.info(
         "Challenge validator registry created with %d validators: %s",
