@@ -58,7 +58,6 @@ template_name: XCA template to be applied to CSRs
 - **ca_cert_chain_list** *(optional)* – List of **root and intermediate CA certificates** to be included in the bundle returned to an ACME client (**do not include the issuing CA certificate**).
 - **template_name** *(optional)* – Name of the **XCA template** to be applied during certificate issuance.
 - **allowed_domainlist** *(optional)* – List of allowed **domain names** for enrollment (JSON format). Example: `["bar.local", "bar.foo.local"]` (default: `[]`).
-- **eab_profiling** *(optional)* – [Enable EAB profiling](eab_profiling.md) (default: `False`).
 - **enrollment_config_log** *(optional)* – Enable logging of enrollment parameters (default: `False`).
 - **enrollment_config_log_skip_list** *(optional)* – List of **enrollment parameters** to exclude from logs (JSON format). Example: `["parameter1", "parameter2"]` (default: `[]`).
 
@@ -92,9 +91,10 @@ To enable **EAB profiling**, modify `acme_srv.cfg`:
 [EABhandler]
 eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: <profile_file>
+eab_profiling: True
 
 [CAhandler]
-eab_profiling: True
+...
 ```
 
 ### Example Key File (Used in Regression Testing)
