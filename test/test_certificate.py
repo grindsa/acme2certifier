@@ -3772,13 +3772,15 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {
             "account__name": "account__name",
             "account__eab_kid": "account__eab_kid",
+            "account__contact": "account__contact",
+            "expires": 1763119116,
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_issuance_log(
                 "cert_name", "certificate", "order_name", "cert_reusage"
             )
         self.assertIn(
-            'INFO:test_a2c:Certificate issued: {"account_name": "account__name", "certificate_name": "cert_name", "common_name": "cn", "eab_kid": "account__eab_kid", "reused": "cert_reusage", "san_list": ["san1", "san2"], "serial_number": "serial"}',
+            'INFO:test_a2c:Certificate issued: {"account_contact": "account__contact", "account_name": "account__name", "certificate_name": "cert_name", "common_name": "cn", "eab_kid": "account__eab_kid", "expires": "2025-11-14T11:18:36Z", "reused": "cert_reusage", "san_list": ["san1", "san2"], "serial_number": "serial"}',
             lcm.output,
         )
         self.assertTrue(self.certificate.dbstore.order_lookup.called)
@@ -3794,13 +3796,15 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.cert_operations_log = True
         self.certificate.dbstore.order_lookup.return_value = {
             "account__name": "account__name",
+            "account__contact": "account__contact",
+            "expires": 1763119116,
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_issuance_log(
                 "cert_name", "certificate", "order_name", False
             )
         self.assertIn(
-            "INFO:test_a2c:Certificate cert_name issued for account account__name. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            "INFO:test_a2c:Certificate cert_name issued for account account__name account__contact. Serial: serial, Common Name: cn, SANs: ['san1', 'san2'], Expires: 2025-11-14T11:18:36Z",
             lcm.output,
         )
         self.assertTrue(self.certificate.dbstore.order_lookup.called)
@@ -3817,13 +3821,15 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.order_lookup.return_value = {
             "account__name": "account__name",
             "account__eab_kid": "account__eab_kid",
+            "account__contact": "account__contact",
+            "expires": 1763119116,
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_issuance_log(
                 "cert_name", "certificate", "order_name", False
             )
         self.assertIn(
-            "INFO:test_a2c:Certificate cert_name issued for account account__name with EAB KID account__eab_kid. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            "INFO:test_a2c:Certificate cert_name issued for account account__name account__contact with EAB KID account__eab_kid. Serial: serial, Common Name: cn, SANs: ['san1', 'san2'], Expires: 2025-11-14T11:18:36Z",
             lcm.output,
         )
         self.assertTrue(self.certificate.dbstore.order_lookup.called)
@@ -3841,13 +3847,15 @@ class TestACMEHandler(unittest.TestCase):
             "account__name": "account__name",
             "account__eab_kid": "account__eab_kid",
             "profile": "profile",
+            "account__contact": "account__contact",
+            "expires": 1763119116,
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_issuance_log(
                 "cert_name", "certificate", "order_name", "reused"
             )
         self.assertIn(
-            "INFO:test_a2c:Certificate cert_name issued for account account__name with EAB KID account__eab_kid with Profile profile. Serial: serial, Common Name: cn, SANs: ['san1', 'san2'] reused: reused",
+            "INFO:test_a2c:Certificate cert_name issued for account account__name account__contact with EAB KID account__eab_kid with Profile profile. Serial: serial, Common Name: cn, SANs: ['san1', 'san2'], Expires: 2025-11-14T11:18:36Z reused: reused",
             lcm.output,
         )
         self.assertTrue(self.certificate.dbstore.order_lookup.called)
@@ -3865,13 +3873,15 @@ class TestACMEHandler(unittest.TestCase):
             "account__name": "account__name",
             "account__eab_kid": "account__eab_kid",
             "profile": "profile",
+            "account__contact": "account__contact",
+            "expires": 1763119116,
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_issuance_log(
                 "cert_name", "certificate", "order_name", False
             )
         self.assertIn(
-            "INFO:test_a2c:Certificate cert_name issued for account account__name with EAB KID account__eab_kid with Profile profile. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            "INFO:test_a2c:Certificate cert_name issued for account account__name account__contact with EAB KID account__eab_kid with Profile profile. Serial: serial, Common Name: cn, SANs: ['san1', 'san2'], Expires: 2025-11-14T11:18:36Z",
             lcm.output,
         )
         self.assertTrue(self.certificate.dbstore.order_lookup.called)
@@ -3893,7 +3903,7 @@ class TestACMEHandler(unittest.TestCase):
                 "cert_name", "certificate", "order_name", "cert_reusage"
             )
         self.assertIn(
-            'INFO:test_a2c:Certificate issued: {"account_name": "", "certificate_name": "cert_name", "common_name": "cn", "reused": "cert_reusage", "san_list": ["san1", "san2"], "serial_number": "serial"}',
+            'INFO:test_a2c:Certificate issued: {"account_contact": "", "account_name": "", "certificate_name": "cert_name", "common_name": "cn", "reused": "cert_reusage", "san_list": ["san1", "san2"], "serial_number": "serial"}',
             lcm.output,
         )
         self.assertIn(
@@ -3915,13 +3925,14 @@ class TestACMEHandler(unittest.TestCase):
             "name": "certificate_name",
             "order__account__name": "account__name",
             "order__account__eab_kid": "account__eab_kid",
+            "order__account__contact": "account__contact",
             "order__profile": "order__profile",
         }
         self.certificate.cert_operations_log = "json"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_revocation_log("certificate", 200)
         self.assertIn(
-            'INFO:test_a2c:Certificate revoked: {"account_name": "account__name", "certificate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "profile": "order__profile", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "successful"}',
+            'INFO:test_a2c:Certificate revoked: {"account_contact": "account__contact", "account_name": "account__name", "certificate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "profile": "order__profile", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "successful"}',
             lcm.output,
         )
 
@@ -3938,12 +3949,13 @@ class TestACMEHandler(unittest.TestCase):
             "name": "certificate_name",
             "order__account__name": "account__name",
             "order__account__eab_kid": "account__eab_kid",
+            "order__account__contact": "account__contact",
         }
         self.certificate.cert_operations_log = "json"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_revocation_log("certificate", "200")
         self.assertIn(
-            'INFO:test_a2c:Certificate revoked: {"account_name": "account__name", "certificate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "profile": "", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "failed"}',
+            'INFO:test_a2c:Certificate revoked: {"account_contact": "account__contact", "account_name": "account__name", "certificate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "profile": "", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "failed"}',
             lcm.output,
         )
 
@@ -3960,13 +3972,14 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.certificate_lookup.return_value = {
             "name": "certificate_name",
             "order__account__name": "account__name",
+            "order__account__contact": "account__contact",
             "order__profile": "order__profile",
         }
         self.certificate.cert_operations_log = True
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_revocation_log("certificate", "status")
         self.assertIn(
-            "INFO:test_a2c:Certificate certificate_name revocation failed for account account__name with Profile order__profile. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            "INFO:test_a2c:Certificate certificate_name revocation failed for account account__name account__contact with Profile order__profile. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
             lcm.output,
         )
 
@@ -3983,13 +3996,14 @@ class TestACMEHandler(unittest.TestCase):
         self.certificate.dbstore.certificate_lookup.return_value = {
             "name": "certificate_name",
             "order__account__name": "account__name",
+            "order__account__contact": "account__contact",
             "order__account__eab_kid": "account__eab_kid",
         }
         self.certificate.cert_operations_log = True
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certificate._cert_revocation_log("certificate", "status")
         self.assertIn(
-            "INFO:test_a2c:Certificate certificate_name revocation failed for account account__name with EAB KID account__eab_kid. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            "INFO:test_a2c:Certificate certificate_name revocation failed for account account__name account__contact with EAB KID account__eab_kid. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
             lcm.output,
         )
 
@@ -4013,7 +4027,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertIn(
-            "INFO:test_a2c:Certificate  revocation failed for account . Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
+            "INFO:test_a2c:Certificate  revocation failed for account  . Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
             lcm.output,
         )
 
