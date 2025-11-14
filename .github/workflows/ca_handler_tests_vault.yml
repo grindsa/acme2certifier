@@ -85,10 +85,10 @@ jobs:
 
     - name: "EAB ACME Profiling - setup a2c with vault_ca_handler"
       run: |
-        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
         sudo chmod 777 examples/eab_handler/kid_profiles.json
@@ -248,10 +248,10 @@ jobs:
     - name: "WSGI - EAB ACME Profiling - setup a2c with vault_ca_handler"
       if: matrix.execscript == 'rpm_tester.sh'
       run: |
-        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
         sudo echo -e "\n[EABhandler]" >> data/acme_srv.cfg
         sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
         sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
         sudo chmod 777 data/acme_ca/kid_profiles.json
@@ -266,10 +266,10 @@ jobs:
     - name: "Django - EAB ACME Profiling - setup a2c with vault_ca_handler"
       if: matrix.execscript == 'django_tester.sh'
       run: |
-        sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
         sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
         sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
         sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
         sudo chmod 777 data/volume/acme_ca/kid_profiles.json
