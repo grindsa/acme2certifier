@@ -36,7 +36,6 @@ username_append_cn: <True|False>
 enrollment_code: <value>
 ca_name: <name>
 request_timeout: <seconds>
-eab_profiling: <True|False>
 ```
 
 - api_host - URL of the EJBCA-Rest service
@@ -53,7 +52,6 @@ eab_profiling: <True|False>
 - ee_profile_name - name of the end entity profile
 - ca_name - name of the CA used to enroll certificates
 - allowed_domainlist - optional - list of domain-names allowed for enrollment in JSON format, for example: \["bar.local$, bar.foo.local\] (default: \[\])
-- eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
 - enrollment_config_log - optional - log enrollment parameters (default False)
 - enrollment_config_log_skip_list - optional - list of enrollment parameters not to be logged in JSON format, for example: \[ "parameter1", "parameter2" \] (default: \[\])
 - request_timeout - optional - requests timeout in seconds for requests (default: 5s)
@@ -115,7 +113,7 @@ Example for lego:
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent cert_profile_name=acme_clt -d <fqdn> --http run
 ```
 
-# eab profiling
+## eab profiling
 
 This handler can use the [eab profiling feature](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activatedd in `acme_srv.cfg`
 
@@ -123,9 +121,10 @@ This handler can use the [eab profiling feature](eab_profiling.md) to allow indi
 [EABhandler]
 eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: <profile_file>
+eab_profiling: True
 
 [CAhandler]
-eab_profiling: True
+...
 ```
 
 Below is an example key file used during regression testing:

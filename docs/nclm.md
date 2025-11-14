@@ -41,6 +41,5 @@ template_name: <template_name>
 - **container_name** – Name of the container where certificates will be stored.
 - **template_name** *(optional)* – Name of the template to be applied to the CSR.
 - **allowed_domainlist** *(optional)* – List of allowed domain names for enrollment (JSON format). Example: `["bar.local", "bar.foo.local"]` (default: `[]`).
-- **eab_profiling** *(optional)* – [Enable EAB profiling](eab_profiling.md) (default: `False`).
 - **enrollment_config_log** *(optional)* – Enable logging of enrollment parameters (default: `False`).
 - **enrollment_config_log_skip_list** *(optional)* – List of enrollment parameters to exclude from logs (JSON format). Example: `["parameter1", "parameter2"]` (default: `[]`).
