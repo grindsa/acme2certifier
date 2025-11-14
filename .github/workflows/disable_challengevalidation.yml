@@ -109,6 +109,86 @@ jobs:
       run: |
         docker compose logs 2>&1 | grep "Reverse address check failed"
         docker compose logs 2>&1 | grep "Reverse check passed for lego.acme"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+
+    - name: "EAB - Setup a2c with xca_ca_handler - profiling"
+      run: |
+        sudo mkdir -p examples/Docker/data/xca
+        sudo chmod -R 777 examples/Docker/data/xca
+        sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo touch examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg > examples/Docker/data/acme_srv.cfg
+        sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+        sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+        sudo chmod 777 examples/eab_handler/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/  \"api_password\": \"api_password\"/\n    },\n    \"challenge\": {\n      \"challenge_validation_disable\": \"True\",\n      \"forward_address_check\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    \"challenge\": {\n      \"challenge_validation_disable\": \"True\",\n      \"reverse_address_check\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/  \"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\"\]/  \"allowed_domainlist\": \[\"*.acme\", \"www.example.org\"\]\n    },\n    \"challenge\": {\n      \"challenge_validation_disable\": \"True\"/g" examples/Docker/data/kid_profiles.json
+
+        sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
+        # sudo sed -i "s/www.example.com/www.example.local/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i '28,30d' examples/Docker/data/kid_profiles.json
+        sudo sed -i '14,14d' examples/Docker/data/kid_profiles.json
+        sudo sed -i '8,8d' examples/Docker/data/kid_profiles.json
+        cd examples/Docker/
+        docker compose restart
+
+    - name: "EAB - forward address check enabled"
+      uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+      with:
+        TO_FAIL: "true"
+        EAB_KID: "keyid_00"
+        EAB_HMAC_KEY: "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw"
+
+    - name: "Check logs for forward check errors"
+      working-directory: examples/Docker
+      run: |
+        docker compose logs 2>&1 | grep "Forward check failed for lego-unknown.acme"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+
+    - name: "EAB - reverse address check enabled"
+      uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+      with:
+        TO_FAIL: "true"
+        EAB_KID: "keyid_01"
+        EAB_HMAC_KEY: "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg"
+
+    - name: "Check logs for reverse check errors"
+      working-directory: examples/Docker
+      run: |
+        docker compose logs 2>&1 | grep "Reverse address check failed"
+        docker compose logs 2>&1 | grep "Reverse check passed for lego.acme"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+
+    - name: "EAB - Chellenge validation disabled"
+      uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+      with:
+        TO_FAIL: "false"
+        EAB_KID: "keyid_02"
+        EAB_HMAC_KEY: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+
+    - name: "Check logs for challenge validation disabled message"
+      working-directory: examples/Docker
+      run: |
+        docker compose logs 2>&1 | grep "Source address checks are disabled. Setting challenge status to valid."
+
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -288,6 +368,123 @@ jobs:
       run: |
         docker exec acme-srv grep "Reverse address check failed" /var/log/messages
         docker exec acme-srv grep "Reverse check passed for lego.acme" /var/log/messages
+
+    - name: "RPM - Setup acme_srv.cfg with xca_ca_handler"
+      if: matrix.execscript == 'rpm_tester.sh'
+      run: |
+        mkdir -p data/acme_ca
+        sudo cp test/ca/acme2certifier-clean.xdb data/acme_ca/$XCA_DB_NAME
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
+        sudo touch data/acme_srv.cfg
+        sudo chmod 777 data/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg > data/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/acme_srv.cfg
+        sudo echo "xdb_file: /opt/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/acme_srv.cfg
+        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/acme_srv.cfg
+        sudo echo "passphrase: $XCA_PASSPHRASE" >> data/acme_srv.cfg
+        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/acme_srv.cfg
+        sudo echo "template_name: $XCA_TEMPLATE" >> data/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
+        sudo echo -e "\n\n[EABhandler]" >> data/acme_srv.cfg
+        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
+        sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
+        sudo chmod 777 data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/  \"api_password\": \"api_password\"/\n    },\n    \"challenge\": {\n      \"challenge_validation_disable\": \"True\",\n      \"forward_address_check\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    \"challenge\": {\n      \"challenge_validation_disable\": \"True\",\n      \"reverse_address_check\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/  \"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\"\]/  \"allowed_domainlist\": \[\"*.acme\", \"www.example.org\"\]\n    },\n    \"challenge\": {\n      \"challenge_validation_disable\": \"True\"/g" data/acme_ca/kid_profiles.json
+
+        sudo sed -i "s/example.net/acme/g" data/acme_ca/kid_profiles.json
+        # sudo sed -i "s/www.example.com/www.example.local/g" data/acme_ca/kid_profiles.json
+        sudo sed -i '28,30d' data/acme_ca/kid_profiles.json
+        sudo sed -i '14,14d' data/acme_ca/kid_profiles.json
+        sudo sed -i '8,8d' data/acme_ca/kid_profiles.json
+        cat data/acme_ca/kid_profiles.json
+
+    - name: "Django - Setup acme_srv.cfg with xca_ca_handler"
+      if: matrix.execscript == 'django_tester.sh'
+      run: |
+        mkdir -p data/volume/acme_ca
+        sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+        sudo touch data/volume/acme_srv.cfg
+        sudo chmod 777 data/volume/acme_srv.cfg
+        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg > data/volume/acme_srv.cfg
+        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+        sudo echo "xdb_file: /opt/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+        sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
+        sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
+        sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
+        sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
+        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+        sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
+        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+        sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+
+        sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+        sudo chmod 777 data/volume/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/volume/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/volume/acme_ca/kid_profiles.json
+        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+        sudo sed -i "s/  \"api_password\": \"api_password\"/\n    },\n    \"challenge\": {\n      \"challenge_validation_disable\": \"True\",\n      \"forward_address_check\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
+        sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    \"challenge\": {\n      \"challenge_validation_disable\": \"True\",\n      \"reverse_address_check\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
+        sudo sed -i "s/  \"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\"\]/  \"allowed_domainlist\": \[\"*.acme\", \"www.example.org\"\]\n    },\n    \"challenge\": {\n      \"challenge_validation_disable\": \"True\"/g" data/volume/acme_ca/kid_profiles.json
+
+        sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
+        # sudo sed -i "s/www.example.com/www.example.local/g" data/volume/acme_ca/kid_profiles.json
+        sudo sed -i '28,30d' data/volume/acme_ca/kid_profiles.json
+        sudo sed -i '14,14d' data/volume/acme_ca/kid_profiles.json
+        sudo sed -i '8,8d' data/volume/acme_ca/kid_profiles.json
+        cat data/volume/acme_ca/kid_profiles.json
+
+    - name: "Execute install scipt"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+      env:
+        EXEC_SCRIPT: ${{ matrix.execscript }}
+
+    - name: "EAB - forward address check enabled"
+      uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+      with:
+        TO_FAIL: "true"
+        EAB_KID: "keyid_00"
+        EAB_HMAC_KEY: "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw"
+
+    - name: "Check logs for forward check errors"
+      working-directory: examples/Docker
+      run: |
+        docker exec acme-srv grep "Forward check failed for lego-unknown.acme" /var/log/messages
+
+    - name: "EAB - reverse address check enabled"
+      uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+      with:
+        TO_FAIL: "true"
+        EAB_KID: "keyid_01"
+        EAB_HMAC_KEY: "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg"
+
+    - name: "Check logs for reverse check errors"
+      working-directory: examples/Docker
+      run: |
+        docker exec acme-srv grep "Reverse address check failed" /var/log/messages
+        docker exec acme-srv grep "Reverse check passed for lego.acme" /var/log/messages
+
+    - name: "EAB - Chellenge validation disabled"
+      uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
+      with:
+        TO_FAIL: "false"
+        EAB_KID: "keyid_02"
+        EAB_HMAC_KEY: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+
+    - name: "Check logs for challenge validation disabled message"
+      working-directory: examples/Docker
+      run: |
+        docker exec acme-srv grep "Source address checks are disabled. Setting challenge status to valid." /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
