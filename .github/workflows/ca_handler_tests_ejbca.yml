@@ -89,13 +89,13 @@ jobs:
         sudo echo "ee_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
         sudo echo "username: acme_srv" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
         sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-
         sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+
         sudo chmod 777 examples/eab_handler/kid_profiles.json
         sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" examples/Docker/data/kid_profiles.json
         sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" examples/Docker/data/kid_profiles.json
@@ -126,12 +126,12 @@ jobs:
         sudo echo "ee_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
         sudo echo "username: acme_srv" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
 
         sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
         sudo chmod 777 examples/eab_handler/kid_profiles.json
@@ -186,12 +186,12 @@ jobs:
         sudo echo "ee_profile_name: acmeca" >> examples/Docker/data/acme_srv.cfg
         sudo echo "username: acme_srv" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_code: acme_srv" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acmeca1\": \"http:\/\/foo.bar\/acmeca1\", \"acmeca2\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
 
         sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
         sudo chmod 777 examples/eab_handler/kid_profiles.json
@@ -321,11 +321,11 @@ jobs:
         sudo echo "ee_profile_name: acmeca" >> data/acme_srv.cfg
         sudo echo "username: acme_srv" >> data/acme_srv.cfg
         sudo echo "enrollment_code: acme_srv" >> data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
 
         sudo echo -e "\n[EABhandler]" >> data/acme_srv.cfg
         sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
         sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
         sudo chmod 777 data/acme_ca/kid_profiles.json
@@ -359,12 +359,12 @@ jobs:
         sudo echo "ee_profile_name: acmeca" >> data/acme_srv.cfg
         sudo echo "username: acme_srv" >> data/acme_srv.cfg
         sudo echo "enrollment_code: acme_srv" >> data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
 
         sudo echo -e "\n[EABhandler]" >> data/acme_srv.cfg
         sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
         sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
         sudo chmod 777 data/acme_ca/kid_profiles.json
@@ -422,12 +422,12 @@ jobs:
         sudo echo "ee_profile_name: acmeca" >> data/acme_srv.cfg
         sudo echo "username: acme_srv" >> data/acme_srv.cfg
         sudo echo "enrollment_code: acme_srv" >> data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acmeca1\": \"http:\/\/foo.bar\/acmeca1\", \"acmeca2\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/acme_srv.cfg
 
         sudo echo -e "\n[EABhandler]" >> data/acme_srv.cfg
         sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
         sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
         sudo chmod 777 data/acme_ca/kid_profiles.json
