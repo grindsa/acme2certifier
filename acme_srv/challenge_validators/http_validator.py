@@ -36,7 +36,15 @@ class HttpChallengeValidator(ChallengeValidator):
                 return ValidationResult(
                     success=False,
                     invalid=True,
-                    error_message=json.dumps({'status': 400, 'type': "urn:ietf:params:acme:error:dns", 'detail': f"DNS resolution failed: {error_msg}" if error_msg else "DNS resolution failed"}),
+                    error_message=json.dumps(
+                        {
+                            "status": 400,
+                            "type": "urn:ietf:params:acme:error:dns",
+                            "detail": f"DNS resolution failed: {error_msg}"
+                            if error_msg
+                            else "DNS resolution failed",
+                        }
+                    ),
                     details={"fqdn": context.authorization_value},
                 )
         elif context.authorization_type == "ip":
@@ -45,14 +53,26 @@ class HttpChallengeValidator(ChallengeValidator):
                 return ValidationResult(
                     success=False,
                     invalid=True,
-                    error_message=json.dumps({'status': 400, 'type': "urn:ietf:params:acme:error:malformed", 'detail': f"Invalid IP address: {context.authorization_value}"}),
+                    error_message=json.dumps(
+                        {
+                            "status": 400,
+                            "type": "urn:ietf:params:acme:error:malformed",
+                            "detail": f"Invalid IP address: {context.authorization_value}",
+                        }
+                    ),
                     details={"ip": context.authorization_value},
                 )
         else:
             return ValidationResult(
                 success=False,
                 invalid=True,
-                error_message=json.dumps({'status': 400, 'type': "urn:ietf:params:acme:error:unsupported", 'detail': f"Unsupported authorization type: {context.authorization_type}"}),
+                error_message=json.dumps(
+                    {
+                        "status": 400,
+                        "type": "urn:ietf:params:acme:error:unsupported",
+                        "detail": f"Unsupported authorization type: {context.authorization_type}",
+                    }
+                ),
                 details={"type": context.authorization_type},
             )
 
@@ -77,7 +97,13 @@ class HttpChallengeValidator(ChallengeValidator):
             return ValidationResult(
                 success=False,
                 invalid=False,
-                error_message=json.dumps({'status': 403, 'type': "urn:ietf:params:acme:error:unauthorized", 'detail': f"HTTP request failed: {status_code} {error_msg}"}),
+                error_message=json.dumps(
+                    {
+                        "status": 403,
+                        "type": "urn:ietf:params:acme:error:unauthorized",
+                        "detail": f"HTTP request failed: {status_code} {error_msg}",
+                    }
+                ),
                 details={"url": url},
             )
 
