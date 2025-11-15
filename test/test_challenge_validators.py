@@ -458,7 +458,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
     ):
         """Test successful DNS-based HTTP validation"""
         # Setup mocks
-        mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
+        mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
         mock_proxy_check.return_value = None
         expected_response = "test_token.test_thumb"
         mock_url_get.return_value = expected_response
@@ -494,7 +494,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
     @patch("acme_srv.helper.fqdn_resolve")
     def test_004_perform_validation_dns_resolution_failed(self, mock_fqdn_resolve):
         """Test HTTP validation with DNS resolution failure"""
-        mock_fqdn_resolve.return_value = ([], True)
+        mock_fqdn_resolve.return_value = ([], True, "NXDOMAIN: test.com does not exist")
 
         context = ChallengeContext(
             challenge_name="test",
@@ -508,7 +508,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
-        self.assertEqual(result.error_message, "DNS resolution failed")
+        self.assertEqual(result.error_message, "DNS resolution failed: NXDOMAIN: test.com does not exist")
         self.assertEqual(result.details["fqdn"], "invalid.example.com")
 
     @patch("acme_srv.helper.ip_validate")
@@ -584,7 +584,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
         self, mock_proxy_check, mock_url_get, mock_fqdn_resolve
     ):
         """Test HTTP validation with failed HTTP request"""
-        mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
+        mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
         mock_proxy_check.return_value = None
         mock_url_get.return_value = None  # Simulate request failure
 
@@ -610,7 +610,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
         self, mock_proxy_check, mock_url_get, mock_fqdn_resolve
     ):
         """Test HTTP validation with response mismatch"""
-        mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
+        mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
         mock_proxy_check.return_value = None
         mock_url_get.return_value = "wrong_response\nmore_content"
 
@@ -637,7 +637,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
         self, mock_proxy_check, mock_url_get, mock_fqdn_resolve
     ):
         """Test HTTP validation with proxy server"""
-        mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
+        mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
         mock_proxy_check.return_value = "http://proxy.example.com:8080"
         expected_response = "test_token.test_thumb"
         mock_url_get.return_value = expected_response
@@ -969,7 +969,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     ):
         """Test perform_validation basic functionality"""
         # Mock all external calls to avoid actual network operations
-        mock_fqdn_resolve.return_value = ([], True)  # DNS resolution failed
+        mock_fqdn_resolve.return_value = ([], True, "DNS resolution error")  # DNS resolution failed
         mock_sha256_hash_hex.return_value = (
             "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
         )
@@ -1004,7 +1004,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     ):
         """Test successful TLS-ALPN validation with DNS"""
         # Setup mocks
-        mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
+        mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
         mock_sha256_hash_hex.return_value = (
             "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
         )
@@ -1042,7 +1042,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     @patch("acme_srv.helper.fqdn_resolve")
     def test_004_perform_validation_dns_resolution_failed(self, mock_fqdn_resolve):
         """Test TLS-ALPN validation with DNS resolution failure"""
-        mock_fqdn_resolve.return_value = ([], True)
+        mock_fqdn_resolve.return_value = ([], True, "DNS resolution error")
 
         context = ChallengeContext(
             challenge_name="test",
@@ -1057,7 +1057,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
         self.assertEqual(
-            result.error_message, "DNS resolution failed for TLS-ALPN validation"
+            result.error_message, "DNS resolution failed for TLS-ALPN validation: DNS resolution error"
         )
 
     @patch("acme_srv.helper.ip_validate")
@@ -1157,7 +1157,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     ):
         """Test TLS-ALPN validation with certificate retrieval failure"""
         # Setup mocks
-        mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
+        mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
         mock_sha256_hash_hex.return_value = (
             "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
         )
@@ -1194,7 +1194,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     ):
         """Test TLS-ALPN validation with certificate validation failure"""
         # Setup mocks
-        mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
+        mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
         mock_sha256_hash_hex.return_value = (
             "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
         )
@@ -1347,7 +1347,7 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     ):
         """Test TLS-ALPN validation with proxy servers configured"""
         # Setup mocks
-        mock_fqdn_resolve.return_value = (["192.168.1.1"], False)
+        mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
         mock_sha256_hash_hex.return_value = (
             "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
         )
@@ -1768,7 +1768,7 @@ class TestSourceAddressValidator(unittest.TestCase):
     ):
         """Test perform_validation basic functionality"""
         # Mock DNS resolution to prevent network calls
-        mock_fqdn_resolve.return_value = (["192.168.1.1"], [])
+        mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
         mock_ptr_resolve.return_value = []
 
         context = ChallengeContext(
@@ -1924,7 +1924,7 @@ class TestSourceAddressValidator(unittest.TestCase):
     @patch("acme_srv.helper.fqdn_resolve")
     def test_009_perform_forward_check_success(self, mock_fqdn_resolve):
         """Test _perform_forward_check success"""
-        mock_fqdn_resolve.return_value = (["192.168.1.1", "192.168.1.2"], False)
+        mock_fqdn_resolve.return_value = (["192.168.1.1", "192.168.1.2"], False, None)
 
         result = self.validator._perform_forward_check("example.com", "192.168.1.1", [])
 
@@ -1935,7 +1935,7 @@ class TestSourceAddressValidator(unittest.TestCase):
     @patch("acme_srv.helper.fqdn_resolve")
     def test_010_perform_forward_check_failure(self, mock_fqdn_resolve):
         """Test _perform_forward_check failure"""
-        mock_fqdn_resolve.return_value = (["192.168.1.100"], False)  # Different IP
+        mock_fqdn_resolve.return_value = (["192.168.1.100"], False, None)  # Different IP
 
         result = self.validator._perform_forward_check("example.com", "192.168.1.1", [])
 
