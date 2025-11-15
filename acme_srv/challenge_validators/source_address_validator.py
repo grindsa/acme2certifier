@@ -5,7 +5,7 @@ Implements source address validation for challenges, including forward and rever
 address checking capabilities.
 """
 from typing import Optional, Tuple, Dict, Any, List
-
+import json
 from acme_srv.helpers.network import ptr_resolve
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 
@@ -78,15 +78,21 @@ class SourceAddressValidator(ChallengeValidator):
                 context.authorization_value, source_address, context.dns_servers
             )
             validation_details.update(forward_result)
-
             if not forward_result.get("forward_check_passed", False):
+
                 self.logger.debug(
                     "SourceAddressValidator.perform_validation(): Forward address check failed"
                 )
                 return ValidationResult(
                     success=False,
                     invalid=True,
-                    error_message="Forward address check failed",
+                    error_message=json.dumps(
+                        {
+                            "status": 400,
+                            "type": "urn:ietf:params:acme:error:unauthorized",
+                            "detail": f"Forward check failed: {forward_result.get('error', 'Forward address check failed')}",
+                        }
+                    ),
                     details=validation_details,
                 )
 
@@ -107,7 +113,13 @@ class SourceAddressValidator(ChallengeValidator):
                 return ValidationResult(
                     success=False,
                     invalid=True,
-                    error_message="Reverse address check failed",
+                    error_message=json.dumps(
+                        {
+                            "status": 400,
+                            "type": "urn:ietf:params:acme:error:unauthorized",
+                            "detail": f"Reverse check failed: {reverse_result.get('error', 'Reverse address check failed')}",
+                        }
+                    ),
                     details=validation_details,
                 )
 
@@ -127,22 +139,40 @@ class SourceAddressValidator(ChallengeValidator):
             from acme_srv.helper import fqdn_resolve
 
             # Resolve the domain to IP addresses
-            resolved_ips, _invalid, _error = fqdn_resolve(
+            resolved_ips, invalid, error_message = fqdn_resolve(
                 logger=self.logger, host=domain, dnssrv=dns_servers, catch_all=True
             )
 
-            # Check if source address matches any resolved IP
-            forward_check_passed = source_address in resolved_ips
-            self.logger.debug(
-                "SourceAddressValidator._perform_forward_check(): Forward check %s for %s",
-                "passed" if forward_check_passed else "failed",
-                domain,
-            )
-            return {
-                "forward_check_passed": forward_check_passed,
-                "resolved_ips": resolved_ips,
-                "domain": domain,
-            }
+            if error_message:
+                self.logger.error(
+                    "Forward address check DNS resolution failed: %s", error_message
+                )
+                return {
+                    "forward_check_passed": False,
+                    "error": error_message,
+                    "domain": domain,
+                }
+            else:
+                self.logger.debug(
+                    "SourceAddressValidator._perform_forward_check(): Resolved IPs for %s: %s",
+                    domain,
+                    resolved_ips,
+                )
+                # Check if source address matches any resolved IP
+                forward_check_passed = source_address in resolved_ips
+                self.logger.debug(
+                    "SourceAddressValidator._perform_forward_check(): Forward check %s for %s",
+                    "passed" if forward_check_passed else "failed",
+                    domain,
+                )
+                result = {
+                    "forward_check_passed": forward_check_passed,
+                    "resolved_ips": resolved_ips,
+                    "domain": domain,
+                }
+                if not forward_check_passed:
+                    result["error"] = "Source address not found in resolved IPs"
+                return result
 
         except Exception as e:
             self.logger.error("Forward address check failed: %s", str(e))
@@ -175,11 +205,21 @@ class SourceAddressValidator(ChallengeValidator):
                 "passed" if reverse_check_passed else "failed",
                 domain,
             )
-            return {
+
+            result = {
                 "reverse_check_passed": reverse_check_passed,
                 "reverse_domains": reverse_domains,
                 "source_address": source_address,
             }
+            if not reverse_check_passed:
+                # set error detail if no matches found
+                self.logger.debug(
+                    "SourceAddressValidator._perform_reverse_check(): No matching reverse domains found: %s",
+                    reverse_domains,
+                )
+                result["error"] = "No matching domains found"
+
+            return result
 
         except Exception as e:
             self.logger.error("Reverse address check failed: %s", str(e))
@@ -200,5 +240,7 @@ class SourceAddressValidator(ChallengeValidator):
         if requested_domain == resolved_domain:
             return True
 
+        if not resolved_domain:
+            return False
         # Subdomain match (resolved domain ends with requested domain)
         return resolved_domain.endswith("." + requested_domain)
