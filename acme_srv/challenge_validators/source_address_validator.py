@@ -127,7 +127,7 @@ class SourceAddressValidator(ChallengeValidator):
             from acme_srv.helper import fqdn_resolve
 
             # Resolve the domain to IP addresses
-            resolved_ips, _invalid = fqdn_resolve(
+            resolved_ips, _invalid, _error = fqdn_resolve(
                 logger=self.logger, host=domain, dnssrv=dns_servers, catch_all=True
             )
 
