@@ -186,7 +186,7 @@ def proxy_check(
     return proxy
 
 
-def url_get_with_own_dns(logger: logging.Logger, url: str, verify: bool = True) -> str:
+def url_get_with_own_dns(logger: logging.Logger, url: str, verify: bool = True) -> Tuple[Optional[str], int, Optional[str]]:
     """request by using an own dns resolver"""
     logger.debug("Helper.url_get_with_own_dns(%s)", url)
     # patch an own connection handler into URL lib
@@ -205,12 +205,19 @@ def url_get_with_own_dns(logger: logging.Logger, url: str, verify: bool = True) 
             timeout=20,
         )
         result = req.text
+        status_code = req.status_code
+        if status_code != 200:
+            error_msg = f"{url} {req.reason}"
+        else:
+            error_msg = None
     except Exception as err_:
         result = None
-        logger.error("Could not get URL by using the configured DNS servers: %s", err_)
+        status_code = 500
+        error_msg = f"Could not get URL by using the configured DNS servers: {str(err_)}"
+        logger.error(error_msg)
     # cleanup
     connection.create_connection = connection._orig_create_connection
-    return result
+    return result, status_code, error_msg
 
 
 def allowed_gai_family() -> socket.AF_INET:
@@ -225,7 +232,7 @@ def url_get_with_default_dns(
     proxy_list: Dict[str, str],
     verify: bool,
     timeout: int,
-) -> str:
+) -> Tuple[Optional[str], int, Optional[str]]:
     """http get with default dns server"""
     logger.debug(
         "Helper.url_get_with_default_dns(%s) vrf=%s, timout:%s", url, verify, timeout
@@ -239,6 +246,12 @@ def url_get_with_default_dns(
             url, verify=verify, timeout=timeout, headers=headers, proxies=proxy_list
         )
         result = req.text
+        status_code = req.status_code
+        if status_code != 200:
+            error_msg = f"{url} {req.reason}"
+        else:
+            error_msg = None
+
     except Exception as err_:
         logger.debug("Helper.url_get(%s): error", err_)
         # force fallback to ipv4
@@ -258,12 +271,19 @@ def url_get_with_default_dns(
                 proxies=proxy_list,
             )
             result = req.text
+            status_code = req.status_code
+            if status_code != 200:
+                error_msg = f"{url} {req.reason}"
+            else:
+                error_msg = None
         except Exception as err:
             result = None
-            logger.error("Could not fetch URL: %s", err)
+            status_code = 500
+            error_msg = f"Could not fetch URL: {str(err)}"
+            logger.error(error_msg)
         urllib3_cn.allowed_gai_family = old_gai_family
 
-    return result
+    return result, status_code, error_msg
 
 
 def url_get(
@@ -273,8 +293,8 @@ def url_get(
     proxy_server=None,
     verify=True,
     timeout=20,
-) -> str:
-    """http get"""
+) -> Tuple[Optional[str], int, Optional[str]]:
+    """http get with enhanced error reporting"""
     logger.debug("Helper.url_get(%s) vrf=%s, timout:%s", url, verify, timeout)
     # pylint: disable=w0621
     # configure proxy servers if specified
@@ -283,12 +303,12 @@ def url_get(
     else:
         proxy_list = {}
     if dns_server_list and not proxy_server:
-        result = url_get_with_own_dns(logger, url, verify)
+        result, status_code, error_msg = url_get_with_own_dns(logger, url, verify)
     else:
-        result = url_get_with_default_dns(logger, url, proxy_list, verify, timeout)
+        result, status_code, error_msg = url_get_with_default_dns(logger, url, proxy_list, verify, timeout)
 
-    logger.debug("Helper.url_get() ended with: %s", result)
-    return result
+    logger.debug("Helper.url_get() ended with status: %s, error: %s", status_code, error_msg)
+    return result, status_code, error_msg
 
 
 def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> List[str]:
