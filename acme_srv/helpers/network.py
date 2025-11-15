@@ -48,22 +48,33 @@ def _fqdn_resolve(
                     break  # Only break if we found a result
         except dns.resolver.NXDOMAIN as err:
             error_detail = f"NXDOMAIN: {host} does not exist"
-            logger.debug("No answer for %s with type %s: %s", host, rrtype, error_detail)
+            logger.debug(
+                "No answer for %s with type %s: %s", host, rrtype, error_detail
+            )
             errors_encountered.append(f"{rrtype}: {error_detail}")
             continue
         except dns.resolver.NoAnswer as err:
             error_detail = f"No {rrtype} record found for {host}"
-            logger.debug("No answer for %s with type %s: %s", host, rrtype, error_detail)
+            logger.debug(
+                "No answer for %s with type %s: %s", host, rrtype, error_detail
+            )
             errors_encountered.append(f"{rrtype}: {error_detail}")
             continue
         except dns.resolver.Timeout as err:
             error_detail = f"DNS query timeout for {host}"
-            logger.debug("Timeout while resolving %s with type %s: %s", host, rrtype, error_detail)
+            logger.debug(
+                "Timeout while resolving %s with type %s: %s",
+                host,
+                rrtype,
+                error_detail,
+            )
             errors_encountered.append(f"{rrtype}: {error_detail}")
             continue
         except Exception as err:
             error_detail = f"DNS resolution error: {str(err)}"
-            logger.debug("Error while resolving %s with type %s: %s", host, rrtype, error_detail)
+            logger.debug(
+                "Error while resolving %s with type %s: %s", host, rrtype, error_detail
+            )
             errors_encountered.append(f"{rrtype}: {error_detail}")
             continue
 
@@ -71,7 +82,13 @@ def _fqdn_resolve(
     if invalid and errors_encountered:
         error_msg = "; ".join(errors_encountered)
 
-    logger.debug("Helper._fqdn_resolve(%s) ended with: %s, %s, error: %s", host, result, invalid, error_msg)
+    logger.debug(
+        "Helper._fqdn_resolve(%s) ended with: %s, %s, error: %s",
+        host,
+        result,
+        invalid,
+        error_msg,
+    )
     return (result, invalid, error_msg)
 
 
@@ -88,14 +105,22 @@ def fqdn_resolve(
             # add specific dns server
             req.nameservers = dnssrv
         # resolve hostname
-        (result, invalid, error_msg) = _fqdn_resolve(logger, req, host, catch_all=catch_all)
+        (result, invalid, error_msg) = _fqdn_resolve(
+            logger, req, host, catch_all=catch_all
+        )
 
     else:
         result = None
         invalid = False
         error_msg = None
 
-    logger.debug("Helper.fqdn_resolve(%s) ended with: %s, %s, error: %s", host, result, invalid, error_msg)
+    logger.debug(
+        "Helper.fqdn_resolve(%s) ended with: %s, %s, error: %s",
+        host,
+        result,
+        invalid,
+        error_msg,
+    )
     return (result, invalid, error_msg)
 
 
@@ -186,7 +211,9 @@ def proxy_check(
     return proxy
 
 
-def url_get_with_own_dns(logger: logging.Logger, url: str, verify: bool = True) -> Tuple[Optional[str], int, Optional[str]]:
+def url_get_with_own_dns(
+    logger: logging.Logger, url: str, verify: bool = True
+) -> Tuple[Optional[str], int, Optional[str]]:
     """request by using an own dns resolver"""
     logger.debug("Helper.url_get_with_own_dns(%s)", url)
     # patch an own connection handler into URL lib
@@ -213,7 +240,9 @@ def url_get_with_own_dns(logger: logging.Logger, url: str, verify: bool = True) 
     except Exception as err_:
         result = None
         status_code = 500
-        error_msg = f"Could not get URL by using the configured DNS servers: {str(err_)}"
+        error_msg = (
+            f"Could not get URL by using the configured DNS servers: {str(err_)}"
+        )
         logger.error(error_msg)
     # cleanup
     connection.create_connection = connection._orig_create_connection
@@ -252,7 +281,7 @@ def url_get_with_default_dns(
         else:
             error_msg = None
 
-    except Exception as err_:
+    except requests.exceptions.RequestException as err_:
         logger.debug("Helper.url_get(%s): error", err_)
         # force fallback to ipv4
         logger.debug("Helper.url_get(%s): fallback to v4", url)
@@ -276,11 +305,22 @@ def url_get_with_default_dns(
                 error_msg = f"{url} {req.reason}"
             else:
                 error_msg = None
-        except Exception as err:
+        except requests.exceptions.ReadTimeout as errex:
             result = None
             status_code = 500
-            error_msg = f"Could not fetch URL: {str(err)}"
+            error_msg = f"Could not fetch URL: {url} - Read timeout."
             logger.error(error_msg)
+        except requests.exceptions.ConnectionError as errex:
+            result = None
+            status_code = 500
+            error_msg = f"Could not fetch URL: {url} - Connection error."
+            logger.error(error_msg)
+        except requests.exceptions.RequestException as errex:
+            result = None
+            status_code = 500
+            error_msg = f"Could not fetch URL: {url}"
+            logger.error(error_msg)
+
         urllib3_cn.allowed_gai_family = old_gai_family
 
     return result, status_code, error_msg
@@ -305,9 +345,13 @@ def url_get(
     if dns_server_list and not proxy_server:
         result, status_code, error_msg = url_get_with_own_dns(logger, url, verify)
     else:
-        result, status_code, error_msg = url_get_with_default_dns(logger, url, proxy_list, verify, timeout)
+        result, status_code, error_msg = url_get_with_default_dns(
+            logger, url, proxy_list, verify, timeout
+        )
 
-    logger.debug("Helper.url_get() ended with status: %s, error: %s", status_code, error_msg)
+    logger.debug(
+        "Helper.url_get() ended with status: %s, error: %s", status_code, error_msg
+    )
     return result, status_code, error_msg
 
 

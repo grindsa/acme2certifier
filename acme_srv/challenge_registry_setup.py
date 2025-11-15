@@ -47,8 +47,8 @@ def create_challenge_validator_registry(
         )
     )
 
-    logger.info(
-        "Challenge validator registry created with %d validators: %s",
+    logger.debug(
+        "create_challenge_validator_registry(): Registry created with %d validators: %s",
         len(registry.get_supported_types()),
         ", ".join(registry.get_supported_types()),
     )

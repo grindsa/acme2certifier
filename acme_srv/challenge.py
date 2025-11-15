@@ -146,6 +146,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
                     "authorization__type",
                     "authorization__value",
                     "validated",
+                    "validation_error",
                 ),
             )
 
@@ -167,6 +168,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 validated=uts_to_date_utc(challenge_dic.get("validated"))
                 if challenge_dic.get("status") == "valid"
                 else None,
+                validation_error=challenge_dic.get("validation_error", None) if "validation_error" in challenge_dic else None,
             )
         except Exception as err:
             self.logger.critical("Database error: failed to lookup challenge: %s", err)
@@ -486,16 +488,29 @@ class Challenge:
                 "Link": f'<{self.server_name}{self.path_dic["authz_path"]}>;rel="up"'
             },
         }
+        # address a few cornercases
+        if updated_challenge_info.validation_error:
+            # add validation error in response for failed challenges
+            try:
+                response_dic["data"]["error"] = json.loads(
+                    updated_challenge_info.validation_error
+                )
+            except Exception:
+                response_dic["data"]["error"] = {
+                    "status": 400,
+                    "type": "urn:ietf:params:acme:error:unknown",
+                    "detail": updated_challenge_info.validation_error,
+                }
 
         if updated_challenge_info.type == "email-reply-00" and self.config.email_address:
             # add from address in response for email challenges
             response_dic["data"]["from"] = self.config.email_address
 
-        # add validated flag if challenge is valid
         if (
             updated_challenge_info.validated
             and updated_challenge_info.status == "valid"
         ):
+            # add validated flag if challenge is valid
             response_dic["data"]["validated"] = updated_challenge_info.validated
 
         self.logger.debug("Challenge._handle_challenge_validation_request() ended")
@@ -506,9 +521,11 @@ class Challenge:
         self.logger.debug("Challenge._handle_validation_disabled(%s)", challenge_name)
         if self.config.forward_address_check or self.config.reverse_address_check:
             # Perform source address checks even when validation is disabled
-            challenge_check, invalid = self._perform_source_address_validation(
-                challenge_name
-            )
+            (
+                challenge_check,
+                invalid,
+                error_message,
+            ) = self._perform_source_address_validation(challenge_name)
         else:
             self.logger.warning(
                 "Source address checks are disabled. Setting challenge status to valid. "
@@ -519,7 +536,7 @@ class Challenge:
 
         if invalid:
             self.state_manager.transition_to_invalid(
-                challenge_name, self.source_address
+                challenge_name, self.source_address, validation_error=error_message
             )
         elif challenge_check:
             self.state_manager.transition_to_valid(
@@ -1180,7 +1197,6 @@ class Challenge:
             validation_result = self._execute_challenge_validation(
                 challenge_name, payload
             )
-
             result = self._update_challenge_state_from_validation(
                 challenge_name, validation_result
             )
@@ -1256,23 +1272,27 @@ class Challenge:
                     self.logger.debug(
                         "Source address validation passed for %s", challenge_name
                     )
-                    return True, False
+                    return True, False, None
                 else:
                     self.logger.warning(
                         "Source address validation failed for %s: %s",
                         challenge_name,
                         result.error_message,
                     )
-                    return False, result.invalid
+                    return False, result.invalid, result.error_message
             else:
                 self.logger.warning("Source address validator not available")
-                return True, False  # Don't fail if validator not available
+                return True, False, None  # Don't fail if validator not available
 
         except Exception as e:
             self.logger.error(
                 "Source address validation error for %s: %s", challenge_name, str(e)
             )
-            return False, True
+            return (
+                False,
+                True,
+                f"Source address validation error for {challenge_name}: {str(e)}",
+            )
 
     def _perform_validation_with_retry(
         self, challenge_type: str, context: ChallengeContext
@@ -1295,7 +1315,8 @@ class Challenge:
             else:
                 if not result.success:
                     self.logger.error(
-                        "No more retries left for challenge type %s. Invalidating challenge.", challenge_type
+                        "No more retries left for challenge type %s. Invalidating challenge.",
+                        challenge_type,
                     )
                     result.invalid = True
         return result
@@ -1314,7 +1335,6 @@ class Challenge:
     ) -> bool:
         """Update challenge state based on validation result."""
 
-
         if validation_result.invalid:
             self.state_manager.transition_to_invalid(
                 challenge_name, self.source_address, validation_result.error_message
@@ -1327,7 +1347,6 @@ class Challenge:
             return True
         else:
             # Validation inconclusive - keep in processing state
-            print("############ Validation inconclusive for challenge:", challenge_name)
             return False
 
     def _validate_tnauthlist_payload(
