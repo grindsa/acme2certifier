@@ -56,7 +56,9 @@ class DnsChallengeValidator(ChallengeValidator):
         return ValidationResult(
             success=success,
             invalid=not success,
-            error_message=None if success else '{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "DNS record not found or incorrect"}',
+            error_message=None
+            if success
+            else '{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "DNS record not found or incorrect"}',
             details={
                 "dns_record": dns_record_name,
                 "expected_hash": expected_hash,
