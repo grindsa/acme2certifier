@@ -65,7 +65,7 @@ class HttpChallengeValidator(ChallengeValidator):
 
         # Perform HTTP request
         url = f"http://{context.authorization_value}/.well-known/acme-challenge/{context.token}"
-        req = url_get(
+        req, status_code, error_msg = url_get(
             self.logger,
             url,
             dns_server_list=context.dns_servers,
@@ -73,12 +73,11 @@ class HttpChallengeValidator(ChallengeValidator):
             verify=False,
             timeout=context.timeout,
         )
-
-        if not req:
+        if not req or status_code != 200:
             return ValidationResult(
                 success=False,
                 invalid=False,
-                error_message="HTTP request failed",
+                error_message=json.dumps({'status': 403, 'type': "urn:ietf:params:acme:error:unauthorized", 'detail': f"HTTP request failed: {status_code} {error_msg}"}),
                 details={"url": url},
             )
 
