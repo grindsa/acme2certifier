@@ -82,7 +82,6 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                 details={"type": context.authorization_type},
             )
 
-
         # Compute expected extension value
         sha256_digest = sha256_hash_hex(
             self.logger, f"{context.token}.{context.jwk_thumbprint}"
@@ -127,7 +126,15 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         return ValidationResult(
             success=success,
             invalid=not success,
-            error_message=None if success else json.dumps({"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "Certificate extension validation failed"}),
+            error_message=None
+            if success
+            else json.dumps(
+                {
+                    "status": 403,
+                    "type": "urn:ietf:params:acme:error:incorrectResponse",
+                    "detail": "Certificate extension validation failed",
+                }
+            ),
             details={"expected_extension": extension_value, "sni": sni},
         )
 
