@@ -180,7 +180,9 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 validated=uts_to_date_utc(challenge_dic.get("validated"))
                 if challenge_dic.get("status") == "valid"
                 else None,
-                validation_error=challenge_dic.get("validation_error", None) if "validation_error" in challenge_dic else None,
+                validation_error=challenge_dic.get("validation_error", None)
+                if "validation_error" in challenge_dic
+                else None,
             )
         except Exception as err:
             self.logger.critical("Database error: failed to lookup challenge: %s", err)
