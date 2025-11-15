@@ -34,14 +34,14 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
 
         # Determine SNI value
         if context.authorization_type == "dns":
-            _, invalid = fqdn_resolve(
+            _, invalid, error_msg = fqdn_resolve(
                 self.logger, context.authorization_value, context.dns_servers
             )
             if invalid:
                 return ValidationResult(
                     success=False,
                     invalid=True,
-                    error_message="DNS resolution failed for TLS-ALPN validation",
+                    error_message=f"DNS resolution failed for TLS-ALPN validation: {error_msg}" if error_msg else "DNS resolution failed for TLS-ALPN validation",
                 )
             sni = context.authorization_value
         elif context.authorization_type == "ip":
