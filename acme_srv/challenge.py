@@ -102,7 +102,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             challenge_list = self.dbstore.challenges_search(
                 "authorization__name",
                 authorization_name,
-                ("name", "type", "status__name", "token"),
+                ("name", "type", "status__name", "token", "validation_error"),
             )
 
             result = []
@@ -116,6 +116,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
                     authorization_type="",  # Would need additional query
                     authorization_value="",  # Would need additional query
                     url="",  # Will be constructed later
+                    validation_error=challenge.get("validation_error", None),
                 )
                 result.append(challenge_info)
 
@@ -224,7 +225,8 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 data_dic["validated"] = request.validated
             if request.keyauthorization:
                 data_dic["keyauthorization"] = request.keyauthorization
-
+            if request.validation_error:
+                data_dic["validation_error"] = request.validation_error
             self.dbstore.challenge_update(data_dic)
             self.logger.debug(
                 "DatabaseChallengeRepository.update_challenge() ended: updated challenge %s",
@@ -1178,6 +1180,7 @@ class Challenge:
             validation_result = self._execute_challenge_validation(
                 challenge_name, payload
             )
+
             result = self._update_challenge_state_from_validation(
                 challenge_name, validation_result
             )
@@ -1306,9 +1309,10 @@ class Challenge:
     ) -> bool:
         """Update challenge state based on validation result."""
 
+
         if validation_result.invalid:
             self.state_manager.transition_to_invalid(
-                challenge_name, self.source_address
+                challenge_name, self.source_address, validation_result.error_message
             )
             return False
         elif validation_result.success:

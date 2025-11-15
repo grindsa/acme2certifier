@@ -6,7 +6,7 @@ import ssl
 import logging
 import json
 import re
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union, Optional
 from urllib.parse import urlparse, quote
 from urllib3.util import connection
 import socks
@@ -24,12 +24,14 @@ def _fqdn_resolve(
     req: dns.resolver.Resolver,
     host: str,
     catch_all: bool = False,
-) -> Tuple[str, bool]:
-    """resolve hostname"""
+) -> Tuple[Union[str, List[str], None], bool, Optional[str]]:
+    """resolve hostname with detailed error reporting"""
     logger.debug("Helper._fqdn_resolve(%s:%s)", host, catch_all)
 
     result = [] if catch_all else None
     invalid = True
+    error_msg = None
+    errors_encountered = []
 
     for rrtype in ["A", "AAAA"]:
         try:
@@ -44,21 +46,39 @@ def _fqdn_resolve(
                     result = resolved[0]
                     invalid = False
                     break  # Only break if we found a result
-        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
-            logger.debug("No answer for %s with type %s", host, rrtype)
+        except dns.resolver.NXDOMAIN as err:
+            error_detail = f"NXDOMAIN: {host} does not exist"
+            logger.debug("No answer for %s with type %s: %s", host, rrtype, error_detail)
+            errors_encountered.append(f"{rrtype}: {error_detail}")
+            continue
+        except dns.resolver.NoAnswer as err:
+            error_detail = f"No {rrtype} record found for {host}"
+            logger.debug("No answer for %s with type %s: %s", host, rrtype, error_detail)
+            errors_encountered.append(f"{rrtype}: {error_detail}")
+            continue
+        except dns.resolver.Timeout as err:
+            error_detail = f"DNS query timeout for {host}"
+            logger.debug("Timeout while resolving %s with type %s: %s", host, rrtype, error_detail)
+            errors_encountered.append(f"{rrtype}: {error_detail}")
             continue
         except Exception as err:
-            logger.debug("Error while resolving %s with type %s: %s", host, rrtype, err)
-            # Do not set invalid to False here, only if we get a valid result
+            error_detail = f"DNS resolution error: {str(err)}"
+            logger.debug("Error while resolving %s with type %s: %s", host, rrtype, error_detail)
+            errors_encountered.append(f"{rrtype}: {error_detail}")
+            continue
 
-    logger.debug("Helper._fqdn_resolve(%s) ended with: %s, %s", host, result, invalid)
-    return (result, invalid)
+    # If we failed to resolve, combine all errors
+    if invalid and errors_encountered:
+        error_msg = "; ".join(errors_encountered)
+
+    logger.debug("Helper._fqdn_resolve(%s) ended with: %s, %s, error: %s", host, result, invalid, error_msg)
+    return (result, invalid, error_msg)
 
 
 def fqdn_resolve(
     logger: logging.Logger, host: str, dnssrv: List[str] = None, catch_all: bool = False
-) -> Tuple[str, bool]:
-    """dns resolver"""
+) -> Tuple[Union[str, List[str], None], bool, Optional[str]]:
+    """dns resolver with error reporting"""
     logger.debug("Helper.fqdn_resolve(%s catch_all: %s)", host, catch_all)
     req = dns.resolver.Resolver()
 
@@ -68,14 +88,15 @@ def fqdn_resolve(
             # add specific dns server
             req.nameservers = dnssrv
         # resolve hostname
-        (result, invalid) = _fqdn_resolve(logger, req, host, catch_all=catch_all)
+        (result, invalid, error_msg) = _fqdn_resolve(logger, req, host, catch_all=catch_all)
 
     else:
         result = None
         invalid = False
+        error_msg = None
 
-    logger.debug("Helper.fqdn_resolve(%s) ended with: %s, %s", host, result, invalid)
-    return (result, invalid)
+    logger.debug("Helper.fqdn_resolve(%s) ended with: %s, %s, error: %s", host, result, invalid, error_msg)
+    return (result, invalid, error_msg)
 
 
 def ptr_resolve(
@@ -129,7 +150,7 @@ def patched_create_connection(address: List[str], *args, **kwargs):  # pragma: n
     dns_server_list = dns_server_list_load()
     # resolve hostname to an ip address; use your own resolver
     host, port = address
-    (hostname, _invalid) = fqdn_resolve(host, dns_server_list)
+    (hostname, _invalid, _error) = fqdn_resolve(host, dns_server_list)
     # pylint: disable=W0212
     return connection._orig_create_connection((hostname, port), *args, **kwargs)
 
