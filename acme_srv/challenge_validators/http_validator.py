@@ -100,7 +100,7 @@ class HttpChallengeValidator(ChallengeValidator):
                 error_message=json.dumps(
                     {
                         "status": 403,
-                        "type": "urn:ietf:params:acme:error:unauthorized",
+                        "type": "urn:ietf:params:acme:error:connection",
                         "detail": f"HTTP request failed: {status_code} {error_msg}",
                     }
                 ),
@@ -114,7 +114,7 @@ class HttpChallengeValidator(ChallengeValidator):
         return ValidationResult(
             success=success,
             invalid=not success,
-            error_message=None if success else "Response mismatch",
+            error_message=None if success else json.dumps({"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "Keyauthorization mismatch"}),
             details={
                 "expected": response_expected,
                 "received": response_got,
