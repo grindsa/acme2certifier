@@ -146,7 +146,10 @@ class ChallengeStateManager:
         return success
 
     def transition_to_invalid(
-        self, challenge_name: str, source_address: Optional[str] = None, validation_error: Optional[str] = None
+        self,
+        challenge_name: str,
+        source_address: Optional[str] = None,
+        validation_error: Optional[str] = None,
     ) -> bool:
         """Transition challenge to invalid state."""
         self.logger.debug(
@@ -154,7 +157,10 @@ class ChallengeStateManager:
         )
 
         update_request = ChallengeUpdateRequest(
-            name=challenge_name, status="invalid", source=source_address, validation_error=validation_error
+            name=challenge_name,
+            status="invalid",
+            source=source_address,
+            validation_error=validation_error,
         )
 
         success = self.repository.update_challenge(update_request)
@@ -418,13 +424,12 @@ class ChallengeService:
                 try:
                     challenge_dict["error"] = json.loads(challenge.validation_error)
                 except Exception:
-                    challenge_dict["error"] = {'status': 400, 'type': "urn:ietf:params:acme:error:unknown", 'detail': challenge.validation_error}
+                    challenge_dict["error"] = {
+                        "status": 400,
+                        "type": "urn:ietf:params:acme:error:unknown",
+                        "detail": challenge.validation_error,
+                    }
 
-                # print(challenge.validation_error)
-            # Add email address for email-reply challenges
-            # if challenge.type == "email-reply-00" and hasattr(
-            #    self.factory, "email_address"
-            # ):
             if challenge.type == "email-reply-00" and config.email_address:
                 challenge_dict["from"] = config.email_address
 

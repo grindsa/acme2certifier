@@ -3,6 +3,7 @@ TLS-ALPN-01 Challenge Validator.
 
 Implements validation logic for TLS-ALPN-01 challenges according to RFC 8737.
 """
+import json
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 
 
@@ -41,7 +42,15 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                 return ValidationResult(
                     success=False,
                     invalid=True,
-                    error_message=f"DNS resolution failed for TLS-ALPN validation: {error_msg}" if error_msg else "DNS resolution failed for TLS-ALPN validation",
+                    error_message=json.dumps(
+                        {
+                            "status": 400,
+                            "type": "urn:ietf:params:acme:error:dns",
+                            "detail": f"DNS resolution failed: {error_msg}"
+                            if error_msg
+                            else "DNS resolution failed",
+                        }
+                    ),
                 )
             sni = context.authorization_value
         elif context.authorization_type == "ip":
@@ -50,14 +59,29 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                 return ValidationResult(
                     success=False,
                     invalid=True,
-                    error_message="Invalid IP address for TLS-ALPN validation",
+                    error_message=json.dumps(
+                        {
+                            "status": 400,
+                            "type": "urn:ietf:params:acme:error:malformed",
+                            "detail": f"Invalid IP address: {context.authorization_value}",
+                        }
+                    ),
+                    details={"ip": context.authorization_value},
                 )
         else:
             return ValidationResult(
                 success=False,
                 invalid=True,
-                error_message="Unsupported authorization type for TLS-ALPN",
+                error_message=json.dumps(
+                    {
+                        "status": 400,
+                        "type": "urn:ietf:params:acme:error:unsupported",
+                        "detail": f"Unsupported authorization type: {context.authorization_type}",
+                    }
+                ),
+                details={"type": context.authorization_type},
             )
+
 
         # Compute expected extension value
         sha256_digest = sha256_hash_hex(
@@ -66,7 +90,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         extension_value = b64_encode(
             self.logger, bytearray.fromhex(f"0420{sha256_digest}")
         )
-
+        extension_value = "foo"
         # Check for proxy configuration
         proxy_server = None
         if context.proxy_servers:
@@ -83,7 +107,13 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
             return ValidationResult(
                 success=False,
                 invalid=False,
-                error_message="Unable to retrieve server certificate",
+                error_message=json.dumps(
+                    {
+                        "status": 400,
+                        "type": "urn:ietf:params:acme:error:incorrectResponse",
+                        "detail": f"Unable to retrieve server certificate for {context.authorization_value}",
+                    }
+                ),
             )
 
         # Validate certificate extensions
@@ -97,9 +127,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         return ValidationResult(
             success=success,
             invalid=not success,
-            error_message=None
-            if success
-            else "Certificate extension validation failed",
+            error_message=None if success else json.dumps({"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "Certificate extension validation failed"}),
             details={"expected_extension": extension_value, "sni": sni},
         )
 
