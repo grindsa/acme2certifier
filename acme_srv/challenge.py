@@ -1279,7 +1279,7 @@ class Challenge:
     ) -> ValidationResult:
         """Perform validation with retry logic for certain challenge types."""
 
-        retry_challenge_types = ["dns-01", "email-reply-00"]
+        retry_challenge_types = ["dns-01", "email-reply-00", "http-01"]
         max_attempts = 5 if challenge_type in retry_challenge_types else 1
 
         for attempt in range(max_attempts):
@@ -1292,7 +1292,12 @@ class Challenge:
             # Sleep before retry for certain challenge types
             if challenge_type in retry_challenge_types and attempt < max_attempts - 1:
                 time.sleep(self.config.dns_validation_pause_timer)
-
+            else:
+                if not result.success:
+                    self.logger.error(
+                        "No more retries left for challenge type %s. Invalidating challenge.", challenge_type
+                    )
+                    result.invalid = True
         return result
 
     def _start_async_validation(self, challenge_name: str, payload: Dict[str, str]):
@@ -1322,6 +1327,7 @@ class Challenge:
             return True
         else:
             # Validation inconclusive - keep in processing state
+            print("############ Validation inconclusive for challenge:", challenge_name)
             return False
 
     def _validate_tnauthlist_payload(
