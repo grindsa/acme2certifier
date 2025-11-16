@@ -2061,6 +2061,68 @@ class TestSourceAddressValidator(unittest.TestCase):
         result = self.validator._domain_matches("example.com.", "example.com")
         self.assertTrue(result)
 
+    def test_020_perform_validation_context_options_override(self):
+        """Test perform_validation with context options overriding check settings"""
+        context = ChallengeContext(
+            challenge_name="test",
+            token="test_token",
+            jwk_thumbprint="test_thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+        )
+        context.source_address = "192.168.1.1"
+        context.dns_servers = []
+        # Set options to override the validator's default settings
+        context.options = {
+            "forward_address_check": False,
+            "reverse_address_check": False,
+        }
+
+        # Mock the forward and reverse check methods to track if they're called
+        with patch.object(self.validator, "_perform_forward_check") as mock_forward, \
+             patch.object(self.validator, "_perform_reverse_check") as mock_reverse:
+
+            result = self.validator.perform_validation(context)
+
+            # Since both checks are disabled via options, neither should be called
+            mock_forward.assert_not_called()
+            mock_reverse.assert_not_called()
+
+            # Should return success since no validation is performed
+            self.assertTrue(result.success)
+            self.assertFalse(result.invalid)
+
+    @patch("acme_srv.helper.fqdn_resolve")
+    def test_021_perform_forward_check_dns_error_logging(self, mock_fqdn_resolve):
+        """Test _perform_forward_check with DNS resolution error and logging"""
+        # Setup mock to return an error message
+        mock_fqdn_resolve.return_value = ([], False, "DNS resolution timeout")
+
+        result = self.validator._perform_forward_check("example.com", "192.168.1.1", [])
+
+        self.assertFalse(result["forward_check_passed"])
+        self.assertEqual(result["error"], "DNS resolution timeout")
+        self.assertEqual(result["domain"], "example.com")
+
+        # Verify that the error was logged
+        self.logger.error.assert_called_once_with(
+            "Forward address check DNS resolution failed: %s", "DNS resolution timeout"
+        )
+
+    def test_022_domain_matches_empty_resolved_domain(self):
+        """Test _domain_matches with empty resolved_domain returns False"""
+        # Test with None resolved_domain
+        result = self.validator._domain_matches("example.com", None)
+        self.assertFalse(result)
+
+        # Test with empty string resolved_domain
+        result = self.validator._domain_matches("example.com", "")
+        self.assertFalse(result)
+
+        # Test with whitespace-only resolved_domain
+        result = self.validator._domain_matches("example.com", "   ")
+        self.assertFalse(result)
+
 
 if __name__ == "__main__":
     unittest.main()
