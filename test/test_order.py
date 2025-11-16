@@ -2741,22 +2741,40 @@ class TestACMEHandler(unittest.TestCase):
         # Should return code 200 with message = certificate_name for timeout
         self.assertEqual(result, (200, "timeout", None, "timeout"))
         mock_header_lookup.assert_called_once_with("test_header")
-        mock_csr_process.assert_called_once_with("test_order", "test_csr", {"header": "info"})
+        mock_csr_process.assert_called_once_with(
+            "test_order", "test_csr", {"header": "info"}
+        )
 
     @patch("acme_srv.order.Order._csr_process")
     @patch("acme_srv.order.Order._header_info_lookup")
-    def test_159_csr_finalize_rejected_identifier(self, mock_header_lookup, mock_csr_process):
+    def test_159_csr_finalize_rejected_identifier(
+        self, mock_header_lookup, mock_csr_process
+    ):
         """Test _csr_finalize with rejectedIdentifier certificate_name (lines 456-457)"""
         mock_header_lookup.return_value = {"header": "info"}
-        mock_csr_process.return_value = (400, "urn:ietf:params:acme:error:rejectedIdentifier", None)
+        mock_csr_process.return_value = (
+            400,
+            "urn:ietf:params:acme:error:rejectedIdentifier",
+            None,
+        )
 
         payload = {"csr": "test_csr"}
         result = self.order._csr_finalize("test_order", payload, "test_header")
 
         # Should return code 401 with message = certificate_name for rejectedIdentifier
-        self.assertEqual(result, (401, "urn:ietf:params:acme:error:rejectedIdentifier", None, "urn:ietf:params:acme:error:rejectedIdentifier"))
+        self.assertEqual(
+            result,
+            (
+                401,
+                "urn:ietf:params:acme:error:rejectedIdentifier",
+                None,
+                "urn:ietf:params:acme:error:rejectedIdentifier",
+            ),
+        )
         mock_header_lookup.assert_called_once_with("test_header")
-        mock_csr_process.assert_called_once_with("test_order", "test_csr", {"header": "info"})
+        mock_csr_process.assert_called_once_with(
+            "test_order", "test_csr", {"header": "info"}
+        )
 
     @patch("acme_srv.order.Order._csr_process")
     @patch("acme_srv.order.Order._header_info_lookup")
@@ -2769,37 +2787,56 @@ class TestACMEHandler(unittest.TestCase):
         result = self.order._csr_finalize("test_order", payload, "test_header")
 
         # Should return original code with message = certificate_name and detail = "enrollment failed"
-        self.assertEqual(result, (400, "some_other_error", "enrollment failed", "some_other_error"))
+        self.assertEqual(
+            result, (400, "some_other_error", "enrollment failed", "some_other_error")
+        )
         mock_header_lookup.assert_called_once_with("test_header")
-        mock_csr_process.assert_called_once_with("test_order", "test_csr", {"header": "info"})
+        mock_csr_process.assert_called_once_with(
+            "test_order", "test_csr", {"header": "info"}
+        )
 
     @patch("importlib.import_module")
     @patch("acme_srv.certificate.Certificate.enroll_and_store")
     @patch("acme_srv.certificate.Certificate.store_csr")
     @patch("acme_srv.order.Order._info")
     @patch("acme_srv.order.b64_url_recode")
-    def test_161_csr_process_rejected_identifier_error(self, mock_recode, mock_info, mock_store_csr, mock_enroll, mock_import):
+    def test_161_csr_process_rejected_identifier_error(
+        self, mock_recode, mock_info, mock_store_csr, mock_enroll, mock_import
+    ):
         """Test _csr_process with rejectedIdentifier error (lines 592-594)"""
         mock_recode.return_value = "recoded_csr"
         mock_info.return_value = {"foo": "bar"}
         mock_store_csr.return_value = "test_cert_name"
-        mock_enroll.return_value = ("urn:ietf:params:acme:error:rejectedIdentifier", "rejected")
-        mock_import.return_value = importlib.import_module("examples.ca_handler.skeleton_ca_handler")
+        mock_enroll.return_value = (
+            "urn:ietf:params:acme:error:rejectedIdentifier",
+            "rejected",
+        )
+        mock_import.return_value = importlib.import_module(
+            "examples.ca_handler.skeleton_ca_handler"
+        )
 
         result = self.order._csr_process("test_order", "test_csr", {"header": "info"})
 
         # Should return code 401 with message = error for rejectedIdentifier
-        self.assertEqual(result, (401, "urn:ietf:params:acme:error:rejectedIdentifier", "rejected"))
+        self.assertEqual(
+            result, (401, "urn:ietf:params:acme:error:rejectedIdentifier", "rejected")
+        )
         mock_info.assert_called_once_with("test_order")
-        mock_store_csr.assert_called_once_with("test_order", "recoded_csr", {"header": "info"})
-        mock_enroll.assert_called_once_with("test_cert_name", "recoded_csr", "test_order")
+        mock_store_csr.assert_called_once_with(
+            "test_order", "recoded_csr", {"header": "info"}
+        )
+        mock_enroll.assert_called_once_with(
+            "test_cert_name", "recoded_csr", "test_order"
+        )
 
     @patch("importlib.import_module")
     @patch("acme_srv.certificate.Certificate.enroll_and_store")
     @patch("acme_srv.certificate.Certificate.store_csr")
     @patch("acme_srv.order.Order._info")
     @patch("acme_srv.order.b64_url_recode")
-    def test_162_csr_process_server_internal_error_500(self, mock_recode, mock_info, mock_store_csr, mock_enroll, mock_import):
+    def test_162_csr_process_server_internal_error_500(
+        self, mock_recode, mock_info, mock_store_csr, mock_enroll, mock_import
+    ):
         """Test _csr_process with serverinternal error that gets converted to 500"""
         self.order.error_msg_dic = {"serverinternal": "internal_server_error"}
 
@@ -2807,22 +2844,30 @@ class TestACMEHandler(unittest.TestCase):
         mock_info.return_value = {"foo": "bar"}
         mock_store_csr.return_value = "test_cert_name"
         mock_enroll.return_value = ("internal_server_error", "server_error_detail")
-        mock_import.return_value = importlib.import_module("examples.ca_handler.skeleton_ca_handler")
+        mock_import.return_value = importlib.import_module(
+            "examples.ca_handler.skeleton_ca_handler"
+        )
 
         result = self.order._csr_process("test_order", "test_csr", {"header": "info"})
 
         # Should return code 500 when error matches serverinternal message
         self.assertEqual(result, (500, "internal_server_error", "server_error_detail"))
         mock_info.assert_called_once_with("test_order")
-        mock_store_csr.assert_called_once_with("test_order", "recoded_csr", {"header": "info"})
-        mock_enroll.assert_called_once_with("test_cert_name", "recoded_csr", "test_order")
+        mock_store_csr.assert_called_once_with(
+            "test_order", "recoded_csr", {"header": "info"}
+        )
+        mock_enroll.assert_called_once_with(
+            "test_cert_name", "recoded_csr", "test_order"
+        )
 
     @patch("importlib.import_module")
     @patch("acme_srv.certificate.Certificate.enroll_and_store")
     @patch("acme_srv.certificate.Certificate.store_csr")
     @patch("acme_srv.order.Order._info")
     @patch("acme_srv.order.b64_url_recode")
-    def test_163_csr_process_other_error_400(self, mock_recode, mock_info, mock_store_csr, mock_enroll, mock_import):
+    def test_163_csr_process_other_error_400(
+        self, mock_recode, mock_info, mock_store_csr, mock_enroll, mock_import
+    ):
         """Test _csr_process with other error that stays 400"""
         self.order.error_msg_dic = {"serverinternal": "internal_server_error"}
 
@@ -2830,15 +2875,21 @@ class TestACMEHandler(unittest.TestCase):
         mock_info.return_value = {"foo": "bar"}
         mock_store_csr.return_value = "test_cert_name"
         mock_enroll.return_value = ("some_other_error", "other_error_detail")
-        mock_import.return_value = importlib.import_module("examples.ca_handler.skeleton_ca_handler")
+        mock_import.return_value = importlib.import_module(
+            "examples.ca_handler.skeleton_ca_handler"
+        )
 
         result = self.order._csr_process("test_order", "test_csr", {"header": "info"})
 
         # Should return code 400 for other errors
         self.assertEqual(result, (400, "some_other_error", "other_error_detail"))
         mock_info.assert_called_once_with("test_order")
-        mock_store_csr.assert_called_once_with("test_order", "recoded_csr", {"header": "info"})
-        mock_enroll.assert_called_once_with("test_cert_name", "recoded_csr", "test_order")
+        mock_store_csr.assert_called_once_with(
+            "test_order", "recoded_csr", {"header": "info"}
+        )
+        mock_enroll.assert_called_once_with(
+            "test_cert_name", "recoded_csr", "test_order"
+        )
 
 
 if __name__ == "__main__":

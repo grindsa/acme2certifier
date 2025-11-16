@@ -2079,8 +2079,11 @@ class TestSourceAddressValidator(unittest.TestCase):
         }
 
         # Mock the forward and reverse check methods to track if they're called
-        with patch.object(self.validator, "_perform_forward_check") as mock_forward, \
-             patch.object(self.validator, "_perform_reverse_check") as mock_reverse:
+        with patch.object(
+            self.validator, "_perform_forward_check"
+        ) as mock_forward, patch.object(
+            self.validator, "_perform_reverse_check"
+        ) as mock_reverse:
 
             result = self.validator.perform_validation(context)
 

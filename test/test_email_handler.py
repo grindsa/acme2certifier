@@ -765,7 +765,6 @@ class TestEmailHandler(unittest.TestCase):
         )
         self.assertEqual(emails, [])
 
-
     @patch.object(EmailHandler, "send")
     def test_032_send_email_challenge_basic_functionality(self, mock_send):
         """Test send_email_challenge basic functionality"""
@@ -775,7 +774,9 @@ class TestEmailHandler(unittest.TestCase):
 
         # Test
         with self.assertLogs(self.logger, level="DEBUG") as log:
-            self.email_handler.send_email_challenge(to_address=to_address, token1=token1)
+            self.email_handler.send_email_challenge(
+                to_address=to_address, token1=token1
+            )
 
         # Verify send was called with correct parameters
         mock_send.assert_called_once()
@@ -795,7 +796,9 @@ class TestEmailHandler(unittest.TestCase):
         self.assertIn("verification tool", message)
 
         # Verify debug logging
-        self.assertTrue(any("Challenge._email_send" in message for message in log.output))
+        self.assertTrue(
+            any("Challenge._email_send" in message for message in log.output)
+        )
         self.assertTrue(any(to_address in message for message in log.output))
 
     @patch.object(EmailHandler, "send")
@@ -812,7 +815,9 @@ class TestEmailHandler(unittest.TestCase):
         mock_send.reset_mock()
 
         # Test with None token1
-        self.email_handler.send_email_challenge(to_address="test@example.com", token1=None)
+        self.email_handler.send_email_challenge(
+            to_address="test@example.com", token1=None
+        )
 
         call_args = mock_send.call_args
         self.assertEqual(call_args[1]["to_address"], "test@example.com")
@@ -851,7 +856,7 @@ class TestEmailHandler(unittest.TestCase):
             "manually",
             "copy the first token",
             "designated verification tool",
-            "or application"
+            "or application",
         ]
 
         for part in expected_parts:
@@ -872,8 +877,7 @@ class TestEmailHandler(unittest.TestCase):
         for token, expected_subject in test_cases:
             mock_send.reset_mock()
             self.email_handler.send_email_challenge(
-                to_address="test@example.com",
-                token1=token
+                to_address="test@example.com", token1=token
             )
 
             call_args = mock_send.call_args
@@ -900,8 +904,7 @@ class TestEmailHandler(unittest.TestCase):
 
         # The function doesn't return anything, but we can verify it calls send
         result = self.email_handler.send_email_challenge(
-            to_address=to_address,
-            token1=token1
+            to_address=to_address, token1=token1
         )
 
         # send_email_challenge doesn't return anything
@@ -916,8 +919,7 @@ class TestEmailHandler(unittest.TestCase):
 
         # The function doesn't return anything, even if send fails
         result = self.email_handler.send_email_challenge(
-            to_address=to_address,
-            token1=token1
+            to_address=to_address, token1=token1
         )
 
         # send_email_challenge doesn't return anything
@@ -933,8 +935,7 @@ class TestEmailHandler(unittest.TestCase):
         # The exception should propagate since send_email_challenge doesn't handle it
         with self.assertRaises(Exception) as context:
             self.email_handler.send_email_challenge(
-                to_address=to_address,
-                token1=token1
+                to_address=to_address, token1=token1
             )
 
         self.assertEqual(str(context.exception), "SMTP error")
