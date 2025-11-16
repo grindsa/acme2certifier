@@ -342,7 +342,7 @@ class TestChallenge(unittest.TestCase):
     def test_0027_handle_validation_disabled_invalid(self):
         self.challenge.config.forward_address_check = True
         self.challenge._perform_source_address_validation = Mock(
-            return_value=(False, True)
+            return_value=(False, True, "fail")
         )
         self.challenge.state_manager.transition_to_invalid = Mock()
         self.assertFalse(self.challenge._handle_validation_disabled("c1"))
@@ -492,7 +492,7 @@ class TestChallenge(unittest.TestCase):
         mock_result = Mock(success=True, invalid=False)
         self.challenge.validator_registry.validate_challenge.return_value = mock_result
         result = self.challenge._perform_source_address_validation("c1")
-        self.assertEqual(result, (True, False))
+        self.assertEqual(result, (True, False, None))
 
     def test_0041_perform_source_address_validation_fail(self):
         self.challenge.config.forward_address_check = True
@@ -508,7 +508,7 @@ class TestChallenge(unittest.TestCase):
         self.assertIn(
             "WARNING:test_a2c:Source address validation failed for c1: fail", lcm.output
         )
-        self.assertEqual(result, (False, True))
+        self.assertEqual(result, (False, True, "fail"))
 
     def test_0042_perform_source_address_validation_validator_not_available(self):
         self.challenge.config.forward_address_check = True
@@ -522,7 +522,7 @@ class TestChallenge(unittest.TestCase):
         self.assertIn(
             "WARNING:test_a2c:Source address validator not available", lcm.output
         )
-        self.assertEqual(result, (True, False))
+        self.assertEqual(result, (True, False, None))
 
     def test_0043_perform_source_address_validation_exception(self):
         self.challenge.config.forward_address_check = True
@@ -536,7 +536,9 @@ class TestChallenge(unittest.TestCase):
         self.assertIn(
             "ERROR:test_a2c:Source address validation error for c1: fail", lcm.output
         )
-        self.assertEqual(result, (False, True))
+        self.assertEqual(
+            result, (False, True, "Source address validation error for c1: fail")
+        )
 
     def test_0044_perform_validation_with_retry_success(self):
         context = Mock()

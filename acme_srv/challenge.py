@@ -980,7 +980,7 @@ class Challenge:
     ) -> ValidationResult:
         """Perform validation with retry logic for certain challenge types."""
 
-        retry_challenge_types = ["dns-01", "email-reply-00", "http-01"]
+        retry_challenge_types = ["dns-01", "email-reply-00", "http-01", "tls-alpn-01"]
         max_attempts = 5 if challenge_type in retry_challenge_types else 1
 
         for attempt in range(max_attempts):
@@ -1054,6 +1054,29 @@ class Challenge:
         return {"code": 200}
 
     # === Public Implementation Methods ===
+
+    def get_challenge_details(self, url: str) -> Dict[str, str]:
+        """Get challenge details from URL (replaces get)."""
+        challenge_name = self._extract_challenge_name_from_url(url)
+        self.logger.debug("Challenge.get_challenge_details(%s)", challenge_name)
+
+        try:
+            challenge_info = self.repository.get_challenge_by_name(challenge_name)
+            if not challenge_info:
+                return {"code": 404, "data": {}}
+
+            return {
+                "code": 200,
+                "data": {
+                    "type": challenge_info.type,
+                    "status": challenge_info.status,
+                    "token": challenge_info.token,
+                    "validated": challenge_info.validated,
+                },
+            }
+        except Exception as err:
+            error_detail = self.error_handler.handle_error(err)
+            return self.error_handler.create_acme_error_response(error_detail, 500)
 
     def process_challenge_request(self, content: str) -> Dict[str, str]:
         """Process challenge request (replaces parse)."""
@@ -1143,6 +1166,11 @@ class Challenge:
         return result
 
     # === Legacy API Compatibility ===
+
+    def get(self, url: str) -> Dict[str, str]:
+        """Legacy API compatibility - use get_challenge_details instead."""
+        self.logger("Challenge.get() called - legacy API")
+        return self.get_challenge_details(url)
 
     def challengeset_get(self, *args, **kwargs) -> List[Dict[str, str]]:
         """Legacy API compatibility - use retrieve_challenge_set instead."""

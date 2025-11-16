@@ -269,7 +269,6 @@ def url_get_with_default_dns(
 
     # we need to tweak headers and url for ipv6 addresse
     (headers, url) = v6_adjust(logger, url)
-
     try:
         req = requests.get(
             url, verify=verify, timeout=timeout, headers=headers, proxies=proxy_list
@@ -281,10 +280,10 @@ def url_get_with_default_dns(
         else:
             error_msg = None
 
-    except requests.exceptions.RequestException as err_:
-        logger.debug("Helper.url_get(%s): error", err_)
+    except Exception as err_:
+        logger.debug("Helper.url_get_with_default_dns(%s): error", err_)
         # force fallback to ipv4
-        logger.debug("Helper.url_get(%s): fallback to v4", url)
+        logger.debug("Helper.url_get_with_default_dns(%s): fallback to v4", url)
         old_gai_family = urllib3_cn.allowed_gai_family
         try:
             urllib3_cn.allowed_gai_family = allowed_gai_family
@@ -305,21 +304,24 @@ def url_get_with_default_dns(
                 error_msg = f"{url} {req.reason}"
             else:
                 error_msg = None
-        except requests.exceptions.ReadTimeout as errex:
+        except requests.exceptions.ReadTimeout as _errex:
+            logger.debug("Helper.url_get_with_default_dns(%s): read timeout", url)
             result = None
             status_code = 500
             error_msg = f"Could not fetch URL: {url} - Read timeout."
             logger.error(error_msg)
-        except requests.exceptions.ConnectionError as errex:
+        except requests.exceptions.ConnectionError as _errex:
+            logger.debug("Helper.url_get_with_default_dns(%s): connection error", url)
             result = None
             status_code = 500
             error_msg = f"Could not fetch URL: {url} - Connection error."
             logger.error(error_msg)
-        except requests.exceptions.RequestException as errex:
+        except Exception as err:
+            logger.debug("Helper.url_get_with_default_dns(%s): other error", url)
             result = None
             status_code = 500
             error_msg = f"Could not fetch URL: {url}"
-            logger.error(error_msg)
+            logger.error(err)
 
         urllib3_cn.allowed_gai_family = old_gai_family
 

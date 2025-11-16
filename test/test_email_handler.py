@@ -678,7 +678,7 @@ class TestEmailHandler(unittest.TestCase):
         mock_mail.logout.assert_called_once()
 
         self.assertIn(
-            "DEBUG:test_a2c:mailHandler.receive(): email did not pass filter: Test Email 1",
+            "DEBUG:test_a2c:EmailHandler.receive(): email did not pass filter: Test Email 1",
             log.output,
         )
         self.assertIn("INFO:test_a2c:Email passed filter: Test Email 2", log.output)
