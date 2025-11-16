@@ -36,7 +36,7 @@ from acme_srv.email_handler import EmailHandler
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 
-# Import our refactored modules
+# Import our modules
 from acme_srv.challenge_validators import (
     ChallengeValidatorRegistry,
     ChallengeContext,
@@ -299,7 +299,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
 
 
 class Challenge:
-    """Challenge Class - Refactored for Clarity and Maintainability"""
+    """Challenge Class"""
 
     def __init__(
         self,
@@ -309,12 +309,9 @@ class Challenge:
         source: str = None,
         expiry: int = 3600,
     ):
-        self.challenge_validation_disable = False
-        self.challenge_validation_timeout = 10
-        self.dns_server_list = None
-        self.dns_validation_pause_timer = 0.5
-        self.eab_handler = None
-        self.eab_profiling = False
+        """Initialize the challenge handler."""
+        self.logger = logger
+        self.config = ChallengeConfiguration()
         self.expiry = expiry
         self.logger = logger
         self.path_dic = {"chall_path": "/acme/chall/", "authz_path": "/acme/authz/"}
