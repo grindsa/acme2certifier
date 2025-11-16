@@ -980,7 +980,7 @@ class Challenge:
     ) -> ValidationResult:
         """Perform validation with retry logic for certain challenge types."""
 
-        retry_challenge_types = ["dns-01", "email-reply-00", "http-01", "tls-alpn-01"]
+        retry_challenge_types = ["dns-01", "email-reply-00"]
         max_attempts = 5 if challenge_type in retry_challenge_types else 1
 
         for attempt in range(max_attempts):
