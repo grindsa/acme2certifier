@@ -90,8 +90,11 @@ jobs:
     - name: "Check logs for forward check errors"
       working-directory: examples/Docker
       run: |
+        # check no ip-match
         docker compose logs 2>&1 | grep "Forward check failed for www.dynamop.de"
-        docker compose logs 2>&1 | grep "Forward check failed for lego-unknown.acme"
+        docker compose logs 2>&1 | grep "SourceAddressValidator._perform_forward_check(): Source address not found in resolved IPs"
+        # check dns resolution fail
+        docker compose logs 2>&1 | grep "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist"
 
     - name: "Enable reverse address check"
       run: |
@@ -160,7 +163,7 @@ jobs:
     - name: "Check logs for forward check errors"
       working-directory: examples/Docker
       run: |
-        docker compose logs 2>&1 | grep "Forward check failed for lego-unknown.acme"
+        docker compose logs 2>&1 | grep "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
 
     - name: "EAB - reverse address check enabled"
@@ -335,7 +338,8 @@ jobs:
       working-directory: examples/Docker
       run: |
         docker exec acme-srv grep "Forward check failed for www.dynamop.de" /var/log/messages
-        docker exec acme-srv grep "Forward check failed for lego-unknown.acme" /var/log/messages
+        docker exec acme-srv grep "SourceAddressValidator._perform_forward_check(): Source address not found in resolved IPs" /var/log/messages
+        docker exec acme-srv grep "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist" /var/log/messages
 
     - name: "Enable reverse address check"
       if: matrix.execscript == 'rpm_tester.sh'
@@ -459,7 +463,7 @@ jobs:
     - name: "Check logs for forward check errors"
       working-directory: examples/Docker
       run: |
-        docker exec acme-srv grep "Forward check failed for lego-unknown.acme" /var/log/messages
+        docker exec acme-srv grep "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist" /var/log/messages
 
     - name: "EAB - reverse address check enabled"
       uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
