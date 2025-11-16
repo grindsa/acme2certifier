@@ -140,6 +140,7 @@ class TestACMEHandler(unittest.TestCase):
             enrollment_config_log,
             config_enroll_config_log_load,
             config_allowed_domainlist_load,
+            config_async_mode_load,
             is_domain_whitelisted,
             allowed_domainlist_check,
             radomize_parameter_list,
@@ -251,6 +252,7 @@ class TestACMEHandler(unittest.TestCase):
         self.request_operation = request_operation
         self.enrollment_config_log = enrollment_config_log
         self.config_enroll_config_log_load = config_enroll_config_log_load
+        self.config_async_mode_load = config_async_mode_load
         self.is_domain_whitelisted = is_domain_whitelisted
         self.allowed_domainlist_check = allowed_domainlist_check
         self.radomize_parameter_list = radomize_parameter_list
@@ -5301,6 +5303,108 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
         mock_parse_url.assert_called_once_with(self.logger, host_name)
         mock_proxy_check.assert_called_once_with(self.logger, "api.example.com", {})
+
+    def test_465_config_async_mode_load_true_with_django(self):
+        """test config_async_mode_load() with async_mode True and django db"""
+        config_dic = configparser.ConfigParser()
+        config_dic["DEFAULT"] = {"async_mode": "True"}
+        db_type = "django"
+        result = self.config_async_mode_load(self.logger, config_dic, db_type)
+        self.assertTrue(result)
+
+    def test_466_config_async_mode_load_true_non_django(self):
+        """test config_async_mode_load() with async_mode True and non-django db"""
+        config_dic = configparser.ConfigParser()
+        config_dic["DEFAULT"] = {"async_mode": "True"}
+        db_type = "sqlite"
+        with self.assertLogs(self.logger, level="INFO") as log:
+            result = self.config_async_mode_load(self.logger, config_dic, db_type)
+        self.assertFalse(result)
+        self.assertIn("asynchronous Challenge validation disabled", log.output[0])
+
+    def test_467_config_async_mode_load_false_with_django(self):
+        """test config_async_mode_load() with async_mode False and django db"""
+        config_dic = configparser.ConfigParser()
+        config_dic["DEFAULT"] = {"async_mode": "False"}
+        db_type = "django"
+        with self.assertLogs(self.logger, level="INFO") as log:
+            result = self.config_async_mode_load(self.logger, config_dic, db_type)
+        self.assertFalse(result)
+        self.assertIn("asynchronous Challenge validation disabled", log.output[0])
+
+    def test_468_config_async_mode_load_default_fallback(self):
+        """test config_async_mode_load() with no async_mode setting (fallback)"""
+        config_dic = configparser.ConfigParser()
+        config_dic["DEFAULT"] = {}
+        db_type = "django"
+        with self.assertLogs(self.logger, level="INFO") as log:
+            result = self.config_async_mode_load(self.logger, config_dic, db_type)
+        self.assertFalse(result)
+        self.assertIn("asynchronous Challenge validation disabled", log.output[0])
+
+    def test_469_config_async_mode_load_no_default_section(self):
+        """test config_async_mode_load() with no DEFAULT section"""
+        config_dic = configparser.ConfigParser()
+        db_type = "django"
+        with self.assertLogs(self.logger, level="INFO") as log:
+            result = self.config_async_mode_load(self.logger, config_dic, db_type)
+        self.assertFalse(result)
+        self.assertIn("asynchronous Challenge validation disabled", log.output[0])
+
+    def test_470_config_async_mode_load_invalid_boolean(self):
+        """test config_async_mode_load() with invalid boolean value"""
+        config_dic = configparser.ConfigParser()
+        config_dic["DEFAULT"] = {"async_mode": "invalid"}
+        db_type = "django"
+        # Invalid boolean values should raise a ValueError by getboolean()
+        with self.assertRaises(ValueError) as context:
+            self.config_async_mode_load(self.logger, config_dic, db_type)
+        self.assertIn("Not a boolean: invalid", str(context.exception))
+
+    def test_471_config_async_mode_load_case_insensitive_true(self):
+        """test config_async_mode_load() with case insensitive True values"""
+        test_cases = ["true", "TRUE", "True", "1", "yes", "on"]
+        for value in test_cases:
+            with self.subTest(value=value):
+                config_dic = configparser.ConfigParser()
+                config_dic["DEFAULT"] = {"async_mode": value}
+                db_type = "django"
+                result = self.config_async_mode_load(self.logger, config_dic, db_type)
+                self.assertTrue(result)
+
+    def test_472_config_async_mode_load_case_insensitive_false(self):
+        """test config_async_mode_load() with case insensitive False values"""
+        test_cases = ["false", "FALSE", "False", "0", "no", "off"]
+        for value in test_cases:
+            with self.subTest(value=value):
+                config_dic = configparser.ConfigParser()
+                config_dic["DEFAULT"] = {"async_mode": value}
+                db_type = "django"
+                with self.assertLogs(self.logger, level="INFO") as log:
+                    result = self.config_async_mode_load(
+                        self.logger, config_dic, db_type
+                    )
+                self.assertFalse(result)
+                self.assertIn(
+                    "asynchronous Challenge validation disabled", log.output[0]
+                )
+
+    def test_473_config_async_mode_load_different_db_types(self):
+        """test config_async_mode_load() with various non-django db types"""
+        config_dic = configparser.ConfigParser()
+        config_dic["DEFAULT"] = {"async_mode": "True"}
+
+        db_types = ["sqlite", "mysql", "postgresql", "oracle", "wsgi", ""]
+        for db_type in db_types:
+            with self.subTest(db_type=db_type):
+                with self.assertLogs(self.logger, level="INFO") as log:
+                    result = self.config_async_mode_load(
+                        self.logger, config_dic, db_type
+                    )
+                self.assertFalse(result)
+                self.assertIn(
+                    "asynchronous Challenge validation disabled", log.output[0]
+                )
 
 
 if __name__ == "__main__":

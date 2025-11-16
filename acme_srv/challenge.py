@@ -668,7 +668,9 @@ class Challenge:
             self._load_dns_configuration(config_dic)
             self._load_proxy_configuration(config_dic)
             self._load_address_check_configuration(config_dic)
-            self.config.async_mode = config_async_mode_load(self.logger, config_dic, self.dbstore.type)
+            self.config.async_mode = config_async_mode_load(
+                self.logger, config_dic, self.dbstore.type
+            )
 
             self.config.sectigo_sim = config_dic.getboolean(
                 "Challenge", "sectigo_sim", fallback=False

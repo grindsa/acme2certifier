@@ -4,26 +4,33 @@ import unittest
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
 from unittest.mock import Mock, patch, MagicMock
-from acme_srv.challenge import (
-    ChallengeConfiguration,
-    DatabaseChallengeRepository,
-    Challenge,
-)
-from acme_srv.challenge_error_handling import (
-    DatabaseError,
-    ValidationError,
-    UnsupportedChallengeTypeError,
-)
-from acme_srv.challenge_business_logic import (
-    ChallengeInfo,
-    ChallengeCreationRequest,
-    ChallengeUpdateRequest,
-)
 
 
 class TestChallengeConfiguration(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        """Set up module-level mocks before any tests run"""
+        # Mock the missing db_handler module
+        mock_db_handler = MagicMock()
+        mock_dbstore_class = MagicMock()
+        mock_db_handler.DBstore = mock_dbstore_class
+        sys.modules["acme_srv.db_handler"] = mock_db_handler
+
+        # Import after mocking
+        from acme_srv.challenge import ChallengeConfiguration
+
+        cls.ChallengeConfiguration = ChallengeConfiguration
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up module mocks"""
+        if "acme_srv.db_handler" in sys.modules:
+            del sys.modules["acme_srv.db_handler"]
+        if "acme_srv.challenge" in sys.modules:
+            del sys.modules["acme_srv.challenge"]
+
     def test_0001_configuration_defaults(self):
-        config = ChallengeConfiguration()
+        config = self.ChallengeConfiguration()
         self.assertFalse(config.validation_disabled)
         self.assertEqual(config.validation_timeout, 10)
         self.assertIsNone(config.dns_server_list)
@@ -43,6 +50,30 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
     def setUp(self):
         import logging
 
+        # Mock the missing db_handler module if not already done
+        if "acme_srv.db_handler" not in sys.modules:
+            mock_db_handler = MagicMock()
+            mock_dbstore_class = MagicMock()
+            mock_db_handler.DBstore = mock_dbstore_class
+            sys.modules["acme_srv.db_handler"] = mock_db_handler
+
+        # Import after ensuring mocking
+        from acme_srv.challenge import DatabaseChallengeRepository
+        from acme_srv.challenge_error_handling import DatabaseError, ValidationError
+        from acme_srv.challenge_business_logic import (
+            ChallengeInfo,
+            ChallengeCreationRequest,
+            ChallengeUpdateRequest,
+        )
+
+        # Store imports as instance variables
+        self.DatabaseChallengeRepository = DatabaseChallengeRepository
+        self.DatabaseError = DatabaseError
+        self.ValidationError = ValidationError
+        self.ChallengeInfo = ChallengeInfo
+        self.ChallengeCreationRequest = ChallengeCreationRequest
+        self.ChallengeUpdateRequest = ChallengeUpdateRequest
+
         self.dbstore = Mock()
         # Create a real logger for testing
         self.logger = logging.getLogger("test_a2c")
@@ -51,7 +82,7 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
         for handler in self.logger.handlers[:]:
             self.logger.removeHandler(handler)
 
-        self.repo = DatabaseChallengeRepository(self.dbstore, self.logger)
+        self.repo = self.DatabaseChallengeRepository(self.dbstore, self.logger)
 
     def test_0002_find_challenges_by_authorization_success(self):
         self.dbstore.challenges_search.return_value = [
@@ -65,7 +96,7 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
     def test_0003_find_challenges_by_authorization_db_error(self):
         self.dbstore.challenges_search.side_effect = Exception("db fail")
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
-            with self.assertRaises(DatabaseError):
+            with self.assertRaises(self.DatabaseError):
                 self.repo.find_challenges_by_authorization("authz1")
         # Verify the critical log message was generated
         self.assertTrue(
@@ -85,7 +116,7 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
     def test_0005_get_challengeinfo_by_challengename_db_error(self):
         self.dbstore.challenge_lookup.side_effect = Exception("db fail")
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
-            with self.assertRaises(DatabaseError):
+            with self.assertRaises(self.DatabaseError):
                 self.repo.get_challengeinfo_by_challengename("c1")
         # Verify the critical log message was generated
         self.assertTrue(
@@ -118,7 +149,7 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
     def test_0007_get_challenge_by_name_db_error(self):
         self.dbstore.challenge_lookup.side_effect = Exception("db fail")
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
-            with self.assertRaises(DatabaseError):
+            with self.assertRaises(self.DatabaseError):
                 self.repo.get_challenge_by_name("c1")
         # Verify the critical log message was generated
         self.assertTrue(
@@ -134,7 +165,7 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
         with patch(
             "acme_srv.challenge.generate_random_string", return_value="c1"
         ), patch("acme_srv.challenge.uts_now", return_value=1000):
-            req = ChallengeCreationRequest("dns-01", "tok", "authz", "val")
+            req = self.ChallengeCreationRequest("dns-01", "tok", "authz", "val")
             name = self.repo.create_challenge(req)
             self.assertEqual(name, "c1")
 
@@ -143,9 +174,9 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
         with patch(
             "acme_srv.challenge.generate_random_string", return_value="c1"
         ), patch("acme_srv.challenge.uts_now", return_value=1000):
-            req = ChallengeCreationRequest("dns-01", "tok", "authz", "val")
+            req = self.ChallengeCreationRequest("dns-01", "tok", "authz", "val")
             with self.assertLogs("test_a2c", level="DEBUG") as log_context:
-                with self.assertRaises(DatabaseError):
+                with self.assertRaises(self.DatabaseError):
                     self.repo.create_challenge(req)
             # Verify the critical log message was generated
             self.assertTrue(
@@ -159,14 +190,14 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
 
     def test_0010_update_challenge_success(self):
         self.dbstore.challenge_update.return_value = None
-        req = ChallengeUpdateRequest("c1", status=2)
+        req = self.ChallengeUpdateRequest("c1", status=2)
         self.assertTrue(self.repo.update_challenge(req))
 
     def test_0011_update_challenge_db_error(self):
         self.dbstore.challenge_update.side_effect = Exception("db fail")
-        req = ChallengeUpdateRequest("c1", status=2)
+        req = self.ChallengeUpdateRequest("c1", status=2)
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
-            with self.assertRaises(DatabaseError):
+            with self.assertRaises(self.DatabaseError):
                 self.repo.update_challenge(req)
         # Verify the critical log message was generated
         self.assertTrue(
@@ -185,7 +216,7 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
     def test_0013_update_authorization_status_db_error(self):
         self.dbstore.challenge_lookup.side_effect = Exception("db fail")
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
-            with self.assertRaises(DatabaseError):
+            with self.assertRaises(self.DatabaseError):
                 self.repo.update_authorization_status("c1", "valid")
         # Verify the critical log message was generated
         self.assertTrue(
@@ -213,6 +244,47 @@ class TestChallenge(unittest.TestCase):
     def setUp(self):
         import logging
 
+        # Mock the missing db_handler module if not already done
+        if "acme_srv.db_handler" not in sys.modules:
+            mock_db_handler = MagicMock()
+            mock_dbstore_class = MagicMock()
+            mock_db_handler.DBstore = mock_dbstore_class
+            sys.modules["acme_srv.db_handler"] = mock_db_handler
+
+        # Import after ensuring mocking
+        from acme_srv.challenge import (
+            Challenge,
+            ChallengeConfiguration,
+            DatabaseChallengeRepository,
+        )
+        from acme_srv.challenge_error_handling import (
+            DatabaseError,
+            ValidationError,
+            UnsupportedChallengeTypeError,
+        )
+        from acme_srv.challenge_business_logic import (
+            ChallengeInfo,
+            ChallengeCreationRequest,
+            ChallengeUpdateRequest,
+        )
+
+        # Store imports as instance variables for use in tests
+        self.Challenge = Challenge
+        self.ChallengeConfiguration = ChallengeConfiguration
+        self.DatabaseChallengeRepository = DatabaseChallengeRepository
+        self.DatabaseError = DatabaseError
+        self.ValidationError = ValidationError
+        self.UnsupportedChallengeTypeError = UnsupportedChallengeTypeError
+        self.ChallengeInfo = ChallengeInfo
+        self.ChallengeCreationRequest = ChallengeCreationRequest
+        self.ChallengeUpdateRequest = ChallengeUpdateRequest
+        self.DatabaseError = DatabaseError
+        self.ValidationError = ValidationError
+        self.UnsupportedChallengeTypeError = UnsupportedChallengeTypeError
+        self.ChallengeInfo = ChallengeInfo
+        self.ChallengeCreationRequest = ChallengeCreationRequest
+        self.ChallengeUpdateRequest = ChallengeUpdateRequest
+
         # Create a real logger for testing
         self.logger = logging.getLogger("test_a2c")
         self.logger.setLevel(logging.DEBUG)
@@ -227,7 +299,7 @@ class TestChallenge(unittest.TestCase):
         self.challenge.error_handler = Mock()
         self.challenge.state_manager = Mock()
         self.challenge.validator_registry = Mock()
-        self.challenge.config = ChallengeConfiguration()
+        self.challenge.config = self.ChallengeConfiguration()
         self.challenge.config.dns_server_list = ["8.8.8.8"]
         self.challenge.config.proxy_server_list = {"http": "proxy"}
         self.challenge.config.validation_timeout = 1
@@ -286,7 +358,7 @@ class TestChallenge(unittest.TestCase):
         )
 
     def test_0023_handle_challenge_validation_request_valid(self):
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
         )
         info.status = "pending"
@@ -300,7 +372,7 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(resp["status"], "ok")
 
     def test_0024_handle_challenge_validation_request_tnauthlist(self):
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1", "tkauth-01", "tok", "pending", "authz", "dns", "val", "url"
         )
         info.status = "pending"
@@ -315,7 +387,7 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(resp["status"], "ok")
 
     def test_0025_handle_challenge_validation_request_tnauthlist_fail(self):
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1", "tkauth-01", "tok", "pending", "authz", "dns", "val", "url"
         )
         info.status = "pending"
@@ -484,7 +556,7 @@ class TestChallenge(unittest.TestCase):
 
     def test_0040_perform_source_address_validation_success(self):
         self.challenge.config.forward_address_check = True
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
         )
         self.challenge.repository.get_challenge_by_name.return_value = info
@@ -496,7 +568,7 @@ class TestChallenge(unittest.TestCase):
 
     def test_0041_perform_source_address_validation_fail(self):
         self.challenge.config.forward_address_check = True
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
         )
         self.challenge.repository.get_challenge_by_name.return_value = info
@@ -512,7 +584,7 @@ class TestChallenge(unittest.TestCase):
 
     def test_0042_perform_source_address_validation_validator_not_available(self):
         self.challenge.config.forward_address_check = True
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
         )
         self.challenge.repository.get_challenge_by_name.return_value = info
@@ -526,7 +598,7 @@ class TestChallenge(unittest.TestCase):
 
     def test_0043_perform_source_address_validation_exception(self):
         self.challenge.config.forward_address_check = True
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
         )
         self.challenge.repository.get_challenge_by_name.return_value = info
@@ -559,7 +631,7 @@ class TestChallenge(unittest.TestCase):
         self.assertTrue(result.invalid)
 
     def test_0046_start_async_validation(self):
-        with patch("acme_srv.challenge.ThreadWithReturnValue") as mock_thread:
+        with patch("acme_srv.challenge.Thread") as mock_thread:
             instance = mock_thread.return_value
             instance.join.return_value = True
             self.challenge._perform_challenge_validation = Mock()
@@ -594,7 +666,7 @@ class TestChallenge(unittest.TestCase):
         )
 
     def test_0050_validate_tnauthlist_payload_success(self):
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1", "tkauth-01", "tok", "pending", "authz", "dns", "val", "url"
         )
         payload = {"atc": "foo"}
@@ -602,7 +674,7 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(result["code"], 200)
 
     def test_0051_validate_tnauthlist_payload_missing_atc(self):
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1", "tkauth-01", "tok", "pending", "authz", "dns", "val", "url"
         )
         payload = {}
@@ -618,7 +690,7 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(result["code"], 400)
 
     def test_0052_validate_tnauthlist_payload_missing_spc(self):
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1", "tkauth-01", "tok", "pending", "authz", "dns", "val", "url"
         )
         payload = {"atc": None}
@@ -644,8 +716,10 @@ class TestChallenge(unittest.TestCase):
             "acc",
         )
         self.challenge._extract_challenge_name_from_url = Mock(return_value="c1")
-        self.challenge.repository.get_challenge_by_name.return_value = ChallengeInfo(
-            "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
+        self.challenge.repository.get_challenge_by_name.return_value = (
+            self.ChallengeInfo(
+                "c1", "dns-01", "tok", "pending", "authz", "dns", "val", "url"
+            )
         )
         self.challenge._handle_challenge_validation_request = Mock(
             return_value={"status": "ok"}
@@ -741,7 +815,9 @@ class TestChallenge(unittest.TestCase):
 
     def test_0061_get_account_jwk_exception(self):
         """Test get_account_jwk with database exception"""
-        self.challenge.repository = DatabaseChallengeRepository(Mock(), self.logger)
+        self.challenge.repository = self.DatabaseChallengeRepository(
+            Mock(), self.logger
+        )
         # Set up challenge_lookup to return a valid response so jwk_load gets called
         self.challenge.repository.dbstore.challenge_lookup.return_value = {
             "authorization__order__account__name": "account_name"
@@ -749,7 +825,7 @@ class TestChallenge(unittest.TestCase):
         self.challenge.repository.dbstore.jwk_load.side_effect = Exception("DB error")
 
         with self.assertLogs("test_a2c", level="DEBUG") as log_context:
-            with self.assertRaises(DatabaseError):
+            with self.assertRaises(self.DatabaseError):
                 self.challenge.repository.get_account_jwk("account_name")
 
         # Verify the critical log message was generated
@@ -763,7 +839,9 @@ class TestChallenge(unittest.TestCase):
 
     def test_0062_get_challengeinfo_by_challengename_none_result(self):
         """Test get_challengeinfo_by_challengename when no challenge found"""
-        self.challenge.repository = DatabaseChallengeRepository(Mock(), self.logger)
+        self.challenge.repository = self.DatabaseChallengeRepository(
+            Mock(), self.logger
+        )
         self.challenge.repository.dbstore.challenge_lookup.return_value = None
 
         result = self.challenge.repository.get_challengeinfo_by_challengename(
@@ -773,7 +851,9 @@ class TestChallenge(unittest.TestCase):
 
     def test_0063_get_challenge_by_name_none_result(self):
         """Test get_challenge_by_name when no challenge found"""
-        self.challenge.repository = DatabaseChallengeRepository(Mock(), self.logger)
+        self.challenge.repository = self.DatabaseChallengeRepository(
+            Mock(), self.logger
+        )
         self.challenge.repository.dbstore.challenge_lookup.return_value = None
 
         result = self.challenge.repository.get_challenge_by_name("nonexistent")
@@ -796,14 +876,14 @@ class TestChallenge(unittest.TestCase):
             }
         )
 
-        with self.assertRaises(UnsupportedChallengeTypeError):
+        with self.assertRaises(self.UnsupportedChallengeTypeError):
             self.challenge._execute_challenge_validation("test_challenge", {})
 
     def test_0065_execute_challenge_validation_no_details(self):
         """Test _execute_challenge_validation when details cannot be retrieved"""
         self.challenge._get_challenge_validation_details = Mock(return_value=None)
 
-        with self.assertRaises(ValidationError):
+        with self.assertRaises(self.ValidationError):
             self.challenge._execute_challenge_validation("test_challenge", {})
 
     def test_0066_extract_challenge_name_from_url_with_suffix(self):
@@ -824,7 +904,7 @@ class TestChallenge(unittest.TestCase):
         self.challenge.config.email_identifier_support = True
         self.challenge.config.email_address = "test@example.com"
 
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1",
             "email-reply-00",
             "tok",
@@ -947,7 +1027,9 @@ class TestChallenge(unittest.TestCase):
     # Tests for special challenge creation types
     def test_0072_create_challenge_sectigo_email(self):
         """Test create challenge with sectigo-email-01 type"""
-        self.challenge.repository = DatabaseChallengeRepository(Mock(), self.logger)
+        self.challenge.repository = self.DatabaseChallengeRepository(
+            Mock(), self.logger
+        )
         self.challenge.repository.dbstore.challenge_add.return_value = (
             "chid123"  # db returns an id
         )
@@ -973,7 +1055,9 @@ class TestChallenge(unittest.TestCase):
 
     def test_0073_create_challenge_email_reply(self):
         """Test create challenge with email-reply-00 type"""
-        self.challenge.repository = DatabaseChallengeRepository(Mock(), self.logger)
+        self.challenge.repository = self.DatabaseChallengeRepository(
+            Mock(), self.logger
+        )
         self.challenge.repository.dbstore.challenge_add.return_value = "chid456"
 
         request = Mock()
@@ -996,7 +1080,9 @@ class TestChallenge(unittest.TestCase):
 
     def test_0074_update_challenge_with_individual_fields(self):
         """Test update challenge with different combinations of optional fields"""
-        self.challenge.repository = DatabaseChallengeRepository(Mock(), self.logger)
+        self.challenge.repository = self.DatabaseChallengeRepository(
+            Mock(), self.logger
+        )
 
         # Test with only status
         request = Mock()
@@ -1028,7 +1114,7 @@ class TestChallenge(unittest.TestCase):
         self.challenge.config.email_identifier_support = False
         self.challenge.config.email_address = None
 
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1",
             "dns-01",
             "tok",
@@ -1290,7 +1376,7 @@ class TestChallenge(unittest.TestCase):
         self.challenge.config.tnauthlist_support = False
 
         # Create email-reply-00 challenge info
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1", "email-reply-00", "tok", "pending", "authz", "email", "val", "url"
         )
 
@@ -1324,7 +1410,7 @@ class TestChallenge(unittest.TestCase):
 
         # Create challenge info with validated timestamp and valid status
         validated_time = "2023-01-01T12:00:00Z"
-        info = ChallengeInfo(
+        info = self.ChallengeInfo(
             "c1", "dns-01", "tok", "valid", "authz", "dns", "val", "url", validated_time
         )
 
@@ -2503,6 +2589,229 @@ class TestChallenge(unittest.TestCase):
 
         mock_get_details.assert_called_once_with(url)
         self.assertEqual(result, expected_result)
+
+    @patch("acme_srv.challenge.Thread")
+    def test_0134_start_async_validation_sync_mode(self, mock_thread_class):
+        """Test _start_async_validation with sync mode (async_mode=False)"""
+        # Setup
+        mock_thread = Mock()
+        mock_thread_class.return_value = mock_thread
+        self.challenge.config.async_mode = False
+        self.challenge.config.validation_timeout = 30
+        self.challenge._perform_challenge_validation = Mock()
+        challenge_name = "test_challenge"
+        payload = {"key": "value"}
+
+        # Execute
+        with self.assertLogs(self.logger, level="DEBUG") as log:
+            self.challenge._start_async_validation(challenge_name, payload)
+
+        # Verify thread creation and execution
+        mock_thread_class.assert_called_once_with(
+            target=self.challenge._perform_challenge_validation,
+            args=(challenge_name, payload),
+        )
+        mock_thread.start.assert_called_once()
+        mock_thread.join.assert_called_once_with(timeout=30)
+
+        # Verify logging
+        self.assertTrue(
+            any(
+                "Challenge._start_async_validation(test_challenge)" in message
+                for message in log.output
+            )
+        )
+
+    @patch("acme_srv.challenge.Thread")
+    def test_0135_start_async_validation_async_mode(self, mock_thread_class):
+        """Test _start_async_validation with async mode (async_mode=True)"""
+        # Setup
+        mock_thread = Mock()
+        mock_thread_class.return_value = mock_thread
+        self.challenge.config.async_mode = True
+        self.challenge.config.validation_timeout = 30
+        self.challenge._perform_challenge_validation = Mock()
+        challenge_name = "async_challenge"
+        payload = {"test": "data"}
+
+        # Execute
+        with self.assertLogs(self.logger, level="INFO") as log:
+            self.challenge._start_async_validation(challenge_name, payload)
+
+        # Verify thread creation and execution
+        mock_thread_class.assert_called_once_with(
+            target=self.challenge._perform_challenge_validation,
+            args=(challenge_name, payload),
+        )
+        mock_thread.start.assert_called_once()
+        # In async mode, join should NOT be called
+        mock_thread.join.assert_not_called()
+
+        # Verify async logging
+        self.assertTrue(
+            any(
+                "asynchronous Challenge validation enabled, not waiting for result"
+                in message
+                for message in log.output
+            )
+        )
+
+    @patch("acme_srv.challenge.Thread")
+    def test_0136_start_async_validation_empty_payload(self, mock_thread_class):
+        """Test _start_async_validation with empty payload"""
+        # Setup
+        mock_thread = Mock()
+        mock_thread_class.return_value = mock_thread
+        self.challenge.config.async_mode = False
+        self.challenge.config.validation_timeout = 15
+        self.challenge._perform_challenge_validation = Mock()
+        challenge_name = "empty_payload_challenge"
+        payload = {}
+
+        # Execute
+        self.challenge._start_async_validation(challenge_name, payload)
+
+        # Verify thread creation with empty payload
+        mock_thread_class.assert_called_once_with(
+            target=self.challenge._perform_challenge_validation,
+            args=(challenge_name, payload),
+        )
+        mock_thread.start.assert_called_once()
+        mock_thread.join.assert_called_once_with(timeout=15)
+
+    @patch("acme_srv.challenge.Thread")
+    def test_0137_start_async_validation_complex_payload(self, mock_thread_class):
+        """Test _start_async_validation with complex payload data"""
+        # Setup
+        mock_thread = Mock()
+        mock_thread_class.return_value = mock_thread
+        self.challenge.config.async_mode = True
+        self.challenge._perform_challenge_validation = Mock()
+        challenge_name = "complex_challenge"
+        payload = {
+            "protected": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9",
+            "signature": "signature_value_here",
+            "atc": "token_value",
+            "nested": {"data": {"value": 123}},
+        }
+
+        # Execute
+        self.challenge._start_async_validation(challenge_name, payload)
+
+        # Verify thread creation with complex payload
+        mock_thread_class.assert_called_once_with(
+            target=self.challenge._perform_challenge_validation,
+            args=(challenge_name, payload),
+        )
+        mock_thread.start.assert_called_once()
+        mock_thread.join.assert_not_called()  # async mode
+
+    @patch("acme_srv.challenge.Thread")
+    def test_0138_start_async_validation_different_timeout_values(
+        self, mock_thread_class
+    ):
+        """Test _start_async_validation with different timeout values in sync mode"""
+        test_cases = [1, 5, 10, 60, 120]
+
+        for timeout in test_cases:
+            with self.subTest(timeout=timeout):
+                # Reset mock
+                mock_thread_class.reset_mock()
+                mock_thread = Mock()
+                mock_thread_class.return_value = mock_thread
+
+                # Setup
+                self.challenge.config.async_mode = False
+                self.challenge.config.validation_timeout = timeout
+                self.challenge._perform_challenge_validation = Mock()
+                challenge_name = f"timeout_test_{timeout}"
+                payload = {"timeout_test": timeout}
+
+                # Execute
+                self.challenge._start_async_validation(challenge_name, payload)
+
+                # Verify correct timeout is used
+                mock_thread.join.assert_called_once_with(timeout=timeout)
+
+    @patch("acme_srv.challenge.Thread")
+    def test_0139_start_async_validation_thread_target_arguments(
+        self, mock_thread_class
+    ):
+        """Test _start_async_validation passes correct arguments to thread target"""
+        # Setup
+        mock_thread = Mock()
+        mock_thread_class.return_value = mock_thread
+        self.challenge.config.async_mode = False
+        self.challenge._perform_challenge_validation = Mock()
+
+        # Test with various argument combinations
+        test_cases = [
+            ("challenge1", {}),
+            ("challenge_with_data", {"key1": "value1"}),
+            ("complex_name_123", {"multiple": "values", "nested": {"data": True}}),
+            ("", {"empty_name_test": True}),
+        ]
+
+        for challenge_name, payload in test_cases:
+            with self.subTest(challenge_name=challenge_name, payload=payload):
+                # Reset mock
+                mock_thread_class.reset_mock()
+                mock_thread = Mock()
+                mock_thread_class.return_value = mock_thread
+
+                # Execute
+                self.challenge._start_async_validation(challenge_name, payload)
+
+                # Verify thread target and arguments
+                mock_thread_class.assert_called_once_with(
+                    target=self.challenge._perform_challenge_validation,
+                    args=(challenge_name, payload),
+                )
+
+    @patch("acme_srv.challenge.Thread")
+    def test_0140_start_async_validation_logging_behavior(self, mock_thread_class):
+        """Test _start_async_validation logging in both sync and async modes"""
+        # Setup
+        mock_thread = Mock()
+        mock_thread_class.return_value = mock_thread
+        self.challenge._perform_challenge_validation = Mock()
+        challenge_name = "logging_test_challenge"
+        payload = {"logging": "test"}
+
+        # Test sync mode logging
+        self.challenge.config.async_mode = False
+        with self.assertLogs(self.logger, level="DEBUG") as log_sync:
+            self.challenge._start_async_validation(challenge_name, payload)
+
+        # Verify sync mode only has debug logging
+        debug_messages = [msg for msg in log_sync.output if "DEBUG" in msg]
+        info_messages = [
+            msg
+            for msg in log_sync.output
+            if "asynchronous Challenge validation enabled" in msg
+        ]
+        self.assertTrue(len(debug_messages) > 0)
+        self.assertEqual(len(info_messages), 0)
+
+        # Reset mock for async test
+        mock_thread_class.reset_mock()
+        mock_thread = Mock()
+        mock_thread_class.return_value = mock_thread
+
+        # Test async mode logging
+        self.challenge.config.async_mode = True
+        with self.assertLogs(self.logger, level="DEBUG") as log_async:
+            self.challenge._start_async_validation(challenge_name, payload)
+
+        # Verify async mode has both debug and info logging
+        debug_messages = [msg for msg in log_async.output if "DEBUG" in msg]
+        info_messages = [
+            msg
+            for msg in log_async.output
+            if "asynchronous Challenge validation enabled" in msg
+        ]
+        self.assertTrue(len(debug_messages) > 0)
+        self.assertTrue(len(info_messages) > 0)
 
 
 if __name__ == "__main__":
