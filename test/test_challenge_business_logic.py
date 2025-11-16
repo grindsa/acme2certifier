@@ -5,6 +5,7 @@
 import unittest
 import sys
 import logging
+import json
 from unittest.mock import Mock, MagicMock, patch, call
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
@@ -1254,6 +1255,217 @@ class TestChallengeService(unittest.TestCase):
 
         self.assertEqual(len(result), 1)
         self.assertEqual(result[0]["url"], "challenge-1")  # Just the challenge name
+
+    def test_069_1_format_existing_challenges_with_valid_json_validation_error(self):
+        """Test _format_existing_challenges with valid JSON validation_error (lines 421-430)"""
+        error_obj = {
+            "type": "urn:ietf:params:acme:error:dns",
+            "detail": "DNS query failed",
+            "status": 400
+        }
+        json_error = json.dumps(error_obj)
+
+        challenges = [
+            self.ChallengeInfo(
+                name="challenge-1",
+                type="dns-01",
+                token="token-1",
+                status="invalid",
+                authorization_name="auth-1",
+                authorization_type="dns",
+                authorization_value="example.com",
+                url="",
+                validation_error=json_error
+            )
+        ]
+
+        result = self.service._format_existing_challenges(
+            challenges=challenges, url="http://example.com/chall/", config=MockConfig()
+        )
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["type"], "dns-01")
+        self.assertEqual(result[0]["status"], "invalid")
+        self.assertEqual(result[0]["error"], error_obj)  # Should be parsed JSON
+
+    def test_069_2_format_existing_challenges_with_invalid_json_validation_error(self):
+        """Test _format_existing_challenges with invalid JSON validation_error (lines 421-430)"""
+        invalid_json_error = "This is not valid JSON {{"
+
+        challenges = [
+            self.ChallengeInfo(
+                name="challenge-2",
+                type="http-01",
+                token="token-2",
+                status="invalid",
+                authorization_name="auth-2",
+                authorization_type="dns",
+                authorization_value="example.com",
+                url="",
+                validation_error=invalid_json_error
+            )
+        ]
+
+        result = self.service._format_existing_challenges(
+            challenges=challenges, url="http://example.com/chall/", config=MockConfig()
+        )
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["type"], "http-01")
+        self.assertEqual(result[0]["status"], "invalid")
+        # Should create default error structure when JSON parsing fails
+        expected_error = {
+            "status": 400,
+            "type": "urn:ietf:params:acme:error:unknown",
+            "detail": invalid_json_error
+        }
+        self.assertEqual(result[0]["error"], expected_error)
+
+    def test_069_3_format_existing_challenges_with_empty_validation_error(self):
+        """Test _format_existing_challenges with empty validation_error (lines 421-430)"""
+        challenges = [
+            self.ChallengeInfo(
+                name="challenge-3",
+                type="tls-alpn-01",
+                token="token-3",
+                status="invalid",
+                authorization_name="auth-3",
+                authorization_type="dns",
+                authorization_value="example.com",
+                url="",
+                validation_error=""  # Empty string
+            )
+        ]
+
+        result = self.service._format_existing_challenges(
+            challenges=challenges, url="http://example.com/chall/", config=MockConfig()
+        )
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["type"], "tls-alpn-01")
+        self.assertEqual(result[0]["status"], "invalid")
+        # Empty string is falsy, so no error key should be added
+        self.assertNotIn("error", result[0])
+
+    def test_069_3_2_format_existing_challenges_with_whitespace_validation_error(self):
+        """Test _format_existing_challenges with whitespace-only validation_error (lines 421-430)"""
+        whitespace_error = "   "  # Only whitespace - still truthy
+
+        challenges = [
+            self.ChallengeInfo(
+                name="challenge-3-2",
+                type="tls-alpn-01",
+                token="token-3-2",
+                status="invalid",
+                authorization_name="auth-3-2",
+                authorization_type="dns",
+                authorization_value="example.com",
+                url="",
+                validation_error=whitespace_error
+            )
+        ]
+
+        result = self.service._format_existing_challenges(
+            challenges=challenges, url="http://example.com/chall/", config=MockConfig()
+        )
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["type"], "tls-alpn-01")
+        self.assertEqual(result[0]["status"], "invalid")
+        # Should create default error structure for whitespace validation_error
+        expected_error = {
+            "status": 400,
+            "type": "urn:ietf:params:acme:error:unknown",
+            "detail": whitespace_error
+        }
+        self.assertEqual(result[0]["error"], expected_error)
+
+    def test_069_4_format_existing_challenges_with_none_validation_error(self):
+        """Test _format_existing_challenges with None validation_error (lines 421-430)"""
+        challenges = [
+            self.ChallengeInfo(
+                name="challenge-4",
+                type="http-01",
+                token="token-4",
+                status="valid",  # Valid challenges shouldn't have validation errors
+                authorization_name="auth-4",
+                authorization_type="dns",
+                authorization_value="example.com",
+                url="",
+                validation_error=None
+            )
+        ]
+
+        result = self.service._format_existing_challenges(
+            challenges=challenges, url="http://example.com/chall/", config=MockConfig()
+        )
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["type"], "http-01")
+        self.assertEqual(result[0]["status"], "valid")
+        # Should not have error key when validation_error is None
+        self.assertNotIn("error", result[0])
+
+    def test_069_5_format_existing_challenges_multiple_errors(self):
+        """Test _format_existing_challenges with multiple challenges having different error types (lines 421-430)"""
+        valid_error = json.dumps({"type": "urn:ietf:params:acme:error:dns", "detail": "Valid JSON error"})
+        invalid_error = "Invalid JSON error"
+
+        challenges = [
+            self.ChallengeInfo(
+                name="challenge-valid-json",
+                type="dns-01",
+                token="token-1",
+                status="invalid",
+                authorization_name="auth-1",
+                authorization_type="dns",
+                authorization_value="example.com",
+                url="",
+                validation_error=valid_error
+            ),
+            self.ChallengeInfo(
+                name="challenge-invalid-json",
+                type="http-01",
+                token="token-2",
+                status="invalid",
+                authorization_name="auth-2",
+                authorization_type="dns",
+                authorization_value="example.com",
+                url="",
+                validation_error=invalid_error
+            ),
+            self.ChallengeInfo(
+                name="challenge-no-error",
+                type="tls-alpn-01",
+                token="token-3",
+                status="pending",
+                authorization_name="auth-3",
+                authorization_type="dns",
+                authorization_value="example.com",
+                url="",
+                validation_error=None
+            )
+        ]
+
+        result = self.service._format_existing_challenges(
+            challenges=challenges, url="http://example.com/chall/", config=MockConfig()
+        )
+
+        self.assertEqual(len(result), 3)
+
+        # First challenge - valid JSON error
+        self.assertEqual(result[0]["error"], {"type": "urn:ietf:params:acme:error:dns", "detail": "Valid JSON error"})
+
+        # Second challenge - invalid JSON error
+        expected_error = {
+            "status": 400,
+            "type": "urn:ietf:params:acme:error:unknown",
+            "detail": invalid_error
+        }
+        self.assertEqual(result[1]["error"], expected_error)
+
+        # Third challenge - no error
+        self.assertNotIn("error", result[2])
 
     def test_070_create_new_challenge_set_all_types_enabled(self):
         """Test creating challenge set with all special types enabled"""
