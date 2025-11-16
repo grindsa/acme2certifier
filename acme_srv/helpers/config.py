@@ -168,6 +168,22 @@ def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str,
     )
     return allowed_domainlist
 
+def config_async_mode_load(logger: logging.Logger, config_dic: Dict[str, str], db_type: str):
+    """load parameters"""
+    logger.debug("Helper.config_async_mode_load()")
+
+    async_mode = False
+
+    async_cfg = config_dic.getboolean('DEFAULT', 'async_mode', fallback=False)
+    if async_cfg and db_type == 'django':
+        async_mode = True
+    else:
+        logger.info(
+            "asynchronous Challenge validation disabled, requires django db handler"
+        )
+
+    logger.debug("Helper.config_async_mode_load() ended with: %s", async_mode)
+    return async_mode
 
 def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
     """load parameters"""

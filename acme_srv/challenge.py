@@ -12,11 +12,12 @@ from acme_srv.helper import (
     load_config,
     error_dic_get,
     config_eab_profile_load,
+    config_async_mode_load,
 )
 from acme_srv.db_handler import DBstore
 from acme_srv.email_handler import EmailHandler
 from acme_srv.message import Message
-from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
+from threading import Thread
 
 # Import our modules
 from acme_srv.challenge_validators import (
@@ -62,6 +63,7 @@ class ChallengeConfiguration:
     source_address: Optional[str] = None
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
+    async_mode: bool = False
 
 
 class DatabaseChallengeRepository(ChallengeRepository):
@@ -166,6 +168,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 "DatabaseChallengeRepository.get_challenge_by_name() ended: found challenge %s",
                 challenge_dic,
             )
+
             if not challenge_dic:
                 return None
             return ChallengeInfo(
@@ -173,7 +176,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 type=challenge_dic.get("type", ""),
                 token=challenge_dic.get("token", ""),
                 status=challenge_dic.get("status", "pending"),
-                authorization_name=challenge_dic.get("authorization__name", ""),
+                authorization_name=challenge_dic.get("authorization", ""),
                 authorization_type=challenge_dic.get("authorization__type", ""),
                 authorization_value=challenge_dic.get("authorization__value", ""),
                 url="",  # Will be constructed later
@@ -503,9 +506,10 @@ class Challenge:
                 "url": protected["url"],
             },
             "header": {
-                "Link": f'<{self.server_name}{self.path_dic["authz_path"]}>;rel="up"'
+                "Link": f'<{self.server_name}{self.path_dic["authz_path"]}{updated_challenge_info.authorization_name}>;rel="up"'
             },
         }
+
         # address a few cornercases
         if updated_challenge_info.validation_error:
             # add validation error in response for failed challenges
@@ -664,6 +668,7 @@ class Challenge:
             self._load_dns_configuration(config_dic)
             self._load_proxy_configuration(config_dic)
             self._load_address_check_configuration(config_dic)
+            self.config.async_mode = config_async_mode_load(self.logger, config_dic, self.dbstore.type)
 
             self.config.sectigo_sim = config_dic.getboolean(
                 "Challenge", "sectigo_sim", fallback=False
@@ -1005,11 +1010,18 @@ class Challenge:
     def _start_async_validation(self, challenge_name: str, payload: Dict[str, str]):
         """Start asynchronous challenge validation."""
         self.logger.debug("Challenge._start_async_validation(%s)", challenge_name)
-        twrv = ThreadWithReturnValue(
+        # start challenge validation in separate thread
+        twrv = Thread(
             target=self._perform_challenge_validation, args=(challenge_name, payload)
         )
         twrv.start()
-        _validation = twrv.join(timeout=self.config.validation_timeout)
+        if self.config.async_mode:
+            # full async mode - do not wait for result
+            self.logger.info(
+                "asynchronous Challenge validation enabled, not waiting for result"
+            )
+        else:
+            twrv.join(timeout=self.config.validation_timeout)
 
     def _update_challenge_state_from_validation(
         self, challenge_name: str, validation_result: ValidationResult
