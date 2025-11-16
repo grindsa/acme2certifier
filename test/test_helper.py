@@ -1202,26 +1202,42 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     def test_102_helper_url_get(self, mock_request):
         """successful url get without dns servers"""
         mock_request.return_value.text = "foo"
-        self.assertEqual("foo", self.url_get(self.logger, "url"))
+        mock_request.return_value.status_code = 200
+        result, status_code, error_msg = self.url_get(self.logger, "url")
+        self.assertEqual("foo", result)
+        self.assertEqual(200, status_code)
+        self.assertEqual(None, error_msg)
 
     @patch("acme_srv.helpers.network.requests.get")
     def test_103_helper_url_get(self, mock_request):
         """successful url get without dns servers"""
         mock_request.return_value.text = "foo"
-        self.assertEqual("foo", self.url_get(self.logger, "url", "dns", "proxy"))
+        mock_request.return_value.status_code = 200
+        result, status_code, error_msg = self.url_get(
+            self.logger, "url", "dns", "proxy"
+        )
+        self.assertEqual("foo", result)
+        self.assertEqual(200, status_code)
+        self.assertEqual(None, error_msg)
 
     @patch("acme_srv.helpers.network.requests.get")
     def test_104_helper_url_get(self, mock_request):
         """unsuccessful url get without dns servers"""
         # this is stupid but triggrs an expeption
         mock_request.return_value = {"foo": "foo"}
-        self.assertEqual(None, self.url_get(self.logger, "url"))
+        result, status_code, error_msg = self.url_get(self.logger, "url")
+        self.assertEqual(None, result)
+        self.assertEqual(500, status_code)
+        self.assertIn("Could not fetch URL", error_msg)
 
     @patch("acme_srv.helpers.network.url_get_with_own_dns")
     def test_105_helper_url_get(self, mock_request):
         """successful url get with dns servers"""
-        mock_request.return_value = "foo"
-        self.assertEqual("foo", self.url_get(self.logger, "url", "dns"))
+        mock_request.return_value = ("foo", 200, None)
+        result, status_code, error_msg = self.url_get(self.logger, "url", "dns")
+        self.assertEqual("foo", result)
+        self.assertEqual(200, status_code)
+        self.assertEqual(None, error_msg)
 
     @patch(
         "acme_srv.helpers.network.requests.get",
@@ -1231,28 +1247,44 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """unsuccessful url_get"""
         # mock_request.return_value.text = 'foo'
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.url_get(self.logger, "url"))
-        self.assertIn("ERROR:test_a2c:Could not fetch URL: foo", lcm.output)
+            result, status_code, error_msg = self.url_get(self.logger, "url")
+            self.assertEqual(None, result)
+            self.assertEqual(500, status_code)
+            self.assertIn("Could not fetch URL", error_msg)
+        self.assertIn("ERROR:test_a2c:foo", lcm.output)
 
     @patch("acme_srv.helpers.network.requests.get")
     def test_107_helper_url_get(self, mock_request):
         """unsuccessful url_get fallback to v4"""
         object = Mock()
         object.text = "foo"
+        object.status_code = 200
         mock_request.side_effect = [Exception("foo"), object]
-        self.assertEqual("foo", self.url_get(self.logger, "url"))
+        result, status_code, error_msg = self.url_get(self.logger, "url")
+        self.assertEqual("foo", result)
+        self.assertEqual(200, status_code)
+        self.assertEqual(None, error_msg)
 
     @patch("acme_srv.helpers.network.requests.get")
     def test_108_helper_url_get_with_own_dns(self, mock_request):
         """successful url_get_with_own_dns get with dns servers"""
         mock_request.return_value.text = "foo"
-        self.assertEqual("foo", self.url_get_with_own_dns(self.logger, "url"))
+        mock_request.return_value.status_code = 200
+        result, status_code, error_msg = self.url_get_with_own_dns(self.logger, "url")
+        self.assertEqual("foo", result)
+        self.assertEqual(200, status_code)
+        self.assertEqual(None, error_msg)
 
     @patch("acme_srv.helpers.network.requests.get")
     def test_109_helper_url_get_with_own_dns(self, mock_request):
         """successful url_get_with_own_dns get with dns servers"""
         mock_request.return_value = {"foo": "foo"}
-        self.assertEqual(None, self.url_get_with_own_dns(self.logger, "url"))
+        result, status_code, error_msg = self.url_get_with_own_dns(self.logger, "url")
+        self.assertEqual(None, result)
+        self.assertEqual(500, status_code)
+        self.assertIn(
+            "Could not get URL by using the configured DNS servers", error_msg
+        )
 
     @patch("acme_srv.helpers.network.load_config")
     def test_110_helper_dns_server_list_load(self, mock_load_config):
@@ -1459,7 +1491,8 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """successful dns-query returning covering github"""
         mock_resolve.return_value.query.return_value = ["foo"]
         self.assertEqual(
-            (None, False, None), self.fqdn_resolve(self.logger, "foo", dnssrv="10.0.0.1")
+            (None, False, None),
+            self.fqdn_resolve(self.logger, "foo", dnssrv="10.0.0.1"),
         )
 
     @patch("dns.resolver.Resolver")
@@ -1522,7 +1555,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """successful dns-query returning list v6 only and catch_all"""
         mock_resolve.return_value.resolve.side_effect = [["v41", "v42"], []]
         self.assertEqual(
-            ((["v41", "v42"], False), None),
+            (["v41", "v42"], False, None),
             self.fqdn_resolve(
                 self.logger, "foo.bar.local", dnssrv="10.0.0.1", catch_all=True
             ),
@@ -1536,7 +1569,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             ["v61", "v62"],
         ]
         self.assertEqual(
-            ((["v61", "v62"], False), None),
+            (["v61", "v62"], False, None),
             self.fqdn_resolve(
                 self.logger, "foo.bar.local", dnssrv="10.0.0.1", catch_all=True
             ),
@@ -1550,7 +1583,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             Exception("foo"),
         ]
         self.assertEqual(
-            ((["v41", "v42"], False), None),
+            (["v41", "v42"], False, None),
             self.fqdn_resolve(
                 self.logger, "foo.bar.local", dnssrv="10.0.0.1", catch_all=True
             ),
@@ -1564,7 +1597,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """successful dns-query returning covering list but no v4 and catch_all"""
         # mock_resolve.return_value.resolve.side_effect = [Exception(dns.resolver.NXDOMAIN), ["v61", "v62"]]
         self.assertEqual(
-            ((["v61", "v62"], False), None),
+            (["v61", "v62"], False, None),
             self.fqdn_resolve(
                 self.logger, "foo.bar.local", dnssrv=["10.0.0.1"], catch_all=True
             ),
@@ -1578,7 +1611,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         """successful dns-query returning list v6 only and catch_all"""
         # mock_resolve.return_value.resolve.side_effect = [["v41", "v42"], Exception(dns.resolver.NXDOMAIN)]
         self.assertEqual(
-            ((["v41", "v42"], False), None),
+            (["v41", "v42"], False, None),
             self.fqdn_resolve(
                 self.logger, "foo.bar.local", dnssrv=["10.0.0.1"], catch_all=True
             ),
@@ -1590,9 +1623,9 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     )
     def test_149_helper_fqdn_resolve(self, mock_resolve):
         """successful dns-query returning covering list but no v4 and catch_all"""
-        # mock_resolve.return_value.resolve.side_effect = [Exception(dns.resolver.NXDOMAIN), ["v61", "v62"]]
+        err_msg = "A: NXDOMAIN: foo.bar.local does not exist; AAAA: NXDOMAIN: foo.bar.local does not exist"
         self.assertEqual(
-            ([], True),
+            ([], True, err_msg),
             self.fqdn_resolve(
                 self.logger, "foo.bar.local", dnssrv=["10.0.0.1"], catch_all=True
             ),
@@ -1620,7 +1653,14 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     )
     def test_152_helper_fqdn_resolve(self, mock_resolve):
         """catch NXDOMAIN"""
-        self.assertEqual((None, True, "A: NXDOMAIN: foo.bar.local does not exist; AAAA: NXDOMAIN: foo.bar.local does not exist"), self.fqdn_resolve(self.logger, "foo.bar.local"))
+        self.assertEqual(
+            (
+                None,
+                True,
+                "A: NXDOMAIN: foo.bar.local does not exist; AAAA: NXDOMAIN: foo.bar.local does not exist",
+            ),
+            self.fqdn_resolve(self.logger, "foo.bar.local"),
+        )
 
     @patch(
         "dns.resolver.Resolver.resolve",
@@ -1628,7 +1668,10 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     )
     def test_153_helper_fqdn_resolve(self, mock_resolve):
         """catch NoAnswer"""
-        self.assertEqual((None, True, None), self.fqdn_resolve(self.logger, "foo.bar.local"))
+        err_msg = "A: No A record found for foo.bar.local; AAAA: No AAAA record found for foo.bar.local"
+        self.assertEqual(
+            (None, True, err_msg), self.fqdn_resolve(self.logger, "foo.bar.local")
+        )
 
     @patch(
         "dns.resolver.Resolver.resolve",
@@ -1636,14 +1679,24 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
     )
     def test_154_helper_fqdn_resolve(self, mock_resolve):
         """catch other dns related execption"""
-        self.assertEqual((None, True, None), self.fqdn_resolve(self.logger, "foo.bar.local"))
+        err_msg = "A: DNS resolution error: All nameservers failed to answer the query.; AAAA: DNS resolution error: All nameservers failed to answer the query."
+        self.assertEqual(
+            (None, True, err_msg), self.fqdn_resolve(self.logger, "foo.bar.local")
+        )
 
     @patch(
         "dns.resolver.Resolver.resolve", side_effect=Mock(side_effect=Exception("foo"))
     )
     def test_155_helper_fqdn_resolve(self, mock_resolve):
         """catch other execption"""
-        self.assertEqual((None, True, None), self.fqdn_resolve(self.logger, "foo.bar.local"))
+        self.assertEqual(
+            (
+                None,
+                True,
+                "A: DNS resolution error: foo; AAAA: DNS resolution error: foo",
+            ),
+            self.fqdn_resolve(self.logger, "foo.bar.local"),
+        )
 
     @patch(
         "dns.resolver.Resolver.resolve",
@@ -4783,7 +4836,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme_srv.helpers.domain_utils.csr_cn_get")
     @patch("acme_srv.helpers.domain_utils.csr_san_get")
     def test_433_allowed_domainlist_check(self, mock_san, mock_cn):
-        """CAhandler._check_csr with empty allowed_domainlist"""
+        """CAhandler._check_csr with allowd allowed_domainlist"""
         allowed_domainlist = ["*.bar.bar"]
         mock_san.return_value = ["DNS:host.foo.bar"]
         mock_cn.return_value = "host2.foo.bar"
@@ -4796,7 +4849,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("acme_srv.helpers.domain_utils.csr_cn_get")
     @patch("acme_srv.helpers.domain_utils.csr_san_get")
     def test_434_allowed_domainlist_check(self, mock_san, mock_cn):
-        """CAhandler._check_csr with empty allowed_domainlist"""
+        """CAhandler._check_csr with allowed allowed_domainlist"""
         allowed_domainlist = ["*.foo.bar"]
         mock_san.return_value = ["invalidhostname"]
         mock_cn.return_value = "host2.foo.bar"

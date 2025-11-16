@@ -397,24 +397,28 @@ class TestACMEHandler(unittest.TestCase):
     def test_023_message__name_get(self):
         """test Message.name_get() with 'jwk' and correct 'url' but account lookup failed"""
         protected = {"jwk": {"n": "n"}, "url": "http://tester.local/acme/revokecert"}
+        self.message.dbstore = MagicMock()
         self.message.dbstore.account_lookup.return_value = {}
         self.assertEqual(None, self.message._name_get(protected))
 
     def test_024_message__name_get(self):
         """test Message.name_get() with 'jwk' and correct 'url' and wrong account lookup data"""
         protected = {"jwk": {"n": "n"}, "url": "http://tester.local/acme/revokecert"}
+        self.message.dbstore = MagicMock()
         self.message.dbstore.account_lookup.return_value = {"bar": "foo"}
         self.assertEqual(None, self.message._name_get(protected))
 
     def test_025_message__name_get(self):
         """test Message.name_get() with 'jwk' and correct 'url' and wrong account lookup data"""
         protected = {"jwk": {"n": "n"}, "url": "http://tester.local/acme/revokecert"}
+        self.message.dbstore = MagicMock()
         self.message.dbstore.account_lookup.return_value = {"name": "foo"}
         self.assertEqual("foo", self.message._name_get(protected))
 
     def test_026_message__name_get(self):
         """test Message.name_get() - dbstore.account_lookup raises an exception"""
         protected = {"jwk": {"n": "n"}, "url": "http://tester.local/acme/revokecert"}
+        self.message.dbstore = MagicMock()
         self.message.dbstore.account_lookup.side_effect = Exception(
             "exc_mess__name_get"
         )
@@ -680,6 +684,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme_srv.message.decode_message")
     def test_042_message_check(self, mock_decode, mock_name_get, mock_check):
         """message check failed bcs sig.cli_check() failed"""
+        self.message.dbstore = MagicMock()
         mock_decode.return_value = (True, None, "protected", "payload", "signature")
         mock_check.return_value = (False, "error", "detail")
         mock_name_get.return_value = "name"
@@ -697,6 +702,7 @@ class TestACMEHandler(unittest.TestCase):
         """message check failed bcs sig.cli_check() successful"""
         mock_decode.return_value = (True, None, "protected", "payload", "signature")
         mock_check.return_value = ("True", "error", "detail")
+        self.message.dbstore = MagicMock()
         self.message.dbstore.cli_permissions_get.return_value = {"foo": "bar"}
         mock_name_get.return_value = "name"
         message = '{"foo" : "bar"}'
@@ -707,6 +713,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_044_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
+        self.message.dbstore = MagicMock()
         self.message.dbstore.account_lookup.side_effect = None
         self.message.dbstore.account_lookup.return_value = {"eab_kid": "eab_kid"}
         eab_handler_module = importlib.import_module(
@@ -720,6 +727,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_045_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
+        self.message.dbstore = MagicMock()
         self.message.dbstore.account_lookup.side_effect = None
         self.message.dbstore.account_lookup.return_value = {"eab_kid": "eab_kid"}
         eab_handler_module = importlib.import_module(
@@ -736,6 +744,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_046_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
+        self.message.dbstore = MagicMock()
         self.message.dbstore.account_lookup.side_effect = None
         self.message.dbstore.account_update.side_effect = None
         self.message.dbstore.account_lookup.return_value = {"eab_kid": "eab_kid"}
@@ -759,6 +768,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_047_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
+        self.message.dbstore = MagicMock()
         self.message.dbstore.account_lookup.side_effect = None
         self.message.dbstore.account_lookup.return_value = {"foo": "bar"}
         eab_handler_module = importlib.import_module(
@@ -774,6 +784,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_048_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
+        self.message.dbstore = MagicMock()
         self.message.dbstore.account_lookup.side_effect = None
         self.message.dbstore.account_lookup.return_value = None
         eab_handler_module = importlib.import_module(
