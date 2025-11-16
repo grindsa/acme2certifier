@@ -122,6 +122,7 @@ from .helpers.config import (
     config_headerinfo_load,
     config_enroll_config_log_load,
     config_allowed_domainlist_load,
+    config_async_mode_load,
     config_proxy_load,
     load_config,
     header_info_jsonify,
