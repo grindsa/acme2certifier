@@ -28,16 +28,22 @@ class TestACMEHandler(unittest.TestCase):
         models_mock = MagicMock()
         models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
         modules = {"acme_srv.db_handler": models_mock}
-        patch.dict("sys.modules", modules).start()
+        self.modules_patcher = patch.dict("sys.modules", modules)
+        self.modules_patcher.start()
         import logging
 
+        self.maxDiff = None
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
         from acme_srv.authorization import Authorization
 
         self.authorization = Authorization(False, "http://tester.local", self.logger)
 
-    @patch("acme_srv.challenge.Challenge.new_set")
+    def tearDown(self):
+        """cleanup unittest"""
+        self.modules_patcher.stop()
+
+    @patch("acme_srv.challenge.Challenge.challengeset_get")
     @patch("acme_srv.authorization.uts_now")
     @patch("acme_srv.authorization.generate_random_string")
     def test_001_authorization__authz_info(
@@ -144,7 +150,7 @@ class TestACMEHandler(unittest.TestCase):
             self.authorization.new_post(message),
         )
 
-    @patch("acme_srv.challenge.Challenge.new_set")
+    @patch("acme_srv.challenge.Challenge.challengeset_get")
     @patch("acme_srv.authorization.uts_now")
     @patch("acme_srv.authorization.generate_random_string")
     def test_005_authorization__authz_info(
@@ -342,7 +348,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.challenge.Challenge.new_set")
+    @patch("acme_srv.challenge.Challenge.challengeset_get")
     @patch("acme_srv.authorization.uts_now")
     @patch("acme_srv.authorization.generate_random_string")
     def test_014_authorization__authz_info(
@@ -363,7 +369,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.challenge.Challenge.new_set")
+    @patch("acme_srv.challenge.Challenge.challengeset_get")
     @patch("acme_srv.authorization.uts_now")
     @patch("acme_srv.authorization.generate_random_string")
     def test_015_authorization__authz_info(
@@ -390,7 +396,7 @@ class TestACMEHandler(unittest.TestCase):
             result, self.authorization._authz_info("http://tester.local/acme/authz/foo")
         )
 
-    @patch("acme_srv.challenge.Challenge.new_set")
+    @patch("acme_srv.challenge.Challenge.challengeset_get")
     @patch("acme_srv.authorization.uts_now")
     @patch("acme_srv.authorization.generate_random_string")
     def test_016_authorization__authz_info(
@@ -414,7 +420,7 @@ class TestACMEHandler(unittest.TestCase):
             result, self.authorization._authz_info("http://tester.local/acme/authz/foo")
         )
 
-    @patch("acme_srv.challenge.Challenge.new_set")
+    @patch("acme_srv.challenge.Challenge.challengeset_get")
     @patch("acme_srv.authorization.uts_now")
     @patch("acme_srv.authorization.generate_random_string")
     def test_017_authorization__authz_info(
@@ -439,7 +445,7 @@ class TestACMEHandler(unittest.TestCase):
             result, self.authorization._authz_info("http://tester.local/acme/authz/foo")
         )
 
-    @patch("acme_srv.challenge.Challenge.new_set")
+    @patch("acme_srv.challenge.Challenge.challengeset_get")
     @patch("acme_srv.authorization.uts_now")
     @patch("acme_srv.authorization.generate_random_string")
     def test_018_authorization__authz_info(
@@ -462,7 +468,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.challenge.Challenge.new_set")
+    @patch("acme_srv.challenge.Challenge.challengeset_get")
     @patch("acme_srv.authorization.uts_now")
     @patch("acme_srv.authorization.generate_random_string")
     def test_019_authorization__authz_info(
@@ -483,7 +489,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.challenge.Challenge.new_set")
+    @patch("acme_srv.challenge.Challenge.challengeset_get")
     @patch("acme_srv.authorization.uts_now")
     @patch("acme_srv.authorization.generate_random_string")
     def test_020_authorization__authz_info(
@@ -601,8 +607,9 @@ class TestACMEHandler(unittest.TestCase):
         result = {"code": 200, "data": "foo", "header": {}}
         self.assertEqual(result, self.authorization.new_get("url"))
 
+    @patch("acme_srv.challenge.Challenge.challengeset_get")
     @patch("acme_srv.challenge.generate_random_string")
-    def test_030_challengeset_get(self, mock_name):
+    def test_030_challengeset_get(self, mock_name, mock_challengeset):
         """test _challengeset_get()"""
         authz_info_dic = {"status": "status"}
         mock_name.return_value = "randowm_string"
@@ -626,6 +633,7 @@ class TestACMEHandler(unittest.TestCase):
                 "status": "pending",
             },
         ]
+        mock_challengeset.return_value = result
         self.assertEqual(
             result,
             self.authorization._challengeset_get(
@@ -633,8 +641,9 @@ class TestACMEHandler(unittest.TestCase):
             ),
         )
 
+    @patch("acme_srv.challenge.Challenge.challengeset_get")
     @patch("acme_srv.challenge.generate_random_string")
-    def test_031_challengeset_get(self, mock_name):
+    def test_031_challengeset_get(self, mock_name, mock_challengeset):
         """test _challengeset_get()"""
         authz_info_dic = {"status": "status", "identifier": {"type": "type"}}
         mock_name.return_value = "randowm_string"
@@ -658,6 +667,7 @@ class TestACMEHandler(unittest.TestCase):
                 "status": "pending",
             },
         ]
+        mock_challengeset.return_value = result
         self.assertEqual(
             result,
             self.authorization._challengeset_get(
@@ -665,8 +675,9 @@ class TestACMEHandler(unittest.TestCase):
             ),
         )
 
+    @patch("acme_srv.challenge.Challenge.challengeset_get")
     @patch("acme_srv.challenge.generate_random_string")
-    def test_032_challengeset_get(self, mock_name):
+    def test_032_challengeset_get(self, mock_name, mock_challengeset):
         """test _challengeset_get()"""
         authz_info_dic = {"status": "status", "identifier": {"value": "value"}}
         mock_name.return_value = "randowm_string"
@@ -690,6 +701,7 @@ class TestACMEHandler(unittest.TestCase):
                 "status": "pending",
             },
         ]
+        mock_challengeset.return_value = result
         self.assertEqual(
             result,
             self.authorization._challengeset_get(
