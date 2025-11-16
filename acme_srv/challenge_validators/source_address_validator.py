@@ -171,6 +171,8 @@ class SourceAddressValidator(ChallengeValidator):
                     "domain": domain,
                 }
                 if not forward_check_passed:
+                    self.logger.debug(
+                        "SourceAddressValidator._perform_forward_check(): Source address not found in resolved IPs")
                     result["error"] = "Source address not found in resolved IPs"
                 return result
 
