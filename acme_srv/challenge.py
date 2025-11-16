@@ -18,7 +18,7 @@ from acme_srv.email_handler import EmailHandler
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 
-# Import our refactored modules
+# Import our modules
 from acme_srv.challenge_validators import (
     ChallengeValidatorRegistry,
     ChallengeContext,
@@ -311,7 +311,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
 
 
 class Challenge:
-    """Challenge Class - Refactored for Clarity and Maintainability"""
+    """Challenge Class"""
 
     def __init__(
         self,
@@ -321,7 +321,7 @@ class Challenge:
         source: str = None,
         expiry: int = 3600,
     ):
-        """Initialize the refactored challenge handler."""
+        """Initialize the challenge handler."""
         self.logger = logger
         self.config = ChallengeConfiguration()
         self.expiry = expiry

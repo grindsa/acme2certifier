@@ -1261,7 +1261,7 @@ class TestChallengeService(unittest.TestCase):
         error_obj = {
             "type": "urn:ietf:params:acme:error:dns",
             "detail": "DNS query failed",
-            "status": 400
+            "status": 400,
         }
         json_error = json.dumps(error_obj)
 
@@ -1275,7 +1275,7 @@ class TestChallengeService(unittest.TestCase):
                 authorization_type="dns",
                 authorization_value="example.com",
                 url="",
-                validation_error=json_error
+                validation_error=json_error,
             )
         ]
 
@@ -1302,7 +1302,7 @@ class TestChallengeService(unittest.TestCase):
                 authorization_type="dns",
                 authorization_value="example.com",
                 url="",
-                validation_error=invalid_json_error
+                validation_error=invalid_json_error,
             )
         ]
 
@@ -1317,7 +1317,7 @@ class TestChallengeService(unittest.TestCase):
         expected_error = {
             "status": 400,
             "type": "urn:ietf:params:acme:error:unknown",
-            "detail": invalid_json_error
+            "detail": invalid_json_error,
         }
         self.assertEqual(result[0]["error"], expected_error)
 
@@ -1333,7 +1333,7 @@ class TestChallengeService(unittest.TestCase):
                 authorization_type="dns",
                 authorization_value="example.com",
                 url="",
-                validation_error=""  # Empty string
+                validation_error="",  # Empty string
             )
         ]
 
@@ -1361,7 +1361,7 @@ class TestChallengeService(unittest.TestCase):
                 authorization_type="dns",
                 authorization_value="example.com",
                 url="",
-                validation_error=whitespace_error
+                validation_error=whitespace_error,
             )
         ]
 
@@ -1376,7 +1376,7 @@ class TestChallengeService(unittest.TestCase):
         expected_error = {
             "status": 400,
             "type": "urn:ietf:params:acme:error:unknown",
-            "detail": whitespace_error
+            "detail": whitespace_error,
         }
         self.assertEqual(result[0]["error"], expected_error)
 
@@ -1392,7 +1392,7 @@ class TestChallengeService(unittest.TestCase):
                 authorization_type="dns",
                 authorization_value="example.com",
                 url="",
-                validation_error=None
+                validation_error=None,
             )
         ]
 
@@ -1408,7 +1408,9 @@ class TestChallengeService(unittest.TestCase):
 
     def test_069_5_format_existing_challenges_multiple_errors(self):
         """Test _format_existing_challenges with multiple challenges having different error types (lines 421-430)"""
-        valid_error = json.dumps({"type": "urn:ietf:params:acme:error:dns", "detail": "Valid JSON error"})
+        valid_error = json.dumps(
+            {"type": "urn:ietf:params:acme:error:dns", "detail": "Valid JSON error"}
+        )
         invalid_error = "Invalid JSON error"
 
         challenges = [
@@ -1421,7 +1423,7 @@ class TestChallengeService(unittest.TestCase):
                 authorization_type="dns",
                 authorization_value="example.com",
                 url="",
-                validation_error=valid_error
+                validation_error=valid_error,
             ),
             self.ChallengeInfo(
                 name="challenge-invalid-json",
@@ -1432,7 +1434,7 @@ class TestChallengeService(unittest.TestCase):
                 authorization_type="dns",
                 authorization_value="example.com",
                 url="",
-                validation_error=invalid_error
+                validation_error=invalid_error,
             ),
             self.ChallengeInfo(
                 name="challenge-no-error",
@@ -1443,8 +1445,8 @@ class TestChallengeService(unittest.TestCase):
                 authorization_type="dns",
                 authorization_value="example.com",
                 url="",
-                validation_error=None
-            )
+                validation_error=None,
+            ),
         ]
 
         result = self.service._format_existing_challenges(
@@ -1454,13 +1456,16 @@ class TestChallengeService(unittest.TestCase):
         self.assertEqual(len(result), 3)
 
         # First challenge - valid JSON error
-        self.assertEqual(result[0]["error"], {"type": "urn:ietf:params:acme:error:dns", "detail": "Valid JSON error"})
+        self.assertEqual(
+            result[0]["error"],
+            {"type": "urn:ietf:params:acme:error:dns", "detail": "Valid JSON error"},
+        )
 
         # Second challenge - invalid JSON error
         expected_error = {
             "status": 400,
             "type": "urn:ietf:params:acme:error:unknown",
-            "detail": invalid_error
+            "detail": invalid_error,
         }
         self.assertEqual(result[1]["error"], expected_error)
 
