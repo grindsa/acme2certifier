@@ -885,7 +885,9 @@ class Challenge:
             self._load_dns_configuration(config_dic)
             self._load_proxy_configuration(config_dic)
             self._load_address_check_configuration(config_dic)
-            self.config.async_mode = config_async_mode_load(self.logger, config_dic, self.dbstore.type)
+            self.config.async_mode = config_async_mode_load(
+                self.logger, config_dic, self.dbstore.type
+            )
 
     def _config_load(self):
         """ " load config from file"""
