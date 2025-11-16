@@ -38,6 +38,7 @@ class DBstore(object):
         self.dbs = None
         self.cursor = None
         self.logger = logger
+        self.type = "wsgi"
 
         if not self.db_name:
             cfg = load_config()
