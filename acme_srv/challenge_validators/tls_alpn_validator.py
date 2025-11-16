@@ -89,7 +89,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         extension_value = b64_encode(
             self.logger, bytearray.fromhex(f"0420{sha256_digest}")
         )
-        extension_value = "foo"
+
         # Check for proxy configuration
         proxy_server = None
         if context.proxy_servers:
