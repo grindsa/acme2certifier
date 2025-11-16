@@ -1349,6 +1349,1161 @@ class TestChallenge(unittest.TestCase):
         self.assertEqual(captured_data["validated"], validated_time)
         self.assertEqual(captured_data["status"], "valid")
 
+    def test_0085_get_eab_kid_from_challenge_success(self):
+        """Test _get_eab_kid_from_challenge with successful EAB kid retrieval"""
+        self.challenge.repository = Mock()
+        self.challenge.repository.get_challengeinfo_by_challengename.return_value = {
+            "name": "test_challenge",
+            "status__name": "pending",
+            "authorization__order__account__name": "account1",
+            "authorization__order__account__eab_kid": "test_eab_kid_123",
+        }
+
+        result = self.challenge._get_eab_kid_from_challenge("test_challenge")
+
+        self.assertEqual(result, "test_eab_kid_123")
+        self.challenge.repository.get_challengeinfo_by_challengename.assert_called_once_with(
+            "test_challenge",
+            vlist=(
+                "name",
+                "status__name",
+                "authorization__order__account__name",
+                "authorization__order__account__eab_kid",
+            ),
+        )
+
+    def test_0086_get_eab_kid_from_challenge_no_eab_kid(self):
+        """Test _get_eab_kid_from_challenge when no EAB kid is found"""
+        self.challenge.repository = Mock()
+        self.challenge.repository.get_challengeinfo_by_challengename.return_value = {
+            "name": "test_challenge",
+            "status__name": "pending",
+            "authorization__order__account__name": "account1",
+            "authorization__order__account__eab_kid": None,
+        }
+
+        result = self.challenge._get_eab_kid_from_challenge("test_challenge")
+
+        self.assertIsNone(result)
+
+    def test_0087_get_eab_kid_from_challenge_empty_eab_kid(self):
+        """Test _get_eab_kid_from_challenge when EAB kid is empty string"""
+        self.challenge.repository = Mock()
+        self.challenge.repository.get_challengeinfo_by_challengename.return_value = {
+            "name": "test_challenge",
+            "status__name": "pending",
+            "authorization__order__account__name": "account1",
+            "authorization__order__account__eab_kid": "",
+        }
+
+        result = self.challenge._get_eab_kid_from_challenge("test_challenge")
+
+        self.assertIsNone(result)
+
+    def test_0088_get_eab_kid_from_challenge_missing_key(self):
+        """Test _get_eab_kid_from_challenge when EAB kid key is missing"""
+        self.challenge.repository = Mock()
+        self.challenge.repository.get_challengeinfo_by_challengename.return_value = {
+            "name": "test_challenge",
+            "status__name": "pending",
+            "authorization__order__account__name": "account1"
+            # Missing authorization__order__account__eab_kid key
+        }
+
+        result = self.challenge._get_eab_kid_from_challenge("test_challenge")
+
+        self.assertIsNone(result)
+
+    def test_0089_get_eab_kid_from_challenge_exception(self):
+        """Test _get_eab_kid_from_challenge with database exception"""
+        self.challenge.repository = Mock()
+        self.challenge.repository.get_challengeinfo_by_challengename.side_effect = (
+            Exception("Database error")
+        )
+
+        with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+            result = self.challenge._get_eab_kid_from_challenge("test_challenge")
+
+        self.assertIsNone(result)
+        # Verify error log message
+        self.assertTrue(
+            any(
+                "Failed to get EAB kid from challenge test_challenge: Database error"
+                in record.message
+                for record in log_context.records
+                if record.levelname == "ERROR"
+            )
+        )
+
+    def test_0090_get_challenge_profile_settings_success(self):
+        """Test _get_challenge_profile_settings with valid profile"""
+        profile_dic = {
+            "test_kid": {
+                "challenge": {
+                    "challenge_validation_disable": True,
+                    "forward_address_check": True,
+                    "reverse_address_check": False,
+                }
+            }
+        }
+
+        result = self.challenge._get_challenge_profile_settings(profile_dic, "test_kid")
+
+        expected_settings = {
+            "challenge_validation_disable": True,
+            "forward_address_check": True,
+            "reverse_address_check": False,
+        }
+        self.assertEqual(result, expected_settings)
+
+    def test_0091_get_challenge_profile_settings_defaults(self):
+        """Test _get_challenge_profile_settings with missing settings using defaults"""
+        profile_dic = {"test_kid": {"challenge": {}}}
+
+        result = self.challenge._get_challenge_profile_settings(profile_dic, "test_kid")
+
+        expected_settings = {
+            "challenge_validation_disable": False,
+            "forward_address_check": False,
+            "reverse_address_check": False,
+        }
+        self.assertEqual(result, expected_settings)
+
+    def test_0092_get_challenge_profile_settings_no_challenge_section(self):
+        """Test _get_challenge_profile_settings when challenge section is missing"""
+        profile_dic = {"test_kid": {"other_section": {}}}
+
+        result = self.challenge._get_challenge_profile_settings(profile_dic, "test_kid")
+
+        expected_settings = {
+            "challenge_validation_disable": False,
+            "forward_address_check": False,
+            "reverse_address_check": False,
+        }
+        self.assertEqual(result, expected_settings)
+
+    def test_0093_get_challenge_profile_settings_kid_not_found(self):
+        """Test _get_challenge_profile_settings when EAB kid not in profile"""
+        profile_dic = {
+            "other_kid": {"challenge": {"challenge_validation_disable": True}}
+        }
+
+        result = self.challenge._get_challenge_profile_settings(profile_dic, "test_kid")
+
+        self.assertEqual(result, {})
+
+    def test_0094_apply_eab_profile_settings_validation_disable(self):
+        """Test _apply_eab_profile_settings with validation disable setting"""
+        settings = {
+            "challenge_validation_disable": True,
+            "forward_address_check": False,
+            "reverse_address_check": False,
+        }
+
+        # Ensure initial state
+        self.challenge.config.validation_disabled = False
+
+        with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+            self.challenge._apply_eab_profile_settings(settings, "test_kid")
+
+        self.assertTrue(self.challenge.config.validation_disabled)
+        # Verify info log message
+        self.assertTrue(
+            any(
+                "Challenge validation is disabled via EAB profiling (eab_kid: test_kid)."
+                in record.message
+                for record in log_context.records
+                if record.levelname == "INFO"
+            )
+        )
+
+    def test_0095_apply_eab_profile_settings_forward_address_check(self):
+        """Test _apply_eab_profile_settings with forward address check setting"""
+        settings = {
+            "challenge_validation_disable": False,
+            "forward_address_check": True,
+            "reverse_address_check": False,
+        }
+
+        # Ensure initial state
+        self.challenge.config.forward_address_check = False
+
+        with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+            self.challenge._apply_eab_profile_settings(settings, "test_kid")
+
+        self.assertTrue(self.challenge.config.forward_address_check)
+        # Verify info log message
+        self.assertTrue(
+            any(
+                "Forward address check is enabled via EAB profiling (eab_kid: test_kid)."
+                in record.message
+                for record in log_context.records
+                if record.levelname == "INFO"
+            )
+        )
+
+    def test_0096_apply_eab_profile_settings_reverse_address_check(self):
+        """Test _apply_eab_profile_settings with reverse address check setting"""
+        settings = {
+            "challenge_validation_disable": False,
+            "forward_address_check": False,
+            "reverse_address_check": True,
+        }
+
+        # Ensure initial state
+        self.challenge.config.reverse_address_check = False
+
+        with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+            self.challenge._apply_eab_profile_settings(settings, "test_kid")
+
+        self.assertTrue(self.challenge.config.reverse_address_check)
+        # Verify info log message
+        self.assertTrue(
+            any(
+                "Reverse address check is enabled via EAB profiling (eab_kid: test_kid)."
+                in record.message
+                for record in log_context.records
+                if record.levelname == "INFO"
+            )
+        )
+
+    def test_0097_apply_eab_profile_settings_all_settings(self):
+        """Test _apply_eab_profile_settings with all settings enabled"""
+        settings = {
+            "challenge_validation_disable": True,
+            "forward_address_check": True,
+            "reverse_address_check": True,
+        }
+
+        # Ensure initial state
+        self.challenge.config.validation_disabled = False
+        self.challenge.config.forward_address_check = False
+        self.challenge.config.reverse_address_check = False
+
+        with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+            self.challenge._apply_eab_profile_settings(settings, "test_kid")
+
+        self.assertTrue(self.challenge.config.validation_disabled)
+        self.assertTrue(self.challenge.config.forward_address_check)
+        self.assertTrue(self.challenge.config.reverse_address_check)
+
+        # Verify all three info log messages
+        info_messages = [
+            record.message
+            for record in log_context.records
+            if record.levelname == "INFO"
+        ]
+        self.assertIn(
+            "Challenge validation is disabled via EAB profiling (eab_kid: test_kid).",
+            info_messages,
+        )
+        self.assertIn(
+            "Forward address check is enabled via EAB profiling (eab_kid: test_kid).",
+            info_messages,
+        )
+        self.assertIn(
+            "Reverse address check is enabled via EAB profiling (eab_kid: test_kid).",
+            info_messages,
+        )
+
+    def test_0098_apply_eab_profile_settings_no_settings(self):
+        """Test _apply_eab_profile_settings with no settings enabled"""
+        settings = {
+            "challenge_validation_disable": False,
+            "forward_address_check": False,
+            "reverse_address_check": False,
+        }
+
+        # Ensure initial state
+        self.challenge.config.validation_disabled = False
+        self.challenge.config.forward_address_check = False
+        self.challenge.config.reverse_address_check = False
+
+        self.challenge._apply_eab_profile_settings(settings, "test_kid")
+
+        # Verify nothing changed
+        self.assertFalse(self.challenge.config.validation_disabled)
+        self.assertFalse(self.challenge.config.forward_address_check)
+        self.assertFalse(self.challenge.config.reverse_address_check)
+
+    def test_0099_check_challenge_validation_eabprofile_disabled(self):
+        """Test _check_challenge_validation_eabprofile when EAB profiling is disabled"""
+        # Ensure EAB profiling is disabled
+        self.challenge.config.eab_profiling = False
+        self.challenge.config.eab_handler = None
+
+        # Mock the methods that shouldn't be called
+        self.challenge._get_eab_kid_from_challenge = Mock()
+
+        self.challenge._check_challenge_validation_eabprofile("test_challenge")
+
+        # Verify early return - method should not be called
+        self.challenge._get_eab_kid_from_challenge.assert_not_called()
+
+    def test_0100_check_challenge_validation_eabprofile_no_handler(self):
+        """Test _check_challenge_validation_eabprofile when EAB handler is None"""
+        # EAB profiling enabled but no handler
+        self.challenge.config.eab_profiling = True
+        self.challenge.config.eab_handler = None
+
+        # Mock the methods that shouldn't be called
+        self.challenge._get_eab_kid_from_challenge = Mock()
+
+        self.challenge._check_challenge_validation_eabprofile("test_challenge")
+
+        # Verify early return - method should not be called
+        self.challenge._get_eab_kid_from_challenge.assert_not_called()
+
+    def test_0101_check_challenge_validation_eabprofile_no_eab_kid(self):
+        """Test _check_challenge_validation_eabprofile when no EAB kid found"""
+        # Set up EAB profiling
+        self.challenge.config.eab_profiling = True
+        self.challenge.config.eab_handler = Mock()
+
+        # Mock _get_eab_kid_from_challenge to return None
+        self.challenge._get_eab_kid_from_challenge = Mock(return_value=None)
+
+        self.challenge._check_challenge_validation_eabprofile("test_challenge")
+
+        # Verify _get_eab_kid_from_challenge was called but early return happened
+        self.challenge._get_eab_kid_from_challenge.assert_called_once_with(
+            "test_challenge"
+        )
+
+    def test_0102_check_challenge_validation_eabprofile_success(self):
+        """Test _check_challenge_validation_eabprofile with successful profile application"""
+        # Set up EAB profiling
+        mock_eab_handler = Mock()
+        mock_eab_handler_instance = Mock()
+        mock_eab_handler.return_value.__enter__ = Mock(
+            return_value=mock_eab_handler_instance
+        )
+        mock_eab_handler.return_value.__exit__ = Mock(return_value=False)
+
+        self.challenge.config.eab_profiling = True
+        self.challenge.config.eab_handler = mock_eab_handler
+
+        # Mock profile data
+        profile_dic = {
+            "test_kid": {
+                "challenge": {
+                    "challenge_validation_disable": True,
+                    "forward_address_check": True,
+                }
+            }
+        }
+        mock_eab_handler_instance.key_file_load.return_value = profile_dic
+
+        # Mock methods
+        self.challenge._get_eab_kid_from_challenge = Mock(return_value="test_kid")
+        self.challenge._get_challenge_profile_settings = Mock(
+            return_value={
+                "challenge_validation_disable": True,
+                "forward_address_check": True,
+                "reverse_address_check": False,
+            }
+        )
+        self.challenge._apply_eab_profile_settings = Mock()
+
+        self.challenge._check_challenge_validation_eabprofile("test_challenge")
+
+        # Verify all methods were called correctly
+        self.challenge._get_eab_kid_from_challenge.assert_called_once_with(
+            "test_challenge"
+        )
+        self.challenge._get_challenge_profile_settings.assert_called_once_with(
+            profile_dic, "test_kid"
+        )
+        self.challenge._apply_eab_profile_settings.assert_called_once_with(
+            {
+                "challenge_validation_disable": True,
+                "forward_address_check": True,
+                "reverse_address_check": False,
+            },
+            "test_kid",
+        )
+
+    def test_0103_check_challenge_validation_eabprofile_no_challenge_section(self):
+        """Test _check_challenge_validation_eabprofile when profile has no challenge section"""
+        # Set up EAB profiling
+        mock_eab_handler = Mock()
+        mock_eab_handler_instance = Mock()
+        mock_eab_handler.return_value.__enter__ = Mock(
+            return_value=mock_eab_handler_instance
+        )
+        mock_eab_handler.return_value.__exit__ = Mock(return_value=False)
+
+        self.challenge.config.eab_profiling = True
+        self.challenge.config.eab_handler = mock_eab_handler
+
+        # Mock profile data without challenge section
+        profile_dic = {"test_kid": {"other_section": {}}}
+        mock_eab_handler_instance.key_file_load.return_value = profile_dic
+
+        # Mock methods
+        self.challenge._get_eab_kid_from_challenge = Mock(return_value="test_kid")
+        self.challenge._get_challenge_profile_settings = Mock()
+        self.challenge._apply_eab_profile_settings = Mock()
+
+        self.challenge._check_challenge_validation_eabprofile("test_challenge")
+
+        # Verify early return when no challenge section exists
+        self.challenge._get_eab_kid_from_challenge.assert_called_once_with(
+            "test_challenge"
+        )
+        self.challenge._get_challenge_profile_settings.assert_not_called()
+        self.challenge._apply_eab_profile_settings.assert_not_called()
+
+    def test_0104_check_challenge_validation_eabprofile_kid_not_in_profile(self):
+        """Test _check_challenge_validation_eabprofile when EAB kid not in profile"""
+        # Set up EAB profiling
+        mock_eab_handler = Mock()
+        mock_eab_handler_instance = Mock()
+        mock_eab_handler.return_value.__enter__ = Mock(
+            return_value=mock_eab_handler_instance
+        )
+        mock_eab_handler.return_value.__exit__ = Mock(return_value=False)
+
+        self.challenge.config.eab_profiling = True
+        self.challenge.config.eab_handler = mock_eab_handler
+
+        # Mock profile data with different kid
+        profile_dic = {
+            "other_kid": {"challenge": {"challenge_validation_disable": True}}
+        }
+        mock_eab_handler_instance.key_file_load.return_value = profile_dic
+
+        # Mock methods
+        self.challenge._get_eab_kid_from_challenge = Mock(return_value="test_kid")
+        self.challenge._get_challenge_profile_settings = Mock()
+        self.challenge._apply_eab_profile_settings = Mock()
+
+        self.challenge._check_challenge_validation_eabprofile("test_challenge")
+
+        # Verify early return when kid not in profile
+        self.challenge._get_eab_kid_from_challenge.assert_called_once_with(
+            "test_challenge"
+        )
+        self.challenge._get_challenge_profile_settings.assert_not_called()
+        self.challenge._apply_eab_profile_settings.assert_not_called()
+
+    def test_0105_check_challenge_validation_eabprofile_exception(self):
+        """Test _check_challenge_validation_eabprofile with exception during processing"""
+        # Set up EAB profiling
+        mock_eab_handler = Mock()
+        mock_eab_handler_instance = Mock()
+        mock_eab_handler.return_value.__enter__ = Mock(
+            return_value=mock_eab_handler_instance
+        )
+        mock_eab_handler.return_value.__exit__ = Mock(return_value=False)
+
+        self.challenge.config.eab_profiling = True
+        self.challenge.config.eab_handler = mock_eab_handler
+
+        # Mock exception during key_file_load
+        mock_eab_handler_instance.key_file_load.side_effect = Exception(
+            "EAB handler error"
+        )
+
+        # Mock methods
+        self.challenge._get_eab_kid_from_challenge = Mock(return_value="test_kid")
+
+        with self.assertLogs("test_a2c", level="DEBUG") as log_context:
+            self.challenge._check_challenge_validation_eabprofile("test_challenge")
+
+        # Verify error log message
+        self.assertTrue(
+            any(
+                "Failed to process EAB profile for challenge test_challenge (kid: test_kid): EAB handler error"
+                in record.message
+                for record in log_context.records
+                if record.levelname == "ERROR"
+            )
+        )
+
+    def test_0106_check_challenge_validation_eabprofile_exception_during_get_eab_kid(
+        self,
+    ):
+        """Test _check_challenge_validation_eabprofile with exception during _get_eab_kid_from_challenge"""
+        # Set up EAB profiling
+        self.challenge.config.eab_profiling = True
+        self.challenge.config.eab_handler = Mock()
+
+        # Mock _get_eab_kid_from_challenge to raise exception (it handles its own exceptions)
+        self.challenge._get_eab_kid_from_challenge = Mock(
+            return_value=None
+        )  # returns None on exception
+
+        self.challenge._check_challenge_validation_eabprofile("test_challenge")
+
+        # Should handle gracefully and return early
+        self.challenge._get_eab_kid_from_challenge.assert_called_once_with(
+            "test_challenge"
+        )
+
+    def test_0107_get_challenge_details_success(self):
+        """Test get_challenge_details with successful challenge retrieval"""
+        url = "http://example.com/acme/chall/test_challenge"
+        mock_challenge_info = Mock()
+        mock_challenge_info.type = "http-01"
+        mock_challenge_info.status = "pending"
+        mock_challenge_info.token = "test_token"
+        mock_challenge_info.validated = "2023-12-01T10:00:00Z"
+
+        with patch.object(
+            self.challenge,
+            "_extract_challenge_name_from_url",
+            return_value="test_challenge",
+        ):
+            with patch.object(
+                self.challenge.repository,
+                "get_challenge_by_name",
+                return_value=mock_challenge_info,
+            ):
+                result = self.challenge.get_challenge_details(url)
+
+        expected_result = {
+            "code": 200,
+            "data": {
+                "type": "http-01",
+                "status": "pending",
+                "token": "test_token",
+                "validated": "2023-12-01T10:00:00Z",
+            },
+        }
+        self.assertEqual(result, expected_result)
+
+    def test_0108_get_challenge_details_challenge_not_found(self):
+        """Test get_challenge_details when challenge is not found"""
+        url = "http://example.com/acme/chall/nonexistent_challenge"
+
+        with patch.object(
+            self.challenge,
+            "_extract_challenge_name_from_url",
+            return_value="nonexistent_challenge",
+        ):
+            with patch.object(
+                self.challenge.repository, "get_challenge_by_name", return_value=None
+            ):
+                result = self.challenge.get_challenge_details(url)
+
+        expected_result = {"code": 404, "data": {}}
+        self.assertEqual(result, expected_result)
+
+    def test_0109_get_challenge_details_with_none_validated(self):
+        """Test get_challenge_details with challenge having None validated field"""
+        url = "http://example.com/acme/chall/test_challenge"
+        mock_challenge_info = Mock()
+        mock_challenge_info.type = "dns-01"
+        mock_challenge_info.status = "pending"
+        mock_challenge_info.token = "dns_token"
+        mock_challenge_info.validated = None
+
+        with patch.object(
+            self.challenge,
+            "_extract_challenge_name_from_url",
+            return_value="test_challenge",
+        ):
+            with patch.object(
+                self.challenge.repository,
+                "get_challenge_by_name",
+                return_value=mock_challenge_info,
+            ):
+                result = self.challenge.get_challenge_details(url)
+
+        expected_result = {
+            "code": 200,
+            "data": {
+                "type": "dns-01",
+                "status": "pending",
+                "token": "dns_token",
+                "validated": None,
+            },
+        }
+        self.assertEqual(result, expected_result)
+
+    def test_0110_get_challenge_details_valid_status(self):
+        """Test get_challenge_details with valid challenge status"""
+        url = "http://example.com/acme/chall/valid_challenge"
+        mock_challenge_info = Mock()
+        mock_challenge_info.type = "http-01"
+        mock_challenge_info.status = "valid"
+        mock_challenge_info.token = "valid_token"
+        mock_challenge_info.validated = "2023-12-01T10:00:00Z"
+
+        with patch.object(
+            self.challenge,
+            "_extract_challenge_name_from_url",
+            return_value="valid_challenge",
+        ):
+            with patch.object(
+                self.challenge.repository,
+                "get_challenge_by_name",
+                return_value=mock_challenge_info,
+            ):
+                result = self.challenge.get_challenge_details(url)
+
+        expected_result = {
+            "code": 200,
+            "data": {
+                "type": "http-01",
+                "status": "valid",
+                "token": "valid_token",
+                "validated": "2023-12-01T10:00:00Z",
+            },
+        }
+        self.assertEqual(result, expected_result)
+
+    def test_0111_get_challenge_details_invalid_status(self):
+        """Test get_challenge_details with invalid challenge status"""
+        url = "http://example.com/acme/chall/invalid_challenge"
+        mock_challenge_info = Mock()
+        mock_challenge_info.type = "http-01"
+        mock_challenge_info.status = "invalid"
+        mock_challenge_info.token = "invalid_token"
+        mock_challenge_info.validated = None
+
+        with patch.object(
+            self.challenge,
+            "_extract_challenge_name_from_url",
+            return_value="invalid_challenge",
+        ):
+            with patch.object(
+                self.challenge.repository,
+                "get_challenge_by_name",
+                return_value=mock_challenge_info,
+            ):
+                result = self.challenge.get_challenge_details(url)
+
+        expected_result = {
+            "code": 200,
+            "data": {
+                "type": "http-01",
+                "status": "invalid",
+                "token": "invalid_token",
+                "validated": None,
+            },
+        }
+        self.assertEqual(result, expected_result)
+
+    def test_0112_get_challenge_details_processing_status(self):
+        """Test get_challenge_details with processing challenge status"""
+        url = "http://example.com/acme/chall/processing_challenge"
+        mock_challenge_info = Mock()
+        mock_challenge_info.type = "dns-01"
+        mock_challenge_info.status = "processing"
+        mock_challenge_info.token = "processing_token"
+        mock_challenge_info.validated = None
+
+        with patch.object(
+            self.challenge,
+            "_extract_challenge_name_from_url",
+            return_value="processing_challenge",
+        ):
+            with patch.object(
+                self.challenge.repository,
+                "get_challenge_by_name",
+                return_value=mock_challenge_info,
+            ):
+                result = self.challenge.get_challenge_details(url)
+
+        expected_result = {
+            "code": 200,
+            "data": {
+                "type": "dns-01",
+                "status": "processing",
+                "token": "processing_token",
+                "validated": None,
+            },
+        }
+        self.assertEqual(result, expected_result)
+
+    def test_0113_get_challenge_details_tls_alpn_challenge(self):
+        """Test get_challenge_details with tls-alpn-01 challenge type"""
+        url = "http://example.com/acme/chall/tls_challenge"
+        mock_challenge_info = Mock()
+        mock_challenge_info.type = "tls-alpn-01"
+        mock_challenge_info.status = "pending"
+        mock_challenge_info.token = "tls_token"
+        mock_challenge_info.validated = None
+
+        with patch.object(
+            self.challenge,
+            "_extract_challenge_name_from_url",
+            return_value="tls_challenge",
+        ):
+            with patch.object(
+                self.challenge.repository,
+                "get_challenge_by_name",
+                return_value=mock_challenge_info,
+            ):
+                result = self.challenge.get_challenge_details(url)
+
+        expected_result = {
+            "code": 200,
+            "data": {
+                "type": "tls-alpn-01",
+                "status": "pending",
+                "token": "tls_token",
+                "validated": None,
+            },
+        }
+        self.assertEqual(result, expected_result)
+
+    def test_0114_get_challenge_details_empty_challenge_name(self):
+        """Test get_challenge_details with empty challenge name from URL"""
+        url = "http://example.com/acme/chall/"
+
+        with patch.object(
+            self.challenge, "_extract_challenge_name_from_url", return_value=""
+        ):
+            with patch.object(
+                self.challenge.repository, "get_challenge_by_name", return_value=None
+            ):
+                result = self.challenge.get_challenge_details(url)
+
+        expected_result = {"code": 404, "data": {}}
+        self.assertEqual(result, expected_result)
+
+    def test_0115_get_challenge_details_repository_exception(self):
+        """Test get_challenge_details with repository exception"""
+        url = "http://example.com/acme/chall/test_challenge"
+
+        mock_error_detail = Mock()
+        mock_error_detail.message = "Database connection failed"
+        mock_error_response = {
+            "status": 500,
+            "type": "urn:ietf:params:acme:error:serverInternal",
+            "detail": "Database connection failed",
+        }
+
+        # Set up the existing Mock error_handler
+        self.challenge.error_handler.handle_error.return_value = mock_error_detail
+        self.challenge.error_handler.create_acme_error_response.return_value = (
+            mock_error_response
+        )
+
+        with patch.object(
+            self.challenge,
+            "_extract_challenge_name_from_url",
+            return_value="test_challenge",
+        ):
+            with patch.object(
+                self.challenge.repository,
+                "get_challenge_by_name",
+                side_effect=Exception("Database error"),
+            ):
+                result = self.challenge.get_challenge_details(url)
+
+        self.assertEqual(result, mock_error_response)
+        self.challenge.error_handler.handle_error.assert_called_once()
+        self.challenge.error_handler.create_acme_error_response.assert_called_once_with(
+            mock_error_detail, 500
+        )
+
+    def test_0116_get_challenge_details_extract_url_exception(self):
+        """Test get_challenge_details with exception in URL extraction (not caught by try-catch)"""
+        url = "invalid_url"
+
+        with patch.object(
+            self.challenge,
+            "_extract_challenge_name_from_url",
+            side_effect=Exception("URL parse error"),
+        ):
+            with self.assertRaises(Exception) as context:
+                self.challenge.get_challenge_details(url)
+
+            self.assertEqual(str(context.exception), "URL parse error")
+
+    def test_0117_get_challenge_details_special_characters_in_url(self):
+        """Test get_challenge_details with special characters in URL"""
+        url = "http://example.com/acme/chall/test_challenge_123-abc"
+        mock_challenge_info = Mock()
+        mock_challenge_info.type = "http-01"
+        mock_challenge_info.status = "pending"
+        mock_challenge_info.token = "special_token"
+        mock_challenge_info.validated = None
+
+        with patch.object(
+            self.challenge,
+            "_extract_challenge_name_from_url",
+            return_value="test_challenge_123-abc",
+        ):
+            with patch.object(
+                self.challenge.repository,
+                "get_challenge_by_name",
+                return_value=mock_challenge_info,
+            ):
+                result = self.challenge.get_challenge_details(url)
+
+        expected_result = {
+            "code": 200,
+            "data": {
+                "type": "http-01",
+                "status": "pending",
+                "token": "special_token",
+                "validated": None,
+            },
+        }
+        self.assertEqual(result, expected_result)
+
+    def test_0118_get_challenge_details_long_challenge_name(self):
+        """Test get_challenge_details with very long challenge name"""
+        url = "http://example.com/acme/chall/very_long_challenge_name_123456789012345678901234567890"
+        mock_challenge_info = Mock()
+        mock_challenge_info.type = "dns-01"
+        mock_challenge_info.status = "pending"
+        mock_challenge_info.token = "long_token"
+        mock_challenge_info.validated = None
+
+        with patch.object(
+            self.challenge,
+            "_extract_challenge_name_from_url",
+            return_value="very_long_challenge_name_123456789012345678901234567890",
+        ):
+            with patch.object(
+                self.challenge.repository,
+                "get_challenge_by_name",
+                return_value=mock_challenge_info,
+            ):
+                result = self.challenge.get_challenge_details(url)
+
+        expected_result = {
+            "code": 200,
+            "data": {
+                "type": "dns-01",
+                "status": "pending",
+                "token": "long_token",
+                "validated": None,
+            },
+        }
+        self.assertEqual(result, expected_result)
+
+    def test_0119_get_challenge_details_logs_debug_message(self):
+        """Test get_challenge_details logs appropriate debug message"""
+        url = "http://example.com/acme/chall/test_challenge"
+        mock_challenge_info = Mock()
+        mock_challenge_info.type = "http-01"
+        mock_challenge_info.status = "pending"
+        mock_challenge_info.token = "test_token"
+        mock_challenge_info.validated = None
+
+        with patch.object(
+            self.challenge,
+            "_extract_challenge_name_from_url",
+            return_value="test_challenge",
+        ):
+            with patch.object(
+                self.challenge.repository,
+                "get_challenge_by_name",
+                return_value=mock_challenge_info,
+            ):
+                with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+                    self.challenge.get_challenge_details(url)
+
+        self.assertIn(
+            "DEBUG:test_a2c:Challenge.get_challenge_details(test_challenge)", lcm.output
+        )
+
+    def test_0120_perform_validation_with_retry_dns_challenge_success_first_attempt(
+        self,
+    ):
+        """Test _perform_validation_with_retry with dns-01 challenge succeeding on first attempt"""
+        mock_context = Mock()
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.invalid = False
+
+        self.challenge.validator_registry.validate_challenge.return_value = mock_result
+
+        result = self.challenge._perform_validation_with_retry("dns-01", mock_context)
+
+        self.assertEqual(result, mock_result)
+        self.challenge.validator_registry.validate_challenge.assert_called_once_with(
+            "dns-01", mock_context
+        )
+
+    def test_0121_perform_validation_with_retry_dns_challenge_success_after_retries(
+        self,
+    ):
+        """Test _perform_validation_with_retry with dns-01 challenge succeeding after retries"""
+        mock_context = Mock()
+
+        # First two attempts fail, third succeeds
+        mock_result_fail = Mock()
+        mock_result_fail.success = False
+        mock_result_fail.invalid = False
+
+        mock_result_success = Mock()
+        mock_result_success.success = True
+        mock_result_success.invalid = False
+
+        self.challenge.validator_registry.validate_challenge.side_effect = [
+            mock_result_fail,
+            mock_result_fail,
+            mock_result_success,
+        ]
+
+        with patch("time.sleep") as mock_sleep:
+            result = self.challenge._perform_validation_with_retry(
+                "dns-01", mock_context
+            )
+
+        self.assertEqual(result, mock_result_success)
+        self.assertEqual(
+            self.challenge.validator_registry.validate_challenge.call_count, 3
+        )
+        # Should have 2 sleep calls (after first and second attempts)
+        self.assertEqual(mock_sleep.call_count, 2)
+        mock_sleep.assert_called_with(self.challenge.config.dns_validation_pause_timer)
+
+    def test_0122_perform_validation_with_retry_dns_challenge_invalid_first_attempt(
+        self,
+    ):
+        """Test _perform_validation_with_retry with dns-01 challenge invalid on first attempt"""
+        mock_context = Mock()
+        mock_result = Mock()
+        mock_result.success = False
+        mock_result.invalid = True
+
+        self.challenge.validator_registry.validate_challenge.return_value = mock_result
+
+        result = self.challenge._perform_validation_with_retry("dns-01", mock_context)
+
+        self.assertEqual(result, mock_result)
+        self.challenge.validator_registry.validate_challenge.assert_called_once_with(
+            "dns-01", mock_context
+        )
+
+    def test_0123_perform_validation_with_retry_dns_challenge_max_retries_reached(self):
+        """Test _perform_validation_with_retry with dns-01 challenge reaching max retries (lines 997-1002)"""
+        mock_context = Mock()
+        mock_result = Mock()
+        mock_result.success = False
+        mock_result.invalid = False
+
+        self.challenge.validator_registry.validate_challenge.return_value = mock_result
+
+        with patch("time.sleep") as mock_sleep:
+            with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                result = self.challenge._perform_validation_with_retry(
+                    "dns-01", mock_context
+                )
+
+        # Should have called validate_challenge 5 times (max_attempts)
+        self.assertEqual(
+            self.challenge.validator_registry.validate_challenge.call_count, 5
+        )
+        # Should have 4 sleep calls (after first 4 attempts)
+        self.assertEqual(mock_sleep.call_count, 4)
+        # Result should be marked as invalid after max retries
+        self.assertTrue(result.invalid)
+        # Should log error message
+        self.assertIn(
+            "ERROR:test_a2c:No more retries left for challenge type dns-01. Invalidating challenge.",
+            lcm.output,
+        )
+
+    def test_0124_perform_validation_with_retry_email_challenge_max_retries_reached(
+        self,
+    ):
+        """Test _perform_validation_with_retry with email-reply-00 challenge reaching max retries (lines 997-1002)"""
+        mock_context = Mock()
+        mock_result = Mock()
+        mock_result.success = False
+        mock_result.invalid = False
+
+        self.challenge.validator_registry.validate_challenge.return_value = mock_result
+
+        with patch("time.sleep") as mock_sleep:
+            with self.assertLogs("test_a2c", level="ERROR") as lcm:
+                result = self.challenge._perform_validation_with_retry(
+                    "email-reply-00", mock_context
+                )
+
+        # Should have called validate_challenge 5 times (max_attempts)
+        self.assertEqual(
+            self.challenge.validator_registry.validate_challenge.call_count, 5
+        )
+        # Should have 4 sleep calls (after first 4 attempts)
+        self.assertEqual(mock_sleep.call_count, 4)
+        # Result should be marked as invalid after max retries
+        self.assertTrue(result.invalid)
+        # Should log error message
+        self.assertIn(
+            "ERROR:test_a2c:No more retries left for challenge type email-reply-00. Invalidating challenge.",
+            lcm.output,
+        )
+
+    def test_0125_perform_validation_with_retry_http_challenge_single_attempt(self):
+        """Test _perform_validation_with_retry with http-01 challenge (single attempt)"""
+        mock_context = Mock()
+        mock_result = Mock()
+        mock_result.success = False
+        mock_result.invalid = False
+
+        self.challenge.validator_registry.validate_challenge.return_value = mock_result
+
+        with patch("time.sleep") as mock_sleep:
+            result = self.challenge._perform_validation_with_retry(
+                "http-01", mock_context
+            )
+
+        # Should have called validate_challenge only once (no retries for http-01)
+        self.assertEqual(
+            self.challenge.validator_registry.validate_challenge.call_count, 1
+        )
+        # No sleep calls for non-retry challenge types
+        mock_sleep.assert_not_called()
+        # Result should be marked as invalid since no retries and it didn't succeed
+        self.assertTrue(result.invalid)
+
+    def test_0126_perform_validation_with_retry_tls_challenge_single_attempt(self):
+        """Test _perform_validation_with_retry with tls-alpn-01 challenge (single attempt)"""
+        mock_context = Mock()
+        mock_result = Mock()
+        mock_result.success = True
+        mock_result.invalid = False
+
+        self.challenge.validator_registry.validate_challenge.return_value = mock_result
+
+        result = self.challenge._perform_validation_with_retry(
+            "tls-alpn-01", mock_context
+        )
+
+        # Should have called validate_challenge only once (no retries for tls-alpn-01)
+        self.assertEqual(
+            self.challenge.validator_registry.validate_challenge.call_count, 1
+        )
+        # Result should be the successful result
+        self.assertEqual(result, mock_result)
+
+    def test_0127_perform_validation_with_retry_dns_challenge_fourth_attempt_no_sleep(
+        self,
+    ):
+        """Test _perform_validation_with_retry with dns-01 challenge not sleeping on last attempt"""
+        mock_context = Mock()
+
+        # First 4 attempts fail, 5th doesn't happen due to break logic
+        mock_result_fail = Mock()
+        mock_result_fail.success = False
+        mock_result_fail.invalid = False
+
+        self.challenge.validator_registry.validate_challenge.return_value = (
+            mock_result_fail
+        )
+
+        with patch("time.sleep") as mock_sleep:
+            result = self.challenge._perform_validation_with_retry(
+                "dns-01", mock_context
+            )
+
+        # Should have called validate_challenge 5 times
+        self.assertEqual(
+            self.challenge.validator_registry.validate_challenge.call_count, 5
+        )
+        # Should have 4 sleep calls - no sleep after the last attempt
+        self.assertEqual(mock_sleep.call_count, 4)
+
+    def test_0128_perform_validation_with_retry_preserves_dns_validation_pause_timer(
+        self,
+    ):
+        """Test _perform_validation_with_retry uses correct dns_validation_pause_timer"""
+        mock_context = Mock()
+        mock_result = Mock()
+        mock_result.success = False
+        mock_result.invalid = False
+
+        self.challenge.config.dns_validation_pause_timer = 1.5
+        self.challenge.validator_registry.validate_challenge.return_value = mock_result
+
+        with patch("time.sleep") as mock_sleep:
+            self.challenge._perform_validation_with_retry("dns-01", mock_context)
+
+        # Verify sleep was called with the configured timer value
+        mock_sleep.assert_called_with(1.5)
+
+    def test_0129_get_legacy_api_calls_get_challenge_details(self):
+        """Test get() legacy API method calls get_challenge_details"""
+        url = "http://example.com/acme/chall/test_challenge"
+        expected_result = {"code": 200, "data": {"type": "http-01"}}
+
+        with patch.object(
+            self.challenge, "get_challenge_details", return_value=expected_result
+        ) as mock_get_details:
+            result = self.challenge.get(url)
+
+        # Should call get_challenge_details with the same URL
+        mock_get_details.assert_called_once_with(url)
+        # Should return the same result
+        self.assertEqual(result, expected_result)
+
+    def test_0130_get_legacy_api_logs_debug_message(self):
+        """Test get() legacy API method logs appropriate debug message"""
+        url = "http://example.com/acme/chall/test_challenge"
+
+        with patch.object(
+            self.challenge, "get_challenge_details", return_value={"code": 200}
+        ):
+            with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+                self.challenge.get(url)
+
+        # Should log debug message
+        self.assertIn("DEBUG:test_a2c:Challenge.get() called - legacy API", lcm.output)
+
+    def test_0131_get_legacy_api_handles_404_response(self):
+        """Test get() legacy API method handles 404 response from get_challenge_details"""
+        url = "http://example.com/acme/chall/nonexistent_challenge"
+        expected_result = {"code": 404, "data": {}}
+
+        with patch.object(
+            self.challenge, "get_challenge_details", return_value=expected_result
+        ) as mock_get_details:
+            result = self.challenge.get(url)
+
+        mock_get_details.assert_called_once_with(url)
+        self.assertEqual(result, expected_result)
+
+    def test_0132_get_legacy_api_handles_error_response(self):
+        """Test get() legacy API method handles error response from get_challenge_details"""
+        url = "http://example.com/acme/chall/test_challenge"
+        expected_result = {
+            "status": 500,
+            "type": "urn:ietf:params:acme:error:serverInternal",
+            "detail": "Database error",
+        }
+
+        with patch.object(
+            self.challenge, "get_challenge_details", return_value=expected_result
+        ) as mock_get_details:
+            result = self.challenge.get(url)
+
+        mock_get_details.assert_called_once_with(url)
+        self.assertEqual(result, expected_result)
+
+    def test_0133_get_legacy_api_passes_through_all_response_types(self):
+        """Test get() legacy API method passes through various response types"""
+        url = "http://example.com/acme/chall/test_challenge"
+
+        # Test with complex response
+        expected_result = {
+            "code": 200,
+            "data": {
+                "type": "dns-01",
+                "status": "valid",
+                "token": "complex_token_123",
+                "validated": "2023-12-01T10:00:00Z",
+            },
+        }
+
+        with patch.object(
+            self.challenge, "get_challenge_details", return_value=expected_result
+        ) as mock_get_details:
+            result = self.challenge.get(url)
+
+        mock_get_details.assert_called_once_with(url)
+        self.assertEqual(result, expected_result)
+
 
 if __name__ == "__main__":
     unittest.main()

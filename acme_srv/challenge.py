@@ -1491,7 +1491,7 @@ class Challenge:
 
     def get(self, url: str) -> Dict[str, str]:
         """Legacy API compatibility - use get_challenge_details instead."""
-        self.logger("Challenge.get() called - legacy API")
+        self.logger.debug("Challenge.get() called - legacy API")
         return self.get_challenge_details(url)
 
     def challengeset_get(self, *args, **kwargs) -> List[Dict[str, str]]:
