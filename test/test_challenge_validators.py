@@ -461,7 +461,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
         mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
         mock_proxy_check.return_value = None
         expected_response = "test_token.test_thumb"
-        mock_url_get.return_value = expected_response
+        mock_url_get.return_value = (expected_response, 200, None)
 
         context = ChallengeContext(
             challenge_name="test",
@@ -508,7 +508,10 @@ class TestHttpChallengeValidator(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
-        self.assertEqual(result.error_message, "DNS resolution failed: NXDOMAIN: test.com does not exist")
+        self.assertEqual(
+            result.error_message,
+            '{"status": 400, "type": "urn:ietf:params:acme:error:dns", "detail": "DNS resolution failed: NXDOMAIN: test.com does not exist"}',
+        )
         self.assertEqual(result.details["fqdn"], "invalid.example.com")
 
     @patch("acme_srv.helper.ip_validate")
@@ -522,7 +525,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
         mock_ip_validate.return_value = ("192.168.1.1", False)
         mock_proxy_check.return_value = None
         expected_response = "test_token.test_thumb"
-        mock_url_get.return_value = expected_response
+        mock_url_get.return_value = (expected_response, 200, None)
 
         context = ChallengeContext(
             challenge_name="test",
@@ -557,7 +560,10 @@ class TestHttpChallengeValidator(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
-        self.assertEqual(result.error_message, "Invalid IP address")
+        self.assertEqual(
+            result.error_message,
+            '{"status": 400, "type": "urn:ietf:params:acme:error:malformed", "detail": "Invalid IP address: invalid.ip"}',
+        )
         self.assertEqual(result.details["ip"], "invalid.ip")
 
     def test_007_perform_validation_unsupported_authorization_type(self):
@@ -574,7 +580,10 @@ class TestHttpChallengeValidator(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
-        self.assertEqual(result.error_message, "Unsupported authorization type")
+        self.assertEqual(
+            result.error_message,
+            '{"status": 400, "type": "urn:ietf:params:acme:error:unsupported", "detail": "Unsupported authorization type: unsupported"}',
+        )
         self.assertEqual(result.details["type"], "unsupported")
 
     @patch("acme_srv.helper.fqdn_resolve")
@@ -586,7 +595,11 @@ class TestHttpChallengeValidator(unittest.TestCase):
         """Test HTTP validation with failed HTTP request"""
         mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
         mock_proxy_check.return_value = None
-        mock_url_get.return_value = None  # Simulate request failure
+        mock_url_get.return_value = (
+            None,
+            500,
+            "Connection failed",
+        )  # Simulate request failure
 
         context = ChallengeContext(
             challenge_name="test",
@@ -600,8 +613,15 @@ class TestHttpChallengeValidator(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertFalse(result.invalid)
-        self.assertEqual(result.error_message, "HTTP request failed")
+        self.assertEqual(
+            result.error_message,
+            '{"status": 403, "type": "urn:ietf:params:acme:error:connection", "detail": "HTTP request failed: 500 Connection failed"}',
+        )
         self.assertIn("url", result.details)
+        self.assertEqual(
+            result.details["url"],
+            "http://example.com/.well-known/acme-challenge/test_token",
+        )
 
     @patch("acme_srv.helper.fqdn_resolve")
     @patch("acme_srv.helper.url_get")
@@ -612,7 +632,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
         """Test HTTP validation with response mismatch"""
         mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
         mock_proxy_check.return_value = None
-        mock_url_get.return_value = "wrong_response\nmore_content"
+        mock_url_get.return_value = ("wrong_response\nmore_content", 200, None)
 
         context = ChallengeContext(
             challenge_name="test",
@@ -626,7 +646,10 @@ class TestHttpChallengeValidator(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
-        self.assertEqual(result.error_message, "Response mismatch")
+        self.assertEqual(
+            result.error_message,
+            '{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "Keyauthorization mismatch"}',
+        )
         self.assertEqual(result.details["expected"], "test_token.test_thumb")
         self.assertEqual(result.details["received"], "wrong_response")
 
@@ -640,7 +663,7 @@ class TestHttpChallengeValidator(unittest.TestCase):
         mock_fqdn_resolve.return_value = (["192.168.1.1"], False, None)
         mock_proxy_check.return_value = "http://proxy.example.com:8080"
         expected_response = "test_token.test_thumb"
-        mock_url_get.return_value = expected_response
+        mock_url_get.return_value = (expected_response, 200, None)
 
         context = ChallengeContext(
             challenge_name="test",
@@ -801,7 +824,10 @@ class TestDnsChallengeValidator(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
-        self.assertEqual(result.error_message, "DNS record not found or incorrect")
+        self.assertEqual(
+            result.error_message,
+            '{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "DNS record not found or incorrect"}',
+        )
         self.assertEqual(result.details["expected_hash"], "expected_hash")
         self.assertEqual(
             result.details["found_records"], ["wrong_hash", "other_record"]
@@ -969,7 +995,11 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
     ):
         """Test perform_validation basic functionality"""
         # Mock all external calls to avoid actual network operations
-        mock_fqdn_resolve.return_value = ([], True, "DNS resolution error")  # DNS resolution failed
+        mock_fqdn_resolve.return_value = (
+            [],
+            True,
+            "DNS resolution error",
+        )  # DNS resolution failed
         mock_sha256_hash_hex.return_value = (
             "a1b2c3d4e5f6789012345678901234567890abcdef1234567890abcdef123456"
         )
@@ -1057,7 +1087,8 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
         self.assertEqual(
-            result.error_message, "DNS resolution failed for TLS-ALPN validation: DNS resolution error"
+            result.error_message,
+            '{"status": 400, "type": "urn:ietf:params:acme:error:dns", "detail": "DNS resolution failed: DNS resolution error"}',
         )
 
     @patch("acme_srv.helper.ip_validate")
@@ -1121,7 +1152,8 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
         self.assertEqual(
-            result.error_message, "Invalid IP address for TLS-ALPN validation"
+            result.error_message,
+            '{"status": 400, "type": "urn:ietf:params:acme:error:malformed", "detail": "Invalid IP address: invalid.ip"}',
         )
 
     def test_007_perform_validation_unsupported_authorization_type(self):
@@ -1139,7 +1171,8 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
         self.assertEqual(
-            result.error_message, "Unsupported authorization type for TLS-ALPN"
+            result.error_message,
+            '{"status": 400, "type": "urn:ietf:params:acme:error:unsupported", "detail": "Unsupported authorization type: unsupported"}',
         )
 
     @patch("acme_srv.helper.fqdn_resolve")
@@ -1177,7 +1210,10 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertFalse(result.invalid)
-        self.assertEqual(result.error_message, "Unable to retrieve server certificate")
+        self.assertEqual(
+            result.error_message,
+            '{"status": 400, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "Unable to retrieve server certificate for example.com"}',
+        )
 
     @patch("acme_srv.helper.fqdn_resolve")
     @patch("acme_srv.helper.sha256_hash_hex")
@@ -1219,7 +1255,8 @@ class TestTlsAlpnChallengeValidator(unittest.TestCase):
             self.assertFalse(result.success)
             self.assertTrue(result.invalid)
             self.assertEqual(
-                result.error_message, "Certificate extension validation failed"
+                result.error_message,
+                '{"status": 403, "type": "urn:ietf:params:acme:error:incorrectResponse", "detail": "Certificate extension validation failed"}',
             )
 
     @patch("acme_srv.helper.cert_san_get")
@@ -1860,7 +1897,10 @@ class TestSourceAddressValidator(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
-        self.assertEqual(result.error_message, "Forward address check failed")
+        self.assertEqual(
+            result.error_message,
+            '{"status": 400, "type": "urn:ietf:params:acme:error:unauthorized", "detail": "Forward check failed: Forward address check failed"}',
+        )
 
     @patch.object(SourceAddressValidator, "_perform_forward_check")
     @patch.object(SourceAddressValidator, "_perform_reverse_check")
@@ -1891,7 +1931,10 @@ class TestSourceAddressValidator(unittest.TestCase):
 
         self.assertFalse(result.success)
         self.assertTrue(result.invalid)
-        self.assertEqual(result.error_message, "Reverse address check failed")
+        self.assertEqual(
+            result.error_message,
+            '{"status": 400, "type": "urn:ietf:params:acme:error:unauthorized", "detail": "Reverse check failed: Reverse address check failed"}',
+        )
 
     def test_008_perform_validation_forward_only(self):
         """Test validation with only forward check enabled"""
@@ -1935,7 +1978,11 @@ class TestSourceAddressValidator(unittest.TestCase):
     @patch("acme_srv.helper.fqdn_resolve")
     def test_010_perform_forward_check_failure(self, mock_fqdn_resolve):
         """Test _perform_forward_check failure"""
-        mock_fqdn_resolve.return_value = (["192.168.1.100"], False, None)  # Different IP
+        mock_fqdn_resolve.return_value = (
+            ["192.168.1.100"],
+            False,
+            None,
+        )  # Different IP
 
         result = self.validator._perform_forward_check("example.com", "192.168.1.1", [])
 

@@ -65,7 +65,7 @@ class TestACMEHandler(unittest.TestCase):
         """test Oder.add() with empty identifier in payload dbstore-add returns None"""
         mock_name.return_value = "aaaaa"
         mock_uts.return_value = 1543640400
-        self.signature.dbstore.order_add.return_value = False
+        self.order.dbstore.order_add.return_value = False
         message = {"identifiers": {}}
         e_result = (
             "urn:ietf:params:acme:error:malformed",

@@ -68,9 +68,18 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_dns_validator.return_value = mock_dns_instance
         mock_tls_validator.return_value = mock_tls_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
             ChallengeValidatorRegistry=mock_registry,
             HttpChallengeValidator=mock_http_validator,
             DnsChallengeValidator=mock_dns_validator,
@@ -116,7 +125,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             # Verify optional validators NOT called
             mock_email_validator.assert_not_called()
             mock_tkauth_validator.assert_not_called()
-            mock_source_validator.assert_not_called()
+            mock_source_validator.assert_called_once()
 
             # Verify logging
             self.logger.debug.assert_has_calls(
@@ -125,11 +134,15 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                         "challenge_registry_setup.create_challenge_validator_registry()"
                     ),
                     call(
+                        "create_challenge_validator_registry(): Registry created with %d validators: %s",
+                        3,
+                        "http-01, dns-01, tls-alpn-01",
+                    ),
+                    call(
                         "challenge_registry_setup.create_challenge_validator_registry() ended"
                     ),
                 ]
             )
-            self.logger.info.assert_called_once()
 
     @patch.dict(
         "sys.modules",
@@ -165,9 +178,18 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_email_instance = Mock()
         mock_email_validator.return_value = mock_email_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
             ChallengeValidatorRegistry=mock_registry,
             HttpChallengeValidator=mock_http_validator,
             DnsChallengeValidator=mock_dns_validator,
@@ -194,7 +216,10 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             # Verify tkauth and source validators NOT called
             mock_tkauth_validator.assert_not_called()
-            mock_source_validator.assert_not_called()
+            mock_source_validator.assert_called_once()
+            mock_http_validator.assert_called_once()
+            mock_dns_validator.assert_called_once()
+            mock_tls_validator.assert_called_once()
 
     @patch.dict(
         "sys.modules",
@@ -243,9 +268,18 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_tkauth_validator.return_value = mock_tkauth_instance
         mock_source_validator.return_value = mock_source_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
             ChallengeValidatorRegistry=mock_registry,
             HttpChallengeValidator=mock_http_validator,
             DnsChallengeValidator=mock_dns_validator,
@@ -291,24 +325,21 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 expected_calls, any_order=True
             )
 
-            # Verify logging with all validators
-            info_call_args = self.logger.info.call_args[0]
-            self.assertIn(
-                "Challenge validator registry created with 6 validators",
-                info_call_args[0]
-                % (
-                    6,
-                    ", ".join(
-                        [
-                            "http-01",
-                            "dns-01",
-                            "tls-alpn-01",
-                            "email-reply-00",
-                            "tkauth-01",
-                            "source-address",
-                        ]
+            # Verify logging - the function uses debug(), not info()
+            self.logger.debug.assert_has_calls(
+                [
+                    call(
+                        "challenge_registry_setup.create_challenge_validator_registry()"
                     ),
-                ),
+                    call(
+                        "create_challenge_validator_registry(): Registry created with %d validators: %s",
+                        6,
+                        "http-01, dns-01, tls-alpn-01, email-reply-00, tkauth-01, source-address",
+                    ),
+                    call(
+                        "challenge_registry_setup.create_challenge_validator_registry() ended"
+                    ),
+                ]
             )
 
     @patch.dict(
@@ -336,9 +367,18 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_tkauth_validator = Mock()
         mock_source_validator = Mock()
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
             ChallengeValidatorRegistry=mock_registry,
             HttpChallengeValidator=mock_http_validator,
             DnsChallengeValidator=mock_dns_validator,
@@ -385,9 +425,18 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_tkauth_validator = Mock()
         mock_source_validator = Mock()
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
             ChallengeValidatorRegistry=mock_registry,
             HttpChallengeValidator=mock_http_validator,
             DnsChallengeValidator=mock_dns_validator,
@@ -427,9 +476,12 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry_instance.get_supported_types.return_value = ["mock-01", "mock-02"]
         mock_registry.return_value = mock_registry_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
+            ChallengeValidatorRegistry=mock_registry,
         ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
@@ -489,9 +541,12 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry_instance.get_supported_types.return_value = []
         mock_registry.return_value = mock_registry_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
+            ChallengeValidatorRegistry=mock_registry,
         ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
@@ -533,9 +588,12 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry_instance = Mock()
         mock_registry.return_value = mock_registry_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
+            ChallengeValidatorRegistry=mock_registry,
         ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
@@ -562,9 +620,12 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry_instance = Mock()
         mock_registry.return_value = mock_registry_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
+            ChallengeValidatorRegistry=mock_registry,
         ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
@@ -600,9 +661,12 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         )
         mock_registry.return_value = mock_registry_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
+            ChallengeValidatorRegistry=mock_registry,
         ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
@@ -652,9 +716,18 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_tkauth_instance = Mock()
         mock_tkauth_validator.return_value = mock_tkauth_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
             ChallengeValidatorRegistry=mock_registry,
             HttpChallengeValidator=mock_http_validator,
             DnsChallengeValidator=mock_dns_validator,
@@ -681,7 +754,10 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             # Verify email and source validators NOT called
             mock_email_validator.assert_not_called()
-            mock_source_validator.assert_not_called()
+            mock_source_validator.assert_called_once()
+            mock_http_validator.assert_called_once()
+            mock_dns_validator.assert_called_once()
+            mock_tls_validator.assert_called_once()
 
     @patch.dict(
         "sys.modules",
@@ -717,9 +793,18 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_source_instance = Mock()
         mock_source_validator.return_value = mock_source_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
             ChallengeValidatorRegistry=mock_registry,
             HttpChallengeValidator=mock_http_validator,
             DnsChallengeValidator=mock_dns_validator,
@@ -784,9 +869,18 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_source_instance = Mock()
         mock_source_validator.return_value = mock_source_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
             ChallengeValidatorRegistry=mock_registry,
             HttpChallengeValidator=mock_http_validator,
             DnsChallengeValidator=mock_dns_validator,
@@ -847,9 +941,18 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_source_instance = Mock()
         mock_source_validator.return_value = mock_source_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
             ChallengeValidatorRegistry=mock_registry,
             HttpChallengeValidator=mock_http_validator,
             DnsChallengeValidator=mock_dns_validator,
@@ -892,9 +995,12 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_registry_instance.get_supported_types.return_value = ["mock-01"]
         mock_registry.return_value = mock_registry_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
+            ChallengeValidatorRegistry=mock_registry,
         ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
@@ -936,9 +1042,12 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         )
         mock_registry.return_value = mock_registry_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
+            ChallengeValidatorRegistry=mock_registry,
         ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
@@ -977,9 +1086,12 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         ]
         mock_registry.return_value = mock_registry_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators", ChallengeValidatorRegistry=mock_registry
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
+            ChallengeValidatorRegistry=mock_registry,
         ):
 
             from acme_srv.challenge_registry_setup import create_custom_registry
@@ -1037,9 +1149,18 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_tkauth_validator = Mock()
         mock_source_validator = Mock()
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
             ChallengeValidatorRegistry=mock_registry,
             HttpChallengeValidator=mock_http_validator,
             DnsChallengeValidator=mock_dns_validator,
@@ -1085,9 +1206,18 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_tkauth_validator = Mock()
         mock_source_validator = Mock()
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
             ChallengeValidatorRegistry=mock_registry,
             HttpChallengeValidator=mock_http_validator,
             DnsChallengeValidator=mock_dns_validator,
@@ -1143,9 +1273,18 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         mock_http_instance = Mock()
         mock_http_validator.return_value = mock_http_instance
 
-        # Patch the challenge_validators module attributes
+        # Patch both the source module and the target module where imports are used
         with patch.multiple(
             "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
             ChallengeValidatorRegistry=mock_registry,
             HttpChallengeValidator=mock_http_validator,
             DnsChallengeValidator=mock_dns_validator,

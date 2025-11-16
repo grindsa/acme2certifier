@@ -319,7 +319,6 @@ class ChallengeFactory:
                 and "keyauthorization" in result
                 and "authorization__value" in result
             ):
-                print("jupp", result)
                 # send challange email
                 from acme_srv.email_handler import EmailHandler
 

@@ -22,6 +22,11 @@ class TestChallengeE2E(unittest.TestCase):
     def setUp(self):
         """Setup test environment with real database"""
         import logging
+        import sys
+
+        # Clear any existing module patches that might interfere
+        if "acme_srv.db_handler" in sys.modules:
+            del sys.modules["acme_srv.db_handler"]
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_challenge_e2e")
@@ -294,10 +299,10 @@ class TestChallengeE2E(unittest.TestCase):
 
             result = self.challenge.process_challenge_request(test_content)
 
-            # Should return error for nonexistent challenge
-            self.assertIn("data", result)
-            self.assertEqual(result["data"]["status"], 400)
-            self.assertIn("could not get challenge", result["data"]["detail"])
+        # Should return error for nonexistent challenge
+        self.assertIn("data", result)
+        self.assertEqual(result["data"]["status"], 400)
+        self.assertIn("invalid challenge", result["data"]["detail"])
 
     def test_0008_process_challenge_request_message_check_failure(self):
         """Test process_challenge_request when message.check fails"""

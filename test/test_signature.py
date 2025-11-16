@@ -39,7 +39,10 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_001_signature__jwk_load(self):
         """test jwk load"""
+        # Mock the dbstore instance on the existing signature object
+        self.signature.dbstore = MagicMock()
         self.signature.dbstore.jwk_load.return_value = "foo"
+
         self.assertEqual("foo", self.signature._jwk_load(1))
 
     def test_002_signature_check(self):
@@ -81,13 +84,24 @@ class TestACMEHandler(unittest.TestCase):
             self.signature.check(None, 1, True, protected),
         )
 
+    @patch("acme_srv.signature.DBstore")
     @patch("acme_srv.signature.signature_check")
-    def test_007_signature_check(self, mock_sig):
+    def test_007_signature_check(self, mock_sig, mock_dbstore_class):
         """test successful Signature.check() with account_name and use_emb_key True, sigcheck returns something"""
+        # Setup dbstore mock to return a key
+        mock_dbstore_instance = MagicMock()
+        mock_dbstore_instance.jwk_load.return_value = {"key": "value"}
+        mock_dbstore_class.return_value = mock_dbstore_instance
+
+        # Setup signature_check mock
         mock_sig.return_value = ("result", "error")
-        self.assertEqual(
-            ("result", "error", None), self.signature.check("foo", 1, True)
-        )
+
+        # Create a new signature instance with the mocked dbstore
+        from acme_srv.signature import Signature
+
+        signature = Signature(False, "http://tester.local", self.logger)
+
+        self.assertEqual(("result", "error", None), signature.check("foo", 1, True))
 
     @patch("acme_srv.signature.signature_check")
     def test_008_signature_check(self, mock_sig):
@@ -98,11 +112,21 @@ class TestACMEHandler(unittest.TestCase):
             ("result", "error", None), self.signature.check(None, 1, True, protected)
         )
 
-    def test_009_signature__jwk_load(self):
+    @patch("acme_srv.signature.DBstore")
+    def test_009_signature__jwk_load(self, mock_dbstore_class):
         """test jwk load  - dbstore.jwk_load() raises an exception"""
-        self.signature.dbstore.jwk_load.side_effect = Exception("exc_sig_jw_load")
+        # Setup mock to raise exception
+        mock_dbstore_instance = MagicMock()
+        mock_dbstore_instance.jwk_load.side_effect = Exception("exc_sig_jw_load")
+        mock_dbstore_class.return_value = mock_dbstore_instance
+
+        # Create a new signature instance with the mocked dbstore
+        from acme_srv.signature import Signature
+
+        signature = Signature(False, "http://tester.local", self.logger)
+
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.signature._jwk_load(1)
+            signature._jwk_load(1)
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to load JWK for account id 1: exc_sig_jw_load",
             lcm.output,
@@ -176,16 +200,36 @@ class TestACMEHandler(unittest.TestCase):
         self.signature.__init__(False, "http://tester.local", self.logger)
         self.assertEqual("/acme/revokecert", self.signature.revocation_path)
 
-    def test_018_signature__cli_jwk_load(self):
+    @patch("acme_srv.signature.DBstore")
+    def test_018_signature__cli_jwk_load(self, mock_dbstore_class):
         """test jwk load"""
-        self.signature.dbstore.cli_jwk_load.return_value = "foo"
-        self.assertEqual("foo", self.signature._cli_jwk_load(1))
+        # Setup mock to return expected value
+        mock_dbstore_instance = MagicMock()
+        mock_dbstore_instance.cli_jwk_load.return_value = "foo"
+        mock_dbstore_class.return_value = mock_dbstore_instance
 
-    def test_019_signature__cli_jwk_load(self):
+        # Create a new signature instance with the mocked dbstore
+        from acme_srv.signature import Signature
+
+        signature = Signature(False, "http://tester.local", self.logger)
+
+        self.assertEqual("foo", signature._cli_jwk_load(1))
+
+    @patch("acme_srv.signature.DBstore")
+    def test_019_signature__cli_jwk_load(self, mock_dbstore_class):
         """test jwk load  - dbstore.jwk_load() raises an exception"""
-        self.signature.dbstore.cli_jwk_load.side_effect = Exception("exc_sig_jw_load")
+        # Setup mock to raise exception
+        mock_dbstore_instance = MagicMock()
+        mock_dbstore_instance.cli_jwk_load.side_effect = Exception("exc_sig_jw_load")
+        mock_dbstore_class.return_value = mock_dbstore_instance
+
+        # Create a new signature instance with the mocked dbstore
+        from acme_srv.signature import Signature
+
+        signature = Signature(False, "http://tester.local", self.logger)
+
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.signature._cli_jwk_load(1)
+            signature._cli_jwk_load(1)
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to load CLI JWK for account id 1: exc_sig_jw_load",
             lcm.output,
