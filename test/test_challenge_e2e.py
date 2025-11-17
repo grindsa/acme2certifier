@@ -133,9 +133,9 @@ class TestChallengeE2E(unittest.TestCase):
         """Test challengeset_get() method (legacy API) returns challenge sets"""
         result = self.challenge.challengeset_get(
             authz_name="test_authz",
-            auth_status="pending",
+            _auth_status="pending",
             token="test_token",
-            tnauth=False,
+            _tnauth=False,
         )
 
         # Should return list (legacy compatibility)
@@ -145,9 +145,9 @@ class TestChallengeE2E(unittest.TestCase):
         """Test retrieve_challenge_set() returns challenge data"""
         result = self.challenge.retrieve_challenge_set(
             authz_name="test_authz",
-            auth_status="pending",
+            _auth_status="pending",
             token="test_token",
-            tnauth=False,
+            _tnauth=False,
             id_type="dns",
             id_value="example.com",
         )
@@ -286,9 +286,9 @@ class TestChallengeE2E(unittest.TestCase):
 
             result = self.challenge.retrieve_challenge_set(
                 authz_name="test_authz",
-                auth_status="pending",
+                _auth_status="pending",
                 token="test_token",
-                tnauth=False,
+                _tnauth=False,
             )
 
             # Should return empty list on error and log the error
@@ -403,7 +403,7 @@ class TestChallengeE2E(unittest.TestCase):
         """Test retrieve_challenge_set with invalid parameters"""
         # Test with None authz_name
         result = self.challenge.retrieve_challenge_set(
-            authz_name=None, auth_status="pending", token="test_token", tnauth=False
+            authz_name=None, _auth_status="pending", token="test_token", _tnauth=False
         )
 
         # Should handle gracefully and return empty list or error
@@ -411,7 +411,7 @@ class TestChallengeE2E(unittest.TestCase):
 
         # Test with empty string authz_name
         result = self.challenge.retrieve_challenge_set(
-            authz_name="", auth_status="pending", token="test_token", tnauth=False
+            authz_name="", _auth_status="pending", token="test_token", _tnauth=False
         )
 
         self.assertIsInstance(result, list)
@@ -480,9 +480,9 @@ class TestChallengeE2E(unittest.TestCase):
 
         result = self.challenge.challengeset_get(
             authz_name="test_authz",
-            auth_status="pending",
+            _auth_status="pending",
             token="test_token",
-            tnauth=True,
+            _tnauth=True,
             id_type="sip",
             id_value="sip:user@example.com",
         )
