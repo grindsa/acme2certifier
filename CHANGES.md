@@ -6,6 +6,21 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Change in 0.41
+
+- The database schema has been updated. Please ensure you run the appropriate update script after upgrading:
+  - Use `tools/db_update.py` if you are using the `wsgi_handler`
+  - Use `tools/django_update.py` if you are using the `django_handler`
+
+**Features and Improvements**:
+
+- **EAB Profiling**:
+
+  - challenge_validation_disable, forward_address_check and reverse_address_check parameters can be configured via[EAB-Profiling feature](docs/eab_profiling.md)
+  - eab_pofiling to be enabled in the `[EABhandler]` section of `acme_srv.cfg`
+
+- **Challenge Error Reporting**: Challange validation error status will be reported to ACME-client
+
 ## Changes in 0.40
 
 **Features and Improvements**:
