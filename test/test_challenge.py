@@ -536,9 +536,13 @@ class TestChallenge(unittest.TestCase):
         self.challenge._update_challenge_state_from_validation = Mock(
             return_value=False
         )
-        self.challenge.error_handler.handle_error.return_value = Mock()
+        self.challenge.error_handler.handle_error.return_value = "fail"
         self.challenge.state_manager.transition_to_invalid = Mock()
-        self.assertFalse(self.challenge._perform_challenge_validation("c1", {}))
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.assertFalse(self.challenge._perform_challenge_validation("c1", {}))
+        self.assertIn(
+            "ERROR:test_a2c:Challenge validation error for c1: fail", lcm.output
+        )
 
     def test_0038_perform_source_address_validation_disabled(self):
         self.challenge.config.forward_address_check = False
@@ -877,14 +881,14 @@ class TestChallenge(unittest.TestCase):
         )
 
         with self.assertRaises(self.UnsupportedChallengeTypeError):
-            self.challenge._execute_challenge_validation("test_challenge", {})
+            self.challenge._execute_challenge_validation("test_challenge")
 
     def test_0065_execute_challenge_validation_no_details(self):
         """Test _execute_challenge_validation when details cannot be retrieved"""
         self.challenge._get_challenge_validation_details = Mock(return_value=None)
 
         with self.assertRaises(self.ValidationError):
-            self.challenge._execute_challenge_validation("test_challenge", {})
+            self.challenge._execute_challenge_validation("test_challenge")
 
     def test_0066_extract_challenge_name_from_url_with_suffix(self):
         """Test _extract_challenge_name_from_url with URL suffix"""
@@ -1359,7 +1363,7 @@ class TestChallenge(unittest.TestCase):
             mock_retry.return_value = Mock()  # Return some validation result
 
             # This will execute lines 389-402 where ChallengeContext is created
-            result = self.challenge._execute_challenge_validation("test_challenge", {})
+            result = self.challenge._execute_challenge_validation("test_challenge")
 
             # Verify that _perform_validation_with_retry was called (which means ChallengeContext was created)
             mock_retry.assert_called_once()
@@ -2299,7 +2303,6 @@ class TestChallenge(unittest.TestCase):
         mock_result = Mock()
         mock_result.success = True
         mock_result.invalid = False
-
         self.challenge.validator_registry.validate_challenge.return_value = mock_result
 
         result = self.challenge._perform_validation_with_retry("dns-01", mock_context)
@@ -2427,14 +2430,17 @@ class TestChallenge(unittest.TestCase):
         mock_result = Mock()
         mock_result.success = False
         mock_result.invalid = False
-
         self.challenge.validator_registry.validate_challenge.return_value = mock_result
 
-        with patch("time.sleep") as mock_sleep:
-            result = self.challenge._perform_validation_with_retry(
-                "http-01", mock_context
-            )
-
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            with patch("time.sleep") as mock_sleep:
+                result = self.challenge._perform_validation_with_retry(
+                    "http-01", mock_context
+                )
+        self.assertIn(
+            "ERROR:test_a2c:No more retries left for challenge type http-01. Invalidating challenge.",
+            lcm.output,
+        )
         # Should have called validate_challenge only once (no retries for http-01)
         self.assertEqual(
             self.challenge.validator_registry.validate_challenge.call_count, 1
@@ -2456,7 +2462,6 @@ class TestChallenge(unittest.TestCase):
         result = self.challenge._perform_validation_with_retry(
             "tls-alpn-01", mock_context
         )
-
         # Should have called validate_challenge only once (no retries for tls-alpn-01)
         self.assertEqual(
             self.challenge.validator_registry.validate_challenge.call_count, 1
@@ -2474,16 +2479,18 @@ class TestChallenge(unittest.TestCase):
         mock_result_fail = Mock()
         mock_result_fail.success = False
         mock_result_fail.invalid = False
-
         self.challenge.validator_registry.validate_challenge.return_value = (
             mock_result_fail
         )
-
-        with patch("time.sleep") as mock_sleep:
-            result = self.challenge._perform_validation_with_retry(
-                "dns-01", mock_context
-            )
-
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            with patch("time.sleep") as mock_sleep:
+                result = self.challenge._perform_validation_with_retry(
+                    "dns-01", mock_context
+                )
+        self.assertIn(
+            "ERROR:test_a2c:No more retries left for challenge type dns-01. Invalidating challenge.",
+            lcm.output,
+        )
         # Should have called validate_challenge 5 times
         self.assertEqual(
             self.challenge.validator_registry.validate_challenge.call_count, 5
@@ -2499,13 +2506,15 @@ class TestChallenge(unittest.TestCase):
         mock_result = Mock()
         mock_result.success = False
         mock_result.invalid = False
-
         self.challenge.config.dns_validation_pause_timer = 1.5
         self.challenge.validator_registry.validate_challenge.return_value = mock_result
-
-        with patch("time.sleep") as mock_sleep:
-            self.challenge._perform_validation_with_retry("dns-01", mock_context)
-
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            with patch("time.sleep") as mock_sleep:
+                self.challenge._perform_validation_with_retry("dns-01", mock_context)
+        self.assertIn(
+            "ERROR:test_a2c:No more retries left for challenge type dns-01. Invalidating challenge.",
+            lcm.output,
+        )
         # Verify sleep was called with the configured timer value
         mock_sleep.assert_called_with(1.5)
 
@@ -2527,7 +2536,6 @@ class TestChallenge(unittest.TestCase):
     def test_0130_get_legacy_api_logs_debug_message(self):
         """Test get() legacy API method logs appropriate debug message"""
         url = "http://example.com/acme/chall/test_challenge"
-
         with patch.object(
             self.challenge, "get_challenge_details", return_value={"code": 200}
         ):

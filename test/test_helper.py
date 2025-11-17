@@ -10,6 +10,7 @@ import socket
 from unittest.mock import patch, MagicMock, Mock
 import dns.resolver
 import base64
+import requests
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
@@ -1286,6 +1287,76 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         self.assertEqual(500, status_code)
         self.assertIn(
             "Could not get URL by using the configured DNS servers", error_msg
+        )
+
+    @patch("acme_srv.helpers.network.requests.get")
+    def test_109a_helper_url_get_with_own_dns_non_200(self, mock_request):
+        """url_get_with_own_dns with non-200 status code"""
+        mock_request.return_value.text = "Not Found"
+        mock_request.return_value.status_code = 404
+        mock_request.return_value.reason = "Not Found"
+        result, status_code, error_msg = self.url_get_with_own_dns(
+            self.logger, "http://example.com/test"
+        )
+        self.assertEqual("Not Found", result)
+        self.assertEqual(404, status_code)
+        self.assertEqual("http://example.com/test Not Found", error_msg)
+
+    @patch("acme_srv.helpers.network.requests.get")
+    def test_109b_helper_url_get_with_own_dns_verify_false(self, mock_request):
+        """url_get_with_own_dns with verify=False parameter"""
+        mock_request.return_value.text = "secure content"
+        mock_request.return_value.status_code = 200
+        result, status_code, error_msg = self.url_get_with_own_dns(
+            self.logger, "https://secure.example.com", verify=False
+        )
+        self.assertEqual("secure content", result)
+        self.assertEqual(200, status_code)
+        self.assertEqual(None, error_msg)
+        # Verify that requests.get was called with verify=False
+        mock_request.assert_called_once()
+        call_args = mock_request.call_args
+        self.assertEqual(call_args[1]["verify"], False)
+
+    @patch("acme_srv.helpers.network.requests.get")
+    def test_109c_helper_url_get_with_own_dns_connection_cleanup(self, mock_request):
+        """url_get_with_own_dns ensures connection cleanup after exception"""
+        mock_request.side_effect = requests.exceptions.ConnectionError(
+            "Connection failed"
+        )
+
+        # Store original connection function
+        from acme_srv.helpers.network import connection
+
+        original_create_connection = connection.create_connection
+
+        result, status_code, error_msg = self.url_get_with_own_dns(
+            self.logger, "http://example.com"
+        )
+
+        # Verify exception handling
+        self.assertEqual(None, result)
+        self.assertEqual(500, status_code)
+        self.assertIn(
+            "Could not get URL by using the configured DNS servers", error_msg
+        )
+
+        # Verify connection was restored after exception
+        self.assertEqual(connection.create_connection, original_create_connection)
+
+    @patch("acme_srv.helpers.network.requests.get")
+    def test_109d_helper_url_get_with_own_dns_server_error(self, mock_request):
+        """url_get_with_own_dns with server error status code"""
+        mock_request.return_value.text = "Internal Server Error"
+        mock_request.return_value.status_code = 500
+        mock_request.return_value.reason = "Internal Server Error"
+        result, status_code, error_msg = self.url_get_with_own_dns(
+            self.logger, "http://api.example.com/endpoint"
+        )
+        self.assertEqual("Internal Server Error", result)
+        self.assertEqual(500, status_code)
+        self.assertEqual(
+            "http://api.example.com/endpoint Internal Server Error", error_msg
         )
 
     @patch("acme_srv.helpers.network.load_config")
@@ -5405,6 +5476,796 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.assertIn(
                     "asynchronous Challenge validation disabled", log.output[0]
                 )
+
+    def test_474_fqdn_resolve_successful_a_record_no_catch_all(self):
+        """Test successful A record resolution without catch_all"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+        # Create a proper mock that behaves like dns.resolver answer
+        mock_answer = [Mock(__str__=Mock(return_value="192.168.1.1"))]
+        mock_resolver.resolve.return_value = mock_answer
+
+        result, invalid, error_msg = _fqdn_resolve(
+            self.logger, mock_resolver, "example.com", catch_all=False
+        )
+
+        self.assertEqual(result, "192.168.1.1")
+        self.assertFalse(invalid)
+        self.assertIsNone(error_msg)
+        mock_resolver.resolve.assert_called_once_with("example.com", "A")
+
+    def test_475_fqdn_resolve_successful_aaaa_record_no_catch_all(self):
+        """Test successful AAAA record resolution when A record fails"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+
+        # A record fails, AAAA succeeds
+        mock_aaaa_answer = [Mock(__str__=Mock(return_value="2001:db8::1"))]
+        mock_resolver.resolve.side_effect = [dns.resolver.NXDOMAIN(), mock_aaaa_answer]
+
+        result, invalid, error_msg = _fqdn_resolve(
+            self.logger, mock_resolver, "example.com", catch_all=False
+        )
+
+        self.assertEqual(result, "2001:db8::1")
+        self.assertFalse(invalid)
+        self.assertIsNone(error_msg)
+
+    def test_476_fqdn_resolve_successful_catch_all_both_records(self):
+        """Test successful resolution with catch_all returning both A and AAAA"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+
+        # Mock both A and AAAA responses
+        mock_a_answer = [
+            Mock(__str__=Mock(return_value="192.168.1.1")),
+            Mock(__str__=Mock(return_value="192.168.1.2")),
+        ]
+        mock_aaaa_answer = [Mock(__str__=Mock(return_value="2001:db8::1"))]
+        mock_resolver.resolve.side_effect = [mock_a_answer, mock_aaaa_answer]
+
+        result, invalid, error_msg = _fqdn_resolve(
+            self.logger, mock_resolver, "example.com", catch_all=True
+        )
+
+        self.assertEqual(result, ["192.168.1.1", "192.168.1.2", "2001:db8::1"])
+        self.assertFalse(invalid)
+        self.assertIsNone(error_msg)
+
+    def test_477_fqdn_resolve_nxdomain_error(self):
+        """Test NXDOMAIN error handling"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+        mock_resolver.resolve.side_effect = dns.resolver.NXDOMAIN()
+
+        result, invalid, error_msg = _fqdn_resolve(
+            self.logger, mock_resolver, "nonexistent.com", catch_all=False
+        )
+
+        expected_result = None
+        self.assertEqual(result, expected_result)
+        self.assertTrue(invalid)
+        self.assertIn("NXDOMAIN: nonexistent.com does not exist", error_msg)
+
+    def test_478_fqdn_resolve_no_answer_error(self):
+        """Test NoAnswer error handling"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+        mock_resolver.resolve.side_effect = dns.resolver.NoAnswer()
+
+        result, invalid, error_msg = _fqdn_resolve(
+            self.logger, mock_resolver, "example.com", catch_all=False
+        )
+
+        expected_result = None
+        self.assertEqual(result, expected_result)
+        self.assertTrue(invalid)
+        self.assertIn("No A record found for example.com", error_msg)
+
+    def test_479_fqdn_resolve_timeout_error(self):
+        """Test timeout error handling"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+        mock_resolver.resolve.side_effect = dns.resolver.Timeout()
+
+        result, invalid, error_msg = _fqdn_resolve(
+            self.logger, mock_resolver, "example.com", catch_all=False
+        )
+
+        expected_result = None
+        self.assertEqual(result, expected_result)
+        self.assertTrue(invalid)
+        self.assertIn("DNS query timeout for example.com", error_msg)
+
+    def test_480_fqdn_resolve_generic_error(self):
+        """Test generic exception handling"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+        mock_resolver.resolve.side_effect = Exception("Connection refused")
+
+        result, invalid, error_msg = _fqdn_resolve(
+            self.logger, mock_resolver, "example.com", catch_all=False
+        )
+
+        expected_result = None
+        self.assertEqual(result, expected_result)
+        self.assertTrue(invalid)
+        self.assertIn("DNS resolution error: Connection refused", error_msg)
+
+    def test_481_fqdn_resolve_mixed_errors_catch_all(self):
+        """Test mixed errors across record types with catch_all"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+        mock_resolver.resolve.side_effect = [
+            dns.resolver.NXDOMAIN(),  # A record fails
+            dns.resolver.Timeout(),  # AAAA record fails
+        ]
+
+        result, invalid, error_msg = _fqdn_resolve(
+            self.logger, mock_resolver, "example.com", catch_all=True
+        )
+
+        expected_result = []
+        self.assertEqual(result, expected_result)
+        self.assertTrue(invalid)
+        self.assertIn("A: NXDOMAIN: example.com does not exist", error_msg)
+        self.assertIn("AAAA: DNS query timeout for example.com", error_msg)
+
+    def test_482_fqdn_resolve_empty_answers_no_catch_all(self):
+        """Test empty answers without catch_all"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+        mock_answer = []  # Empty list - no DNS records
+        mock_resolver.resolve.return_value = mock_answer
+
+        result, invalid, error_msg = _fqdn_resolve(
+            self.logger, mock_resolver, "example.com", catch_all=False
+        )
+
+        expected_result = None
+        self.assertEqual(result, expected_result)
+        self.assertTrue(invalid)
+        self.assertIsNone(error_msg)
+
+    def test_483_fqdn_resolve_empty_answers_catch_all(self):
+        """Test empty answers with catch_all"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+        mock_answer = []  # Empty list - no DNS records
+        mock_resolver.resolve.return_value = mock_answer
+
+        result, invalid, error_msg = _fqdn_resolve(
+            self.logger, mock_resolver, "example.com", catch_all=True
+        )
+
+        expected_result = []
+        self.assertEqual(result, expected_result)
+        self.assertTrue(invalid)
+        self.assertIsNone(error_msg)
+
+    def test_484_fqdn_resolve_partial_success_catch_all(self):
+        """Test partial success with catch_all (A succeeds, AAAA fails)"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+        mock_a_answer = [Mock(__str__=Mock(return_value="192.168.1.1"))]
+        mock_resolver.resolve.side_effect = [
+            mock_a_answer,  # A record succeeds
+            dns.resolver.NoAnswer(),  # AAAA record fails
+        ]
+
+        result, invalid, error_msg = _fqdn_resolve(
+            self.logger, mock_resolver, "example.com", catch_all=True
+        )
+
+        self.assertEqual(result, ["192.168.1.1"])
+        self.assertFalse(invalid)  # Should be valid since at least one succeeded
+        self.assertIsNone(error_msg)
+
+    def test_485_fqdn_resolve_multiple_a_records_no_catch_all(self):
+        """Test multiple A records without catch_all (should return first)"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+        mock_answer = [
+            Mock(__str__=Mock(return_value="192.168.1.1")),
+            Mock(__str__=Mock(return_value="192.168.1.2")),
+            Mock(__str__=Mock(return_value="192.168.1.3")),
+        ]
+        mock_resolver.resolve.return_value = mock_answer
+
+        result, invalid, error_msg = _fqdn_resolve(
+            self.logger, mock_resolver, "example.com", catch_all=False
+        )
+
+        self.assertEqual(result, "192.168.1.1")
+        self.assertFalse(invalid)
+        self.assertIsNone(error_msg)
+        # Should only make one call since it breaks after first success
+        mock_resolver.resolve.assert_called_once_with("example.com", "A")
+
+    def test_486_fqdn_resolve_a_fails_aaaa_succeeds_no_catch_all(self):
+        """Test A record failure but AAAA success without catch_all"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+        mock_aaaa_answer = [Mock(__str__=Mock(return_value="2001:db8::1"))]
+        mock_resolver.resolve.side_effect = [
+            dns.resolver.NoAnswer(),  # A record fails
+            mock_aaaa_answer,  # AAAA record succeeds
+        ]
+
+        result, invalid, error_msg = _fqdn_resolve(
+            self.logger, mock_resolver, "example.com", catch_all=False
+        )
+
+        self.assertEqual(result, "2001:db8::1")
+        self.assertFalse(invalid)
+        self.assertIsNone(error_msg)
+
+    def test_487_fqdn_resolve_logging_verification(self):
+        """Test that appropriate logging occurs"""
+        from acme_srv.helpers.network import _fqdn_resolve
+
+        mock_resolver = Mock()
+        mock_answer = [Mock(__str__=Mock(return_value="192.168.1.1"))]
+        mock_resolver.resolve.return_value = mock_answer
+
+        with self.assertLogs(self.logger, level="DEBUG") as log_context:
+            result, invalid, error_msg = _fqdn_resolve(
+                self.logger, mock_resolver, "example.com", catch_all=False
+            )
+
+        self.assertEqual(result, "192.168.1.1")
+        self.assertFalse(invalid)
+        self.assertIsNone(error_msg)
+
+        # Verify debug logs
+        self.assertTrue(
+            any(
+                "Helper._fqdn_resolve(example.com:False)" in record.message
+                for record in log_context.records
+            )
+        )
+        self.assertTrue(
+            any(
+                "Helper._fqdn_resolve() got answer:" in record.message
+                for record in log_context.records
+            )
+        )
+        self.assertTrue(
+            any(
+                "Helper._fqdn_resolve(example.com) ended with:" in record.message
+                for record in log_context.records
+            )
+        )
+
+    def test_488_ptr_resolve_successful_resolution(self):
+        """Test successful PTR record resolution"""
+        from acme_srv.helpers.network import ptr_resolve
+
+        with patch("dns.resolver.Resolver") as mock_resolver_class:
+            mock_resolver = Mock()
+            mock_resolver_class.return_value = mock_resolver
+
+            # Mock successful PTR resolution
+            mock_ptr_answer = [Mock(__str__=Mock(return_value="example.com."))]
+            mock_resolver.resolve.return_value = mock_ptr_answer
+
+            with patch("dns.reversename.from_address") as mock_reverse:
+                mock_reverse.return_value = "reversed_ip"
+
+                result, invalid = ptr_resolve(self.logger, "192.168.1.1")
+
+                self.assertEqual(result, "example.com")  # Trailing dot removed
+                self.assertFalse(invalid)
+                mock_reverse.assert_called_once_with("192.168.1.1")
+                mock_resolver.resolve.assert_called_once_with("reversed_ip", "PTR")
+
+    def test_489_ptr_resolve_successful_with_dns_servers(self):
+        """Test successful PTR resolution with custom DNS servers"""
+        from acme_srv.helpers.network import ptr_resolve
+
+        with patch("dns.resolver.Resolver") as mock_resolver_class:
+            mock_resolver = Mock()
+            mock_resolver_class.return_value = mock_resolver
+
+            # Mock successful PTR resolution
+            mock_ptr_answer = [Mock(__str__=Mock(return_value="mail.example.com."))]
+            mock_resolver.resolve.return_value = mock_ptr_answer
+
+            with patch("dns.reversename.from_address") as mock_reverse:
+                mock_reverse.return_value = "reversed_ip"
+                dns_servers = ["8.8.8.8", "1.1.1.1"]
+
+                result, invalid = ptr_resolve(self.logger, "203.0.113.5", dns_servers)
+
+                self.assertEqual(result, "mail.example.com")
+                self.assertFalse(invalid)
+                self.assertEqual(mock_resolver.nameservers, dns_servers)
+
+    def test_490_ptr_resolve_exception_handling(self):
+        """Test PTR resolution exception handling"""
+        from acme_srv.helpers.network import ptr_resolve
+
+        with patch("dns.resolver.Resolver") as mock_resolver_class:
+            mock_resolver = Mock()
+            mock_resolver_class.return_value = mock_resolver
+            mock_resolver.resolve.side_effect = Exception("DNS resolution failed")
+
+            with patch("dns.reversename.from_address") as mock_reverse:
+                mock_reverse.return_value = "reversed_ip"
+
+                result, invalid = ptr_resolve(self.logger, "invalid.ip")
+
+                self.assertIsNone(result)
+                self.assertTrue(invalid)
+
+    def test_491_ptr_resolve_nxdomain_error(self):
+        """Test PTR resolution with NXDOMAIN error"""
+        from acme_srv.helpers.network import ptr_resolve
+
+        with patch("dns.resolver.Resolver") as mock_resolver_class:
+            mock_resolver = Mock()
+            mock_resolver_class.return_value = mock_resolver
+            mock_resolver.resolve.side_effect = dns.resolver.NXDOMAIN()
+
+            with patch("dns.reversename.from_address") as mock_reverse:
+                mock_reverse.return_value = "reversed_ip"
+
+                result, invalid = ptr_resolve(self.logger, "10.0.0.1")
+
+                self.assertIsNone(result)
+                self.assertTrue(invalid)
+
+    def test_492_ptr_resolve_timeout_error(self):
+        """Test PTR resolution with timeout error"""
+        from acme_srv.helpers.network import ptr_resolve
+
+        with patch("dns.resolver.Resolver") as mock_resolver_class:
+            mock_resolver = Mock()
+            mock_resolver_class.return_value = mock_resolver
+            mock_resolver.resolve.side_effect = dns.resolver.Timeout()
+
+            with patch("dns.reversename.from_address") as mock_reverse:
+                mock_reverse.return_value = "reversed_ip"
+
+                result, invalid = ptr_resolve(self.logger, "172.16.0.1")
+
+                self.assertIsNone(result)
+                self.assertTrue(invalid)
+
+    def test_493_ptr_resolve_invalid_address_format(self):
+        """Test PTR resolution with invalid IP address format"""
+        from acme_srv.helpers.network import ptr_resolve
+
+        with patch("dns.resolver.Resolver") as mock_resolver_class:
+            mock_resolver = Mock()
+            mock_resolver_class.return_value = mock_resolver
+
+            with patch("dns.reversename.from_address") as mock_reverse:
+                mock_reverse.side_effect = Exception("Invalid IP address format")
+
+                result, invalid = ptr_resolve(self.logger, "not.an.ip.address")
+
+                self.assertIsNone(result)
+                self.assertTrue(invalid)
+
+    def test_494_ptr_resolve_empty_response(self):
+        """Test PTR resolution with empty response"""
+        from acme_srv.helpers.network import ptr_resolve
+
+        with patch("dns.resolver.Resolver") as mock_resolver_class:
+            mock_resolver = Mock()
+            mock_resolver_class.return_value = mock_resolver
+            mock_resolver.resolve.side_effect = IndexError("list index out of range")
+
+            with patch("dns.reversename.from_address") as mock_reverse:
+                mock_reverse.return_value = "reversed_ip"
+
+                result, invalid = ptr_resolve(self.logger, "198.51.100.1")
+
+                self.assertIsNone(result)
+                self.assertTrue(invalid)
+
+    def test_495_ptr_resolve_logging_verification(self):
+        """Test PTR resolution logging behavior"""
+        from acme_srv.helpers.network import ptr_resolve
+
+        with patch("dns.resolver.Resolver") as mock_resolver_class:
+            mock_resolver = Mock()
+            mock_resolver_class.return_value = mock_resolver
+
+            # Mock successful PTR resolution
+            mock_ptr_answer = [Mock(__str__=Mock(return_value="test.example.org."))]
+            mock_resolver.resolve.return_value = mock_ptr_answer
+
+            with patch("dns.reversename.from_address") as mock_reverse:
+                mock_reverse.return_value = "reversed_ip"
+
+                with self.assertLogs(self.logger, level="DEBUG") as log_context:
+                    result, invalid = ptr_resolve(self.logger, "93.184.216.34")
+
+                self.assertEqual(result, "test.example.org")
+                self.assertFalse(invalid)
+
+                # Verify debug logs
+                self.assertTrue(
+                    any(
+                        "Helper.ptr_resolve(93.184.216.34)" in record.message
+                        for record in log_context.records
+                    )
+                )
+                self.assertTrue(
+                    any(
+                        "Helper.ptr_resolve(93.184.216.34) ended with:"
+                        in record.message
+                        for record in log_context.records
+                    )
+                )
+
+    def test_496_ptr_resolve_error_logging_verification(self):
+        """Test PTR resolution error logging behavior"""
+        from acme_srv.helpers.network import ptr_resolve
+
+        with patch("dns.resolver.Resolver") as mock_resolver_class:
+            mock_resolver = Mock()
+            mock_resolver_class.return_value = mock_resolver
+            mock_resolver.resolve.side_effect = Exception("Connection timeout")
+
+            with patch("dns.reversename.from_address") as mock_reverse:
+                mock_reverse.return_value = "reversed_ip"
+
+                with self.assertLogs(self.logger, level="DEBUG") as log_context:
+                    result, invalid = ptr_resolve(self.logger, "127.0.0.1")
+
+                self.assertIsNone(result)
+                self.assertTrue(invalid)
+
+                # Verify error logging
+                self.assertTrue(
+                    any(
+                        "Error while resolving 127.0.0.1: Connection timeout"
+                        in record.message
+                        for record in log_context.records
+                    )
+                )
+
+    def test_497_ptr_resolve_ipv6_address(self):
+        """Test PTR resolution with IPv6 address"""
+        from acme_srv.helpers.network import ptr_resolve
+
+        with patch("dns.resolver.Resolver") as mock_resolver_class:
+            mock_resolver = Mock()
+            mock_resolver_class.return_value = mock_resolver
+
+            # Mock successful PTR resolution for IPv6
+            mock_ptr_answer = [Mock(__str__=Mock(return_value="ipv6.example.com."))]
+            mock_resolver.resolve.return_value = mock_ptr_answer
+
+            with patch("dns.reversename.from_address") as mock_reverse:
+                mock_reverse.return_value = "ipv6_reversed"
+
+                result, invalid = ptr_resolve(self.logger, "2001:db8::1")
+
+                self.assertEqual(result, "ipv6.example.com")
+                self.assertFalse(invalid)
+                mock_reverse.assert_called_once_with("2001:db8::1")
+                mock_resolver.resolve.assert_called_once_with("ipv6_reversed", "PTR")
+
+    def test_498_url_get_with_default_dns_successful_200(self):
+        """Test successful HTTP request with 200 status code"""
+        from acme_srv.helpers.network import url_get_with_default_dns
+
+        with patch("acme_srv.helpers.network.v6_adjust") as mock_v6_adjust:
+            mock_v6_adjust.return_value = ({"User-Agent": "test"}, "http://example.com")
+
+            with patch("requests.get") as mock_get:
+                mock_response = Mock()
+                mock_response.text = "Success response"
+                mock_response.status_code = 200
+                mock_get.return_value = mock_response
+
+                result, status_code, error_msg = url_get_with_default_dns(
+                    self.logger, "http://example.com", {}, True, 30
+                )
+
+                self.assertEqual(result, "Success response")
+                self.assertEqual(status_code, 200)
+                self.assertIsNone(error_msg)
+                mock_get.assert_called_once_with(
+                    "http://example.com",
+                    verify=True,
+                    timeout=30,
+                    headers={"User-Agent": "test"},
+                    proxies={},
+                )
+
+    def test_499_url_get_with_default_dns_successful_non_200(self):
+        """Test successful HTTP request with non-200 status code"""
+        from acme_srv.helpers.network import url_get_with_default_dns
+
+        with patch("acme_srv.helpers.network.v6_adjust") as mock_v6_adjust:
+            mock_v6_adjust.return_value = ({"User-Agent": "test"}, "http://example.com")
+
+            with patch("requests.get") as mock_get:
+                mock_response = Mock()
+                mock_response.text = "Not found"
+                mock_response.status_code = 404
+                mock_response.reason = "Not Found"
+                mock_get.return_value = mock_response
+
+                result, status_code, error_msg = url_get_with_default_dns(
+                    self.logger, "http://example.com", {}, True, 30
+                )
+
+                self.assertEqual(result, "Not found")
+                self.assertEqual(status_code, 404)
+                self.assertEqual(error_msg, "http://example.com Not Found")
+
+    def test_500_url_get_with_default_dns_exception_fallback_success(self):
+        """Test exception in first request triggers IPv4 fallback - success"""
+        from acme_srv.helpers.network import url_get_with_default_dns
+
+        with patch("acme_srv.helpers.network.v6_adjust") as mock_v6_adjust:
+            mock_v6_adjust.return_value = ({"User-Agent": "test"}, "http://example.com")
+
+            with patch("requests.get") as mock_get:
+                # First call fails, second call (fallback) succeeds
+                mock_response = Mock()
+                mock_response.text = "Fallback success"
+                mock_response.status_code = 200
+                mock_get.side_effect = [
+                    Exception("Initial request failed"),
+                    mock_response,
+                ]
+
+                with patch("acme_srv.helpers.network.urllib3_cn") as mock_urllib3:
+                    old_gai_family = Mock()
+                    mock_urllib3.allowed_gai_family = old_gai_family
+
+                    result, status_code, error_msg = url_get_with_default_dns(
+                        self.logger,
+                        "http://example.com",
+                        {"http": "proxy:8080"},
+                        True,
+                        30,
+                    )
+
+                    self.assertEqual(result, "Fallback success")
+                    self.assertEqual(status_code, 200)
+                    self.assertIsNone(error_msg)
+                    # Verify fallback call
+                    self.assertEqual(mock_get.call_count, 2)
+                    # Verify old GAI family was restored
+                    self.assertEqual(mock_urllib3.allowed_gai_family, old_gai_family)
+
+    def test_501_url_get_with_default_dns_fallback_read_timeout(self):
+        """Test ReadTimeout exception in IPv4 fallback"""
+        from acme_srv.helpers.network import url_get_with_default_dns
+
+        with patch("acme_srv.helpers.network.v6_adjust") as mock_v6_adjust:
+            mock_v6_adjust.return_value = ({"User-Agent": "test"}, "http://example.com")
+
+            with patch("requests.get") as mock_get:
+                mock_get.side_effect = [
+                    Exception("Initial request failed"),
+                    requests.exceptions.ReadTimeout("Read timeout"),
+                ]
+
+                with patch("acme_srv.helpers.network.urllib3_cn") as mock_urllib3:
+                    old_gai_family = Mock()
+                    mock_urllib3.allowed_gai_family = old_gai_family
+
+                    result, status_code, error_msg = url_get_with_default_dns(
+                        self.logger, "http://example.com", {}, False, 10
+                    )
+
+                    self.assertIsNone(result)
+                    self.assertEqual(status_code, 500)
+                    self.assertEqual(
+                        error_msg,
+                        "Could not fetch URL: http://example.com - Read timeout.",
+                    )
+                    # Verify old GAI family was restored
+                    self.assertEqual(mock_urllib3.allowed_gai_family, old_gai_family)
+
+    def test_502_url_get_with_default_dns_fallback_connection_error(self):
+        """Test ConnectionError exception in IPv4 fallback"""
+        from acme_srv.helpers.network import url_get_with_default_dns
+
+        with patch("acme_srv.helpers.network.v6_adjust") as mock_v6_adjust:
+            mock_v6_adjust.return_value = ({"User-Agent": "test"}, "http://example.com")
+
+            with patch("requests.get") as mock_get:
+                mock_get.side_effect = [
+                    Exception("Initial request failed"),
+                    requests.exceptions.ConnectionError("Connection failed"),
+                ]
+
+                with patch("acme_srv.helpers.network.urllib3_cn") as mock_urllib3:
+                    old_gai_family = Mock()
+                    mock_urllib3.allowed_gai_family = old_gai_family
+
+                    result, status_code, error_msg = url_get_with_default_dns(
+                        self.logger, "http://example.com", {}, True, 20
+                    )
+
+                    self.assertIsNone(result)
+                    self.assertEqual(status_code, 500)
+                    self.assertEqual(
+                        error_msg,
+                        "Could not fetch URL: http://example.com - Connection error.",
+                    )
+                    # Verify old GAI family was restored
+                    self.assertEqual(mock_urllib3.allowed_gai_family, old_gai_family)
+
+    def test_503_url_get_with_default_dns_fallback_generic_exception(self):
+        """Test generic exception in IPv4 fallback"""
+        from acme_srv.helpers.network import url_get_with_default_dns
+
+        with patch("acme_srv.helpers.network.v6_adjust") as mock_v6_adjust:
+            mock_v6_adjust.return_value = ({"User-Agent": "test"}, "http://example.com")
+
+            with patch("requests.get") as mock_get:
+                mock_get.side_effect = [
+                    Exception("Initial request failed"),
+                    RuntimeError("Unexpected error"),
+                ]
+
+                with patch("acme_srv.helpers.network.urllib3_cn") as mock_urllib3:
+                    old_gai_family = Mock()
+                    mock_urllib3.allowed_gai_family = old_gai_family
+
+                    result, status_code, error_msg = url_get_with_default_dns(
+                        self.logger, "http://example.com", {}, True, 15
+                    )
+
+                    self.assertIsNone(result)
+                    self.assertEqual(status_code, 500)
+                    self.assertEqual(
+                        error_msg, "Could not fetch URL: http://example.com"
+                    )
+                    # Verify old GAI family was restored
+                    self.assertEqual(mock_urllib3.allowed_gai_family, old_gai_family)
+
+    def test_504_url_get_with_default_dns_fallback_non_200(self):
+        """Test non-200 status in IPv4 fallback"""
+        from acme_srv.helpers.network import url_get_with_default_dns
+
+        with patch("acme_srv.helpers.network.v6_adjust") as mock_v6_adjust:
+            mock_v6_adjust.return_value = ({"User-Agent": "test"}, "http://example.com")
+
+            with patch("requests.get") as mock_get:
+                mock_response = Mock()
+                mock_response.text = "Server Error"
+                mock_response.status_code = 500
+                mock_response.reason = "Internal Server Error"
+
+                mock_get.side_effect = [
+                    Exception("Initial request failed"),
+                    mock_response,
+                ]
+
+                with patch("acme_srv.helpers.network.urllib3_cn") as mock_urllib3:
+                    old_gai_family = Mock()
+                    mock_urllib3.allowed_gai_family = old_gai_family
+
+                    result, status_code, error_msg = url_get_with_default_dns(
+                        self.logger, "http://example.com", {}, True, 25
+                    )
+
+                    self.assertEqual(result, "Server Error")
+                    self.assertEqual(status_code, 500)
+                    self.assertEqual(
+                        error_msg, "http://example.com Internal Server Error"
+                    )
+                    # Verify old GAI family was restored
+                    self.assertEqual(mock_urllib3.allowed_gai_family, old_gai_family)
+
+    def test_505_url_get_with_default_dns_with_proxy_config(self):
+        """Test request with proxy configuration"""
+        from acme_srv.helpers.network import url_get_with_default_dns
+
+        with patch("acme_srv.helpers.network.v6_adjust") as mock_v6_adjust:
+            mock_v6_adjust.return_value = ({"User-Agent": "test"}, "http://example.com")
+
+            with patch("requests.get") as mock_get:
+                mock_response = Mock()
+                mock_response.text = "Proxy response"
+                mock_response.status_code = 200
+                mock_get.return_value = mock_response
+
+                proxy_config = {
+                    "http": "proxy.example.com:8080",
+                    "https": "proxy.example.com:8080",
+                }
+
+                result, status_code, error_msg = url_get_with_default_dns(
+                    self.logger, "http://example.com", proxy_config, False, 30
+                )
+
+                self.assertEqual(result, "Proxy response")
+                self.assertEqual(status_code, 200)
+                self.assertIsNone(error_msg)
+                mock_get.assert_called_once_with(
+                    "http://example.com",
+                    verify=False,
+                    timeout=30,
+                    headers={"User-Agent": "test"},
+                    proxies=proxy_config,
+                )
+
+    def test_506_url_get_with_default_dns_logging_verification(self):
+        """Test logging behavior in url_get_with_default_dns"""
+        from acme_srv.helpers.network import url_get_with_default_dns
+
+        with patch("acme_srv.helpers.network.v6_adjust") as mock_v6_adjust:
+            mock_v6_adjust.return_value = ({"User-Agent": "test"}, "http://example.com")
+
+            with patch("requests.get") as mock_get:
+                mock_get.side_effect = [
+                    Exception("Initial request failed"),
+                    requests.exceptions.ReadTimeout("Read timeout"),
+                ]
+
+                with patch("acme_srv.helpers.network.urllib3_cn"):
+                    with self.assertLogs(self.logger, level="DEBUG") as log_context:
+                        result, status_code, error_msg = url_get_with_default_dns(
+                            self.logger, "http://example.com", {}, True, 20
+                        )
+
+                    self.assertIsNone(result)
+                    self.assertEqual(status_code, 500)
+
+                    # Verify debug logs
+                    self.assertTrue(
+                        any(
+                            "Helper.url_get_with_default_dns(http://example.com) vrf=True, timout:20"
+                            in record.message
+                            for record in log_context.records
+                        )
+                    )
+                    self.assertTrue(
+                        any(
+                            "Helper.url_get_with_default_dns(Initial request failed): error"
+                            in record.message
+                            for record in log_context.records
+                        )
+                    )
+                    self.assertTrue(
+                        any(
+                            "Helper.url_get_with_default_dns(http://example.com): fallback to v4"
+                            in record.message
+                            for record in log_context.records
+                        )
+                    )
+                    self.assertTrue(
+                        any(
+                            "Helper.url_get_with_default_dns(http://example.com): read timeout"
+                            in record.message
+                            for record in log_context.records
+                        )
+                    )
+
+    def test_507_allowed_gai_family(self):
+        """Test allowed_gai_family function returns IPv4"""
+        from acme_srv.helpers.network import allowed_gai_family
+        import socket
+
+        result = allowed_gai_family()
+
+        self.assertEqual(result, socket.AF_INET)
 
 
 if __name__ == "__main__":

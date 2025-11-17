@@ -19,6 +19,49 @@ from .encoding import convert_string_to_byte, b64_encode
 from .global_variables import USER_AGENT
 
 
+def _handle_dns_exception(
+    logger: logging.Logger,
+    host: str,
+    rrtype: str,
+    error: Exception,
+    errors_encountered: List[str],
+) -> None:
+    """Handle DNS resolution exceptions and log them appropriately"""
+    error_mappings = {
+        dns.resolver.NXDOMAIN: f"NXDOMAIN: {host} does not exist",
+        dns.resolver.NoAnswer: f"No {rrtype} record found for {host}",
+        dns.resolver.Timeout: f"DNS query timeout for {host}",
+    }
+
+    error_detail = error_mappings.get(
+        type(error), f"DNS resolution error: {str(error)}"
+    )
+
+    logger.debug("Error resolving %s with type %s: %s", host, rrtype, error_detail)
+    errors_encountered.append(f"{rrtype}: {error_detail}")
+
+
+def _process_dns_answers(
+    logger: logging.Logger,
+    answers: dns.resolver.Answer,
+    catch_all: bool,
+    result: Union[List[str], None],
+) -> Tuple[Union[str, List[str], None], bool]:
+    """Process DNS resolution answers and return appropriate result"""
+    logger.debug("Helper._fqdn_resolve() got answer: %s", list(answers))
+    resolved = [str(rdata) for rdata in answers]
+
+    if not resolved:
+        return result, True  # No answers found, keep searching
+
+    if catch_all:
+        if isinstance(result, list):
+            result.extend(resolved)
+        return result, False  # Found answers, mark as valid
+    else:
+        return resolved[0], False  # Return first answer and mark as valid
+
+
 def _fqdn_resolve(
     logger: logging.Logger,
     req: dns.resolver.Resolver,
@@ -30,57 +73,32 @@ def _fqdn_resolve(
 
     result = [] if catch_all else None
     invalid = True
-    error_msg = None
     errors_encountered = []
 
     for rrtype in ["A", "AAAA"]:
         try:
             answers = req.resolve(host, rrtype)
-            logger.debug("Helper._fqdn_resolve() got answer: %s", list(answers))
-            resolved = [str(rdata) for rdata in answers]
-            if resolved:
-                if catch_all:
-                    result.extend(resolved)
-                    invalid = False
-                else:
-                    result = resolved[0]
-                    invalid = False
-                    break  # Only break if we found a result
-        except dns.resolver.NXDOMAIN as err:
-            error_detail = f"NXDOMAIN: {host} does not exist"
-            logger.debug(
-                "No answer for %s with type %s: %s", host, rrtype, error_detail
+            temp_result, temp_invalid = _process_dns_answers(
+                logger, answers, catch_all, result
             )
-            errors_encountered.append(f"{rrtype}: {error_detail}")
-            continue
-        except dns.resolver.NoAnswer as err:
-            error_detail = f"No {rrtype} record found for {host}"
-            logger.debug(
-                "No answer for %s with type %s: %s", host, rrtype, error_detail
-            )
-            errors_encountered.append(f"{rrtype}: {error_detail}")
-            continue
-        except dns.resolver.Timeout as err:
-            error_detail = f"DNS query timeout for {host}"
-            logger.debug(
-                "Timeout while resolving %s with type %s: %s",
-                host,
-                rrtype,
-                error_detail,
-            )
-            errors_encountered.append(f"{rrtype}: {error_detail}")
-            continue
-        except Exception as err:
-            error_detail = f"DNS resolution error: {str(err)}"
-            logger.debug(
-                "Error while resolving %s with type %s: %s", host, rrtype, error_detail
-            )
-            errors_encountered.append(f"{rrtype}: {error_detail}")
-            continue
 
-    # If we failed to resolve, combine all errors
-    if invalid and errors_encountered:
-        error_msg = "; ".join(errors_encountered)
+            if not temp_invalid:  # Only update if we got valid results
+                result = temp_result
+                invalid = False
+                if not catch_all:
+                    break  # Early exit for non-catch-all successful resolution
+        except (
+            dns.resolver.NXDOMAIN,
+            dns.resolver.NoAnswer,
+            dns.resolver.Timeout,
+            Exception,
+        ) as err:
+            _handle_dns_exception(logger, host, rrtype, err, errors_encountered)
+
+    # Combine errors if resolution failed
+    error_msg = (
+        "; ".join(errors_encountered) if invalid and errors_encountered else None
+    )
 
     logger.debug(
         "Helper._fqdn_resolve(%s) ended with: %s, %s, error: %s",
@@ -249,7 +267,7 @@ def url_get_with_own_dns(
     return result, status_code, error_msg
 
 
-def allowed_gai_family() -> socket.AF_INET:
+def allowed_gai_family():
     """set family"""
     family = socket.AF_INET  # force IPv4
     return family
