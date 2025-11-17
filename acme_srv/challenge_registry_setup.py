@@ -60,7 +60,7 @@ def create_challenge_validator_registry(
 def create_custom_registry(
     logger: logging.Logger,
     validator_classes: list,
-    config: Optional[Dict[str, Any]] = None,
+    _config: Optional[Dict[str, Any]] = None,
 ) -> ChallengeValidatorRegistry:
     """
     Create a custom challenge validator registry with specified validators.
