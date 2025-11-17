@@ -363,9 +363,7 @@ class Challenge:
         status_dic = {"code": 200, "type": None, "detail": None}
         return self.message.prepare_response(response_dic, status_dic)
 
-    def _execute_challenge_validation(
-        self, challenge_name: str, payload: Dict[str, str]
-    ) -> ValidationResult:
+    def _execute_challenge_validation(self, challenge_name: str) -> ValidationResult:
         """Execute challenge validation using registry."""
         self.logger.debug("Challenge._execute_challenge_validation(%s)", challenge_name)
 
@@ -1205,9 +1203,7 @@ class Challenge:
                 return self._handle_validation_disabled(challenge_name)
 
             # Perform actual validation
-            validation_result = self._execute_challenge_validation(
-                challenge_name, payload
-            )
+            validation_result = self._execute_challenge_validation(challenge_name)
             result = self._update_challenge_state_from_validation(
                 challenge_name, validation_result
             )
@@ -1215,6 +1211,9 @@ class Challenge:
         except Exception as err:
             error_detail = self.error_handler.handle_error(
                 err, context={"challenge_name": challenge_name}
+            )
+            self.logger.error(
+                "Challenge validation error for %s: %s", challenge_name, error_detail
             )
 
             # Mark challenge as invalid on error
@@ -1469,7 +1468,7 @@ class Challenge:
         authz_name: str,
         _auth_status: str,
         token: str,
-        tnauth: bool,
+        _tnauth: bool,
         id_type: str = "dns",
         id_value: str = None,
     ) -> List[str]:

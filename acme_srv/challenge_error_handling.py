@@ -273,14 +273,6 @@ class ErrorHandler:
                 ),
             )
 
-    # def _update_error_counts(self, category: ErrorCategory):
-    #    """Update error counts for monitoring."""
-    #    self.error_counts[category] = self.error_counts.get(category, 0) + 1
-
-    # def get_error_statistics(self) -> Dict[str, int]:
-    #    """Get error statistics for monitoring."""
-    #    return {category.value: count for category, count in self.error_counts.items()}
-
     def create_acme_error_response(
         self, error_detail: ErrorDetail, status_code: int = 400
     ) -> Dict[str, Any]:
