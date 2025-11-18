@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Order class"""
+"""Authorization class - refactored version"""
 # pylint: disable=R0913
 from __future__ import print_function
 import json
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
+from dataclasses import dataclass
 from acme_srv.db_handler import DBstore
 from acme_srv.challenge import Challenge
 from acme_srv.helper import (
@@ -17,77 +18,255 @@ from acme_srv.message import Message
 from acme_srv.nonce import Nonce
 
 
-class Authorization(object):
-    """class for Authorization handling"""
+# Custom Exceptions
+class AuthorizationError(Exception):
+    """Base exception for authorization operations"""
+    pass
 
-    def __init__(
-        self, debug: bool = False, srv_name: str = None, logger: object = None
-    ):
-        self.server_name = srv_name
-        self.debug = debug
+
+class AuthorizationNotFoundError(AuthorizationError):
+    """Raised when authorization is not found"""
+    pass
+
+
+class AuthorizationExpiredError(AuthorizationError):
+    """Raised when authorization has expired"""
+    pass
+
+
+class ConfigurationError(AuthorizationError):
+    """Raised when configuration is invalid"""
+    pass
+
+
+@dataclass
+class AuthorizationConfig:
+    """Configuration for Authorization operations"""
+    validity: int = 86400
+    expiry_check_disable: bool = False
+    authz_path: str = "/acme/authz/"
+
+
+@dataclass
+class AuthorizationData:
+    """Authorization data structure"""
+    name: str
+    status: str
+    expires: int
+    token: str
+    identifier: Optional[Dict[str, str]] = None
+    challenges: Optional[List[Dict[str, str]]] = None
+    wildcard: bool = False
+
+    def to_dict(self) -> Dict[str, str]:
+        """Convert to dictionary for response"""
+        result = {
+            "status": self.status,
+            "expires": uts_to_date_utc(self.expires),
+        }
+
+        if self.identifier:
+            result["identifier"] = self.identifier
+
+        if self.wildcard:
+            result["wildcard"] = self.wildcard
+
+        if self.challenges:
+            result["challenges"] = self.challenges
+
+        return result
+
+
+class AuthorizationRepository:
+    """Repository class for authorization database operations"""
+
+    def __init__(self, dbstore: DBstore, logger):
+        self.dbstore = dbstore
         self.logger = logger
-        self.dbstore = DBstore(debug, self.logger)
-        self.message = Message(debug, self.server_name, self.logger)
-        self.nonce = Nonce(debug, self.logger)
-        self.validity = 86400
-        self.expiry_check_disable = False
-        self.path_dic = {"authz_path": "/acme/authz/"}
 
-    def __enter__(self):
-        """Makes ACMEHandler a Context Manager"""
-        self._config_load()
-        return self
-
-    def __exit__(self, *args):
-        """cose the connection at the end of the context"""
-
-    def _expiry_update(self, authz_name: str, token: str, expires: int):
-        """expiry date and token of an existing authorization"""
-        self.logger.debug("Authorization._expiry_update()")
+    def find_authorization_by_name(self, authz_name: str, field_list: List[str] = None) -> Optional[Dict[str, str]]:
+        """Find authorization by name in database"""
+        self.logger.debug("AuthorizationRepository.find_authorization_by_name(%s)", authz_name)
 
         try:
-            self.dbstore.authorization_update(
-                {"name": authz_name, "token": token, "expires": expires}
-            )
-        except Exception as err_:
-            self.logger.error(
-                "acme2certifier database error during Authorzisation update (%s): update: %s",
-                authz_name,
-                err_,
-            )
-
-        self.logger.debug("Authorization._expiry_update() ended")
-
-    def _authz_lookup(self, authz_name: str, vlist: List[str] = None) -> Dict[str, str]:
-        self.logger.debug("Authorization._authz_lookup(%s)", authz_name)
-
-        # lookup authorization based on name
-        try:
-            if vlist:
-                authz = self.dbstore.authorization_lookup("name", authz_name, vlist)
+            if field_list:
+                authz_list = self.dbstore.authorization_lookup("name", authz_name, field_list)
             else:
-                authz = self.dbstore.authorization_lookup("name", authz_name)
-        except Exception as err_:
+                authz_list = self.dbstore.authorization_lookup("name", authz_name)
+
+            # authorization_lookup returns a list, we want the first item if it exists
+            if authz_list and len(authz_list) > 0:
+                return authz_list[0]
+            else:
+                return None
+
+        except Exception as err:
             self.logger.critical(
                 "Database error: failed to lookup authorization '%s': %s",
-                authz_name,
-                err_,
+                authz_name, err
             )
-            authz = None
+            raise AuthorizationError(f"Failed to find authorization '{authz_name}': {err}") from err
 
-        self.logger.debug("Authorization._authz_lookup() ended")
-        return authz
+    def update_authorization_expiry(self, authz_name: str, token: str, expires: int) -> None:
+        """Update authorization expiry date and token"""
+        self.logger.debug("AuthorizationRepository.update_authorization_expiry(%s)", authz_name)
 
-    def _challengeset_get(
+        try:
+            self.dbstore.authorization_update({
+                "name": authz_name,
+                "token": token,
+                "expires": expires
+            })
+        except Exception as err:
+            self.logger.error(
+                "Database error during authorization update (%s): %s",
+                authz_name, err
+            )
+            raise AuthorizationError(f"Failed to update authorization '{authz_name}': {err}") from err
+
+    def search_expired_authorizations(self, timestamp: int, field_list: List[str]) -> List[Dict[str, str]]:
+        """Search for expired authorizations"""
+        self.logger.debug("AuthorizationRepository.search_expired_authorizations(%s)", timestamp)
+
+        try:
+            return self.dbstore.authorizations_expired_search(
+                "expires", timestamp, vlist=field_list, operant="<="
+            )
+        except Exception as err:
+            self.logger.critical(
+                "Database error: failed to search for expired authorizations: %s", err
+            )
+            raise AuthorizationError(f"Failed to search expired authorizations: {err}") from err
+
+    def mark_authorization_as_expired(self, authz_name: str) -> None:
+        """Mark authorization as expired"""
+        self.logger.debug("AuthorizationRepository.mark_authorization_as_expired(%s)", authz_name)
+
+        try:
+            self.dbstore.authorization_update({"name": authz_name, "status": "expired"})
+        except Exception as err:
+            self.logger.critical(
+                "Database error: failed to update authorization '%s' as expired: %s",
+                authz_name, err
+            )
+            raise AuthorizationError(f"Failed to expire authorization '{authz_name}': {err}") from err
+
+
+class AuthorizationBusinessLogic:
+    """Business logic for authorization operations"""
+
+    def __init__(self, config: AuthorizationConfig, repository: AuthorizationRepository, logger):
+        self.config = config
+        self.repository = repository
+        self.logger = logger
+
+    def extract_authorization_name_from_url(self, url: str, server_name: str) -> str:
+        """Extract authorization name from URL"""
+        self.logger.debug("AuthorizationBusinessLogic.extract_authorization_name_from_url()")
+
+        authz_name = string_sanitize(
+            self.logger,
+            url.replace(f'{server_name}{self.config.authz_path}', "")
+        )
+        return authz_name
+
+    def generate_authorization_token_and_expiry(self) -> Tuple[str, int]:
+        """Generate new token and expiry time"""
+        self.logger.debug("AuthorizationBusinessLogic.generate_authorization_token_and_expiry()")
+
+        expires = uts_now() + self.config.validity
+        token = generate_random_string(self.logger, 32)
+        self.logger.debug("AuthorizationBusinessLogic.generate_authorization_token_and_expiry() ended: Generated token expires at: %s", expires)
+        return token, expires
+
+    def enrich_authorization_with_identifier_info(
+        self, auth_db_info: Dict[str, str]
+    ) -> Tuple[Dict[str, str], bool]:
+        """Extract and enrich authorization with identifier information"""
+        self.logger.debug("AuthorizationBusinessLogic.enrich_authorization_with_identifier_info()")
+
+        if not auth_db_info:
+            return {}, False
+
+        auth_info = auth_db_info[0] if isinstance(auth_db_info, list) else auth_db_info
+        identifier_info = {}
+        is_tnauth = False
+
+        # Extract status
+        status = auth_info.get("status__name", "pending")
+        identifier_info["status"] = status
+
+        # Extract identifier
+        if "type" in auth_info and "value" in auth_info:
+            identifier_info["identifier"] = {
+                "type": auth_info["type"],
+                "value": auth_info["value"],
+            }
+
+            # Check for TNAuthList
+            if auth_info["type"] == "TNAuthList":
+                is_tnauth = True
+
+            # Handle wildcard domains
+            if auth_info["value"].startswith("*."):
+                self.logger.debug("Adding wildcard flag to authorization")
+                identifier_info["identifier"]["value"] = auth_info["value"][2:]
+                identifier_info["wildcard"] = True
+
+        return identifier_info, is_tnauth
+
+    def extract_identifier_info_for_challenge(self, authz_info_dict: Dict[str, str]) -> Tuple[str, str]:
+        """Extract identifier type and value for challenge operations"""
+        self.logger.debug("AuthorizationBusinessLogic.extract_identifier_info_for_challenge()")
+
+        if "identifier" not in authz_info_dict:
+            return None, None
+
+        identifier = authz_info_dict["identifier"]
+        id_type = identifier.get("type")
+        id_value = identifier.get("value")
+
+        return id_type, id_value
+
+    def is_authorization_eligible_for_expiry(self, auth_record: Dict[str, str]) -> bool:
+        """Check if authorization should be expired"""
+        self.logger.debug("AuthorizationBusinessLogic.is_authorization_eligible_for_expiry()")
+
+        # Must have name and status
+        if "name" not in auth_record or "status__name" not in auth_record:
+            return False
+
+        # Skip if already expired
+        if auth_record["status__name"] == "expired":
+            return False
+
+        # Skip corner cases where expiry is set to 0
+        if "expires" in auth_record and auth_record["expires"] == 0:
+            return False
+
+        return True
+
+
+class ChallengeSetManager:
+    """Manager for challenge set operations"""
+
+    def __init__(self, debug: bool, server_name: str, logger):
+        self.debug = debug
+        self.server_name = server_name
+        self.logger = logger
+
+    def get_challenge_set_for_authorization(
         self,
-        authz_info_dic: Dict[str, str],
         authz_name: str,
+        status: str,
         token: str,
-        tnauth: bool,
+        is_tnauth: bool,
         expires: int,
-    ) -> Dict[str, str]:
-        """get challenge set"""
-        self.logger.debug("Authorization._challengeset_get(%s)", authz_name)
+        id_type: str = None,
+        id_value: str = None
+    ) -> List[Dict[str, str]]:
+        """Get challenge set for authorization"""
+        self.logger.debug("ChallengeSetManager.get_challenge_set_for_authorization(%s)", authz_name)
 
         with Challenge(
             debug=self.debug,
@@ -95,229 +274,258 @@ class Authorization(object):
             logger=self.logger,
             expiry=expires,
         ) as challenge:
-            # get challenge data (either existing or new ones)
-            if "identifier" in authz_info_dic:
-                if "type" in authz_info_dic["identifier"]:
-                    id_type = authz_info_dic["identifier"]["type"]
-                else:
-                    id_type = None
-                if "value" in authz_info_dic["identifier"]:
-                    id_value = authz_info_dic["identifier"]["value"]
-                else:
-                    id_value = None
-            else:
-                id_type = None
-                id_value = None
-
-            self.logger.debug("Authorization._challengeset_get() ended")
             return challenge.challengeset_get(
-                authz_name, authz_info_dic["status"], token, tnauth, id_type, id_value
+                authz_name, status, token, is_tnauth, id_type, id_value
             )
 
-    def _authz_info_dic_update(
-        self, authz_info_dic: Dict[str, str], auth_info: Dict[str, str]
-    ) -> Tuple[Dict[str, str], bool]:
-        """enrich authinfo dic with information"""
-        self.logger.debug("Authorization._authz_info_dic_update()")
 
-        tnauth = False
-        if "status__name" in auth_info[0]:
-            authz_info_dic["status"] = auth_info[0]["status__name"]
-        else:
-            authz_info_dic["status"] = "pending"
+class Authorization(object):
+    """Refactored Authorization class with clear separation of concerns"""
 
-        if "type" in auth_info[0] and "value" in auth_info[0]:
-            authz_info_dic["identifier"] = {
-                "type": auth_info[0]["type"],
-                "value": auth_info[0]["value"],
-            }
-            if auth_info[0]["type"] == "TNAuthList":
-                tnauth = True
-            # add wildcard flag into authoritzation response and modify identifier
-            if auth_info[0]["value"].startswith("*."):
-                self.logger.debug("Authorization._authz_info() - adding wildcard flag")
-                authz_info_dic["identifier"]["value"] = auth_info[0]["value"][2:]
-                authz_info_dic["wildcard"] = True
+    def __init__(
+        self, debug: bool = False, srv_name: str = None, logger: object = None
+    ):
+        self.server_name = srv_name
+        self.debug = debug
+        self.logger = logger
 
-        self.logger.debug("Authorization._authz_info_dic_update() ended")
-        return (authz_info_dic, tnauth)
+        # Initialize dependencies
+        self.dbstore = DBstore(debug, self.logger)
+        self.message = Message(debug, self.server_name, self.logger)
+        self.nonce = Nonce(debug, self.logger)
 
-    def _authz_info(self, url: str) -> Dict[str, str]:
-        """return authzs information"""
-        self.logger.debug("Authorization._authz_info()")
+        # Initialize components immediately
+        self.config = AuthorizationConfig()
+        self.repository = AuthorizationRepository(self.dbstore, self.logger)
+        self.business_logic = AuthorizationBusinessLogic(self.config, self.repository, self.logger)
+        self.challenge_manager = ChallengeSetManager(self.debug, self.server_name, self.logger)
 
-        authz_name = string_sanitize(
-            self.logger,
-            url.replace(f'{self.server_name}{self.path_dic["authz_path"]}', ""),
-        )
-        self.logger.debug("Authorization._authz_info(%s)", authz_name)
+    def __enter__(self):
+        """Makes Authorization a Context Manager"""
+        self._load_configuration()
+        # Re-initialize business logic with updated config
+        self.business_logic = AuthorizationBusinessLogic(self.config, self.repository, self.logger)
+        return self
 
-        expires = uts_now() + self.validity
-        token = generate_random_string(self.logger, 32)
-        authz_info_dic = {}
+    def __exit__(self, *args):
+        """Close the connection at the end of the context"""
+        pass
 
-        # lookup authorization based on name
-        authz = self._authz_lookup(authz_name)
-
-        if authz:
-            # update authorization with expiry date and token (just to be sure)
-            self._expiry_update(authz_name, token, expires)
-            authz_info_dic["expires"] = uts_to_date_utc(expires)
-
-            # get authorization information from db to be inserted in message
-            tnauth = False
-            auth_info = self._authz_lookup(
-                authz_name, ["status__name", "type", "value"]
-            )
-
-            if auth_info:
-                (authz_info_dic, tnauth) = self._authz_info_dic_update(
-                    authz_info_dic, auth_info
-                )
-            else:
-                authz_info_dic["status"] = "pending"
-
-            # get challenge-set
-            authz_info_dic["challenges"] = self._challengeset_get(
-                authz_info_dic, authz_name, token, tnauth, expires
-            )
-
-        self.logger.debug(
-            "Authorization._authz_info() returns: %s", json.dumps(authz_info_dic)
-        )
-        return authz_info_dic
-
-    def _config_load(self):
-        """ " load config from file"""
-        self.logger.debug("Authorization._config_load()")
+    def _load_configuration(self) -> AuthorizationConfig:
+        """Load configuration from file"""
+        self.logger.debug("Authorization._load_configuration()")
 
         config_dic = load_config()
 
-        try:
-            self.validity = int(
-                config_dic.get("Authorization", "validity", fallback=self.validity)
-            )
-        except ValueError:
-            self.logger.warning(
-                "Failed to parse validity parameter: %s",
-                config_dic.get("Authorization", "validity"),
-            )
+        if config_dic:
 
-        self.expiry_check_disable = config_dic.getboolean(
-            "Authorization", "expiry_check_disable", fallback=False
+            try:
+                self.config.validity = int(config_dic.get("Authorization", "validity", fallback=86400))
+            except ValueError as err:
+                raise ConfigurationError(f"Invalid validity parameter: {config_dic.get('Authorization', 'validity')}") from err
+
+            self.config.expiry_check_disable = config_dic.getboolean(
+                "Authorization", "expiry_check_disable", fallback=False
+            )
+            url_prefix = config_dic.get("Directory", "url_prefix", fallback=None)
+            if url_prefix:
+                self.config.authz_path = f"{url_prefix}{self.config.authz_path}"
+
+        self.logger.debug("Authorization._load_configuration() ended:")
+
+    @property
+    def validity(self):
+        """Backward compatibility property for validity"""
+        return self.config.validity
+
+    @validity.setter
+    def validity(self, value):
+        """Setter for validity"""
+        self.config.validity = value
+
+    @property
+    def expiry_check_disable(self):
+        """Backward compatibility property for expiry_check_disable"""
+        return self.config.expiry_check_disable
+
+    @expiry_check_disable.setter
+    def expiry_check_disable(self, value):
+        """Setter for expiry_check_disable"""
+        self.config.expiry_check_disable = value
+
+    def _authz_info(self, url: str) -> Dict[str, str]:
+        """Backward compatibility method - delegates to get_authorization_details"""
+        return self.get_authorization_details(url)
+
+
+    def get_authorization_details(self, url: str) -> Optional[Dict[str, str]]:
+        """Get detailed authorization information"""
+        self.logger.debug("Authorization.get_authorization_details()")
+
+        # Extract authorization name from URL
+        authz_name = self.business_logic.extract_authorization_name_from_url(url, self.server_name)
+        self.logger.debug("Authorization name: %s", authz_name)
+
+        # Check if authorization exists
+        authz = self.repository.find_authorization_by_name(authz_name)
+        if not authz:
+            self.logger.debug("Authorization not found: %s", authz_name)
+            return {}
+
+        # Generate new token and expiry
+        token, expires = self.business_logic.generate_authorization_token_and_expiry()
+        # Update authorization with new expiry and token (if there is no token yet)
+        self.repository.update_authorization_expiry(authz_name, token, expires)
+
+        # Create base authorization info
+        authz_info = {
+            "expires": uts_to_date_utc(expires),
+        }
+
+        # Get detailed authorization information
+        auth_details = self.repository.find_authorization_by_name(
+            authz_name, ["status__name", "type", "value"]
         )
-        if config_dic.get("Directory", "url_prefix", fallback=None):
-            self.path_dic = {
-                k: config_dic.get("Directory", "url_prefix") + v
-                for k, v in self.path_dic.items()
-            }
-        self.logger.debug("Authorization._config_load() ended.")
 
-    def invalidate(self, timestamp: int = None) -> Tuple[List[str], List[str]]:
-        """invalidate authorizations"""
-        self.logger.debug("Authorization.invalidate(%s)", timestamp)
-        if not timestamp:
-            timestamp = uts_now()
-            self.logger.debug(
-                "Authorization.invalidate(): set timestamp to %s", timestamp
+        if auth_details:
+            identifier_info, is_tnauth = self.business_logic.enrich_authorization_with_identifier_info(auth_details)
+            authz_info.update(identifier_info)
+        else:
+            authz_info["status"] = "pending"
+            is_tnauth = False
+
+        # Get challenge set
+        try:
+            id_type, id_value = self.business_logic.extract_identifier_info_for_challenge(authz_info)
+            authz_info["challenges"] = self.challenge_manager.get_challenge_set_for_authorization(
+                authz_name, authz_info["status"], token, is_tnauth, expires, id_type, id_value
             )
+        except Exception as err:
+            self.logger.error("Failed to create challenge set for authorization %s: %s", authz_name, err)
+            return None
+
+        self.logger.debug("Authorization.get_authorization_details() returns: %s", json.dumps(authz_info))
+        return authz_info
+
+    def expire_invalid_authorizations(self, timestamp: int = None) -> Tuple[List[str], List[str]]:
+        """Expire invalid authorizations"""
+        self.logger.debug("Authorization.expire_invalid_authorizations(%s)", timestamp)
+
+        if timestamp is None:
+            timestamp = uts_now()
+            self.logger.debug("Set timestamp to current time: %s", timestamp)
 
         field_list = [
-            "id",
-            "name",
-            "expires",
-            "value",
-            "created_at",
-            "token",
-            "status__id",
-            "status__name",
-            "order__id",
-            "order__name",
+            "id", "name", "expires", "value", "created_at", "token",
+            "status__id", "status__name", "order__id", "order__name",
         ]
-        try:
-            authz_list = self.dbstore.authorizations_expired_search(
-                "expires", timestamp, vlist=field_list, operant="<="
-            )
-        except Exception as err_:
-            self.logger.critical(
-                "Database error: failed to search for expired authorizations: %s", err_
-            )
-            authz_list = []
 
-        output_list = []
-        for authz in authz_list:
-            # select all authz which are not invalid
-            if (
-                "name" in authz
-                and "status__name" in authz
-                and authz["status__name"] != "expired"
-            ):
-                # skip corner cases where authz expiry is set to 0
-                if "expires" not in authz or authz["expires"] > 0:
-                    # change status and add to output list
-                    output_list.append(authz)
-                    data_dic = {"name": authz["name"], "status": "expired"}
-                    try:
-                        self.dbstore.authorization_update(data_dic)
-                    except Exception as err_:
-                        self.logger.critical(
-                            "Database error: failed to update authorization '%s' as expired: %s",
-                            authz["name"],
-                            err_,
-                        )
+        try:
+            # Search for expired authorizations
+            expired_authz_list = self.repository.search_expired_authorizations(timestamp, field_list)
+        except AuthorizationError as err:
+            self.logger.warning("Failed to search for expired authorizations: %s", err)
+            return field_list, []
+
+        # Process expired authorizations
+        expired_output = []
+        for authz_record in expired_authz_list:
+            try:
+                if self.business_logic.is_authorization_eligible_for_expiry(authz_record):
+                    expired_output.append(authz_record)
+                    self.repository.mark_authorization_as_expired(authz_record["name"])
+            except AuthorizationError as err:
+                self.logger.warning("Failed to expire authorization %s: %s", authz_record.get("name"), err)
+                # Continue processing other authorizations
+                continue
 
         self.logger.debug(
-            "Authorization.invalidate() ended: %s authorizations identified",
-            len(output_list),
+            "Authorization.expire_invalid_authorizations() ended: %s authorizations expired",
+            len(expired_output)
         )
-        return (field_list, output_list)
+        return field_list, expired_output
 
-    def new_get(self, url: str) -> Dict[str, str]:
-        """challenge computation based on get request"""
-        self.logger.debug("Authorization.new_get()")
-        response_dic = {}
-        response_dic["code"] = 200
-        response_dic["header"] = {}
-        response_dic["data"] = self._authz_info(url)
-        return response_dic
+    def handle_get_request(self, url: str) -> Dict[str, str]:
+        """Handle GET request for authorization"""
+        self.logger.debug("Authorization.handle_get_request()")
 
-    def new_post(self, content: str) -> Dict[str, str]:
-        """challenge computation based on post request"""
-        self.logger.debug("Authorization.new_post()")
-
-        # invalidate expired authorizations
-        if not self.expiry_check_disable:
-            self.invalidate()
-
-        response_dic = {}
-        # check message
-        (
-            code,
-            message,
-            detail,
-            protected,
-            _payload,
-            _account_name,
-        ) = self.message.check(content)
-        if code == 200:
-            if "url" in protected:
-                auth_info = self._authz_info(protected["url"])
-                if auth_info:
-                    response_dic["data"] = auth_info
-                else:
-                    code = 403
-                    message = "urn:ietf:params:acme:error:unauthorized"
-                    detail = "authorizations lookup failed"
+        try:
+            authorization_data = self.get_authorization_details(url)
+            if authorization_data:
+                return {
+                    "code": 200,
+                    "header": {},
+                    "data": authorization_data
+                }
             else:
+                return {
+                    "code": 404,
+                    "header": {},
+                    "data": {"error": "Authorization not found"}
+                }
+        except AuthorizationError as err:
+            self.logger.error("Authorization error: %s", err)
+            return {
+                "code": 404,
+                "header": {},
+                "data": {"error": str(err)}
+            }
+
+    def handle_post_request(self, content: str) -> Dict[str, str]:
+        """Handle POST request for authorization"""
+        self.logger.debug("Authorization.handle_post_request()")
+
+        # Expire invalid authorizations if not disabled
+        if not self.expiry_check_disable:
+            try:
+                self.invalidate()  # Call public method for backward compatibility
+            except Exception as err:
+                self.logger.warning("Failed to expire authorizations: %s", err)
+                # Continue with processing - don't fail the request
+
+        # Validate message
+        code, message, detail, protected, _payload, _account_name = self.message.check(content)
+
+        response_dic = {}
+        if code == 200:
+            if "url" not in protected:
                 code = 400
                 message = "urn:ietf:params:acme:error:malformed"
                 detail = "url is missing in protected"
+            else:
+                try:
+                    auth_info = self.get_authorization_details(protected["url"])
+                    if auth_info:
+                        response_dic["data"] = auth_info
+                    else:
+                        code = 403
+                        message = "urn:ietf:params:acme:error:unauthorized"
+                        detail = "authorization lookup failed"
+                except AuthorizationError as err:
+                    self.logger.error("Authorization error: %s", err)
+                    code = 403
+                    message = "urn:ietf:params:acme:error:unauthorized"
+                    detail = f"authorization error: {err}"
 
-        # prepare/enrich response
+        # Prepare response
         status_dic = {"code": code, "type": message, "detail": detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
 
-        self.logger.debug(
-            "Authorization.new_post() returns: %s", json.dumps(response_dic)
-        )
+        self.logger.debug("Authorization.handle_post_request() returns: %s", json.dumps(response_dic))
         return response_dic
+
+    # Backward compatibility methods (delegating to new methods)
+    def new_get(self, url: str) -> Dict[str, str]:
+        """Backward compatibility: handle GET request"""
+        self.logger.debug("Authorization.new_get()")
+        return self.handle_get_request(url)
+
+    def new_post(self, content: str) -> Dict[str, str]:
+        """Backward compatibility: handle POST request"""
+        self.logger.debug("Authorization.new_post()")
+        return self.handle_post_request(content)
+
+    def invalidate(self, timestamp: int = None) -> Tuple[List[str], List[str]]:
+        """Backward compatibility: expire invalid authorizations"""
+        self.logger.debug("Authorization.invalidate()")
+        return self.expire_invalid_authorizations(timestamp)
