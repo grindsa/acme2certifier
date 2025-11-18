@@ -2151,16 +2151,16 @@ def eab_profile_header_info_check(
     """check profile"""
     logger.debug("Helper.eab_profile_header_info_check()")
 
-    if cahandler.eab_profiling:
+    if hasattr(cahandler, 'eab_profiling') and cahandler.eab_profiling:
         # eab profiling - check if we have a handler
-        if cahandler.eab_handler:
+        if hasattr(cahandler, 'eab_handler') and cahandler.eab_handler:
             # profiling enabled - check profile
             error = eab_profile_check(logger, cahandler, csr, handler_hifield)
         else:
             logger.error("EAB profiling enabled but no handler defined")
             error = "Eab_profiling enabled but no handler defined"
 
-    elif cahandler.profiles:
+    elif hasattr(cahandler, 'profiles') and cahandler.profiles:
         # acme profiling - acme profiling will always be preferred
         profile = profile_lookup(logger, csr)
         if profile:
@@ -2172,7 +2172,7 @@ def eab_profile_header_info_check(
             setattr(cahandler, handler_hifield, profile)
         error = None
 
-    elif cahandler.header_info_field:
+    elif hasattr(cahandler, 'header_info_field') and cahandler.header_info_field:
         # no profiling - parse profileid from http_header
         hil_value = header_info_lookup(
             logger, csr, cahandler.header_info_field, handler_hifield
