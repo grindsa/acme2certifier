@@ -1,33 +1,12 @@
-# pylint: disable=c0302, r0913
-# -*- coding: utf-8 -*-
-"""Challenge class"""
-from __future__ import print_function
 import json
 import time
-import re
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional, Any
+from dataclasses import dataclass
+
 from acme_srv.helper import (
-    b64_encode,
-    b64_url_encode,
-    cert_extensions_get,
-    cert_san_get,
-    config_eab_profile_load,
-    convert_byte_to_string,
-    error_dic_get,
-    fqdn_in_san_check,
-    fqdn_resolve,
     generate_random_string,
-    ip_validate,
     jwk_thumbprint_get,
-    load_config,
     parse_url,
-    proxy_check,
-    ptr_resolve,
-    servercert_get,
-    sha256_hash,
-    sha256_hash_hex,
-    txt_get,
-    url_get,
     uts_now,
     uts_to_date_utc,
     load_config,
@@ -136,7 +115,37 @@ class DatabaseChallengeRepository(ChallengeRepository):
             )
             raise DatabaseError(f"Failed to search challenges: {err}")
 
-    def get_challenge_by_name(self, name: str) -> Optional[ChallengeInfo]:
+    def get_challengeinfo_by_challengename(
+        self, name: str, vlist: Optional[List[str]] = ("name", "type", "status__name")
+    ) -> Optional[str]:
+        """Get challenge information challenge name."""
+        self.logger.debug(
+            "DatabaseChallengeRepository.get_challengeinfo_by_challengename(%s)", name
+        )
+        try:
+            challenge_dic = self.dbstore.challenge_lookup(
+                "name",
+                name,
+                vlist=vlist,
+            )
+
+            self.logger.debug(
+                "DatabaseChallengeRepository.get_challengeinfo_by_challengename() ended: found challenge %s",
+                challenge_dic,
+            )
+            if not challenge_dic:
+                return None
+            return challenge_dic
+
+        except Exception as err:
+            self.logger.critical(
+                "Database error: failed to lookup challenge keyauthorization: %s", err
+            )
+            raise DatabaseError(f"Failed to lookup challenge keyauthorization: {err}")
+
+    def get_challenge_by_name(
+        self, name: str, vlist: Optional[List[str]] = None
+    ) -> Optional[ChallengeInfo]:
         """Get challenge information by name."""
         self.logger.debug("DatabaseChallengeRepository.get_challenge_by_name(%s)", name)
         try:
@@ -311,7 +320,7 @@ class Challenge:
         self,
         debug: bool = False,
         srv_name: str = None,
-        logger: object = None,
+        logger=None,
         source: str = None,
         expiry: int = 3600,
     ):
@@ -319,12 +328,15 @@ class Challenge:
         self.logger = logger
         self.config = ChallengeConfiguration()
         self.expiry = expiry
-        self.logger = logger
+        self.server_name = srv_name
         self.path_dic = {"chall_path": "/acme/chall/", "authz_path": "/acme/authz/"}
         self.source_address = source
 
         # Initialize core components
         self.dbstore = DBstore(debug, self.logger)
+        self.message = Message(debug, self.server_name, self.logger)
+
+        # Initialize error message dictionary for error responses
         self.err_msg_dic = error_dic_get(self.logger)
         # Initialize error handler
         self.error_handler = ErrorHandler(self.logger)
@@ -342,12 +354,13 @@ class Challenge:
         self.validator_registry = None
 
     def __enter__(self):
-        """Makes ACMEHandler a Context Manager"""
-        self._config_load()
+        """Context manager entry."""
+        self._load_configuration()
         return self
 
     def __exit__(self, *args):
-        """close the connection at the end of the context"""
+        """Context manager exit."""
+        pass
 
     def _create_error_response(
         self, code: int, message: str, detail: str
@@ -385,6 +398,7 @@ class Challenge:
             challenge_name=challenge_name,
             token=challenge_details["token"],
             jwk_thumbprint=challenge_details["jwk_thumbprint"],
+            keyauthorization=challenge_details["keyauthorization"],
             authorization_type=challenge_details["authorization_type"],
             authorization_value=challenge_details["authorization_value"],
             dns_servers=self.config.dns_server_list,
@@ -419,6 +433,7 @@ class Challenge:
                     "type",
                     "status__name",
                     "token",
+                    "keyauthorization",
                     "authorization__name",
                     "authorization__type",
                     "authorization__value",
@@ -443,6 +458,7 @@ class Challenge:
                 "authorization_type": challenge_dic["authorization__type"],
                 "authorization_value": challenge_dic["authorization__value"],
                 "jwk_thumbprint": jwk_thumbprint,
+                "keyauthorization": challenge_dic["keyauthorization"],
             }
 
         except Exception as err:
@@ -506,7 +522,10 @@ class Challenge:
                     "detail": updated_challenge_info.validation_error,
                 }
 
-        if updated_challenge_info.type == "email-reply-00" and self.config.email_address:
+        if (
+            updated_challenge_info.type == "email-reply-00"
+            and self.config.email_address
+        ):
             # add from address in response for email challenges
             response_dic["data"]["from"] = self.config.email_address
 
@@ -564,86 +583,8 @@ class Challenge:
             self.logger.warning(
                 "source_address_check is deprecated, please use forward_address_check instead"
             )
-            challenge_list = []
-
-        challenge_dic = {}
-        for challenge in challenge_list:
-            if challenge["type"] not in challenge_dic:
-                challenge_dic[challenge["type"]] = {}
-
-            challenge_dic[challenge["type"]]["token"] = challenge["token"]
-            challenge_dic[challenge["type"]]["type"] = challenge["type"]
-            challenge_dic[challenge["type"]]["url"] = challenge["name"]
-            challenge_dic[challenge["type"]][
-                "url"
-            ] = f"{self.server_name}{self.path_dic['chall_path']}{challenge['name']}"
-            challenge_dic[challenge["type"]]["name"] = challenge["name"]
-            if "status__name" in challenge:
-                challenge_dic[challenge["type"]]["status"] = challenge["status__name"]
-
-        challenge_list = []
-        for challenge, challenge_items in challenge_dic.items():
-            challenge_list.append(challenge_items)
-
-        self.logger.debug(
-            "Challenge._challengelist_search() ended with: %s", challenge_list
-        )
-        return challenge_list
-
-    def _challenge_validate_loop(
-        self,
-        challenge_name: str,
-        challenge_dic: Dict[str, str],
-        payload: Dict[str, str],
-        jwk_thumbprint: str,
-    ) -> Tuple[bool, bool]:
-        """inner loop function to validate challenges"""
-        self.logger.debug("Challenge._challenge_validate_loop(%s)", challenge_name)
-
-        if challenge_dic["type"] == "http-01" and jwk_thumbprint:
-            (result, invalid) = self._validate_http_challenge(
-                challenge_name,
-                challenge_dic["authorization__type"],
-                challenge_dic["authorization__value"],
-                challenge_dic["token"],
-                jwk_thumbprint,
-            )
-        elif challenge_dic["type"] == "dns-01" and jwk_thumbprint:
-            (result, invalid) = self._validate_dns_challenge(
-                challenge_name,
-                challenge_dic["authorization__type"],
-                challenge_dic["authorization__value"],
-                challenge_dic["token"],
-                jwk_thumbprint,
-            )
-        elif challenge_dic["type"] == "tls-alpn-01" and jwk_thumbprint:
-            (result, invalid) = self._validate_alpn_challenge(
-                challenge_name,
-                challenge_dic["authorization__type"],
-                challenge_dic["authorization__value"],
-                challenge_dic["token"],
-                jwk_thumbprint,
-            )
-        elif (
-            challenge_dic["type"] == "tkauth-01"
-            and jwk_thumbprint
-            and self.tnauthlist_support
-        ):
-            (result, invalid) = self._validate_tkauth_challenge(
-                challenge_name,
-                challenge_dic["authorization__type"],
-                challenge_dic["authorization__value"],
-                challenge_dic["token"],
-                jwk_thumbprint,
-                payload,
-            )
-        elif challenge_dic["type"] == "email-reply-00":
-            (result, invalid) = self._validate_email_reply_challenge(
-                challenge_name,
-                challenge_dic["authorization__type"],
-                challenge_dic["authorization__value"],
-                challenge_dic["token"],
-                jwk_thumbprint,
+            self.config.forward_address_check = config_dic.getboolean(
+                "Challenge", "source_address_check", fallback=False
             )
         else:
             self.config.forward_address_check = config_dic.getboolean(
@@ -652,169 +593,15 @@ class Challenge:
         self.config.reverse_address_check = config_dic.getboolean(
             "Challenge", "reverse_address_check", fallback=False
         )
-        return (result, invalid)
+        self.logger.debug("Challenge._load_address_check_configuration() ended")
 
-    def _challenge_validate(
-        self,
-        pub_key: Dict[str, str],
-        challenge_name: str,
-        challenge_dic: Dict[str, str],
-        payload: Dict[str, str],
-    ) -> Tuple[bool, bool]:
-        """challenge validate"""
-        self.logger.debug("Challenge._challenge_validate(%s)", challenge_name)
-
-        jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
-
-        challenge_pause_list = ["dns-01", "email-reply-00"]
-
-        for _ele in range(0, 5):
-
-            result, invalid = self._challenge_validate_loop(
-                challenge_name, challenge_dic, payload, jwk_thumbprint
-            )
-            # pylint: disable=r1723
-            if result or invalid:
-                # break loop if we got any good or bad response
-                break
-            elif challenge_dic["type"] in challenge_pause_list and jwk_thumbprint:
-                # sleep for a while before we try again
-                time.sleep(self.dns_validation_pause_timer)
-
-        self.logger.debug(
-            "Challenge._challenge_validate() ended with: %s/%s", result, invalid
-        )
-        return (result, invalid)
-
-    def _check(self, challenge_name: str, payload: Dict[str, str]) -> Tuple[bool, bool]:
-        """challenge check"""
-        self.logger.debug("Challenge._check(%s)", challenge_name)
-
-        try:
-            challenge_dic = self.dbstore.challenge_lookup(
-                "name",
-                challenge_name,
-                [
-                    "type",
-                    "status__name",
-                    "token",
-                    "authorization__name",
-                    "authorization__type",
-                    "authorization__value",
-                    "authorization__token",
-                    "authorization__order__account__name",
-                ],
-            )
-        except Exception as err_:
-            self.logger.critical(
-                "Database error: failed to lookup challenge during challenge check:'%s': %s",
-                challenge_name,
-                err_,
-            )
-            challenge_dic = {}
-
-        if (
-            "type" in challenge_dic
-            and "authorization__value" in challenge_dic
-            and "token" in challenge_dic
-            and "authorization__order__account__name" in challenge_dic
-        ):
-            try:
-                pub_key = self.dbstore.jwk_load(
-                    challenge_dic["authorization__order__account__name"]
-                )
-            except Exception as err_:
-                self.logger.critical("Database error: could not get jwk: %s", err_)
-                pub_key = None
-
-            if pub_key:
-                (result, invalid) = self._challenge_validate(
-                    pub_key, challenge_name, challenge_dic, payload
-                )
-            else:
-                result = False
-                invalid = False
-        else:
-            result = False
-            invalid = False
-
-        self.logger.debug("challenge._check() ended with: %s/%s", result, invalid)
-        return (result, invalid)
-
-    def _existing_challenge_validate(self, challenge_list: List[str]) -> Dict[str, str]:
-        """validate an existing challenge set"""
-        self.logger.debug("Challenge._existing_challenge_validate()")
-
-        # for challenge in challenge_list:
-        for challenge in sorted(challenge_list, key=lambda k: k["type"]):
-            challenge_check = self._validate(challenge["name"], {})
-            if challenge_check:
-                # end loop if challenge check was successful
-                break
-        self.logger.debug("Challenge._existing_challenge_validate ended()")
-
-    def _info(self, challenge_name):
-        """get challenge details"""
-        self.logger.debug("Challenge._info(%s)", challenge_name)
-        try:
-            challenge_dic = self.dbstore.challenge_lookup(
-                "name",
-                challenge_name,
-                vlist=("type", "token", "status__name", "validated"),
-            )
-        except Exception as err_:
-            self.logger.critical(
-                "Database error: failed to lookup challenge: '%s': %s",
-                challenge_name,
-                err_,
-            )
-            challenge_dic = {}
-
-        if "status" in challenge_dic and challenge_dic["status"] == "valid":
-            if "validated" in challenge_dic:
-                # convert validated timestamp to RFC3339 format - if it fails remove key from dictionary
-                try:
-                    challenge_dic["validated"] = uts_to_date_utc(
-                        challenge_dic["validated"]
-                    )
-                except Exception:
-                    challenge_dic.pop("validated")
-        else:
-            if "validated" in challenge_dic:
-                challenge_dic.pop("validated")
-
-        if self.email_identifier_support and self.email_address:
-            # add email address to challenge_dic for email-reply-00 challenges
-            self.logger.debug("Adding email address to challenge_dic")
-            challenge_dic["from"] = self.email_address
-
-        self.logger.debug("Challenge._info(%s) ended", challenge_name)
-        return challenge_dic
-
-    def _config_proxy_load(self, config_dic: Dict[str, str]):
-        """load proxy config"""
-        self.logger.debug("Challenge._config_proxy_load()")
-
-        if "DEFAULT" in config_dic and "proxy_server_list" in config_dic["DEFAULT"]:
-            try:
-                self.proxy_server_list = json.loads(
-                    config_dic["DEFAULT"]["proxy_server_list"]
-                )
-            except Exception as err_:
-                self.logger.warning(
-                    "Failed to load proxy_server_list from configuration: %s",
-                    err_,
-                )
-
-        self.logger.debug("Challenge._config_proxy_load() ended")
-
-    def _config_dns_load(self, config_dic: Dict[str, str]):
+    def _load_dns_configuration(self, config_dic: Dict[str, str]):
         """load dns config"""
-        self.logger.debug("Challenge._config_dns_load()")
+        self.logger.debug("Challenge._load_dns_configuration()")
 
         if "Challenge" in config_dic and "dns_server_list" in config_dic["Challenge"]:
             try:
-                self.dns_server_list = json.loads(
+                self.config.dns_server_list = json.loads(
                     config_dic["Challenge"]["dns_server_list"]
                 )
             except Exception as err_:
@@ -827,7 +614,7 @@ class Challenge:
             and "dns_validation_pause_timer" in config_dic["Challenge"]
         ):
             try:
-                self.dns_validation_pause_timer = int(
+                self.config.dns_validation_pause_timer = int(
                     config_dic["Challenge"]["dns_validation_pause_timer"]
                 )
             except Exception as err_:
@@ -836,42 +623,38 @@ class Challenge:
                     err_,
                 )
 
-        self.logger.debug("Challenge._config_dns_load() ended")
+        self.logger.debug("Challenge._load_dns_configuration() ended")
 
-    def _config_challenge_load(self, config_dic: Dict[str, str]):
+    def _load_proxy_configuration(self, config_dic: Dict[str, str]):
         """load proxy config"""
-        self.logger.debug("Challenge._config_challenge_load()")
+        self.logger.debug("Challenge._load_proxy_configuration()")
 
-        if "Challenge" in config_dic:
-            self.challenge_validation_disable = config_dic.getboolean(
-                "Challenge", "challenge_validation_disable", fallback=False
-            )
-
-            if "source_address_check" in config_dic["Challenge"]:
-                self.logger.warning(
-                    "source_address_check is deprecated, please use forward_address_check instead"
-                )
-                self.forward_address_check = config_dic.getboolean(
-                    "Challenge", "source_address_check", fallback=False
-                )
-            else:
-                self.forward_address_check = config_dic.getboolean(
-                    "Challenge", "forward_address_check", fallback=False
-                )
-
-            self.reverse_address_check = config_dic.getboolean(
-                "Challenge", "reverse_address_check", fallback=False
-            )
-
-            self.sectigo_sim = config_dic.getboolean(
-                "Challenge", "sectigo_sim", fallback=False
-            )
+        if "DEFAULT" in config_dic and "proxy_server_list" in config_dic["DEFAULT"]:
             try:
-                self.challenge_validation_timeout = int(
+                self.proxy_server_list = json.loads(
+                    config_dic["DEFAULT"]["proxy_server_list"]
+                )
+            except Exception as err_:
+                self.logger.warning(
+                    "Failed to load proxy_server_list from configuration: %s",
+                    err_,
+                )
+
+        self.logger.debug("Challenge._load_proxy_configuration() ended")
+
+    def _load_configuration(self):
+        """Load configuration from file."""
+        self.logger.debug("Challenge._load_configuration()")
+
+        config_dic = load_config(self.logger, "Challenge")
+        if config_dic:
+
+            try:
+                self.config.validation_timeout = int(
                     config_dic.get(
                         "Challenge",
                         "challenge_validation_timeout",
-                        fallback=self.challenge_validation_timeout,
+                        fallback=self.config.validation_timeout,
                     )
                 )
             except Exception as err_:
@@ -887,146 +670,40 @@ class Challenge:
                 self.logger, config_dic, self.dbstore.type
             )
 
-    def _config_load(self):
-        """ " load config from file"""
-        self.logger.debug("Challenge._config_load()")
-        config_dic = load_config()
-
-        # load challenge parameters
-        self._config_challenge_load(config_dic)
-        self._config_dns_load(config_dic)
-
-        if "Order" in config_dic:
-            self.tnauthlist_support = config_dic.getboolean(
+            self.config.sectigo_sim = config_dic.getboolean(
+                "Challenge", "sectigo_sim", fallback=False
+            )
+            self.config.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
             )
-            self.email_identifier_support = config_dic.getboolean(
+            self.config.email_identifier_support = config_dic.getboolean(
                 "Order", "email_identifier_support", fallback=False
             )
+            if self.config.email_identifier_support:
+                if "DEFAULT" in config_dic and "email_address" in config_dic["DEFAULT"]:
+                    self.config.email_address = config_dic["DEFAULT"].get(
+                        "email_address"
+                    )
+                else:
+                    self.logger.warning(
+                        "Email identifier support is enabled but no email address is configured. Disabling email identifier support."
+                    )
+                    self.config.email_identifier_support = False
 
-        if self.email_identifier_support:
-            if "DEFAULT" in config_dic and "email_address" in config_dic["DEFAULT"]:
-                self.email_address = config_dic["DEFAULT"].get("email_address")
-            else:
-                self.logger.warning(
-                    "Email identifier support is enabled but no email address is configured. Disabling email identifier support."
-                )
-                self.email_identifier_support = False
+            if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
+                self.path_dic = {
+                    k: config_dic["Directory"]["url_prefix"] + v
+                    for k, v in self.path_dic.items()
+                }
 
-        if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
-            self.path_dic = {
-                k: config_dic["Directory"]["url_prefix"] + v
-                for k, v in self.path_dic.items()
-            }
-
-        # load proxy config from config
-        self._config_proxy_load(config_dic)
-        # load profiling
-        self.eab_profiling, self.eab_handler = config_eab_profile_load(
-            self.logger, config_dic
-        )
-        self.logger.debug("Challenge._config_load() ended.")
-
-    def _cvd_via_eabprofile_check(self, challenge_name: str) -> bool:
-        """parse challenge profile"""
-        self.logger.debug("Challenge._cvd_via_eabprofile_check(%s)", challenge_name)
-
-        challenge_validation_disable = False
-        if self.eab_profiling and self.eab_handler:
-            try:
-                challenge_dic = self.dbstore.challenge_lookup(
-                    "name",
-                    challenge_name,
-                    [
-                        "status__name",
-                        "authorization__order__account__name",
-                        "authorization__order__account__eab_kid",
-                    ],
-                )
-            except Exception as err_:
-                self.logger.critical(
-                    "Database error: failed to lookup challenge during profile check:'%s': %s",
-                    challenge_name,
-                    err_,
-                )
-                challenge_dic = {}
-
-            if (
-                "authorization__order__account__eab_kid" in challenge_dic
-                and challenge_dic["authorization__order__account__eab_kid"]
-            ):
-                # if eab_kid is set, we need to return the profile
-                eab_kid = challenge_dic["authorization__order__account__eab_kid"]
-
-                with self.eab_handler(self.logger) as eab_handler:
-                    profile_dic = eab_handler.key_file_load()
-                    if (
-                        eab_kid in profile_dic
-                        and "challenge" in profile_dic[eab_kid]
-                        and "challenge_validation_disable"
-                        in profile_dic[eab_kid]["challenge"]
-                    ):
-                        challenge_validation_disable = (
-                            profile_dic.get(eab_kid, {})
-                            .get("challenge", {})
-                            .get("challenge_validation_disable", False)
-                        )
-
-        self.logger.debug(
-            "Challenge._profile_parse() ended with: %s", challenge_validation_disable
-        )
-        return challenge_validation_disable
-
-    def _extensions_validate(self, cert: str, extension_value: str, fqdn: str) -> bool:
-        """validate extension"""
-        self.logger.debug(
-            "Challenge._extensions_validate(%s/%s)", extension_value, fqdn
-        )
-        result = False
-        san_list = cert_san_get(self.logger, cert, recode=False)
-        fqdn_in_san = fqdn_in_san_check(self.logger, san_list, fqdn)
-        if fqdn_in_san:
-            extension_list = cert_extensions_get(self.logger, cert, recode=False)
-            if extension_value in extension_list:
-                self.logger.debug("alpn validation successful")
-                result = True
-            else:
-                self.logger.debug("alpn validation not successful")
-        else:
-            self.logger.debug("fqdn check against san failed")
-
-        self.logger.debug("Challenge._extensions_validate() ended with: %s", result)
-        return result
-
-    def _name_get(self, url: str) -> str:
-        """get challenge"""
-        self.logger.debug("Challenge.get_name()")
-
-        url_dic = parse_url(self.logger, url)
-        challenge_name = url_dic["path"].replace(self.path_dic["chall_path"], "")
-        if "/" in challenge_name:
-            (challenge_name, _sinin) = challenge_name.split("/", 1)
-
-        self.logger.debug("Challenge.get_name() ended with: %s", challenge_name)
-        return challenge_name
-
-    def _email_send(self, to_address: str = None, token1: str = None):
-        """send challenge email"""
-        self.logger.debug("Challenge._email_send(%s)", to_address)
-        message_text = f"""
-  This is an automatically generated ACME challenge for the email address
-  "{to_address}". If you did not request an S/MIME certificate for this
-  address, please disregard this message and consider taking appropriate
-  security precautions.
-
-  If you did initiate the request, your email client may be able to process
-  this challenge automatically. Alternatively, you may need to manually
-  copy the first token and paste it into the designated verification tool
-  or application."""
-
-        with EmailHandler(logger=self.logger) as email_handler:
-            email_handler.send(
-                to_address=to_address, subject=f"ACME: {token1}", message=message_text
+            # load profiling
+            (
+                self.config.eab_profiling,
+                self.config.eab_handler,
+            ) = config_eab_profile_load(self.logger, config_dic)
+            # create validator registry
+            self.validator_registry = create_challenge_validator_registry(
+                self.logger, self.config
             )
 
             # Initialize factory and service after configuration is loaded
@@ -1471,10 +1148,10 @@ class Challenge:
         _tnauth: bool,
         id_type: str = "dns",
         id_value: str = None,
-    ) -> List[str]:
-        """get the challengeset for an authorization"""
+    ) -> List[Dict[str, str]]:
+        """Retrieve existing or create new challenge set (replaces challengeset_get)."""
         self.logger.debug(
-            "Challenge.challengeset_get() for auth: %s:%s", authz_name, id_value
+            "Challenge.retrieve_challenge_set() for auth: %s:%s", authz_name, id_value
         )
 
         self._ensure_components_initialized()
@@ -1501,8 +1178,7 @@ class Challenge:
 
         return result
 
-        # check database if there are exsting challenges for a particular authorization
-        challenge_list = self._challengelist_search("authorization__name", authz_name)
+    # === Legacy API Compatibility ===
 
     def get(self, url: str) -> Dict[str, str]:
         """Legacy API compatibility - use get_challenge_details instead."""
