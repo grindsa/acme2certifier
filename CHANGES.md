@@ -21,6 +21,12 @@ and pick the appropriate release branch.
 
 - **Challenge Error Reporting**: Challange validation error status will be reported to ACME-client
 
+## Changes in 0.40.1
+
+**Bug Fixes**:
+
+- [#281 - CAhandler' object has no attribute 'profiles'](https://github.com/grindsa/acme2certifier/issues/281)
+
 ## Changes in 0.40
 
 **Features and Improvements**:
