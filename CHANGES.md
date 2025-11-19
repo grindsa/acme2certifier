@@ -6,6 +6,12 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.40.1
+
+**Bug Fixes**:
+
+- [#281 - CAhandler' object has no attribute 'profiles'](https://github.com/grindsa/acme2certifier/issues/281)
+
 ## Changes in 0.40
 
 **Features and Improvements**:
