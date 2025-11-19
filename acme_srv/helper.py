@@ -2117,11 +2117,13 @@ def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
     return (san_list, check_list)
 
 
-def _handle_eab_profiling(logger: logging.Logger, cahandler, csr: str, handler_hifield: str) -> Optional[str]:
+def _handle_eab_profiling(
+    logger: logging.Logger, cahandler, csr: str, handler_hifield: str
+) -> Optional[str]:
     """Handle EAB profiling logic"""
     logger.debug("Helper._handle_eab_profiling()")
 
-    if not (hasattr(cahandler, 'eab_handler') and cahandler.eab_handler):
+    if not (hasattr(cahandler, "eab_handler") and cahandler.eab_handler):
         logger.error("EAB profiling enabled but no handler defined")
         return "Eab_profiling enabled but no handler defined"
 
@@ -2129,7 +2131,9 @@ def _handle_eab_profiling(logger: logging.Logger, cahandler, csr: str, handler_h
     return eab_profile_check(logger, cahandler, csr, handler_hifield)
 
 
-def _handle_acme_profiling(logger: logging.Logger, cahandler, csr: str, handler_hifield: str) -> None:
+def _handle_acme_profiling(
+    logger: logging.Logger, cahandler, csr: str, handler_hifield: str
+) -> None:
     """Handle ACME profiling logic"""
     logger.debug("Helper._handle_acme_profiling()")
 
@@ -2143,7 +2147,9 @@ def _handle_acme_profiling(logger: logging.Logger, cahandler, csr: str, handler_
         setattr(cahandler, handler_hifield, profile)
 
 
-def _handle_header_info_profiling(logger: logging.Logger, cahandler, csr: str, handler_hifield: str) -> None:
+def _handle_header_info_profiling(
+    logger: logging.Logger, cahandler, csr: str, handler_hifield: str
+) -> None:
     """Handle header info profiling logic"""
     logger.debug("Helper._handle_header_info_profiling()")
 
@@ -2201,16 +2207,16 @@ def eab_profile_header_info_check(
     logger.debug("Helper.eab_profile_header_info_check()")
 
     # Priority 1: EAB profiling - returns error string or None
-    if hasattr(cahandler, 'eab_profiling') and cahandler.eab_profiling:
+    if hasattr(cahandler, "eab_profiling") and cahandler.eab_profiling:
         error = _handle_eab_profiling(logger, cahandler, csr, handler_hifield)
 
     # Priority 2: ACME profiling (preferred over header info) - no errors
-    elif hasattr(cahandler, 'profiles') and cahandler.profiles:
+    elif hasattr(cahandler, "profiles") and cahandler.profiles:
         _handle_acme_profiling(logger, cahandler, csr, handler_hifield)
         error = None
 
     # Priority 3: Header info profiling - no errors
-    elif hasattr(cahandler, 'header_info_field') and cahandler.header_info_field:
+    elif hasattr(cahandler, "header_info_field") and cahandler.header_info_field:
         _handle_header_info_profiling(logger, cahandler, csr, handler_hifield)
         error = None
 
