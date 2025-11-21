@@ -192,7 +192,15 @@ class Certificate(object):
             order_dic = self.dbstore.order_lookup(
                 "name",
                 order_name,
-                ["id", "name", "account__name", "account__eab_kid", "profile", "expires", "account__contact"],
+                [
+                    "id",
+                    "name",
+                    "account__name",
+                    "account__eab_kid",
+                    "profile",
+                    "expires",
+                    "account__contact",
+                ],
             )
         except Exception as err:
             self.logger.error(

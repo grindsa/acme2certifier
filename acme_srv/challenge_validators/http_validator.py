@@ -3,7 +3,6 @@ HTTP-01 Challenge Validator.
 
 Implements validation logic for HTTP-01 challenges according to RFC 8555.
 """
-from typing import Optional
 import json
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 
