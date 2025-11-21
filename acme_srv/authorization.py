@@ -14,6 +14,8 @@ from acme_srv.helper import (
     load_config,
     string_sanitize,
 )
+from acme_srv.helpers.config import config_allowed_domainlist_load
+from acme_srv.helpers.domain_utils import is_domain_whitelisted
 from acme_srv.message import Message
 from acme_srv.nonce import Nonce
 
@@ -45,6 +47,7 @@ class AuthorizationConfig:
     validity: int = 86400
     expiry_check_disable: bool = False
     authz_path: str = "/acme/authz/"
+    allowed_domainlist: Optional[List[str]] = None
 
 
 @dataclass
@@ -331,6 +334,9 @@ class Authorization(object):
             if url_prefix:
                 self.config.authz_path = f"{url_prefix}{self.config.authz_path}"
 
+            # load allowed domainlist
+            self.config.allowed_domainlist = config_allowed_domainlist_load(self.logger, config_dic)
+
         self.logger.debug("Authorization._load_configuration() ended:")
 
     @property
@@ -394,9 +400,25 @@ class Authorization(object):
             authz_info["status"] = "pending"
             is_tnauth = False
 
+        # Extract identifier type and value
+        id_type, id_value = self.business_logic.extract_identifier_info_for_challenge(authz_info)
+        if id_type and id_value and self.config.allowed_domainlist:
+            # Check if domain is allowed
+            print("Checking allowed domain list - code commented out for now")
+            print("self.config.allowed_domainlist:", self.config.allowed_domainlist, id_type, id_value)
+            result = is_domain_whitelisted(self.logger, id_value, self.config.allowed_domainlist)
+            print(result)
+            raise(NotImplementedError("Domain allowed list check is not implemented in this snippet."))
+            #from acme_srv.helpers.domainlist import domain_allowed_check
+            #if not domain_allowed_check(self.logger, id_value, self.config.allowed_domainlist):
+            #    self.logger.error(
+            #        "Domain %s is not in allowed domain list for authorization %s",
+            #        id_value, authz_name
+            #    )
+            #    return None
+
         # Get challenge set
         try:
-            id_type, id_value = self.business_logic.extract_identifier_info_for_challenge(authz_info)
             authz_info["challenges"] = self.challenge_manager.get_challenge_set_for_authorization(
                 authz_name, authz_info["status"], token, is_tnauth, expires, id_type, id_value
             )
@@ -507,6 +529,7 @@ class Authorization(object):
                     message = "urn:ietf:params:acme:error:unauthorized"
                     detail = f"authorization error: {err}"
 
+        raise(NotImplementedError("The rest of the method is not implemented in this snippet."))
         # Prepare response
         status_dic = {"code": code, "type": message, "detail": detail}
         response_dic = self.message.prepare_response(response_dic, status_dic)
