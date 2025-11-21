@@ -2798,7 +2798,7 @@ class TestChallenge(unittest.TestCase):
             for msg in log_sync.output
             if "asynchronous Challenge validation enabled" in msg
         ]
-        self.assertTrue(len(debug_messages) > 0)
+        self.assertGreater(len(debug_messages), 0)
         self.assertEqual(len(info_messages), 0)
 
         # Reset mock for async test
@@ -2818,8 +2818,8 @@ class TestChallenge(unittest.TestCase):
             for msg in log_async.output
             if "asynchronous Challenge validation enabled" in msg
         ]
-        self.assertTrue(len(debug_messages) > 0)
-        self.assertTrue(len(info_messages) > 0)
+        self.assertGreater(len(debug_messages), 0)
+        self.assertGreater(len(info_messages), 0)
 
 
 if __name__ == "__main__":
