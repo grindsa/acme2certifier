@@ -468,7 +468,7 @@ class CAhandler(object):
         return chall_name, chall_content, challenge
 
     def _get_http_or_email_challenge(self, authzr, user_key):
-        self.logger.debug("_get_http_or_email_challenge()")
+        self.logger.debug("CAhandler._get_http_or_email_challenge()")
         challenge = self._challenge_filter(authzr)
         chall_name = None
         chall_content = None
@@ -485,6 +485,7 @@ class CAhandler(object):
             challenge = self._challenge_filter(authzr, chall_type="sectigo-email-01")
             if challenge:
                 chall_content = challenge.to_partial_json()
+        self.logger.debug("CAhandler._get_http_or_email_challenge() ended")
         return chall_name, chall_content, challenge
 
     def _http_challenge_store(self, challenge_name: str, challenge_content: str):
@@ -495,6 +496,7 @@ class CAhandler(object):
             data_dic = {"name": challenge_name, "value1": challenge_content}
             # store challenge into db
             self.dbstore.cahandler_add(data_dic)
+        self.logger.debug("CAhandler._http_challenge_store() ended.")
 
     def _key_generate(self) -> josepy.jwk.JWKRSA:
         """generate key"""
@@ -512,7 +514,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._user_key_load(%s)", self.acme_keyfile)
 
         if os.path.exists(self.acme_keyfile):
-            self.logger.debug("CAhandler.enroll() opening user_key")
+            self.logger.debug("CAhandler._user_key_load() opening user_key")
             with open(self.acme_keyfile, "r", encoding="utf8") as keyf:
 
                 user_key_dic = json.loads(keyf.read())
@@ -523,7 +525,7 @@ class CAhandler(object):
                     del user_key_dic["account"]
                 user_key = josepy.JWKRSA.fields_from_json(user_key_dic)
         else:
-            self.logger.debug("CAhandler.enroll() generate and register key")
+            self.logger.debug("CAhandler._user_key_load() generate and register key")
             user_key = self._key_generate()
             # dump keyfile to file
             try:
@@ -548,39 +550,53 @@ class CAhandler(object):
 
         # query challenges
         for authzr in order.authorizations:
-            (challenge_name, challenge_content, challenge) = self._challenge_info(
-                authzr, user_key
-            )
-            if challenge_name and challenge_content:
-                if self.dns_update_script and self.acme_sh_script:
+            if authzr.body.status == messages.STATUS_PENDING:
+                (challenge_name, challenge_content, challenge) = self._challenge_info(
+                    authzr, user_key
+                )
+                if challenge_name and challenge_content:
+                    if self.dns_update_script and self.acme_sh_script:
+                        self.logger.debug(
+                            "CAhandler._order_authorization(): dns challenge detected"
+                        )
+                        self._dns_challenge_provision(
+                            authzr.body.identifier.value, challenge_content, user_key
+                        )
+                    else:
+                        self.logger.debug(
+                            "CAhandler._order_authorization(): http challenge detected"
+                        )
+                        # store challenge in database to allow challenge validation
+                        self._http_challenge_store(challenge_name, challenge_content)
+
                     self.logger.debug(
-                        "CAhandler._order_authorization(): dns challenge detected"
+                        "CAhandler._order_authorization(): answer challenge"
                     )
-                    self._dns_challenge_provision(
-                        authzr.body.identifier.value, challenge_content, user_key
-                    )
+
+                    _auth_response = acmeclient.answer_challenge(
+                        challenge, challenge.chall.response(user_key)
+                    )  # lgtm [py/unused-local-variable]
+                    authz_valid = True
                 else:
-                    self.logger.debug(
-                        "CAhandler._order_authorization(): http challenge detected"
-                    )
-                    # store challenge in database to allow challenge validation
-                    self._http_challenge_store(challenge_name, challenge_content)
-
-                _auth_response = acmeclient.answer_challenge(
-                    challenge, challenge.chall.response(user_key)
-                )  # lgtm [py/unused-local-variable]
-
+                    if (
+                        isinstance(challenge_content, dict)
+                        and challenge_content.get("type", None) == "sectigo-email-01"
+                        and challenge_content.get("status", None) == "valid"
+                    ):
+                        self.logger.debug(
+                            "CAhandler._order_authorization(): sectigo-email-01 challenge detected"
+                        )
+                        authz_valid = True
+            elif authzr.body.status == messages.STATUS_VALID:
+                self.logger.info(
+                    "Authorization already valid. Skipping challenge validation."
+                )
                 authz_valid = True
             else:
-                if (
-                    isinstance(challenge_content, dict)
-                    and challenge_content.get("type", None) == "sectigo-email-01"
-                    and challenge_content.get("status", None) == "valid"
-                ):
-                    self.logger.debug(
-                        "CAhandler._order_authorization(): sectigo-email-01 challenge detected"
-                    )
-                    authz_valid = True
+                self.logger.warning(
+                    "CAhandler._order_authorization(): authorization in unexpected state: %s",
+                    authzr.body.status,
+                )
 
         self.logger.debug(
             "CAhandler._order_authorization() ended with: %s", authz_valid
@@ -631,7 +647,7 @@ class CAhandler(object):
         order_valid = self._order_authorization(acmeclient, order, user_key)
 
         if order_valid:
-            self.logger.debug("CAhandler.enroll() polling for certificate")
+            self.logger.debug("CAhandler._order_issue() polling for certificate")
             order = acmeclient.poll_and_finalize(order)
 
             if self.dns_update_script and self.acme_sh_script:
@@ -639,7 +655,7 @@ class CAhandler(object):
                 self._dns_challenge_deprovision()
 
             if order.fullchain_pem:
-                self.logger.debug("CAhandler.enroll() successful")
+                self.logger.debug("CAhandler._order_issue() successful")
                 cert_bundle = str(order.fullchain_pem)
                 # Split the chain into individual certificates
                 certs = cert_bundle.strip().split("-----END CERTIFICATE-----")
@@ -963,6 +979,7 @@ class CAhandler(object):
         cert_raw = None
 
         if regr.body.status == "valid":
+            self.logger.debug("CAhandler._enroll(): Valid ACME account: %s", regr.uri)
             (error, cert_bundle, cert_raw) = self._order_issue(
                 acmeclient, user_key, csr_pem
             )
