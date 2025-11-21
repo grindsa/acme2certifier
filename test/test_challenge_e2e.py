@@ -5,7 +5,6 @@
 
 import unittest
 import sys
-import os
 import json
 import base64
 from unittest.mock import patch, MagicMock
@@ -79,8 +78,8 @@ class TestChallengeE2E(unittest.TestCase):
         # Exit context manager
         try:
             self.challenge.__exit__(None, None, None)
-        except:
-            pass
+        except Exception:  # Catch all exceptions during cleanup
+            pass  # Ignore cleanup errors in tearDown
 
         # Clean up mocked modules
         import sys

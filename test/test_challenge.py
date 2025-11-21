@@ -1221,7 +1221,7 @@ class TestChallenge(unittest.TestCase):
                 "type": "bad request",
                 "detail": "invalid format",
             }
-            result = self.challenge.process_challenge_request("invalid_content")
+            self.challenge.process_challenge_request("invalid_content")
             mock_error_response.assert_called_once_with(
                 400, "bad request", "invalid format"
             )
@@ -1252,7 +1252,7 @@ class TestChallenge(unittest.TestCase):
                 "type": "malformed",
                 "detail": "url missing in protected header",
             }
-            result = self.challenge.process_challenge_request("content_without_url")
+            self.challenge.process_challenge_request("content_without_url")
             mock_error_response.assert_called_once_with(
                 400, "malformed", "url missing in protected header"
             )
@@ -1285,7 +1285,7 @@ class TestChallenge(unittest.TestCase):
                 "type": "malformed",
                 "detail": "could not get challenge",
             }
-            result = self.challenge.process_challenge_request(
+            self.challenge.process_challenge_request(
                 "content_with_invalid_url"
             )
             mock_error_response.assert_called_once_with(
@@ -1326,7 +1326,7 @@ class TestChallenge(unittest.TestCase):
                 "type": "malformed",
                 "detail": "invalid challenge: nonexistent_challenge",
             }
-            result = self.challenge.process_challenge_request(
+            self.challenge.process_challenge_request(
                 "content_with_nonexistent_challenge"
             )
             mock_error_response.assert_called_once_with(
@@ -1363,7 +1363,7 @@ class TestChallenge(unittest.TestCase):
             mock_retry.return_value = Mock()  # Return some validation result
 
             # This will execute lines 389-402 where ChallengeContext is created
-            result = self.challenge._execute_challenge_validation("test_challenge")
+            self.challenge._execute_challenge_validation("test_challenge")
 
             # Verify that _perform_validation_with_retry was called (which means ChallengeContext was created)
             mock_retry.assert_called_once()
@@ -2484,7 +2484,7 @@ class TestChallenge(unittest.TestCase):
         )
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             with patch("time.sleep") as mock_sleep:
-                result = self.challenge._perform_validation_with_retry(
+                self.challenge._perform_validation_with_retry(
                     "dns-01", mock_context
                 )
         self.assertIn(
@@ -2798,7 +2798,7 @@ class TestChallenge(unittest.TestCase):
             for msg in log_sync.output
             if "asynchronous Challenge validation enabled" in msg
         ]
-        self.assertTrue(len(debug_messages) > 0)
+        self.assertGreater(len(debug_messages), 0)
         self.assertEqual(len(info_messages), 0)
 
         # Reset mock for async test
@@ -2818,8 +2818,8 @@ class TestChallenge(unittest.TestCase):
             for msg in log_async.output
             if "asynchronous Challenge validation enabled" in msg
         ]
-        self.assertTrue(len(debug_messages) > 0)
-        self.assertTrue(len(info_messages) > 0)
+        self.assertGreater(len(debug_messages), 0)
+        self.assertGreater(len(info_messages), 0)
 
 
 if __name__ == "__main__":
