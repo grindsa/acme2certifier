@@ -21,7 +21,6 @@ from threading import Thread
 
 # Import our modules
 from acme_srv.challenge_validators import (
-    ChallengeValidatorRegistry,
     ChallengeContext,
     ValidationResult,
 )
@@ -38,7 +37,6 @@ from acme_srv.challenge_business_logic import (
 )
 from acme_srv.challenge_error_handling import (
     ErrorHandler,
-    ChallengeError,
     ValidationError,
     DatabaseError,
     UnsupportedChallengeTypeError,

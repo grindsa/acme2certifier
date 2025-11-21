@@ -5,8 +5,7 @@
 import unittest
 import sys
 import logging
-from unittest.mock import Mock, MagicMock, patch, call
-from typing import Dict, Optional, Any, List
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")

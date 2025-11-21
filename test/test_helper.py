@@ -3812,7 +3812,6 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         eabhandler = Mock()
         mock_chk.return_value = False
         cahandler.foo = "foo"
-        eabhandler = Mock()
         self.eab_profile_list_check(
             self.logger, cahandler, eabhandler, "csr", "allowed_domainlist", "bar"
         )
@@ -4947,8 +4946,6 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("random.randint")
     def test_436_radomize_parameter_list(self, mock_rand):
         """test radomize_parameter_list()"""
-        mock_rand = 1
-
         class myclass:
             pass
 
@@ -4961,8 +4958,6 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("random.randint")
     def test_437_radomize_parameter_list(self, mock_rand):
         """test radomize_parameter_list()"""
-        mock_rand = 1
-
         class myclass:
             pass
 
@@ -4975,8 +4970,6 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("random.randint")
     def test_438_radomize_parameter_list(self, mock_rand):
         """test radomize_parameter_list()"""
-        mock_rand = 1
-
         class myclass:
             pass
 
