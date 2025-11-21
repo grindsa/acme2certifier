@@ -38,6 +38,7 @@ class DBstore(object):
         self.dbs = None
         self.cursor = None
         self.logger = logger
+        self.type = "wsgi"
 
         if not self.db_name:
             cfg = load_config()
@@ -448,7 +449,7 @@ class DBstore(object):
         self.logger.debug("create challenge")
         self.cursor.execute(
             """
-            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(15) NOT NULL, "keyauthorization" varchar(128), "source" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "validated" integer DEFAULT 0, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(15) NOT NULL, "keyauthorization" varchar(128), "source" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "validated" integer DEFAULT 0, "validation_error" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         """
         )
         self.logger.debug("create certificate")
@@ -609,6 +610,12 @@ class DBstore(object):
             self.logger.info("alter challenge table - add validated")
             self.cursor.execute(
                 """ALTER TABLE challenge ADD COLUMN validated integer DEFAULT 0"""
+            )
+
+        if "validation_error" not in challenges_column_list:
+            self.logger.info("alter challenge table - add validation_error")
+            self.cursor.execute(
+                """ALTER TABLE challenge ADD COLUMN validation_error text"""
             )
 
         if "source" not in challenges_column_list:

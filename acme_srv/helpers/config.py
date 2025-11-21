@@ -47,12 +47,30 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
     eab_handler = None
 
     try:
+        # load eab_profiling from eabhandler section
         eab_profiling = config_dic.getboolean(
-            "CAhandler", "eab_profiling", fallback=False
+            "EABhandler", "eab_profiling", fallback=False
         )
     except Exception as err:
-        logger.warning("Failed to load eabprofile from configuration: %s", err)
+        logger.error("Failed to load eabprofile from configuration: %s", err)
         eab_profiling = False
+
+    if (
+        not eab_profiling
+        and "CAhandler" in config_dic
+        and "eab_profiling" in config_dic["CAhandler"]
+    ):
+        # load eab_profiling from CAHandler section - deprecated
+        logger.warning(
+            "eab_profiling found in CAhandler section - this is deprecated, please use EABhandler section"
+        )
+        try:
+            eab_profiling = config_dic.getboolean(
+                "CAhandler", "eab_profiling", fallback=False
+            )
+        except Exception as err:
+            logger.error("Failed to load eabprofile from configuration: %s", err)
+            eab_profiling = False
 
     if eab_profiling:
         if (
@@ -149,6 +167,25 @@ def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str,
         "Helper.config_allowed_domainlist_load() ended with: %s", allowed_domainlist
     )
     return allowed_domainlist
+
+
+def config_async_mode_load(
+    logger: logging.Logger, config_dic: Dict[str, str], db_type: str
+):
+    """load parameters"""
+    logger.debug("Helper.config_async_mode_load()")
+
+    async_mode = False
+
+    async_cfg = config_dic.getboolean("DEFAULT", "async_mode", fallback=False)
+    if async_cfg and db_type == "django":
+        async_mode = True
+    else:
+        logger.info(
+            "asynchronous Challenge validation disabled, requires django db handler"
+        )
+    logger.debug("Helper.config_async_mode_load() ended with: %s", async_mode)
+    return async_mode
 
 
 def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):

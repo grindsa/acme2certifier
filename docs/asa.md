@@ -40,7 +40,6 @@ cert_validity_days: <days>
 - `ca_name` - Name of the CA used to enroll certificates.
 - `profile_name` - Profile name.
 - `cert_validity_days` - *Optional* - Polling timeout (default: `60s`).
-- `eab_profiling` - *Optional* - [Activate EAB profiling](eab_profiling.md) (default: `False`).
 - `enrollment_config_log` - *Optional* - Log enrollment parameters (default: `False`).
 - `enrollment_config_log_skip_list` - *Optional* - List of enrollment parameters not to be logged, in JSON format. Example: `["parameter1", "parameter2"]` (default: `[]`).
 - `allowed_domainlist` - *Optional* - List of domain names allowed for enrollment, in JSON format. Example: `["bar.local$", "bar.foo.local"]` (default: `[]`).

@@ -51,40 +51,84 @@ class TestACMEHandler(unittest.TestCase):
             self.nonce.check({"foo": "bar"}),
         )
 
-    def test_004_nonce_check(self):
+    @patch("acme_srv.nonce.Nonce._check_and_delete")
+    def test_004_nonce_check(self, mock_check_and_delete):
         """test Nonce.nonce_check_and_delete"""
+        mock_check_and_delete.return_value = (200, None, None)
         self.assertEqual((200, None, None), self.nonce.check({"nonce": "aaa"}))
 
-    def test_005_nonce__check_and_delete(self):
+    @patch("acme_srv.nonce.DBstore")
+    def test_005_nonce__check_and_delete(self, mock_dbstore_class):
         """test Nonce.nonce_check_and_delete"""
-        self.assertEqual((200, None, None), self.nonce._check_and_delete("aaa"))
+        # Setup mock to return True for nonce_check
+        mock_dbstore_instance = MagicMock()
+        mock_dbstore_instance.nonce_check.return_value = True
+        mock_dbstore_instance.nonce_delete.return_value = None
+        mock_dbstore_class.return_value = mock_dbstore_instance
 
-    def test_006_nonce_generate_and_add(self):
+        # Create a new nonce instance with the mocked dbstore
+        from acme_srv.nonce import Nonce
+
+        nonce = Nonce(False, self.logger)
+
+        self.assertEqual((200, None, None), nonce._check_and_delete("aaa"))
+
+    @patch("acme_srv.nonce.DBstore")
+    def test_006_nonce_generate_and_add(self, mock_dbstore_class):
         """test Nonce._add() if dbstore.nonce_add raises an exception"""
-        self.nonce.dbstore.nonce_add.side_effect = Exception("exc_nonce_add")
+        # Setup mock to raise exception
+        mock_dbstore_instance = MagicMock()
+        mock_dbstore_instance.nonce_add.side_effect = Exception("exc_nonce_add")
+        mock_dbstore_class.return_value = mock_dbstore_instance
+
+        # Create a new nonce instance with the mocked dbstore
+        from acme_srv.nonce import Nonce
+
+        nonce = Nonce(False, self.logger)
+
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.nonce.generate_and_add()
+            nonce.generate_and_add()
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to add new nonce: exc_nonce_add",
             lcm.output,
         )
 
-    def test_007_nonce__check_and_delete(self):
+    @patch("acme_srv.nonce.DBstore")
+    def test_007_nonce__check_and_delete(self, mock_dbstore_class):
         """test Nonce._check_and_delete() if dbstore.nonce_delete raises an exception"""
-        self.nonce.dbstore.nonce_check.return_value = True
-        self.nonce.dbstore.nonce_delete.side_effect = Exception("exc_nonce_delete")
+        # Setup mock: nonce_check returns True, nonce_delete raises exception
+        mock_dbstore_instance = MagicMock()
+        mock_dbstore_instance.nonce_check.return_value = True
+        mock_dbstore_instance.nonce_delete.side_effect = Exception("exc_nonce_delete")
+        mock_dbstore_class.return_value = mock_dbstore_instance
+
+        # Create a new nonce instance with the mocked dbstore
+        from acme_srv.nonce import Nonce
+
+        nonce = Nonce(False, self.logger)
+
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.nonce._check_and_delete("nonce")
+            nonce._check_and_delete("nonce")
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to delete nonce: exc_nonce_delete",
             lcm.output,
         )
 
-    def test_008_nonce__check_and_delete(self):
+    @patch("acme_srv.nonce.DBstore")
+    def test_008_nonce__check_and_delete(self, mock_dbstore_class):
         """test Nonce._check_and_delete() if dbstore.nonce_check raises an exception"""
-        self.nonce.dbstore.nonce_check.side_effect = Exception("exc_nonce_check")
+        # Setup mock to raise exception on nonce_check
+        mock_dbstore_instance = MagicMock()
+        mock_dbstore_instance.nonce_check.side_effect = Exception("exc_nonce_check")
+        mock_dbstore_class.return_value = mock_dbstore_instance
+
+        # Create a new nonce instance with the mocked dbstore
+        from acme_srv.nonce import Nonce
+
+        nonce = Nonce(False, self.logger)
+
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.nonce._check_and_delete("nonce")
+            nonce._check_and_delete("nonce")
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to check nonce: exc_nonce_check",
             lcm.output,

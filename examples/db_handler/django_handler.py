@@ -49,6 +49,7 @@ class DBstore(object):
     def __init__(self, _debug: bool = False, logger: object = None):
         """init"""
         self.logger = logger
+        self.type = "django"
 
     def _account_getinstance(self, aname: str) -> QuerySet:
         """get account instance"""

@@ -1,0 +1,71 @@
+name: "enroll_test"
+description: "enroll_test"
+inputs:
+  TO_FAIL:
+    description: "Enrollment is expected to fail"
+    required: true
+    default: "false"
+  EAB_KID:
+    description: "EAB KID to use for enrollment"
+    required: false
+    default: ""
+  EAB_HMAC_KEY:
+    description: "EAB HMAC key to use for enrollment"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+
+  - name: "Enroll lego with correct SAN"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego.acme --eab --kid $EAB_KID --hmac $EAB_HMAC_KEY --http run
+    env:
+      EAB_KID: ${{ inputs.EAB_KID }}
+      EAB_HMAC_KEY: ${{ inputs.EAB_HMAC_KEY }}
+    shell: bash
+
+  - name: "Enroll lego incorrect SAN (to fail)"
+    if: ${{ inputs.TO_FAIL  == 'true' }}
+    id: lego01
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego-unknown.acme --eab --kid $EAB_KID --hmac $EAB_HMAC_KEY --http run
+    env:
+      EAB_KID: ${{ inputs.EAB_KID }}
+      EAB_HMAC_KEY: ${{ inputs.EAB_HMAC_KEY }}
+    shell: bash
+
+  - name: "Check  result "
+    if: ${{ (inputs.TO_FAIL  == 'true' ) && (steps.lego01.outcome != 'failure') }}
+    run: |
+      echo "acmefail outcome is ${{steps.lego01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Enroll lego incorrect SAN (should not fail)"
+    if: ${{ inputs.TO_FAIL  == 'false' }}
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego -s https://acme-srv  --tls-skip-verify -a --email "lego@example.com" -d lego-unknown.acme --eab --kid $EAB_KID --hmac $EAB_HMAC_KEY --http run
+      sudo openssl x509 -in lego/certificates/lego-unknown.acme.crt -text -noout
+    env:
+      EAB_KID: ${{ inputs.EAB_KID }}
+      EAB_HMAC_KEY: ${{ inputs.EAB_HMAC_KEY }}
+    shell: bash
+
+  - name: "Delete acme-sh, letsencypt and lego folders"
+    run: |
+      sudo rm -rf  lego/*
+    shell: bash

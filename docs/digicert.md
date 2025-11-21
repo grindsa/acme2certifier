@@ -31,7 +31,6 @@ cert_type: <cert_type>
 signature_hash: <signature_hash>
 order_validity: <order_validity>
 request_timeout: <seconds>
-eab_profiling: <True|False>
 ```
 
 - api_key - required - API key to access the API
@@ -44,7 +43,6 @@ eab_profiling: <True|False>
 - order_validity - optional - oder validity (default: 1 year)
 - request_timeout - optional - requests timeout in seconds for requests (default: 5s)
 - allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: \["bar.local$, bar.foo.local\] (default: \[\])
-- eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
 - enrollment_config_log - optional - log enrollment parameters (default False)
 - enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: \[ "parameter1", "parameter2" \] (default: \[\])
 
@@ -99,9 +97,10 @@ This handler can use the [eab profiling feture](eab_profiling.md) to allow indiv
 [EABhandler]
 eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: <profile_file>
+eab_profiling: True
 
 [CAhandler]
-eab_profiling: True
+...
 ```
 
 below an example key-file used during regression testing:

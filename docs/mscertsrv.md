@@ -109,7 +109,6 @@ auth_method: <basic|ntlm|gssapi>
 template: <name>
 allowed_domainlist: ["example.com", "*.example2.com"]
 krb5_config: <path_to_individual>/krb5.conf
-eab_profiling: False
 ```
 
 ### Parameter Explanations
@@ -125,7 +124,6 @@ eab_profiling: False
 - **krb5_config** *(optional)* – Path to an individual `krb5.conf` file.
 - **template** – Certificate template used for enrollment.
 - **allowed_domainlist** *(optional)* – List of allowed domain names for enrollment (JSON format).
-- **eab_profiling** *(optional)* – [Enable EAB profiling](eab_profiling.md) (default: `False`).
 - **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`).
 - **enrollment_config_log_skip_list** *(optional)* – List of enrollment parameters to exclude from logs (JSON format).
 
@@ -175,9 +173,10 @@ This handler supports [EAB profiling](eab_profiling.md) to allow individual enro
 [EABhandler]
 eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: <profile_file>
+eab_profiling: True
 
 [CAhandler]
-eab_profiling: True
+...
 ```
 
 ### Example Key File

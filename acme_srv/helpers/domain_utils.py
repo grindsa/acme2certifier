@@ -148,7 +148,7 @@ def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
                 # force check to fail as something went wrong during parsing
                 check_list.append(san)
                 logger.debug(
-                    "Helper.sancheck_lists_create(): san_list parsing failed at entry: $s",
+                    "Helper.sancheck_lists_create(): san_list parsing failed at entry: %s",
                     san,
                 )
 
