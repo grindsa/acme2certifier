@@ -6,9 +6,7 @@ import unittest
 import sys
 import logging
 import json
-from unittest.mock import Mock, MagicMock, patch, call
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
@@ -461,7 +459,7 @@ class TestChallengeStateManager(unittest.TestCase):
         self.state_manager.transition_to_processing("test-challenge")
 
         # Check that debug was called for method entry and exit
-        self.assertTrue(self.logger.debug.call_count >= 2)
+        self.assertGreaterEqual(self.logger.debug.call_count, 2)
         debug_calls = self.logger.debug.call_args_list
 
         # First call should be method entry
@@ -965,7 +963,7 @@ class TestChallengeService(unittest.TestCase):
 
         config = MockConfig(email_identifier_support=False)
 
-        result = self.service.get_challenge_set_for_authorization(
+        self.service.get_challenge_set_for_authorization(
             authorization_name="test-auth",
             token="test-token",
             id_type="email",
@@ -1168,7 +1166,7 @@ class TestChallengeService(unittest.TestCase):
 
         config = MockConfig(sectigo_sim=True)
 
-        result = self.service.get_challenge_set_for_authorization(
+        self.service.get_challenge_set_for_authorization(
             authorization_name="test-auth",
             token="test-token",
             id_type="dns",
@@ -1186,7 +1184,7 @@ class TestChallengeService(unittest.TestCase):
 
         # Test with email_identifier_support=True but no email_address
         config = MockConfig(email_identifier_support=True, email_address=None)
-        result = self.service.get_challenge_set_for_authorization(
+        self.service.get_challenge_set_for_authorization(
             authorization_name="test-auth",
             token="test-token",
             id_type="email",
@@ -1201,7 +1199,7 @@ class TestChallengeService(unittest.TestCase):
         config = MockConfig(
             email_identifier_support=True, email_address="admin@example.com"
         )
-        result = self.service.get_challenge_set_for_authorization(
+        self.service.get_challenge_set_for_authorization(
             authorization_name="test-auth",
             token="test-token",
             id_type="email",
