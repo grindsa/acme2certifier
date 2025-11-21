@@ -3,7 +3,7 @@ Email Reply Challenge Validator.
 
 Implements validation logic for email-reply-00 challenges.
 """
-from typing import Dict, Tuple
+from typing import Tuple
 import re
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 from acme_srv.helper import b64_url_encode, convert_byte_to_string, sha256_hash
