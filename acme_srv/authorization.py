@@ -509,7 +509,7 @@ class Authorization(object):
                 "value",
                 "order__name",
                 "order__account__name",
-                "order__account__eab_keyid",
+                "order__account__eab_kid",
             ],
         )
 
@@ -570,7 +570,7 @@ class Authorization(object):
             self.logger.debug(
                 "Authorization.get_authorization_details() - apply eab profile setting"
             )
-            eab_kid = auth_details.get("order__account__eab_keyid", None)
+            eab_kid = auth_details.get("order__account__eab_kid", None)
             if eab_kid:
                 try:
                     with self.config.eab_handler(self.logger) as eab_handler:
