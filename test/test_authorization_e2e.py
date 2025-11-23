@@ -22,29 +22,36 @@ class TestAuthorizationE2E(unittest.TestCase):
     def setUp(self):
         """Setup test environment with real database"""
         import logging
+
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_authorization_e2e")
 
         # Create temporary database for testing
-        self.temp_db = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
+        self.temp_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
         self.temp_db.close()
 
         # Set up database with required tables
         self._setup_test_database()
 
         # Mock the database path
-        self.db_patcher = patch('acme_srv.authorization.DBstore')
+        self.db_patcher = patch("acme_srv.authorization.DBstore")
         self.mock_dbstore_class = self.db_patcher.start()
 
         # Create real DBstore instance with our test database
         from acme_srv.db_handler import DBstore
-        self.real_dbstore = DBstore(debug=False, logger=self.logger, db_name=self.temp_db.name)
+
+        self.real_dbstore = DBstore(
+            debug=False, logger=self.logger, db_name=self.temp_db.name
+        )
 
         self.mock_dbstore_class.return_value = self.real_dbstore
 
         # Import Authorization class after mocking DBstore
         from acme_srv.authorization import Authorization
-        self.authorization = Authorization(debug=False, srv_name="http://test.local", logger=self.logger)
+
+        self.authorization = Authorization(
+            debug=False, srv_name="http://test.local", logger=self.logger
+        )
 
     def tearDown(self):
         """Clean up test environment"""
@@ -60,23 +67,28 @@ class TestAuthorizationE2E(unittest.TestCase):
         cursor = conn.cursor()
 
         # Create necessary tables (simplified schema for testing)
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS account (
                 id INTEGER PRIMARY KEY,
                 name TEXT UNIQUE,
                 jwk TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        ''')
+        """
+        )
 
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS status (
                 id INTEGER PRIMARY KEY,
                 name TEXT UNIQUE
             )
-        ''')
+        """
+        )
 
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS authorization (
                 id INTEGER PRIMARY KEY,
                 name TEXT UNIQUE,
@@ -90,16 +102,20 @@ class TestAuthorizationE2E(unittest.TestCase):
                 FOREIGN KEY (status_id) REFERENCES status(id),
                 FOREIGN KEY (order_id) REFERENCES orders(id)
             )
-        ''')
+        """
+        )
 
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS orderstatus (
                 id INTEGER PRIMARY KEY,
                 name TEXT UNIQUE
             )
-        ''')
+        """
+        )
 
-        cursor.execute('''
+        cursor.execute(
+            """
             CREATE TABLE IF NOT EXISTS orders (
                 id INTEGER PRIMARY KEY,
                 name TEXT UNIQUE,
@@ -110,7 +126,8 @@ class TestAuthorizationE2E(unittest.TestCase):
                 FOREIGN KEY (status_id) REFERENCES orderstatus(id),
                 FOREIGN KEY (account_id) REFERENCES account(id)
             )
-        ''')
+        """
+        )
 
         # Insert test data
         # Insert statuses
@@ -120,64 +137,91 @@ class TestAuthorizationE2E(unittest.TestCase):
         cursor.execute("INSERT OR IGNORE INTO status (id, name) VALUES (4, 'expired')")
 
         # Insert order statuses
-        cursor.execute("INSERT OR IGNORE INTO orderstatus (id, name) VALUES (1, 'pending')")
-        cursor.execute("INSERT OR IGNORE INTO orderstatus (id, name) VALUES (2, 'valid')")
-        cursor.execute("INSERT OR IGNORE INTO orderstatus (id, name) VALUES (3, 'invalid')")
+        cursor.execute(
+            "INSERT OR IGNORE INTO orderstatus (id, name) VALUES (1, 'pending')"
+        )
+        cursor.execute(
+            "INSERT OR IGNORE INTO orderstatus (id, name) VALUES (2, 'valid')"
+        )
+        cursor.execute(
+            "INSERT OR IGNORE INTO orderstatus (id, name) VALUES (3, 'invalid')"
+        )
 
         # Insert test account
-        test_jwk = json.dumps({
-            "kty": "RSA",
-            "n": "test-modulus",
-            "e": "AQAB"
-        })
-        cursor.execute("INSERT OR IGNORE INTO account (id, name, jwk) VALUES (1, 'test_account', ?)", (test_jwk,))
+        test_jwk = json.dumps({"kty": "RSA", "n": "test-modulus", "e": "AQAB"})
+        cursor.execute(
+            "INSERT OR IGNORE INTO account (id, name, jwk) VALUES (1, 'test_account', ?)",
+            (test_jwk,),
+        )
 
         # Insert test order
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR IGNORE INTO orders (id, name, status_id, account_id, expires)
             VALUES (1, 'test_order', 1, 1, ?)
-        """, (int(time.time()) + 86400,))
+        """,
+            (int(time.time()) + 86400,),
+        )
 
         # Insert test authorizations
         current_time = int(time.time())
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR IGNORE INTO authorization (id, name, type, value, expires, token, status_id, order_id)
             VALUES (1, 'test_authz_valid', 'dns', 'example.com', ?, 'test_token_1', 1, 1)
-        """, (current_time + 86400,))
+        """,
+            (current_time + 86400,),
+        )
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR IGNORE INTO authorization (id, name, type, value, expires, token, status_id, order_id)
             VALUES (2, 'test_authz_expired', 'dns', 'expired.example.com', ?, 'test_token_2', 1, 1)
-        """, (current_time - 1000,))
+        """,
+            (current_time - 1000,),
+        )
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR IGNORE INTO authorization (id, name, type, value, expires, token, status_id, order_id)
             VALUES (3, 'test_authz_wildcard', 'dns', '*.wildcard.example.com', ?, 'test_token_3', 2, 1)
-        """, (current_time + 86400,))
+        """,
+            (current_time + 86400,),
+        )
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR IGNORE INTO authorization (id, name, type, value, expires, token, status_id, order_id)
             VALUES (4, 'test_authz_tnauthlist', 'TNAuthList', 'sip:user@example.com', ?, 'test_token_4', 1, 2)
-        """, (current_time + 86400,))
+        """,
+            (current_time + 86400,),
+        )
 
         conn.commit()
         conn.close()
 
-    def _create_valid_acme_request(self, url="http://test.local/acme/authz/test_authz_valid"):
+    def _create_valid_acme_request(
+        self, url="http://test.local/acme/authz/test_authz_valid"
+    ):
         """Helper to create valid ACME request payload"""
         protected_data = {
             "alg": "RS256",
             "nonce": "test_nonce",
             "url": url,
-            "jwk": {"kty": "RSA", "n": "test-n", "e": "AQAB"}
+            "jwk": {"kty": "RSA", "n": "test-n", "e": "AQAB"},
         }
 
         import base64
-        return json.dumps({
-            "protected": base64.b64encode(json.dumps(protected_data).encode()).decode(),
-            "payload": base64.b64encode(json.dumps({}).encode()).decode(),
-            "signature": "test_signature"
-        })
+
+        return json.dumps(
+            {
+                "protected": base64.b64encode(
+                    json.dumps(protected_data).encode()
+                ).decode(),
+                "payload": base64.b64encode(json.dumps({}).encode()).decode(),
+                "signature": "test_signature",
+            }
+        )
 
     # === Constructor Tests ===
 
@@ -192,7 +236,10 @@ class TestAuthorizationE2E(unittest.TestCase):
     def test_0002_init_with_parameters(self):
         """Test Authorization initialization with custom parameters"""
         from acme_srv.authorization import Authorization
-        auth = Authorization(debug=True, srv_name="https://custom.local", logger=self.logger)
+
+        auth = Authorization(
+            debug=True, srv_name="https://custom.local", logger=self.logger
+        )
 
         self.assertEqual(auth.server_name, "https://custom.local")
         self.assertTrue(auth.debug)
@@ -204,7 +251,10 @@ class TestAuthorizationE2E(unittest.TestCase):
     def test_0003_init_components_creation(self):
         """Test that all required components are created during initialization"""
         from acme_srv.authorization import Authorization
-        auth = Authorization(debug=False, srv_name="http://test.local", logger=self.logger)
+
+        auth = Authorization(
+            debug=False, srv_name="http://test.local", logger=self.logger
+        )
 
         # Verify all components are created
         self.assertIsNotNone(auth.dbstore)
@@ -226,13 +276,16 @@ class TestAuthorizationE2E(unittest.TestCase):
         """Test Authorization can be used as context manager"""
         from acme_srv.authorization import Authorization
 
-        with patch('acme_srv.authorization.load_config') as mock_load_config:
+        with patch("acme_srv.authorization.load_config") as mock_load_config:
             # Return a proper ConfigParser object instead of dict
             import configparser
+
             config = configparser.ConfigParser()
             mock_load_config.return_value = config
 
-            auth = Authorization(debug=False, srv_name="http://test.local", logger=self.logger)
+            auth = Authorization(
+                debug=False, srv_name="http://test.local", logger=self.logger
+            )
 
             # Test context manager
             with auth as auth_instance:
@@ -244,16 +297,19 @@ class TestAuthorizationE2E(unittest.TestCase):
         """Test configuration is loaded when entering context manager"""
         from acme_srv.authorization import Authorization
 
-        with patch('acme_srv.authorization.load_config') as mock_load_config:
+        with patch("acme_srv.authorization.load_config") as mock_load_config:
             # Mock configuration with custom values
             import configparser
+
             config = configparser.ConfigParser()
-            config.add_section('Authorization')
-            config.set('Authorization', 'validity', '3600')
-            config.set('Authorization', 'expiry_check_disable', 'true')
+            config.add_section("Authorization")
+            config.set("Authorization", "validity", "3600")
+            config.set("Authorization", "expiry_check_disable", "true")
             mock_load_config.return_value = config
 
-            auth = Authorization(debug=False, srv_name="http://test.local", logger=self.logger)
+            auth = Authorization(
+                debug=False, srv_name="http://test.local", logger=self.logger
+            )
 
             with auth:
                 # Verify configuration was applied
@@ -264,15 +320,18 @@ class TestAuthorizationE2E(unittest.TestCase):
         """Test context manager handles configuration errors gracefully"""
         from acme_srv.authorization import Authorization, ConfigurationError
 
-        with patch('acme_srv.authorization.load_config') as mock_load_config:
+        with patch("acme_srv.authorization.load_config") as mock_load_config:
             # Mock configuration with invalid validity value
             import configparser
+
             config = configparser.ConfigParser()
-            config.add_section('Authorization')
-            config.set('Authorization', 'validity', 'invalid_number')
+            config.add_section("Authorization")
+            config.set("Authorization", "validity", "invalid_number")
             mock_load_config.return_value = config
 
-            auth = Authorization(debug=False, srv_name="http://test.local", logger=self.logger)
+            auth = Authorization(
+                debug=False, srv_name="http://test.local", logger=self.logger
+            )
 
             with self.assertRaises(ConfigurationError):
                 with auth:
@@ -282,13 +341,21 @@ class TestAuthorizationE2E(unittest.TestCase):
 
     def test_0007_invalidate_default_timestamp(self):
         """Test invalidate() with default timestamp"""
-        with patch('acme_srv.authorization.uts_now', return_value=int(time.time())):
+        with patch("acme_srv.authorization.uts_now", return_value=int(time.time())):
             field_list, output_list = self.authorization.invalidate()
 
             # Should return expected field list
             expected_fields = [
-                "id", "name", "expires", "value", "created_at", "token",
-                "status__id", "status__name", "order__id", "order__name"
+                "id",
+                "name",
+                "expires",
+                "value",
+                "created_at",
+                "token",
+                "status__id",
+                "status__name",
+                "order__id",
+                "order__name",
             ]
             self.assertEqual(field_list, expected_fields)
 
@@ -300,7 +367,9 @@ class TestAuthorizationE2E(unittest.TestCase):
         # Set timestamp to future to make all authorizations appear expired
         future_timestamp = int(time.time()) + 100000
 
-        field_list, output_list = self.authorization.invalidate(timestamp=future_timestamp)
+        field_list, output_list = self.authorization.invalidate(
+            timestamp=future_timestamp
+        )
 
         # Should return field list
         self.assertIsInstance(field_list, list)
@@ -311,7 +380,9 @@ class TestAuthorizationE2E(unittest.TestCase):
         # Set timestamp to past to make no authorizations appear expired
         past_timestamp = int(time.time()) - 100000
 
-        field_list, output_list = self.authorization.invalidate(timestamp=past_timestamp)
+        field_list, output_list = self.authorization.invalidate(
+            timestamp=past_timestamp
+        )
 
         # Should return empty output list
         self.assertIsInstance(field_list, list)
@@ -320,12 +391,17 @@ class TestAuthorizationE2E(unittest.TestCase):
     def test_0010_invalidate_database_error_handling(self):
         """Test invalidate() handles database errors gracefully"""
         # Mock database error
-        with patch.object(self.real_dbstore, 'authorizations_expired_search',
-                         side_effect=Exception("Database connection failed")):
+        with patch.object(
+            self.real_dbstore,
+            "authorizations_expired_search",
+            side_effect=Exception("Database connection failed"),
+        ):
 
-            with self.assertLogs(self.logger, level='ERROR') as log:
+            with self.assertLogs(self.logger, level="ERROR") as log:
                 field_list, output_list = self.authorization.invalidate()
-            self.logger.error("Database error during invalidate(): Database connection failed")
+            self.logger.error(
+                "Database error during invalidate(): Database connection failed"
+            )
 
             # Should handle error gracefully and return empty list
             self.assertIsInstance(field_list, list)
@@ -334,18 +410,25 @@ class TestAuthorizationE2E(unittest.TestCase):
     def test_0011_invalidate_update_error_handling(self):
         """Test invalidate() handles update errors gracefully"""
         # Mock successful search but failed update
-        expired_authz = [{
-            'name': 'test_authz',
-            'status__name': 'pending',
-            'expires': 1000
-        }]
+        expired_authz = [
+            {"name": "test_authz", "status__name": "pending", "expires": 1000}
+        ]
 
-        with patch.object(self.real_dbstore, 'authorizations_expired_search', return_value=expired_authz):
-            with patch.object(self.real_dbstore, 'authorization_update',
-                             side_effect=Exception("Update failed")):
-                with self.assertLogs(self.logger, level='ERROR') as log:
+        with patch.object(
+            self.real_dbstore,
+            "authorizations_expired_search",
+            return_value=expired_authz,
+        ):
+            with patch.object(
+                self.real_dbstore,
+                "authorization_update",
+                side_effect=Exception("Update failed"),
+            ):
+                with self.assertLogs(self.logger, level="ERROR") as log:
                     field_list, output_list = self.authorization.invalidate()
-                self.logger.error("Failed to update authorization 'test_authz' to expired: Update failed")
+                self.logger.error(
+                    "Failed to update authorization 'test_authz' to expired: Update failed"
+                )
 
                 # Should still return the expired authorization even if update fails
                 self.assertIsInstance(field_list, list)
@@ -357,9 +440,13 @@ class TestAuthorizationE2E(unittest.TestCase):
         """Test new_get() with valid authorization URL"""
         url = "http://test.local/acme/authz/test_authz_valid"
 
-        with patch('acme_srv.authorization.generate_random_string', return_value='mock_token'):
-            with patch('acme_srv.authorization.uts_now', return_value=1543640400):
-                with patch('acme_srv.challenge.Challenge.challengeset_get', return_value=[]):
+        with patch(
+            "acme_srv.authorization.generate_random_string", return_value="mock_token"
+        ):
+            with patch("acme_srv.authorization.uts_now", return_value=1543640400):
+                with patch(
+                    "acme_srv.challenge.Challenge.challengeset_get", return_value=[]
+                ):
                     result = self.authorization.new_get(url)
 
                     self.assertIsInstance(result, dict)
@@ -375,8 +462,10 @@ class TestAuthorizationE2E(unittest.TestCase):
         """Test new_get() with nonexistent authorization URL"""
         url = "http://test.local/acme/authz/nonexistent_authz"
 
-        with patch('acme_srv.authorization.generate_random_string', return_value='mock_token'):
-            with patch('acme_srv.authorization.uts_now', return_value=1543640400):
+        with patch(
+            "acme_srv.authorization.generate_random_string", return_value="mock_token"
+        ):
+            with patch("acme_srv.authorization.uts_now", return_value=1543640400):
                 result = self.authorization.new_get(url)
 
                 self.assertIsInstance(result, dict)
@@ -388,9 +477,13 @@ class TestAuthorizationE2E(unittest.TestCase):
         """Test new_get() with wildcard authorization"""
         url = "http://test.local/acme/authz/test_authz_wildcard"
 
-        with patch('acme_srv.authorization.generate_random_string', return_value='mock_token'):
-            with patch('acme_srv.authorization.uts_now', return_value=1543640400):
-                with patch('acme_srv.challenge.Challenge.challengeset_get', return_value=[]):
+        with patch(
+            "acme_srv.authorization.generate_random_string", return_value="mock_token"
+        ):
+            with patch("acme_srv.authorization.uts_now", return_value=1543640400):
+                with patch(
+                    "acme_srv.challenge.Challenge.challengeset_get", return_value=[]
+                ):
                     result = self.authorization.new_get(url)
 
                     self.assertIsInstance(result, dict)
@@ -404,9 +497,13 @@ class TestAuthorizationE2E(unittest.TestCase):
     def test_0015_new_get_tnauthlist_authorization(self):
         """Test new_get() with TNAuthList authorization"""
         url = "http://test.local/acme/authz/test_authz_tnauthlist"
-        with patch('acme_srv.authorization.generate_random_string', return_value='mock_token'):
-            with patch('acme_srv.authorization.uts_now', return_value=1543640400):
-                with patch('acme_srv.challenge.Challenge.challengeset_get', return_value=[]):
+        with patch(
+            "acme_srv.authorization.generate_random_string", return_value="mock_token"
+        ):
+            with patch("acme_srv.authorization.uts_now", return_value=1543640400):
+                with patch(
+                    "acme_srv.challenge.Challenge.challengeset_get", return_value=[]
+                ):
                     result = self.authorization.new_get(url)
 
                     self.assertIsInstance(result, dict)
@@ -422,12 +519,18 @@ class TestAuthorizationE2E(unittest.TestCase):
         url = "http://test.local/acme/authz/test_authz"
 
         # Mock database error in authorization lookup
-        with patch.object(self.real_dbstore, 'authorization_lookup',
-                         side_effect=Exception("Database connection failed")):
+        with patch.object(
+            self.real_dbstore,
+            "authorization_lookup",
+            side_effect=Exception("Database connection failed"),
+        ):
 
-            with self.assertLogs(self.logger, level='ERROR') as log:
+            with self.assertLogs(self.logger, level="ERROR") as log:
                 result = self.authorization.new_get(url)
-            self.assertIn("CRITICAL:test_authorization_e2e:Database error: failed to lookup authorization 'test_authz': Database connection failed", log.output[0])
+            self.assertIn(
+                "CRITICAL:test_authorization_e2e:Database error: failed to lookup authorization 'test_authz': Database connection failed",
+                log.output[0],
+            )
 
             # Should handle error and return appropriate error response
             self.assertIsInstance(result, dict)
@@ -439,25 +542,40 @@ class TestAuthorizationE2E(unittest.TestCase):
 
     def test_0017_new_post_valid_request(self):
         """Test new_post() with valid ACME request"""
-        content = self._create_valid_acme_request("http://test.local/acme/authz/test_authz_valid")
+        content = self._create_valid_acme_request(
+            "http://test.local/acme/authz/test_authz_valid"
+        )
 
-        with patch.object(self.authorization.message, 'check') as mock_check:
+        with patch.object(self.authorization.message, "check") as mock_check:
             mock_check.return_value = (
-                200, None, None,
+                200,
+                None,
+                None,
                 {"url": "http://test.local/acme/authz/test_authz_valid"},
-                {}, "test_account"
+                {},
+                "test_account",
             )
 
-            with patch.object(self.authorization.message, 'prepare_response') as mock_prepare:
+            with patch.object(
+                self.authorization.message, "prepare_response"
+            ) as mock_prepare:
                 mock_prepare.return_value = {
                     "code": 200,
                     "header": {"Replay-Nonce": "test_nonce"},
-                    "data": {"status": "pending"}
+                    "data": {"status": "pending"},
                 }
 
-                with patch('acme_srv.authorization.generate_random_string', return_value='mock_token'):
-                    with patch('acme_srv.authorization.uts_now', return_value=1543640400):
-                        with patch('acme_srv.challenge.Challenge.challengeset_get', return_value=[]):
+                with patch(
+                    "acme_srv.authorization.generate_random_string",
+                    return_value="mock_token",
+                ):
+                    with patch(
+                        "acme_srv.authorization.uts_now", return_value=1543640400
+                    ):
+                        with patch(
+                            "acme_srv.challenge.Challenge.challengeset_get",
+                            return_value=[],
+                        ):
                             result = self.authorization.new_post(content)
 
                             self.assertIsInstance(result, dict)
@@ -468,21 +586,27 @@ class TestAuthorizationE2E(unittest.TestCase):
         """Test new_post() with invalid message (message check fails)"""
         content = "invalid_json_content"
 
-        with patch.object(self.authorization.message, 'check') as mock_check:
+        with patch.object(self.authorization.message, "check") as mock_check:
             mock_check.return_value = (
-                400, "urn:ietf:params:acme:error:malformed", "Invalid JSON",
-                {}, {}, None
+                400,
+                "urn:ietf:params:acme:error:malformed",
+                "Invalid JSON",
+                {},
+                {},
+                None,
             )
 
-            with patch.object(self.authorization.message, 'prepare_response') as mock_prepare:
+            with patch.object(
+                self.authorization.message, "prepare_response"
+            ) as mock_prepare:
                 mock_prepare.return_value = {
                     "code": 400,
                     "header": {},
                     "data": {
                         "type": "urn:ietf:params:acme:error:malformed",
                         "detail": "Invalid JSON",
-                        "status": 400
-                    }
+                        "status": 400,
+                    },
                 }
 
                 result = self.authorization.new_post(content)
@@ -494,22 +618,27 @@ class TestAuthorizationE2E(unittest.TestCase):
         """Test new_post() with missing URL in protected header"""
         content = self._create_valid_acme_request()
 
-        with patch.object(self.authorization.message, 'check') as mock_check:
+        with patch.object(self.authorization.message, "check") as mock_check:
             mock_check.return_value = (
-                200, None, None,
+                200,
+                None,
+                None,
                 {},  # Missing URL in protected
-                {}, "test_account"
+                {},
+                "test_account",
             )
 
-            with patch.object(self.authorization.message, 'prepare_response') as mock_prepare:
+            with patch.object(
+                self.authorization.message, "prepare_response"
+            ) as mock_prepare:
                 mock_prepare.return_value = {
                     "code": 400,
                     "header": {},
                     "data": {
                         "type": "urn:ietf:params:acme:error:malformed",
                         "detail": "url is missing in protected",
-                        "status": 400
-                    }
+                        "status": 400,
+                    },
                 }
 
                 result = self.authorization.new_post(content)
@@ -519,28 +648,37 @@ class TestAuthorizationE2E(unittest.TestCase):
 
     def test_0020_new_post_authorization_lookup_failed(self):
         """Test new_post() when authorization lookup fails"""
-        content = self._create_valid_acme_request("http://test.local/acme/authz/nonexistent")
+        content = self._create_valid_acme_request(
+            "http://test.local/acme/authz/nonexistent"
+        )
 
-        with patch.object(self.authorization.message, 'check') as mock_check:
+        with patch.object(self.authorization.message, "check") as mock_check:
             mock_check.return_value = (
-                200, None, None,
+                200,
+                None,
+                None,
                 {"url": "http://test.local/acme/authz/nonexistent"},
-                {}, "test_account"
+                {},
+                "test_account",
             )
 
-            with patch.object(self.authorization.message, 'prepare_response') as mock_prepare:
+            with patch.object(
+                self.authorization.message, "prepare_response"
+            ) as mock_prepare:
                 mock_prepare.return_value = {
                     "code": 403,
                     "header": {},
                     "data": {
                         "type": "urn:ietf:params:acme:error:unauthorized",
                         "detail": "authorizations lookup failed",
-                        "status": 403
-                    }
+                        "status": 403,
+                    },
                 }
 
                 # Mock get_authorization_details to return empty dict (lookup failed)
-                with patch.object(self.authorization, 'get_authorization_details', return_value={}):
+                with patch.object(
+                    self.authorization, "get_authorization_details", return_value={}
+                ):
                     result = self.authorization.new_post(content)
 
                     self.assertEqual(result["code"], 403)
@@ -548,27 +686,42 @@ class TestAuthorizationE2E(unittest.TestCase):
 
     def test_0021_new_post_with_expiry_check_enabled(self):
         """Test new_post() with expiry check enabled (default behavior)"""
-        content = self._create_valid_acme_request("http://test.local/acme/authz/test_authz_valid")
+        content = self._create_valid_acme_request(
+            "http://test.local/acme/authz/test_authz_valid"
+        )
 
         # Ensure expiry check is enabled
         self.authorization.expiry_check_disable = False
 
-        with patch.object(self.authorization.message, 'check') as mock_check:
+        with patch.object(self.authorization.message, "check") as mock_check:
             mock_check.return_value = (
-                200, None, None,
+                200,
+                None,
+                None,
                 {"url": "http://test.local/acme/authz/test_authz_valid"},
-                {}, "test_account"
+                {},
+                "test_account",
             )
 
-            with patch.object(self.authorization.message, 'prepare_response') as mock_prepare:
+            with patch.object(
+                self.authorization.message, "prepare_response"
+            ) as mock_prepare:
                 mock_prepare.return_value = {"code": 200, "header": {}, "data": {}}
 
-                with patch.object(self.authorization, 'invalidate') as mock_invalidate:
+                with patch.object(self.authorization, "invalidate") as mock_invalidate:
                     mock_invalidate.return_value = ([], [])
 
-                    with patch('acme_srv.authorization.generate_random_string', return_value='mock_token'):
-                        with patch('acme_srv.authorization.uts_now', return_value=1543640400):
-                            with patch('acme_srv.challenge.Challenge.challengeset_get', return_value=[]):
+                    with patch(
+                        "acme_srv.authorization.generate_random_string",
+                        return_value="mock_token",
+                    ):
+                        with patch(
+                            "acme_srv.authorization.uts_now", return_value=1543640400
+                        ):
+                            with patch(
+                                "acme_srv.challenge.Challenge.challengeset_get",
+                                return_value=[],
+                            ):
                                 result = self.authorization.new_post(content)
 
                                 # Should call invalidate
@@ -577,27 +730,42 @@ class TestAuthorizationE2E(unittest.TestCase):
 
     def test_0022_new_post_with_expiry_check_disabled(self):
         """Test new_post() with expiry check disabled"""
-        content = self._create_valid_acme_request("http://test.local/acme/authz/test_authz_valid")
+        content = self._create_valid_acme_request(
+            "http://test.local/acme/authz/test_authz_valid"
+        )
 
         # Disable expiry check
         self.authorization.expiry_check_disable = True
 
-        with patch.object(self.authorization.message, 'check') as mock_check:
+        with patch.object(self.authorization.message, "check") as mock_check:
             mock_check.return_value = (
-                200, None, None,
+                200,
+                None,
+                None,
                 {"url": "http://test.local/acme/authz/test_authz_valid"},
-                {}, "test_account"
+                {},
+                "test_account",
             )
 
-            with patch.object(self.authorization.message, 'prepare_response') as mock_prepare:
+            with patch.object(
+                self.authorization.message, "prepare_response"
+            ) as mock_prepare:
                 mock_prepare.return_value = {"code": 200, "header": {}, "data": {}}
 
-                with patch.object(self.authorization, 'invalidate') as mock_invalidate:
+                with patch.object(self.authorization, "invalidate") as mock_invalidate:
                     mock_invalidate.return_value = ([], [])
 
-                    with patch('acme_srv.authorization.generate_random_string', return_value='mock_token'):
-                        with patch('acme_srv.authorization.uts_now', return_value=1543640400):
-                            with patch('acme_srv.challenge.Challenge.challengeset_get', return_value=[]):
+                    with patch(
+                        "acme_srv.authorization.generate_random_string",
+                        return_value="mock_token",
+                    ):
+                        with patch(
+                            "acme_srv.authorization.uts_now", return_value=1543640400
+                        ):
+                            with patch(
+                                "acme_srv.challenge.Challenge.challengeset_get",
+                                return_value=[],
+                            ):
                                 result = self.authorization.new_post(content)
 
                                 # Should NOT call invalidate
@@ -608,17 +776,26 @@ class TestAuthorizationE2E(unittest.TestCase):
         """Test new_post() with empty content"""
         content = ""
 
-        with patch.object(self.authorization.message, 'check') as mock_check:
+        with patch.object(self.authorization.message, "check") as mock_check:
             mock_check.return_value = (
-                400, "urn:ietf:params:acme:error:malformed", "Empty content",
-                {}, {}, None
+                400,
+                "urn:ietf:params:acme:error:malformed",
+                "Empty content",
+                {},
+                {},
+                None,
             )
 
-            with patch.object(self.authorization.message, 'prepare_response') as mock_prepare:
+            with patch.object(
+                self.authorization.message, "prepare_response"
+            ) as mock_prepare:
                 mock_prepare.return_value = {
                     "code": 400,
                     "header": {},
-                    "data": {"type": "urn:ietf:params:acme:error:malformed", "detail": "Empty content"}
+                    "data": {
+                        "type": "urn:ietf:params:acme:error:malformed",
+                        "detail": "Empty content",
+                    },
                 }
 
                 result = self.authorization.new_post(content)
@@ -630,17 +807,26 @@ class TestAuthorizationE2E(unittest.TestCase):
         """Test new_post() with None content"""
         content = None
 
-        with patch.object(self.authorization.message, 'check') as mock_check:
+        with patch.object(self.authorization.message, "check") as mock_check:
             mock_check.return_value = (
-                400, "urn:ietf:params:acme:error:malformed", "No content provided",
-                {}, {}, None
+                400,
+                "urn:ietf:params:acme:error:malformed",
+                "No content provided",
+                {},
+                {},
+                None,
             )
 
-            with patch.object(self.authorization.message, 'prepare_response') as mock_prepare:
+            with patch.object(
+                self.authorization.message, "prepare_response"
+            ) as mock_prepare:
                 mock_prepare.return_value = {
                     "code": 400,
                     "header": {},
-                    "data": {"type": "urn:ietf:params:acme:error:malformed", "detail": "No content"}
+                    "data": {
+                        "type": "urn:ietf:params:acme:error:malformed",
+                        "detail": "No content",
+                    },
                 }
 
                 result = self.authorization.new_post(content)
@@ -653,17 +839,21 @@ class TestAuthorizationE2E(unittest.TestCase):
     def test_0025_authorization_with_corrupted_database(self):
         """Test authorization methods with corrupted/missing database"""
         # Create authorization with invalid database path
-        invalid_db = tempfile.NamedTemporaryFile(delete=False, suffix='.db')
+        invalid_db = tempfile.NamedTemporaryFile(delete=False, suffix=".db")
         invalid_db.close()
         os.unlink(invalid_db.name)  # Delete the file to simulate missing DB
 
         from acme_srv.db_handler import DBstore
+
         invalid_dbstore = DBstore(debug=False, logger=self.logger)
         invalid_dbstore.db_file = invalid_db.name
 
-        with patch('acme_srv.authorization.DBstore', return_value=invalid_dbstore):
+        with patch("acme_srv.authorization.DBstore", return_value=invalid_dbstore):
             from acme_srv.authorization import Authorization
-            auth = Authorization(debug=False, srv_name="http://test.local", logger=self.logger)
+
+            auth = Authorization(
+                debug=False, srv_name="http://test.local", logger=self.logger
+            )
 
             # Test should handle database errors gracefully
             url = "http://test.local/acme/authz/test_authz"
@@ -689,71 +879,107 @@ class TestAuthorizationE2E(unittest.TestCase):
 
                 # Should handle malformed URLs gracefully
                 self.assertIsInstance(result, dict)
-                self.assertEqual(result["code"], 404)  # Malformed URLs should return 404
+                self.assertEqual(
+                    result["code"], 404
+                )  # Malformed URLs should return 404
                 self.assertIn("data", result)
 
     def test_0027_authorization_component_initialization_failure(self):
         """Test authorization with component initialization failures"""
-        with patch('acme_srv.authorization.Message', side_effect=Exception("Message init failed")):
+        with patch(
+            "acme_srv.authorization.Message",
+            side_effect=Exception("Message init failed"),
+        ):
             # Should handle initialization errors
             from acme_srv.authorization import Authorization
+
             with self.assertRaises(Exception):
-                Authorization(debug=False, srv_name="http://test.local", logger=self.logger)
+                Authorization(
+                    debug=False, srv_name="http://test.local", logger=self.logger
+                )
 
     def test_0028_authorization_challenge_set_creation_failure(self):
         """Test authorization when challenge set creation fails"""
         url = "http://test.local/acme/authz/test_authz_valid"
 
-        with patch('acme_srv.challenge.Challenge.challengeset_get',
-                   side_effect=Exception("Challenge creation failed")):
-            with patch('acme_srv.authorization.generate_random_string', return_value='mock_token'):
-                with patch('acme_srv.authorization.uts_now', return_value=1543640400):
+        with patch(
+            "acme_srv.challenge.Challenge.challengeset_get",
+            side_effect=Exception("Challenge creation failed"),
+        ):
+            with patch(
+                "acme_srv.authorization.generate_random_string",
+                return_value="mock_token",
+            ):
+                with patch("acme_srv.authorization.uts_now", return_value=1543640400):
                     result = self.authorization.new_get(url)
 
                     # Should handle challenge creation error
                     self.assertIsInstance(result, dict)
-                    self.assertEqual(result["code"], 404)  # Challenge creation failure should result in 404
+                    self.assertEqual(
+                        result["code"], 404
+                    )  # Challenge creation failure should result in 404
 
     def test_0029_authorization_with_invalid_configuration(self):
         """Test authorization with invalid configuration values"""
         from acme_srv.authorization import Authorization, ConfigurationError
 
-        with patch('acme_srv.authorization.load_config') as mock_load_config:
+        with patch("acme_srv.authorization.load_config") as mock_load_config:
             # Mock configuration with invalid values
             import configparser
+
             config = configparser.ConfigParser()
-            config.add_section('Authorization')
-            config.set('Authorization', 'validity', 'not_a_number')
-            config.add_section('Directory')
-            config.set('Directory', 'url_prefix', '/custom/prefix')
+            config.add_section("Authorization")
+            config.set("Authorization", "validity", "not_a_number")
+            config.add_section("Directory")
+            config.set("Directory", "url_prefix", "/custom/prefix")
             mock_load_config.return_value = config
 
-            auth = Authorization(debug=False, srv_name="http://test.local", logger=self.logger)
+            auth = Authorization(
+                debug=False, srv_name="http://test.local", logger=self.logger
+            )
 
             with self.assertRaises(ConfigurationError):
                 with auth:
                     pass
                 self.assertEqual(auth.validity, 86400)
                 # Should apply valid url_prefix
-                self.assertEqual(auth.path_dic, {"authz_path": "/custom/prefix/acme/authz/"})
+                self.assertEqual(
+                    auth.path_dic, {"authz_path": "/custom/prefix/acme/authz/"}
+                )
 
     def test_0030_authorization_message_preparation_failure(self):
         """Test authorization when message preparation fails"""
-        content = self._create_valid_acme_request("http://test.local/acme/authz/test_authz_valid")
+        content = self._create_valid_acme_request(
+            "http://test.local/acme/authz/test_authz_valid"
+        )
 
-        with patch.object(self.authorization.message, 'check') as mock_check:
+        with patch.object(self.authorization.message, "check") as mock_check:
             mock_check.return_value = (
-                200, None, None,
+                200,
+                None,
+                None,
                 {"url": "http://test.local/acme/authz/test_authz_valid"},
-                {}, "test_account"
+                {},
+                "test_account",
             )
 
-            with patch.object(self.authorization.message, 'prepare_response',
-                             side_effect=Exception("Message preparation failed")) as mock_prepare:
+            with patch.object(
+                self.authorization.message,
+                "prepare_response",
+                side_effect=Exception("Message preparation failed"),
+            ) as mock_prepare:
 
-                with patch('acme_srv.authorization.generate_random_string', return_value='mock_token'):
-                    with patch('acme_srv.authorization.uts_now', return_value=1543640400):
-                        with patch('acme_srv.challenge.Challenge.challengeset_get', return_value=[]):
+                with patch(
+                    "acme_srv.authorization.generate_random_string",
+                    return_value="mock_token",
+                ):
+                    with patch(
+                        "acme_srv.authorization.uts_now", return_value=1543640400
+                    ):
+                        with patch(
+                            "acme_srv.challenge.Challenge.challengeset_get",
+                            return_value=[],
+                        ):
                             # Should handle message preparation error
                             with self.assertRaises(Exception):
                                 self.authorization.new_post(content)
@@ -763,10 +989,12 @@ class TestAuthorizationE2E(unittest.TestCase):
         # Create authorization with expires=0
         conn = sqlite3.connect(self.temp_db.name)
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO authorization (id, name, type, value, expires, token, status_id, order_id)
             VALUES (10, 'test_authz_zero_expires', 'dns', 'zero.example.com', 0, 'test_token_zero', 1, 2)
-        """)
+        """
+        )
         conn.commit()
         conn.close()
 
@@ -778,7 +1006,11 @@ class TestAuthorizationE2E(unittest.TestCase):
         self.assertIsInstance(output_list, list)
 
         # Verify zero expires authorization is not marked as expired
-        zero_expires_items = [item for item in output_list if item.get('name') == 'test_authz_zero_expires']
+        zero_expires_items = [
+            item
+            for item in output_list
+            if item.get("name") == "test_authz_zero_expires"
+        ]
         self.assertEqual(len(zero_expires_items), 0)
 
     def test_0032_authorization_url_sanitization(self):
@@ -792,14 +1024,21 @@ class TestAuthorizationE2E(unittest.TestCase):
         ]
 
         for url in test_cases:
-            with patch('acme_srv.authorization.generate_random_string', return_value='mock_token'):
-                with patch('acme_srv.authorization.uts_now', return_value=1543640400):
-                    with patch('acme_srv.challenge.Challenge.challengeset_get', return_value=[]):
+            with patch(
+                "acme_srv.authorization.generate_random_string",
+                return_value="mock_token",
+            ):
+                with patch("acme_srv.authorization.uts_now", return_value=1543640400):
+                    with patch(
+                        "acme_srv.challenge.Challenge.challengeset_get", return_value=[]
+                    ):
                         result = self.authorization.new_get(url)
 
                         # Should handle all URL formats (but these don't exist in DB)
                         self.assertIsInstance(result, dict)
-                        self.assertEqual(result["code"], 404)  # Non-existent authorization should return 404
+                        self.assertEqual(
+                            result["code"], 404
+                        )  # Non-existent authorization should return 404
                         self.assertIn("data", result)
 
     def test_0033_authorization_concurrent_access_simulation(self):
@@ -812,9 +1051,13 @@ class TestAuthorizationE2E(unittest.TestCase):
         ]
 
         results = []
-        with patch('acme_srv.authorization.generate_random_string', return_value='mock_token'):
-            with patch('acme_srv.authorization.uts_now', return_value=1543640400):
-                with patch('acme_srv.challenge.Challenge.challengeset_get', return_value=[]):
+        with patch(
+            "acme_srv.authorization.generate_random_string", return_value="mock_token"
+        ):
+            with patch("acme_srv.authorization.uts_now", return_value=1543640400):
+                with patch(
+                    "acme_srv.challenge.Challenge.challengeset_get", return_value=[]
+                ):
                     for url in urls:
                         result = self.authorization.new_get(url)
                         results.append(result)
@@ -822,7 +1065,9 @@ class TestAuthorizationE2E(unittest.TestCase):
         # All requests should be handled (these exist in DB)
         for result in results:
             self.assertIsInstance(result, dict)
-            self.assertEqual(result["code"], 200)  # Existing authorizations should return 200
+            self.assertEqual(
+                result["code"], 200
+            )  # Existing authorizations should return 200
 
     def test_0034_authorization_memory_and_resource_handling(self):
         """Test authorization methods with large data sets"""
@@ -832,10 +1077,18 @@ class TestAuthorizationE2E(unittest.TestCase):
 
         current_time = int(time.time())
         for i in range(50):
-            cursor.execute("""
+            cursor.execute(
+                """
                 INSERT OR IGNORE INTO authorization (name, type, value, expires, token, status_id, order_id)
                 VALUES (?, 'dns', ?, ?, ?, 1, 2)
-            """, (f'test_authz_bulk_{i}', f'bulk{i}.example.com', current_time + 86400, f'token_{i}'))
+            """,
+                (
+                    f"test_authz_bulk_{i}",
+                    f"bulk{i}.example.com",
+                    current_time + 86400,
+                    f"token_{i}",
+                ),
+            )
 
         conn.commit()
         conn.close()
@@ -857,10 +1110,13 @@ class TestAuthorizationE2E(unittest.TestCase):
         cursor.execute("INSERT OR IGNORE INTO status (id, name) VALUES (5, 'expired')")
 
         current_time = int(time.time())
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT OR REPLACE INTO authorization (id, name, type, value, expires, token, status_id, order_id)
             VALUES (20, 'test_authz_already_expired', 'dns', 'already.example.com', ?, 'test_token_exp', 5, 2)
-        """, (current_time - 1000,))
+        """,
+            (current_time - 1000,),
+        )
 
         conn.commit()
         conn.close()
