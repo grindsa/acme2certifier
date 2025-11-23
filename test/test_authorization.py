@@ -1429,7 +1429,7 @@ class TestAuthorization(unittest.TestCase):
         mock_context.__exit__ = Mock(return_value=None)
         mock_eab_handler_class = Mock(return_value=mock_context)
         authorization.config.eab_handler = mock_eab_handler_class
-        auth_details = {"order__account__eab_keyid": "kid"}
+        auth_details = {"order__account__eab_kid": "kid"}
         # Should set prevalidated_domainlist
         authorization._apply_eab_and_domain_whitelist(
             "authz", auth_details, "dns", "foo.com", {}
@@ -1447,7 +1447,7 @@ class TestAuthorization(unittest.TestCase):
         mock_context.__exit__ = Mock(return_value=None)
         mock_eab_handler_class = Mock(return_value=mock_context)
         authorization.config.eab_handler = mock_eab_handler_class
-        auth_details = {"order__account__eab_keyid": "kid"}
+        auth_details = {"order__account__eab_kid": "kid"}
         # Should not set prevalidated_domainlist
         authorization._apply_eab_and_domain_whitelist(
             "authz", auth_details, "dns", "foo.com", {}
@@ -1462,7 +1462,7 @@ class TestAuthorization(unittest.TestCase):
         mock_context.__enter__.side_effect = Exception("fail")
         mock_eab_handler_class = Mock(return_value=mock_context)
         authorization.config.eab_handler = mock_eab_handler_class
-        auth_details = {"order__account__eab_keyid": "kid"}
+        auth_details = {"order__account__eab_kid": "kid"}
         authorization._apply_eab_and_domain_whitelist(
             "authz", auth_details, "dns", "foo.com", {}
         )
