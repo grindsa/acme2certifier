@@ -163,7 +163,8 @@ class DBstore(object):
                             orders.name as order__name,
                             status.id as status_id,
                             status.name as status__name,
-                            account.name as order__account__name
+                            account.name as order__account__name,
+                            account.eab_kid as order__account__eab_keyid
                         from authorization
                         LEFT JOIN orders on orders.id = authorization.order_id
                         LEFT JOIN status on status.id = authorization.status_id
