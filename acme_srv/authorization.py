@@ -434,7 +434,7 @@ class Authorization(object):
                     )
                 )
                 self.logger.warning(
-                    "Preauthorized list of domains loaded globally. Such configureation is recommended as this is a severe security risk!"
+                    "Prevalidated list of domains loaded globally. Such configureation is recommended as this is a severe security risk!"
                 )
             except json.JSONDecodeError as err:
                 self.config.prevalidated_domainlist = None
