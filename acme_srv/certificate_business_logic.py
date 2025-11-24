@@ -56,7 +56,9 @@ class CertificateBusinessLogic:
             self.cn2san_add = False
             self.cert_reusage_timeframe = 0
 
-    def validate_csr(self, csr: str, certificate_name: str = None) -> Tuple[int, str, str]:
+    def validate_csr(
+        self, csr: str, certificate_name: str = None
+    ) -> Tuple[int, str, str]:
         """
         Validate Certificate Signing Request.
 
@@ -77,20 +79,20 @@ class CertificateBusinessLogic:
             # Basic CSR validation
             if not csr:
                 code = 400
-                error = self.err_msg_dic.get('badcsr', 'Invalid CSR')
-                detail = 'CSR is empty'
+                error = self.err_msg_dic.get("badcsr", "Invalid CSR")
+                detail = "CSR is empty"
 
             # Additional CSR format validation could go here
-            elif '-----BEGIN CERTIFICATE REQUEST-----' not in csr:
+            elif "-----BEGIN CERTIFICATE REQUEST-----" not in csr:
                 code = 400
-                error = self.err_msg_dic.get('badcsr', 'Invalid CSR')
-                detail = 'CSR format is invalid'
+                error = self.err_msg_dic.get("badcsr", "Invalid CSR")
+                detail = "CSR format is invalid"
 
         except Exception as err:
             self.logger.error(f"CSR validation error: {err}")
             code = 500
-            error = self.err_msg_dic.get('serverinternal', 'Internal server error')
-            detail = 'CSR validation failed'
+            error = self.err_msg_dic.get("serverinternal", "Internal server error")
+            detail = "CSR validation failed"
 
         self.logger.debug(f"CertificateBusinessLogic.validate_csr() result: {code}")
         return (code, error, detail)
@@ -116,7 +118,9 @@ class CertificateBusinessLogic:
 
         return (issue_uts, expire_uts)
 
-    def check_certificate_authorization(self, identifier_dic: Dict[str, str], certificate: str) -> List[str]:
+    def check_certificate_authorization(
+        self, identifier_dic: Dict[str, str], certificate: str
+    ) -> List[str]:
         """
         Check authorization for certificate identifiers.
 
@@ -142,13 +146,17 @@ class CertificateBusinessLogic:
             try:
                 # Get list of certificate extensions in base64 format and identifier status
                 tnauthlist = cert_extensions_get(self.logger, certificate)
-                identifier_status = self._process_tnauth_list(identifier_dic, tnauthlist)
+                identifier_status = self._process_tnauth_list(
+                    identifier_dic, tnauthlist
+                )
             except Exception as err:
                 self.logger.error(f"TNAuth list processing error: {err}")
                 identifier_status = []
         else:
             # Standard identifier processing
-            identifier_status = self._process_standard_identifiers(identifiers, certificate)
+            identifier_status = self._process_standard_identifiers(
+                identifiers, certificate
+            )
 
         return identifier_status
 
@@ -172,7 +180,9 @@ class CertificateBusinessLogic:
 
         return tnauthlist_identifer_in
 
-    def _process_tnauth_list(self, identifier_dic: Dict[str, str], tnauthlist: List[str]) -> List[str]:
+    def _process_tnauth_list(
+        self, identifier_dic: Dict[str, str], tnauthlist: List[str]
+    ) -> List[str]:
         """
         Process TNAuth list identifiers.
 
@@ -191,7 +201,9 @@ class CertificateBusinessLogic:
 
         return identifier_status
 
-    def _process_standard_identifiers(self, identifiers: List[Dict[str, str]], certificate: str) -> List[str]:
+    def _process_standard_identifiers(
+        self, identifiers: List[Dict[str, str]], certificate: str
+    ) -> List[str]:
         """
         Process standard identifiers (DNS, etc.).
 
@@ -257,7 +269,7 @@ class CertificateBusinessLogic:
                 return True  # Allow empty certificates for flexibility
 
             # Basic certificate format check - be permissive
-            if '-----BEGIN CERTIFICATE-----' in certificate:
+            if "-----BEGIN CERTIFICATE-----" in certificate:
                 return True
 
             # Also allow other certificate formats or partial data
@@ -282,15 +294,15 @@ class CertificateBusinessLogic:
         cert_info = {}
 
         try:
-            cert_info['serial'] = cert_serial_get(self.logger, certificate)
-            cert_info['cn'] = cert_cn_get(self.logger, certificate)
-            cert_info['san'] = str(cert_san_get(self.logger, certificate))
-            cert_info['aki'] = cert_aki_get(self.logger, certificate)
+            cert_info["serial"] = cert_serial_get(self.logger, certificate)
+            cert_info["cn"] = cert_cn_get(self.logger, certificate)
+            cert_info["san"] = str(cert_san_get(self.logger, certificate))
+            cert_info["aki"] = cert_aki_get(self.logger, certificate)
 
             # Get certificate dates
             (issue_uts, expire_uts) = self.calculate_certificate_dates(certificate)
-            cert_info['issue_date'] = issue_uts
-            cert_info['expire_date'] = expire_uts
+            cert_info["issue_date"] = issue_uts
+            cert_info["expire_date"] = expire_uts
 
         except Exception as err:
             self.logger.error(f"Certificate info extraction error: {err}")
@@ -381,7 +393,9 @@ class CertificateBusinessLogic:
             self.logger.error(f"Certificate identifier creation error: {err}")
             return ""
 
-    def format_certificate_response(self, certificate: str, status_code: int = 200) -> Dict[str, Union[str, int]]:
+    def format_certificate_response(
+        self, certificate: str, status_code: int = 200
+    ) -> Dict[str, Union[str, int]]:
         """
         Format certificate for response.
 
@@ -395,13 +409,11 @@ class CertificateBusinessLogic:
         self.logger.debug("CertificateBusinessLogic.format_certificate_response()")
 
         response = {
-            'code': status_code,
-            'data': certificate if certificate else '',
+            "code": status_code,
+            "data": certificate if certificate else "",
         }
 
         if certificate:
-            response['headers'] = {
-                'Content-Type': 'application/pem-certificate-chain'
-            }
+            response["headers"] = {"Content-Type": "application/pem-certificate-chain"}
 
         return response

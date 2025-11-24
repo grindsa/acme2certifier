@@ -45,7 +45,9 @@ class CertificateConfig:
             self.path_dic = {"cert_path": "/acme/cert/"}
 
     @classmethod
-    def from_legacy_params(cls, debug: bool = False, srv_name: str = None, **kwargs) -> 'CertificateConfig':
+    def from_legacy_params(
+        cls, debug: bool = False, srv_name: str = None, **kwargs
+    ) -> "CertificateConfig":
         """
         Create configuration from legacy parameters for backward compatibility.
 
@@ -57,14 +59,12 @@ class CertificateConfig:
         Returns:
             CertificateConfig instance with provided parameters
         """
-        return cls(
-            debug=debug,
-            server_name=srv_name,
-            **kwargs
-        )
+        return cls(debug=debug, server_name=srv_name, **kwargs)
 
     @classmethod
-    def from_config_file(cls, debug: bool = False, srv_name: str = None) -> 'CertificateConfig':
+    def from_config_file(
+        cls, debug: bool = False, srv_name: str = None
+    ) -> "CertificateConfig":
         """
         Create configuration by loading from config file.
 
@@ -88,7 +88,7 @@ class CertificateConfig:
                 config_dic.get(
                     "Certificate",
                     "cert_reusage_timeframe",
-                    fallback=cert_reusage_timeframe
+                    fallback=cert_reusage_timeframe,
                 )
             )
         except Exception:
@@ -97,9 +97,7 @@ class CertificateConfig:
         try:
             enrollment_timeout = int(
                 config_dic.get(
-                    "Certificate",
-                    "enrollment_timeout",
-                    fallback=enrollment_timeout
+                    "Certificate", "enrollment_timeout", fallback=enrollment_timeout
                 )
             )
         except Exception:
@@ -162,7 +160,7 @@ class CertificateConfig:
             tnauthlist_support=tnauthlist_support,
             ignore_pre_hook_failure=ignore_pre_hook_failure,
             ignore_post_hook_failure=ignore_post_hook_failure,
-            ignore_success_hook_failure=ignore_success_hook_failure
+            ignore_success_hook_failure=ignore_success_hook_failure,
         )
 
     def to_dict(self) -> Dict[str, Any]:
@@ -173,21 +171,21 @@ class CertificateConfig:
             Dictionary representation of configuration
         """
         return {
-            'debug': self.debug,
-            'server_name': self.server_name,
-            'cert_operations_log': self.cert_operations_log,
-            'cert_reusage_timeframe': self.cert_reusage_timeframe,
-            'cn2san_add': self.cn2san_add,
-            'enrollment_timeout': self.enrollment_timeout,
-            'path_dic': self.path_dic,
-            'retry_after': self.retry_after,
-            'tnauthlist_support': self.tnauthlist_support,
-            'ignore_pre_hook_failure': self.ignore_pre_hook_failure,
-            'ignore_post_hook_failure': self.ignore_post_hook_failure,
-            'ignore_success_hook_failure': self.ignore_success_hook_failure,
+            "debug": self.debug,
+            "server_name": self.server_name,
+            "cert_operations_log": self.cert_operations_log,
+            "cert_reusage_timeframe": self.cert_reusage_timeframe,
+            "cn2san_add": self.cn2san_add,
+            "enrollment_timeout": self.enrollment_timeout,
+            "path_dic": self.path_dic,
+            "retry_after": self.retry_after,
+            "tnauthlist_support": self.tnauthlist_support,
+            "ignore_pre_hook_failure": self.ignore_pre_hook_failure,
+            "ignore_post_hook_failure": self.ignore_post_hook_failure,
+            "ignore_success_hook_failure": self.ignore_success_hook_failure,
         }
 
-    def update(self, **kwargs) -> 'CertificateConfig':
+    def update(self, **kwargs) -> "CertificateConfig":
         """
         Create a new configuration instance with updated values.
 

@@ -10,7 +10,9 @@ class CertificateRepository(ABC):
     """Abstract base class for certificate repository operations."""
 
     @abstractmethod
-    def search_certificates(self, key: str, value: Union[str, int], vlist: List[str] = None) -> List[Dict[str, Any]]:
+    def search_certificates(
+        self, key: str, value: Union[str, int], vlist: List[str] = None
+    ) -> List[Dict[str, Any]]:
         """Search for certificates matching criteria."""
         pass
 
@@ -20,17 +22,23 @@ class CertificateRepository(ABC):
         pass
 
     @abstractmethod
-    def cleanup_certificates(self, timestamp: int, purge: bool = False) -> List[Dict[str, Any]]:
+    def cleanup_certificates(
+        self, timestamp: int, purge: bool = False
+    ) -> List[Dict[str, Any]]:
         """Cleanup old certificates."""
         pass
 
     @abstractmethod
-    def certificate_account_check(self, account_name: str, certificate: str) -> Dict[str, str]:
+    def certificate_account_check(
+        self, account_name: str, certificate: str
+    ) -> Dict[str, str]:
         """Check account for certificate."""
         pass
 
     @abstractmethod
-    def certificate_lookup(self, key: str, value: str, vlist: List[str] = None) -> Dict[str, Any]:
+    def certificate_lookup(
+        self, key: str, value: str, vlist: List[str] = None
+    ) -> Dict[str, Any]:
         """Lookup certificate by key/value."""
         pass
 
@@ -45,7 +53,9 @@ class CertificateRepository(ABC):
         pass
 
     @abstractmethod
-    def order_lookup(self, key: str, value: str, vlist: List[str] = None) -> Dict[str, Any]:
+    def order_lookup(
+        self, key: str, value: str, vlist: List[str] = None
+    ) -> Dict[str, Any]:
         """Lookup order by key/value."""
         pass
 
@@ -62,7 +72,9 @@ class DatabaseCertificateRepository(CertificateRepository):
         self.dbstore = dbstore
         self.logger = logger
 
-    def search_certificates(self, key: str, value: Union[str, int], vlist: List[str] = None) -> List[Dict[str, Any]]:
+    def search_certificates(
+        self, key: str, value: Union[str, int], vlist: List[str] = None
+    ) -> List[Dict[str, Any]]:
         """
         Search certificates in the database.
 
@@ -90,9 +102,13 @@ class DatabaseCertificateRepository(CertificateRepository):
             cert_list = None
 
         if cert_list is not None:
-            self.logger.debug(f"CertificateRepository.search_certificates() found {len(cert_list)} certificates")
+            self.logger.debug(
+                f"CertificateRepository.search_certificates() found {len(cert_list)} certificates"
+            )
         else:
-            self.logger.debug("CertificateRepository.search_certificates() returned None due to database error")
+            self.logger.debug(
+                "CertificateRepository.search_certificates() returned None due to database error"
+            )
         return cert_list
 
     def get_certificate_info(self, certificate_name: str) -> Dict[str, str]:
@@ -105,18 +121,24 @@ class DatabaseCertificateRepository(CertificateRepository):
         Returns:
             Dictionary containing certificate information
         """
-        self.logger.debug(f"CertificateRepository.get_certificate_info({certificate_name})")
+        self.logger.debug(
+            f"CertificateRepository.get_certificate_info({certificate_name})"
+        )
 
         try:
-            cert_info = self.dbstore.certificate_lookup('name', certificate_name)
+            cert_info = self.dbstore.certificate_lookup("name", certificate_name)
         except Exception as err:
             self.logger.critical(f"Database error during certificate lookup: {err}")
             cert_info = {}
 
-        if cert_info is not None and hasattr(cert_info, '__len__'):
-            self.logger.debug(f"CertificateRepository.get_certificate_info() returned {len(cert_info)} fields")
+        if cert_info is not None and hasattr(cert_info, "__len__"):
+            self.logger.debug(
+                f"CertificateRepository.get_certificate_info() returned {len(cert_info)} fields"
+            )
         else:
-            self.logger.debug("CertificateRepository.get_certificate_info() returned non-iterable or None result")
+            self.logger.debug(
+                "CertificateRepository.get_certificate_info() returned non-iterable or None result"
+            )
         return cert_info
 
     def add_certificate(self, data_dic: Dict[str, str]) -> bool:
@@ -158,7 +180,9 @@ class DatabaseCertificateRepository(CertificateRepository):
             self.logger.critical(f"Database error during certificate update: {err}")
             result = False
 
-        self.logger.debug(f"CertificateRepository.update_certificate() result: {result}")
+        self.logger.debug(
+            f"CertificateRepository.update_certificate() result: {result}"
+        )
         return result
 
     def delete_certificate(self, certificate_name: str) -> bool:
@@ -171,7 +195,9 @@ class DatabaseCertificateRepository(CertificateRepository):
         Returns:
             True if successful, False otherwise
         """
-        self.logger.debug(f"CertificateRepository.delete_certificate({certificate_name})")
+        self.logger.debug(
+            f"CertificateRepository.delete_certificate({certificate_name})"
+        )
 
         try:
             result = self.dbstore.certificate_delete(certificate_name)
@@ -179,10 +205,14 @@ class DatabaseCertificateRepository(CertificateRepository):
             self.logger.critical(f"Database error during certificate delete: {err}")
             result = False
 
-        self.logger.debug(f"CertificateRepository.delete_certificate() result: {result}")
+        self.logger.debug(
+            f"CertificateRepository.delete_certificate() result: {result}"
+        )
         return result
 
-    def get_account_check_result(self, account_name: str, certificate: str) -> Optional[Dict[str, str]]:
+    def get_account_check_result(
+        self, account_name: str, certificate: str
+    ) -> Optional[Dict[str, str]]:
         """
         Check if account has access to certificate.
 
@@ -193,7 +223,9 @@ class DatabaseCertificateRepository(CertificateRepository):
         Returns:
             Account check result or None if error
         """
-        self.logger.debug(f"CertificateRepository.get_account_check_result({account_name})")
+        self.logger.debug(
+            f"CertificateRepository.get_account_check_result({account_name})"
+        )
 
         try:
             result = self.dbstore.certificate_account_check(account_name, certificate)
@@ -234,10 +266,12 @@ class DatabaseCertificateRepository(CertificateRepository):
         Returns:
             List of order dictionaries
         """
-        self.logger.debug(f"CertificateRepository.get_orders_by_account({account_name})")
+        self.logger.debug(
+            f"CertificateRepository.get_orders_by_account({account_name})"
+        )
 
         try:
-            orders = self.dbstore.orders_search('account', account_name)
+            orders = self.dbstore.orders_search("account", account_name)
             if not orders:
                 orders = []
         except Exception as err:
@@ -246,7 +280,9 @@ class DatabaseCertificateRepository(CertificateRepository):
 
         return orders
 
-    def cleanup_certificates(self, timestamp: int, purge: bool = False) -> Tuple[List[str], List[str]]:
+    def cleanup_certificates(
+        self, timestamp: int, purge: bool = False
+    ) -> Tuple[List[str], List[str]]:
         """
         Cleanup certificates based on timestamp and purge flag.
 
@@ -257,23 +293,27 @@ class DatabaseCertificateRepository(CertificateRepository):
         Returns:
             Tuple of (field_list, report_list) indicating cleanup results
         """
-        self.logger.debug(f"CertificateRepository.cleanup_certificates(timestamp={timestamp}, purge={purge})")
+        self.logger.debug(
+            f"CertificateRepository.cleanup_certificates(timestamp={timestamp}, purge={purge})"
+        )
 
         try:
             if purge:
                 (field_list, report_list) = self.dbstore.certificates_expired_search(
-                    timestamp, purge=True, report_format='csv'
+                    timestamp, purge=True, report_format="csv"
                 )
             else:
                 (field_list, report_list) = self.dbstore.certificates_expired_search(
-                    timestamp, report_format='csv'
+                    timestamp, report_format="csv"
                 )
         except Exception as err:
             self.logger.critical(f"Database error during certificate cleanup: {err}")
             field_list = []
             report_list = []
 
-        self.logger.debug(f"CertificateRepository.cleanup_certificates() processed {len(report_list)} certificates")
+        self.logger.debug(
+            f"CertificateRepository.cleanup_certificates() processed {len(report_list)} certificates"
+        )
         return (field_list, report_list)
 
     def get_certificate_by_order(self, order_name: str) -> Dict[str, str]:
@@ -286,17 +326,23 @@ class DatabaseCertificateRepository(CertificateRepository):
         Returns:
             Certificate information dictionary
         """
-        self.logger.debug(f"CertificateRepository.get_certificate_by_order({order_name})")
+        self.logger.debug(
+            f"CertificateRepository.get_certificate_by_order({order_name})"
+        )
 
         try:
-            cert_info = self.dbstore.certificate_lookup('order__name', order_name)
+            cert_info = self.dbstore.certificate_lookup("order__name", order_name)
         except Exception as err:
-            self.logger.critical(f"Database error during certificate lookup by order: {err}")
+            self.logger.critical(
+                f"Database error during certificate lookup by order: {err}"
+            )
             cert_info = {}
 
         return cert_info
 
-    def store_certificate_operation_log(self, certificate_name: str, operation: str, result: str) -> bool:
+    def store_certificate_operation_log(
+        self, certificate_name: str, operation: str, result: str
+    ) -> bool:
         """
         Store certificate operation log entry.
 
@@ -308,36 +354,50 @@ class DatabaseCertificateRepository(CertificateRepository):
         Returns:
             True if successful, False otherwise
         """
-        self.logger.debug(f"CertificateRepository.store_certificate_operation_log({certificate_name}, {operation})")
+        self.logger.debug(
+            f"CertificateRepository.store_certificate_operation_log({certificate_name}, {operation})"
+        )
 
         try:
             log_data = {
-                'certificate': certificate_name,
-                'operation': operation,
-                'result': result
+                "certificate": certificate_name,
+                "operation": operation,
+                "result": result,
             }
             result = self.dbstore.cahandler_add(log_data)
         except Exception as err:
-            self.logger.critical(f"Database error during certificate operation log: {err}")
+            self.logger.critical(
+                f"Database error during certificate operation log: {err}"
+            )
             result = False
 
         return result
 
-    def certificate_account_check(self, account_name: str, certificate: str) -> Dict[str, str]:
+    def certificate_account_check(
+        self, account_name: str, certificate: str
+    ) -> Dict[str, str]:
         """Check account for certificate."""
-        self.logger.debug(f"DatabaseCertificateRepository.certificate_account_check({account_name})")
+        self.logger.debug(
+            f"DatabaseCertificateRepository.certificate_account_check({account_name})"
+        )
 
         try:
             result = self.dbstore.certificate_account_check(account_name, certificate)
         except Exception as err:
-            self.logger.critical(f"Database error during certificate account check: {err}")
+            self.logger.critical(
+                f"Database error during certificate account check: {err}"
+            )
             result = None
 
         return result
 
-    def certificate_lookup(self, key: str, value: str, vlist: List[str] = None) -> Dict[str, Any]:
+    def certificate_lookup(
+        self, key: str, value: str, vlist: List[str] = None
+    ) -> Dict[str, Any]:
         """Lookup certificate by key/value."""
-        self.logger.debug(f"DatabaseCertificateRepository.certificate_lookup({key}={value})")
+        self.logger.debug(
+            f"DatabaseCertificateRepository.certificate_lookup({key}={value})"
+        )
 
         try:
             if vlist:
@@ -352,7 +412,9 @@ class DatabaseCertificateRepository(CertificateRepository):
 
     def certificate_add(self, data_dic: Dict[str, Any]) -> int:
         """Add certificate to database."""
-        self.logger.debug(f"DatabaseCertificateRepository.certificate_add({data_dic.get('name', 'unknown')})")
+        self.logger.debug(
+            f"DatabaseCertificateRepository.certificate_add({data_dic.get('name', 'unknown')})"
+        )
 
         try:
             result = self.dbstore.certificate_add(data_dic)
@@ -364,7 +426,9 @@ class DatabaseCertificateRepository(CertificateRepository):
 
     def certificate_delete(self, key: str, value: Any) -> bool:
         """Delete certificate from database."""
-        self.logger.debug(f"DatabaseCertificateRepository.certificate_delete({key}={value})")
+        self.logger.debug(
+            f"DatabaseCertificateRepository.certificate_delete({key}={value})"
+        )
 
         try:
             result = self.dbstore.certificate_delete(key, value)
@@ -374,7 +438,9 @@ class DatabaseCertificateRepository(CertificateRepository):
 
         return result
 
-    def order_lookup(self, key: str, value: str, vlist: List[str] = None) -> Dict[str, Any]:
+    def order_lookup(
+        self, key: str, value: str, vlist: List[str] = None
+    ) -> Dict[str, Any]:
         """Lookup order by key/value."""
         self.logger.debug(f"DatabaseCertificateRepository.order_lookup({key}={value})")
 
@@ -391,7 +457,9 @@ class DatabaseCertificateRepository(CertificateRepository):
 
     def order_update(self, data_dic: Dict[str, Any]) -> bool:
         """Update order in database."""
-        self.logger.debug(f"DatabaseCertificateRepository.order_update({data_dic.get('name', 'unknown')})")
+        self.logger.debug(
+            f"DatabaseCertificateRepository.order_update({data_dic.get('name', 'unknown')})"
+        )
 
         try:
             result = self.dbstore.order_update(data_dic)
