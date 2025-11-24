@@ -35,14 +35,24 @@ class CertificateLogger:
         cert_reusage: bool = False,
     ):
         """Log certificate issuance"""
-        self.logger.debug("CertificateLogger.log_certificate_issuance(%s)", certificate_name)
+        self.logger.debug(
+            "CertificateLogger.log_certificate_issuance(%s)", certificate_name
+        )
 
         # Lookup account name and kid
         try:
             order_dic = self.repository.order_lookup(
                 "name",
                 order_name,
-                ["id", "name", "account__name", "account__eab_kid", "profile", "expires", "account__contact"],
+                [
+                    "id",
+                    "name",
+                    "account__name",
+                    "account__eab_kid",
+                    "profile",
+                    "expires",
+                    "account__contact",
+                ],
             )
         except Exception as err:
             self.logger.error(
