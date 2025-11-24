@@ -7,6 +7,7 @@ from acme_srv.helper import (
     cert_san_get,
     cert_serial_get,
     b64_url_recode,
+    uts_to_date_utc,
 )
 
 
@@ -41,7 +42,7 @@ class CertificateLogger:
             order_dic = self.repository.order_lookup(
                 "name",
                 order_name,
-                ["id", "name", "account__name", "account__eab_kid", "profile"],
+                ["id", "name", "account__name", "account__eab_kid", "profile", "expires", "account__contact"],
             )
         except Exception as err:
             self.logger.error(
@@ -52,6 +53,7 @@ class CertificateLogger:
 
         data_dic = {
             "account_name": order_dic.get("account__name", ""),
+            "account_contact": order_dic.get("account__contact", ""),
             "certificate_name": certificate_name,
             "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
             "common_name": cert_cn_get(self.logger, certificate),
@@ -69,6 +71,10 @@ class CertificateLogger:
         if order_dic.get("profile", None):
             # Add profile if existing
             data_dic["profile"] = order_dic.get("profile", "")
+
+        if order_dic.get("expires", ""):
+            # add expires if existing
+            data_dic["expires"] = uts_to_date_utc(order_dic.get("expires", ""))
 
         if self.cert_operations_log == "json":
             # Log in json format
@@ -97,6 +103,7 @@ class CertificateLogger:
                     "name",
                     "order__account__name",
                     "order__account__eab_kid",
+                    "order__account__contact",
                     "order__profile",
                 ],
             )
@@ -114,6 +121,7 @@ class CertificateLogger:
 
         data_dic = {
             "account_name": cert_dic.get("order__account__name", ""),
+            "account_contact": cert_dic.get("order__account__contact", ""),
             "certificate_name": cert_dic.get("name", ""),
             "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
             "common_name": cert_cn_get(self.logger, certificate),
@@ -144,7 +152,7 @@ class CertificateLogger:
 
     def _log_issuance_as_text(self, certificate_name: str, data_dic: Dict):
         """Log certificate issuance as text string"""
-        log_string = f'Certificate {certificate_name} issued for account {data_dic["account_name"]}'
+        log_string = f'Certificate {certificate_name} issued for account {data_dic["account_name"]} {data_dic["account_contact"]}'
 
         if data_dic.get("eab_kid", ""):
             log_string = log_string + f' with EAB KID {data_dic["eab_kid"]}'
@@ -154,7 +162,7 @@ class CertificateLogger:
 
         log_string = (
             log_string
-            + f'. Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}'
+            + f'. Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}, Expires: {data_dic["expires"]}'
         )
 
         if data_dic.get("reused", ""):
@@ -164,7 +172,7 @@ class CertificateLogger:
 
     def _log_revocation_as_text(self, data_dic: Dict):
         """Log certificate revocation as text string"""
-        log_string = f'Certificate {data_dic["certificate_name"]} revocation {data_dic["status"]} for account {data_dic["account_name"]}'
+        log_string = f'Certificate {data_dic["certificate_name"]} revocation {data_dic["status"]} for account {data_dic["account_name"]} {data_dic["account_contact"]}'
 
         if data_dic.get("eab_kid", ""):
             log_string = log_string + f' with EAB KID {data_dic["eab_kid"]}'
