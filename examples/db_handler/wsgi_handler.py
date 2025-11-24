@@ -310,7 +310,8 @@ class DBstore(object):
                             orders.status_id as order__status_id,
                             orders.profile as order__profile,
                             account.name as order__account__name,
-                            account.eab_kid as order__account__eab_kid
+                            account.eab_kid as order__account__eab_kid,
+                            account.contact as order__account__contact
                             from certificate
                             INNER JOIN orders on orders.id = certificate.order_id
                             INNER JOIN account on account.id = orders.account_id
@@ -747,7 +748,8 @@ class DBstore(object):
                         status.id as status__id,
                         account.name as account__name,
                         account.id as account_id,
-                        account.eab_kid as account__eab_kid
+                        account.eab_kid as account__eab_kid,
+                        account.contact as account__contact
                     from orders
                     INNER JOIN status on status.id = orders.status_id
                     INNER JOIN account on account.id = orders.account_id
