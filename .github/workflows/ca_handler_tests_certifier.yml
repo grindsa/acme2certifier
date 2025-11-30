@@ -482,6 +482,8 @@ jobs:
         sudo echo "eab_profiling: True" >> data/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
+        sudo sed -i '29,33d' data/acme_ca/kid_profiles.json
+        sudo sed -i '20,22d' data/acme_ca/kid_profiles.json
         sudo chmod 777 data/acme_ca/kid_profiles.json
         sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/acme_ca/kid_profiles.json
         sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/acme_ca/kid_profiles.json
@@ -517,6 +519,8 @@ jobs:
         sudo echo "eab_profiling: True" >> data/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
+        sudo sed -i '29,33d' data/acme_ca/kid_profiles.json
+        sudo sed -i '20,22d' data/acme_ca/kid_profiles.json
         sudo chmod 777 data/acme_ca/kid_profiles.json
         sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/acme_ca/kid_profiles.json
         sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/acme_ca/kid_profiles.json
@@ -606,6 +610,8 @@ jobs:
         sudo echo "eab_profiling: True" >> data/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
+        sudo sed -i '29,33d' data/acme_ca/kid_profiles.json
+        sudo sed -i '20,22d' data/acme_ca/kid_profiles.json
         sudo chmod 777 data/acme_ca/kid_profiles.json
         sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/acme_ca/kid_profiles.json
         sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/acme_ca/kid_profiles.json
