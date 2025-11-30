@@ -9,13 +9,14 @@ This feature is intended for special use cases where certain domains are trusted
 ## How It Works
 
 - When a new authorization request is processed, the Authorization class checks if the requested DNS identifier matches any entry in the `prevalidated_domainlist`.
+
 - If a match is found, the authorization status is set to `valid` immediately, and the associated order gets marked as `ready`. ACME Clients follwing RFC8555 will then skip the challenge validation process and directly finalize the order by submitting a CSR.
 
 - The feature can be enabled in two ways:
 
-  1. **Direct Configuration:** By setting the `prevalidated_domainlist` option in the `acme_srv.cfg` configuration file.
+  - **Direct Configuration:** By setting the `prevalidated_domainlist` option in the `acme_srv.cfg` configuration file.
 
-  2. **ACME Profiling (EAB Profile):** By enabling EAB profiling, which can dynamically provide a `prevalidated_domainlist` for specific accounts via the EAB handler/profile mechanism.
+  - **ACME Profiling (EAB Profile):** By enabling EAB profiling, which can dynamically provide a `prevalidated_domainlist` for specific accounts via the EAB handler/profile mechanism.
 
 ## Enabling the Feature
 
@@ -85,5 +86,6 @@ prevalidated_domainlist = ["internal.example.com", "vpn.example.com"]
 - See the `Authorization` class in `acme_srv/authorization.py` for implementation details.
 - For EAB profiling, refer to your EAB handler and profile documentation.
 
----
+______________________________________________________________________
+
 **Again: Use with extreme caution.** This feature is for advanced administrators who understand the security trade-offs.
