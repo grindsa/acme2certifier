@@ -213,8 +213,8 @@ jobs:
     - name: "EAB with headerinfo - Reconfigure key_file without restarting"
       run: |
         sudo sed -i "s/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\"\]/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\", \"*.acme\"\]/g" examples/Docker/data/kid_profiles.json
-        sudo sed -i '26,27d' examples/Docker/data/kid_profiles.json
-        sudo sed -i "s/    \"hmac\": \"YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr\"/    \"hmac\": \"YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr\"\n  },\n  \"keyid_04\": {\n    \"hmac\": \"YW5kX2hlcmVfaXNfYW5vdGhlcl92ZXJ5X2xvbmdfbWFja19obWFjX2tleV90b19jaGVja19pZl9jaGFuZ2VzX2FmZmVjdF9pbW1lZGF0ZWx5\",\n    \"cahandler\": {}\n  }\n}/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i "s/      \"prevalidated_domainlist\": \[\"www.example.com\"\]/          \"prevalidated_domainlist\": \[\"www.example1.com\"\]\n  },\n  \"keyid_04\": {\n    \"hmac\": \"YW5kX2hlcmVfaXNfYW5vdGhlcl92ZXJ5X2xvbmdfbWFja19obWFjX2tleV90b19jaGVja19pZl9jaGFuZ2VzX2FmZmVjdF9pbW1lZGF0ZWx5\",\n    \"cahandler\": {}\n  }\n}/g" examples/Docker/data/kid_profiles.json
+        sudo sed -i '34,35d' examples/Docker/data/kid_profiles.json
 
     - name: "EAB with headerinfo - Enrollment after reconfiguration"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -540,8 +540,8 @@ jobs:
     - name: "EAB with headerinfo - Reconfigure key_file without restarting"
       run: |
         sudo sed -i "s/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\"\]/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\", \"*.acme\"\]/g" data/acme_ca/kid_profiles.json
-        sudo sed -i '26,27d' data/acme_ca/kid_profiles.json
-        sudo sed -i "s/    \"hmac\": \"YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr\"/    \"hmac\": \"YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr\"\n  },\n  \"keyid_04\": {\n    \"hmac\": \"YW5kX2hlcmVfaXNfYW5vdGhlcl92ZXJ5X2xvbmdfbWFja19obWFjX2tleV90b19jaGVja19pZl9jaGFuZ2VzX2FmZmVjdF9pbW1lZGF0ZWx5\",\n    \"cahandler\": {}\n  }\n}/g" data/acme_ca/kid_profiles.json
+        sudo sed -i "s/      \"prevalidated_domainlist\": \[\"www.example.com\"\]/          \"prevalidated_domainlist\": \[\"www.example1.com\"\]\n  },\n  \"keyid_04\": {\n    \"hmac\": \"YW5kX2hlcmVfaXNfYW5vdGhlcl92ZXJ5X2xvbmdfbWFja19obWFjX2tleV90b19jaGVja19pZl9jaGFuZ2VzX2FmZmVjdF9pbW1lZGF0ZWx5\",\n    \"cahandler\": {}\n  }\n}/g" data/acme_ca/kid_profiles.json
+        sudo sed -i '34,35d' data/acme_ca/kid_profiles.json
 
     - name: "Update configuration"
       run: |
