@@ -57,8 +57,8 @@ jobs:
         sudo cp .github/dns_test.sh acme-sh/
         docker exec -i acme-sh apk add dnsmasq
         docker exec -i acme-sh dnsmasq
-        docker exec -i acme-sh mv /acme.sh/dns_test.sh /root/.acme.sh/dnsapi/
-        docker exec -i acme-sh chmod +x /root/.acme.sh/dnsapi/dns_test.sh
+        docker exec -i acme-sh mv /acme.sh/dns_test.sh /acmebin/dnsapi/
+        docker exec -i acme-sh chmod +x /acmebin/dnsapi/dns_test.sh
 
     - name: "Set DNS server"
       run: |
@@ -166,8 +166,8 @@ jobs:
         sudo cp .github/dns_test.sh acme-sh/
         docker exec -i acme-sh apk add dnsmasq
         docker exec -i acme-sh dnsmasq
-        docker exec -i acme-sh mv /acme.sh/dns_test.sh /root/.acme.sh/dnsapi/
-        docker exec -i acme-sh chmod +x /root/.acme.sh/dnsapi/dns_test.sh
+        docker exec -i acme-sh mv /acme.sh/dns_test.sh /acmebin/dnsapi/
+        docker exec -i acme-sh chmod +x /acmebin/dnsapi/dns_test.sh
 
     - name: "set DNS server"
       run: |
