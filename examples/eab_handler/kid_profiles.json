@@ -17,15 +17,26 @@
       "ca_name": "example_ca_2",
       "api_user": "api_user_2",
       "api_password": "api_password_2"
+    },
+    "challenge": {
+      "challenge_validation_disable": "True"
     }
   },
   "keyid_02": {
     "hmac": "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM",
     "cahandler": {
       "allowed_domainlist": ["www.example.com", "www.example.org"]
+    },
+    "challenge": {
+      "challenge_validation_disable": "True",
+      "foward_address_check": "True",
+      "reverse_address_check": "True"
     }
   },
   "keyid_03": {
-    "hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr"
+    "hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr",
+    "authorization": {
+      "prevalidated_domainlist": ["www.example.com"]
+    }
   }
 }
