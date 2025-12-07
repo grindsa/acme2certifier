@@ -52,7 +52,7 @@ class AuthorizationConfig:
     expiry_check_disable: bool = False
     authz_path: str = "/acme/authz/"
     prevalidated_domainlist: Optional[List[str]] = None
-    eab_profiling = bool = False
+    eab_profiling: bool = False
     eab_handler: Optional[Any] = None
 
 
@@ -434,7 +434,7 @@ class Authorization(object):
                     )
                 )
                 self.logger.warning(
-                    "Prevalidated list of domains loaded globally. Such configureation is recommended as this is a severe security risk!"
+                    "Prevalidated list of domains loaded globally. Such configuration is NOT recommended as this is a severe security risk!"
                 )
             except json.JSONDecodeError as err:
                 self.config.prevalidated_domainlist = None
@@ -530,9 +530,11 @@ class Authorization(object):
             authz_info
         )
 
-        self._apply_eab_and_domain_whitelist(
-            authz_name, auth_details, id_type, id_value, authz_info
-        )
+        if auth_details:
+            # Apply EAB profile and domain whitelist logic
+            self._apply_eab_and_domain_whitelist(
+                authz_name, auth_details, id_type, id_value, authz_info
+            )
 
         # Get challenge set
         try:
@@ -561,54 +563,55 @@ class Authorization(object):
         )
         return authz_info
 
-    def _apply_eab_and_domain_whitelist(
-        self, authz_name, auth_details, id_type, id_value, authz_info
-    ):
+    def _apply_eab_and_domain_whitelist(self, authz_name, auth_details, id_type, id_value, authz_info):
         """Apply EAB profile settings and domain whitelist logic to authorization info."""
-        # EAB profile logic
-        if self.config.eab_profiling:
-            self.logger.debug(
-                "Authorization.get_authorization_details() - apply eab profile setting"
-            )
-            eab_kid = auth_details.get("order__account__eab_kid", None)
-            if eab_kid:
-                try:
-                    with self.config.eab_handler(self.logger) as eab_handler:
-                        profile_dic = eab_handler.key_file_load()
-                        prevalidated_domainlist = (
-                            profile_dic.get(eab_kid)
-                            .get("authorization")
-                            .get("prevalidated_domainlist")
-                        )
-                        if prevalidated_domainlist:
-                            self.logger.debug(
-                                "Authorization.get_authorization_details() - apply prevalidated_domainlist from eab profile."
-                            )
-                            self.config.prevalidated_domainlist = (
-                                prevalidated_domainlist
-                            )
-                except Exception as err:
-                    self.logger.error(
-                        "Failed to process EAB profile for challenge %s (kid: %s): %s",
-                        authz_name,
-                        eab_kid,
-                        err,
-                    )
-        # Domain whitelist logic
-        if id_type == "dns" and getattr(self.config, "prevalidated_domainlist", None):
-            self.logger.debug(
-                "Authorization.get_authorization_details() - Checking preauthorized domain list for DNS identifier"
-            )
-            if is_domain_whitelisted(
-                self.logger, id_value, self.config.prevalidated_domainlist
-            ):
-                self.logger.debug(
-                    "Domain %s is preauthorized, setting authorization status to 'valid'",
-                    id_value,
+        self._apply_eab_profile(authz_name, auth_details)
+        self._apply_domain_whitelist(authz_name, auth_details, id_type, id_value, authz_info)
+
+    def _apply_eab_profile(self, authz_name, auth_details):
+        if not self.config.eab_profiling:
+            return
+        self.logger.debug("Authorization._apply_eab_and_domain_whitelist() - apply eab profile setting")
+        eab_kid = auth_details.get("order__account__eab_kid") if auth_details else None
+        if not eab_kid:
+            return
+        try:
+            with self.config.eab_handler(self.logger) as eab_handler:
+                profile_dic = eab_handler.key_file_load()
+                prevalidated_domainlist = (
+                    profile_dic.get(eab_kid, {})
+                    .get("authorization", {})
+                    .get("prevalidated_domainlist")
                 )
-                authz_info["status"] = "valid"
-                self.repository.mark_authorization_as_valid(authz_name)
+                if prevalidated_domainlist:
+                    self.logger.debug(
+                        "Authorization._apply_eab_and_domain_whitelist() - apply prevalidated_domainlist from eab profile."
+                    )
+                    self.config.prevalidated_domainlist = prevalidated_domainlist
+        except Exception as err:
+            self.logger.error(
+                "Failed to process EAB profile for challenge %s (kid: %s): %s",
+                authz_name, eab_kid, err
+            )
+
+    def _apply_domain_whitelist(self, authz_name, auth_details, id_type, id_value, authz_info):
+        if id_type != "dns" or not getattr(self.config, "prevalidated_domainlist", None):
+            return
+        self.logger.debug(
+            "Authorization.get_authorization_details() - Checking preauthorized domain list for DNS identifier"
+        )
+        if is_domain_whitelisted(self.logger, id_value, self.config.prevalidated_domainlist):
+            self.logger.debug(
+                "Domain %s is preauthorized, setting authorization status to 'valid'", id_value
+            )
+            authz_info["status"] = "valid"
+            self.repository.mark_authorization_as_valid(authz_name)
+            if auth_details is not None:
                 self.repository.mark_order_as_ready(auth_details.get("order__name"))
+            else:
+                self.logger.debug(
+                    "No order information found for authorization %s", authz_name
+                )
 
     def expire_invalid_authorizations(
         self, timestamp: int = None

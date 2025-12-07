@@ -5,7 +5,6 @@ import os
 import unittest
 from unittest.mock import Mock, MagicMock, patch, call
 import json
-from typing import Dict, List
 
 # Add the parent directory to sys.path so we can import acme_srv
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
