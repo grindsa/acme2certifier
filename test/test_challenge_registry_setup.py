@@ -5,8 +5,7 @@
 import unittest
 import sys
 import logging
-from unittest.mock import Mock, MagicMock, patch, call
-from typing import Dict, Any, Optional
+from unittest.mock import Mock, patch, call
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
@@ -206,7 +205,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             # Test with email support enabled
             config = MockConfig(email_identifier_support=True)
 
-            result = create_challenge_validator_registry(self.logger, config)
+            create_challenge_validator_registry(self.logger, config)
 
             # Verify email validator registered
             mock_email_validator.assert_called_once_with(self.logger)
@@ -301,7 +300,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 reverse_address_check=True,
             )
 
-            result = create_challenge_validator_registry(self.logger, config)
+            create_challenge_validator_registry(self.logger, config)
 
             # Verify all validators created and registered
             mock_http_validator.assert_called_once_with(self.logger)
@@ -394,7 +393,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
             # Test with None config - should handle gracefully
             try:
-                result = create_challenge_validator_registry(self.logger, None)
+                create_challenge_validator_registry(self.logger, None)
                 # This should raise an AttributeError since None.email_identifier_support would fail
                 self.fail("Expected AttributeError for None config")
             except AttributeError:
@@ -744,7 +743,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             # Test with tnauthlist support enabled
             config = MockConfig(tnauthlist_support=True)
 
-            result = create_challenge_validator_registry(self.logger, config)
+            create_challenge_validator_registry(self.logger, config)
 
             # Verify tkauth validator registered
             mock_tkauth_validator.assert_called_once_with(self.logger)
@@ -821,7 +820,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             # Test with forward address check enabled
             config = MockConfig(forward_address_check=True)
 
-            result = create_challenge_validator_registry(self.logger, config)
+            create_challenge_validator_registry(self.logger, config)
 
             # Verify source address validator registered with correct parameters
             mock_source_validator.assert_called_once_with(
@@ -897,7 +896,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             # Test with reverse address check enabled
             config = MockConfig(reverse_address_check=True)
 
-            result = create_challenge_validator_registry(self.logger, config)
+            create_challenge_validator_registry(self.logger, config)
 
             # Verify source address validator registered with correct parameters
             mock_source_validator.assert_called_once_with(
@@ -969,7 +968,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             # Test with both address checks enabled
             config = MockConfig(forward_address_check=True, reverse_address_check=True)
 
-            result = create_challenge_validator_registry(self.logger, config)
+            create_challenge_validator_registry(self.logger, config)
 
             # Verify source address validator registered with both checks
             mock_source_validator.assert_called_once_with(
@@ -1012,7 +1011,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             validator_classes = [mock_validator_class]
             config = {"test": "value"}
 
-            result = create_custom_registry(self.logger, validator_classes, config)
+            create_custom_registry(self.logger, validator_classes, config)
 
             # Verify registry creation (config not used in current implementation)
             mock_registry.assert_called_once_with(self.logger)

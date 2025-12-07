@@ -208,6 +208,73 @@ class Certificate(object):
             "Certificate._check_certificate_reusability(%s)",
             self.config.cert_reusage_timeframe,
         )
+        try:
+            result_dic = self.repository.search_certificates(
+                "csr",
+                csr,
+                ("cert", "cert_raw", "expire_uts", "issue_uts", "created_at", "id"),
+            )
+        except Exception as err_:
+            self.logger.critical(
+                "Database error: failed to search for certificate reusage: %s", err_
+            )
+            result_dic = None
+
+        cert = None
+        cert_raw = None
+        message = None
+
+        if result_dic:
+            self.logger.debug(
+                "Certificate._check_certificate_reusability(): found %s certificates",
+                len(result_dic),
+            )
+            uts = uts_now()
+            # sort certificates by creation date
+            for certificate in sorted(
+                result_dic, key=lambda i: i["issue_uts"], reverse=True
+            ):
+                try:
+                    uts_create = date_to_uts_utc(certificate["created_at"])
+                except Exception as _err:
+                    self.logger.error(
+                        "Date conversion error during certificate reusage check: id:%s/created_at:%s",
+                        certificate["id"],
+                        certificate["created_at"],
+                    )
+                    uts_create = 0
+
+                self.logger.debug(
+                    "uts: %s, reusage_tf: %s,  uts_create: %s, uts_exp: %s",
+                    uts,
+                    self.config.cert_reusage_timeframe,
+                    uts_create,
+                    certificate["expire_uts"],
+                )
+                # check if there certificates within reusage timeframe
+                if (
+                    certificate["cert_raw"]
+                    and certificate["cert"]
+                    and uts - self.config.cert_reusage_timeframe <= uts_create
+                    and uts <= certificate["expire_uts"]
+                ):
+                    cert = certificate["cert"]
+                    cert_raw = certificate["cert_raw"]
+                    message = f'reused certificate from id: {certificate["id"]}'
+                    break
+        else:
+            self.logger.debug(
+                "Certificate._check_certificate_reusability(): no certificates found"
+            )
+
+        self.logger.debug(
+            "Certificate._check_certificate_reusability() ended with {%s", message
+        )
+        return (None, cert, cert_raw, message)
+        self.logger.debug(
+            "Certificate._check_certificate_reusability(%s)",
+            self.config.cert_reusage_timeframe,
+        )
 
         try:
             result_dic = self.repository.search_certificates(

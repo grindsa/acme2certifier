@@ -4,9 +4,8 @@ Source Address Validator.
 Implements source address validation for challenges, including forward and reverse
 address checking capabilities.
 """
-from typing import Optional, Tuple, Dict, Any, List
+from typing import Dict, Any, List
 import json
-from acme_srv.helpers.network import ptr_resolve
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 
 
