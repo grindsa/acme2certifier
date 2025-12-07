@@ -14,7 +14,7 @@ This feature is intended for special use cases where certain domains are trusted
 
 - When a new authorization request is processed, the Authorization class checks if the requested DNS identifier matches any entry in the `prevalidated_domainlist`.
 
-- If a match is found, the authorization status is set to `valid` immediately, and the associated order gets marked as `ready`. ACME Clients follwing RFC8555 will then skip the challenge validation process and directly finalize the order by submitting a CSR.
+- If a match is found, the authorization status is set to `valid` immediately, and the associated order gets marked as `ready`. ACME Clients following RFC8555 will then skip the challenge validation process and directly finalize the order by submitting a CSR.
 
 - The feature can be enabled in two ways:
 
