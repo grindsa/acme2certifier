@@ -905,7 +905,7 @@ class TestACMEHandler(unittest.TestCase):
 
     def test_043_account__onlyreturnexisting(self):
         """test onlyReturnExisting for non existing account"""
-        self.signature.dbstore.account_lookup.return_value = False
+        self.account.dbstore.account_lookup.return_value = None
         protected = {"jwk": {"n": "foo"}}
         payload = {"onlyreturnexisting": True}
         self.assertEqual(
