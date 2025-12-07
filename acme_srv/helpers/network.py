@@ -6,7 +6,7 @@ import ssl
 import logging
 import json
 import re
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Union, Optional
 from urllib.parse import urlparse, quote
 from urllib3.util import connection
 import socks
@@ -19,46 +19,101 @@ from .encoding import convert_string_to_byte, b64_encode
 from .global_variables import USER_AGENT
 
 
+def _handle_dns_exception(
+    logger: logging.Logger,
+    host: str,
+    rrtype: str,
+    error: Exception,
+    errors_encountered: List[str],
+) -> None:
+    """Handle DNS resolution exceptions and log them appropriately"""
+    error_mappings = {
+        dns.resolver.NXDOMAIN: f"NXDOMAIN: {host} does not exist",
+        dns.resolver.NoAnswer: f"No {rrtype} record found for {host}",
+        dns.resolver.Timeout: f"DNS query timeout for {host}",
+    }
+
+    error_detail = error_mappings.get(
+        type(error), f"DNS resolution error: {str(error)}"
+    )
+
+    logger.debug("Error resolving %s with type %s: %s", host, rrtype, error_detail)
+    errors_encountered.append(f"{rrtype}: {error_detail}")
+
+
+def _process_dns_answers(
+    logger: logging.Logger,
+    answers: dns.resolver.Answer,
+    catch_all: bool,
+    result: Union[List[str], None],
+) -> Tuple[Union[str, List[str], None], bool]:
+    """Process DNS resolution answers and return appropriate result"""
+    logger.debug("Helper._fqdn_resolve() got answer: %s", list(answers))
+    resolved = [str(rdata) for rdata in answers]
+
+    if not resolved:
+        return result, True  # No answers found, keep searching
+
+    if catch_all:
+        if isinstance(result, list):
+            result.extend(resolved)
+        return result, False  # Found answers, mark as valid
+    else:
+        return resolved[0], False  # Return first answer and mark as valid
+
+
 def _fqdn_resolve(
     logger: logging.Logger,
     req: dns.resolver.Resolver,
     host: str,
     catch_all: bool = False,
-) -> Tuple[str, bool]:
-    """resolve hostname"""
+) -> Tuple[Union[str, List[str], None], bool, Optional[str]]:
+    """resolve hostname with detailed error reporting"""
     logger.debug("Helper._fqdn_resolve(%s:%s)", host, catch_all)
 
     result = [] if catch_all else None
     invalid = True
+    errors_encountered = []
 
     for rrtype in ["A", "AAAA"]:
         try:
             answers = req.resolve(host, rrtype)
-            logger.debug("Helper._fqdn_resolve() got answer: %s", list(answers))
-            resolved = [str(rdata) for rdata in answers]
-            if resolved:
-                if catch_all:
-                    result.extend(resolved)
-                    invalid = False
-                else:
-                    result = resolved[0]
-                    invalid = False
-                    break  # Only break if we found a result
-        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
-            logger.debug("No answer for %s with type %s", host, rrtype)
-            continue
-        except Exception as err:
-            logger.debug("Error while resolving %s with type %s: %s", host, rrtype, err)
-            # Do not set invalid to False here, only if we get a valid result
+            temp_result, temp_invalid = _process_dns_answers(
+                logger, answers, catch_all, result
+            )
 
-    logger.debug("Helper._fqdn_resolve(%s) ended with: %s, %s", host, result, invalid)
-    return (result, invalid)
+            if not temp_invalid:  # Only update if we got valid results
+                result = temp_result
+                invalid = False
+                if not catch_all:
+                    break  # Early exit for non-catch-all successful resolution
+        except (
+            dns.resolver.NXDOMAIN,
+            dns.resolver.NoAnswer,
+            dns.resolver.Timeout,
+            Exception,
+        ) as err:
+            _handle_dns_exception(logger, host, rrtype, err, errors_encountered)
+
+    # Combine errors if resolution failed
+    error_msg = (
+        "; ".join(errors_encountered) if invalid and errors_encountered else None
+    )
+
+    logger.debug(
+        "Helper._fqdn_resolve(%s) ended with: %s, %s, error: %s",
+        host,
+        result,
+        invalid,
+        error_msg,
+    )
+    return (result, invalid, error_msg)
 
 
 def fqdn_resolve(
     logger: logging.Logger, host: str, dnssrv: List[str] = None, catch_all: bool = False
-) -> Tuple[str, bool]:
-    """dns resolver"""
+) -> Tuple[Union[str, List[str], None], bool, Optional[str]]:
+    """dns resolver with error reporting"""
     logger.debug("Helper.fqdn_resolve(%s catch_all: %s)", host, catch_all)
     req = dns.resolver.Resolver()
 
@@ -68,14 +123,23 @@ def fqdn_resolve(
             # add specific dns server
             req.nameservers = dnssrv
         # resolve hostname
-        (result, invalid) = _fqdn_resolve(logger, req, host, catch_all=catch_all)
+        (result, invalid, error_msg) = _fqdn_resolve(
+            logger, req, host, catch_all=catch_all
+        )
 
     else:
         result = None
         invalid = False
+        error_msg = None
 
-    logger.debug("Helper.fqdn_resolve(%s) ended with: %s, %s", host, result, invalid)
-    return (result, invalid)
+    logger.debug(
+        "Helper.fqdn_resolve(%s) ended with: %s, %s, error: %s",
+        host,
+        result,
+        invalid,
+        error_msg,
+    )
+    return (result, invalid, error_msg)
 
 
 def ptr_resolve(
@@ -129,7 +193,7 @@ def patched_create_connection(address: List[str], *args, **kwargs):  # pragma: n
     dns_server_list = dns_server_list_load()
     # resolve hostname to an ip address; use your own resolver
     host, port = address
-    (hostname, _invalid) = fqdn_resolve(host, dns_server_list)
+    (hostname, _invalid, _error) = fqdn_resolve(host, dns_server_list)
     # pylint: disable=W0212
     return connection._orig_create_connection((hostname, port), *args, **kwargs)
 
@@ -165,7 +229,9 @@ def proxy_check(
     return proxy
 
 
-def url_get_with_own_dns(logger: logging.Logger, url: str, verify: bool = True) -> str:
+def url_get_with_own_dns(
+    logger: logging.Logger, url: str, verify: bool = True
+) -> Tuple[Optional[str], int, Optional[str]]:
     """request by using an own dns resolver"""
     logger.debug("Helper.url_get_with_own_dns(%s)", url)
     # patch an own connection handler into URL lib
@@ -184,15 +250,24 @@ def url_get_with_own_dns(logger: logging.Logger, url: str, verify: bool = True) 
             timeout=20,
         )
         result = req.text
+        status_code = req.status_code
+        if status_code != 200:
+            error_msg = f"{url} {req.reason}"
+        else:
+            error_msg = None
     except Exception as err_:
         result = None
-        logger.error("Could not get URL by using the configured DNS servers: %s", err_)
+        status_code = 500
+        error_msg = (
+            f"Could not get URL by using the configured DNS servers: {str(err_)}"
+        )
+        logger.error(error_msg)
     # cleanup
     connection.create_connection = connection._orig_create_connection
-    return result
+    return result, status_code, error_msg
 
 
-def allowed_gai_family() -> socket.AF_INET:
+def allowed_gai_family():
     """set family"""
     family = socket.AF_INET  # force IPv4
     return family
@@ -204,7 +279,7 @@ def url_get_with_default_dns(
     proxy_list: Dict[str, str],
     verify: bool,
     timeout: int,
-) -> str:
+) -> Tuple[Optional[str], int, Optional[str]]:
     """http get with default dns server"""
     logger.debug(
         "Helper.url_get_with_default_dns(%s) vrf=%s, timout:%s", url, verify, timeout
@@ -212,16 +287,21 @@ def url_get_with_default_dns(
 
     # we need to tweak headers and url for ipv6 addresse
     (headers, url) = v6_adjust(logger, url)
-
     try:
         req = requests.get(
             url, verify=verify, timeout=timeout, headers=headers, proxies=proxy_list
         )
         result = req.text
+        status_code = req.status_code
+        if status_code != 200:
+            error_msg = f"{url} {req.reason}"
+        else:
+            error_msg = None
+
     except Exception as err_:
-        logger.debug("Helper.url_get(%s): error", err_)
+        logger.debug("Helper.url_get_with_default_dns(%s): error", err_)
         # force fallback to ipv4
-        logger.debug("Helper.url_get(%s): fallback to v4", url)
+        logger.debug("Helper.url_get_with_default_dns(%s): fallback to v4", url)
         old_gai_family = urllib3_cn.allowed_gai_family
         try:
             urllib3_cn.allowed_gai_family = allowed_gai_family
@@ -237,12 +317,33 @@ def url_get_with_default_dns(
                 proxies=proxy_list,
             )
             result = req.text
-        except Exception as err:
+            status_code = req.status_code
+            if status_code != 200:
+                error_msg = f"{url} {req.reason}"
+            else:
+                error_msg = None
+        except requests.exceptions.ReadTimeout as _errex:
+            logger.debug("Helper.url_get_with_default_dns(%s): read timeout", url)
             result = None
-            logger.error("Could not fetch URL: %s", err)
+            status_code = 500
+            error_msg = f"Could not fetch URL: {url} - Read timeout."
+            logger.error(error_msg)
+        except requests.exceptions.ConnectionError as _errex:
+            logger.debug("Helper.url_get_with_default_dns(%s): connection error", url)
+            result = None
+            status_code = 500
+            error_msg = f"Could not fetch URL: {url} - Connection error."
+            logger.error(error_msg)
+        except Exception as err:
+            logger.debug("Helper.url_get_with_default_dns(%s): other error", url)
+            result = None
+            status_code = 500
+            error_msg = f"Could not fetch URL: {url}"
+            logger.error(err)
+
         urllib3_cn.allowed_gai_family = old_gai_family
 
-    return result
+    return result, status_code, error_msg
 
 
 def url_get(
@@ -252,8 +353,8 @@ def url_get(
     proxy_server=None,
     verify=True,
     timeout=20,
-) -> str:
-    """http get"""
+) -> Tuple[Optional[str], int, Optional[str]]:
+    """http get with enhanced error reporting"""
     logger.debug("Helper.url_get(%s) vrf=%s, timout:%s", url, verify, timeout)
     # pylint: disable=w0621
     # configure proxy servers if specified
@@ -262,12 +363,16 @@ def url_get(
     else:
         proxy_list = {}
     if dns_server_list and not proxy_server:
-        result = url_get_with_own_dns(logger, url, verify)
+        result, status_code, error_msg = url_get_with_own_dns(logger, url, verify)
     else:
-        result = url_get_with_default_dns(logger, url, proxy_list, verify, timeout)
+        result, status_code, error_msg = url_get_with_default_dns(
+            logger, url, proxy_list, verify, timeout
+        )
 
-    logger.debug("Helper.url_get() ended with: %s", result)
-    return result
+    logger.debug(
+        "Helper.url_get() ended with status: %s, error: %s", status_code, error_msg
+    )
+    return result, status_code, error_msg
 
 
 def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> List[str]:

@@ -13,6 +13,8 @@ from email.mime.multipart import MIMEMultipart
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
 
+from acme_srv.email_handler import EmailHandler
+
 
 class TestEmailHandler(unittest.TestCase):
     """Test EmailHandler class"""
@@ -21,8 +23,6 @@ class TestEmailHandler(unittest.TestCase):
         """Set up test fixtures"""
         logging.basicConfig(level=logging.INFO)
         self.logger = logging.getLogger("test_a2c")
-        from acme_srv.email_handler import EmailHandler
-
         self.email_handler = EmailHandler(debug=True, logger=self.logger)
 
     def _mock_mail(
@@ -678,7 +678,7 @@ class TestEmailHandler(unittest.TestCase):
         mock_mail.logout.assert_called_once()
 
         self.assertIn(
-            "DEBUG:test_a2c:mailHandler.receive(): email did not pass filter: Test Email 1",
+            "DEBUG:test_a2c:EmailHandler.receive(): email did not pass filter: Test Email 1",
             log.output,
         )
         self.assertIn("INFO:test_a2c:Email passed filter: Test Email 2", log.output)
@@ -764,6 +764,182 @@ class TestEmailHandler(unittest.TestCase):
             mail, callback=None, mark_as_read=True
         )
         self.assertEqual(emails, [])
+
+    @patch.object(EmailHandler, "send")
+    def test_032_send_email_challenge_basic_functionality(self, mock_send):
+        """Test send_email_challenge basic functionality"""
+        # Setup
+        to_address = "test@example.com"
+        token1 = "abc123token"
+
+        # Test
+        with self.assertLogs(self.logger, level="DEBUG") as log:
+            self.email_handler.send_email_challenge(
+                to_address=to_address, token1=token1
+            )
+
+        # Verify send was called with correct parameters
+        mock_send.assert_called_once()
+        call_args = mock_send.call_args
+
+        # Check arguments passed to send()
+        self.assertEqual(call_args[1]["to_address"], to_address)
+        self.assertEqual(call_args[1]["subject"], f"ACME: {token1}")
+
+        # Check message content
+        message = call_args[1]["message"]
+        self.assertIn(to_address, message)
+        self.assertIn("ACME challenge", message)
+        self.assertIn("S/MIME certificate", message)
+        self.assertIn("security precautions", message)
+        self.assertIn("email client", message)
+        self.assertIn("verification tool", message)
+
+        # Verify debug logging
+        self.assertTrue(
+            any("Challenge._email_send" in message for message in log.output)
+        )
+        self.assertTrue(any(to_address in message for message in log.output))
+
+    @patch.object(EmailHandler, "send")
+    def test_033_send_email_challenge_with_none_parameters(self, mock_send):
+        """Test send_email_challenge with None parameters"""
+        # Test with None to_address
+        self.email_handler.send_email_challenge(to_address=None, token1="token123")
+
+        call_args = mock_send.call_args
+        self.assertEqual(call_args[1]["to_address"], None)
+        self.assertEqual(call_args[1]["subject"], "ACME: token123")
+
+        # Reset mock
+        mock_send.reset_mock()
+
+        # Test with None token1
+        self.email_handler.send_email_challenge(
+            to_address="test@example.com", token1=None
+        )
+
+        call_args = mock_send.call_args
+        self.assertEqual(call_args[1]["to_address"], "test@example.com")
+        self.assertEqual(call_args[1]["subject"], "ACME: None")
+
+        # Reset mock
+        mock_send.reset_mock()
+
+        # Test with both None
+        self.email_handler.send_email_challenge(to_address=None, token1=None)
+
+        call_args = mock_send.call_args
+        self.assertEqual(call_args[1]["to_address"], None)
+        self.assertEqual(call_args[1]["subject"], "ACME: None")
+
+    @patch.object(EmailHandler, "send")
+    def test_034_send_email_challenge_message_content(self, mock_send):
+        """Test send_email_challenge message content formatting"""
+        to_address = "user@domain.com"
+        token1 = "xyz789token"
+
+        self.email_handler.send_email_challenge(to_address=to_address, token1=token1)
+
+        call_args = mock_send.call_args
+        message = call_args[1]["message"]
+
+        # Check specific message content (accounting for line breaks)
+        expected_parts = [
+            "automatically generated ACME challenge",
+            f'"{to_address}"',
+            "S/MIME certificate",
+            "disregard this message",
+            "security precautions",
+            "email client may be able to process",
+            "challenge automatically",
+            "manually",
+            "copy the first token",
+            "designated verification tool",
+            "or application",
+        ]
+
+        for part in expected_parts:
+            self.assertIn(part, message)
+
+    @patch.object(EmailHandler, "send")
+    def test_035_send_email_challenge_subject_formatting(self, mock_send):
+        """Test send_email_challenge subject formatting"""
+        test_cases = [
+            ("simple_token", "ACME: simple_token"),
+            ("", "ACME: "),
+            ("token-with-dashes", "ACME: token-with-dashes"),
+            ("token_with_underscores", "ACME: token_with_underscores"),
+            ("TokenWithMixedCase", "ACME: TokenWithMixedCase"),
+            ("token.with.dots", "ACME: token.with.dots"),
+        ]
+
+        for token, expected_subject in test_cases:
+            mock_send.reset_mock()
+            self.email_handler.send_email_challenge(
+                to_address="test@example.com", token1=token
+            )
+
+            call_args = mock_send.call_args
+            self.assertEqual(call_args[1]["subject"], expected_subject)
+
+    @patch.object(EmailHandler, "send")
+    def test_036_send_email_challenge_no_default_parameters(self, mock_send):
+        """Test send_email_challenge called without any parameters"""
+        # This should work since both parameters have default None values
+        self.email_handler.send_email_challenge()
+
+        call_args = mock_send.call_args
+        self.assertEqual(call_args[1]["to_address"], None)
+        self.assertEqual(call_args[1]["subject"], "ACME: None")
+
+        message = call_args[1]["message"]
+        self.assertIn('"None"', message)  # None gets formatted into the message
+
+    @patch.object(EmailHandler, "send", return_value=True)
+    def test_037_send_email_challenge_integration_success(self, mock_send):
+        """Test send_email_challenge integration when send succeeds"""
+        to_address = "success@example.com"
+        token1 = "success_token"
+
+        # The function doesn't return anything, but we can verify it calls send
+        result = self.email_handler.send_email_challenge(
+            to_address=to_address, token1=token1
+        )
+
+        # send_email_challenge doesn't return anything
+        self.assertIsNone(result)
+        mock_send.assert_called_once()
+
+    @patch.object(EmailHandler, "send", return_value=False)
+    def test_038_send_email_challenge_integration_failure(self, mock_send):
+        """Test send_email_challenge integration when send fails"""
+        to_address = "fail@example.com"
+        token1 = "fail_token"
+
+        # The function doesn't return anything, even if send fails
+        result = self.email_handler.send_email_challenge(
+            to_address=to_address, token1=token1
+        )
+
+        # send_email_challenge doesn't return anything
+        self.assertIsNone(result)
+        mock_send.assert_called_once()
+
+    @patch.object(EmailHandler, "send", side_effect=Exception("SMTP error"))
+    def test_039_send_email_challenge_send_exception(self, mock_send):
+        """Test send_email_challenge when send raises an exception"""
+        to_address = "error@example.com"
+        token1 = "error_token"
+
+        # The exception should propagate since send_email_challenge doesn't handle it
+        with self.assertRaises(Exception) as context:
+            self.email_handler.send_email_challenge(
+                to_address=to_address, token1=token1
+            )
+
+        self.assertEqual(str(context.exception), "SMTP error")
+        mock_send.assert_called_once()
 
 
 if __name__ == "__main__":

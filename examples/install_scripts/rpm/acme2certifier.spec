@@ -39,6 +39,8 @@ Requires:       python3-xmltodict
 Requires:       python3-pyasn1
 Requires:       python3-pyasn1-modules
 Requires:       python3-pyyaml
+# Weak dependency for dataclasses - will install if available, won't fail if not
+Recommends:     python3-dataclasses
 Requires(post): policycoreutils
 
 BuildArch:		noarch
