@@ -42,7 +42,6 @@ The project consists of two main libraries:
 | [OpenSSL](docs/openssl.md)                                                                                                                     | ✅             | ✅             | ❌                                         |
 | [OpenXPKI](docs/openxpki.md)                                                                                                                   | ✅             | ✅             | ✅                                         |
 | [XCA](docs/xca.md)                                                                                                                             | ✅             | ✅             | ✅                                         |
-| [acme2dfn](https://github.com/pfisterer/acme2dfn) (ACME proxy for [German research network's PKI](https://www.pki.dfn.de/ueberblick-dfn-pki/)) | ✅             | ❌             | ❌                                         |
 
 For the latest updates and additional documentation, visit the project's homepage:
 [**acme2certifier on GitHub**](https://github.com/grindsa/acme2certifier)
