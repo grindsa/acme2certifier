@@ -152,7 +152,23 @@ def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str,
 
     allowed_domainlist = []
 
-    if "CAhandler" in config_dic and "allowed_domainlist" in config_dic["CAhandler"]:
+    if "Order" in config_dic and "allowed_domainlist" in config_dic["Order"]:
+        try:
+            allowed_domainlist = json.loads(config_dic["Order"]["allowed_domainlist"])
+        except Exception as err_:
+            logger.warning(
+                "Failed to load allowed_domainlist from configuration: %s", err_
+            )
+            allowed_domainlist = PARSING_ERR_MSG
+
+    if (
+        not allowed_domainlist
+        and "CAhandler" in config_dic
+        and "allowed_domainlist" in config_dic["CAhandler"]
+    ):
+        logger.warning(
+            "allowed_domainlist parameter found in CAhandler section - this is deprecated, please use Order section"
+        )
         try:
             allowed_domainlist = json.loads(
                 config_dic["CAhandler"]["allowed_domainlist"]
