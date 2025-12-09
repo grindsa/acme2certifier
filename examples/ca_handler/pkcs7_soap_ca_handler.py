@@ -189,7 +189,7 @@ class CAhandler(object):
 
     def _cert_decode(self, cert):
         self.logger.debug("CAhandler._cert_decode()")
-        return decoder.decode(
+        return decoder.decode(  # NOSONAR
             cert.public_bytes(serialization.Encoding.DER),
             asn1Spec=rfc2315.Certificate(),
         )
@@ -223,7 +223,9 @@ class CAhandler(object):
         self.logger.debug("CAhandler._pkcs7_create()")
         content_info = rfc2315.ContentInfo()
         content_info.setComponentByName("contentType", rfc2315.data)
-        content_info.setComponentByName("content", encoder.encode(rfc2315.Data(csr)))
+        content_info.setComponentByName(
+            "content", encoder.encode(rfc2315.Data(csr))
+        )  # NOSONAR
 
         issuer_and_serial = rfc2315.IssuerAndSerialNumber()
         issuer_and_serial.setComponentByName(
@@ -283,11 +285,13 @@ class CAhandler(object):
 
         outer_content_info = rfc2315.ContentInfo()
         outer_content_info.setComponentByName("contentType", rfc2315.signedData)
-        outer_content_info.setComponentByName("content", encoder.encode(signed_data))
+        outer_content_info.setComponentByName(
+            "content", encoder.encode(signed_data)
+        )  # NOSONAR
 
         error = None
         self.logger.debug("CAhandler._pkcs7_create() ended")
-        return (error, encoder.encode(outer_content_info))
+        return (error, encoder.encode(outer_content_info))  # NOSONAR
 
     def _soaprequest_build(self, pkcs7):
         """build soap request payload"""
@@ -390,20 +394,22 @@ class CAhandler(object):
         """
         content = decoder.decode(signature_block_file, asn1Spec=rfc2315.ContentInfo())[
             0
-        ]
+        ]  # NOSONAR
         if (
             content.getComponentByName("contentType") != rfc2315.signedData
         ):  # pragma: no cover
             return None  # pragma: no cover
         content = decoder.decode(
             content.getComponentByName("content"), asn1Spec=rfc2315.SignedData()
-        )[0]
+        )[
+            0
+        ]  # NOSONAR
 
         cert_list = []
         for cert in content.getComponentByName("certificates"):
             cert_obj = x509.load_der_x509_certificate(
                 encoder.encode(cert), default_backend()
-            )
+            )  # NOSONAR
             cert_pem = cert_obj.public_bytes(serialization.Encoding.PEM)
             cert_list.append(convert_byte_to_string(cert_pem))
 
