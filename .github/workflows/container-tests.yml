@@ -46,7 +46,7 @@ jobs:
         sudo rm -rf  lego/*
         sudo rm -rf  acme-sh/*
         sudo rm -rf  certbot/*
-        sudo rm -rf  *.pem
+        sudo rm -rf  ./*.pem
 
     - name: "Test ca_handler_migration"
       run: |
