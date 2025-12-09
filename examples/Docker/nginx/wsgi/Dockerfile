@@ -37,10 +37,7 @@ RUN pip3 install impacket --break-system-packages && \
     sed -i "s/nginx/www-data/g" /var/www/acme2certifier/acme2certifier.ini && \
     ln -sf /dev/stdout /var/log/nginx/access.log && ln -sf /dev/stderr /var/log/nginx/error.log && \
     sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
-    sed -i "s/\[default_sect\]/\[default_sect\]\\
-    activate = 1\\
-    [legacy_sect]\\
-    activate = 1/g" /etc/ssl/openssl.cnf && \
+    sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf && \  # NOSONAR
     rm /etc/nginx/sites-enabled/default && \
     rm /var/www/acme2certifier/CHANGES.md && \
     rm /var/www/acme2certifier/README.md && \

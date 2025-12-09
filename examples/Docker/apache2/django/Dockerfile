@@ -50,10 +50,7 @@ RUN pip3 install impacket --break-system-packages && \
 	rm /var/www/acme2certifier/acme2certifier/settings.py && \
     chown -R www-data:www-data /var/www/acme2certifier/ && \
     sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
-    sed -i "s/\[default_sect\]/\[default_sect\]\\
-    activate = 1\\
-    [legacy_sect]\\
-    activate = 1/g" /etc/ssl/openssl.cnf && \
+    sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf && \  # NOSONAR
     sed -i "s/\${APACHE_LOG_DIR}\/error.log/\/dev\/stderr/g" /etc/apache2/apache2.conf && \
     a2enmod ssl && \
     rm /etc/apache2/sites-enabled/000-default.conf && \
