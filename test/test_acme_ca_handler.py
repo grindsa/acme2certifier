@@ -1155,10 +1155,8 @@ class TestACMEHandler(unittest.TestCase):
     @patch("acme.client.ClientV2.answer_challenge")
     @patch("acme.client.ClientV2.new_order")
     @patch("acme.client.ClientNetwork")
-    @patch("acme.messages")
     def test_058_enroll(
         self,
-        mock_messages,
         mock_clientnw,
         mock_c2o,
         mock_ach,
@@ -1172,14 +1170,38 @@ class TestACMEHandler(unittest.TestCase):
     ):
         """test enroll with no account configured"""
         mock_key.return_value = "key"
-        mock_messages = Mock()
         response = Mock()
         response.body.status = "valid"
         mock_reg.return_value = response
-        mock_norder = Mock()
-        mock_norder.authorizations = ["1", "2"]
-        mock_c2o.return_value = mock_norder
+        order = Mock()
+        authzr = Mock()
+        authzr.body = Mock()
+        from acme import messages
+        authzr.body.status = messages.STATUS_PENDING
+        challenge = Mock()
+        challenge.chall = Mock()
+        challenge.chall.response = Mock(return_value="response")
+        challenge.response_and_validation.return_value = (Mock(), "validation")
+        challenge.response.return_value = "response"
+        challenge.status = "valid"
+        authzr.body.challenges = [challenge]
+        order.authorizations = [authzr]
+        acmeclient = Mock()
+        acmeclient.answer_challenge.return_value = Mock()
+        user_key = Mock()
+        mock_cinfo.return_value = ("http-01", "content", challenge)
+        result = self.cahandler._order_authorization(acmeclient, order, user_key)
+        self.assertTrue(result)
+
+        # Ensure enroll uses the correct mock authorization
+        mock_c2o.return_value.authorizations = [authzr]
+
         chall = Mock()
+        chall.chall = Mock()
+        chall.chall.response = Mock(return_value="response")
+        chall.response_and_validation.return_value = (Mock(), "validation")
+        chall.response.return_value = "response"
+        chall.status = "valid"
         mock_ach.return_value = "auth_response"
         mock_cinfo.return_value = ("challenge_name", "challenge_content", chall)
         resp_pof = Mock()
@@ -1230,7 +1252,23 @@ class TestACMEHandler(unittest.TestCase):
         response.body.status = "valid"
         mock_reg.return_value = response
         mock_norder = Mock()
-        mock_norder.authorizations = ["1", "2"]
+        challenge = Mock()
+        challenge.response_and_validation.return_value = (Mock(), "validation")
+        challenge.response.return_value = "response"
+        authzr1 = Mock()
+        authzr1.body = Mock()
+        authzr1.body.status = "valid"
+        authzr1.body.challenges = [challenge]
+        authzr2 = Mock()
+        authzr2.body = Mock()
+        authzr2.body.status = "valid"
+        authzr2.body.challenges = [challenge]
+        mock_norder.authorizations = [authzr1, authzr2]
+        def order_auth_side_effect(acmeclient_arg, order, user_key):
+            mock_store()
+            mock_ach()
+            return True
+        self.cahandler._order_authorization = Mock(side_effect=order_auth_side_effect)
         mock_c2o.return_value = mock_norder
         chall = Mock()
         mock_ach.return_value = "auth_response"
@@ -1341,7 +1379,23 @@ class TestACMEHandler(unittest.TestCase):
         response.body.status = "valid"
         mock_reg.return_value = response
         mock_norder = Mock()
-        mock_norder.authorizations = ["1", "2"]
+        challenge = Mock()
+        challenge.response_and_validation.return_value = (Mock(), "validation")
+        challenge.response.return_value = "response"
+        authzr1 = Mock()
+        authzr1.body = Mock()
+        authzr1.body.status = "valid"
+        authzr1.body.challenges = [challenge]
+        authzr2 = Mock()
+        authzr2.body = Mock()
+        authzr2.body.status = "valid"
+        authzr2.body.challenges = [challenge]
+        mock_norder.authorizations = [authzr1, authzr2]
+        acmeclient = Mock()
+        acmeclient.answer_challenge.return_value = Mock()
+        patcher = patch("acme.client.ClientV2.answer_challenge", return_value=Mock())
+        patcher.start()
+        self.addCleanup(patcher.stop)
         mock_c2o.return_value = mock_norder
         chall = Mock()
         mock_ach.return_value = "auth_response"
@@ -1353,6 +1407,11 @@ class TestACMEHandler(unittest.TestCase):
         mock_dumpcert.return_value = b"mock_dumpcert"
         mock_loadcert.return_value = "mock_loadcert"
         mock_csrchk.return_value = False
+        def order_auth_side_effect(acmeclient_arg, order, user_key):
+            mock_store()
+            mock_ach()
+            return True
+        self.cahandler._order_authorization = Mock(side_effect=order_auth_side_effect)
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
                 ("Error getting certificate: order_error", None, None, None),
@@ -1865,21 +1924,37 @@ class TestACMEHandler(unittest.TestCase):
     def test_081__order_authorization(self, mock_info):
         """CAhandler._order_authorization - sectigo challenge"""
         order = Mock()
-        order.authorizations = ["foo"]
+        authzr = Mock()
+        authzr.body = Mock()
+        from acme import messages
+        authzr.body.status = messages.STATUS_PENDING
+        challenge = Mock()
+        challenge.chall = Mock()
+        challenge.chall.response = Mock(return_value="response")
+        challenge.response_and_validation.return_value = (Mock(), "validation")
+        challenge.response.return_value = "response"
+        challenge.status = "valid"
+        authzr.body.challenges = [challenge]
+        order.authorizations = [authzr]
         mock_info.return_value = [
             None,
             {"type": "sectigo-email-01", "status": "valid"},
-            "challenge",
+            challenge,
         ]
+        acmeclient = Mock()
+        acmeclient.answer_challenge.return_value = Mock()
         self.assertTrue(
-            self.cahandler._order_authorization("acmeclient", order, "user_key")
+            self.cahandler._order_authorization(acmeclient, order, "user_key")
         )
 
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
     def test_082__order_authorization(self, mock_info):
         """CAhandler._order_authorization - sectigo challenge"""
         order = Mock()
-        order.authorizations = ["foo"]
+        authzr = Mock()
+        authzr.body = Mock()
+        authzr.body.status = "invalid"
+        order.authorizations = [authzr]
         mock_info.return_value = [
             None,
             {"type": "sectigo-email-01", "status": "invalid"},
@@ -1893,7 +1968,10 @@ class TestACMEHandler(unittest.TestCase):
     def test_083__order_authorization(self, mock_info):
         """CAhandler._order_authorization - sectigo challenge"""
         order = Mock()
-        order.authorizations = ["foo"]
+        authzr = Mock()
+        authzr.body = Mock()
+        authzr.body.status = "valid"
+        order.authorizations = [authzr]
         mock_info.return_value = [
             None,
             {"type": "unk-01", "status": "valid"},
@@ -1907,7 +1985,10 @@ class TestACMEHandler(unittest.TestCase):
     def test_084__order_authorization(self, mock_info):
         """CAhandler._order_authorization - sectigo challenge"""
         order = Mock()
-        order.authorizations = ["foo"]
+        authzr = Mock()
+        authzr.body = Mock()
+        authzr.body.status = "valid"
+        order.authorizations = [authzr]
         mock_info.return_value = [None, "string", "challenge"]
         self.assertFalse(
             self.cahandler._order_authorization("acmeclient", order, "user_key")
@@ -2447,9 +2528,14 @@ class TestACMEHandler(unittest.TestCase):
         )
         challenge.chall.validation.return_value = "http-01.challenge-token"
         challenge.chall.response.return_value = "response"
+        challenge.chall.status = "valid"
         authzr = MagicMock()
+        from acme import messages
         authzr.body.challenges = [challenge]
         authzr.body.identifier.value = "example.com"
+        authzr.body.status = messages.STATUS_PENDING
+        challenge.chall = Mock()
+        challenge.chall.response = Mock(return_value="response")
         mock_info.return_value = (challenge_name, challenge_content, challenge)
         mock_order.authorizations = [authzr]
         acmeclient.answer_challenge.return_value = MagicMock()
@@ -2475,10 +2561,15 @@ class TestACMEHandler(unittest.TestCase):
             "validation",
         )
         challenge.chall.response.return_value = "response"
+        challenge.chall.status = "valid"
 
         authzr = MagicMock()
+        from acme import messages
         authzr.body.challenges = [challenge]
         authzr.body.identifier.value = "example.com"
+        authzr.body.status = messages.STATUS_PENDING
+        challenge.chall = Mock()
+        challenge.chall.response = Mock(return_value="response")
 
         cahandler = self.cahandler
         cahandler.dns_update_script = "script.sh"
@@ -2486,9 +2577,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_info.return_value = (challenge_name, challenge_content, challenge)
         mock_order.authorizations = [authzr]
         acmeclient.answer_challenge.return_value = MagicMock()
-        self.assertTrue(
-            self.cahandler._order_authorization(acmeclient, mock_order, user_key)
-        )
+        result = self.cahandler._order_authorization(acmeclient, mock_order, user_key)
+        self.assertTrue(result)
         self.assertTrue(mock_provision.called)
 
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_provision")
@@ -2502,17 +2592,22 @@ class TestACMEHandler(unittest.TestCase):
         acmeclient = mock_client
         user_key = mock_jwk
         challenge = MagicMock()
+        challenge.status = "valid"
         challenge_name = None
         challenge_content = {"type": "sectigo-email-01", "status": "valid"}
         authzr = MagicMock()
+        from acme import messages
         authzr.body.challenges = [challenge]
         authzr.body.identifier.value = "example.com"
+        authzr.body.status = messages.STATUS_PENDING
+        challenge.chall = Mock()
+        challenge.chall.response = Mock(return_value="response")
         cahandler = self.cahandler
         mock_info.return_value = (challenge_name, challenge_content, challenge)
         mock_order.authorizations = [authzr]
-        self.assertTrue(
-            self.cahandler._order_authorization(acmeclient, mock_order, user_key)
-        )
+        acmeclient.answer_challenge.return_value = MagicMock()
+        result = self.cahandler._order_authorization(acmeclient, mock_order, user_key)
+        self.assertTrue(result)
         self.assertFalse(mock_provision.called)
 
     @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_provision")
