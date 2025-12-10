@@ -1177,6 +1177,7 @@ class TestACMEHandler(unittest.TestCase):
         authzr = Mock()
         authzr.body = Mock()
         from acme import messages
+
         authzr.body.status = messages.STATUS_PENDING
         challenge = Mock()
         challenge.chall = Mock()
@@ -1264,10 +1265,12 @@ class TestACMEHandler(unittest.TestCase):
         authzr2.body.status = "valid"
         authzr2.body.challenges = [challenge]
         mock_norder.authorizations = [authzr1, authzr2]
+
         def order_auth_side_effect(acmeclient_arg, order, user_key):
             mock_store()
             mock_ach()
             return True
+
         self.cahandler._order_authorization = Mock(side_effect=order_auth_side_effect)
         mock_c2o.return_value = mock_norder
         chall = Mock()
@@ -1407,10 +1410,12 @@ class TestACMEHandler(unittest.TestCase):
         mock_dumpcert.return_value = b"mock_dumpcert"
         mock_loadcert.return_value = "mock_loadcert"
         mock_csrchk.return_value = False
+
         def order_auth_side_effect(acmeclient_arg, order, user_key):
             mock_store()
             mock_ach()
             return True
+
         self.cahandler._order_authorization = Mock(side_effect=order_auth_side_effect)
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
@@ -1927,6 +1932,7 @@ class TestACMEHandler(unittest.TestCase):
         authzr = Mock()
         authzr.body = Mock()
         from acme import messages
+
         authzr.body.status = messages.STATUS_PENDING
         challenge = Mock()
         challenge.chall = Mock()
@@ -2531,6 +2537,7 @@ class TestACMEHandler(unittest.TestCase):
         challenge.chall.status = "valid"
         authzr = MagicMock()
         from acme import messages
+
         authzr.body.challenges = [challenge]
         authzr.body.identifier.value = "example.com"
         authzr.body.status = messages.STATUS_PENDING
@@ -2565,6 +2572,7 @@ class TestACMEHandler(unittest.TestCase):
 
         authzr = MagicMock()
         from acme import messages
+
         authzr.body.challenges = [challenge]
         authzr.body.identifier.value = "example.com"
         authzr.body.status = messages.STATUS_PENDING
@@ -2597,6 +2605,7 @@ class TestACMEHandler(unittest.TestCase):
         challenge_content = {"type": "sectigo-email-01", "status": "valid"}
         authzr = MagicMock()
         from acme import messages
+
         authzr.body.challenges = [challenge]
         authzr.body.identifier.value = "example.com"
         authzr.body.status = messages.STATUS_PENDING
