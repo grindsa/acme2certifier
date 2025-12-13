@@ -21,9 +21,10 @@ from acme_srv.helper import (
     uts_now,
     uts_to_date_utc,
 )
+from acme_srv.helpers.csr import csr_load
 
 # Import will be added when needed to avoid circular imports
-# from acme_srv.certificate_config import CertificateConfig
+# from acme_srv.certificate import CertificateConfig
 
 
 class CertificateBusinessLogic:
@@ -82,12 +83,13 @@ class CertificateBusinessLogic:
                 error = self.err_msg_dic.get("badcsr", "Invalid CSR")
                 detail = "CSR is empty"
 
-            # Additional CSR format validation could go here
-            elif "-----BEGIN CERTIFICATE REQUEST-----" not in csr:
-                code = 400
-                error = self.err_msg_dic.get("badcsr", "Invalid CSR")
-                detail = "CSR format is invalid"
-
+            else:
+                # Additional CSR format validation could go here
+                csr_obj = csr_load(self.logger, csr)
+                if not csr_obj:
+                    code = 400
+                    error = self.err_msg_dic.get("badcsr", "Invalid CSR")
+                    detail = "CSR format is invalid"
         except Exception as err:
             self.logger.error(f"CSR validation error: {err}")
             code = 500
@@ -307,6 +309,7 @@ class CertificateBusinessLogic:
         except Exception as err:
             self.logger.error(f"Certificate info extraction error: {err}")
 
+        self.logger.debug("CertificateBusinessLogic.extract_certificate_info() ended")
         return cert_info
 
     def check_certificate_reusage(self, csr: str) -> Tuple[str, str, str, str]:

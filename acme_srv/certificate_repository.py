@@ -126,7 +126,11 @@ class DatabaseCertificateRepository(CertificateRepository):
         )
 
         try:
-            cert_info = self.dbstore.certificate_lookup("name", certificate_name)
+            cert_info = self.dbstore.certificate_lookup(
+                "name",
+                certificate_name,
+                ("name", "csr", "cert_raw", "cert", "order__name", "order__status_id"),
+            )
         except Exception as err:
             self.logger.critical(f"Database error during certificate lookup: {err}")
             cert_info = {}
@@ -139,6 +143,7 @@ class DatabaseCertificateRepository(CertificateRepository):
             self.logger.debug(
                 "CertificateRepository.get_certificate_info() returned non-iterable or None result"
             )
+
         return cert_info
 
     def add_certificate(self, data_dic: Dict[str, str]) -> bool:

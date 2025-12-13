@@ -11,7 +11,7 @@ from acme_srv.helper import (
 )
 
 # Import will be added when needed to avoid circular imports
-# from acme_srv.certificate_config import CertificateConfig
+# from acme_srv.certificate import CertificateConfig
 
 
 class CertificateManager:
@@ -146,7 +146,7 @@ class CertificateManager:
         if cert_info and cert_info.get("cert"):
             # Enhance with business logic extracted info
             extracted_info = self.business_logic.extract_certificate_info(
-                cert_info["cert"]
+                cert_info["cert_raw"]
             )
             cert_info.update(extracted_info)
 
@@ -174,15 +174,6 @@ class CertificateManager:
         self.logger.debug(f"CertificateManager.store_certificate({certificate_name})")
 
         try:
-            # Validate CSR using business logic
-            (code, error, detail) = self.business_logic.validate_csr(csr)
-            if code != 200:
-                return (False, f"{error}: {detail}")
-
-            # Generate certificate name if not provided
-            if not certificate_name:
-                certificate_name = self.business_logic.generate_certificate_name()
-
             # Sanitize certificate name
             certificate_name = self.business_logic.sanitize_certificate_name(
                 certificate_name
@@ -191,8 +182,10 @@ class CertificateManager:
             # Prepare certificate data for storage
             cert_data = {
                 "name": certificate_name,
-                "csr": csr,
             }
+
+            if csr:
+                cert_data["csr"] = csr
 
             if order_name:
                 cert_data["order"] = order_name
@@ -212,7 +205,7 @@ class CertificateManager:
             # Store in repository
             success = self.repository.add_certificate(cert_data)
 
-            if success and self.cert_operations_log:
+            if success and self.cert_operations_log and certificate_data:
                 # Log certificate operation
                 self.repository.store_certificate_operation_log(
                     certificate_name, "store", "success"
