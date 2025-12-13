@@ -29,6 +29,413 @@ from acme_srv.helper import (
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
+from acme_srv.certificate_manager import CertificateManager
+from acme_srv.certificate_repository import DatabaseCertificateRepository
+
+# CertificateLogger moved from certificate_logger.py
+class CertificateLogger:
+    """Handles all certificate operation logging"""
+
+    def __init__(self, logger, cert_operations_log: str, repository):
+        """
+        Initialize certificate logger
+
+        Args:
+            logger: Logger instance for output
+            cert_operations_log: Logging format ("json", "text", or "")
+            repository: Repository for database operations
+        """
+        self.logger = logger
+        self.cert_operations_log = cert_operations_log
+        self.repository = repository
+
+    def log_certificate_issuance(
+        self,
+        certificate_name: str,
+        certificate: str,
+        order_name: str,
+        cert_reusage: bool = False,
+    ):
+        """Log certificate issuance"""
+        self.logger.debug(
+            "CertificateLogger.log_certificate_issuance(%s)", certificate_name
+        )
+
+        # Lookup account name and kid
+        try:
+            order_dic = self.repository.order_lookup(
+                "name",
+                order_name,
+                [
+                    "id",
+                    "name",
+                    "account__name",
+                    "account__eab_kid",
+                    "profile",
+                    "expires",
+                    "account__contact",
+                ],
+            )
+        except Exception as err:
+            self.logger.error(
+                "Database error: failed to get account information for cert issuance log: %s",
+                err,
+            )
+            order_dic = {}
+
+        data_dic = {
+            "account_name": order_dic.get("account__name", ""),
+            "account_contact": order_dic.get("account__contact", ""),
+            "certificate_name": certificate_name,
+            "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
+            "common_name": cert_cn_get(self.logger, certificate),
+            "san_list": cert_san_get(self.logger, certificate),
+        }
+
+        if cert_reusage:
+            # Add cert reusage flag if set to true
+            data_dic["reused"] = cert_reusage
+
+        if order_dic.get("account__eab_kid", ""):
+            # Add kid if existing
+            data_dic["eab_kid"] = order_dic.get("account__eab_kid", "")
+
+        if order_dic.get("profile", None):
+            # Add profile if existing
+            data_dic["profile"] = order_dic.get("profile", "")
+
+        if order_dic.get("expires", ""):
+            # add expires if existing
+            data_dic["expires"] = uts_to_date_utc(order_dic.get("expires", ""))
+
+        if self.cert_operations_log == "json":
+            # Log in json format
+            self._log_as_json(data_dic, "Certificate issued")
+        else:
+            # Log in text format
+            self._log_issuance_as_text(certificate_name, data_dic)
+
+        self.logger.debug("CertificateLogger.log_certificate_issuance() ended")
+
+    def log_certificate_revocation(self, certificate: str, code: int):
+        """Log certificate revocation"""
+        self.logger.debug("CertificateLogger.log_certificate_revocation()")
+
+        if code == 200:
+            status = "successful"
+        else:
+            status = "failed"
+
+        # Lookup account name and kid
+        try:
+            cert_dic = self.repository.certificate_lookup(
+                "cert_raw",
+                b64_url_recode(self.logger, certificate),
+                [
+                    "name",
+                    "order__account__name",
+                    "order__account__eab_kid",
+                    "order__account__contact",
+                    "order__profile",
+                ],
+            )
+        except Exception as err:
+            self.logger.error(
+                "Database error: failed to get account information for cert revocation: %s",
+                err,
+            )
+            cert_dic = {}
+
+        # Construct log message including certificate name
+        self.logger.debug(
+            "CertificateLogger.log_certificate_revocation(%s)", cert_dic.get("name", "")
+        )
+
+        data_dic = {
+            "account_name": cert_dic.get("order__account__name", ""),
+            "account_contact": cert_dic.get("order__account__contact", ""),
+            "certificate_name": cert_dic.get("name", ""),
+            "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
+            "common_name": cert_cn_get(self.logger, certificate),
+            "profile": cert_dic.get("order__profile", ""),
+            "san_list": cert_san_get(self.logger, certificate),
+            "status": status,
+        }
+
+        if cert_dic.get("order__account__eab_kid", ""):
+            data_dic["eab_kid"] = cert_dic.get("order__account__eab_kid")
+
+        if self.cert_operations_log == "json":
+            # Log in json format
+            self._log_as_json(data_dic, "Certificate revoked")
+        else:
+            # Log in text format
+            self._log_revocation_as_text(data_dic)
+
+        self.logger.debug("CertificateLogger.log_certificate_revocation() ended")
+
+    def _log_as_json(self, data_dic: Dict, operation_type: str):
+        """Log data as JSON format"""
+        self.logger.info(
+            "%s: %s",
+            operation_type,
+            json.dumps(data_dic, sort_keys=True),
+        )
+
+    def _log_issuance_as_text(self, certificate_name: str, data_dic: Dict):
+        """Log certificate issuance as text string"""
+        log_string = f'Certificate {certificate_name} issued for account {data_dic["account_name"]} {data_dic["account_contact"]}'
+
+        if data_dic.get("eab_kid", ""):
+            log_string = log_string + f' with EAB KID {data_dic["eab_kid"]}'
+
+        if data_dic.get("profile", ""):
+            log_string = log_string + f' with Profile {data_dic["profile"]}'
+
+        log_string = (
+            log_string
+            + f'. Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}, Expires: {data_dic["expires"]}'
+        )
+
+        if data_dic.get("reused", ""):
+            log_string = log_string + f' reused: {data_dic["reused"]}'
+
+        self.logger.info(log_string)
+
+    def _log_revocation_as_text(self, data_dic: Dict):
+        """Log certificate revocation as text string"""
+        log_string = f'Certificate {data_dic["certificate_name"]} revocation {data_dic["status"]} for account {data_dic["account_name"]} {data_dic["account_contact"]}'
+
+        if data_dic.get("eab_kid", ""):
+            log_string = log_string + f' with EAB KID {data_dic["eab_kid"]}'
+
+        if data_dic.get("profile", ""):
+            log_string = log_string + f' with Profile {data_dic["profile"]}'
+
+        log_string = (
+            log_string
+            + f'. Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}'
+        )
+
+        self.logger.info(log_string)
+
+from dataclasses import dataclass
+from typing import Dict, Optional, Any
+
+# CertificateConfig moved from certificate_config.py
+@dataclass
+class CertificateConfig:
+    """
+    Configuration dataclass for Certificate operations.
+
+    This centralizes all configuration settings for the Certificate class
+    and its components, providing type safety and clear documentation.
+
+    Similar to the pattern used in challenge refactoring.
+    """
+
+    # Basic settings
+    debug: bool = False
+    server_name: Optional[str] = None
+
+    # Certificate processing settings
+    cert_operations_log: Optional[Any] = None
+    cert_reusage_timeframe: int = 0
+    cn2san_add: bool = False
+    enrollment_timeout: int = 5
+
+    # Path and URL settings
+    path_dic: Optional[Dict[str, str]] = None
+    retry_after: int = 600
+
+    # Feature flags
+    tnauthlist_support: bool = False
+
+    # Hook configuration
+    ignore_pre_hook_failure: bool = False
+    ignore_post_hook_failure: bool = True
+    ignore_success_hook_failure: bool = False
+
+    def __post_init__(self):
+        """Initialize default values that can't be set in field defaults"""
+        if self.path_dic is None:
+            self.path_dic = {"cert_path": "/acme/cert/"}
+
+    @classmethod
+    def from_legacy_params(
+        cls, debug: bool = False, srv_name: str = None, **kwargs
+    ) -> "CertificateConfig":
+        """
+        Create configuration from legacy parameters for backward compatibility.
+
+        Args:
+            debug: Debug mode flag
+            srv_name: Server name
+            **kwargs: Additional configuration parameters
+
+        Returns:
+            CertificateConfig instance with provided parameters
+        """
+        return cls(debug=debug, server_name=srv_name, **kwargs)
+
+    @classmethod
+    def from_config_file(
+        cls, debug: bool = False, srv_name: str = None
+    ) -> "CertificateConfig":
+        """
+        Create configuration by loading from config file.
+
+        Args:
+            debug: Debug mode flag
+            srv_name: Server name
+
+        Returns:
+            CertificateConfig instance with values loaded from config file
+        """
+        # Load configuration from file
+        config_dic = load_config()
+
+        # Extract Certificate section parameters
+        cert_reusage_timeframe = 0
+        enrollment_timeout = 5
+        cert_operations_log = None
+
+        try:
+            cert_reusage_timeframe = int(
+                config_dic.get(
+                    "Certificate",
+                    "cert_reusage_timeframe",
+                    fallback=cert_reusage_timeframe,
+                )
+            )
+        except Exception:
+            pass  # Keep default value
+
+        try:
+            enrollment_timeout = int(
+                config_dic.get(
+                    "Certificate", "enrollment_timeout", fallback=enrollment_timeout
+                )
+            )
+        except Exception:
+            pass  # Keep default value
+
+        cert_operations_log = config_dic.get(
+            "Certificate", "cert_operations_log", fallback=cert_operations_log
+        )
+        if cert_operations_log:
+            cert_operations_log = cert_operations_log.lower()
+
+        # Extract Order section parameters
+        tnauthlist_support = False
+        if "Order" in config_dic:
+            tnauthlist_support = config_dic.getboolean(
+                "Order", "tnauthlist_support", fallback=False
+            )
+
+        # Extract CAhandler section parameters
+        cn2san_add = False
+        if (
+            "CAhandler" in config_dic
+            and config_dic.get("CAhandler", "handler_file", fallback=None)
+            == "examples/ca_handler/asa_ca_handler.py"
+        ):
+            cn2san_add = True
+
+        # Handle path_dic with url_prefix
+        path_dic = {"cert_path": "/acme/cert/"}
+        if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
+            path_dic = {
+                k: config_dic["Directory"]["url_prefix"] + v
+                for k, v in path_dic.items()
+            }
+
+        # Extract Hook section parameters
+        ignore_pre_hook_failure = False
+        ignore_post_hook_failure = True
+        ignore_success_hook_failure = False
+
+        if "Hooks" in config_dic:
+            ignore_pre_hook_failure = config_dic.getboolean(
+                "Hooks", "ignore_pre_hook_failure", fallback=False
+            )
+            ignore_post_hook_failure = config_dic.getboolean(
+                "Hooks", "ignore_post_hook_failure", fallback=True
+            )
+            ignore_success_hook_failure = config_dic.getboolean(
+                "Hooks", "ignore_success_hook_failure", fallback=False
+            )
+
+        return cls(
+            debug=debug,
+            server_name=srv_name,
+            cert_operations_log=cert_operations_log,
+            cert_reusage_timeframe=cert_reusage_timeframe,
+            cn2san_add=cn2san_add,
+            enrollment_timeout=enrollment_timeout,
+            path_dic=path_dic,
+            tnauthlist_support=tnauthlist_support,
+            ignore_pre_hook_failure=ignore_pre_hook_failure,
+            ignore_post_hook_failure=ignore_post_hook_failure,
+            ignore_success_hook_failure=ignore_success_hook_failure,
+        )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """
+        Convert configuration to dictionary for easy access.
+
+        Returns:
+            Dictionary representation of configuration
+        """
+        return {
+            "debug": self.debug,
+            "server_name": self.server_name,
+            "cert_operations_log": self.cert_operations_log,
+            "cert_reusage_timeframe": self.cert_reusage_timeframe,
+            "cn2san_add": self.cn2san_add,
+            "enrollment_timeout": self.enrollment_timeout,
+            "path_dic": self.path_dic,
+            "retry_after": self.retry_after,
+            "tnauthlist_support": self.tnauthlist_support,
+            "ignore_pre_hook_failure": self.ignore_pre_hook_failure,
+            "ignore_post_hook_failure": self.ignore_post_hook_failure,
+            "ignore_success_hook_failure": self.ignore_success_hook_failure,
+        }
+
+    def update(self, **kwargs) -> "CertificateConfig":
+        """
+        Create a new configuration instance with updated values.
+
+        Args:
+            **kwargs: Configuration parameters to update
+
+        Returns:
+            New CertificateConfig instance with updated values
+        """
+        current_dict = self.to_dict()
+        current_dict.update(kwargs)
+        return CertificateConfig(**current_dict)
+
+    def apply_to_business_logic(self, business_logic) -> None:
+        """
+        Apply relevant configuration settings to business logic component.
+
+        Args:
+            business_logic: CertificateBusinessLogic instance to configure
+        """
+        business_logic.cert_reusage_timeframe = self.cert_reusage_timeframe
+        business_logic.tnauthlist_support = self.tnauthlist_support
+        business_logic.cn2san_add = self.cn2san_add
+
+    def apply_to_manager(self, manager) -> None:
+        """
+        Apply relevant configuration settings to manager component.
+
+        Args:
+            manager: CertificateManager instance to configure
+        """
+        manager.cert_operations_log = self.cert_operations_log
+        manager.tnauthlist_support = self.tnauthlist_support
 
 
 class Certificate(object):
@@ -38,6 +445,15 @@ class Certificate(object):
         self.debug = debug
         self.logger = logger
         self.server_name = srv_name
+
+        # Create configuration dataclass from config file
+        self.config = CertificateConfig.from_config_file(debug=debug, srv_name=srv_name)
+
+        # Core components
+        self.dbstore = DBstore(self.debug, self.logger)
+        self.repository = DatabaseCertificateRepository(self.dbstore, self.logger)
+
+        # Legacy properties for backward compatibility
         self.cahandler = None
         self.cert_operations_log = None
         self.cert_reusage_timeframe = 0
@@ -62,9 +478,27 @@ class Certificate(object):
     def __exit__(self, *args):
         """cose the connection at the end of the context"""
 
-    def _account_check(self, account_name: str, certificate: str) -> Dict[str, str]:
-        """check account"""
-        self.logger.debug("Certificate._account_check()")
+    def _validate_input_parameters(self, **kwargs) -> Dict[str, str]:
+        """Validate input parameters and return validation errors"""
+        errors = {}
+        for param_name, param_value in kwargs.items():
+            if param_value is None or (
+                isinstance(param_value, str) and not param_value.strip()
+            ):
+                errors[param_name] = f"{param_name} cannot be empty or None"
+        return errors
+
+    def _create_error_response(
+        self, code: int, message: str, detail: str = None
+    ) -> Dict[str, str]:
+        """Create standardized error response"""
+        return {"code": code, "data": message, "detail": detail}
+
+    def _validate_certificate_account_ownership(
+        self, account_name: str, certificate: str
+    ) -> bool:
+        """Validate that the account owns the certificate"""
+        self.logger.debug("Certificate._validate_certificate_account_ownership()")
         try:
             result = self.dbstore.certificate_account_check(
                 account_name, b64_url_recode(self.logger, certificate)
@@ -1277,6 +1711,556 @@ class Certificate(object):
             self._dates_update(cert)
 
         self.logger.debug("Certificate.dates_update() ended")
+
+    def _handle_enrollment_thread_execution(
+        self, certificate_name: str, csr: str, order_name: str
+    ) -> Tuple[str, str]:
+        """Handle the threaded enrollment execution with proper error handling"""
+        try:
+            twrv = ThreadWithReturnValue(
+                target=self._process_enrollment_and_store_certificate,
+                args=(certificate_name, csr, order_name),
+            )
+            twrv.daemon = True
+            twrv.start()
+
+            enroll_result = twrv.join(timeout=self.config.enrollment_timeout)
+            self.logger.debug("Certificate enrollment thread completed")
+
+            if enroll_result is None:
+                return "timeout", "Enrollment process timed out"
+
+            return self._parse_enrollment_result(enroll_result)
+
+        except Exception as err:
+            self.logger.error("Error during threaded enrollment execution: %s", err)
+            return (
+                self.err_msg_dic["serverinternal"],
+                "Enrollment thread execution failed",
+            )
+
+    def _parse_enrollment_result(self, enroll_result) -> Tuple[str, str]:
+        """Parse enrollment result with proper error handling"""
+        self.logger.debug("Certificate._parse_enrollment_result(%s)", enroll_result)
+        try:
+            if isinstance(enroll_result, tuple) and len(enroll_result) >= 2:
+                _, error, *detail = enroll_result
+                return error, detail[0] if detail else ""
+            else:
+                self.logger.error(
+                    "Unexpected enrollment result format: %s", enroll_result
+                )
+                return (
+                    self.err_msg_dic["serverinternal"],
+                    "Unexpected enrollment result format",
+                )
+        except Exception as err:
+            self.logger.error("Error parsing enrollment result: %s", err)
+            return (
+                self.err_msg_dic["serverinternal"],
+                "Failed to parse enrollment result",
+            )
+
+    def process_certificate_enrollment_request(
+        self, certificate_name: str, csr: str, order_name: str = None
+    ) -> Tuple[str, str]:
+        """Process certificate enrollment request and validate CSR with improved error handling"""
+        try:
+            # Validate input parameters
+            validation_errors = self._validate_input_parameters(
+                certificate_name=certificate_name, csr=csr
+            )
+            if validation_errors:
+                self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
+                return self.err_msg_dic["badcsr"], "Invalid input parameters"
+
+            self.logger.debug(
+                "Certificate.process_certificate_enrollment_request(%s, %s)",
+                certificate_name,
+                order_name,
+            )
+
+            # Validate CSR against order
+            try:
+                csr_check_result = self._validate_csr_against_order(
+                    certificate_name, csr
+                )
+            except Exception as err:
+                self.logger.error("Error validating CSR against order: %s", err)
+                return self.err_msg_dic["serverinternal"], "CSR validation failed"
+
+            if not csr_check_result:
+                return self.err_msg_dic["badcsr"], "CSR validation failed"
+
+            # Process enrollment
+            error, detail = self._handle_enrollment_thread_execution(
+                certificate_name, csr, order_name
+            )
+            self.logger.debug(
+                "Certificate.process_certificate_enrollment_request() ended with: %s:%s",
+                error,
+                detail,
+            )
+            return (error, detail)
+
+        except Exception as err:
+            self.logger.critical(
+                "Unexpected error in process_certificate_enrollment_request: %s", err
+            )
+            return (
+                self.err_msg_dic["serverinternal"],
+                "Unexpected error during enrollment",
+            )
+
+    def _determine_certificate_response(self, cert_info: Dict) -> Dict[str, str]:
+        """Determine appropriate response based on certificate info"""
+        self.logger.debug("Certificate._determine_certificate_response()")
+
+        if not cert_info or "order__status_id" not in cert_info:
+            return self._create_error_response(500, self.err_msg_dic["serverinternal"])
+
+        order_status = cert_info["order__status_id"]
+
+        if order_status == self.ORDER_STATUS_VALID:
+            return self._handle_valid_certificate(cert_info)
+        elif order_status == self.ORDER_STATUS_PROCESSING:
+            return self._handle_processing_certificate()
+        else:
+            return self._create_error_response(403, self.err_msg_dic["ordernotready"])
+
+    def _handle_valid_certificate(self, cert_info: Dict) -> Dict[str, str]:
+        """Handle response for valid certificate"""
+        if "cert" in cert_info and cert_info["cert"]:
+            return {
+                "code": 200,
+                "data": cert_info["cert"],
+                "header": {"Content-Type": "application/pem-certificate-chain"},
+            }
+        else:
+            return self._create_error_response(500, self.err_msg_dic["serverinternal"])
+
+    def _handle_processing_certificate(self) -> Dict[str, str]:
+        """Handle response for processing certificate"""
+        return {
+            "code": 403,
+            "data": self.err_msg_dic["ratelimited"],
+            "header": {"Retry-After": f"{self.config.retry_after}"},
+        }
+
+    def get_certificate_details(self, url: str) -> Dict[str, str]:
+        """Get certificate details from URL with improved error handling"""
+        try:
+            # Validate input
+            validation_errors = self._validate_input_parameters(url=url)
+            if validation_errors:
+                self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
+                return self._create_error_response(400, "Invalid URL parameter")
+
+            certificate_name = string_sanitize(
+                self.logger,
+                url.replace(
+                    f'{self.server_name}{self.config.path_dic["cert_path"]}', ""
+                ),
+            )
+            self.logger.debug(
+                "Certificate.get_certificate_details(%s)", certificate_name
+            )
+
+            # Get certificate info using manager with error handling
+            try:
+                cert_info = self.certificate_manager.get_certificate_info(
+                    certificate_name
+                )
+            except Exception as err:
+                self.logger.error("Error retrieving certificate info: %s", err)
+                return self._create_error_response(
+                    500, self.err_msg_dic["serverinternal"]
+                )
+
+            response_dic = self._determine_certificate_response(cert_info)
+            self.logger.debug(
+                "Certificate.get_certificate_details(%s) ended", response_dic["code"]
+            )
+            return response_dic
+
+        except Exception as err:
+            self.logger.critical("Unexpected error in get_certificate_details: %s", err)
+            return self._create_error_response(500, self.err_msg_dic["serverinternal"])
+
+    def _validate_certificate_request_message(
+        self, content: str
+    ) -> Tuple[int, str, str, Dict, Dict, str]:
+        """Validate certificate request message"""
+        try:
+            return self.message.check(content)
+        except Exception as err:
+            self.logger.error("Error validating certificate request message: %s", err)
+            return (
+                400,
+                self.err_msg_dic["malformed"],
+                "Message validation failed",
+                {},
+                {},
+                "",
+            )
+
+    def _prepare_certificate_response(
+        self, response_dic: Dict, code: int, message: str, detail: str
+    ) -> Dict[str, str]:
+        """Prepare and format certificate response"""
+        try:
+            status_dic = {"code": code, "type": message, "detail": detail}
+            response_dic = self.message.prepare_response(response_dic, status_dic)
+
+            # Serialize dict data to JSON if needed
+            if isinstance(response_dic.get("data"), dict):
+                response_dic["data"] = json.dumps(response_dic["data"])
+
+            return response_dic
+        except Exception as err:
+            self.logger.error("Error preparing certificate response: %s", err)
+            return {
+                "code": 500,
+                "data": self.err_msg_dic["serverinternal"],
+                "detail": "Response formatting failed",
+            }
+
+    def process_certificate_request(self, content: str) -> Dict[str, str]:
+        """Process certificate request with improved error handling and reduced complexity"""
+        try:
+            # Validate input
+            validation_errors = self._validate_input_parameters(content=content)
+            if validation_errors:
+                self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
+                return self._prepare_certificate_response(
+                    {}, 400, self.err_msg_dic["malformed"], "Invalid content parameter"
+                )
+
+            self.logger.debug("Certificate.process_certificate_request()")
+
+            # Validate and parse message
+            (
+                code,
+                message,
+                detail,
+                protected,
+                _payload,
+                _account_name,
+            ) = self._validate_certificate_request_message(content)
+
+            response_dic = {}
+
+            if code == 200:
+                if "url" in protected:
+                    try:
+                        response_dic = self.get_certificate_details(protected["url"])
+                        # Update error details if certificate retrieval failed
+                        if response_dic["code"] in (400, 403, 500):
+                            code = response_dic["code"]
+                            message = response_dic["data"]
+                            detail = response_dic.get("detail")
+                    except Exception as err:
+                        self.logger.error("Error getting certificate details: %s", err)
+                        code = 500
+                        message = self.err_msg_dic["serverinternal"]
+                        detail = "Certificate retrieval failed"
+                        response_dic = {}
+                else:
+                    code = 400
+                    message = self.err_msg_dic["malformed"]
+                    detail = "url missing in protected header"
+                    response_dic = {}
+
+            # Prepare final response
+            final_response = self._prepare_certificate_response(
+                response_dic, code, message, detail
+            )
+
+            result_code = final_response.get("code", "no code found")
+            self.logger.debug(
+                "Certificate.process_certificate_request() ended with: %s", result_code
+            )
+            return final_response
+
+        except Exception as err:
+            self.logger.critical(
+                "Unexpected error in process_certificate_request: %s", err
+            )
+            return self._prepare_certificate_response(
+                {},
+                500,
+                self.err_msg_dic["serverinternal"],
+                "Unexpected error during request processing",
+            )
+
+    def _validate_revocation_message(
+        self, content: str
+    ) -> Tuple[int, str, str, str, Dict, str]:
+        """Validate revocation message and extract components"""
+        try:
+            return self.message.check(content)
+        except Exception as err:
+            self.logger.error("Error validating revocation message: %s", err)
+            return (
+                400,
+                self.err_msg_dic["malformed"],
+                "Message validation failed",
+                {},
+                {},
+                "",
+            )
+
+    def _process_certificate_revocation(
+        self, account_name: str, payload: Dict
+    ) -> Tuple[int, str, str]:
+        """Process the actual certificate revocation"""
+        try:
+            (code, error) = self._validate_revocation_request(account_name, payload)
+            if code != 200:
+                return code, error, None
+
+            # Perform revocation
+            rev_date = uts_to_date_utc(uts_now())
+            with self.cahandler(self.debug, self.logger) as ca_handler:
+                (code, message, detail) = ca_handler.revoke(
+                    payload["certificate"], error, rev_date
+                )
+
+            # Log revocation if configured
+            if self.config.cert_operations_log:
+                try:
+                    self.certificate_logger.log_certificate_revocation(
+                        payload["certificate"], code
+                    )
+                except Exception as log_err:
+                    self.logger.warning(
+                        "Failed to log certificate revocation: %s", log_err
+                    )
+
+            return code, message, detail
+
+        except Exception as err:
+            self.logger.error("Error during certificate revocation: %s", err)
+            return (
+                500,
+                self.err_msg_dic["serverinternal"],
+                "Revocation processing failed",
+            )
+
+    def revoke_certificate(self, content: str) -> Dict[str, str]:
+        """Process certificate revocation request with improved error handling"""
+        try:
+            # Validate input
+            validation_errors = self._validate_input_parameters(content=content)
+            if validation_errors:
+                self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
+                return self.message.prepare_response(
+                    {},
+                    {
+                        "code": 400,
+                        "type": self.err_msg_dic["malformed"],
+                        "detail": "Invalid content",
+                    },
+                )
+
+            self.logger.debug("Certificate.revoke_certificate()")
+
+            # Validate and parse message
+            (
+                code,
+                message,
+                detail,
+                _protected,
+                payload,
+                account_name,
+            ) = self._validate_revocation_message(content)
+
+            if code == 200:
+                if "certificate" in payload:
+                    (code, message, detail) = self._process_certificate_revocation(
+                        account_name, payload
+                    )
+                else:
+                    code = 400
+                    message = self.err_msg_dic["malformed"]
+                    detail = "certificate not found"
+
+            # Prepare response
+            status_dic = {"code": code, "type": message, "detail": detail}
+            response_dic = self.message.prepare_response({}, status_dic)
+
+            self.logger.debug(
+                "Certificate.revoke_certificate() ended with: %s", response_dic
+            )
+            return response_dic
+
+        except Exception as err:
+            self.logger.critical("Unexpected error in revoke_certificate: %s", err)
+            error_response = {
+                "code": 500,
+                "type": self.err_msg_dic["serverinternal"],
+                "detail": "Unexpected error during revocation",
+            }
+            return self.message.prepare_response({}, error_response)
+
+    def _handle_successful_certificate_poll(
+        self,
+        certificate_name: str,
+        certificate: str,
+        certificate_raw: str,
+        order_name: str,
+    ) -> Optional[int]:
+        """Handle successful certificate polling result"""
+        try:
+            # Get issuing and expiration date
+            (issue_uts, expire_uts) = cert_dates_get(self.logger, certificate_raw)
+
+            # Update certificate record in database
+            result = self._store_certificate_in_database(
+                certificate_name, certificate, certificate_raw, issue_uts, expire_uts
+            )
+
+            # Update order status to valid
+            try:
+                self.repository.order_update({"name": order_name, "status": "valid"})
+            except Exception as err:
+                self.logger.critical(
+                    "Database error updating order status during polling: %s", err
+                )
+                # Continue execution as certificate was stored successfully
+
+            return result
+
+        except Exception as err:
+            self.logger.error("Error handling successful certificate poll: %s", err)
+            return None
+
+    def _handle_failed_certificate_poll(
+        self,
+        certificate_name: str,
+        error: str,
+        poll_identifier: str,
+        order_name: str,
+        rejected: bool,
+    ) -> None:
+        """Handle failed certificate polling result"""
+        try:
+            # Store error message for later analysis
+            self._store_certificate_error(certificate_name, error, poll_identifier)
+
+            # Update order status if rejected
+            if rejected:
+                try:
+                    self.repository.order_update(
+                        {"name": order_name, "status": "invalid"}
+                    )
+                except Exception as err:
+                    self.logger.critical(
+                        "Database error updating order status to invalid: %s", err
+                    )
+
+        except Exception as err:
+            self.logger.error("Error handling failed certificate poll: %s", err)
+
+    def poll_certificate_status(
+        self, certificate_name: str, poll_identifier: str, csr: str, order_name: str
+    ) -> Optional[int]:
+        """Poll certificate status from CA and store result in database with improved error handling"""
+        try:
+            # Validate input parameters
+            validation_errors = self._validate_input_parameters(
+                certificate_name=certificate_name,
+                poll_identifier=poll_identifier,
+                csr=csr,
+                order_name=order_name,
+            )
+            if validation_errors:
+                self.logger.error(self.INVALID_INPUT_PARAMS_MSG, validation_errors)
+                return None
+
+            self.logger.debug(
+                "Certificate.poll_certificate_status(%s: %s)",
+                certificate_name,
+                poll_identifier,
+            )
+
+            # Poll certificate from CA handler
+            try:
+                with self.cahandler(self.debug, self.logger) as ca_handler:
+                    (
+                        error,
+                        certificate,
+                        certificate_raw,
+                        poll_identifier,
+                        rejected,
+                    ) = ca_handler.poll(certificate_name, poll_identifier, csr)
+            except Exception as err:
+                self.logger.error("Error polling certificate from CA handler: %s", err)
+                return None
+
+            # Process poll result
+            if certificate:
+                result = self._handle_successful_certificate_poll(
+                    certificate_name, certificate, certificate_raw, order_name
+                )
+            else:
+                self._handle_failed_certificate_poll(
+                    certificate_name, error, poll_identifier, order_name, rejected
+                )
+                result = None
+
+            self.logger.debug(
+                "Certificate.poll_certificate_status(%s: %s) ended",
+                certificate_name,
+                poll_identifier,
+            )
+            return result
+
+        except Exception as err:
+            self.logger.critical("Unexpected error in poll_certificate_status: %s", err)
+            return None
+
+    def store_certificate_signing_request(
+        self, order_name: str, csr: str, header_info: str
+    ) -> str:
+        """Store certificate signing request into database with improved error handling"""
+        self.logger.debug(
+            "Certificate.store_certificate_signing_request(%s)", order_name
+        )
+        try:
+            # Delegate to certificate manager for CSR validation and storage
+            try:
+                (
+                    success,
+                    certificate_name,
+                ) = self.certificate_manager.validate_and_store_csr(
+                    order_name, csr, header_info
+                )
+            except Exception as err:
+                self.logger.error("Error during CSR validation and storage: %s", err)
+                raise RuntimeError(f"CSR storage failed: {err}")
+
+            if not success:
+                error_msg = f"Failed to store CSR for order {order_name}"
+                self.logger.error(error_msg)
+                raise RuntimeError(error_msg)
+
+            self.logger.debug(
+                "Certificate.store_certificate_signing_request() ended successfully"
+            )
+            return certificate_name
+
+        except (ValueError, RuntimeError):
+            # Re-raise validation and known errors
+            raise
+        except Exception as err:
+            self.logger.critical(
+                "Unexpected error in store_certificate_signing_request: %s", err
+            )
+            raise RuntimeError(f"Unexpected error during CSR storage: {err}")
+
+    # === Legacy API Compatibility ===
+    # Legacy methods for backward compatibility - use descriptive methods instead
 
     def enroll_and_store(
         self, certificate_name: str, csr: str, order_name: str = None
