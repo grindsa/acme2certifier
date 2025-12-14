@@ -261,22 +261,6 @@ class CertificateConfig:
         if self.path_dic is None:
             self.path_dic = {"cert_path": "/acme/cert/"}
 
-    @classmethod
-    def from_legacy_params(
-        cls, debug: bool = False, srv_name: str = None, **kwargs
-    ) -> "CertificateConfig":
-        """
-        Create configuration from legacy parameters for backward compatibility.
-
-        Args:
-            debug: Debug mode flag
-            srv_name: Server name
-            **kwargs: Additional configuration parameters
-
-        Returns:
-            CertificateConfig instance with provided parameters
-        """
-        return cls(debug=debug, server_name=srv_name, **kwargs)
 
     @classmethod
     def from_config_file(
@@ -379,63 +363,6 @@ class CertificateConfig:
             ignore_post_hook_failure=ignore_post_hook_failure,
             ignore_success_hook_failure=ignore_success_hook_failure,
         )
-
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Convert configuration to dictionary for easy access.
-
-        Returns:
-            Dictionary representation of configuration
-        """
-        return {
-            "debug": self.debug,
-            "server_name": self.server_name,
-            "cert_operations_log": self.cert_operations_log,
-            "cert_reusage_timeframe": self.cert_reusage_timeframe,
-            "cn2san_add": self.cn2san_add,
-            "enrollment_timeout": self.enrollment_timeout,
-            "path_dic": self.path_dic,
-            "retry_after": self.retry_after,
-            "tnauthlist_support": self.tnauthlist_support,
-            "ignore_pre_hook_failure": self.ignore_pre_hook_failure,
-            "ignore_post_hook_failure": self.ignore_post_hook_failure,
-            "ignore_success_hook_failure": self.ignore_success_hook_failure,
-        }
-
-    def update(self, **kwargs) -> "CertificateConfig":
-        """
-        Create a new configuration instance with updated values.
-
-        Args:
-            **kwargs: Configuration parameters to update
-
-        Returns:
-            New CertificateConfig instance with updated values
-        """
-        current_dict = self.to_dict()
-        current_dict.update(kwargs)
-        return CertificateConfig(**current_dict)
-
-    def apply_to_business_logic(self, business_logic) -> None:
-        """
-        Apply relevant configuration settings to business logic component.
-
-        Args:
-            business_logic: CertificateBusinessLogic instance to configure
-        """
-        business_logic.cert_reusage_timeframe = self.cert_reusage_timeframe
-        business_logic.tnauthlist_support = self.tnauthlist_support
-        business_logic.cn2san_add = self.cn2san_add
-
-    def apply_to_manager(self, manager) -> None:
-        """
-        Apply relevant configuration settings to manager component.
-
-        Args:
-            manager: CertificateManager instance to configure
-        """
-        manager.cert_operations_log = self.cert_operations_log
-        manager.tnauthlist_support = self.tnauthlist_support
 
 
 class Certificate(object):
@@ -804,7 +731,9 @@ class Certificate(object):
                 "Certificate._cert_reusage_check(): no certificates found"
             )
 
-        self.logger.debug("Certificate._cert_reusage_check() ended with {%s", message)
+        self.logger.debug(
+            "Certificate._check_certificate_reusability() ended with %s", message
+        )
         return (None, cert, cert_raw, message)
 
     def _config_hooks_load(self, config_dic: Dict[str, str]):
@@ -1339,96 +1268,6 @@ class Certificate(object):
             result = None
         return result
 
-    def _expirydate_assume(
-        self, cert: Dict[str, str], timestamp: int, to_be_cleared: bool
-    ) -> bool:
-        """assume expiry date"""
-        self.logger.debug("Certificate._expirydate_assume()")
-
-        if "csr" in cert and cert["csr"]:
-            # cover cases for enrollments in flight
-            # we assume that a CSR should turn int a cert within two weeks
-            if "created_at" in cert:
-                created_at_uts = date_to_uts_utc(cert["created_at"])
-                if 0 < created_at_uts < timestamp - (14 * 86400):
-                    to_be_cleared = True
-            else:
-                # this scneario should never been happen so lets be careful and not clear it
-                to_be_cleared = False
-        else:
-            # no csr and no cert - to be cleared
-            to_be_cleared = True
-
-        self.logger.debug("Certificate._expirydate_assume() ended")
-        return to_be_cleared
-
-    def _expiredate_get(
-        self, cert: Dict[str, str], timestamp: int, to_be_cleared: bool
-    ) -> bool:
-        """get expirey date from certificate"""
-        self.logger.debug("Certificate._expiredate_get()")
-
-        # in case cert_expiry in table is 0 try to get it from cert
-        if cert["expire_uts"] == 0:
-            if "cert_raw" in cert and cert["cert_raw"]:
-                # get expiration from certificate
-                (issue_uts, expire_uts) = cert_dates_get(self.logger, cert["cert_raw"])
-                if 0 < expire_uts < timestamp:
-                    # returned date is other than 0 and lower than given timestamp
-                    cert["issue_uts"] = issue_uts
-                    cert["expire_uts"] = expire_uts
-                    to_be_cleared = True
-            else:
-                to_be_cleared = self._expirydate_assume(cert, timestamp, to_be_cleared)
-        else:
-            # expired based on expire_uts from db
-            to_be_cleared = True
-
-        self.logger.debug(
-            "Certificate._expiredate_get() ended with: to_be_cleared:  %s",
-            to_be_cleared,
-        )
-        return to_be_cleared
-
-    def _invalidation_check(
-        self, cert: Dict[str, str], timestamp: int, purge: bool = False
-    ):
-        """check if cert must be invalidated"""
-        if "name" in cert:
-            self.logger.debug("Certificate._invalidation_check(%s)", cert["name"])
-        else:
-            self.logger.debug("Certificate._invalidation_check()")
-
-        to_be_cleared = False
-
-        if cert and "name" in cert:
-            if "cert" in cert and cert["cert"] and "removed by" in cert["cert"].lower():
-                if purge:
-                    # skip entries which had been cleared before cert[cert] check is needed to cover corner cases
-                    to_be_cleared = True
-
-            elif "expire_uts" in cert:
-                # get expiry date from either dictionary or certificate
-                to_be_cleared = self._expiredate_get(cert, timestamp, to_be_cleared)
-            else:
-                # this scneario should never been happen so lets be careful and not clear it
-                to_be_cleared = False
-        else:
-            # entries without a cert-name can be to_be_cleared
-            to_be_cleared = True
-
-        if "name" in cert:
-            self.logger.debug(
-                "Certificate._invalidation_check(%s) ended with %s",
-                cert["name"],
-                to_be_cleared,
-            )
-        else:
-            self.logger.debug(
-                "Certificate._invalidation_check() ended with %s", to_be_cleared
-            )
-
-        return (to_be_cleared, cert)
 
     def _order_update(self, data_dic: Dict[str, str]):
         """update order based on ordername"""
@@ -1596,39 +1435,6 @@ class Certificate(object):
             )
             result = None
         return result
-
-    def _cleanup(self, report_list: List[str], timestamp: int, purge: bool):
-        """cleanup"""
-        self.logger.debug("Certificate.cleanup(%s,%s)", timestamp, purge)
-        if not purge:
-            # we are just modifiying data
-            for cert in report_list:
-                data_dic = {
-                    "name": cert["name"],
-                    "expire_uts": cert["expire_uts"],
-                    "issue_uts": cert["issue_uts"],
-                    "cert": f"removed by certificates.cleanup() on {uts_to_date_utc(timestamp)}",
-                    "cert_raw": cert["cert_raw"],
-                }
-                try:
-                    self.dbstore.certificate_add(data_dic)
-                except Exception as err_:
-                    self.logger.critical(
-                        "Database error: failed to add certificate during cleanup: %s",
-                        err_,
-                    )
-        else:
-            # delete entries from certificates table
-            for cert in report_list:
-                try:
-                    self.dbstore.certificate_delete("id", cert["id"])
-                except Exception as err_:
-                    self.logger.critical(
-                        "Database error: failed to delete certificate during cleanup: %s",
-                        err_,
-                    )
-
-        self.logger.debug("Certificate.cleanup() ended")
 
     def cleanup(
         self, timestamp: int = None, purge: bool = False

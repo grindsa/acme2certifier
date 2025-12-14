@@ -368,32 +368,6 @@ class CertificateManager:
             self.logger.error(f"Account authorization check error: {err}")
             return {"status": "error", "error": str(err)}
 
-    def process_certificate_identifiers(
-        self, identifier_dic: Dict[str, str], certificate: str
-    ) -> List[str]:
-        """
-        Process and validate certificate identifiers.
-
-        Args:
-            identifier_dic: Dictionary containing identifiers
-            certificate: Certificate data
-
-        Returns:
-            List of identifier validation results
-        """
-        self.logger.debug("CertificateManager.process_certificate_identifiers()")
-
-        try:
-            # Use business logic to check authorization
-            identifier_status = self.business_logic.check_certificate_authorization(
-                identifier_dic, certificate
-            )
-
-            return identifier_status
-
-        except Exception as err:
-            self.logger.error(f"Certificate identifier processing error: {err}")
-            return []
 
     def prepare_certificate_response(
         self, certificate: str, status_code: int = 200
