@@ -194,12 +194,13 @@ def config_async_mode_load(
     async_mode = False
 
     async_cfg = config_dic.getboolean("DEFAULT", "async_mode", fallback=False)
-    if async_cfg and db_type == "django":
-        async_mode = True
-    else:
-        logger.info(
-            "asynchronous Challenge validation disabled, requires django db handler"
-        )
+    if async_cfg:
+        if db_type == "django":
+            async_mode = True
+        else:
+            logger.info(
+                "asynchronous Challenge validation disabled, requires django db handler"
+            )
     logger.debug("Helper.config_async_mode_load() ended with: %s", async_mode)
     return async_mode
 
