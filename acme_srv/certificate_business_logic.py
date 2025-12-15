@@ -120,7 +120,6 @@ class CertificateBusinessLogic:
 
         return (issue_uts, expire_uts)
 
-
     def generate_certificate_name(self) -> str:
         """
         Generate a random certificate name.
