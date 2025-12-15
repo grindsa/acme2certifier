@@ -31,6 +31,8 @@ from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 from acme_srv.certificate_manager import CertificateManager
 from acme_srv.certificate_repository import DatabaseCertificateRepository
+from dataclasses import dataclass
+from typing import Dict, Optional, Any
 
 # CertificateLogger moved from certificate_logger.py
 class CertificateLogger:
@@ -219,8 +221,6 @@ class CertificateLogger:
 
         self.logger.info(log_string)
 
-from dataclasses import dataclass
-from typing import Dict, Optional, Any
 
 # CertificateConfig moved from certificate_config.py
 @dataclass
@@ -260,7 +260,6 @@ class CertificateConfig:
         """Initialize default values that can't be set in field defaults"""
         if self.path_dic is None:
             self.path_dic = {"cert_path": "/acme/cert/"}
-
 
     @classmethod
     def from_config_file(
@@ -837,6 +836,9 @@ class Certificate(object):
             self.logger.critical(
                 "Database error: failed to store certificate: %s", err_
             )
+            error = self.err_msg_dic.get(
+                "serverinternal", "Unknown error"
+            )  # Ensure error is set
 
         self.logger.debug("Certificate._store_certificate_and_update_order() ended")
         return (result, error)
@@ -908,7 +910,6 @@ class Certificate(object):
             certificate_name,
             order_name,
         )
-
         hook_error = []
         if self.hooks:
             try:
@@ -919,7 +920,9 @@ class Certificate(object):
             except Exception as err:
                 self.logger.error("Exception during post_hook execution: %s", err)
                 if not self.config.ignore_post_hook_failure:
-                    hook_error = (None, "post_hook_error", str(err))
+                    hook_error.append(
+                        str(err)
+                    )  # Append error message to hook_error list
 
         self.logger.debug("Certificate._execute_post_enrollment_hooks(%s)", hook_error)
         return hook_error
@@ -964,9 +967,14 @@ class Certificate(object):
             if error:
                 return error
             elif self.config.cert_operations_log:
-                self.certificate_logger.log_certificate_issuance(
-                    certificate_name, certificate_raw, order_name, cert_reusage
-                )
+                try:
+                    self.certificate_logger.log_certificate_issuance(
+                        certificate_name, certificate_raw, order_name, cert_reusage
+                    )
+                except Exception as log_exc:
+                    self.logger.error(
+                        "Exception during log_certificate_issuance: %s", log_exc
+                    )
 
         else:
             self.logger.error("Enrollment error: %s", error)
@@ -1036,6 +1044,7 @@ class Certificate(object):
             identifier_status.append(san_is_in)
 
         if not identifier_status:
+            self.logger.error("No SANs found in certificate")
             identifier_status.append(False)
 
         self.logger.debug(
@@ -1107,7 +1116,6 @@ class Certificate(object):
             result = None
         return result
 
-
     def _update_order_status(self, data_dic: Dict[str, str]):
         """Update order status based on order name"""
         self.logger.debug("Certificate._update_order_status(%s)", data_dic)
@@ -1166,6 +1174,9 @@ class Certificate(object):
                     account_name, payload["certificate"]
                 )
             else:
+                self.logger.debug(
+                    "Certificate._validate_revocation_request(): Revocation request missing 'certificate' field"
+                )
                 order_name = None
 
             error = rev_reason
@@ -1367,23 +1378,14 @@ class Certificate(object):
     def _parse_enrollment_result(self, enroll_result) -> Tuple[str, str]:
         """Parse enrollment result with proper error handling"""
         self.logger.debug("Certificate._parse_enrollment_result(%s)", enroll_result)
-        try:
-            if isinstance(enroll_result, tuple) and len(enroll_result) >= 2:
-                _, error, *detail = enroll_result
-                return error, detail[0] if detail else ""
-            else:
-                self.logger.error(
-                    "Unexpected enrollment result format: %s", enroll_result
-                )
-                return (
-                    self.err_msg_dic["serverinternal"],
-                    "Unexpected enrollment result format",
-                )
-        except Exception as err:
-            self.logger.error("Error parsing enrollment result: %s", err)
+        if isinstance(enroll_result, tuple) and len(enroll_result) >= 2:
+            _, error, *detail = enroll_result
+            return error, detail[0] if detail else ""
+        else:
+            self.logger.error("Unexpected enrollment result format: %s", enroll_result)
             return (
                 self.err_msg_dic["serverinternal"],
-                "Failed to parse enrollment result",
+                "Unexpected enrollment result format",
             )
 
     def process_certificate_enrollment_request(

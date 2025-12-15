@@ -368,7 +368,6 @@ class CertificateManager:
             self.logger.error(f"Account authorization check error: {err}")
             return {"status": "error", "error": str(err)}
 
-
     def prepare_certificate_response(
         self, certificate: str, status_code: int = 200
     ) -> Dict[str, Union[str, int]]:

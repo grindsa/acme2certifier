@@ -14,55 +14,55 @@ class CertificateRepository(ABC):
         self, key: str, value: Union[str, int], vlist: List[str] = None
     ) -> List[Dict[str, Any]]:
         """Search for certificates matching criteria."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def get_certificate_info(self, certificate_name: str) -> Dict[str, str]:
         """Get certificate information by name."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def cleanup_certificates(
         self, timestamp: int, purge: bool = False
     ) -> List[Dict[str, Any]]:
         """Cleanup old certificates."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def certificate_account_check(
         self, account_name: str, certificate: str
     ) -> Dict[str, str]:
         """Check account for certificate."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def certificate_lookup(
         self, key: str, value: str, vlist: List[str] = None
     ) -> Dict[str, Any]:
         """Lookup certificate by key/value."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def certificate_add(self, data_dic: Dict[str, Any]) -> int:
         """Add certificate to database."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def certificate_delete(self, key: str, value: Any) -> bool:
         """Delete certificate from database."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def order_lookup(
         self, key: str, value: str, vlist: List[str] = None
     ) -> Dict[str, Any]:
         """Lookup order by key/value."""
-        pass
+        pass  # pragma: no cover
 
     @abstractmethod
     def order_update(self, data_dic: Dict[str, Any]) -> bool:
         """Update order in database."""
-        pass
+        pass  # pragma: no cover
 
 
 class DatabaseCertificateRepository(CertificateRepository):
