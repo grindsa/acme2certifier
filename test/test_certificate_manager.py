@@ -4,6 +4,7 @@ import os
 import unittest
 from unittest.mock import MagicMock, Mock, patch
 import sys
+
 # Add the parent directory to sys.path so we can import acme_srv
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -98,7 +99,9 @@ class TestCertificateManager(unittest.TestCase):
         result = self.mgr.get_certificate_info(" dirty ")
 
         self.mgr.business_logic.sanitize_certificate_name.assert_called_once()
-        self.mgr.business_logic.extract_certificate_info.assert_called_once_with("pemraw")
+        self.mgr.business_logic.extract_certificate_info.assert_called_once_with(
+            "pemraw"
+        )
         self.assertEqual(result["serial"], "01")
         self.assertEqual(result["cn"], "example.com")
 
@@ -126,7 +129,23 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual(stored["csr"], "csr1")
         self.assertEqual(stored["order"], "ord1")
 
-    def test_008_store_certificate_with_certificate_data_logs_when_enabled(self):
+    def test_008_store_certificate_with_header_info(self):
+        # Ensure header_info is stored and logger.debug is called
+        self.mgr.business_logic.sanitize_certificate_name.return_value = "certname"
+        self.repository.add_certificate.return_value = True
+        header_info = "header details"
+        ok, err = self.mgr.store_certificate(
+            "certname", csr="csr1", header_info=header_info
+        )
+        self.assertTrue(ok)
+        self.assertIsNone(err)
+        stored = self.repository.add_certificate.call_args[0][0]
+        self.assertEqual(stored["header_info"], header_info)
+        self.logger.debug.assert_any_call(
+            "CertificateManager.store_certificate(): store header_info with certificate"
+        )
+
+    def test_009_store_certificate_with_certificate_data_logs_when_enabled(self):
         # enable operations logging in config
         self.mgr.cert_operations_log = "json"
         self.mgr.business_logic.sanitize_certificate_name.return_value = "n"
@@ -146,7 +165,7 @@ class TestCertificateManager(unittest.TestCase):
             "n", "store", "success"
         )
 
-    def test_009_store_certificate_failure_paths(self):
+    def test_010_store_certificate_failure_paths(self):
         self.mgr.business_logic.sanitize_certificate_name.return_value = "n"
         self.repository.add_certificate.return_value = False
 
@@ -160,7 +179,7 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual(err, "dberr")
 
     # --- update_certificate_dates ---
-    def test_010_update_certificate_dates_specific_name_success(self):
+    def test_011_update_certificate_dates_specific_name_success(self):
         self.repository.get_certificate_info.return_value = {
             "name": "c1",
             "cert": "pem",
@@ -172,7 +191,7 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual((updated, errors), (1, 0))
         self.repository.update_certificate.assert_called_once()
 
-    def test_011_update_certificate_dates_list_mixed_results(self):
+    def test_012_update_certificate_dates_list_mixed_results(self):
         self.repository.search_certificates.return_value = [
             {"name": "a", "cert": "pemA"},
             {"name": "b", "cert": "pemB"},
@@ -189,7 +208,7 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual(updated, 1)
         self.assertEqual(errors, 1)  # one failed update, one skipped (no cert)
 
-    def test_012_update_certificate_dates_calc_exception_counts_error(self):
+    def test_013_update_certificate_dates_calc_exception_counts_error(self):
         self.repository.search_certificates.return_value = [
             {"name": "a", "cert": "pemA"}
         ]
@@ -200,20 +219,20 @@ class TestCertificateManager(unittest.TestCase):
         updated, errors = self.mgr.update_certificate_dates()
         self.assertEqual((updated, errors), (0, 1))
 
-    def test_013_update_certificate_dates_top_level_exception(self):
+    def test_014_update_certificate_dates_top_level_exception(self):
         self.repository.search_certificates.side_effect = RuntimeError("boom")
         updated, errors = self.mgr.update_certificate_dates()
         self.assertEqual(updated, 0)
         self.assertEqual(errors, 1)
 
-    def test_014_update_certificate_dates_no_certificates(self):
+    def test_015_update_certificate_dates_no_certificates(self):
         self.repository.search_certificates.return_value = []
         updated, errors = self.mgr.update_certificate_dates()
         self.assertEqual((updated, errors), (0, 0))
 
     # --- cleanup_certificates ---
     @patch("acme_srv.certificate_manager.uts_now", return_value=1234)
-    def test_015_cleanup_certificates_no_log(self, mock_now):
+    def test_016_cleanup_certificates_no_log(self, mock_now):
         self.repository.cleanup_certificates.return_value = (
             ["name", "expire_uts"],
             ["c1"],
@@ -223,7 +242,7 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual(report, ["c1"])
         self.repository.store_certificate_operation_log.assert_not_called()
 
-    def test_016_cleanup_certificates_logs_when_enabled(self):
+    def test_017_cleanup_certificates_logs_when_enabled(self):
         self.mgr.cert_operations_log = "text"
         self.repository.cleanup_certificates.return_value = (
             ["name"],
@@ -235,14 +254,14 @@ class TestCertificateManager(unittest.TestCase):
             "batch_2", "purge", "processed_2_certificates"
         )
 
-    def test_017_cleanup_certificates_exception_returns_empty(self):
+    def test_018_cleanup_certificates_exception_returns_empty(self):
         self.repository.cleanup_certificates.side_effect = RuntimeError("ops")
         fields, report = self.mgr.cleanup_certificates()
         self.assertEqual((fields, report), ([], []))
 
     # --- check_account_authorization ---
     @patch("acme_srv.certificate_manager.b64_url_recode", return_value="ENC")
-    def test_018_check_account_authorization_authorized(self, mock_b64):
+    def test_019_check_account_authorization_authorized(self, mock_b64):
         self.repository.get_account_check_result.return_value = True
         res = self.mgr.check_account_authorization("acc", "cert")
         self.assertEqual(res["status"], "authorized")
@@ -250,21 +269,21 @@ class TestCertificateManager(unittest.TestCase):
         self.repository.get_account_check_result.assert_called_once_with("acc", "ENC")
 
     @patch("acme_srv.certificate_manager.b64_url_recode", return_value="ENC")
-    def test_019_check_account_authorization_unauthorized(self, mock_b64):
+    def test_020_check_account_authorization_unauthorized(self, mock_b64):
         self.repository.get_account_check_result.return_value = False
         res = self.mgr.check_account_authorization("acc", "cert")
         self.assertEqual(res["status"], "unauthorized")
         self.assertIn("error", res)
 
     @patch("acme_srv.certificate_manager.b64_url_recode", return_value="ENC")
-    def test_020_check_account_authorization_error(self, mock_b64):
+    def test_021_check_account_authorization_error(self, mock_b64):
         self.repository.get_account_check_result.side_effect = RuntimeError("db")
         res = self.mgr.check_account_authorization("acc", "cert")
         self.assertEqual(res["status"], "error")
         self.assertEqual(res["error"], "db")
 
     # --- prepare_certificate_response ---
-    def test_021_prepare_certificate_response_delegates_to_business_logic(self):
+    def test_022_prepare_certificate_response_delegates_to_business_logic(self):
         self.mgr.business_logic.format_certificate_response.return_value = {
             "code": 200,
             "data": "pem",
@@ -277,7 +296,7 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual(res["data"], "pem")
 
     # --- update_order_status ---
-    def test_022_update_order_status_success_with_certificate(self):
+    def test_023_update_order_status_success_with_certificate(self):
         self.repository.update_order.return_value = True
         ok = self.mgr.update_order_status("o1", "valid", certificate_name="c1")
         self.assertTrue(ok)
@@ -285,36 +304,34 @@ class TestCertificateManager(unittest.TestCase):
             {"name": "o1", "status": "valid", "certificate": "c1"}
         )
 
-    def test_023_update_order_status_failure_on_exception(self):
+    def test_024_update_order_status_failure_on_exception(self):
         self.repository.update_order.side_effect = RuntimeError("db")
         ok = self.mgr.update_order_status("o1", "processing")
         self.assertFalse(ok)
 
     # --- get_certificate_by_order ---
-    def test_024_get_certificate_by_order_enhances_with_info(self):
+    def test_025_get_certificate_by_order_enhances_with_info(self):
         self.repository.get_certificate_by_order.return_value = {
             "cert": "pem",
         }
-        self.mgr.business_logic.extract_certificate_info.return_value = {
-            "serial": "01"
-        }
+        self.mgr.business_logic.extract_certificate_info.return_value = {"serial": "01"}
         res = self.mgr.get_certificate_by_order("o1")
         self.mgr.business_logic.extract_certificate_info.assert_called_once_with("pem")
         self.assertEqual(res["serial"], "01")
 
-    def test_025_get_certificate_by_order_exception_returns_empty(self):
+    def test_026_get_certificate_by_order_exception_returns_empty(self):
         self.repository.get_certificate_by_order.side_effect = RuntimeError("db")
         res = self.mgr.get_certificate_by_order("o1")
         self.assertEqual(res, {})
 
     # --- validate_and_store_csr ---
-    def test_026_validate_and_store_csr_validation_fails(self):
+    def test_027_validate_and_store_csr_validation_fails(self):
         self.mgr.business_logic.validate_csr.return_value = (400, "err", "detail")
         ok, cname = self.mgr.validate_and_store_csr("o1", "csr")
         self.assertFalse(ok)
         self.assertEqual(cname, "")
 
-    def test_027_validate_and_store_csr_stores_and_returns_name(self):
+    def test_028_validate_and_store_csr_stores_and_returns_name(self):
         self.mgr.business_logic.validate_csr.return_value = (200, None, None)
         self.mgr.business_logic.generate_certificate_name.return_value = "cname"
         self.mgr.store_certificate = Mock(return_value=(True, None))
@@ -322,9 +339,25 @@ class TestCertificateManager(unittest.TestCase):
         ok, cname = self.mgr.validate_and_store_csr("o1", "csr")
         self.assertTrue(ok)
         self.assertEqual(cname, "cname")
-        self.mgr.store_certificate.assert_called_once_with("cname", "csr", "o1")
+        self.mgr.store_certificate.assert_called_once_with(
+            "cname", "csr", "o1", header_info=None
+        )
 
-    def test_028_validate_and_store_csr_store_fails_returns_name(self):
+    def test_029_validate_and_store_csr_stores_with_headerinfo_and_returns_name(self):
+        self.mgr.business_logic.validate_csr.return_value = (200, None, None)
+        self.mgr.business_logic.generate_certificate_name.return_value = "cname"
+        self.mgr.store_certificate = Mock(return_value=(True, None))
+
+        ok, cname = self.mgr.validate_and_store_csr(
+            "o1", "csr", header_info="headerdata"
+        )
+        self.assertTrue(ok)
+        self.assertEqual(cname, "cname")
+        self.mgr.store_certificate.assert_called_once_with(
+            "cname", "csr", "o1", header_info="headerdata"
+        )
+
+    def test_030_validate_and_store_csr_store_fails_returns_name(self):
         self.mgr.business_logic.validate_csr.return_value = (200, None, None)
         self.mgr.business_logic.generate_certificate_name.return_value = "cname"
         self.mgr.store_certificate = Mock(return_value=(False, "dberr"))
@@ -333,7 +366,7 @@ class TestCertificateManager(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual(cname, "cname")
 
-    def test_029_validate_and_store_csr_exception_returns_generated_name(self):
+    def test_031_validate_and_store_csr_exception_returns_generated_name(self):
         self.mgr.business_logic.validate_csr.side_effect = RuntimeError("oops")
         self.mgr.business_logic.generate_certificate_name.return_value = "cname"
 
@@ -342,10 +375,14 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual(cname, "cname")
 
     # --- __init__ defaults coverage (no config provided) ---
-    def test_030_init_without_config_uses_defaults(self):
+    def test_032_init_without_config_uses_defaults(self):
         repo = MagicMock()
         mgr = CertificateManager(
-            debug=True, logger=self.logger, err_msg_dic=self.err_msg_dic, repository=repo, config=None
+            debug=True,
+            logger=self.logger,
+            err_msg_dic=self.err_msg_dic,
+            repository=repo,
+            config=None,
         )
         # When config is None, defaults should be applied
         self.assertIsNone(mgr.cert_operations_log)

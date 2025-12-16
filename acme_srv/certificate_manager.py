@@ -192,6 +192,9 @@ class CertificateManager:
                 cert_data["order"] = order_name
 
             if header_info:
+                self.logger.debug(
+                    "CertificateManager.store_certificate(): store header_info with certificate"
+                )
                 cert_data["header_info"] = header_info
 
             if certificate_data:
@@ -475,7 +478,7 @@ class CertificateManager:
 
             # Store certificate with CSR
             (success, error_msg) = self.store_certificate(
-                certificate_name, csr, order_name, header_info
+                certificate_name, csr, order_name, header_info=header_info
             )
 
             if success:
