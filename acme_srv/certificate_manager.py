@@ -158,6 +158,7 @@ class CertificateManager:
         csr: str,
         order_name: str = None,
         certificate_data: str = None,
+        header_info: str = None,
     ) -> Tuple[bool, Optional[str]]:
         """
         Store certificate with full validation workflow.
@@ -189,6 +190,9 @@ class CertificateManager:
 
             if order_name:
                 cert_data["order"] = order_name
+
+            if header_info:
+                cert_data["header_info"] = header_info
 
             if certificate_data:
                 cert_data["cert"] = certificate_data
@@ -471,7 +475,7 @@ class CertificateManager:
 
             # Store certificate with CSR
             (success, error_msg) = self.store_certificate(
-                certificate_name, csr, order_name
+                certificate_name, csr, order_name, header_info
             )
 
             if success:
