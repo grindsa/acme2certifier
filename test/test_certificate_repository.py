@@ -23,7 +23,9 @@ class TestCertificateRepository(unittest.TestCase):
     def test_002_search_with_vlist_success(self):
         self.db.certificates_search.return_value = []
         res = self.repo.search_certificates("name", "c1", ["name", "csr"])
-        self.db.certificates_search.assert_called_once_with("name", "c1", ["name", "csr"])
+        self.db.certificates_search.assert_called_once_with(
+            "name", "c1", ["name", "csr"]
+        )
         self.assertEqual(res, [])
 
     def test_003_search_exception_returns_none(self):
@@ -93,7 +95,9 @@ class TestCertificateRepository(unittest.TestCase):
         self.assertIsNone(res)
 
     def test_015_update_order_success_true(self):
-        self.db.order_update.return_value = None  # method has no return, repo returns True
+        self.db.order_update.return_value = (
+            None  # method has no return, repo returns True
+        )
         ok = self.repo.update_order({"name": "o1", "status": "valid"})
         self.assertTrue(ok)
 
@@ -122,13 +126,17 @@ class TestCertificateRepository(unittest.TestCase):
     def test_020_cleanup_certificates_purge_false(self):
         self.db.certificates_expired_search.return_value = (["name"], ["row"])
         fields, report = self.repo.cleanup_certificates(1234, purge=False)
-        self.db.certificates_expired_search.assert_called_once_with(1234, report_format="csv")
+        self.db.certificates_expired_search.assert_called_once_with(
+            1234, report_format="csv"
+        )
         self.assertEqual((fields, report), (["name"], ["row"]))
 
     def test_021_cleanup_certificates_purge_true(self):
         self.db.certificates_expired_search.return_value = (["id"], ["row1", "row2"])
         fields, report = self.repo.cleanup_certificates(1234, purge=True)
-        self.db.certificates_expired_search.assert_called_once_with(1234, purge=True, report_format="csv")
+        self.db.certificates_expired_search.assert_called_once_with(
+            1234, purge=True, report_format="csv"
+        )
         self.assertEqual((fields, report), (["id"], ["row1", "row2"]))
 
     def test_022_cleanup_certificates_exception_returns_empty(self):
