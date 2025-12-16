@@ -25,6 +25,7 @@ from acme_srv.helper import (
     string_sanitize,
     uts_now,
     uts_to_date_utc,
+    config_async_mode_load,
 )
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
@@ -222,146 +223,26 @@ class CertificateLogger:
         self.logger.info(log_string)
 
 
-# CertificateConfig moved from certificate_config.py
+# CertificateConfiguration harmonized with Challenge class approach
 @dataclass
-class CertificateConfig:
+class CertificateConfiguration:
     """
     Configuration dataclass for Certificate operations.
-
-    This centralizes all configuration settings for the Certificate class
-    and its components, providing type safety and clear documentation.
-
-    Similar to the pattern used in challenge refactoring.
+    Centralizes all configuration settings for the Certificate class and its components.
     """
 
-    # Basic settings
     debug: bool = False
     server_name: Optional[str] = None
-
-    # Certificate processing settings
     cert_operations_log: Optional[Any] = None
     cert_reusage_timeframe: int = 0
     cn2san_add: bool = False
     enrollment_timeout: int = 5
-
-    # Path and URL settings
-    path_dic: Optional[Dict[str, str]] = None
     retry_after: int = 600
-
-    # Feature flags
     tnauthlist_support: bool = False
-
-    # Hook configuration
+    async_mode: bool = False
     ignore_pre_hook_failure: bool = False
     ignore_post_hook_failure: bool = True
     ignore_success_hook_failure: bool = False
-
-    def __post_init__(self):
-        """Initialize default values that can't be set in field defaults"""
-        if self.path_dic is None:
-            self.path_dic = {"cert_path": "/acme/cert/"}
-
-    @classmethod
-    def from_config_file(
-        cls, debug: bool = False, srv_name: str = None
-    ) -> "CertificateConfig":
-        """
-        Create configuration by loading from config file.
-
-        Args:
-            debug: Debug mode flag
-            srv_name: Server name
-
-        Returns:
-            CertificateConfig instance with values loaded from config file
-        """
-        # Load configuration from file
-        config_dic = load_config()
-
-        # Extract Certificate section parameters
-        cert_reusage_timeframe = 0
-        enrollment_timeout = 5
-        cert_operations_log = None
-
-        try:
-            cert_reusage_timeframe = int(
-                config_dic.get(
-                    "Certificate",
-                    "cert_reusage_timeframe",
-                    fallback=cert_reusage_timeframe,
-                )
-            )
-        except Exception:
-            pass  # Keep default value
-
-        try:
-            enrollment_timeout = int(
-                config_dic.get(
-                    "Certificate", "enrollment_timeout", fallback=enrollment_timeout
-                )
-            )
-        except Exception:
-            pass  # Keep default value
-
-        cert_operations_log = config_dic.get(
-            "Certificate", "cert_operations_log", fallback=cert_operations_log
-        )
-        if cert_operations_log:
-            cert_operations_log = cert_operations_log.lower()
-
-        # Extract Order section parameters
-        tnauthlist_support = False
-        if "Order" in config_dic:
-            tnauthlist_support = config_dic.getboolean(
-                "Order", "tnauthlist_support", fallback=False
-            )
-
-        # Extract CAhandler section parameters
-        cn2san_add = False
-        if (
-            "CAhandler" in config_dic
-            and config_dic.get("CAhandler", "handler_file", fallback=None)
-            == "examples/ca_handler/asa_ca_handler.py"
-        ):
-            cn2san_add = True
-
-        # Handle path_dic with url_prefix
-        path_dic = {"cert_path": "/acme/cert/"}
-        if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
-            path_dic = {
-                k: config_dic["Directory"]["url_prefix"] + v
-                for k, v in path_dic.items()
-            }
-
-        # Extract Hook section parameters
-        ignore_pre_hook_failure = False
-        ignore_post_hook_failure = True
-        ignore_success_hook_failure = False
-
-        if "Hooks" in config_dic:
-            ignore_pre_hook_failure = config_dic.getboolean(
-                "Hooks", "ignore_pre_hook_failure", fallback=False
-            )
-            ignore_post_hook_failure = config_dic.getboolean(
-                "Hooks", "ignore_post_hook_failure", fallback=True
-            )
-            ignore_success_hook_failure = config_dic.getboolean(
-                "Hooks", "ignore_success_hook_failure", fallback=False
-            )
-
-        return cls(
-            debug=debug,
-            server_name=srv_name,
-            cert_operations_log=cert_operations_log,
-            cert_reusage_timeframe=cert_reusage_timeframe,
-            cn2san_add=cn2san_add,
-            enrollment_timeout=enrollment_timeout,
-            path_dic=path_dic,
-            tnauthlist_support=tnauthlist_support,
-            ignore_pre_hook_failure=ignore_pre_hook_failure,
-            ignore_post_hook_failure=ignore_post_hook_failure,
-            ignore_success_hook_failure=ignore_success_hook_failure,
-        )
 
 
 class Certificate(object):
@@ -379,8 +260,10 @@ class Certificate(object):
         self.logger = logger
         self.server_name = srv_name
 
-        # Create configuration dataclass from config file
-        self.config = CertificateConfig.from_config_file(debug=debug, srv_name=srv_name)
+        self.path_dic = {"cert_path": "/acme/cert/"}
+
+        # Create configuration dataclass from config file using harmonized approach
+        self.config = CertificateConfiguration()
 
         # Core components
         self.dbstore = DBstore(self.debug, self.logger)
@@ -407,6 +290,76 @@ class Certificate(object):
 
     def __exit__(self, *args):
         """cose the connection at the end of the context"""
+
+    def _load_configuration(self):
+        """Load configuration from file into CertificateConfiguration dataclass"""
+        self.logger.debug("Certificate._load_configuration()")
+        config_dic = load_config()
+
+        # Certificate section
+        try:
+            self.config.cert_reusage_timeframe = int(
+                config_dic.get(
+                    "Certificate",
+                    "cert_reusage_timeframe",
+                    fallback=0,
+                )
+            )
+        except Exception:
+            pass
+
+        try:
+            self.config.enrollment_timeout = int(
+                config_dic.get("Certificate", "enrollment_timeout", fallback=5)
+            )
+        except Exception:
+            pass
+
+        try:
+            self.config.retry_after = int(
+                config_dic.get("Certificate", "retry_after", fallback=600)
+            )
+        except Exception:
+            pass
+
+        self.config.cert_operations_log = config_dic.get(
+            "Certificate", "cert_operations_log", fallback=None
+        )
+        if self.config.cert_operations_log:
+            self.config.cert_operations_log = self.config.cert_operations_log.lower()
+
+        # Order section
+        if "Order" in config_dic:
+            self.config.tnauthlist_support = config_dic.getboolean(
+                "Order", "tnauthlist_support", fallback=False
+            )
+
+        # CAhandler section
+        if (
+            "CAhandler" in config_dic
+            and config_dic.get("CAhandler", "handler_file", fallback=None)
+            == "examples/ca_handler/asa_ca_handler.py"
+        ):
+            self.config.cn2san_add = True
+
+        # Directory section
+        if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
+            self.path_dic = {
+                k: config_dic["Directory"]["url_prefix"] + v
+                for k, v in self.path_dic.items()
+            }
+
+        # Hooks section
+        if "Hooks" in config_dic:
+            self.config.ignore_pre_hook_failure = config_dic.getboolean(
+                "Hooks", "ignore_pre_hook_failure", fallback=False
+            )
+            self.config.ignore_post_hook_failure = config_dic.getboolean(
+                "Hooks", "ignore_post_hook_failure", fallback=True
+            )
+            self.config.ignore_success_hook_failure = config_dic.getboolean(
+                "Hooks", "ignore_success_hook_failure", fallback=False
+            )
 
     def _validate_input_parameters(self, **kwargs) -> Dict[str, str]:
         """Validate input parameters and return validation errors"""
@@ -1485,9 +1438,7 @@ class Certificate(object):
 
             certificate_name = string_sanitize(
                 self.logger,
-                url.replace(
-                    f'{self.server_name}{self.config.path_dic["cert_path"]}', ""
-                ),
+                url.replace(f'{self.server_name}{self.path_dic["cert_path"]}', ""),
             )
             self.logger.debug(
                 "Certificate.get_certificate_details(%s)", certificate_name

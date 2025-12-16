@@ -157,73 +157,171 @@ class TestCertificateLogger(unittest.TestCase):
         self.mock_logger.info.assert_called()
 
 
-class TestCertificateConfig(unittest.TestCase):
-    def test_011_post_init_sets_defaults(self):
-        config = certificate.CertificateConfig()
-        self.assertIsInstance(config.path_dic, dict)
-
-    @patch("acme_srv.certificate.load_config")
-    def test_012_from_config_file_cert_reusage_timeframe_exception(
-        self, mock_load_config
-    ):
-        # Simulate cert_reusage_timeframe raising exception (non-int value)
-        mock_cfg = MagicMock()
-        mock_cfg.get.side_effect = (
-            lambda section, key, fallback=None: "not-an-int"
-            if key == "cert_reusage_timeframe"
-            else fallback
-        )
-        mock_load_config.return_value = mock_cfg
-        config = certificate.CertificateConfig.from_config_file()
-        # Should fall back to default 0
-        self.assertEqual(config.cert_reusage_timeframe, 0)
-
-    @patch("acme_srv.certificate.load_config")
-    def test_013_from_config_file_enrollment_timeout_exception(self, mock_load_config):
-        # Simulate enrollment_timeout raising exception (non-int value)
-        mock_cfg = MagicMock()
-
-        def get_side_effect(section, key, fallback=None):
-            if key == "enrollment_timeout":
-                return "not-an-int"
-            if key == "cert_reusage_timeframe":
-                return 1
-            return fallback
-
-        mock_cfg.get.side_effect = get_side_effect
-        mock_load_config.return_value = mock_cfg
-        config = certificate.CertificateConfig.from_config_file()
-        # Should fall back to default 5
-        self.assertEqual(config.enrollment_timeout, 5)
-
-    @patch("acme_srv.certificate.load_config")
-    def test_014_from_config_file_cn2san_add_true(self, mock_load_config):
-        # Simulate CAhandler section with handler_file set to asa_ca_handler.py
-        mock_cfg = MagicMock()
-        mock_cfg.get.side_effect = lambda section, key, fallback=None: (
-            "examples/ca_handler/asa_ca_handler.py"
-            if section == "CAhandler" and key == "handler_file"
-            else fallback
-        )
-        mock_cfg.__contains__.side_effect = lambda k: k in ["CAhandler"]
-        mock_load_config.return_value = mock_cfg
-        config = certificate.CertificateConfig.from_config_file()
-        self.assertTrue(config.cn2san_add)
-
-    @patch("acme_srv.certificate.load_config")
-    def test_015_from_config_file_path_dic_url_prefix(self, mock_load_config):
-        # Simulate Directory section with url_prefix
-        mock_cfg = MagicMock()
-        mock_cfg.__contains__.side_effect = lambda k: k in ["Directory"]
-        mock_cfg.__getitem__.side_effect = (
-            lambda k: {"url_prefix": "/prefix"} if k == "Directory" else {}
-        )
-        mock_load_config.return_value = mock_cfg
-        config = certificate.CertificateConfig.from_config_file()
-        self.assertEqual(config.path_dic["cert_path"], "/prefix/acme/cert/")
-
-
 class TestCertificate(unittest.TestCase):
+    def test_check_certificate_reusability_reused_values(self):
+        """Test _check_certificate_reusability returns correct cert, cert_raw, and message when reused."""
+        cert_data = {
+            "expire_uts": 9999999999,
+            "issue_uts": 1,
+            "cert": "cert_value",
+            "cert_raw": "raw_value",
+            "created_at": 1,
+            "id": 42,
+        }
+        self.mock_repository.search_certificates.return_value = [cert_data]
+        self.cert.config.cert_reusage_timeframe = 2  # Ensure reuse block is entered
+        with patch("acme_srv.certificate.uts_now", return_value=2):
+            _, cert, cert_raw, message = self.cert._check_certificate_reusability("csr")
+            self.assertEqual(cert, "cert_value")
+            self.assertEqual(cert_raw, "raw_value")
+            self.assertIn("reused certificate from id: 42", message)
+
+    def test_process_enrollment_and_store_certificate_log_exception(self):
+        """Test _process_enrollment_and_store_certificate covers log_certificate_issuance exception branch (lines 930-933)."""
+        cert = certificate.Certificate(
+            debug=True, srv_name=None, logger=self.mock_logger
+        )
+        cert._execute_pre_enrollment_hooks = MagicMock(return_value=[])
+        cert._process_certificate_enrollment = MagicMock(
+            return_value=(None, "cert", "raw", "poll", True)
+        )
+        cert._store_certificate_and_update_order = MagicMock(return_value=(1, None))
+        cert.config.cert_operations_log = "json"
+        cert.certificate_logger.log_certificate_issuance = MagicMock(
+            side_effect=Exception("log error")
+        )
+        cert._execute_post_enrollment_hooks = MagicMock(return_value=[])
+        # Should not raise, but should call logger.error
+        result = cert._process_enrollment_and_store_certificate(
+            "cert_name", "csr", "order_name"
+        )
+        self.mock_logger.error.assert_any_call(
+            "Exception during log_certificate_issuance: %s", unittest.mock.ANY
+        )
+
+    def test_load_configuration_defaults(self):
+        """Test _load_configuration uses defaults when config is empty."""
+        import configparser
+
+        config = configparser.ConfigParser()
+        with patch("acme_srv.certificate.load_config", return_value=config):
+            cert = certificate.Certificate(
+                debug=True, srv_name=None, logger=self.mock_logger
+            )
+            cert._load_configuration()
+            config_obj = cert.config
+            self.assertEqual(config_obj.cert_reusage_timeframe, 0)
+            self.assertEqual(config_obj.enrollment_timeout, 5)
+            self.assertEqual(config_obj.retry_after, 600)
+            self.assertIsNone(config_obj.cert_operations_log)
+            self.assertFalse(config_obj.tnauthlist_support)
+            self.assertFalse(config_obj.cn2san_add)
+            self.assertFalse(config_obj.ignore_pre_hook_failure)
+            self.assertTrue(config_obj.ignore_post_hook_failure)
+            self.assertFalse(config_obj.ignore_success_hook_failure)
+
+    def test_load_configuration_full_config(self):
+        """Test _load_configuration with all config sections and values overridden."""
+        import configparser
+
+        config = configparser.ConfigParser()
+        config.add_section("Certificate")
+        config.set("Certificate", "cert_reusage_timeframe", "123")
+        config.set("Certificate", "enrollment_timeout", "9")
+        config.set("Certificate", "retry_after", "321")
+        config.set("Certificate", "cert_operations_log", "JSON")
+        config.add_section("Order")
+        config.set("Order", "tnauthlist_support", "True")
+        config.add_section("CAhandler")
+        config.set("CAhandler", "handler_file", "examples/ca_handler/asa_ca_handler.py")
+        config.add_section("Directory")
+        config.set("Directory", "url_prefix", "/prefix")
+        config.add_section("Hooks")
+        config.set("Hooks", "ignore_pre_hook_failure", "True")
+        config.set("Hooks", "ignore_post_hook_failure", "False")
+        config.set("Hooks", "ignore_success_hook_failure", "True")
+        with patch("acme_srv.certificate.load_config", return_value=config):
+            cert = certificate.Certificate(
+                debug=True, srv_name=None, logger=self.mock_logger
+            )
+            cert._load_configuration()
+            config_obj = cert.config
+            self.assertEqual(config_obj.cert_reusage_timeframe, 123)
+            self.assertEqual(config_obj.enrollment_timeout, 9)
+            self.assertEqual(config_obj.retry_after, 321)
+            self.assertEqual(config_obj.cert_operations_log, "json")
+            self.assertTrue(config_obj.tnauthlist_support)
+            self.assertTrue(config_obj.cn2san_add)
+            self.assertTrue(config_obj.ignore_pre_hook_failure)
+            self.assertFalse(config_obj.ignore_post_hook_failure)
+            self.assertTrue(config_obj.ignore_success_hook_failure)
+
+    def test_load_configuration_partial_config(self):
+        """Test _load_configuration with some config sections missing."""
+        import configparser
+
+        config = configparser.ConfigParser()
+        config.add_section("Certificate")
+        config.set("Certificate", "cert_reusage_timeframe", "42")
+        # No Order, CAhandler, Directory, Hooks
+        with patch("acme_srv.certificate.load_config", return_value=config):
+            cert = certificate.Certificate(
+                debug=True, srv_name=None, logger=self.mock_logger
+            )
+            cert._load_configuration()
+            config_obj = cert.config
+            self.assertEqual(config_obj.cert_reusage_timeframe, 42)
+            self.assertEqual(config_obj.enrollment_timeout, 5)  # default
+            self.assertEqual(config_obj.retry_after, 600)  # default
+            self.assertFalse(config_obj.tnauthlist_support)
+            self.assertFalse(config_obj.cn2san_add)
+
+    def test_load_configuration_directory_url_prefix(self):
+        """Test _load_configuration applies url_prefix to path_dic."""
+        import configparser
+
+        config = configparser.ConfigParser()
+        config.add_section("Directory")
+        config.set("Directory", "url_prefix", "/api")
+        with patch("acme_srv.certificate.load_config", return_value=config):
+            cert = certificate.Certificate(
+                debug=True, srv_name=None, logger=self.mock_logger
+            )
+            cert._load_configuration()
+            # path_dic is on the instance, not config
+            self.assertEqual(cert.path_dic["cert_path"], "/api/acme/cert/")
+
+    def test_load_configuration_type_conversion_and_fallback(self):
+        """Test _load_configuration handles type conversion and fallback logic."""
+        import configparser
+
+        config = configparser.ConfigParser()
+        config.add_section("Certificate")
+        config.set("Certificate", "cert_reusage_timeframe", "notanint")
+        config.set("Certificate", "enrollment_timeout", "notanint")
+        config.set("Certificate", "retry_after", "notanint")
+        with patch("acme_srv.certificate.load_config", return_value=config):
+            cert = certificate.Certificate(
+                debug=True, srv_name=None, logger=self.mock_logger
+            )
+            cert._load_configuration()
+            config_obj = cert.config
+            self.assertEqual(config_obj.cert_reusage_timeframe, 0)
+            self.assertEqual(config_obj.enrollment_timeout, 5)
+            self.assertEqual(config_obj.retry_after, 600)
+
+    def test_load_configuration_logging(self):
+        """Test _load_configuration logs debug message."""
+        import configparser
+
+        config = configparser.ConfigParser()
+        with patch("acme_srv.certificate.load_config", return_value=config):
+            cert = certificate.Certificate(
+                debug=True, srv_name=None, logger=self.mock_logger
+            )
+            cert._load_configuration()
+            self.mock_logger.debug.assert_any_call("Certificate._load_configuration()")
+
     def setUp(self):
         self.mock_repository = MagicMock()
         self.mock_cahandler = MagicMock()
@@ -232,9 +330,8 @@ class TestCertificate(unittest.TestCase):
         self.mock_message = MagicMock()
         self.mock_hook_handler = MagicMock()
         # Only pass valid config fields
-        self.config = certificate.CertificateConfig(
-            debug=True, cert_operations_log="json"
-        )
+        self.config = certificate.CertificateConfiguration()
+
         # Certificate does not accept config directly, so patch after construction
         self.cert = certificate.Certificate(
             debug=True, srv_name=None, logger=self.mock_logger
@@ -1692,6 +1789,7 @@ class TestCertificate(unittest.TestCase):
         ) as mock_log, patch.object(
             self.cert, "_execute_post_enrollment_hooks", return_value=[]
         ):
+            self.cert.config.cert_operations_log = "json"
             result = self.cert._process_enrollment_and_store_certificate(
                 "cert_name", "csr", "order_name"
             )
