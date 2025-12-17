@@ -371,22 +371,41 @@ class TestCertificate(unittest.TestCase):
             )
 
     def test_019_load_certificate_parameters(self):
-        self.cert._load_certificate_parameters()  # Should just log
+        # Provide a mock config_dic with required methods
+        from unittest.mock import MagicMock
+        config_dic = MagicMock()
+        config_dic.__contains__.side_effect = lambda k: k in ["Certificate", "Order", "Directory", "Hooks", "CAhandler"]
+        config_dic.__getitem__.side_effect = lambda k: {}
+        config_dic.getboolean.side_effect = lambda section, key, fallback=None: fallback
+        config_dic.get.side_effect = lambda section, key, fallback=None: fallback
+        self.cert._load_certificate_parameters(config_dic)  # Should just log
         self.mock_logger.debug.assert_called()
 
-    def test_020_load_certificate_configuration(self):
+    def test_020_load_configuration(self):
+        from unittest.mock import MagicMock
+        config_dic = MagicMock()
+        config_dic.__contains__.side_effect = lambda k: k in ["Certificate", "Order", "Directory", "Hooks", "CAhandler"]
+        config_dic.__getitem__.side_effect = lambda k: {}
+        config_dic.getboolean.side_effect = lambda section, key, fallback=None: fallback
+        config_dic.get.side_effect = lambda section, key, fallback=None: fallback
         with patch(
-            "acme_srv.certificate.load_config", return_value={"foo": "bar"}
+            "acme_srv.certificate.load_config", return_value=config_dic
         ), patch("acme_srv.certificate.ca_handler_load", return_value=MagicMock()):
-            self.cert._load_certificate_configuration()
+            self.cert._load_configuration()
             self.mock_logger.debug.assert_called()
 
-    def test_021_load_certificate_configuration_no_ca_handler_logs_critical(self):
-        """Test that logger.critical is called if ca_handler_load returns None in _load_certificate_configuration."""
+    def test_021_load_configuration_no_ca_handler_logs_critical(self):
+        """Test that logger.critical is called if ca_handler_load returns None in _load_configuration."""
+        from unittest.mock import MagicMock
+        config_dic = MagicMock()
+        config_dic.__contains__.side_effect = lambda k: k in ["Certificate", "Order", "Directory", "Hooks", "CAhandler"]
+        config_dic.__getitem__.side_effect = lambda k: {}
+        config_dic.getboolean.side_effect = lambda section, key, fallback=None: fallback
+        config_dic.get.side_effect = lambda section, key, fallback=None: fallback
         with patch(
-            "acme_srv.certificate.load_config", return_value={"foo": "bar"}
+            "acme_srv.certificate.load_config", return_value=config_dic
         ), patch("acme_srv.certificate.ca_handler_load", return_value=None):
-            self.cert._load_certificate_configuration()
+            self.cert._load_configuration()
             self.mock_logger.critical.assert_called_with("No ca_handler loaded")
 
     def test_022_load_and_validate_identifiers_tnauth(self):
@@ -2534,9 +2553,9 @@ class TestCertificate(unittest.TestCase):
                 "Certificate._validate_certificate_authorization() ended"
             )
 
-    def test_196_enter_calls_load_certificate_configuration_and_returns_self(self):
+    def test_196_enter_calls_load_configuration_and_returns_self(self):
         cert = self.cert
-        with patch.object(cert, "_load_certificate_configuration") as mock_load_config:
+        with patch.object(cert, "_load_configuration") as mock_load_config:
             result = cert.__enter__()
             mock_load_config.assert_called_once()
             self.assertIs(result, cert)
