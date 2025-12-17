@@ -285,81 +285,11 @@ class Certificate(object):
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
-        self._load_certificate_configuration()
+        self._load_configuration()
         return self
 
     def __exit__(self, *args):
         """cose the connection at the end of the context"""
-
-    def _load_configuration(self):
-        """Load configuration from file into CertificateConfiguration dataclass"""
-        self.logger.debug("Certificate._load_configuration()")
-        config_dic = load_config()
-
-        # Certificate section
-        try:
-            self.config.cert_reusage_timeframe = int(
-                config_dic.get(
-                    "Certificate",
-                    "cert_reusage_timeframe",
-                    fallback=0,
-                )
-            )
-        except Exception:
-            pass
-
-        try:
-            self.config.enrollment_timeout = int(
-                config_dic.get("Certificate", "enrollment_timeout", fallback=5)
-            )
-        except Exception:
-            pass
-
-        try:
-            self.config.retry_after = int(
-                config_dic.get("Certificate", "retry_after", fallback=600)
-            )
-        except Exception:
-            pass
-
-        self.config.cert_operations_log = config_dic.get(
-            "Certificate", "cert_operations_log", fallback=None
-        )
-        if self.config.cert_operations_log:
-            self.config.cert_operations_log = self.config.cert_operations_log.lower()
-
-        # Order section
-        if "Order" in config_dic:
-            self.config.tnauthlist_support = config_dic.getboolean(
-                "Order", "tnauthlist_support", fallback=False
-            )
-
-        # CAhandler section
-        if (
-            "CAhandler" in config_dic
-            and config_dic.get("CAhandler", "handler_file", fallback=None)
-            == "examples/ca_handler/asa_ca_handler.py"
-        ):
-            self.config.cn2san_add = True
-
-        # Directory section
-        if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
-            self.path_dic = {
-                k: config_dic["Directory"]["url_prefix"] + v
-                for k, v in self.path_dic.items()
-            }
-
-        # Hooks section
-        if "Hooks" in config_dic:
-            self.config.ignore_pre_hook_failure = config_dic.getboolean(
-                "Hooks", "ignore_pre_hook_failure", fallback=False
-            )
-            self.config.ignore_post_hook_failure = config_dic.getboolean(
-                "Hooks", "ignore_post_hook_failure", fallback=True
-            )
-            self.config.ignore_success_hook_failure = config_dic.getboolean(
-                "Hooks", "ignore_success_hook_failure", fallback=False
-            )
 
     def _validate_input_parameters(self, **kwargs) -> Dict[str, str]:
         """Validate input parameters and return validation errors"""
@@ -565,28 +495,84 @@ class Certificate(object):
             except Exception as err:
                 self.logger.critical("Enrollment hooks could not be loaded: %s", err)
 
-            # Hook configuration is now loaded from CertificateConfig
-            # Use values from config dataclass instead of re-parsing
-            # (Values are already loaded by CertificateConfig.from_config_file())
+        # Hooks section
+        if "Hooks" in config_dic:
+            self.config.ignore_pre_hook_failure = config_dic.getboolean(
+                "Hooks", "ignore_pre_hook_failure", fallback=False
+            )
+            self.config.ignore_post_hook_failure = config_dic.getboolean(
+                "Hooks", "ignore_post_hook_failure", fallback=True
+            )
+            self.config.ignore_success_hook_failure = config_dic.getboolean(
+                "Hooks", "ignore_success_hook_failure", fallback=False
+            )
 
         self.logger.debug("Certificate._load_hooks_configuration() ended")
 
-    def _load_certificate_parameters(self):
+    def _load_certificate_parameters(self, config_dic: Dict[str, str] = None):
         """Load various certificate parameters - now handled by CertificateConfig"""
         self.logger.debug(
             "Certificate._load_certificate_parameters() - delegated to CertificateConfig"
         )
-        # All parameter loading is now handled by CertificateConfig.from_config_file()
-        # This method is kept for backward compatibility but does nothing
+        # Certificate section
+        try:
+            self.config.cert_reusage_timeframe = int(
+                config_dic.get(
+                    "Certificate",
+                    "cert_reusage_timeframe",
+                    fallback=0,
+                )
+            )
+        except Exception:
+            pass
+
+        try:
+            self.config.enrollment_timeout = int(
+                config_dic.get("Certificate", "enrollment_timeout", fallback=5)
+            )
+        except Exception:
+            pass
+
+        try:
+            self.config.retry_after = int(
+                config_dic.get("Certificate", "retry_after", fallback=600)
+            )
+        except Exception:
+            pass
+
+        self.config.cert_operations_log = config_dic.get(
+            "Certificate", "cert_operations_log", fallback=None
+        )
+        if self.config.cert_operations_log:
+            self.config.cert_operations_log = self.config.cert_operations_log.lower()
+
+        # Order section
+        if "Order" in config_dic:
+            self.config.tnauthlist_support = config_dic.getboolean(
+                "Order", "tnauthlist_support", fallback=False
+            )
+
+        # CAhandler section
+        if (
+            "CAhandler" in config_dic
+            and config_dic.get("CAhandler", "handler_file", fallback=None)
+            == "examples/ca_handler/asa_ca_handler.py"
+        ):
+            self.config.cn2san_add = True
+
+        # Directory section
+        if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
+            self.path_dic = {
+                k: config_dic["Directory"]["url_prefix"] + v
+                for k, v in self.path_dic.items()
+            }
+
         self.logger.debug("Certificate._load_certificate_parameters() ended")
 
-    def _load_certificate_configuration(self):
+    def _load_configuration(self):
         """Load certificate configuration from file"""
-        self.logger.debug("Certificate._load_certificate_configuration()")
+        self.logger.debug("Certificate._load_configuration()")
         config_dic = load_config()
-
-        # Configuration parameters are now loaded by CertificateConfig.from_config_file()
-        # Only load CA handler and hooks here
 
         # load ca_handler according to configuration
         ca_handler_module = ca_handler_load(self.logger, config_dic)
@@ -601,10 +587,10 @@ class Certificate(object):
         self._load_hooks_configuration(config_dic)
 
         # parameters are now loaded via CertificateConfig
-        self._load_certificate_parameters()
+        self._load_certificate_parameters(config_dic)
 
         self.logger.debug("ca_handler: %s", ca_handler_module)
-        self.logger.debug("Certificate._load_certificate_configuration() ended.")
+        self.logger.debug("Certificate._load_configuration() ended.")
 
     def _load_and_validate_identifiers(
         self, identifier_dic: Dict[str, str], csr: str
