@@ -427,7 +427,7 @@ class Certificate(object):
         """Validate that the account owns the certificate"""
         self.logger.debug("Certificate._validate_certificate_account_ownership()")
         try:
-            result = self.dbstore.certificate_account_check(
+            result = self.repository.certificate_account_check(
                 account_name, b64_url_recode(self.logger, certificate)
             )
         except Exception as err_:
@@ -435,13 +435,16 @@ class Certificate(object):
                 "Database error: failed to check account for certificate: %s", err_
             )
             result = None
-        self.logger.debug("Certificate._account_check() ended with: %s", result)
+        self.logger.debug(
+            "Certificate._validate_certificate_account_ownership() ended with: %s",
+            result,
+        )
         return result
 
-    def _authz_check(
+    def _validate_certificate_authorization(
         self, identifier_dic: Dict[str, str], certificate: str
     ) -> List[str]:
-        self.logger.debug("Certificate._authz_check()")
+        self.logger.debug("Certificate._validate_certificate_authorization()")
         # load identifiers
         try:
             identifiers = json.loads(identifier_dic["identifiers"].lower())
@@ -449,12 +452,12 @@ class Certificate(object):
             identifiers = []
 
         # check if we have a tnauthlist identifier
-        tnauthlist_identifer_in = self._tnauth_identifier_check(identifiers)
-        if self.tnauthlist_support and tnauthlist_identifer_in:
+        tnauthlist_identifer_in = self._check_for_tnauth_identifiers(identifiers)
+        if self.config.tnauthlist_support and tnauthlist_identifer_in:
             try:
                 # get list of certextensions in base64 format and identifier status
                 tnauthlist = cert_extensions_get(self.logger, certificate)
-                identifier_status = self._identifer_tnauth_list(
+                identifier_status = self._validate_identifiers_against_tnauthlist(
                     identifier_dic, tnauthlist
                 )
             except Exception as err:
@@ -468,13 +471,15 @@ class Certificate(object):
             try:
                 # get sans
                 san_list = cert_san_get(self.logger, certificate)
-                if self.cn2san_add:
+                if self.config.cn2san_add:
                     # add common name to SANs
                     cert_cn = cert_cn_get(self.logger, certificate)
                     if not san_list and cert_cn:
                         san_list.append(f"DNS:{cert_cn}")
 
-                identifier_status = self._identifer_status_list(identifiers, san_list)
+                identifier_status = self._validate_identifiers_against_sans(
+                    identifiers, san_list
+                )
             except Exception as err:
                 # enough to set identifier_list as empty list
                 identifier_status = []
@@ -483,19 +488,19 @@ class Certificate(object):
                     err,
                 )
 
-        self.logger.debug("Certificate._authz_check() ended")
+        self.logger.debug("Certificate._validate_certificate_authorization() ended")
         return identifier_status
 
-    def _authorization_check(self, order_name: str, certificate: str) -> bool:
-        """check if an acount holds authorization for all identifiers = SANs in the certificate"""
-        self.logger.debug("Certificate._authorization_check()")
+    def _validate_order_authorization(self, order_name: str, certificate: str) -> bool:
+        """Validate that the account holds authorization for all identifiers = SANs in the certificate"""
+        self.logger.debug("Certificate._validate_order_authorization()")
 
         # empty list of statuses
         identifier_status = []
 
         # get identifiers for order
         try:
-            identifier_dic = self.dbstore.order_lookup(
+            identifier_dic = self.repository.order_lookup(
                 "name", order_name, ["identifiers"]
             )
         except Exception as err_:
@@ -508,172 +513,27 @@ class Certificate(object):
 
         if identifier_dic and "identifiers" in identifier_dic:
             # get identifier status list
-            identifier_status = self._authz_check(identifier_dic, certificate)
+            identifier_status = self._validate_certificate_authorization(
+                identifier_dic, certificate
+            )
 
         result = False
         if identifier_status and False not in identifier_status:
             result = True
 
-        self.logger.debug("Certificate._authorization_check() ended with %s", result)
+        self.logger.debug(
+            "Certificate._validate_order_authorization() ended with %s", result
+        )
         return result
 
-    def _cert_issuance_log_text(self, certificate_name, data_dic):
-        """log cert issuance as text string"""
-
-        log_string = f'Certificate {certificate_name} issued for account {data_dic["account_name"]} {data_dic["account_contact"]}'
-
-        if data_dic.get("eab_kid", ""):
-            log_string = log_string + f' with EAB KID {data_dic["eab_kid"]}'
-
-        if data_dic.get("profile", ""):
-            log_string = log_string + f' with Profile {data_dic["profile"]}'
-
-        log_string = (
-            log_string
-            + f'. Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}, Expires: {data_dic["expires"]}'
-        )
-
-        if data_dic.get("reused", ""):
-            log_string = log_string + f' reused: {data_dic["reused"]}'
-
-        self.logger.info(log_string)
-
-    def _cert_issuance_log(
-        self,
-        certificate_name: str,
-        certificate: str,
-        order_name: str,
-        cert_reusage: bool = False,
-    ):
-        """log certificate issuance"""
-        self.logger.debug("Certificate._certificate_issuance_log(%s)", certificate_name)
-
-        # lookup account name and kid
-        try:
-            order_dic = self.dbstore.order_lookup(
-                "name",
-                order_name,
-                ["id", "name", "account__name", "account__eab_kid", "profile", "expires", "account__contact"],
-            )
-        except Exception as err:
-            self.logger.error(
-                "Database error: failed to get account information for cert issuance log: %s",
-                err,
-            )
-            order_dic = {}
-
-        data_dic = {
-            "account_name": order_dic.get("account__name", ""),
-            "account_contact": order_dic.get("account__contact", ""),
-            "certificate_name": certificate_name,
-            "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
-            "common_name": cert_cn_get(self.logger, certificate),
-            "san_list": cert_san_get(self.logger, certificate),
-        }
-
-        if cert_reusage:
-            # add cert reusage flag if set to true
-            data_dic["reused"] = cert_reusage
-
-        if order_dic.get("account__eab_kid", ""):
-            # add kid if existing
-            data_dic["eab_kid"] = order_dic.get("account__eab_kid", "")
-
-        if order_dic.get("profile", None):
-            # add profile if existing
-            data_dic["profile"] = order_dic.get("profile", "")
-
-        if order_dic.get("expires", ""):
-            # add expires if existing
-            data_dic["expires"] = uts_to_date_utc(order_dic.get("expires", ""))
-
-        if self.cert_operations_log == "json":
-            # log in json format
-            self.logger.info(
-                "Certificate issued: %s",
-                json.dumps(data_dic, sort_keys=True),
-            )
-        else:
-            # log in text format
-            self._cert_issuance_log_text(certificate_name, data_dic)
-
-        self.logger.debug("Certificate._certificate_issuance_log() ended")
-
-    def _cert_revocation_log(self, certificate: str, code: int):
-        """log certificate revocation"""
-        if code == 200:
-            status = "successful"
-        else:
-            status = "failed"
-
-        # lookup account name and kid
-        try:
-            cert_dic = self.dbstore.certificate_lookup(
-                "cert_raw",
-                b64_url_recode(self.logger, certificate),
-                [
-                    "name",
-                    "order__account__name",
-                    "order__account__eab_kid",
-                    "order__account__contact",
-                    "order__profile",
-                ],
-            )
-        except Exception as err:
-            self.logger.error(
-                "Database error: failed to get account information for cert revocation: %s",
-                err,
-            )
-            cert_dic = {}
-
-        # construct log message including certificate name
+    def _check_certificate_reusability(self, csr: str) -> Tuple[None, str, str, str]:
+        """Check if an existing certificate can be reused"""
         self.logger.debug(
-            "Certificate._cert_revocation_log(%s)", cert_dic.get("name", "")
+            "Certificate._check_certificate_reusability(%s)",
+            self.config.cert_reusage_timeframe,
         )
-
-        data_dic = {
-            "account_name": cert_dic.get("order__account__name", ""),
-            "account_contact": cert_dic.get("order__account__contact", ""),
-            "certificate_name": cert_dic.get("name", ""),
-            "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
-            "common_name": cert_cn_get(self.logger, certificate),
-            "profile": cert_dic.get("order__profile", ""),
-            "san_list": cert_san_get(self.logger, certificate),
-            "status": status,
-        }
-
-        if cert_dic.get("order__account__eab_kid", ""):
-            data_dic["eab_kid"] = cert_dic.get("order__account__eab_kid")
-
-        if self.cert_operations_log == "json":
-            # log in json format
-            self.logger.info(
-                "Certificate revoked: %s",
-                json.dumps(data_dic, sort_keys=True),
-            )
-        else:
-
-            log_string = f'Certificate {data_dic["certificate_name"]} revocation {data_dic["status"]} for account {data_dic["account_name"]} {data_dic["account_contact"]}'
-            if data_dic.get("eab_kid", ""):
-                log_string = log_string + f' with EAB KID {data_dic["eab_kid"]}'
-            if data_dic.get("profile", ""):
-                log_string = log_string + f' with Profile {data_dic["profile"]}'
-            log_string = (
-                log_string
-                + f'. Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}'
-            )
-
-            # log in text format
-            self.logger.info(log_string)
-
-    def _cert_reusage_check(self, csr: str) -> Tuple[None, str, str, str]:
-        """check if an existing certificate an be reused"""
-        self.logger.debug(
-            "Certificate._cert_reusage_check(%s)", self.cert_reusage_timeframe
-        )
-
         try:
-            result_dic = self.dbstore.certificates_search(
+            result_dic = self.repository.search_certificates(
                 "csr",
                 csr,
                 ("cert", "cert_raw", "expire_uts", "issue_uts", "created_at", "id"),
@@ -690,7 +550,7 @@ class Certificate(object):
 
         if result_dic:
             self.logger.debug(
-                "Certificate._cert_reusage_check(): found %s certificates",
+                "Certificate._check_certificate_reusability(): found %s certificates",
                 len(result_dic),
             )
             uts = uts_now()
@@ -711,7 +571,7 @@ class Certificate(object):
                 self.logger.debug(
                     "uts: %s, reusage_tf: %s,  uts_create: %s, uts_exp: %s",
                     uts,
-                    self.cert_reusage_timeframe,
+                    self.config.cert_reusage_timeframe,
                     uts_create,
                     certificate["expire_uts"],
                 )
@@ -719,7 +579,7 @@ class Certificate(object):
                 if (
                     certificate["cert_raw"]
                     and certificate["cert"]
-                    and uts - self.cert_reusage_timeframe <= uts_create
+                    and uts - self.config.cert_reusage_timeframe <= uts_create
                     and uts <= certificate["expire_uts"]
                 ):
                     cert = certificate["cert"]
@@ -728,7 +588,7 @@ class Certificate(object):
                     break
         else:
             self.logger.debug(
-                "Certificate._cert_reusage_check(): no certificates found"
+                "Certificate._check_certificate_reusability(): no certificates found"
             )
 
         self.logger.debug(
@@ -736,9 +596,9 @@ class Certificate(object):
         )
         return (None, cert, cert_raw, message)
 
-    def _config_hooks_load(self, config_dic: Dict[str, str]):
-        """load hook configuration"""
-        self.logger.debug("Certificate._config_hooks_load()")
+    def _load_hooks_configuration(self, config_dic: Dict[str, str]):
+        """Load hook configuration from config dictionary"""
+        self.logger.debug("Certificate._load_hooks_configuration()")
 
         # load hooks according to configuration
         hooks_module = hooks_load(self.logger, config_dic)
@@ -761,7 +621,7 @@ class Certificate(object):
                 "Hooks", "ignore_success_hook_failure", fallback=False
             )
 
-        self.logger.debug("Certificate._config_hooks_load() ended")
+        self.logger.debug("Certificate._load_hooks_configuration() ended")
 
     def _load_certificate_parameters(self, config_dic: Dict[str, str] = None):
         """Load various certificate parameters - now handled by CertificateConfig"""
