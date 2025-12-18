@@ -51,7 +51,7 @@ class ChallengeUpdateRequest:
 
 class ChallengeRepository(ABC):
     """Abstract repository for challenge data operations."""
-
+    # pylint: disable=unnecessary-pass
     @abstractmethod
     def find_challenges_by_authorization(
         self, authorization_name: str

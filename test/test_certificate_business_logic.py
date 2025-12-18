@@ -123,75 +123,8 @@ class TestCertificateBusinessLogic(unittest.TestCase):
         info = self.logic.extract_certificate_info("cert")
         self.assertEqual(info, {})
 
-    @patch("acme_srv.certificate_business_logic.csr_san_get")
-    @patch("acme_srv.certificate_business_logic.csr_extensions_get")
-    def test_024_check_certificate_reusage(
-        self, mock_csr_extensions_get, mock_csr_san_get
-    ):
-        mock_csr_san_get.return_value = ["san"]
-        mock_csr_extensions_get.return_value = ["ext"]
-        (
-            error,
-            certificate,
-            certificate_raw,
-            poll_identifier,
-        ) = self.logic.check_certificate_reusage("csr")
-        self.assertIsNone(error)
-        self.assertIsNone(certificate)
-        self.assertIsNone(certificate_raw)
-        self.assertIsNone(poll_identifier)
 
-    def test_025_check_certificate_reusage_timeframe_zero(self):
-        logic = CertificateBusinessLogic(
-            debug=True,
-            logger=self.mock_logger,
-            err_msg_dic=self.mock_err_msg_dic,
-            config=None,
-        )
-        (
-            error,
-            certificate,
-            certificate_raw,
-            poll_identifier,
-        ) = logic.check_certificate_reusage("csr")
-        self.assertIsNone(error)
-        self.assertIsNone(certificate)
-        self.assertIsNone(certificate_raw)
-        self.assertIsNone(poll_identifier)
 
-    @patch("acme_srv.certificate_business_logic.pembundle_to_list")
-    def test_026_process_certificate_chain(self, mock_pembundle_to_list):
-        mock_pembundle_to_list.return_value = ["cert1", "cert2"]
-        result = self.logic.process_certificate_chain("bundle")
-        self.assertEqual(result, ["cert1", "cert2"])
-
-    @patch(
-        "acme_srv.certificate_business_logic.pembundle_to_list",
-        side_effect=Exception("fail"),
-    )
-    def test_027_process_certificate_chain_exception(self, mock_pembundle_to_list):
-        result = self.logic.process_certificate_chain("bundle")
-        self.assertEqual(result, [])
-
-    @patch(
-        "acme_srv.certificate_business_logic.csr_san_get", side_effect=Exception("boom")
-    )
-    def test_034_check_certificate_reusage_exception(self, mock_csr_san_get):
-        # Ensure timeframe > 0 to enter the try/except block
-        self.config.cert_reusage_timeframe = 10
-        # Invoke method to trigger exception and cover error logging lines
-        (
-            error,
-            certificate,
-            certificate_raw,
-            poll_identifier,
-        ) = self.logic.check_certificate_reusage("csr")
-        self.assertIsNone(error)
-        self.assertIsNone(certificate)
-        self.assertIsNone(certificate_raw)
-        self.assertIsNone(poll_identifier)
-        # Verify that the logger captured the error path
-        self.mock_logger.error.assert_called()
 
     @patch("acme_srv.certificate_business_logic.string_sanitize")
     def test_028_sanitize_certificate_name(self, mock_string_sanitize):

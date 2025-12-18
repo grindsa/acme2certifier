@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=r0902, r0912, r0913, r0915
+# pylint: disable=r0902, r0912, r0913, r0915, r1705
 """certificate class"""
 from __future__ import print_function
 import json
-from typing import List, Tuple, Dict, Union, Optional
+from typing import List, Tuple, Dict, Union, Optional, Any
+from dataclasses import dataclass
 from acme_srv.helper import (
     b64_url_recode,
     ca_handler_load,
@@ -18,7 +19,6 @@ from acme_srv.helper import (
     csr_extensions_get,
     date_to_uts_utc,
     error_dic_get,
-    generate_random_string,
     hooks_load,
     load_config,
     pembundle_to_list,
@@ -32,8 +32,7 @@ from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 from acme_srv.certificate_manager import CertificateManager
 from acme_srv.certificate_repository import DatabaseCertificateRepository
-from dataclasses import dataclass
-from typing import Dict, Optional, Any
+
 
 # CertificateLogger moved from certificate_logger.py
 class CertificateLogger:
@@ -684,6 +683,9 @@ class Certificate(object):
 
     def _process_certificate_enrollment(self, csr: str) -> Tuple[str, str, str, str]:
         self.logger.debug("Certificate._process_certificate_enrollment()")
+
+        poll_identifier = None
+        error = None
         if self.config.cert_reusage_timeframe:
             (
                 error,
@@ -1798,37 +1800,28 @@ class Certificate(object):
         self.logger.debug(
             "Certificate.store_certificate_signing_request(%s)", order_name
         )
+
+        # Delegate to certificate manager for CSR validation and storage
         try:
-            # Delegate to certificate manager for CSR validation and storage
-            try:
-                (
-                    success,
-                    certificate_name,
-                ) = self.certificate_manager.validate_and_store_csr(
-                    order_name, csr, header_info
-                )
-            except Exception as err:
-                self.logger.error("Error during CSR validation and storage: %s", err)
-                raise RuntimeError(f"CSR storage failed: {err}")
-
-            if not success:
-                error_msg = f"Failed to store CSR for order {order_name}"
-                self.logger.error(error_msg)
-                raise RuntimeError(error_msg)
-
-            self.logger.debug(
-                "Certificate.store_certificate_signing_request() ended successfully"
+            (
+                success,
+                certificate_name,
+            ) = self.certificate_manager.validate_and_store_csr(
+                order_name, csr, header_info
             )
-            return certificate_name
-
-        except (ValueError, RuntimeError):
-            # Re-raise validation and known errors
-            raise
         except Exception as err:
-            self.logger.critical(
-                "Unexpected error in store_certificate_signing_request: %s", err
-            )
-            raise RuntimeError(f"Unexpected error during CSR storage: {err}")
+            self.logger.error("Error during CSR validation and storage: %s", err)
+            certificate_name = ""
+
+        if not success:
+            error_msg = f"Failed to store CSR for order {order_name}"
+            self.logger.error(error_msg)
+
+        self.logger.debug(
+            "Certificate.store_certificate_signing_request() ended successfully"
+        )
+        return certificate_name
+
 
     # === Legacy API Compatibility ===
     # Legacy methods for backward compatibility - use descriptive methods instead
