@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Authorization class - refactored version"""
-# pylint: disable=R0913
+# pylint: disable=R0913, R1705
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict, Optional, Any
@@ -22,25 +22,25 @@ from acme_srv.nonce import Nonce
 # Custom Exceptions
 class AuthorizationError(Exception):
     """Base exception for authorization operations"""
-
+    # pylint: disable=unnecessary-pass
     pass
 
 
 class AuthorizationNotFoundError(AuthorizationError):
     """Raised when authorization is not found"""
-
+    # pylint: disable=unnecessary-pass
     pass
 
 
 class AuthorizationExpiredError(AuthorizationError):
     """Raised when authorization has expired"""
-
+    # pylint: disable=unnecessary-pass
     pass
 
 
 class ConfigurationError(AuthorizationError):
     """Raised when configuration is invalid"""
-
+    # pylint: disable=unnecessary-pass
     pass
 
 
@@ -400,6 +400,7 @@ class Authorization(object):
 
     def __exit__(self, *args):
         """Close the connection at the end of the context"""
+        # pylint: disable=unnecessary-pass
         pass
 
     def _load_configuration(self) -> AuthorizationConfig:

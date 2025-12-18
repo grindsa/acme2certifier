@@ -1,12 +1,10 @@
 # -*- coding: utf-8 -*-
 """Certificate Manager - Coordination Layer for Certificate Operations"""
-
-import json
+# pylint: disable=R0913, R1705
 from typing import Dict, List, Tuple, Union, Optional
 from acme_srv.certificate_business_logic import CertificateBusinessLogic
 from acme_srv.helper import (
     uts_now,
-    uts_to_date_utc,
     b64_url_recode,
 )
 
@@ -468,7 +466,7 @@ class CertificateManager:
 
         try:
             # Validate CSR
-            (code, error, detail) = self.business_logic.validate_csr(csr)
+            (code, error, _detail) = self.business_logic.validate_csr(csr)
             if code != 200:
                 self.logger.error(f"CSR validation failed: {error}")
                 return (False, "")
