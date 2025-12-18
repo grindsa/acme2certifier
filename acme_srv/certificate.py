@@ -204,7 +204,7 @@ class CertificateLogger:
 
     def _log_revocation_as_text(self, data_dic: Dict):
         """Log certificate revocation as text string"""
-        log_string = f'Certificate {data_dic["certificate_name"]} revocation {data_dic["status"]} for account {data_dic["account_name"]} {data_dic["account_contact"]}'
+        log_string = f'Certificate {data_dic["certificate_name"]} revocation {data_dic["status"]} for account {data_dic["account_name"]} {data_dic["account_contact"]}'  # noqa: E501
 
         if data_dic.get("eab_kid", ""):
             log_string = log_string + f' with EAB KID {data_dic["eab_kid"]}'
@@ -681,6 +681,10 @@ class Certificate(object):
                 for k, v in self.path_dic.items()
             }
 
+        self.config.async_mode = config_async_mode_load(
+            self.logger, config_dic, self.dbstore.type
+        )
+
         self.logger.debug("Certificate._load_certificate_parameters() ended")
 
     def _load_configuration(self):
@@ -700,7 +704,7 @@ class Certificate(object):
         # load hooks
         self._config_hooks_load(config_dic)
 
-        # parameters are now loaded via CertificateConfig
+        # load certificate parameters
         self._load_certificate_parameters(config_dic)
 
         self.logger.debug("ca_handler: %s", ca_handler_module)
@@ -1388,8 +1392,11 @@ class Certificate(object):
             )
             twrv.daemon = True
             twrv.start()
+            if self.config.async_mode:
+                enroll_result = (None, None, "asynchronous enrollment started")
+            else:
+                enroll_result = twrv.join(timeout=self.config.enrollment_timeout)
 
-            enroll_result = twrv.join(timeout=self.config.enrollment_timeout)
             self.logger.debug("Certificate enrollment thread completed")
 
             if enroll_result is None:
