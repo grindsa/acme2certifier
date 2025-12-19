@@ -13,7 +13,7 @@ Although connecting to OpenXPKI was previously possible via the [generic EST CA 
 To use this handler, ensure you have:
 
 - A running [OpenXPKI](https://www.openxpki.org/) instance with an **activated [RPC server](https://openxpki.readthedocs.io/en/master/subsystems/rpc.html)**.
-- An RPC endpoint that supports `RequestCertificate`, `RevokeCertificate`, and `SearchCertificate`, as described in the [example configuration](https://github.com/openxpki/openxpki-config/blob/community/config.d/realm.tpl/rpc/enroll.yaml).
+- An RPC endpoint that supports `RequestCertificate`, `RevokeCertificate`, and `SearchCertificate`, as described in the [example configuration](https://github.com/openxpki/openxpki-config/blob/community/config.d/realm.tpl/rpc/generic.yaml).
 - A **client certificate and key** in PEM format for authentication with OpenXPKI.
 - A [certificate profile](https://openxpki.readthedocs.io/en/master/configuration/profile.html).
 
