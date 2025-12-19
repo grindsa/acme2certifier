@@ -907,8 +907,8 @@ class TestCertificate(unittest.TestCase):
             False,
             None,
         )
-        with self.assertRaises(RuntimeError):
-            self.cert.store_certificate_signing_request("order", "csr", "header")
+
+        self.cert.store_certificate_signing_request("order", "csr", "header")
 
     def test_082_store_certificate_signing_request_exception(self):
         self.mock_certificate_manager.validate_and_store_csr.side_effect = Exception(

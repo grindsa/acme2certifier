@@ -177,7 +177,6 @@ class CertificateBusinessLogic:
         self.logger.debug("CertificateBusinessLogic.extract_certificate_info() ended")
         return cert_info
 
-
     def sanitize_certificate_name(self, certificate_name: str) -> str:
         """
         Sanitize certificate name for safe database storage.
@@ -193,7 +192,6 @@ class CertificateBusinessLogic:
         except Exception as err:
             self.logger.error(f"Certificate name sanitization error: {err}")
             return certificate_name
-
 
     def format_certificate_response(
         self, certificate: str, status_code: int = 200

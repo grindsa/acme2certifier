@@ -51,6 +51,7 @@ class ChallengeUpdateRequest:
 
 class ChallengeRepository(ABC):
     """Abstract repository for challenge data operations."""
+
     # pylint: disable=unnecessary-pass
     @abstractmethod
     def find_challenges_by_authorization(
@@ -229,7 +230,7 @@ class ChallengeFactory:
 
         challenges = []
         for challenge_type in challenge_types:
-            challenge_dict = self._create_single_challenge(
+            challenge_dict = self.create_single_challenge(
                 authorization_name, challenge_type, token, value
             )
             if challenge_dict:
@@ -254,7 +255,7 @@ class ChallengeFactory:
         if sender_address:
             self.email_address = sender_address
 
-        result = self._create_single_challenge(
+        result = self.create_single_challenge(
             authorization_name, "email-reply-00", token, email_address
         )
         self.logger.debug(
@@ -270,13 +271,13 @@ class ChallengeFactory:
             "ChallengeFactory.create_tkauth_challenge(%s)", authorization_name
         )
 
-        result = self._create_single_challenge(authorization_name, "tkauth-01", token)
+        result = self.create_single_challenge(authorization_name, "tkauth-01", token)
         self.logger.debug(
             "ChallengeFactory.create_tkauth_challenge() ended: %s", result
         )
         return result
 
-    def _create_single_challenge(
+    def create_single_challenge(
         self,
         authorization_name: str,
         challenge_type: str,
@@ -285,7 +286,7 @@ class ChallengeFactory:
     ) -> Optional[Dict[str, Any]]:
         """Create a single challenge of the specified type."""
         self.logger.debug(
-            "ChallengeFactory._create_single_challenge(): Creating %s challenge for authorization: %s",
+            "ChallengeFactory.create_single_challenge(): Creating %s challenge for authorization: %s",
             challenge_type,
             authorization_name,
         )
@@ -320,6 +321,7 @@ class ChallengeFactory:
                 and "authorization__value" in result
             ):
                 # send challange email
+                # pylint: disable=import-outside-toplevel
                 from acme_srv.email_handler import EmailHandler
 
                 with EmailHandler(logger=self.logger) as email_handler:
@@ -335,7 +337,7 @@ class ChallengeFactory:
             challenge_dict.pop("token", None)
 
         self.logger.debug(
-            "ChallengeFactory._create_single_challenge() ended: created challenge %s/%s",
+            "ChallengeFactory.create_single_challenge() ended: created challenge %s/%s",
             challenge_type,
             challenge_name,
         )
@@ -403,7 +405,7 @@ class ChallengeService:
         self,
         challenges: List[ChallengeInfo],
         url: str = "",
-        config: Dict[str, Any] = {},
+        config: Dict[str, Any] = None,
     ) -> List[Dict[str, Any]]:
         """Format existing challenges for response."""
         self.logger.debug(
@@ -474,7 +476,8 @@ class ChallengeService:
             return [challenge] if challenge else []
 
         if config.sectigo_sim:
-            challenge = self.factory._create_single_challenge(
+
+            challenge = self.factory.create_single_challenge(
                 authorization_name, "sectigo-email-01", token
             )
             challenge_list.append(challenge) if challenge else None

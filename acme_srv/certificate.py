@@ -1812,6 +1812,7 @@ class Certificate(object):
         except Exception as err:
             self.logger.error("Error during CSR validation and storage: %s", err)
             certificate_name = ""
+            success = False
 
         if not success:
             error_msg = f"Failed to store CSR for order {order_name}"
@@ -1821,7 +1822,6 @@ class Certificate(object):
             "Certificate.store_certificate_signing_request() ended successfully"
         )
         return certificate_name
-
 
     # === Legacy API Compatibility ===
     # Legacy methods for backward compatibility - use descriptive methods instead
