@@ -23,24 +23,28 @@ from acme_srv.nonce import Nonce
 class AuthorizationError(Exception):
     """Base exception for authorization operations"""
 
+    # pylint: disable=unnecessary-pass
     pass
 
 
 class AuthorizationNotFoundError(AuthorizationError):
     """Raised when authorization is not found"""
 
+    # pylint: disable=unnecessary-pass
     pass
 
 
 class AuthorizationExpiredError(AuthorizationError):
     """Raised when authorization has expired"""
 
+    # pylint: disable=unnecessary-pass
     pass
 
 
 class ConfigurationError(AuthorizationError):
     """Raised when configuration is invalid"""
 
+    # pylint: disable=unnecessary-pass
     pass
 
 

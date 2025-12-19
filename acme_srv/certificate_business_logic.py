@@ -188,58 +188,6 @@ class CertificateBusinessLogic:
         self.logger.debug("CertificateBusinessLogic.extract_certificate_info() ended")
         return cert_info
 
-    def check_certificate_reusage(self, csr: str) -> Tuple[str, str, str, str]:
-        """
-        Check if certificate can be reused based on reusage timeframe.
-
-        Args:
-            csr: Certificate Signing Request
-
-        Returns:
-            Tuple of (error, certificate, certificate_raw, poll_identifier)
-        """
-        self.logger.debug("CertificateBusinessLogic.check_certificate_reusage()")
-
-        error = None
-        certificate = None
-        certificate_raw = None
-        poll_identifier = None
-
-        if self.cert_reusage_timeframe > 0:
-            try:
-                # Extract CSR information for matching
-                csr_san_list = csr_san_get(self.logger, csr)
-                csr_extensions = csr_extensions_get(self.logger, csr)
-
-                # Search for matching certificate within reusage timeframe
-                # This would need repository access to search for matching certificates
-                # For now, return None values indicating no reusage
-
-            except Exception as err:
-                self.logger.error(f"Certificate reusage check error: {err}")
-
-        return (error, certificate, certificate_raw, poll_identifier)
-
-    def process_certificate_chain(self, certificate_bundle: str) -> List[str]:
-        """
-        Process certificate bundle and extract individual certificates.
-
-        Args:
-            certificate_bundle: PEM certificate bundle
-
-        Returns:
-            List of individual certificates
-        """
-        self.logger.debug("CertificateBusinessLogic.process_certificate_chain()")
-
-        try:
-            cert_list = pembundle_to_list(certificate_bundle)
-        except Exception as err:
-            self.logger.error(f"Certificate chain processing error: {err}")
-            cert_list = []
-
-        return cert_list
-
     def sanitize_certificate_name(self, certificate_name: str) -> str:
         """
         Sanitize certificate name for safe database storage.
@@ -255,22 +203,6 @@ class CertificateBusinessLogic:
         except Exception as err:
             self.logger.error(f"Certificate name sanitization error: {err}")
             return certificate_name
-
-    def create_certificate_identifier(self, certificate: str) -> str:
-        """
-        Create ASN.1 identifier for certificate.
-
-        Args:
-            certificate: Certificate data
-
-        Returns:
-            ASN.1 identifier string
-        """
-        try:
-            return certid_asn1_get(self.logger, certificate)
-        except Exception as err:
-            self.logger.error(f"Certificate identifier creation error: {err}")
-            return ""
 
     def format_certificate_response(
         self, certificate: str, status_code: int = 200
