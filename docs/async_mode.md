@@ -21,8 +21,8 @@ async_mode = True
 
 ### Requirements for Enabling
 
-- **Database Handler:** You must use the Django database handler (`db_handler.py`) for asynchronous mode to work.
-- **Database Backend:** The Django handler must be configured to use either a MariaDB or PostgreSQL backend.
+- **Database Handler:** You must use the [Django database handler](../examples/db_handler/django_handler.py) for asynchronous mode to work.
+- **Database Backend:** The Django handler must be configured to use either a [MariaDB or PostgreSQL backend](external_database_support.md).
 
 **Why Django Backend is Required:**
 
