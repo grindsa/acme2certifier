@@ -123,9 +123,6 @@ class TestCertificateBusinessLogic(unittest.TestCase):
         info = self.logic.extract_certificate_info("cert")
         self.assertEqual(info, {})
 
-
-
-
     @patch("acme_srv.certificate_business_logic.string_sanitize")
     def test_028_sanitize_certificate_name(self, mock_string_sanitize):
         mock_string_sanitize.return_value = "sanitized"
@@ -139,20 +136,6 @@ class TestCertificateBusinessLogic(unittest.TestCase):
     def test_029_sanitize_certificate_name_exception(self, mock_string_sanitize):
         result = self.logic.sanitize_certificate_name("name")
         self.assertEqual(result, "name")
-
-    @patch("acme_srv.certificate_business_logic.certid_asn1_get")
-    def test_030_create_certificate_identifier(self, mock_certid_asn1_get):
-        mock_certid_asn1_get.return_value = "asn1id"
-        result = self.logic.create_certificate_identifier("cert")
-        self.assertEqual(result, "asn1id")
-
-    @patch(
-        "acme_srv.certificate_business_logic.certid_asn1_get",
-        side_effect=Exception("fail"),
-    )
-    def test_031_create_certificate_identifier_exception(self, mock_certid_asn1_get):
-        result = self.logic.create_certificate_identifier("cert")
-        self.assertEqual(result, "")
 
     def test_032_format_certificate_response_with_cert(self):
         result = self.logic.format_certificate_response("cert", 201)

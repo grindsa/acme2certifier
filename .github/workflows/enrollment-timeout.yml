@@ -356,4 +356,3 @@ jobs:
       with:
         name: rpm_async_mode_django_enrollment-rh${{ matrix.rhversion }}-${{ matrix.django_db }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-

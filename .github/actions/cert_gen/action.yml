@@ -119,8 +119,4 @@ runs:
         echo "SECRET_KEY = \"$DJANGO_SECRET\"" >> .github/django_settings_psql.py
 
         echo "Django secret key added to all settings files"
-
-        cat .github/django_settings.py
-        cat .github/django_settings_mariadb.py
-        cat .github/django_settings_psql.py
       shell: bash
