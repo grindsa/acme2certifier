@@ -9,6 +9,7 @@ on:
     - cron:  '0 2 * * 6'
 
 jobs:
+
   async_enrollment_cert_reusage:
     name: async_enrollment_cert_reusage
     runs-on: ubuntu-latest
@@ -67,6 +68,76 @@ jobs:
       if: ${{ failure() }}
       with:
         name: async_enrollment_cert_reusage-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
+  async_mode_django_enrollment:
+    name: async_mode_django_enrollment
+    runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      # max-parallel: 1
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        django_db: ['psql', 'mariadb']
+
+    steps:
+
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: "create folders"
+      run: |
+        mkdir lego
+        mkdir acme-sh
+        mkdir certbot
+
+    - name: "Build container"
+      uses: ./.github/actions/container_prep
+      with:
+        DB_HANDLER: django
+        WEB_SRV: ${{ matrix.websrv }}
+        DJANGO_DB: ${{ matrix.django_db }}
+
+    - name: "Setup openssl ca_handler"
+      run: |
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+        sudo chmod 777 examples/Docker/data/ca_handler.py
+        sudo sed -i "s/import uuid/import uuid\\nimport time/g" examples/Docker/data/ca_handler.py
+        sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        time.sleep(20)/g" examples/Docker/data/ca_handler.py
+        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo chmod 777 examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 300\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
+        sudo sed -i "s/debug: True/debug: True\nasync_mode: True/g" examples/Docker/data/acme_srv.cfg
+        cd examples/Docker/
+        docker compose restart
+
+    - name: "Test enrollment"
+      uses: ./.github/actions/acme_clients
+
+    - name: "Check logs for async enrollment messages"
+      working-directory: examples/Docker/
+      run: |
+          docker compose logs | grep "asynchronous Challenge validation enabled, not waiting for result"
+          docker compose logs | grep "asynchronous enrollment started"
+
+    - name: "[ * ] collecting test data"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+        cd examples/Docker
+        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+
+    - name: "[ * ] uploading artifacts"
+      uses: actions/upload-artifact@v4
+      if: ${{ failure() }}
+      with:
+        name: async_mode_django_enrollment-${{ matrix.websrv }}-${{ matrix.django_db }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   rpm_wsgi_async_enrollment_cert_reusage:
@@ -203,3 +274,86 @@ jobs:
       with:
         name: rpm_django_async_enrollment_cert_reusage-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
+
+  rpm_async_mode_django_enrollment:
+    name: "rpm_async_mode_django_enrollment"
+    runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      # max-parallel: 1
+      fail-fast: false
+      matrix:
+        rhversion: [8, 9]
+        django_db: ['psql', 'mariadb']
+        exclude:
+          - rhversion: 8
+            django_db: 'mariadb'  # Exclude combination if not supported
+
+    steps:
+    - name: "checkout GIT"
+      uses: actions/checkout@v4
+
+    - name: "Parse JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Prepare Alma environment"
+      uses: ./.github/actions/rpm_prep
+      with:
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+        RH_VERSION: ${{ matrix.rhversion }}
+        DJANGO_DB: ${{ matrix.django_db }}
+
+    - name: "Setup openssl ca_handler"
+      run: |
+        mkdir -p data/volume/acme_ca/certs
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+        sudo cp examples/ca_handler/openssl_ca_handler.py data/volume/acme_ca/ca_handler.py
+        sudo chmod 777 data/volume/acme_ca/ca_handler.py
+        sudo sed -i "s/import uuid/import uuid\\nimport time/g" data/volume/acme_ca/ca_handler.py
+        # sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        time.sleep(15)/g" data/volume/acme_ca/ca_handler.py
+        sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        self.logger.debug('CAhandler.enroll(): timeout start')\\n        time.sleep(20)\\n        self.logger.debug('CAhandler.enroll(): timeout done')/g" data/volume/acme_ca/ca_handler.py
+        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+        sudo chmod 777 data/volume/acme_srv.cfg
+        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
+        # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg
+        sudo sed -i "s/handler_file: examples\/ca_handler\/openssl_ca_handler.py/handler_file: \/opt\/acme2certifier\/volume\/acme_ca\/ca_handler.py/g" data/volume/acme_srv.cfg
+        sudo sed -i "s/debug: True/debug: True\nasync_mode: True/g" data/volume/acme_srv.cfg
+
+    - name: "Execute install scipt"
+      run: |
+        docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
+
+    - name: "Test enrollment"
+      uses: ./.github/actions/acme_clients
+
+    - name: "Check logs for async enrollment messages"
+      working-directory: examples/Docker/
+      run: |
+          docker exec -i acme-srv cat /var/log/messages | grep "asynchronous Challenge validation enabled, not waiting for result"
+          docker exec -i acme-srv cat /var/log/messages | grep "asynchronous enrollment started"
+
+    - name: "[ * ] collecting test logs"
+      if: ${{ failure() }}
+      run: |
+        mkdir -p ${{ github.workspace }}/artifact/upload
+        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+        docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
+        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+        docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+        docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
+        docker exec acme-srv rpm -qa > ${{ github.workspace }}/artifact/data/packages.txt
+        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
+
+    - name: "[ * ] uploading artificates"
+      uses: actions/upload-artifact@v4
+      if: ${{ failure() }}
+      with:
+        name: rpm_async_mode_django_enrollment-rh${{ matrix.rhversion }}-${{ matrix.django_db }}.tar.gz
+        path: ${{ github.workspace }}/artifact/upload/
+
