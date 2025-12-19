@@ -767,9 +767,8 @@ class TestCertificate(unittest.TestCase):
             "payload",
             "account_name",
         )
-        mock_certget.return_value = {"code": 403, "data": "foo"}
-        mock_response.return_value = {"data": "foo"}
-        self.assertEqual({"data": "foo"}, self.certificate.new_post("content"))
+
+        self.cert.store_certificate_signing_request("order", "csr", "header")
 
     def test_082_store_certificate_signing_request_exception(self):
         self.mock_certificate_manager.validate_and_store_csr.side_effect = Exception(

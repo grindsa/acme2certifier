@@ -1,8 +1,11 @@
+# -*- coding: utf-8 -*-
+# pylint: disable=r0902, r0912, r0913, r0915, r1705
+"""Challenge class - refactored version"""
 import json
 import time
 from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
-
+from threading import Thread
 from acme_srv.helper import (
     generate_random_string,
     jwk_thumbprint_get,
@@ -15,9 +18,7 @@ from acme_srv.helper import (
     config_async_mode_load,
 )
 from acme_srv.db_handler import DBstore
-from acme_srv.email_handler import EmailHandler
 from acme_srv.message import Message
-from threading import Thread
 
 # Import our modules
 from acme_srv.challenge_validators import (
@@ -351,6 +352,8 @@ class Challenge:
         # Initialize validation components
         self.validator_registry = None
 
+        self.proxy_server_list = None
+
     def __enter__(self):
         """Context manager entry."""
         self._load_configuration()
@@ -358,6 +361,7 @@ class Challenge:
 
     def __exit__(self, *args):
         """Context manager exit."""
+        # pylint: disable=unnecessary-pass
         pass
 
     def _create_error_response(
@@ -468,7 +472,7 @@ class Challenge:
 
     def _handle_challenge_validation_request(
         self,
-        code: int,
+        _code: int,
         payload: Dict[str, str],
         protected: Dict[str, str],
         challenge_name: str,
@@ -554,6 +558,7 @@ class Challenge:
             )
             challenge_check = True
             invalid = False
+            error_message = None
 
         if invalid:
             self.state_manager.transition_to_invalid(
@@ -863,7 +868,7 @@ class Challenge:
             )
 
     def _perform_challenge_validation(
-        self, challenge_name: str, payload: Dict[str, str]
+        self, challenge_name: str, _payload: Dict[str, str]
     ) -> bool:
         """Perform complete challenge validation process."""
         self.logger.debug("Challenge._perform_challenge_validation(%s)", challenge_name)
@@ -930,8 +935,6 @@ class Challenge:
 
         # Create challenge context for source address validation
         try:
-            from .challenge_validators import ChallengeContext
-
             context = ChallengeContext(
                 challenge_name=challenge_name,
                 token=challenge_info.token,
@@ -952,7 +955,6 @@ class Challenge:
                 result = self.validator_registry.validate_challenge(
                     "source-address", context
                 )
-
                 if result.success:
                     self.logger.debug(
                         "Source address validation passed for %s", challenge_name

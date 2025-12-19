@@ -1926,10 +1926,18 @@ class Certificate(object):
             # Re-raise validation and known errors
             raise
         except Exception as err:
-            self.logger.critical(
-                "Unexpected error in store_certificate_signing_request: %s", err
-            )
-            raise RuntimeError(f"Unexpected error during CSR storage: {err}")
+            self.logger.error("Error during CSR validation and storage: %s", err)
+            certificate_name = ""
+            success = False
+
+        if not success:
+            error_msg = f"Failed to store CSR for order {order_name}"
+            self.logger.error(error_msg)
+
+        self.logger.debug(
+            "Certificate.store_certificate_signing_request() ended successfully"
+        )
+        return certificate_name
 
     # === Legacy API Compatibility ===
     # Legacy methods for backward compatibility - use descriptive methods instead

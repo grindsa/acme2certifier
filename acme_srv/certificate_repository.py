@@ -9,6 +9,7 @@ from acme_srv.db_handler import DBstore
 class CertificateRepository(ABC):
     """Abstract base class for certificate repository operations."""
 
+    # pylint: disable=unnecessary-pass
     @abstractmethod
     def search_certificates(
         self, key: str, value: Union[str, int], vlist: List[str] = None
