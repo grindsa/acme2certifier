@@ -23,8 +23,8 @@ class CertificateRepository(ABC):
         pass  # pragma: no cover
 
     @abstractmethod
-    def cleanup_certificates(
-        self, timestamp: int, purge: bool = False
+    def search_expired_certificates(
+        self, timestamp: int, field_list: List[str] = None
     ) -> List[Dict[str, Any]]:
         """Cleanup old certificates."""
         pass  # pragma: no cover
@@ -168,29 +168,6 @@ class DatabaseCertificateRepository(CertificateRepository):
         self.logger.debug(f"CertificateRepository.add_certificate() result: {result}")
         return result
 
-    def update_certificate(self, data_dic: Dict[str, str]) -> bool:
-        """
-        Update an existing certificate in the database.
-
-        Args:
-            data_dic: Dictionary containing certificate data to update
-
-        Returns:
-            True if successful, False otherwise
-        """
-        self.logger.debug("CertificateRepository.update_certificate()")
-
-        try:
-            result = self.dbstore.certificate_update(data_dic)
-        except Exception as err:
-            self.logger.critical(f"Database error during certificate update: {err}")
-            result = False
-
-        self.logger.debug(
-            f"CertificateRepository.update_certificate() result: {result}"
-        )
-        return result
-
     def delete_certificate(self, certificate_name: str) -> bool:
         """
         Delete a certificate from the database.
@@ -206,7 +183,7 @@ class DatabaseCertificateRepository(CertificateRepository):
         )
 
         try:
-            result = self.dbstore.certificate_delete(certificate_name)
+            result = self.dbstore.certificate_delete("name", certificate_name)
         except Exception as err:
             self.logger.critical(f"Database error during certificate delete: {err}")
             result = False
@@ -286,8 +263,8 @@ class DatabaseCertificateRepository(CertificateRepository):
 
         return orders
 
-    def cleanup_certificates(
-        self, timestamp: int, purge: bool = False
+    def search_expired_certificates(
+        self, timestamp: int, field_list: List[str] = None
     ) -> Tuple[List[str], List[str]]:
         """
         Cleanup certificates based on timestamp and purge flag.
@@ -300,27 +277,25 @@ class DatabaseCertificateRepository(CertificateRepository):
             Tuple of (field_list, report_list) indicating cleanup results
         """
         self.logger.debug(
-            f"CertificateRepository.cleanup_certificates(timestamp={timestamp}, purge={purge})"
+            f"CertificateRepository.search_expired_certificates(timestamp={timestamp}"
         )
 
+        # get expired certificates
         try:
-            if purge:
-                (field_list, report_list) = self.dbstore.certificates_expired_search(
-                    timestamp, purge=True, report_format="csv"
-                )
-            else:
-                (field_list, report_list) = self.dbstore.certificates_expired_search(
-                    timestamp, report_format="csv"
-                )
-        except Exception as err:
-            self.logger.critical(f"Database error during certificate cleanup: {err}")
-            field_list = []
-            report_list = []
+            certificate_list = self.dbstore.certificates_search(
+                "expire_uts", timestamp, field_list, "<="
+            )
+        except Exception as err_:
+            self.logger.critical(
+                "Database error: failed to search for certificates to clean up: %s",
+                err_,
+            )
+            certificate_list = []
 
         self.logger.debug(
-            f"CertificateRepository.cleanup_certificates() processed {len(report_list)} certificates"
+            f"CertificateRepository.search_expired_certificates() processed {len(certificate_list)} certificates"
         )
-        return (field_list, report_list)
+        return certificate_list
 
     def get_certificate_by_order(self, order_name: str) -> Dict[str, str]:
         """

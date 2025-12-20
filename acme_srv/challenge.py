@@ -112,7 +112,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             self.logger.critical(
                 "Database error: failed to search for challenges: %s", err
             )
-            raise DatabaseError(f"Failed to search challenges: {err}")
+            raise DatabaseError(f"Failed to search challenges: {err}") from err
 
     def get_challengeinfo_by_challengename(
         self, name: str, vlist: Optional[List[str]] = ("name", "type", "status__name")
@@ -140,7 +140,9 @@ class DatabaseChallengeRepository(ChallengeRepository):
             self.logger.critical(
                 "Database error: failed to lookup challenge keyauthorization: %s", err
             )
-            raise DatabaseError(f"Failed to lookup challenge keyauthorization: {err}")
+            raise DatabaseError(
+                f"Failed to lookup challenge keyauthorization: {err}"
+            ) from err
 
     def get_challenge_by_name(
         self, name: str, vlist: Optional[List[str]] = None
@@ -188,7 +190,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             )
         except Exception as err:
             self.logger.critical("Database error: failed to lookup challenge: %s", err)
-            raise DatabaseError(f"Failed to lookup challenge: {err}")
+            raise DatabaseError(f"Failed to lookup challenge: {err}") from err
 
     def create_challenge(self, request: ChallengeCreationRequest) -> Optional[str]:
         """Create a new challenge and return its name."""
@@ -225,7 +227,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
 
         except Exception as err:
             self.logger.critical("Database error: failed to add new challenge: %s", err)
-            raise DatabaseError(f"Failed to create challenge: {err}")
+            raise DatabaseError(f"Failed to create challenge: {err}") from err
 
     def update_challenge(self, request: ChallengeUpdateRequest) -> bool:
         """Update an existing challenge."""
@@ -253,7 +255,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             return True
         except Exception as err:
             self.logger.critical("Database error: failed to update challenge: %s", err)
-            raise DatabaseError(f"Failed to update challenge: {err}")
+            raise DatabaseError(f"Failed to update challenge: {err}") from err
 
     def update_authorization_status(self, challenge_name: str, status: str) -> bool:
         """Update authorization status based on challenge."""
@@ -285,7 +287,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             self.logger.critical(
                 "Database error: failed to update authorization: %s", err
             )
-            raise DatabaseError(f"Failed to update authorization: {err}")
+            raise DatabaseError(f"Failed to update authorization: {err}") from err
 
     def get_account_jwk(self, challenge_name: str) -> Optional[Dict[str, Any]]:
         """Get JWK for the account associated with the challenge."""
@@ -309,7 +311,7 @@ class DatabaseChallengeRepository(ChallengeRepository):
             return result
         except Exception as err:
             self.logger.critical("Database error: failed to get account JWK: %s", err)
-            raise DatabaseError(f"Failed to get account JWK: {err}")
+            raise DatabaseError(f"Failed to get account JWK: {err}") from err
 
 
 class Challenge:

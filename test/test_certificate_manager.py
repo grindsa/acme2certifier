@@ -231,37 +231,15 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual((updated, errors), (0, 0))
 
     # --- cleanup_certificates ---
-    @patch("acme_srv.certificate_manager.uts_now", return_value=1234)
-    def test_016_cleanup_certificates_no_log(self, mock_now):
-        self.repository.cleanup_certificates.return_value = (
-            ["name", "expire_uts"],
-            ["c1"],
-        )
-        fields, report = self.mgr.cleanup_certificates(timestamp=None, purge=False)
-        self.assertEqual(fields, ["name", "expire_uts"])
-        self.assertEqual(report, ["c1"])
-        self.repository.store_certificate_operation_log.assert_not_called()
 
-    def test_017_cleanup_certificates_logs_when_enabled(self):
-        self.mgr.cert_operations_log = "text"
-        self.repository.cleanup_certificates.return_value = (
-            ["name"],
-            ["c1", "c2"],
-        )
-        fields, report = self.mgr.cleanup_certificates(timestamp=999, purge=True)
-        self.assertEqual((fields, report), (["name"], ["c1", "c2"]))
-        self.repository.store_certificate_operation_log.assert_called_once_with(
-            "batch_2", "purge", "processed_2_certificates"
-        )
-
-    def test_018_cleanup_certificates_exception_returns_empty(self):
-        self.repository.cleanup_certificates.side_effect = RuntimeError("ops")
+    def test_016_cleanup_certificates_exception_returns_empty(self):
+        self.repository.search_expired_certificates.side_effect = RuntimeError("ops")
         fields, report = self.mgr.cleanup_certificates()
         self.assertEqual((fields, report), ([], []))
 
     # --- check_account_authorization ---
     @patch("acme_srv.certificate_manager.b64_url_recode", return_value="ENC")
-    def test_019_check_account_authorization_authorized(self, mock_b64):
+    def test_017_check_account_authorization_authorized(self, mock_b64):
         self.repository.get_account_check_result.return_value = True
         res = self.mgr.check_account_authorization("acc", "cert")
         self.assertEqual(res["status"], "authorized")
@@ -269,21 +247,21 @@ class TestCertificateManager(unittest.TestCase):
         self.repository.get_account_check_result.assert_called_once_with("acc", "ENC")
 
     @patch("acme_srv.certificate_manager.b64_url_recode", return_value="ENC")
-    def test_020_check_account_authorization_unauthorized(self, mock_b64):
+    def test_018_check_account_authorization_unauthorized(self, mock_b64):
         self.repository.get_account_check_result.return_value = False
         res = self.mgr.check_account_authorization("acc", "cert")
         self.assertEqual(res["status"], "unauthorized")
         self.assertIn("error", res)
 
     @patch("acme_srv.certificate_manager.b64_url_recode", return_value="ENC")
-    def test_021_check_account_authorization_error(self, mock_b64):
+    def test_019_check_account_authorization_error(self, mock_b64):
         self.repository.get_account_check_result.side_effect = RuntimeError("db")
         res = self.mgr.check_account_authorization("acc", "cert")
         self.assertEqual(res["status"], "error")
         self.assertEqual(res["error"], "db")
 
     # --- prepare_certificate_response ---
-    def test_022_prepare_certificate_response_delegates_to_business_logic(self):
+    def test_020_prepare_certificate_response_delegates_to_business_logic(self):
         self.mgr.business_logic.format_certificate_response.return_value = {
             "code": 200,
             "data": "pem",
@@ -296,7 +274,7 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual(res["data"], "pem")
 
     # --- update_order_status ---
-    def test_023_update_order_status_success_with_certificate(self):
+    def test_021_update_order_status_success_with_certificate(self):
         self.repository.update_order.return_value = True
         ok = self.mgr.update_order_status("o1", "valid", certificate_name="c1")
         self.assertTrue(ok)
@@ -304,13 +282,13 @@ class TestCertificateManager(unittest.TestCase):
             {"name": "o1", "status": "valid", "certificate": "c1"}
         )
 
-    def test_024_update_order_status_failure_on_exception(self):
+    def test_022_update_order_status_failure_on_exception(self):
         self.repository.update_order.side_effect = RuntimeError("db")
         ok = self.mgr.update_order_status("o1", "processing")
         self.assertFalse(ok)
 
     # --- get_certificate_by_order ---
-    def test_025_get_certificate_by_order_enhances_with_info(self):
+    def test_023_get_certificate_by_order_enhances_with_info(self):
         self.repository.get_certificate_by_order.return_value = {
             "cert": "pem",
         }
@@ -319,19 +297,19 @@ class TestCertificateManager(unittest.TestCase):
         self.mgr.business_logic.extract_certificate_info.assert_called_once_with("pem")
         self.assertEqual(res["serial"], "01")
 
-    def test_026_get_certificate_by_order_exception_returns_empty(self):
+    def test_024_get_certificate_by_order_exception_returns_empty(self):
         self.repository.get_certificate_by_order.side_effect = RuntimeError("db")
         res = self.mgr.get_certificate_by_order("o1")
         self.assertEqual(res, {})
 
     # --- validate_and_store_csr ---
-    def test_027_validate_and_store_csr_validation_fails(self):
+    def test_025_validate_and_store_csr_validation_fails(self):
         self.mgr.business_logic.validate_csr.return_value = (400, "err", "detail")
         ok, cname = self.mgr.validate_and_store_csr("o1", "csr")
         self.assertFalse(ok)
         self.assertEqual(cname, "")
 
-    def test_028_validate_and_store_csr_stores_and_returns_name(self):
+    def test_026_validate_and_store_csr_stores_and_returns_name(self):
         self.mgr.business_logic.validate_csr.return_value = (200, None, None)
         self.mgr.business_logic.generate_certificate_name.return_value = "cname"
         self.mgr.store_certificate = Mock(return_value=(True, None))
@@ -343,7 +321,7 @@ class TestCertificateManager(unittest.TestCase):
             "cname", "csr", "o1", header_info=None
         )
 
-    def test_029_validate_and_store_csr_stores_with_headerinfo_and_returns_name(self):
+    def test_027_validate_and_store_csr_stores_with_headerinfo_and_returns_name(self):
         self.mgr.business_logic.validate_csr.return_value = (200, None, None)
         self.mgr.business_logic.generate_certificate_name.return_value = "cname"
         self.mgr.store_certificate = Mock(return_value=(True, None))
@@ -357,7 +335,7 @@ class TestCertificateManager(unittest.TestCase):
             "cname", "csr", "o1", header_info="headerdata"
         )
 
-    def test_030_validate_and_store_csr_store_fails_returns_name(self):
+    def test_028_validate_and_store_csr_store_fails_returns_name(self):
         self.mgr.business_logic.validate_csr.return_value = (200, None, None)
         self.mgr.business_logic.generate_certificate_name.return_value = "cname"
         self.mgr.store_certificate = Mock(return_value=(False, "dberr"))
@@ -366,7 +344,7 @@ class TestCertificateManager(unittest.TestCase):
         self.assertFalse(ok)
         self.assertEqual(cname, "cname")
 
-    def test_031_validate_and_store_csr_exception_returns_generated_name(self):
+    def test_029_validate_and_store_csr_exception_returns_generated_name(self):
         self.mgr.business_logic.validate_csr.side_effect = RuntimeError("oops")
         self.mgr.business_logic.generate_certificate_name.return_value = "cname"
 
@@ -375,7 +353,7 @@ class TestCertificateManager(unittest.TestCase):
         self.assertEqual(cname, "cname")
 
     # --- __init__ defaults coverage (no config provided) ---
-    def test_032_init_without_config_uses_defaults(self):
+    def test_030_init_without_config_uses_defaults(self):
         repo = MagicMock()
         mgr = CertificateManager(
             debug=True,
@@ -389,6 +367,155 @@ class TestCertificateManager(unittest.TestCase):
         self.assertFalse(mgr.tnauthlist_support)
         # And business_logic should still be constructed
         self.assertIsNotNone(mgr.business_logic)
+
+    # --- cleanup_certificates() ---
+    def test_031_cleanup_certificates_purge_and_mark(self):
+        from acme_srv.helper import uts_to_date_utc
+
+        # Setup expired certificates
+        certs = [
+            {
+                "name": "cert1",
+                "expire_uts": 100,
+                "issue_uts": 50,
+                "cert": "valid",
+                "cert_raw": "raw1",
+            },
+            {
+                "name": "cert2",
+                "expire_uts": 0,
+                "issue_uts": 50,
+                "cert": "valid",
+                "cert_raw": "raw2",
+                "csr": "csr",
+                "created_at": "2020-01-01T00:00:00Z",
+            },
+            {
+                "name": "cert3",
+                "expire_uts": 0,
+                "issue_uts": 50,
+                "cert": "valid",
+                "cert_raw": None,
+                "csr": None,
+            },
+            {
+                "name": "cert4",
+                "expire_uts": 0,
+                "issue_uts": 50,
+                "cert": "removed by cleanup",
+                "cert_raw": "raw4",
+            },
+        ]
+        self.repository.search_expired_certificates.return_value = certs
+        self.repository.delete_certificate = Mock()
+        self.repository.add_certificate = Mock()
+        # Purge mode
+        _, report = self.mgr.cleanup_certificates(timestamp=200, purge=True)
+        self.assertIn("cert1", report)
+        self.assertIn("cert4", report)
+        self.repository.delete_certificate.assert_any_call("cert1")
+        self.repository.delete_certificate.assert_any_call("cert4")
+        # Mark mode
+        self.repository.delete_certificate.reset_mock()
+        self.repository.add_certificate.reset_mock()
+        ts = 200
+        expected_cert = {
+            "name": "cert1",
+            "expire_uts": 100,
+            "issue_uts": 50,
+            "cert": f"removed by certificates.cleanup() on {uts_to_date_utc(ts)}",
+            "cert_raw": "raw1",
+        }
+        _, report2 = self.mgr.cleanup_certificates(timestamp=ts, purge=False)
+        self.assertIn("cert1", report2)
+        self.repository.add_certificate.assert_any_call(expected_cert)
+
+    # --- _check_invalidation() ---
+    def test_032_check_invalidation_various_cases(self):
+        # cert with 'removed by' in cert
+        cert = {"name": "c1", "cert": "removed by cleanup", "expire_uts": 0}
+        self.assertTrue(self.mgr._check_invalidation(cert, 100, purge=True))
+        # cert with expire_uts and not removed
+        cert2 = {"name": "c2", "cert": "valid", "expire_uts": 0, "cert_raw": "raw"}
+        with patch.object(self.mgr, "_get_expiredate", return_value=True) as m:
+            self.assertTrue(self.mgr._check_invalidation(cert2, 100, purge=False))
+            m.assert_called_once()
+        # cert with no expire_uts
+        cert3 = {"name": "c3", "cert": "valid"}
+        self.assertFalse(self.mgr._check_invalidation(cert3, 100, purge=False))
+        # cert with no name
+        cert4 = {"cert": "valid"}
+        self.assertTrue(self.mgr._check_invalidation(cert4, 100, purge=False))
+
+    # --- _assume_expirydate() ---
+    def test_033_assume_expirydate_various_cases(self):
+        # CSR present, created_at older than 2 weeks
+        cert = {"csr": "csr", "created_at": "1970-01-01T00:00:00Z"}
+        # timestamp = 200, so timestamp - (14*86400) = -1209600
+        # Only values between 0 and -1209600 will set to_be_cleared True, which is impossible
+        # So, test with a timestamp that makes the window positive
+        # Let's use timestamp = 1210000, so window is 1210000 - 1209600 = 400
+        # created_at_uts = 100, so 0 < 100 < 400 is True
+        with patch("acme_srv.certificate_manager.date_to_uts_utc", return_value=100):
+            self.assertTrue(self.mgr._assume_expirydate(cert, 1210000, False))
+        # created_at_uts = 500, so 0 < 500 < 400 is False
+        with patch("acme_srv.certificate_manager.date_to_uts_utc", return_value=500):
+            self.assertFalse(self.mgr._assume_expirydate(cert, 1210000, False))
+        # No CSR, no cert
+        cert2 = {"csr": None}
+        self.assertTrue(self.mgr._assume_expirydate(cert2, 200, False))
+
+    # --- _get_expiredate() ---
+    def test_034_get_expiredate_various_cases(self):
+        # expire_uts == 0, cert_raw present, expire_uts < timestamp
+        cert = {"expire_uts": 0, "cert_raw": "raw"}
+        with patch(
+            "acme_srv.certificate_manager.cert_dates_get", return_value=(10, 50)
+        ):
+            self.assertTrue(self.mgr._get_expiredate(cert, 100, False))
+            self.assertEqual(cert["issue_uts"], 10)
+            self.assertEqual(cert["expire_uts"], 50)
+        # expire_uts == 0, cert_raw missing, fallback to _assume_expirydate
+        cert2 = {"expire_uts": 0}
+        with patch.object(self.mgr, "_assume_expirydate", return_value=True) as m:
+            self.assertTrue(self.mgr._get_expiredate(cert2, 100, False))
+            m.assert_called_once()
+        # expire_uts != 0
+        cert3 = {"expire_uts": 10}
+        self.assertTrue(self.mgr._get_expiredate(cert3, 100, False))
+
+    def test_035_assume_expirydate_csr_present_but_no_created_at(self):
+        # Covers the branch where 'csr' is present but 'created_at' is missing
+        cert = {"csr": "csr"}
+        # to_be_cleared should remain False
+        self.assertFalse(self.mgr._assume_expirydate(cert, 200, False))
+
+    def test_036_cleanup_certificates_repository_exception(self):
+        # Covers the exception branch when repository.search_expired_certificates raises
+        self.repository.search_expired_certificates.side_effect = RuntimeError("fail")
+        fields, report = self.mgr.cleanup_certificates(timestamp=123, purge=False)
+        self.assertEqual(fields, [])
+        self.assertEqual(report, [])
+
+    def test_037_cleanup_certificates_loop_body_exception(self):
+        # Covers the exception branch inside the for-loop
+        # The first cert will cause an exception in _check_invalidation
+        class DummyRepo:
+            def search_expired_certificates(self, timestamp, field_list):
+                return [{"name": "badcert"}]
+
+        mgr = CertificateManager(
+            debug=True,
+            logger=self.logger,
+            err_msg_dic=self.err_msg_dic,
+            repository=DummyRepo(),
+            config=self.config,
+        )
+        # Patch _check_invalidation to raise
+        mgr._check_invalidation = Mock(side_effect=RuntimeError("badcert"))
+        fields, report = mgr.cleanup_certificates(timestamp=123, purge=False)
+        self.assertIn("name", fields)
+        self.assertEqual(report, [])
 
 
 if __name__ == "__main__":
