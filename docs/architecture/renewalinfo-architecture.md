@@ -28,7 +28,7 @@ The Renewalinfo subsystem implements a modular, maintainable architecture using 
     │                  │                  │
     ▼                  ▼                  ▼
 ┌──────────────┐ ┌──────────────┐ ┌────────────────────┐
-│ Config (dataclass) │ │ Repository     │ │   Message/Logger    │
+│ RenewalinfoConfig │ │ Repository     │ │   Message/Logger    │
 │                    │ │ (DB access)    │ │ (Error, Logging)    │
 └──────────────┘ └──────────────┘ └────────────────────┘
                        │
