@@ -648,7 +648,7 @@ class TestChallengeFactory(unittest.TestCase):
 
         self.assertIsNone(challenge)
 
-    def test_042create_single_challenge_http(self):
+    def test_042_create_single_challenge_http(self):
         """Test creating single HTTP challenge"""
         challenge = self.factory.create_single_challenge(
             authorization_name="test-auth",
@@ -662,7 +662,7 @@ class TestChallengeFactory(unittest.TestCase):
         self.assertEqual(challenge["token"], "test-token")
         self.assertEqual(challenge["status"], "pending")
 
-    def test_043create_single_challenge_sectigo_email(self):
+    def test_043_create_single_challenge_sectigo_email(self):
         """Test creating sectigo-email challenge"""
         challenge = self.factory.create_single_challenge(
             authorization_name="test-auth",
@@ -678,7 +678,7 @@ class TestChallengeFactory(unittest.TestCase):
         self.assertNotIn("token", challenge)  # Token is removed for sectigo
 
     @patch.dict("sys.modules", {"acme_srv.email_handler": Mock()})
-    def test_044create_single_challenge_email(self):
+    def test_044_create_single_challenge_email(self):
         """Test creating email-reply challenge"""
         # Set up the factory with an email address
         self.factory.email_address = "foo@example.com"
@@ -730,7 +730,7 @@ class TestChallengeFactory(unittest.TestCase):
             to_address="user@example.com", token1="keyauthorization-value"
         )
 
-    def test_045create_single_challenge_repository_failure(self):
+    def test_045_create_single_challenge_repository_failure(self):
         """Test single challenge creation when repository fails"""
         self.repository.create_challenge = Mock(return_value=None)
 
@@ -776,7 +776,7 @@ class TestChallengeFactory(unittest.TestCase):
         self.assertEqual(challenge["token"], "test-token")
         self.assertEqual(challenge["status"], "pending")
 
-    def test_049create_single_challenge_invalid_type(self):
+    def test_049_create_single_challenge_invalid_type(self):
         """Test creating challenge with unknown type"""
         challenge = self.factory.create_single_challenge(
             authorization_name="test-auth",

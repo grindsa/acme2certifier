@@ -3,6 +3,7 @@
 """unittests for account.py"""
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
+from unittest.mock import MagicMock, patch
 import sys
 import json
 import datetime
@@ -22,6 +23,87 @@ class FakeDBStore(object):
 
 
 class TestCertificate(unittest.TestCase):
+    def test_XXX_load_certificate_parameters_cert_reusage_timeframe_logs_error(self):
+        import logging
+
+        class DummyConfig(dict):
+            def get(self, section, option, fallback=None):
+                if option == "cert_reusage_timeframe":
+                    raise ValueError("fail cert_reusage_timeframe")
+                if option == "cert_operations_log":
+                    return None
+                return str(fallback) if fallback is not None else None
+
+            def __contains__(self, key):
+                return False
+
+            def getboolean(self, section, option, fallback=None):
+                return False
+
+        config_dic = DummyConfig()
+        real_logger = logging.getLogger("test_cert")
+        self.cert.logger = real_logger
+        with self.assertLogs("test_cert", level="ERROR") as log_context:
+            self.cert._load_certificate_parameters(config_dic)
+        self.assertTrue(
+            any(
+                "Invalid cert_reusage_timeframe value" in msg
+                for msg in log_context.output
+            )
+        )
+
+    def test_XXX_load_certificate_parameters_enrollment_timeout_logs_error(self):
+        import logging
+
+        class DummyConfig(dict):
+            def get(self, section, option, fallback=None):
+                if option == "enrollment_timeout":
+                    raise ValueError("fail enrollment_timeout")
+                if option == "cert_operations_log":
+                    return None
+                return str(fallback) if fallback is not None else None
+
+            def __contains__(self, key):
+                return False
+
+            def getboolean(self, section, option, fallback=None):
+                return False
+
+        config_dic = DummyConfig()
+        real_logger = logging.getLogger("test_cert")
+        self.cert.logger = real_logger
+        with self.assertLogs("test_cert", level="ERROR") as log_context:
+            self.cert._load_certificate_parameters(config_dic)
+        self.assertTrue(
+            any("Invalid enrollment_timeout value" in msg for msg in log_context.output)
+        )
+
+    def test_XXX_load_certificate_parameters_retry_after_logs_error(self):
+        import logging
+
+        class DummyConfig(dict):
+            def get(self, section, option, fallback=None):
+                if option == "retry_after":
+                    raise ValueError("fail retry_after")
+                if option == "cert_operations_log":
+                    return None
+                return str(fallback) if fallback is not None else None
+
+            def __contains__(self, key):
+                return False
+
+            def getboolean(self, section, option, fallback=None):
+                return False
+
+        config_dic = DummyConfig()
+        real_logger = logging.getLogger("test_cert")
+        self.cert.logger = real_logger
+        with self.assertLogs("test_cert", level="ERROR") as log_context:
+            self.cert._load_certificate_parameters(config_dic)
+        self.assertTrue(
+            any("Invalid retry_after value" in msg for msg in log_context.output)
+        )
+
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
@@ -4103,6 +4185,7 @@ class TestCertificate(unittest.TestCase):
         result = cert._process_enrollment_and_store_certificate(
             "cert_name", "csr", "order_name"
         )
+        self.assertFalse(result[1])  # No error
         self.mock_logger.error.assert_any_call(
             "Exception during log_certificate_issuance: %s", unittest.mock.ANY
         )

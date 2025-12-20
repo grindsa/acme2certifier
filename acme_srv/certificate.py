@@ -638,21 +638,27 @@ class Certificate(object):
                 )
             )
         except Exception:
-            pass
+            self.logger.error(
+                "Invalid cert_reusage_timeframe value in configuration, using default of 0 seconds"
+            )
 
         try:
             self.config.enrollment_timeout = int(
                 config_dic.get("Certificate", "enrollment_timeout", fallback=5)
             )
         except Exception:
-            pass
+            self.logger.error(
+                "Invalid enrollment_timeout value in configuration, using default of 5 seconds"
+            )
 
         try:
             self.config.retry_after = int(
                 config_dic.get("Certificate", "retry_after", fallback=600)
             )
         except Exception:
-            pass
+            self.logger.error(
+                "Invalid retry_after value in configuration, using default of 600 seconds"
+            )
 
         self.config.cert_operations_log = config_dic.get(
             "Certificate", "cert_operations_log", fallback=None
