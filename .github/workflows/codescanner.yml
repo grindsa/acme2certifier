@@ -22,7 +22,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Bandit Scan
-        uses: shundor/python-bandit-scan@9cc5aa4a006482b8a7f91134412df6772dbda22c
+        uses: shundor/python-bandit-scan
         with: # optional arguments
           # exit with 0, even with results found
           exit_zero: true # optional, default is DEFAULT
@@ -141,14 +141,14 @@ jobs:
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@v2
+      uses: github/codeql-action/init@v3
       with:
         languages: python
 
     # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
     # If this step fails, then you should remove it and run the build manually (see below)
     - name: Autobuild
-      uses: github/codeql-action/autobuild@v2
+      uses: github/codeql-action/autobuild@v3
 
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 https://git.io/JvXDl
@@ -162,7 +162,7 @@ jobs:
     #   make release
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
+      uses: github/codeql-action/analyze@v3
 
   # ossarscan:
   #  name: OSSAR-Scan
@@ -199,8 +199,8 @@ jobs:
   #    uses: github/ossar-action@v1
   #    id: ossar
 
-  #    # Upload results to the Security tab
-  #  - name: Upload OSSAR results
-  #    uses: github/codeql-action/upload-sarif@v2
-  #    with:
-  #      sarif_file: ${{ steps.ossar.outputs.sarifFile }}
+      # Upload results to the Security tab
+    - name: Upload OSSAR results
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: ${{ steps.ossar.outputs.sarifFile }}
