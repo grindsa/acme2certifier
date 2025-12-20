@@ -5,7 +5,7 @@
 from __future__ import print_function
 import uuid
 import json
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Tuple
 from dataclasses import dataclass, field
 from .version import __version__, __dbversion__
 from .helper import load_config, ca_handler_load, config_profile_load
@@ -37,7 +37,7 @@ class DirectoryRepository:
         self.dbstore = dbstore
         self.logger = logger
 
-    def get_db_version(self) -> Optional[tuple[str, str]]:
+    def get_db_version(self) -> Tuple[Optional[str], Optional[str]]:
         """Get the current database version from the DBstore."""
         try:
             return self.dbstore.dbversion_get()
@@ -131,7 +131,7 @@ class Directory:
                     ),
                 )
             except Exception as err_:
-                self.logger.error(f"{key} not set: %s", err_)
+                self.logger.error("%s not set: %s", key, err_)
 
     def _parse_eab_and_profiles(self, config_dic: object) -> None:
         """Parse EAB handler and profile configuration."""
