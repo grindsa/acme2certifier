@@ -21,21 +21,25 @@ from acme_srv.helper import (
 
 @dataclass
 class RenewalinfoConfig:
-    """ configuration dataclass for Renewalinfo handler """
+    """configuration dataclass for Renewalinfo handler"""
+
     renewal_force: bool = False
-    renewaltreshold_pctg: float = 85.0
+    renewalthreshold_pctg: float = 85.0
     retry_after_timeout: int = 86400
 
 
 class RenewalinfoRepository:
     """Renewalinfo repository helper with database access methods."""
+
     def __init__(self, dbstore, logger):
         self.dbstore = dbstore
         self.logger = logger
 
     def get_certificate_by_certid(self, certid_hex):
         """Retrieve certificate by certid from database."""
-        self.logger.debug("RenewalinfoRepository.get_certificate_by_certid(%s)", certid_hex)
+        self.logger.debug(
+            "RenewalinfoRepository.get_certificate_by_certid(%s)", certid_hex
+        )
         try:
             return self.dbstore.certificate_lookup(
                 "renewal_info",
@@ -59,7 +63,9 @@ class RenewalinfoRepository:
 
     def get_certificates_by_serial(self, serial):
         """Retrieve certificates by serial from database."""
-        self.logger.debug("RenewalinfoRepository.get_certificates_by_serial(%s)", serial)
+        self.logger.debug(
+            "RenewalinfoRepository.get_certificates_by_serial(%s)", serial
+        )
         try:
             return self.dbstore.certificates_search(
                 "serial",
@@ -130,12 +136,14 @@ class Renewalinfo(object):
                 self.logger.error("renewal_force parsing error: %s", err_)
                 self.config.renewal_force = False
             try:
-                self.config.renewaltreshold_pctg = float(
-                    config_dic.get("Renewalinfo", "renewaltreshold_pctg", fallback=85.0)
+                self.config.renewalthreshold_pctg = float(
+                    config_dic.get(
+                        "Renewalinfo", "renewalthreshold_pctg", fallback=85.0
+                    )
                 )
             except Exception as err_:
-                self.logger.error("renewaltreshold_pctg parsing error: %s", err_)
-                self.config.renewaltreshold_pctg = 85.0
+                self.logger.error("renewalthreshold_pctg parsing error: %s", err_)
+                self.config.renewalthreshold_pctg = 85.0
             try:
                 self.config.retry_after_timeout = int(
                     config_dic.get("Renewalinfo", "retry_after_timeout", fallback=86400)
@@ -248,7 +256,7 @@ class Renewalinfo(object):
                 start_uts = (
                     int(
                         (cert_dic["expire_uts"] - cert_dic["issue_uts"])
-                        * self.config.renewaltreshold_pctg
+                        * self.config.renewalthreshold_pctg
                         / 100
                     )
                     + cert_dic["issue_uts"]
@@ -329,7 +337,7 @@ class Renewalinfo(object):
         if renewalinfo_dic:
             response_dic["data"] = renewalinfo_dic
             response_dic["header"] = {
-                "Retry-After": f"{self.config.retry_after_timeout}".format()
+                "Retry-After": f"{self.config.retry_after_timeout}"
             }
         else:
             response_dic["data"] = self.err_msg_dic["malformed"]
