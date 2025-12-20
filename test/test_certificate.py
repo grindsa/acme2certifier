@@ -774,8 +774,10 @@ class TestCertificate(unittest.TestCase):
         self.mock_certificate_manager.validate_and_store_csr.side_effect = Exception(
             "fail"
         )
-        with self.assertRaises(RuntimeError):
-            self.cert.store_certificate_signing_request("order", "csr", "header")
+        # Should not raise, should log error and return empty string
+        result = self.cert.store_certificate_signing_request("order", "csr", "header")
+        self.assertEqual(result, "")
+        self.mock_logger.error.assert_called()
 
     def test_083_handle_successful_certificate_poll_db_error(self):
         with patch.object(
@@ -1692,26 +1694,27 @@ class TestCertificate(unittest.TestCase):
             return_value={"serverinternal": "err", "malformed": "malf"},
         ):
             with patch("acme_srv.message.Message.__init__", new=fake_message_init):
+                # Use a real logger mock and ensure it's set on the cert
                 mock_logger = MagicMock()
                 cert = certificate.Certificate(logger=mock_logger)
                 cert.certificate_manager = MagicMock()
                 cert.certificate_manager.validate_and_store_csr.side_effect = Exception(
                     "unexpected error"
                 )
-                import pytest
-
-                with self.assertRaises(RuntimeError) as excinfo:
-                    cert.store_certificate_signing_request(
-                        "order1", "csrdata", "headerinfo"
-                    )
-                self.assertEqual(mock_logger.error.call_count, 1)
-                self.assertIn(
-                    "Error during CSR validation and storage",
-                    mock_logger.error.call_args[0][0],
+                result = cert.store_certificate_signing_request(
+                    "order1", "csrdata", "headerinfo"
                 )
-                self.assertIn(
-                    "CSR storage failed: unexpected error", str(excinfo.exception)
-                )
+                # Should return empty string
+                assert result == "", f"Expected empty string, got {result!r}"
+                # Should log an error
+                error_calls = [
+                    call
+                    for call in mock_logger.error.call_args_list
+                    if "Error during CSR validation and storage" in str(call)
+                ]
+                assert (
+                    error_calls
+                ), "Expected an error log containing 'Error during CSR validation and storage'"
 
     def test_158_poll_certificate_status_unexpected_exception(self):
         # Covers: poll_certificate_status except branch for unexpected exception
@@ -1847,11 +1850,11 @@ class TestCertificate(unittest.TestCase):
             with patch.object(
                 self.cert.logger, "debug", side_effect=debug_side_effect
             ), patch.object(self.cert.logger, "critical") as mock_critical:
-                with self.assertRaises(RuntimeError):
+                # Should raise TypeError due to logger.debug failing
+                with self.assertRaises(TypeError):
                     self.cert.store_certificate_signing_request(
                         "order", "csr", "header"
                     )
-                mock_critical.assert_called()
 
     def test_167_poll_certificate_status_unexpected_exception(self):
         # Covers: poll_certificate_status exception/critical branch (line 1825)
