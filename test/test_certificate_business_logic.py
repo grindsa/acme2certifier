@@ -79,20 +79,20 @@ class TestCertificateBusinessLogic(unittest.TestCase):
         self.assertEqual(name, "randomname")
 
     def test_008_validate_certificate_data_empty(self):
-        self.assertTrue(self.logic.validate_certificate_data(""))
+        self.assertFalse(self.logic.validate_certificate_data(""))
 
     def test_009_validate_certificate_data_pem(self):
-        pem = "-----BEGIN CERTIFICATE-----\n..."
+        pem = "-----BEGIN CERTIFICATE-----\n...-----END CERTIFICATE-----\n"
         self.assertTrue(self.logic.validate_certificate_data(pem))
 
     def test_010_validate_certificate_data_other(self):
-        self.assertTrue(self.logic.validate_certificate_data("something else"))
+        self.assertFalse(self.logic.validate_certificate_data("something else"))
 
     def test_011_validate_certificate_data_exception(self):
         # Ensure a logger object exists to avoid AttributeError
         logic = CertificateBusinessLogic(debug=True, logger=MagicMock())
         # purposely pass an object that could raise internally; method should still return True
-        self.assertTrue(logic.validate_certificate_data(object()))
+        self.assertFalse(logic.validate_certificate_data(object()))
 
     @patch("acme_srv.certificate_business_logic.cert_serial_get")
     @patch("acme_srv.certificate_business_logic.cert_cn_get")
