@@ -8,12 +8,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from acme_srv.certificate_business_logic import CertificateBusinessLogic
 
+
 class TestCertificateBusinessLogic(unittest.TestCase):
     def setUp(self):
         self.mock_logger = MagicMock()
         self.mock_err_msg_dic = {
             "badcsr": "Invalid CSR",
-            "serverinternal": "Internal server error"
+            "serverinternal": "Internal server error",
         }
         self.config = MagicMock()
         self.config.tnauthlist_support = True
@@ -23,7 +24,7 @@ class TestCertificateBusinessLogic(unittest.TestCase):
             debug=True,
             logger=self.mock_logger,
             err_msg_dic=self.mock_err_msg_dic,
-            config=self.config
+            config=self.config,
         )
 
     @patch("acme_srv.certificate_business_logic.csr_load")
@@ -70,7 +71,6 @@ class TestCertificateBusinessLogic(unittest.TestCase):
         issue, expire = self.logic.calculate_certificate_dates("cert")
         self.assertEqual(issue, 0)
         self.assertEqual(expire, 0)
-
 
     @patch("acme_srv.certificate_business_logic.generate_random_string")
     def test_007_generate_certificate_name(self, mock_generate_random_string):
@@ -142,13 +142,16 @@ class TestCertificateBusinessLogic(unittest.TestCase):
         self.assertEqual(result["code"], 201)
         self.assertEqual(result["data"], "cert")
         self.assertIn("headers", result)
-        self.assertEqual(result["headers"], {"Content-Type": "application/pem-certificate-chain"})
+        self.assertEqual(
+            result["headers"], {"Content-Type": "application/pem-certificate-chain"}
+        )
 
     def test_017_format_certificate_response_without_cert(self):
         result = self.logic.format_certificate_response("", 404)
         self.assertEqual(result["code"], 404)
         self.assertEqual(result["data"], "")
         self.assertNotIn("headers", result)
+
 
 if __name__ == "__main__":
     unittest.main()

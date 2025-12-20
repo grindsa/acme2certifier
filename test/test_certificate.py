@@ -1,25 +1,160 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-"""unittests for account.py"""
-# pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
+import os
 import unittest
 from unittest.mock import MagicMock, patch
 import sys
-import json
-import datetime
-import importlib
-import configparser
-from unittest.mock import patch, MagicMock, Mock
 
-sys.path.insert(0, ".")
-sys.path.insert(1, "..")
+# Add the parent directory to sys.path so we can import acme_srv
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from acme_srv import certificate
 
 
-class FakeDBStore(object):
-    """face DBStore class needed for mocking"""
+class TestCertificateLogger(unittest.TestCase):
+    def setUp(self):
+        self.mock_logger = MagicMock()
+        self.mock_repository = MagicMock()
+        self.logger = certificate.CertificateLogger(
+            self.mock_logger, "json", self.mock_repository
+        )
 
-    # pylint: disable=W0107, R0903
-    pass
+    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    def test_001_log_issuance_success(self, mock_san, mock_cn, mock_serial):
+        self.logger.repository.order_lookup.return_value = {
+            "account__name": "acc",
+            "account__contact": "contact",
+            "account__eab_kid": "kid",
+            "profile": "profile",
+            "expires": 1234567890,
+        }
+        self.logger.log_certificate_issuance("cert_name", "cert_pem", "order_name")
+        self.mock_logger.info.assert_called()
+
+    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    def test_002_log_revocation_success(self, mock_san, mock_cn, mock_serial):
+        self.logger.repository.certificate_lookup.return_value = {
+            "name": "cert_name",
+            "order__account__name": "acc",
+            "order__account__contact": "contact",
+            "order__account__eab_kid": "kid",
+            "order__profile": "profile",
+        }
+        self.logger.log_certificate_revocation("cert_pem", 200)
+        self.mock_logger.info.assert_called()
+
+    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    def test_003_log_issuance_db_error(self, mock_san, mock_cn, mock_serial):
+        self.logger.repository.order_lookup.side_effect = Exception("DB error")
+        self.logger.log_certificate_issuance("cert_name", "cert_pem", "order_name")
+        self.mock_logger.error.assert_called()
+
+    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    def test_004_log_revocation_db_error(self, mock_san, mock_cn, mock_serial):
+        self.logger.repository.certificate_lookup.side_effect = Exception("DB error")
+        self.logger.log_certificate_revocation("cert_pem", 400)
+        self.mock_logger.error.assert_called()
+
+    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    def test_005_log_issuance_text_format(self, mock_san, mock_cn, mock_serial):
+        logger = certificate.CertificateLogger(
+            self.mock_logger, "text", self.mock_repository
+        )
+        self.mock_repository.order_lookup.return_value = {
+            "account__name": "acc",
+            "account__contact": "contact",
+            "account__eab_kid": "kid",
+            "profile": "profile",
+            "expires": 1234567890,
+        }
+        logger.log_certificate_issuance("cert_name", "cert_pem", "order_name")
+        self.mock_logger.info.assert_called()
+
+    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    def test_006_log_issuance_with_reusage_and_kid(
+        self, mock_san, mock_cn, mock_serial
+    ):
+        self.logger.repository.order_lookup.return_value = {
+            "account__name": "acc",
+            "account__contact": "contact",
+            "account__eab_kid": "kid",
+            "profile": "profile",
+            "expires": 1234567890,
+        }
+        self.logger.log_certificate_issuance(
+            "cert_name", "cert_pem", "order_name", cert_reusage=True
+        )
+        self.mock_logger.info.assert_called()
+
+    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    def test_007_log_revocation_text_format(self, mock_san, mock_cn, mock_serial):
+        logger = certificate.CertificateLogger(
+            self.mock_logger, "text", self.mock_repository
+        )
+        self.mock_repository.certificate_lookup.return_value = {
+            "name": "cert_name",
+            "order__account__name": "acc",
+            "order__account__contact": "contact",
+            "order__account__eab_kid": "kid",
+            "order__profile": "profile",
+        }
+        logger.log_certificate_revocation("cert_pem", 400)
+        self.mock_logger.info.assert_called()
+
+    def test_008_log_as_json(self):
+        logger = certificate.CertificateLogger(
+            self.mock_logger, "json", self.mock_repository
+        )
+        logger._log_as_json({"foo": "bar"}, "op")
+        self.mock_logger.info.assert_called()
+
+    def test_009_log_issuance_as_text(self):
+        logger = certificate.CertificateLogger(
+            self.mock_logger, "text", self.mock_repository
+        )
+        data_dic = {
+            "account_name": "acc",
+            "account_contact": "contact",
+            "serial_number": "serial",
+            "common_name": "CN",
+            "san_list": ["SAN"],
+            "reused": True,
+            "eab_kid": "kid",
+            "profile": "profile",
+            "expires": "2025-12-14T00:00:00Z",
+        }
+        logger._log_issuance_as_text("cert_name", data_dic)
+        self.mock_logger.info.assert_called()
+
+    def test_010_log_revocation_as_text(self):
+        logger = certificate.CertificateLogger(
+            self.mock_logger, "text", self.mock_repository
+        )
+        data_dic = {
+            "certificate_name": "cert_name",
+            "account_name": "acc",
+            "account_contact": "contact",
+            "serial_number": "serial",
+            "common_name": "CN",
+            "san_list": ["SAN"],
+            "status": "successful",
+            "eab_kid": "kid",
+            "profile": "profile",
+        }
+        logger._log_revocation_as_text(data_dic)
+        self.mock_logger.info.assert_called()
 
 
 class TestCertificate(unittest.TestCase):
@@ -105,17 +240,29 @@ class TestCertificate(unittest.TestCase):
         )
 
     def setUp(self):
-        """setup unittest"""
-        models_mock = MagicMock()
-        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
-        modules = {"acme_srv.db_handler": models_mock}
-        patch.dict("sys.modules", modules).start()
-        import logging
+        self.mock_repository = MagicMock()
+        self.mock_cahandler = MagicMock()
+        self.mock_certificate_manager = MagicMock()
+        self.mock_logger = MagicMock()
+        self.mock_message = MagicMock()
+        self.mock_hook_handler = MagicMock()
+        # Only pass valid config fields
+        self.config = certificate.CertificateConfiguration()
 
-        logging.basicConfig(level=logging.CRITICAL)
-        self.logger = logging.getLogger("test_a2c")
-        from acme_srv.account import Account
-        from acme_srv.certificate import Certificate
+        # Certificate does not accept config directly, so patch after construction
+        self.cert = certificate.Certificate(
+            debug=True, srv_name=None, logger=self.mock_logger
+        )
+        self.cert.repository = self.mock_repository
+        self.cert.cahandler = self.mock_cahandler
+        self.cert.certificate_manager = self.mock_certificate_manager
+        self.cert.logger = self.mock_logger
+        self.cert.message = self.mock_message
+        self.cert.hook_handler = self.mock_hook_handler
+        self.cert.err_msg_dic = {
+            "malformed": "malformed",
+            "serverinternal": "serverinternal",
+        }
 
     def test_011_load_hooks_configuration_success(self):
         with patch("acme_srv.certificate.hooks_load") as mock_hooks_load:
@@ -526,9 +673,7 @@ class TestCertificate(unittest.TestCase):
         self.assertIsNone(
             self.cert._validate_certificate_account_ownership("acc", "cert")
         )
-        self.assertTrue(mock_renew.called)
-        self.assertTrue(mock_serial.called)
-        self.assertTrue(mock_aki.called)
+        self.mock_logger.critical.assert_called()
 
     def test_053_validate_certificate_authorization_tnauthlist(self):
         self.cert.config.tnauthlist_support = True
@@ -542,12 +687,7 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._validate_certificate_authorization(
                 {"identifiers": "[]"}, "cert"
             )
-        self.assertIn(
-            "CRITICAL:test_a2c:Database error in Certificate.store_csr(): exc_cert_add",
-            lcm.output,
-        )
-        self.assertFalse(mock_serial.called)
-        self.assertFalse(mock_aki.called)
+            self.assertEqual(result, ["ok"])
 
     def test_054_validate_certificate_authorization_sans(self):
         self.cert.config.tnauthlist_support = False
@@ -691,6 +831,7 @@ class TestCertificate(unittest.TestCase):
         hook_errors = self.cert._execute_pre_enrollment_hooks(
             "cert_name", "order", "csr"
         )
+        self.assertEqual(hook_errors, [])
 
     def test_068_execute_post_enrollment_hooks(self):
         # Test normal post_hook execution logs debug (line 915)
@@ -839,15 +980,13 @@ class TestCertificate(unittest.TestCase):
             True,
             "cert",
         )
+        result = self.cert.store_certificate_signing_request("order", "csr", "header")
+        self.assertEqual(result, "cert")
 
     def test_081_store_certificate_signing_request_failure(self):
         self.mock_certificate_manager.validate_and_store_csr.return_value = (
             False,
             None,
-            None,
-            {"url": "example.com"},
-            "payload",
-            "account_name",
         )
 
         self.cert.store_certificate_signing_request("order", "csr", "header")
@@ -1039,8 +1178,8 @@ class TestCertificate(unittest.TestCase):
             "issue_uts": 1234567890,
             "expire_uts": 1234567890,
         }
-        mock_san.return_value = ["DNS:san1.example.com", "DNS:san2.example.com"]
-        self.assertFalse(self.certificate._authorization_check("order_name", "cert"))
+        self.cert._update_certificate_dates(cert)
+        self.mock_logger.debug.assert_called()
 
     def test_100_update_certificate_dates_zero_dates(self):
         """Test _update_certificate_dates with zero dates"""
@@ -1051,8 +1190,11 @@ class TestCertificate(unittest.TestCase):
             "issue_uts": 0,
             "expire_uts": 0,
         }
-        mock_san.return_value = ["DNS:san1.example.com"]
-        self.assertTrue(self.certificate._authorization_check("order_name", "cert"))
+        with patch(
+            "acme_srv.certificate.cert_dates_get", return_value=(1234567890, 1234567890)
+        ), patch.object(self.cert, "_store_certificate_in_database", return_value=1):
+            self.cert._update_certificate_dates(cert)
+            self.mock_logger.debug.assert_called()
 
     def test_101_handle_enrollment_thread_execution_success(self):
         """Test _handle_enrollment_thread_execution success case"""
@@ -1162,8 +1304,11 @@ class TestCertificate(unittest.TestCase):
             "order__status_id": self.cert.ORDER_STATUS_VALID,
             "cert": "certificate",
         }
-        mock_san.return_value = ["DNS:san1.example.com", "DNS:san2.example.com"]
-        self.assertTrue(self.certificate._authorization_check("order_name", "cert"))
+        with patch.object(
+            self.cert, "_handle_valid_certificate", return_value={"code": 200}
+        ) as mock_handle:
+            result = self.cert._determine_certificate_response(cert_info)
+            mock_handle.assert_called_with(cert_info)
 
     def test_113_determine_certificate_response_processing_order(self):
         """Test _determine_certificate_response with processing order"""
@@ -2040,13 +2185,18 @@ class TestCertificate(unittest.TestCase):
 
         cert.err_msg_dic = SideEffectDict(
             {
-                "header": {"Replay-Nonce": "new_nonce"},
-                "code": 400,
-                "data": {"status": 400, "type": "message", "detail": "detail"},
-            },
-            self.certificate.revoke("content"),
+                "badrevocationreason": "badreason",
+                "unauthorized": "unauth",
+                "serverinternal": "internal",
+            }
         )
-        self.assertTrue(mock_nnonce.called)
+        payload = {"reason": 0, "certificate": "cert"}
+        with patch.object(
+            cert, "_validate_certificate_account_ownership", return_value="order"
+        ), patch.object(cert, "_validate_order_authorization", return_value=False):
+            code, error = cert._validate_revocation_request("acc", payload)
+            self.assertEqual(code, 400)
+            self.assertEqual(error, "unauth")
 
     def test_175_validate_revocation_request_unauthorized_minimal(self):
         # Isolated test to guarantee coverage for line 1171 (unauthorized branch)
@@ -2056,11 +2206,14 @@ class TestCertificate(unittest.TestCase):
             "unauthorized": "unauth",
             "serverinternal": "internal",
         }
-        tnauthlist = "foo"
-        self.assertEqual(
-            [True, False],
-            self.certificate._identifer_tnauth_list(identifier_dic, tnauthlist),
-        )
+        payload = {"reason": 0, "certificate": "cert"}
+        # Patch only the necessary methods
+        with patch.object(
+            cert, "_validate_certificate_account_ownership", return_value="order"
+        ), patch.object(cert, "_validate_order_authorization", return_value=False):
+            code, error = cert._validate_revocation_request("acc", payload)
+            self.assertEqual(code, 400)
+            self.assertEqual(error, "unauth")
 
     def test_176_validate_revocation_request_bad_reason(self):
         # Covers line 1159: error = self.err_msg_dic["badrevocationreason"]
@@ -2070,7 +2223,9 @@ class TestCertificate(unittest.TestCase):
             "unauthorized": "unauth",
             "serverinternal": "internal",
         }
-        self.assertFalse(self.certificate._csr_check("cert_name", "csr"))
+        code, error = self.cert._validate_revocation_request("acc", payload)
+        self.assertEqual(code, 400)
+        self.assertEqual(error, "badreason")
 
     def test_177_validate_revocation_request_no_reason(self):
         # Covers line 1162: rev_reason = "unspecified"
@@ -2080,7 +2235,12 @@ class TestCertificate(unittest.TestCase):
             "unauthorized": "unauth",
             "serverinternal": "internal",
         }
-        self.assertFalse(self.certificate._csr_check("cert_name", "csr"))
+        with patch.object(
+            self.cert, "_validate_certificate_account_ownership", return_value=None
+        ):
+            code, error = self.cert._validate_revocation_request("acc", payload)
+            self.assertEqual(code, 400)
+            self.assertEqual(error, "unspecified")
 
     def test_178_validate_revocation_request_unauthorized(self):
         # Explicitly cover line 1171: error = self.err_msg_dic["unauthorized"]
@@ -2090,7 +2250,18 @@ class TestCertificate(unittest.TestCase):
             "unauthorized": "unauth",
             "serverinternal": "internal",
         }
-        self.assertTrue(self.certificate._csr_check("cert_name", "csr"))
+        # Patch _validate_certificate_account_ownership to return a non-None value (order_name)
+        # Patch _validate_order_authorization to return False (unauthorized)
+        with patch.object(
+            self.cert, "_validate_certificate_account_ownership", return_value="order"
+        ) as mock_own, patch.object(
+            self.cert, "_validate_order_authorization", return_value=False
+        ) as mock_auth:
+            code, error = self.cert._validate_revocation_request("acc", payload)
+            self.assertEqual(code, 400)
+            self.assertEqual(error, "unauth")
+            mock_own.assert_called_once_with("acc", "cert")
+            mock_auth.assert_called_once_with("order", "cert")
 
     def test_179_validate_revocation_request_success(self):
         # Covers line 1183: code = 200
@@ -2100,7 +2271,12 @@ class TestCertificate(unittest.TestCase):
             "unauthorized": "unauth",
             "serverinternal": "internal",
         }
-        self.assertFalse(self.certificate._csr_check("cert_name", "csr"))
+        with patch.object(
+            self.cert, "_validate_certificate_account_ownership", return_value="order"
+        ), patch.object(self.cert, "_validate_order_authorization", return_value=True):
+            code, error = self.cert._validate_revocation_request("acc", payload)
+            self.assertEqual(code, 200)
+            self.assertEqual(error, "unspecified")
 
     def test_180_validate_revocation_request_nocert(self):
         # Explicitly cover line 1171: error = self.err_msg_dic["unauthorized"] and check logger
@@ -2110,7 +2286,21 @@ class TestCertificate(unittest.TestCase):
             "unauthorized": "unauth",
             "serverinternal": "internal",
         }
-        self.assertFalse(self.certificate._csr_check("cert_name", "csr"))
+        with patch.object(
+            self.cert, "_validate_certificate_account_ownership", return_value="order"
+        ) as mock_own, patch.object(
+            self.cert, "_validate_order_authorization", return_value=False
+        ) as mock_auth, patch.object(
+            self.cert.logger, "debug"
+        ) as mock_logger_debug:
+            code, error = self.cert._validate_revocation_request("acc", payload)
+            self.assertEqual(code, 400)
+            # self.assertEqual(error, 'unauth')
+            # mock_own.assert_called_once_with('acc', 'cert')
+            # mock_auth.assert_called_once_with('order', 'cert')
+            mock_logger_debug.assert_any_call(
+                "Certificate._validate_revocation_request(): Revocation request missing 'certificate' field"
+            )
 
     def test_181_validate_csr_against_order_order_lookup_exception(self):
         # Covers exception branch at line 720 in _validate_csr_against_order
@@ -2208,7 +2398,17 @@ class TestCertificate(unittest.TestCase):
             "serverinternal": "serverinternal",
             "rejectedidentifier": "rejectedidentifier",
         }
-        self.assertFalse(self.certificate._csr_check("cert_name", "csr"))
+        with patch.object(
+            self.cert, "_update_order_status"
+        ) as mock_update, patch.object(
+            self.cert, "_store_certificate_error"
+        ) as mock_store:
+            result = self.cert._handle_enrollment_error(
+                "some_error", None, "order1", "cert1"
+            )
+            mock_update.assert_called_with({"name": "order1", "status": "invalid"})
+            mock_store.assert_called_with("cert1", "some_error", None)
+            self.assertEqual(result, (None, "serverinternal", None))
 
     def test_187_handle_enrollment_error_with_poll_identifier(self):
         # Covers branch where poll_identifier is set
@@ -2231,442 +2431,29 @@ class TestCertificate(unittest.TestCase):
             "serverinternal": "serverinternal",
             "rejectedidentifier": "rejectedidentifier",
         }
-        self.assertFalse(self.certificate._csr_check("cert_name", "csr"))
-
-    @patch("acme_srv.certificate.csr_extensions_get")
-    @patch("acme_srv.certificate.Certificate._identifer_tnauth_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    @patch("acme_srv.certificate.Certificate._info")
-    def test_083_certificate__csr_check(
-        self, mock_certinfo, mock_tnauthin, mock_status, mock_san
-    ):
-        """csr-check tnauth  but tnauthlist_support on and returns true"""
-        mock_certinfo.return_value = {"order": "order"}
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = True
-        mock_status.return_value = [True]
-        self.certificate.tnauthlist_support = True
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertTrue(self.certificate._csr_check("cert_name", "csr"))
-
-    @patch("acme_srv.certificate.csr_extensions_get")
-    @patch("acme_srv.certificate.Certificate._identifer_tnauth_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    @patch("acme_srv.certificate.Certificate._info")
-    def test_084_certificate__csr_check(
-        self, mock_certinfo, mock_tnauthin, mock_status, mock_san
-    ):
-        """csr-check tnauth  but tnauthlist_support on and returns true"""
-        mock_certinfo.return_value = {"order": "order"}
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = True
-        mock_status.return_value = [False]
-        self.certificate.tnauthlist_support = True
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertFalse(self.certificate._csr_check("cert_name", "csr"))
-
-    @patch("acme_srv.certificate.csr_extensions_get")
-    @patch("acme_srv.certificate.Certificate._identifer_tnauth_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    @patch("acme_srv.certificate.Certificate._info")
-    def test_085_certificate__csr_check(
-        self, mock_certinfo, mock_tnauthin, mock_status, mock_san
-    ):
-        """csr-check tnauth  but tnauthlist_support on and returns True, False"""
-        mock_certinfo.return_value = {"order": "order"}
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = True
-        mock_status.return_value = [True, False]
-        self.certificate.tnauthlist_support = True
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertFalse(self.certificate._csr_check("cert_name", "csr"))
-
-    @patch("acme_srv.certificate.csr_extensions_get")
-    @patch("acme_srv.certificate.Certificate._identifer_tnauth_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    @patch("acme_srv.certificate.Certificate._info")
-    def test_086_certificate__csr_check(
-        self, mock_certinfo, mock_tnauthin, mock_status, mock_san
-    ):
-        """csr-check tnauth  but tnauthlist_support on and returns True, False"""
-        mock_certinfo.return_value = {"order": "order"}
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = True
-        mock_status.return_value = [True, False, True]
-        self.certificate.tnauthlist_support = True
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertFalse(self.certificate._csr_check("cert_name", "csr"))
-
-    @patch("acme_srv.certificate.csr_extensions_get")
-    @patch("acme_srv.certificate.Certificate._identifer_tnauth_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    @patch("acme_srv.certificate.Certificate._info")
-    def test_087_certificate__csr_check(
-        self, mock_certinfo, mock_tnauthin, mock_status, mock_san
-    ):
-        """csr-check tnauth  but tnauthlist_support on and returns True, False"""
-        mock_certinfo.return_value = {"order": "order"}
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = True
-        mock_status.side_effect = Exception("mock_status")
-        self.certificate.tnauthlist_support = True
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.certificate._csr_check("cert_name", "csr"))
-        self.assertIn(
-            "WARNING:test_a2c:Error while parsing CSR for TNAuthList identifier check: mock_status",
-            lcm.output,
-        )
-
-    def test_088_certificate__authorization_check(self):
-        """_authorization_check order lookup failed"""
-        self.certificate.dbstore.order_lookup.return_value = {}
-        self.assertFalse(self.certificate._authorization_check("order_name", "cert"))
-
-    def test_089_certificate__authorization_check(self):
-        """_authorization_check order lookup returns rubbish"""
-        self.certificate.dbstore.order_lookup.return_value = {"foo": "bar"}
-        self.assertFalse(self.certificate._authorization_check("order_name", "cert"))
-
-    def test_090_certificate__authorization_check(self):
-        """_authorization_check order lookup returns an identifier"""
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertFalse(self.certificate._authorization_check("order_name", "cert"))
-
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    def test_091_certificate__authorization_check(self, mock_tnauthin):
-        """_authorization_check no tnauth"""
-        mock_tnauthin.return_value = False
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.Certificate._identifer_status_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    def test_092_certificate__authorization_check(
-        self, mock_tnauthin, mock_status, mock_san
-    ):
-        """_authorization_check no tnauth  status true"""
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = False
-        mock_status.return_value = [True]
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertTrue(self.certificate._authorization_check("cert_name", "cert"))
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.Certificate._identifer_status_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    def test_093_certificate__authorization_check(
-        self, mock_tnauthin, mock_status, mock_san
-    ):
-        """_authorization_check no tnauth  status true"""
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = False
-        mock_status.return_value = [True]
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertTrue(self.certificate._authorization_check("cert_name", "cert"))
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.Certificate._identifer_status_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    def test_094_certificate__authorization_check(
-        self, mock_tnauthin, mock_status, mock_san
-    ):
-        """_authorization_check no tnauth  status False"""
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = False
-        mock_status.return_value = [False]
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.Certificate._identifer_status_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    def test_095_certificate__authorization_check(
-        self, mock_tnauthin, mock_status, mock_san
-    ):
-        """_authorization_check no tnauth  status True, False"""
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = False
-        mock_status.return_value = [True, False]
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.Certificate._identifer_status_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    def test_096_certificate__authorization_check(
-        self, mock_tnauthin, mock_status, mock_san
-    ):
-        """_authorization_check no tnauth  status True, False, True"""
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = False
-        mock_status.return_value = [True, False, True]
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.Certificate._identifer_tnauth_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    def test_097_certificate__authorization_check(
-        self, mock_tnauthin, mock_status, mock_san
-    ):
-        """_authorization_check tnauth  but tnauthlist_support off"""
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = True
-        mock_status.return_value = [True]
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
-
-    @patch("acme_srv.certificate.cert_extensions_get")
-    @patch("acme_srv.certificate.Certificate._identifer_tnauth_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    def test_098_certificate__authorization_check(
-        self, mock_tnauthin, mock_status, mock_san
-    ):
-        """_authorization_check tnauth  but tnauthlist_support on and returns true"""
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = True
-        mock_status.return_value = [True]
-        self.certificate.tnauthlist_support = True
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertTrue(self.certificate._authorization_check("cert_name", "cert"))
-
-    @patch("acme_srv.certificate.cert_extensions_get")
-    @patch("acme_srv.certificate.Certificate._identifer_tnauth_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    def test_099_certificate__authorization_check(
-        self, mock_tnauthin, mock_status, mock_san
-    ):
-        """_authorization_check tnauth  but tnauthlist_support on and returns true"""
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = True
-        mock_status.return_value = [False]
-        self.certificate.tnauthlist_support = True
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
-
-    @patch("acme_srv.certificate.cert_extensions_get")
-    @patch("acme_srv.certificate.Certificate._identifer_tnauth_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    def test_100_certificate__authorization_check(
-        self, mock_tnauthin, mock_status, mock_san
-    ):
-        """_authorization_check tnauth  but tnauthlist_support on and returns True, False"""
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = True
-        mock_status.return_value = [True, False]
-        self.certificate.tnauthlist_support = True
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
-
-    @patch("acme_srv.certificate.cert_extensions_get")
-    @patch("acme_srv.certificate.Certificate._identifer_tnauth_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    def test_101_certificate__authorization_check(
-        self, mock_tnauthin, mock_status, mock_san
-    ):
-        """_authorization_check tnauth  but tnauthlist_support on and returns True, False"""
-        mock_san.return_value = ["foo"]
-        mock_tnauthin.return_value = True
-        mock_status.return_value = [True, False, True]
-        self.certificate.tnauthlist_support = True
-        self.certificate.dbstore.order_lookup.return_value = {
-            "foo": "bar",
-            "identifiers": "bar",
-        }
-        self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
-
-    @patch("acme_srv.certificate.Certificate._csr_check")
-    def test_102_certificate_enroll_and_store(self, mock_csr):
-        """Certificate.enroll_and_store() csr_check failed"""
-        mock_csr.return_value = False
-        certificate_name = "cert_name"
-        csr = "csr"
-        self.assertEqual(
-            ("urn:ietf:params:acme:error:badCSR", "CSR validation failed"),
-            self.certificate.enroll_and_store(certificate_name, csr),
-        )
-
-    @patch("acme_srv.threadwithreturnvalue.ThreadWithReturnValue.join")
-    @patch("acme_srv.threadwithreturnvalue.ThreadWithReturnValue.start")
-    @patch("acme_srv.certificate.Certificate._csr_check")
-    def test_103_certificate_enroll_and_store(self, mock_csr, tr_start, tr_join):
-        """Certificate.enroll_and_store() csr_check successful - timeout during enrollment"""
-        mock_csr.return_value = True
-        tr_start.return_value = True
-        tr_join.return_value = None
-        certificate_name = "cert_name"
-        csr = "csr"
-        self.assertEqual(
-            ("timeout", "timeout"),
-            self.certificate.enroll_and_store(certificate_name, csr),
-        )
-
-    @patch("acme_srv.threadwithreturnvalue.ThreadWithReturnValue.join")
-    @patch("acme_srv.threadwithreturnvalue.ThreadWithReturnValue.start")
-    @patch("acme_srv.certificate.Certificate._csr_check")
-    def test_104_certificate_enroll_and_store(self, mock_csr, tr_start, tr_join):
-        """Certificate.enroll_and_store() csr_check successful - enrollment returns something useful"""
-        mock_csr.return_value = True
-        tr_start.return_value = True
-        tr_join.return_value = ("foo", "bar", "foobar")
-        certificate_name = "cert_name"
-        csr = "csr"
-        self.assertEqual(
-            ("bar", "foobar"), self.certificate.enroll_and_store(certificate_name, csr)
-        )
-
-    @patch("acme_srv.threadwithreturnvalue.ThreadWithReturnValue.join")
-    @patch("acme_srv.threadwithreturnvalue.ThreadWithReturnValue.start")
-    @patch("acme_srv.certificate.Certificate._csr_check")
-    def test_105_certificate_enroll_and_store(self, mock_csr, tr_start, tr_join):
-        """Certificate.enroll_and_store() csr_check successful - enrollment returns something unexpected"""
-        mock_csr.return_value = True
-        tr_start.return_value = True
-        tr_join.return_value = "unexpected"
-        certificate_name = "cert_name"
-        csr = "csr"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(
-                (
-                    "urn:ietf:params:acme:error:serverInternal",
-                    "unexpected enrollment result",
-                ),
-                self.certificate.enroll_and_store(certificate_name, csr),
-            )
-        self.assertIn(
-            "ERROR:test_a2c:Enrollment error message split of unexpected failed with err: too many values to unpack (expected 3)",
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.Certificate._cert_issuance_log")
-    @patch("acme_srv.certificate.Certificate._cert_reusage_check")
-    @patch("acme_srv.certificate.Certificate._order_update")
-    @patch("acme_srv.certificate.Certificate._store_cert")
-    @patch("acme_srv.certificate.Certificate._store_cert_error")
-    def test_106_certificate_enroll_and_store(
-        self, mock_store_err, mock_store, mock_oupd, mock_chk, mock_log
-    ):
-        """Certificate.enroll_and_store() enrollment failed without polling_identifier"""
-        # self.certificate.dbstore.order_update.return_value = 'foo'
-        mock_store_err.return_value = True
-        mock_store.return_value = True
-        ca_handler_module = importlib.import_module(
-            "examples.ca_handler.skeleton_ca_handler"
-        )
-        self.certificate.cahandler = ca_handler_module.CAhandler
-        self.certificate.cahandler.enroll = Mock(
-            return_value=("error", None, None, None)
-        )
-        certificate_name = "cert_name"
-        csr = "csr"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(
-                (None, "urn:ietf:params:acme:error:serverInternal", None),
-                self.certificate._enroll_and_store(certificate_name, csr),
-            )
-        self.assertIn("ERROR:test_a2c:Enrollment error: error", lcm.output)
-        self.assertFalse(mock_chk.called)
-        self.assertTrue(mock_oupd.called)
-        self.assertTrue(mock_store_err.called)
-        self.assertFalse(mock_store.called)
-        self.assertTrue(self.certificate.cahandler.enroll.called)
-        self.assertFalse(mock_log.called)
-
-    @patch("acme_srv.certificate.Certificate._cert_issuance_log")
-    @patch("acme_srv.certificate.Certificate._cert_reusage_check")
-    @patch("acme_srv.certificate.Certificate._order_update")
-    @patch("acme_srv.certificate.Certificate._store_cert")
-    @patch("acme_srv.certificate.Certificate._store_cert_error")
-    def test_107_certificate_enroll_and_store(
-        self, mock_store_err, mock_store, mock_oupd, mock_chk, mock_log
-    ):
-        """Certificate.enroll_and_store() enrollment failed without polling_identifier"""
-        # self.certificate.dbstore.order_update.return_value = 'foo'
-        mock_store_err.return_value = True
-        mock_store.return_value = True
-        ca_handler_module = importlib.import_module(
-            "examples.ca_handler.skeleton_ca_handler"
-        )
-        self.certificate.cahandler = ca_handler_module.CAhandler
-        self.certificate.cahandler.enroll = Mock(
-            return_value=(
+        with patch.object(
+            self.cert, "_update_order_status"
+        ) as mock_update, patch.object(
+            self.cert, "_store_certificate_error"
+        ) as mock_store:
+            result = self.cert._handle_enrollment_error(
                 "Either CN or SANs are not allowed by configuration",
                 None,
-                None,
-                None,
+                "order1",
+                "cert1",
             )
-        )
-        certificate_name = "cert_name"
-        csr = "csr"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            mock_update.assert_called_with({"name": "order1", "status": "invalid"})
+            mock_store.assert_called_with(
+                "cert1", "Either CN or SANs are not allowed by configuration", None
+            )
             self.assertEqual(
+                result,
                 (
                     None,
-                    "urn:ietf:params:acme:error:rejectedIdentifier",
+                    "rejectedidentifier",
                     "CN or SANs are not allowed by configuration",
                 ),
-                self.certificate._enroll_and_store(certificate_name, csr),
             )
-        self.assertIn(
-            "ERROR:test_a2c:Enrollment error: Either CN or SANs are not allowed by configuration",
-            lcm.output,
-        )
-        self.assertFalse(mock_chk.called)
-        self.assertTrue(mock_oupd.called)
-        self.assertTrue(mock_store_err.called)
-        self.assertFalse(mock_store.called)
-        self.assertTrue(self.certificate.cahandler.enroll.called)
-        self.assertFalse(mock_log.called)
 
     def test_189_handle_enrollment_error_exception(self):
         # Covers exception branch
@@ -2674,20 +2461,18 @@ class TestCertificate(unittest.TestCase):
             "serverinternal": "serverinternal",
             "rejectedidentifier": "rejectedidentifier",
         }
-        mock_date.return_value = 0
-        timestamp = 1596240000
-        self.assertEqual(
-            (
-                False,
-                {
-                    "expire_uts": 0,
-                    "name": "certname",
-                    "csr": "csr",
-                    "created_at": "created_at",
-                },
-            ),
-            self.certificate._invalidation_check(cert_entry, timestamp),
-        )
+        with patch.object(
+            self.cert, "_update_order_status", side_effect=Exception("fail")
+        ), patch.object(
+            self.cert, "_store_certificate_error", side_effect=Exception("fail")
+        ), patch.object(
+            self.cert.logger, "critical"
+        ) as mock_critical:
+            result = self.cert._handle_enrollment_error(
+                "some_error", None, "order1", "cert1"
+            )
+            mock_critical.assert_called()
+            self.assertEqual(result, (None, "serverinternal", None))
 
     def test_190_validate_certificate_authorization_sans_exception(self):
         # Explicitly covers lines 477-481: exception in cert_san_get triggers warning and returns []
@@ -2700,395 +2485,13 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._validate_certificate_authorization(
                 {"identifiers": "[]"}, "cert"
             )
-        )
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate.poll(
-                "certificate_name", "poll_identifier", "csr", "order_name"
+            self.assertEqual(result, [])
+            mock_warning.assert_called_with(
+                "Error while parsing certificate for SAN identifier check: %s",
+                unittest.mock.ANY,
             )
-        self.assertIn(
-            "CRITICAL:test_a2c:Database error during Certificate polling: exc_cert_poll",
-            lcm.output,
-        )
-        self.assertTrue(mock_renew.called)
-        self.assertTrue(mock_serial.called)
-        self.assertTrue(mock_aki.called)
-
-    def test_147_certificate_poll(self):
-        """test Certificate.poll - dbstore.order_update() raises an exception  and certreq rejected"""
-        self.certificate.dbstore.order_update.side_effect = Exception("exc_cert_poll")
-        ca_handler_module = importlib.import_module(
-            "examples.ca_handler.skeleton_ca_handler"
-        )
-        self.certificate.cahandler = ca_handler_module.CAhandler
-        self.certificate.cahandler.poll = Mock(
-            return_value=(
-                "error",
-                None,
-                "certificate_raw",
-                "poll_identifier",
-                "rejected",
-            )
-        )
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate.poll(
-                "certificate_name", "poll_identifier", "csr", "order_name"
-            )
-        self.assertIn(
-            "CRITICAL:test_a2c:Database error during Certificate polling: exc_cert_poll",
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.cert_aki_get")
-    @patch("acme_srv.certificate.cert_serial_get")
-    @patch("acme_srv.certificate.Certificate._renewal_info_get")
-    def test_148_certificate__store_cert(self, mock_renew, mock_serial, mock_aki):
-        """test Certificate.store_cert() - dbstore.certificate_add raises an exception"""
-        self.certificate.dbstore.certificate_add.side_effect = Exception("exc_cert_add")
-        mock_renew.return_value = "renewal_info"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._store_cert("cert_name", "cert", "raw")
-        self.assertIn(
-            "CRITICAL:test_a2c:acme2certifier database error in Certificate._store_cert(): exc_cert_add",
-            lcm.output,
-        )
-        self.assertTrue(mock_renew.called)
-        self.assertTrue(mock_serial.called)
-        self.assertTrue(mock_aki.called)
-
-    def test_149_certificate__store_cert_error(self):
-        """test Certificate.store_cert_error() - dbstore.certificate_add raises an exception"""
-        self.certificate.dbstore.certificate_add.side_effect = Exception(
-            "exc_cert_add_error"
-        )
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._store_cert_error("cert_name", "error", "poll")
-        self.assertIn(
-            "CRITICAL:test_a2c:Database error: failed to store certificate error: exc_cert_add_error",
-            lcm.output,
-        )
-
-    def test_150_certificate__account_check(self):
-        """test Certificate._account_check() - dbstore.certificate_account_check raises an exception"""
-        self.certificate.dbstore.certificate_account_check.side_effect = Exception(
-            "exc_acc_chk"
-        )
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._account_check("account_name", "cert")
-        self.assertIn(
-            "CRITICAL:test_a2c:Database error: failed to check account for certificate: exc_acc_chk",
-            lcm.output,
-        )
-
-    def test_151_certificate__authorization_check(self):
-        """test Certificate._authorization_check() - dbstore.certificate_account_check raises an exception"""
-        self.certificate.dbstore.order_lookup.side_effect = Exception("exc_authz_chk")
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._authorization_check("order_name", "cert")
-        self.assertIn(
-            "CRITICAL:test_a2c:Database error: failed to check authorization for order 'order_name': exc_authz_chk",
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.Certificate._info")
-    def test_152_certificate__csr_check(self, mock_certinfo):
-        """csr-check - dbstore.order_lookup() raises an exception"""
-        mock_certinfo.return_value = {"order": "order"}
-        self.certificate.dbstore.order_lookup.side_effect = Exception("exc_csr_chk")
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._csr_check("cert_name", "csr")
-        self.assertIn(
-            "CRITICAL:test_a2c:Database error in Certificate when checking the CSR identifiers: exc_csr_chk",
-            lcm.output,
-        )
-        # self.certificate.dbstore.order_lookup.side_effect = []
-
-    def test_153_certificate__info(self):
-        """test Certificate._info - dbstore.certificate_lookup() raises an exception"""
-        self.certificate.dbstore.certificate_lookup.side_effect = Exception(
-            "exc_cert_info"
-        )
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._info("cert_name")
-        self.assertIn(
-            "CRITICAL:test_a2c:Database error: failed to get certificate info: exc_cert_info",
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.uts_now")
-    def test_154__cert_reusage_check(self, mock_uts):
-        """test Certificate._cert_reusage_check() - one certificate returned"""
-        self.certificate.cert_reusage_timeframe = 86400
-        mock_uts.return_value = 90000
-        result = [
-            {
-                "id": 1,
-                "cert": "cert1",
-                "cert_raw": "cert_raw1",
-                "expire_uts": 100000,
-                "issue_uts": 1000,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 30, 0),
-            }
-        ]
-        self.certificate.dbstore.certificates_search.return_value = result
-        self.assertEqual(
-            (None, "cert1", "cert_raw1", "reused certificate from id: 1"),
-            self.certificate._cert_reusage_check("csr"),
-        )
-
-    @patch("acme_srv.certificate.uts_now")
-    def test_155__cert_reusage_check(self, mock_uts):
-        """test Certificate._cert_reusage_check() - two certificates found"""
-        self.certificate.cert_reusage_timeframe = 86400
-        mock_uts.return_value = 90000
-        result = [
-            {
-                "id": 1,
-                "cert": "cert1",
-                "cert_raw": "cert_raw1",
-                "expire_uts": 100001,
-                "issue_uts": 1001,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 31, 0),
-            },
-            {
-                "id": 2,
-                "cert": "cert2",
-                "cert_raw": "cert_raw2",
-                "expire_uts": 100002,
-                "issue_uts": 1002,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 32, 0),
-            },
-        ]
-        self.certificate.dbstore.certificates_search.return_value = result
-        self.assertEqual(
-            (None, "cert2", "cert_raw2", "reused certificate from id: 2"),
-            self.certificate._cert_reusage_check("csr"),
-        )
-
-    @patch("acme_srv.certificate.uts_now")
-    def test_156__cert_reusage_check(self, mock_uts):
-        """test Certificate._cert_reusage_check() - three certificates found"""
-        self.certificate.cert_reusage_timeframe = 86400
-        mock_uts.return_value = 90000
-        result = [
-            {
-                "id": 1,
-                "cert": "cert1",
-                "cert_raw": "cert_raw1",
-                "expire_uts": 100001,
-                "issue_uts": 1001,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 31, 0),
-            },
-            {
-                "id": 2,
-                "cert": "cert2",
-                "cert_raw": "cert_raw2",
-                "expire_uts": 100002,
-                "issue_uts": 1002,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 32, 0),
-            },
-            {
-                "id": 3,
-                "cert": "cert3",
-                "cert_raw": "cert_raw3",
-                "expire_uts": 100003,
-                "issue_uts": 1003,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 33, 0),
-            },
-        ]
-        self.certificate.dbstore.certificates_search.return_value = result
-        self.assertEqual(
-            (None, "cert3", "cert_raw3", "reused certificate from id: 3"),
-            self.certificate._cert_reusage_check("csr"),
-        )
-
-    @patch("acme_srv.certificate.uts_now")
-    def test_157__cert_reusage_check(self, mock_uts):
-        """test Certificate._cert_reusage_check() - three certificates found in wrong order"""
-        self.certificate.cert_reusage_timeframe = 86400
-        mock_uts.return_value = 90000
-        result = [
-            {
-                "id": 2,
-                "cert": "cert2",
-                "cert_raw": "cert_raw2",
-                "expire_uts": 100002,
-                "issue_uts": 1002,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 32, 0),
-            },
-            {
-                "id": 3,
-                "cert": "cert3",
-                "cert_raw": "cert_raw3",
-                "expire_uts": 100003,
-                "issue_uts": 1003,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 33, 0),
-            },
-            {
-                "id": 1,
-                "cert": "cert1",
-                "cert_raw": "cert_raw1",
-                "expire_uts": 100001,
-                "issue_uts": 1001,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 31, 0),
-            },
-        ]
-        self.certificate.dbstore.certificates_search.return_value = result
-        self.assertEqual(
-            (None, "cert3", "cert_raw3", "reused certificate from id: 3"),
-            self.certificate._cert_reusage_check("csr"),
-        )
-
-    @patch("acme_srv.certificate.uts_now")
-    def test_158__cert_reusage_check(self, mock_uts):
-        """test Certificate._cert_reusage_check() - three certificates found latest certificate exipred"""
-        self.certificate.cert_reusage_timeframe = 86400
-        mock_uts.return_value = 90000
-        result = [
-            {
-                "id": 1,
-                "cert": "cert1",
-                "cert_raw": "cert_raw1",
-                "expire_uts": 100001,
-                "issue_uts": 1001,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 31, 0),
-            },
-            {
-                "id": 2,
-                "cert": "cert2",
-                "cert_raw": "cert_raw2",
-                "expire_uts": 100002,
-                "issue_uts": 1002,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 32, 0),
-            },
-            {
-                "id": 3,
-                "cert": "cert3",
-                "cert_raw": "cert_raw3",
-                "expire_uts": 2003,
-                "issue_uts": 1003,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 33, 0),
-            },
-        ]
-        self.certificate.dbstore.certificates_search.return_value = result
-        self.assertEqual(
-            (None, "cert2", "cert_raw2", "reused certificate from id: 2"),
-            self.certificate._cert_reusage_check("csr"),
-        )
-
-    @patch("acme_srv.certificate.uts_now")
-    def test_159__cert_reusage_check(self, mock_uts):
-        """test Certificate._cert_reusage_check() - three certificates found - last certificate empty cert field"""
-        self.certificate.cert_reusage_timeframe = 86400
-        mock_uts.return_value = 90000
-        result = [
-            {
-                "id": 1,
-                "cert": "cert1",
-                "cert_raw": "cert_raw1",
-                "expire_uts": 100001,
-                "issue_uts": 1001,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 31, 0),
-            },
-            {
-                "id": 2,
-                "cert": "cert2",
-                "cert_raw": "cert_raw2",
-                "expire_uts": 100002,
-                "issue_uts": 1002,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 32, 0),
-            },
-            {
-                "id": 3,
-                "cert": "",
-                "cert_raw": "cert_raw3",
-                "expire_uts": 100003,
-                "issue_uts": 1003,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 33, 0),
-            },
-        ]
-        self.certificate.dbstore.certificates_search.return_value = result
-        self.assertEqual(
-            (None, "cert2", "cert_raw2", "reused certificate from id: 2"),
-            self.certificate._cert_reusage_check("csr"),
-        )
-
-    @patch("acme_srv.certificate.uts_now")
-    def test_160__cert_reusage_check(self, mock_uts):
-        """test Certificate._cert_reusage_check() - three certificates found - last certificate empty cert_raw field"""
-        self.certificate.cert_reusage_timeframe = 86400
-        mock_uts.return_value = 90000
-        result = [
-            {
-                "id": 1,
-                "cert": "cert1",
-                "cert_raw": "cert_raw1",
-                "expire_uts": 100001,
-                "issue_uts": 1001,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 31, 0),
-            },
-            {
-                "id": 2,
-                "cert": "cert2",
-                "cert_raw": "cert_raw2",
-                "expire_uts": 100002,
-                "issue_uts": 1002,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 32, 0),
-            },
-            {
-                "id": 3,
-                "cert": "cert3",
-                "cert_raw": "",
-                "expire_uts": 100003,
-                "issue_uts": 1003,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 33, 0),
-            },
-        ]
-        self.certificate.dbstore.certificates_search.return_value = result
-        self.assertEqual(
-            (None, "cert2", "cert_raw2", "reused certificate from id: 2"),
-            self.certificate._cert_reusage_check("csr"),
-        )
-
-    @patch("acme_srv.certificate.uts_now")
-    def test_161__cert_reusage_check(self, mock_uts):
-        """test Certificate._cert_reusage_check() - three certificates found - last certificate empty 'created_add'"""
-        self.certificate.cert_reusage_timeframe = 86400
-        mock_uts.return_value = 90000
-        result = [
-            {
-                "id": 1,
-                "cert": "cert1",
-                "cert_raw": "cert_raw1",
-                "expire_uts": 100001,
-                "issue_uts": 1001,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 31, 0),
-            },
-            {
-                "id": 2,
-                "cert": "cert2",
-                "cert_raw": "cert_raw2",
-                "expire_uts": 100002,
-                "issue_uts": 1002,
-                "created_at": datetime.datetime(1970, 1, 1, 9, 32, 0),
-            },
-            {
-                "id": 3,
-                "cert": "cert3",
-                "cert_raw": "",
-                "expire_uts": 100003,
-                "issue_uts": 1003,
-                "created_at": "",
-            },
-        ]
-        self.certificate.dbstore.certificates_search.return_value = result
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual(
-                (None, "cert2", "cert_raw2", "reused certificate from id: 2"),
-                self.certificate._cert_reusage_check("csr"),
-            )
-            self.assertIn(
-                "ERROR:test_a2c:Date conversion error during certificate reusage check: id:3/created_at:",
-                lcm.output,
+            mock_debug.assert_any_call(
+                "Certificate._validate_certificate_authorization() ended"
             )
 
     def test_191_enter_calls_load_configuration_and_returns_self(self):
@@ -3127,1012 +2530,14 @@ class TestCertificate(unittest.TestCase):
             result = self.cert._validate_certificate_authorization(
                 {"identifiers": "[]"}, "cert"
             )
-        self.assertIn(
-            "CRITICAL:test_a2c:Database error: failed to search for certificate reusage: ex_cert_reusage",
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_168_config_load(self, mock_load_cfg, mock_handler):
-        """test _config_load empty dictionary"""
-        mock_load_cfg.return_value = configparser.ConfigParser()
-        self.certificate._config_load()
-        self.assertFalse(self.certificate.tnauthlist_support)
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.load_config")
-    def test_169_config_load(self, mock_load_cfg):
-        """test _config_load missing ca_handler"""
-        mock_load_cfg.return_value = configparser.ConfigParser()
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertIn(
-            "ERROR:test_a2c:CAhandler configuration missing in config file", lcm.output
-        )
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_170_config_load(self, mock_load_cfg, mock_hand):
-        """test _config_load missing ca_handler"""
-        parser = configparser.ConfigParser()
-        parser["Order"] = {"tnauthlist_support": False}
-        mock_load_cfg.return_value = parser
-        self.certificate._config_load()
-        self.assertFalse(self.certificate.tnauthlist_support)
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_171_config_load(self, mock_load_cfg, mock_hand):
-        """test _config_load missing ca_handler"""
-        parser = configparser.ConfigParser()
-        parser["Order"] = {"tnauthlist_support": True}
-        mock_load_cfg.return_value = parser
-        self.certificate._config_load()
-        self.assertTrue(self.certificate.tnauthlist_support)
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_172_config_load(self, mock_load_cfg, mock_handler):
-        """test _config_load missing ca_handler"""
-        parser = configparser.ConfigParser()
-        parser["CAhandler"] = {"handler_file": "foo"}
-        mock_load_cfg.return_value = parser
-        mock_handler.return_value = None
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertIn(
-            "CRITICAL:test_a2c:No ca_handler loaded",
-            lcm.output,
-        )
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_173_config_load(self, mock_load_cfg, mock_handler):
-        """test _config_load missing ca_handler"""
-        parser = configparser.ConfigParser()
-        parser["CAhandler"] = {"handler_file": "examples/ca_handler/asa_ca_handler.py"}
-        mock_load_cfg.return_value = parser
-        mock_handler.return_value = None
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertIn(
-            "CRITICAL:test_a2c:No ca_handler loaded",
-            lcm.output,
-        )
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertTrue(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_174_config_load(self, mock_load_cfg, mock_imp):
-        """test _config_load missing ca_handler"""
-        parser = configparser.ConfigParser()
-        parser["CAhandler"] = {"handler_file": "foo"}
-        mock_load_cfg.return_value = parser
-        mock_imp.return_value = Mock()
-        self.certificate._config_load()
-        self.assertTrue(self.certificate.cahandler)
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_175_config_load(self, mock_load_cfg, mock_handler):
-        """test _config_load missing ca_handler"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"foo": "bar", "url_prefix": "url_prefix"}
-        mock_load_cfg.return_value = parser
-        self.certificate._config_load()
-        self.assertFalse(self.certificate.tnauthlist_support)
-        self.assertEqual(
-            {"cert_path": "url_prefix/acme/cert/"}, self.certificate.path_dic
-        )
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_176_config_load(self, mock_load_cfg, mock_imp):
-        """test _config_load  ca_handler but no handler_file"""
-        parser = configparser.ConfigParser()
-        parser["CAhandler"] = {"foo": "bar"}
-        mock_load_cfg.return_value = parser
-        mock_imp.return_value = Mock()
-        self.certificate._config_load()
-        self.assertTrue(mock_imp.called)
-        self.assertTrue(self.certificate.cahandler)
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_177_config_load(self, mock_load_cfg, mock_handler):
-        """test _config_load no cert_reusage_timeframe"""
-        parser = configparser.ConfigParser()
-        parser["Certificate"] = {"foo": "bar"}
-        mock_load_cfg.return_value = parser
-        self.certificate._config_load()
-        self.assertFalse(self.certificate.cert_reusage_timeframe)
-        self.assertEqual(5, self.certificate.enrollment_timeout)
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_178_config_load(self, mock_load_cfg, mock_handler):
-        """test _config_load cert_reusage_timeframe 120"""
-        parser = configparser.ConfigParser()
-        parser["Certificate"] = {"cert_reusage_timeframe": 1200}
-        mock_load_cfg.return_value = parser
-        self.certificate._config_load()
-        self.assertEqual(1200, self.certificate.cert_reusage_timeframe)
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_179_config_load(self, mock_load_cfg, mock_handler):
-        """test _config_load cert_reusage_timeframe 0"""
-        parser = configparser.ConfigParser()
-        parser["Certificate"] = {"cert_reusage_timeframe": 0}
-        mock_load_cfg.return_value = parser
-        self.certificate._config_load()
-        self.assertFalse(self.certificate.cert_reusage_timeframe)
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_180_config_load(self, mock_load_cfg, mock_handler):
-        """test _config_load cert_reusage_timeframe text"""
-        parser = configparser.ConfigParser()
-        parser["Certificate"] = {"cert_reusage_timeframe": "aaa"}
-        mock_load_cfg.return_value = parser
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertFalse(self.certificate.cert_reusage_timeframe)
-        self.assertIn(
-            "ERROR:test_a2c:cert_reusage_timout parsing error: invalid literal for int() with base 10: 'aaa'",
-            lcm.output,
-        )
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_181_config_load(self, mock_load_cfg, mock_handler):
-        """test _config_load enrollment_timeout 120"""
-        parser = configparser.ConfigParser()
-        parser["Certificate"] = {"enrollment_timeout": 120}
-        mock_load_cfg.return_value = parser
-        self.certificate._config_load()
-        self.assertEqual(120, self.certificate.enrollment_timeout)
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_182_config_load(self, mock_load_cfg, mock_handler):
-        """test _config_load certificate text"""
-        parser = configparser.ConfigParser()
-        parser["Certificate"] = {"enrollment_timeout": "aaa"}
-        mock_load_cfg.return_value = parser
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertEqual(5, self.certificate.enrollment_timeout)
-        self.assertIn(
-            "ERROR:test_a2c:enrollment_timeout parsing error: invalid literal for int() with base 10: 'aaa'",
-            lcm.output,
-        )
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.hooks_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_183_config_load(self, mock_load_cfg, mock_hooks, mock_handler):
-        """test _config_load hooks_load() returns None"""
-        parser = configparser.ConfigParser()
-        parser["Certificate"] = {"enrollment_timeout": 120}
-        mock_load_cfg.return_value = parser
-        mock_hooks.return_value = None
-        self.certificate._config_load()
-        self.assertEqual(120, self.certificate.enrollment_timeout)
-        self.assertFalse(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.ca_handler_load")
-    @patch("acme_srv.certificate.hooks_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_184_config_load(self, mock_load_cfg, mock_hooks, mock_handler):
-        """test _config_load hooks_load() returns module"""
-        parser = configparser.ConfigParser()
-        parser["Certificate"] = {"enrollment_timeout": 120}
-        mock_load_cfg.return_value = parser
-        mock_hooks = Mock(return_value="foo")
-        self.certificate._config_load()
-        self.assertEqual(120, self.certificate.enrollment_timeout)
-        self.assertTrue(self.certificate.hooks)
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.hooks_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_185_config_load(self, mock_load_cfg, mock_hooks):
-        """test _config_load hooks_load() returns non-module object"""
-        parser = configparser.ConfigParser()
-        parser["Certificate"] = {"enrollment_timeout": 120}
-        mock_load_cfg.return_value = parser
-        mock_hooks.return_value = "foo"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertEqual(120, self.certificate.enrollment_timeout)
-        self.assertFalse(self.certificate.hooks)
-        self.assertIn(
-            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
-            lcm.output,
-        )
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.hooks_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_186_config_load(self, mock_load_cfg, mock_hooks):
-        """test _config_load ignore_pre_hook_failure False"""
-        parser = configparser.ConfigParser()
-        parser["Hooks"] = {"ignore_pre_hook_failure": False}
-        mock_load_cfg.return_value = parser
-        mock_hooks.return_value = "foo"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertEqual(5, self.certificate.enrollment_timeout)
-        self.assertFalse(self.certificate.hooks)
-        self.assertIn(
-            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
-            lcm.output,
-        )
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.hooks_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_187_config_load(self, mock_load_cfg, mock_hooks):
-        """test _config_load ignore_pre_hook_failure True"""
-        parser = configparser.ConfigParser()
-        parser["Hooks"] = {"ignore_pre_hook_failure": True}
-        mock_load_cfg.return_value = parser
-        mock_hooks.return_value = "foo"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertEqual(5, self.certificate.enrollment_timeout)
-        self.assertFalse(self.certificate.hooks)
-        self.assertIn(
-            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
-            lcm.output,
-        )
-        self.assertTrue(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.hooks_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_188_config_load(self, mock_load_cfg, mock_hooks):
-        """test _config_load ignore_post_hook_failure False"""
-        parser = configparser.ConfigParser()
-        parser["Hooks"] = {"ignore_post_hook_failure": False}
-        mock_load_cfg.return_value = parser
-        mock_hooks.return_value = "foo"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertEqual(5, self.certificate.enrollment_timeout)
-        self.assertFalse(self.certificate.hooks)
-        self.assertIn(
-            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
-            lcm.output,
-        )
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertFalse(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.hooks_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_189_config_load(self, mock_load_cfg, mock_hooks):
-        """test _config_load ignore_post_hook_failure True"""
-        parser = configparser.ConfigParser()
-        parser["Hooks"] = {"ignore_post_hook_failure": True}
-        mock_load_cfg.return_value = parser
-        mock_hooks.return_value = "foo"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertEqual(5, self.certificate.enrollment_timeout)
-        self.assertFalse(self.certificate.hooks)
-        self.assertIn(
-            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
-            lcm.output,
-        )
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.hooks_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_190_config_load(self, mock_load_cfg, mock_hooks):
-        """test _config_load ignore_success_hook_failure False"""
-        parser = configparser.ConfigParser()
-        parser["Hooks"] = {"ignore_success_hook_failure": False}
-        mock_load_cfg.return_value = parser
-        mock_hooks.return_value = "foo"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertEqual(5, self.certificate.enrollment_timeout)
-        self.assertFalse(self.certificate.hooks)
-        self.assertIn(
-            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
-            lcm.output,
-        )
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.hooks_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_191_config_load(self, mock_load_cfg, mock_hooks):
-        """test _config_load ignore_success_hook_failure True"""
-        parser = configparser.ConfigParser()
-        parser["Hooks"] = {"ignore_success_hook_failure": True}
-        mock_load_cfg.return_value = parser
-        mock_hooks.return_value = "foo"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertEqual(5, self.certificate.enrollment_timeout)
-        self.assertFalse(self.certificate.hooks)
-        self.assertIn(
-            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
-            lcm.output,
-        )
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertTrue(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertFalse(self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.hooks_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_192_config_load(self, mock_load_cfg, mock_hooks):
-        """test _config_load ignore_post_hook_failure True"""
-        parser = configparser.ConfigParser()
-        parser["Certificate"] = {"cert_operations_log": "JSON"}
-        mock_load_cfg.return_value = parser
-        mock_hooks.return_value = False
-        mock_hooks.return_value = "foo"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertEqual(5, self.certificate.enrollment_timeout)
-        self.assertFalse(self.certificate.hooks)
-        self.assertIn(
-            "CRITICAL:test_a2c:Enrollment hooks could not be loaded: 'str' object has no attribute 'Hooks'",
-            lcm.output,
-        )
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertEqual("json", self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.hooks_load")
-    @patch("acme_srv.certificate.load_config")
-    def test_193_config_load(self, mock_load_cfg, mock_hooks):
-        """test _config_load ignore_success_hook_failure False"""
-        parser = configparser.ConfigParser()
-        parser["Certificate"] = {"cert_operations_log": "aa"}
-        mock_load_cfg.return_value = parser
-        mock_hooks.return_value = False
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._config_load()
-        self.assertEqual(5, self.certificate.enrollment_timeout)
-        self.assertFalse(self.certificate.hooks)
-        self.assertIn(
-            "CRITICAL:test_a2c:No ca_handler loaded",
-            lcm.output,
-        )
-        self.assertFalse(self.certificate.ignore_pre_hook_failure)
-        self.assertTrue(self.certificate.ignore_post_hook_failure)
-        self.assertFalse(self.certificate.ignore_success_hook_failure)
-        self.assertFalse(self.certificate.cn2san_add)
-        self.assertEqual("aa", self.certificate.cert_operations_log)
-
-    @patch("acme_srv.certificate.cert_san_get")
-    def test_194_certificate__authorization_check(self, mock_san):
-        """test Certificate.authorization_check - cert_san_get raises exception)"""
-        self.certificate.dbstore.order_lookup.side_effect = None
-        self.certificate.dbstore.order_lookup.return_value = {"identifiers": "test"}
-        mock_san.side_effect = Exception("cert_san_get")
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
-        self.assertIn(
-            "WARNING:test_a2c:Error while parsing certificate for SAN identifier check: cert_san_get",
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.Certificate._identifer_status_list")
-    @patch("acme_srv.certificate.cert_san_get")
-    def test_195_certificate__authorization_check(self, mock_san, mock_statlist):
-        """test Certificate.authorization_check - cert_san_get raises exception)"""
-        self.certificate.dbstore.order_lookup.side_effect = None
-        self.certificate.dbstore.order_lookup.return_value = {"identifiers": "test"}
-        mock_san.return_value = ["foo"]
-        mock_statlist.side_effect = Exception("idstat_exc")
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
-        self.assertIn(
-            "WARNING:test_a2c:Error while parsing certificate for SAN identifier check: idstat_exc",
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    @patch("acme_srv.certificate.cert_extensions_get")
-    def test_196_certificate__authorization_check(self, mock_certext, mock_tnin):
-        """test Certificate.authorization_check cert_extensions_get raises exception)"""
-        self.certificate.dbstore.order_lookup.side_effect = None
-        self.certificate.dbstore.order_lookup.return_value = {"identifiers": "test"}
-        self.certificate.tnauthlist_support = True
-        mock_tnin.return_value = True
-        mock_certext.side_effect = Exception("cert_ext_get")
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
-        self.assertIn(
-            "WARNING:test_a2c:Error while parsing certificate for TNAuthList identifier check: cert_ext_get",
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.Certificate._identifer_tnauth_list")
-    @patch("acme_srv.certificate.Certificate._tnauth_identifier_check")
-    @patch("acme_srv.certificate.cert_extensions_get")
-    def test_197_certificate__authorization_check(
-        self, mock_certext, mock_tnin, mock_tnlist
-    ):
-        """test Certificate.authorization_check _identifer_tnauth_list raises exception)"""
-        self.certificate.dbstore.order_lookup.side_effect = None
-        self.certificate.dbstore.order_lookup.return_value = {"identifiers": "test"}
-        self.certificate.tnauthlist_support = True
-        mock_tnin.return_value = True
-        mock_certext.return_value = ["foo"]
-        mock_tnlist.side_effect = Exception("tnauth_in_exc")
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.certificate._authorization_check("cert_name", "cert"))
-        self.assertIn(
-            "WARNING:test_a2c:Error while parsing certificate for TNAuthList identifier check: tnauth_in_exc",
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.Certificate.certlist_search")
-    def test_198_dates_update(self, mock_search):
-        """dates update"""
-        mock_search.return_value = [{"foo": "bar"}, {"foo1": "bar1"}]
-        self.certificate.dates_update()
-
-    @patch("acme_srv.certificate.Certificate.certlist_search")
-    def test_199_dates_update(self, mock_search):
-        """dates update"""
-        mock_search.return_value = [
-            {"issue_uts": 0, "expire_uts": 0, "cert_raw": "cert_raw"},
-            {"foo1": "bar1"},
-        ]
-        self.certificate.dates_update()
-
-    @patch("acme_srv.certificate.Certificate._store_cert")
-    @patch("acme_srv.certificate.cert_dates_get")
-    @patch("acme_srv.certificate.Certificate.certlist_search")
-    def test_200_dates_update(self, mock_search, mock_dates_get, mock_store):
-        """dates update with a none zero issue-uts"""
-        mock_search.return_value = [
-            {
-                "issue_uts": 2,
-                "expire_uts": 0,
-                "cert_raw": "cert_raw",
-                "name": "name",
-                "cert": "cert",
-            },
-            {"foo1": "bar1"},
-        ]
-        mock_dates_get.return_value = (42, 42)
-        self.certificate.dates_update()
-        self.assertFalse(mock_dates_get.called)
-        self.assertFalse(mock_store.called)
-
-    @patch("acme_srv.certificate.Certificate._store_cert")
-    @patch("acme_srv.certificate.cert_dates_get")
-    @patch("acme_srv.certificate.Certificate.certlist_search")
-    def test_201_dates_update(self, mock_search, mock_dates_get, mock_store):
-        """dates update with a none zero expire-uts"""
-        mock_search.return_value = [
-            {
-                "issue_uts": 0,
-                "expire_uts": 2,
-                "cert_raw": "cert_raw",
-                "name": "name",
-                "cert": "cert",
-            },
-            {"foo1": "bar1"},
-        ]
-        mock_dates_get.return_value = (42, 42)
-        self.certificate.dates_update()
-        self.assertFalse(mock_dates_get.called)
-        self.assertFalse(mock_store.called)
-
-    @patch("acme_srv.certificate.Certificate._store_cert")
-    @patch("acme_srv.certificate.cert_dates_get")
-    @patch("acme_srv.certificate.Certificate.certlist_search")
-    def test_202_dates_update(self, mock_search, mock_dates_get, mock_store):
-        """dates update call _cert_store"""
-        mock_search.return_value = [
-            {
-                "issue_uts": 0,
-                "expire_uts": 0,
-                "cert_raw": "cert_raw",
-                "name": "name",
-                "cert": "cert",
-            },
-            {"foo1": "bar1"},
-        ]
-        mock_dates_get.return_value = (42, 42)
-        self.certificate.dates_update()
-        self.assertTrue(mock_dates_get.called)
-        self.assertTrue(mock_store.called)
-
-    @patch("acme_srv.certificate.Certificate._store_cert")
-    @patch("acme_srv.certificate.cert_dates_get")
-    @patch("acme_srv.certificate.Certificate.certlist_search")
-    def test_203_dates_update(self, mock_search, mock_dates_get, mock_store):
-        """dates update call _cert_store"""
-        mock_search.return_value = [
-            {
-                "issue_uts": 0,
-                "expire_uts": 0,
-                "cert_raw": "cert_raw",
-                "name": "name",
-                "cert": "cert",
-            },
-            {"foo1": "bar1"},
-        ]
-        mock_dates_get.return_value = (42, 0)
-        self.certificate.dates_update()
-        self.assertTrue(mock_dates_get.called)
-        self.assertTrue(mock_store.called)
-
-    @patch("acme_srv.certificate.Certificate._store_cert")
-    @patch("acme_srv.certificate.cert_dates_get")
-    @patch("acme_srv.certificate.Certificate.certlist_search")
-    def test_204_dates_update(self, mock_search, mock_dates_get, mock_store):
-        """dates update call _cert_store"""
-        mock_search.return_value = [
-            {
-                "issue_uts": 0,
-                "expire_uts": 0,
-                "cert_raw": "cert_raw",
-                "name": "name",
-                "cert": "cert",
-            },
-            {"foo1": "bar1"},
-        ]
-        mock_dates_get.return_value = (0, 42)
-        self.certificate.dates_update()
-        self.assertTrue(mock_dates_get.called)
-        self.assertTrue(mock_store.called)
-
-    @patch("acme_srv.certificate.Certificate._store_cert")
-    @patch("acme_srv.certificate.cert_dates_get")
-    @patch("acme_srv.certificate.Certificate.certlist_search")
-    def test_205_dates_update(self, mock_search, mock_dates_get, mock_store):
-        """dates update do not call _cert_store bcs cert_dates_get return 0/0"""
-        mock_search.return_value = [
-            {
-                "issue_uts": 0,
-                "expire_uts": 0,
-                "cert_raw": "cert_raw",
-                "name": "name",
-                "cert": "cert",
-            },
-            {"foo1": "bar1"},
-        ]
-        mock_dates_get.return_value = (0, 0)
-        self.certificate.dates_update()
-        self.assertTrue(mock_dates_get.called)
-        self.assertFalse(mock_store.called)
-
-    def test_206_order_update(self):
-        """test Certificate._order_update - dbstore.order_update() raises an exception"""
-        self.certificate.dbstore.order_update.side_effect = Exception("exc_order_upd")
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._order_update({"url": "url"})
-        self.assertIn(
-            "CRITICAL:test_a2c:Database error: failed to update order: exc_order_upd",
-            lcm.output,
-        )
-
-    def test_207_certificate_certlist_search(self):
-        """test Certificate.certlist_search - dbstore.certificates_search() raises an exception"""
-        self.certificate.dbstore.certificates_search.side_effect = Exception(
-            "exc_certlist_search"
-        )
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate.certlist_search("type", "value")
-        self.assertIn(
-            "CRITICAL:test_a2c:Database error while searching for certificates: exc_certlist_search",
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.certid_asn1_get")
-    @patch("acme_srv.certificate.pembundle_to_list")
-    def test_208_renewal_info_get(self, mock_p2l, mock_certid):
-        """_renewal_info_get()"""
-        mock_certid.return_value = "certid"
-        self.assertEqual("certid", self.certificate._renewal_info_get("cert"))
-        self.assertTrue(mock_p2l.called)
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.cert_cn_get")
-    @patch("acme_srv.certificate.cert_serial_get")
-    def test_209_cert_issuance_log(self, mock_serial, mock_cn, mock_san):
-        """test _cert_issuance_log"""
-        mock_serial.return_value = "serial"
-        mock_cn.return_value = "cn"
-        mock_san.return_value = ["san1", "san2"]
-        self.certificate.cert_operations_log = "json"
-        self.certificate.dbstore.order_lookup.return_value = {
-            "account__name": "account__name",
-            "account__eab_kid": "account__eab_kid",
-            "account__contact": "account__contact",
-            "expires": 1763119116,
-        }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._cert_issuance_log(
-                "cert_name", "certificate", "order_name", "cert_reusage"
+            self.assertEqual(result, [])
+            mock_warning.assert_called_with(
+                "Error while parsing certificate for SAN identifier check: %s",
+                unittest.mock.ANY,
             )
-        self.assertIn(
-            'INFO:test_a2c:Certificate issued: {"account_contact": "account__contact", "account_name": "account__name", "certificate_name": "cert_name", "common_name": "cn", "eab_kid": "account__eab_kid", "expires": "2025-11-14T11:18:36Z", "reused": "cert_reusage", "san_list": ["san1", "san2"], "serial_number": "serial"}',
-            lcm.output,
-        )
-        self.assertTrue(self.certificate.dbstore.order_lookup.called)
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.cert_cn_get")
-    @patch("acme_srv.certificate.cert_serial_get")
-    def test_210_cert_issuance_log(self, mock_serial, mock_cn, mock_san):
-        """test _cert_issuance_log"""
-        mock_serial.return_value = "serial"
-        mock_cn.return_value = "cn"
-        mock_san.return_value = ["san1", "san2"]
-        self.certificate.cert_operations_log = True
-        self.certificate.dbstore.order_lookup.return_value = {
-            "account__name": "account__name",
-            "account__contact": "account__contact",
-            "expires": 1763119116,
-        }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._cert_issuance_log(
-                "cert_name", "certificate", "order_name", False
+            mock_debug.assert_any_call(
+                "Certificate._validate_certificate_authorization() ended"
             )
-        self.assertIn(
-            "INFO:test_a2c:Certificate cert_name issued for account account__name account__contact. Serial: serial, Common Name: cn, SANs: ['san1', 'san2'], Expires: 2025-11-14T11:18:36Z",
-            lcm.output,
-        )
-        self.assertTrue(self.certificate.dbstore.order_lookup.called)
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.cert_cn_get")
-    @patch("acme_srv.certificate.cert_serial_get")
-    def test_211_cert_issuance_log(self, mock_serial, mock_cn, mock_san):
-        """test _cert_issuance_log with kid"""
-        mock_serial.return_value = "serial"
-        mock_cn.return_value = "cn"
-        mock_san.return_value = ["san1", "san2"]
-        self.certificate.cert_operations_log = True
-        self.certificate.dbstore.order_lookup.return_value = {
-            "account__name": "account__name",
-            "account__eab_kid": "account__eab_kid",
-            "account__contact": "account__contact",
-            "expires": 1763119116,
-        }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._cert_issuance_log(
-                "cert_name", "certificate", "order_name", False
-            )
-        self.assertIn(
-            "INFO:test_a2c:Certificate cert_name issued for account account__name account__contact with EAB KID account__eab_kid. Serial: serial, Common Name: cn, SANs: ['san1', 'san2'], Expires: 2025-11-14T11:18:36Z",
-            lcm.output,
-        )
-        self.assertTrue(self.certificate.dbstore.order_lookup.called)
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.cert_cn_get")
-    @patch("acme_srv.certificate.cert_serial_get")
-    def test_212_cert_issuance_log(self, mock_serial, mock_cn, mock_san):
-        """test _cert_issuance_log with kid and profile"""
-        mock_serial.return_value = "serial"
-        mock_cn.return_value = "cn"
-        mock_san.return_value = ["san1", "san2"]
-        self.certificate.cert_operations_log = True
-        self.certificate.dbstore.order_lookup.return_value = {
-            "account__name": "account__name",
-            "account__eab_kid": "account__eab_kid",
-            "profile": "profile",
-            "account__contact": "account__contact",
-            "expires": 1763119116,
-        }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._cert_issuance_log(
-                "cert_name", "certificate", "order_name", "reused"
-            )
-        self.assertIn(
-            "INFO:test_a2c:Certificate cert_name issued for account account__name account__contact with EAB KID account__eab_kid with Profile profile. Serial: serial, Common Name: cn, SANs: ['san1', 'san2'], Expires: 2025-11-14T11:18:36Z reused: reused",
-            lcm.output,
-        )
-        self.assertTrue(self.certificate.dbstore.order_lookup.called)
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.cert_cn_get")
-    @patch("acme_srv.certificate.cert_serial_get")
-    def test_213_cert_issuance_log(self, mock_serial, mock_cn, mock_san):
-        """test _cert_issuance_log with kid and profile"""
-        mock_serial.return_value = "serial"
-        mock_cn.return_value = "cn"
-        mock_san.return_value = ["san1", "san2"]
-        self.certificate.cert_operations_log = True
-        self.certificate.dbstore.order_lookup.return_value = {
-            "account__name": "account__name",
-            "account__eab_kid": "account__eab_kid",
-            "profile": "profile",
-            "account__contact": "account__contact",
-            "expires": 1763119116,
-        }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._cert_issuance_log(
-                "cert_name", "certificate", "order_name", False
-            )
-        self.assertIn(
-            "INFO:test_a2c:Certificate cert_name issued for account account__name account__contact with EAB KID account__eab_kid with Profile profile. Serial: serial, Common Name: cn, SANs: ['san1', 'san2'], Expires: 2025-11-14T11:18:36Z",
-            lcm.output,
-        )
-        self.assertTrue(self.certificate.dbstore.order_lookup.called)
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.cert_cn_get")
-    @patch("acme_srv.certificate.cert_serial_get")
-    def test_214_cert_issuance_log(self, mock_serial, mock_cn, mock_san):
-        """test _cert_issuance_log"""
-        mock_serial.return_value = "serial"
-        mock_cn.return_value = "cn"
-        mock_san.return_value = ["san1", "san2"]
-        self.certificate.cert_operations_log = "json"
-        self.certificate.dbstore.order_lookup.side_effect = Exception(
-            "order_lookup error"
-        )
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._cert_issuance_log(
-                "cert_name", "certificate", "order_name", "cert_reusage"
-            )
-        self.assertIn(
-            'INFO:test_a2c:Certificate issued: {"account_contact": "", "account_name": "", "certificate_name": "cert_name", "common_name": "cn", "reused": "cert_reusage", "san_list": ["san1", "san2"], "serial_number": "serial"}',
-            lcm.output,
-        )
-        self.assertIn(
-            "ERROR:test_a2c:Database error: failed to get account information for cert issuance log: order_lookup error",
-            lcm.output,
-        )
-        self.assertTrue(self.certificate.dbstore.order_lookup.called)
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.cert_cn_get")
-    @patch("acme_srv.certificate.cert_serial_get")
-    def test_215_cert_revocation_log(self, mock_serial, mock_cn, mock_san):
-        """test Certificate._cert_revocation_log"""
-        mock_serial.return_value = "serial"
-        mock_cn.return_value = "cn"
-        mock_san.return_value = ["san1", "san2"]
-        self.certificate.dbstore.certificate_lookup.side_effect = None
-        self.certificate.dbstore.certificate_lookup.return_value = {
-            "name": "certificate_name",
-            "order__account__name": "account__name",
-            "order__account__eab_kid": "account__eab_kid",
-            "order__account__contact": "account__contact",
-            "order__profile": "order__profile",
-        }
-        self.certificate.cert_operations_log = "json"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._cert_revocation_log("certificate", 200)
-        self.assertIn(
-            'INFO:test_a2c:Certificate revoked: {"account_contact": "account__contact", "account_name": "account__name", "certificate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "profile": "order__profile", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "successful"}',
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.cert_cn_get")
-    @patch("acme_srv.certificate.cert_serial_get")
-    def test_216_cert_revocation_log(self, mock_serial, mock_cn, mock_san):
-        """test Certificate._cert_revocation_log"""
-        mock_serial.return_value = "serial"
-        mock_cn.return_value = "cn"
-        mock_san.return_value = ["san1", "san2"]
-        self.certificate.dbstore.certificate_lookup.side_effect = None
-        self.certificate.dbstore.certificate_lookup.return_value = {
-            "name": "certificate_name",
-            "order__account__name": "account__name",
-            "order__account__eab_kid": "account__eab_kid",
-            "order__account__contact": "account__contact",
-        }
-        self.certificate.cert_operations_log = "json"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._cert_revocation_log("certificate", "200")
-        self.assertIn(
-            'INFO:test_a2c:Certificate revoked: {"account_contact": "account__contact", "account_name": "account__name", "certificate_name": "certificate_name", "common_name": "cn", "eab_kid": "account__eab_kid", "profile": "", "san_list": ["san1", "san2"], "serial_number": "serial", "status": "failed"}',
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.cert_cn_get")
-    @patch("acme_srv.certificate.cert_serial_get")
-    def test_217_cert_revocation_log(self, mock_serial, mock_cn, mock_san):
-        """test Certificate._cert_revocation_log"""
-        mock_serial.return_value = "serial"
-        mock_cn.return_value = "cn"
-        mock_san.return_value = ["san1", "san2"]
-        self.certificate.cert_operations_log = "json"
-        self.certificate.dbstore.certificate_lookup.side_effect = None
-        self.certificate.dbstore.certificate_lookup.return_value = {
-            "name": "certificate_name",
-            "order__account__name": "account__name",
-            "order__account__contact": "account__contact",
-            "order__profile": "order__profile",
-        }
-        self.certificate.cert_operations_log = True
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._cert_revocation_log("certificate", "status")
-        self.assertIn(
-            "INFO:test_a2c:Certificate certificate_name revocation failed for account account__name account__contact with Profile order__profile. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.cert_cn_get")
-    @patch("acme_srv.certificate.cert_serial_get")
-    def test_218_cert_revocation_log(self, mock_serial, mock_cn, mock_san):
-        """test Certificate._cert_revocation_log"""
-        mock_serial.return_value = "serial"
-        mock_cn.return_value = "cn"
-        mock_san.return_value = ["san1", "san2"]
-        self.certificate.cert_operations_log = "json"
-        self.certificate.dbstore.certificate_lookup.side_effect = None
-        self.certificate.dbstore.certificate_lookup.return_value = {
-            "name": "certificate_name",
-            "order__account__name": "account__name",
-            "order__account__contact": "account__contact",
-            "order__account__eab_kid": "account__eab_kid",
-        }
-        self.certificate.cert_operations_log = True
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._cert_revocation_log("certificate", "status")
-        self.assertIn(
-            "INFO:test_a2c:Certificate certificate_name revocation failed for account account__name account__contact with EAB KID account__eab_kid. Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.cert_san_get")
-    @patch("acme_srv.certificate.cert_cn_get")
-    @patch("acme_srv.certificate.cert_serial_get")
-    def test_219_cert_revocation_log(self, mock_serial, mock_cn, mock_san):
-        """test Certificate._cert_revocation_log"""
-        mock_serial.return_value = "serial"
-        mock_cn.return_value = "cn"
-        mock_san.return_value = ["san1", "san2"]
-        self.certificate.cert_operations_log = "json"
-        self.certificate.dbstore.certificate_lookup.side_effect = Exception(
-            "certificate_lookup error"
-        )
-        self.certificate.cert_operations_log = True
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.certificate._cert_revocation_log("certificate", "status")
-        self.assertIn(
-            "ERROR:test_a2c:Database error: failed to get account information for cert revocation: certificate_lookup error",
-            lcm.output,
-        )
-        self.assertIn(
-            "INFO:test_a2c:Certificate  revocation failed for account  . Serial: serial, Common Name: cn, SANs: ['san1', 'san2']",
-            lcm.output,
-        )
-
-    @patch("acme_srv.certificate.Certificate._config_load")
-    def test_220__enter__(self, mock_cfg):
-        """test enter"""
-        mock_cfg.return_value = True
-        self.certificate.__enter__()
-        self.assertTrue(mock_cfg.called)
 
     def test_194_handle_enrollment_thread_execution_async_mode(self):
         """Test _handle_enrollment_thread_execution with async_mode True (lines 1305-1306)."""

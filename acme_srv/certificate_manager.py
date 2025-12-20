@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """Certificate Manager - Coordination Layer for Certificate Operations"""
-
-import json
+# pylint: disable=R0913, R1705
 from typing import Dict, List, Tuple, Union, Optional
 from acme_srv.certificate_business_logic import CertificateBusinessLogic
 from acme_srv.helper import uts_now, b64_url_recode, date_to_uts_utc, uts_to_date_utc
@@ -155,6 +154,7 @@ class CertificateManager:
         csr: str,
         order_name: str = None,
         certificate_data: str = None,
+        header_info: str = None,
     ) -> Tuple[bool, Optional[str]]:
         """
         Store certificate with full validation workflow.
@@ -186,6 +186,12 @@ class CertificateManager:
 
             if order_name:
                 cert_data["order"] = order_name
+
+            if header_info:
+                self.logger.debug(
+                    "CertificateManager.store_certificate(): store header_info with certificate"
+                )
+                cert_data["header_info"] = header_info
 
             if certificate_data:
                 cert_data["cert"] = certificate_data
@@ -487,7 +493,6 @@ class CertificateManager:
             self.logger.error(f"Account authorization check error: {err}")
             return {"status": "error", "error": str(err)}
 
-
     def prepare_certificate_response(
         self, certificate: str, status_code: int = 200
     ) -> Dict[str, Union[str, int]]:
@@ -581,7 +586,7 @@ class CertificateManager:
 
         try:
             # Validate CSR
-            (code, error, detail) = self.business_logic.validate_csr(csr)
+            (code, error, _detail) = self.business_logic.validate_csr(csr)
             if code != 200:
                 self.logger.error(f"CSR validation failed: {error}")
                 return (False, "")
@@ -591,7 +596,7 @@ class CertificateManager:
 
             # Store certificate with CSR
             (success, error_msg) = self.store_certificate(
-                certificate_name, csr, order_name
+                certificate_name, csr, order_name, header_info=header_info
             )
 
             if success:
