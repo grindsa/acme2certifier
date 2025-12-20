@@ -32,12 +32,12 @@ class DirectoryConfig:
 class DirectoryRepository:
     """Repository for all Directory-related database access."""
 
-    def __init__(self, dbstore, logger):
+    def __init__(self, dbstore: object, logger: object) -> None:
         """Initialize DirectoryRepository with dbstore and logger."""
         self.dbstore = dbstore
         self.logger = logger
 
-    def get_db_version(self):
+    def get_db_version(self) -> Optional[tuple[str, str]]:
         """Get the current database version from the DBstore."""
         try:
             return self.dbstore.dbversion_get()
@@ -51,7 +51,12 @@ class DirectoryRepository:
 class Directory:
     """Main handler for ACME Directory logic, configuration, and response building."""
 
-    def __init__(self, debug=None, srv_name=None, logger=None):
+    def __init__(
+        self,
+        debug: Optional[object] = None,
+        srv_name: Optional[str] = None,
+        logger: Optional[object] = None,
+    ) -> None:
         """Initialize Directory with configuration, repository, and logger."""
         self.server_name = srv_name
         self.logger = logger
@@ -62,17 +67,17 @@ class Directory:
         self.version = __version__
         self.dbversion = __dbversion__
 
-    def __enter__(self):
+    def __enter__(self) -> "Directory":
         """Enter context manager for Directory."""
         self._load_configuration()
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args) -> None:
         """Exit context manager for Directory."""
         # pylint: disable=w0107
         pass
 
-    def _load_configuration(self) -> DirectoryConfig:
+    def _load_configuration(self) -> None:
         """Load and parse all Directory configuration from file and environment."""
         self.logger.debug("Directory._load_configuration()")
         config_dic = load_config(self.logger, "Directory")
@@ -83,7 +88,7 @@ class Directory:
         self._load_ca_handler(config_dic)
         self.logger.debug("Directory._load_configuration() ended")
 
-    def _parse_directory_section(self, config_dic):
+    def _parse_directory_section(self, config_dic: object) -> None:
         """Parse the [Directory] section for basic config values."""
         if "Directory" in config_dic:
             cfg_dic = dict(config_dic["Directory"])
@@ -96,7 +101,7 @@ class Directory:
             if tmp_caaidentities:
                 self.config.caaidentities = self._parse_caaidentities(tmp_caaidentities)
 
-    def _parse_caaidentities(self, value):
+    def _parse_caaidentities(self, value: str) -> List[str]:
         """Parse the caaIdentities config value as JSON or fallback to list."""
         try:
             return json.loads(value)
@@ -110,7 +115,7 @@ class Directory:
                 )
                 return []
 
-    def _parse_booleans(self, config_dic):
+    def _parse_booleans(self, config_dic: object) -> None:
         """Parse boolean config values for Directory settings."""
         for key, attr in [
             ("supress_version", "supress_version"),
@@ -128,7 +133,7 @@ class Directory:
             except Exception as err_:
                 self.logger.error(f"{key} not set: %s", err_)
 
-    def _parse_eab_and_profiles(self, config_dic):
+    def _parse_eab_and_profiles(self, config_dic: object) -> None:
         """Parse EAB handler and profile configuration."""
         if (
             "EABhandler" in config_dic
@@ -137,7 +142,7 @@ class Directory:
             self.config.eab = True
         self.config.profiles = config_profile_load(self.logger, config_dic)
 
-    def _load_ca_handler(self, config_dic):
+    def _load_ca_handler(self, config_dic: object) -> None:
         """Load the CA handler module as configured."""
         ca_handler_module = ca_handler_load(self.logger, config_dic)
         if ca_handler_module:
@@ -145,7 +150,7 @@ class Directory:
         else:
             self.logger.critical("No ca_handler loaded")
 
-    def _build_meta_information(self) -> Dict[str, str]:
+    def _build_meta_information(self) -> Dict[str, object]:
         """Build the meta information dictionary for the directory response."""
         self.logger.debug("Directory._build_meta_information()")
         meta_dic = {}
@@ -171,7 +176,7 @@ class Directory:
         self.logger.debug("Directory._build_meta_information() ended")
         return meta_dic
 
-    def _build_directory_response(self) -> Dict[str, str]:
+    def _build_directory_response(self) -> Dict[str, object]:
         """Build the full directory response dictionary for the ACME directory endpoint."""
         self.logger.debug("Directory._build_directory_response()")
         d_dic = {
@@ -208,7 +213,7 @@ class Directory:
         self.logger.debug("Directory._build_directory_response() ended")
         return d_dic
 
-    def get_directory_response(self) -> Dict[str, str]:
+    def get_directory_response(self) -> Dict[str, object]:
         """Public method to get the ACME directory response, including CA handler checks."""
         self.logger.debug("Directory.get_directory_response()")
         error = None
@@ -230,7 +235,7 @@ class Directory:
             d_dic = {"error": "error in ca_handler configuration"}
         return d_dic
 
-    def directory_get(self) -> Dict[str, str]:
+    def directory_get(self) -> Dict[str, object]:
         """return response to ACME directory call"""
         self.logger.debug("Directory.directory_get()")
         return self.get_directory_response()
