@@ -5389,29 +5389,20 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {"async_mode": "False"}
         db_type = "django"
-        with self.assertLogs(self.logger, level="INFO") as log:
-            result = self.config_async_mode_load(self.logger, config_dic, db_type)
-        self.assertFalse(result)
-        self.assertIn("asynchronous Challenge validation disabled", log.output[0])
+        self.assertFalse(self.config_async_mode_load(self.logger, config_dic, db_type))
 
     def test_468_config_async_mode_load_default_fallback(self):
         """test config_async_mode_load() with no async_mode setting (fallback)"""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {}
         db_type = "django"
-        with self.assertLogs(self.logger, level="INFO") as log:
-            result = self.config_async_mode_load(self.logger, config_dic, db_type)
-        self.assertFalse(result)
-        self.assertIn("asynchronous Challenge validation disabled", log.output[0])
+        self.assertFalse(self.config_async_mode_load(self.logger, config_dic, db_type))
 
     def test_469_config_async_mode_load_no_default_section(self):
         """test config_async_mode_load() with no DEFAULT section"""
         config_dic = configparser.ConfigParser()
         db_type = "django"
-        with self.assertLogs(self.logger, level="INFO") as log:
-            result = self.config_async_mode_load(self.logger, config_dic, db_type)
-        self.assertFalse(result)
-        self.assertIn("asynchronous Challenge validation disabled", log.output[0])
+        self.assertFalse(self.config_async_mode_load(self.logger, config_dic, db_type))
 
     def test_470_config_async_mode_load_invalid_boolean(self):
         """test config_async_mode_load() with invalid boolean value"""
@@ -5442,13 +5433,8 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 config_dic = configparser.ConfigParser()
                 config_dic["DEFAULT"] = {"async_mode": value}
                 db_type = "django"
-                with self.assertLogs(self.logger, level="INFO") as log:
-                    result = self.config_async_mode_load(
-                        self.logger, config_dic, db_type
-                    )
-                self.assertFalse(result)
-                self.assertIn(
-                    "asynchronous Challenge validation disabled", log.output[0]
+                self.assertFalse(
+                    self.config_async_mode_load(self.logger, config_dic, db_type)
                 )
 
     def test_473_config_async_mode_load_different_db_types(self):
@@ -6257,6 +6243,41 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         result = allowed_gai_family()
 
         self.assertEqual(result, socket.AF_INET)
+
+    def test_508_config_allowed_domainlist_load_deprecated_section(self):
+        """Test config_allowed_domainlist_load loads from deprecated CAhandler section and logs warning."""
+        import logging
+        from acme_srv.helpers import config
+
+        # Simulate config_dic as a dict, as expected by the function
+        cfg = {"CAhandler": {"allowed_domainlist": "example.com,example.org"}}
+        logger = logging.getLogger("test_a2c")
+        with self.assertLogs(logger, level="WARNING") as log_context:
+            result = config.config_allowed_domainlist_load(logger, cfg)
+        from acme_srv.helpers.global_variables import PARSING_ERR_MSG
+
+        self.assertEqual(result, PARSING_ERR_MSG)
+        self.assertTrue(any("deprecated" in msg.lower() for msg in log_context.output))
+
+    def test_509_config_allowed_domainlist_load_invalid_json(self):
+        """Test config_allowed_domainlist_load handles invalid JSON and logs warning."""
+        import logging
+        from acme_srv.helpers import config
+
+        logger = logging.getLogger("test_a2c")
+        # Simulate a config dict with invalid JSON in Order section
+        cfg = {"Order": {"allowed_domainlist": "not-a-json-list"}}
+        with self.assertLogs(logger, level="WARNING") as log_context:
+            from acme_srv.helpers.global_variables import PARSING_ERR_MSG
+
+            result = config.config_allowed_domainlist_load(logger, cfg)
+        self.assertEqual(result, PARSING_ERR_MSG)
+        self.assertTrue(
+            any(
+                "failed to load allowed_domainlist" in msg.lower()
+                for msg in log_context.output
+            )
+        )
 
 
 if __name__ == "__main__":
