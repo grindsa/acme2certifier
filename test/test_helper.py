@@ -25,7 +25,6 @@ class FakeDBStore(object):
     pass
 
 
-
 class TestACMEHandler(unittest.TestCase):
     """test class for ACMEHandler"""
 
@@ -5434,9 +5433,9 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 config_dic = configparser.ConfigParser()
                 config_dic["DEFAULT"] = {"async_mode": value}
                 db_type = "django"
-                self.assertFalse(self.config_async_mode_load(
-                    self.logger, config_dic, db_type
-                ))
+                self.assertFalse(
+                    self.config_async_mode_load(self.logger, config_dic, db_type)
+                )
 
     def test_473_config_async_mode_load_different_db_types(self):
         """test config_async_mode_load() with various non-django db types"""
@@ -6249,31 +6248,37 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         """Test config_allowed_domainlist_load loads from deprecated CAhandler section and logs warning."""
         import logging
         from acme_srv.helpers import config
+
         # Simulate config_dic as a dict, as expected by the function
-        cfg = {
-            'CAhandler': {'allowed_domainlist': 'example.com,example.org'}
-        }
+        cfg = {"CAhandler": {"allowed_domainlist": "example.com,example.org"}}
         logger = logging.getLogger("test_a2c")
         with self.assertLogs(logger, level="WARNING") as log_context:
             result = config.config_allowed_domainlist_load(logger, cfg)
         from acme_srv.helpers.global_variables import PARSING_ERR_MSG
+
         self.assertEqual(result, PARSING_ERR_MSG)
-        self.assertTrue(any('deprecated' in msg.lower() for msg in log_context.output))
+        self.assertTrue(any("deprecated" in msg.lower() for msg in log_context.output))
 
     def test_509_config_allowed_domainlist_load_invalid_json(self):
         """Test config_allowed_domainlist_load handles invalid JSON and logs warning."""
         import logging
         from acme_srv.helpers import config
+
         logger = logging.getLogger("test_a2c")
         # Simulate a config dict with invalid JSON in Order section
-        cfg = {
-            'Order': {'allowed_domainlist': 'not-a-json-list'}
-        }
+        cfg = {"Order": {"allowed_domainlist": "not-a-json-list"}}
         with self.assertLogs(logger, level="WARNING") as log_context:
             from acme_srv.helpers.global_variables import PARSING_ERR_MSG
+
             result = config.config_allowed_domainlist_load(logger, cfg)
         self.assertEqual(result, PARSING_ERR_MSG)
-        self.assertTrue(any('failed to load allowed_domainlist' in msg.lower() for msg in log_context.output))
+        self.assertTrue(
+            any(
+                "failed to load allowed_domainlist" in msg.lower()
+                for msg in log_context.output
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
