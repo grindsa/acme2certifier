@@ -132,19 +132,31 @@ class CertificateBusinessLogic:
         self.logger.debug("CertificateBusinessLogic.validate_certificate_data()")
 
         try:
-            if not certificate:
-                return True  # Allow empty certificates for flexibility
+            if not certificate or not isinstance(certificate, str):
+                self.logger.warning("Empty or non-string certificate data.")
+                return False
 
-            # Basic certificate format check - be permissive
-            if "-----BEGIN CERTIFICATE-----" in certificate:
+            # Check for PEM format
+            if certificate.strip().startswith(
+                "-----BEGIN CERTIFICATE-----"
+            ) and certificate.strip().endswith("-----END CERTIFICATE-----"):
                 return True
 
-            # Also allow other certificate formats or partial data
-            return True
+            # Optionally, check for DER (base64) format (very basic check)
+            if all(
+                c
+                in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=\n\r"
+                for c in certificate.strip()
+            ):
+                self.logger.info("Certificate appears to be in base64/DER format.")
+                return True
+
+            self.logger.warning("Certificate format not recognized.")
+            return False
 
         except Exception as err:
             self.logger.error(f"Certificate validation error: {err}")
-            return True  # Be permissive on errors
+            return False
 
     def extract_certificate_info(self, certificate: str) -> Dict[str, str]:
         """
