@@ -175,7 +175,19 @@ class TestDirectory(unittest.TestCase):
                 self.assertEqual(resp["meta"]["db_check"], "NOK")
                 mock_error.assert_called()
 
-    def test_016_build_directory_response_random_key(self):
+    def test_016_build_directory_response_db_exception(self):
+        self.directory.config.db_check = True
+        self.directory.dbversion = "1.0"
+        self.directory.repository = self.mock_repository
+        with patch.object(
+            self.mock_repository, "get_db_version", return_value=(None, None)
+        ):
+            with patch.object(self.mock_logger, "error") as mock_error:
+                resp = self.directory._build_directory_response()
+                self.assertEqual(resp["meta"]["db_check"], "NOK")
+                mock_error.assert_called()
+
+    def test_017_build_directory_response_random_key(self):
         resp = self.directory._build_directory_response()
         found_random = any(
             v
@@ -184,36 +196,36 @@ class TestDirectory(unittest.TestCase):
         )
         self.assertTrue(found_random)
 
-    def test_017_get_directory_response_success(self):
+    def test_018_get_directory_response_success(self):
         self.directory.cahandler = self.mock_cahandler
         self.mock_cahandler_instance.handler_check.return_value = None
         resp = self.directory.get_directory_response()
         self.assertIn("newAuthz", resp)
         self.assertIn("meta", resp)
 
-    def test_018_get_directory_response_error(self):
+    def test_019_get_directory_response_error(self):
         self.directory.cahandler = self.mock_cahandler
         self.mock_cahandler_instance.handler_check.return_value = "error"
         resp = self.directory.get_directory_response()
         self.assertIn("error", resp)
 
-    def test_019_get_directory_response_no_handler(self):
+    def test_020_get_directory_response_no_handler(self):
         self.directory.cahandler = None
         resp = self.directory.get_directory_response()
         self.assertIn("error", resp)
 
-    def test_020_directory_get(self):
+    def test_021_directory_get(self):
         with patch.object(
             self.directory, "get_directory_response", return_value={"key": "value"}
         ):
             resp = self.directory.directory_get()
             self.assertEqual(resp, {"key": "value"})
 
-    def test_021_servername_get(self):
+    def test_022_servername_get(self):
         self.directory.server_name = "test_server"
         self.assertEqual(self.directory.servername_get(), "test_server")
 
-    def test_022_parse_directory_section_calls_parse_caaidentities(self):
+    def test_023_parse_directory_section_calls_parse_caaidentities(self):
         # Mock config_dic to behave like configparser.ConfigParser
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "Directory"
@@ -236,14 +248,14 @@ class TestDirectory(unittest.TestCase):
             self.directory._parse_directory_section(config_dic)
             mock_parse_caaidentities.assert_called_once_with('["id1", "id2"]')
 
-    def test_023_repository_get_db_version_success(self):
+    def test_024_repository_get_db_version_success(self):
         mock_dbstore = MagicMock()
         mock_dbstore.dbversion_get.return_value = ("1.0", "script")
         repo = DirectoryRepository(mock_dbstore, self.mock_logger)
         result = repo.get_db_version()
         self.assertEqual(result, ("1.0", "script"))
 
-    def test_024_repository_get_db_version_exception(self):
+    def test_025_repository_get_db_version_exception(self):
         mock_dbstore = MagicMock()
         mock_dbstore.dbversion_get.side_effect = Exception("fail")
         repo = DirectoryRepository(mock_dbstore, self.mock_logger)
