@@ -14,7 +14,9 @@ and pick the appropriate release branch.
 
 **Features and Improvements**:
 
-- **EAB Profiling**:
+- [**Asynchronous Mode**](docs/async_mode.md)
+
+- **EAB Profiling**
 
   - Support of [domain prevalidation](docs/prevalidated_domainlist.md)
   - challenge_validation_disable, forward_address_check and reverse_address_check parameters can be configured via[EAB-Profiling feature](docs/eab_profiling.md)
