@@ -60,6 +60,7 @@ Data structures that define authorization configuration and runtime data:
 @dataclass
 class AuthorizationConfig:
     """Configuration for Authorization operations"""
+
     validity: int = 86400  # Default 24 hours
     expiry_check_disable: bool = False
     authz_path: str = "/acme/authz/"
@@ -77,6 +78,7 @@ class AuthorizationConfig:
 @dataclass
 class AuthorizationData:
     """Authorization data structure"""
+
     name: str
     status: str
     expires: int
@@ -222,12 +224,15 @@ Structured error handling with specific exception types:
 class AuthorizationError(Exception):
     """Base exception for authorization operations"""
 
+
 # Specific exceptions
 class AuthorizationNotFoundError(AuthorizationError):
     """Raised when authorization is not found"""
 
+
 class AuthorizationExpiredError(AuthorizationError):
     """Raised when authorization has expired"""
+
 
 class ConfigurationError(AuthorizationError):
     """Raised when configuration is invalid"""
