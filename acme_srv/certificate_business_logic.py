@@ -1,25 +1,15 @@
 # -*- coding: utf-8 -*-
 """Certificate Business Logic - Core Business Rules for Certificate Operations"""
 
-import json
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, Tuple, Union
 from acme_srv.helper import (
-    b64_url_recode,
     cert_aki_get,
     cert_cn_get,
     cert_dates_get,
-    cert_extensions_get,
     cert_san_get,
     cert_serial_get,
-    certid_asn1_get,
-    csr_san_get,
-    csr_extensions_get,
-    date_to_uts_utc,
     generate_random_string,
-    pembundle_to_list,
     string_sanitize,
-    uts_now,
-    uts_to_date_utc,
 )
 from acme_srv.helpers.csr import csr_load
 
@@ -58,7 +48,7 @@ class CertificateBusinessLogic:
             self.cert_reusage_timeframe = 0
 
     def validate_csr(
-        self, csr: str, certificate_name: str = None
+        self, csr: str, _certificate_name: str = None
     ) -> Tuple[int, str, str]:
         """
         Validate Certificate Signing Request.
@@ -119,7 +109,6 @@ class CertificateBusinessLogic:
             expire_uts = 0
 
         return (issue_uts, expire_uts)
-
 
     def generate_certificate_name(self) -> str:
         """
