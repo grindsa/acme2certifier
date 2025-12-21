@@ -22,6 +22,7 @@ and pick the appropriate release branch.
 - **Challenge Error Reporting**: Challange validation error status will be reported to ACME-client
 - **ACME CA Handla**:
   - Option to enable periodic synchronization of profiles information from ACME server to be shown as meta-information in Directory ressource
+  - Option to configure renewalinfo endpoint lookup on ACME server to obtain renewal window
 
 ## Changes in 0.40.1
 

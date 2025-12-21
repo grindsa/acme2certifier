@@ -1191,6 +1191,84 @@ class CAhandler(object):
         self.logger.debug("CAhandler.load_profiles() ended")
         return profiles
 
+    def _get_renewalinfo_endpoint_url(self, acme_url: str) -> str:
+        """get renewalinfo endpoint url"""
+        self.logger.debug("CAhandler._get_renewalinfo_endpoint_url()")
+
+        renewalinfo_enpoint_url = f"{acme_url}/renewal-info"  # default fallback
+
+        try:
+            response = url_get(self.logger, f"{acme_url}/directory", timeout=10)
+            if (
+                isinstance(response, (list, tuple))
+                and len(response) >= 2
+                and response[1] == 200
+            ):
+                try:
+                    directory_dic = json.loads(response[0])
+                    if (
+                        isinstance(directory_dic, dict)
+                        and "renewalInfo" in directory_dic
+                    ):
+                        self.logger.debug(
+                            "CAhandler._get_renewalinfo_endpoint_url(): using renewalInfo from directory"
+                        )
+                        renewalinfo_enpoint_url = directory_dic["renewalInfo"]
+                    else:
+                        self.logger.debug(
+                            "CAhandler._get_renewalinfo_endpoint_url(): renewalInfo not found in directory, using default path"
+                        )
+                except Exception as e:
+                    self.logger.error("Failed to parse directory JSON: %s", e)
+            else:
+                self.logger.warning(
+                    "Failed to fetch directory or unexpected response: %s", response
+                )
+        except Exception as e:
+            self.logger.error("Exception in _get_renewalinfo_endpoint_url: %s", e)
+
+        self.logger.debug(
+            "CAhandler._get_renewalinfo_endpoint_url() ended with: %s",
+            renewalinfo_enpoint_url,
+        )
+        return renewalinfo_enpoint_url
+
+    def lookup_renewalinfo(
+        self, acme_url, renewalinfo_string: str
+    ) -> Tuple[str, Dict[str, str]]:
+        """lookup renewalinfo and return cert and csr"""
+        self.logger.debug("CAhandler.lookup_renewalinfo()")
+
+        renewal_enpoint_url = self._get_renewalinfo_endpoint_url(acme_url)
+        url = f"{renewal_enpoint_url}/{renewalinfo_string}"
+        rcode = 500
+        renewalinfo_dic = {}
+
+        try:
+            ca_renewal_string = url_get(self.logger, url, timeout=10)
+            if (
+                isinstance(ca_renewal_string, (list, tuple))
+                and len(ca_renewal_string) >= 2
+            ):
+                try:
+                    renewalinfo_dic = json.loads(ca_renewal_string[0])
+                    rcode = ca_renewal_string[1]
+                except Exception as err:
+                    self.logger.error("Error decoding renewalinfo JSON: %s", err)
+                    renewalinfo_dic = {}
+                    rcode = 500
+            else:
+                self.logger.error(
+                    "Unexpected response from url_get: %s", ca_renewal_string
+                )
+        except Exception as err:
+            self.logger.error("Error during renewalinfo lookup: %s", err)
+            renewalinfo_dic = {}
+            rcode = 400
+
+        self.logger.debug("CAhandler.lookup_renewalinfo() ended")
+        return (rcode, renewalinfo_dic)
+
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str
     ) -> Tuple[str, str, str, str, bool]:

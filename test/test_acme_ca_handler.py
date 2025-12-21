@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 """unittests for openssl_ca_handler"""
 # pylint: disable=C0415, R0904, R0913, W0212
+
 import sys
 import os
 import josepy
@@ -9,6 +10,7 @@ import unittest
 from unittest.mock import patch, mock_open, Mock, MagicMock
 import configparser
 import josepy
+import json
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 
@@ -24,7 +26,194 @@ class FakeDBStore(object):
 
 
 class TestACMEHandler(unittest.TestCase):
-    """test class for generic_acme_handler"""
+    def setUp(self):
+        """setup unittest"""
+        models_mock = MagicMock()
+        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
+        modules = {"acme_srv.db_handler": models_mock}
+        patch.dict("sys.modules", modules).start()
+        import logging
+        from examples.ca_handler.acme_ca_handler import CAhandler
+
+        logging.basicConfig(level=logging.CRITICAL)
+        self.logger = logging.getLogger("test_a2c")
+        self.cahandler = CAhandler(False, self.logger)
+
+    def tearDown(self):
+        """teardown"""
+        pass
+
+    def _generate_full_jwk(self):
+        """Helper to generate a full josepy.JWKRSA object"""
+        private_key = rsa.generate_private_key(
+            public_exponent=65537, key_size=2048, backend=default_backend()
+        )
+        return josepy.JWKRSA(key=private_key)
+
+    def test_214__order_authorization_unexpected_status(self):
+        """CAhandler._order_authorization() - unexpected status branch"""
+        cah = self.cahandler
+        acmeclient = Mock()
+        order = Mock()
+        authzr = Mock()
+        authzr.body = Mock()
+        authzr.body.status = "foobar"
+        order.authorizations = [authzr]
+        user_key = Mock()
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            result = cah._order_authorization(acmeclient, order, user_key)
+        self.assertFalse(result)
+        self.assertIn("authorization in unexpected state: foobar", " ".join(lcm.output))
+
+    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    def test_200__syncronize_profiles_success(self, mock_url_get):
+        """CAhandler._syncronize_profiles() - success path"""
+        from examples.ca_handler.acme_ca_handler import CAhandler
+
+        cah = self.cahandler
+        mock_url_get.return_value = (
+            json.dumps({"meta": {"profiles": {"foo": "bar"}}}),
+            200,
+            None,
+        )
+        repository = MagicMock()
+        cah._syncronize_profiles(repository, "http://acme", 123456)
+        self.assertTrue(repository.profile_list_set.called)
+        args = repository.profile_list_set.call_args[0][0]
+        self.assertIn("profiles", args["value"])
+        self.assertIn("synchronized_at", args["value"])
+
+    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    def test_201__syncronize_profiles_error(self, mock_url_get):
+        """CAhandler._syncronize_profiles() - error path"""
+        from examples.ca_handler.acme_ca_handler import CAhandler
+
+        cah = self.cahandler
+        mock_url_get.return_value = ("fail", 500, "error")
+        repository = MagicMock()
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            cah._syncronize_profiles(repository, "http://acme", 123456)
+        self.assertIn("Error during profile synchronization", " ".join(lcm.output))
+
+    @patch("examples.ca_handler.acme_ca_handler.Thread")
+    @patch("examples.ca_handler.acme_ca_handler.uts_now", return_value=1000)
+    def test_202_load_profiles_outdated_sync(self, mock_uts, mock_thread):
+        """CAhandler.load_profiles() - outdated, sync mode"""
+        cah = self.cahandler
+        repository = MagicMock()
+        repository.profile_list_get.return_value = {"synchronized_at": 0}
+        cah._syncronize_profiles = MagicMock()
+        thread_instance = MagicMock()
+        mock_thread.return_value = thread_instance
+        cah.load_profiles(repository, "http://acme", 100, async_mode=False)
+        self.assertTrue(thread_instance.start.called)
+        self.assertTrue(thread_instance.join.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.Thread")
+    @patch("examples.ca_handler.acme_ca_handler.uts_now", return_value=1000)
+    def test_203_load_profiles_outdated_async(self, mock_uts, mock_thread):
+        """CAhandler.load_profiles() - outdated, async mode"""
+        cah = self.cahandler
+        repository = MagicMock()
+        repository.profile_list_get.return_value = {"synchronized_at": 0}
+        cah._syncronize_profiles = MagicMock()
+        thread_instance = MagicMock()
+        mock_thread.return_value = thread_instance
+        cah.load_profiles(repository, "http://acme", 100, async_mode=True)
+        self.assertTrue(thread_instance.start.called)
+        self.assertFalse(thread_instance.join.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.Thread")
+    @patch("examples.ca_handler.acme_ca_handler.uts_now", return_value=1000)
+    def test_204_load_profiles_up_to_date(self, mock_uts, mock_thread):
+        """CAhandler.load_profiles() - up-to-date profiles"""
+        cah = self.cahandler
+        repository = MagicMock()
+        repository.profile_list_get.return_value = {
+            "synchronized_at": 2000,
+            "profiles": {"foo": "bar"},
+        }
+        cah._syncronize_profiles = MagicMock()
+        profiles = cah.load_profiles(repository, "http://acme", 100, async_mode=False)
+        self.assertEqual(profiles, {"foo": "bar"})
+        self.assertFalse(mock_thread.return_value.start.called)
+
+    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    def test_205__get_renewalinfo_endpoint_url_success(self, mock_url_get):
+        """CAhandler._get_renewalinfo_endpoint_url() - directory has renewalInfo"""
+        cah = self.cahandler
+        directory_json = json.dumps({"renewalInfo": "http://acme/renewal-info"})
+        mock_url_get.return_value = (directory_json, 200)
+        url = cah._get_renewalinfo_endpoint_url("http://acme")
+        self.assertEqual(url, "http://acme/renewal-info")
+
+    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    def test_206__get_renewalinfo_endpoint_url_no_renewalinfo(self, mock_url_get):
+        """CAhandler._get_renewalinfo_endpoint_url() - directory missing renewalInfo"""
+        cah = self.cahandler
+        directory_json = json.dumps({"foo": "bar"})
+        mock_url_get.return_value = (directory_json, 200)
+        url = cah._get_renewalinfo_endpoint_url("http://acme")
+        self.assertEqual(url, "http://acme/renewal-info")
+
+    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    def test_207__get_renewalinfo_endpoint_url_json_error(self, mock_url_get):
+        """CAhandler._get_renewalinfo_endpoint_url() - JSON decode error"""
+        cah = self.cahandler
+        mock_url_get.return_value = ("notjson", 200)
+        url = cah._get_renewalinfo_endpoint_url("http://acme")
+        self.assertEqual(url, "http://acme/renewal-info")
+
+    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    def test_208__get_renewalinfo_endpoint_url_fetch_error(self, mock_url_get):
+        """CAhandler._get_renewalinfo_endpoint_url() - fetch error"""
+        cah = self.cahandler
+        mock_url_get.return_value = ("fail", 500)
+        url = cah._get_renewalinfo_endpoint_url("http://acme")
+        self.assertEqual(url, "http://acme/renewal-info")
+
+    @patch("examples.ca_handler.acme_ca_handler.url_get", side_effect=Exception("fail"))
+    def test_209__get_renewalinfo_endpoint_url_exception(self, mock_url_get):
+        """CAhandler._get_renewalinfo_endpoint_url() - exception"""
+        cah = self.cahandler
+        url = cah._get_renewalinfo_endpoint_url("http://acme")
+        self.assertEqual(url, "http://acme/renewal-info")
+
+    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    def test_210_lookup_renewalinfo_success(self, mock_url_get):
+        """CAhandler.lookup_renewalinfo() - success"""
+        cah = self.cahandler
+        renewalinfo_json = json.dumps({"cert": "foo", "csr": "bar"})
+        mock_url_get.return_value = (renewalinfo_json, 200)
+        code, dic = cah.lookup_renewalinfo("http://acme", "abc123")
+        self.assertEqual(code, 200)
+        self.assertEqual(dic, {"cert": "foo", "csr": "bar"})
+
+    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    def test_211_lookup_renewalinfo_json_error(self, mock_url_get):
+        """CAhandler.lookup_renewalinfo() - JSON decode error"""
+        cah = self.cahandler
+        mock_url_get.return_value = ("notjson", 200)
+        code, dic = cah.lookup_renewalinfo("http://acme", "abc123")
+        self.assertEqual(code, 500)
+        self.assertEqual(dic, {})
+
+    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    def test_212_lookup_renewalinfo_unexpected_response(self, mock_url_get):
+        """CAhandler.lookup_renewalinfo() - unexpected response"""
+        cah = self.cahandler
+        mock_url_get.return_value = "fail"
+        code, dic = cah.lookup_renewalinfo("http://acme", "abc123")
+        self.assertEqual(code, 500)
+        self.assertEqual(dic, {})
+
+    @patch("examples.ca_handler.acme_ca_handler.url_get", side_effect=Exception("fail"))
+    def test_213_lookup_renewalinfo_exception(self, mock_url_get):
+        """CAhandler.lookup_renewalinfo() - exception"""
+        cah = self.cahandler
+        code, dic = cah.lookup_renewalinfo("http://acme", "abc123")
+        self.assertEqual(code, 400)
+        self.assertEqual(dic, {})
 
     def setUp(self):
         """setup unittest"""
@@ -1976,14 +2165,16 @@ class TestACMEHandler(unittest.TestCase):
         order = Mock()
         authzr = Mock()
         authzr.body = Mock()
-        authzr.body.status = "valid"
+        from acme import messages
+
+        authzr.body.status = messages.STATUS_VALID
         order.authorizations = [authzr]
         mock_info.return_value = [
             None,
             {"type": "unk-01", "status": "valid"},
             "challenge",
         ]
-        self.assertFalse(
+        self.assertTrue(
             self.cahandler._order_authorization("acmeclient", order, "user_key")
         )
 

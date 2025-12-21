@@ -10,7 +10,6 @@ from acme_srv.directory import Directory, DirectoryConfig, DirectoryRepository
 
 
 class TestDirectory(unittest.TestCase):
-
     def setUp(self):
         self.mock_logger = MagicMock()
         self.mock_dbstore = MagicMock()
@@ -43,7 +42,9 @@ class TestDirectory(unittest.TestCase):
         config_dic = MagicMock()
         config_dic.getboolean.return_value = False
         with patch("acme_srv.directory.load_config", return_value=config_dic):
-            with patch("acme_srv.directory.config_async_mode_load", return_value=False) as mock_async_mode_load:
+            with patch(
+                "acme_srv.directory.config_async_mode_load", return_value=False
+            ) as mock_async_mode_load:
                 with patch.object(
                     self.directory, "_parse_directory_section"
                 ) as mock_parse_dir, patch.object(
@@ -287,7 +288,11 @@ class TestDirectory(unittest.TestCase):
         mock_cahandler_instance.load_profiles.return_value = {"profile": "loaded"}
         self.directory.cahandler = MagicMock(return_value=mock_cahandler_instance)
         # Ensure hasattr returns True for load_profiles
-        with patch.object(mock_cahandler_instance, "load_profiles", wraps=mock_cahandler_instance.load_profiles):
+        with patch.object(
+            mock_cahandler_instance,
+            "load_profiles",
+            wraps=mock_cahandler_instance.load_profiles,
+        ):
             resp = self.directory.get_directory_response()
             self.assertEqual(self.directory.config.profiles, {"profile": "loaded"})
             self.assertIn("newAuthz", resp)
@@ -352,7 +357,11 @@ class TestDirectory(unittest.TestCase):
     def test_034_parse_cahandler_section_profiles_sync_exception(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
-        config_dic.__getitem__.side_effect = lambda k: {"acme_url": "https://acme.example.com"} if k == "CAhandler" else None
+        config_dic.__getitem__.side_effect = (
+            lambda k: {"acme_url": "https://acme.example.com"}
+            if k == "CAhandler"
+            else None
+        )
         config_dic.getboolean.side_effect = Exception("fail")
         with patch.object(self.mock_logger, "error") as mock_error:
             self.directory._parse_cahandler_section(config_dic)
@@ -361,7 +370,11 @@ class TestDirectory(unittest.TestCase):
     def test_035_parse_cahandler_section_sets_acme_url(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
-        config_dic.__getitem__.side_effect = lambda k: {"acme_url": "https://acme.example.com"} if k == "CAhandler" else None
+        config_dic.__getitem__.side_effect = (
+            lambda k: {"acme_url": "https://acme.example.com"}
+            if k == "CAhandler"
+            else None
+        )
         config_dic.getboolean.side_effect = lambda section, key, fallback=None: False
         self.directory._parse_cahandler_section(config_dic)
         self.assertEqual(self.directory.config.acme_url, "https://acme.example.com")
@@ -369,42 +382,76 @@ class TestDirectory(unittest.TestCase):
     def test_036_parse_cahandler_section_profiles_sync_disabled(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
-        config_dic.__getitem__.side_effect = lambda k: {"acme_url": "https://acme.example.com"} if k == "CAhandler" else None
+        config_dic.__getitem__.side_effect = (
+            lambda k: {"acme_url": "https://acme.example.com"}
+            if k == "CAhandler"
+            else None
+        )
         config_dic.getboolean.side_effect = lambda section, key, fallback=None: False
         self.directory.config.profiles = {}
         self.directory._parse_cahandler_section(config_dic)
         self.assertFalse(self.directory.config.profiles_sync)
 
-    def test_037_parse_cahandler_section_profiles_sync_enabled_profiles_configured(self):
+    def test_037_parse_cahandler_section_profiles_sync_enabled_profiles_configured(
+        self,
+    ):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
-        config_dic.__getitem__.side_effect = lambda k: {"acme_url": "https://acme.example.com"} if k == "CAhandler" else None
+        config_dic.__getitem__.side_effect = (
+            lambda k: {"acme_url": "https://acme.example.com"}
+            if k == "CAhandler"
+            else None
+        )
         # First call to getboolean returns True for profiles_sync
-        config_dic.getboolean.side_effect = lambda section, key, fallback=None: True if key == "profiles_sync" else False
+        config_dic.getboolean.side_effect = (
+            lambda section, key, fallback=None: True
+            if key == "profiles_sync"
+            else False
+        )
         self.directory.config.profiles = {"profile": "data"}
         with patch.object(self.mock_logger, "error") as mock_error:
             self.directory._parse_cahandler_section(config_dic)
             self.assertFalse(self.directory.config.profiles_sync)
-            mock_error.assert_any_call("Profiles are configured via acme_srv.cfg. Disabling profile sync.")
+            mock_error.assert_any_call(
+                "Profiles are configured via acme_srv.cfg. Disabling profile sync."
+            )
 
     def test_038_parse_cahandler_section_profiles_sync_enabled_no_acme_url(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
         config_dic.__getitem__.side_effect = lambda k: {} if k == "CAhandler" else None
-        config_dic.getboolean.side_effect = lambda section, key, fallback=None: True if key == "profiles_sync" else False
+        config_dic.getboolean.side_effect = (
+            lambda section, key, fallback=None: True
+            if key == "profiles_sync"
+            else False
+        )
         self.directory.config.profiles = {}
         self.directory.config.acme_url = None
         with patch.object(self.mock_logger, "error") as mock_error:
             self.directory._parse_cahandler_section(config_dic)
             self.assertFalse(self.directory.config.profiles_sync)
-            mock_error.assert_any_call("profiles_sync is set but no acme_url configured.")
+            mock_error.assert_any_call(
+                "profiles_sync is set but no acme_url configured."
+            )
 
     def test_039_parse_cahandler_section_profiles_sync_interval_set(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
-        config_dic.__getitem__.side_effect = lambda k: {"acme_url": "https://acme.example.com"} if k == "CAhandler" else None
-        config_dic.getboolean.side_effect = lambda section, key, fallback=None: True if key == "profiles_sync" else False
-        config_dic.getint.side_effect = lambda section, key, fallback=None: 1234 if key == "profiles_sync_interval" else fallback
+        config_dic.__getitem__.side_effect = (
+            lambda k: {"acme_url": "https://acme.example.com"}
+            if k == "CAhandler"
+            else None
+        )
+        config_dic.getboolean.side_effect = (
+            lambda section, key, fallback=None: True
+            if key == "profiles_sync"
+            else False
+        )
+        config_dic.getint.side_effect = (
+            lambda section, key, fallback=None: 1234
+            if key == "profiles_sync_interval"
+            else fallback
+        )
         self.directory.config.profiles = {}
         self.directory.config.acme_url = "https://acme.example.com"
         self.directory.config.profiles_sync = False
@@ -414,8 +461,16 @@ class TestDirectory(unittest.TestCase):
     def test_040_parse_cahandler_section_profiles_sync_interval_error(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
-        config_dic.__getitem__.side_effect = lambda k: {"acme_url": "https://acme.example.com"} if k == "CAhandler" else None
-        config_dic.getboolean.side_effect = lambda section, key, fallback=None: True if key == "profiles_sync" else False
+        config_dic.__getitem__.side_effect = (
+            lambda k: {"acme_url": "https://acme.example.com"}
+            if k == "CAhandler"
+            else None
+        )
+        config_dic.getboolean.side_effect = (
+            lambda section, key, fallback=None: True
+            if key == "profiles_sync"
+            else False
+        )
         config_dic.getint.side_effect = Exception("fail")
         self.directory.config.profiles = {}
         self.directory.config.acme_url = "https://acme.example.com"

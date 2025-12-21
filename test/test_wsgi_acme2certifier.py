@@ -34,6 +34,7 @@ class TestACMEHandler(unittest.TestCase):
         import logging
         import importlib
         import examples.acme2certifier_wsgi
+
         importlib.reload(examples.acme2certifier_wsgi)
         from examples.acme2certifier_wsgi import (
             create_header,
@@ -928,7 +929,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(response, [])
 
     @patch("examples.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
-    @patch("acme_srv.directory.DirectoryRepository.get_db_version", return_value=("1.0", "script_name"))
+    @patch(
+        "acme_srv.directory.DirectoryRepository.get_db_version",
+        return_value=("1.0", "script_name"),
+    )
     def test_057_application(self, mock_get_db_version):
         """Test accessing the /acme/directory endpoint."""
         self.environ = {
