@@ -62,7 +62,7 @@ class DirectoryRepository:
             profiles = self.dbstore.hkparameter_get("profiles")
         except Exception as err:
             self.logger.critical("Database error: failed to get profile list: %s", err)
-            profiles = []
+            return []
         if profiles:
             try:
                 return json.loads(profiles)
@@ -71,6 +71,7 @@ class DirectoryRepository:
                     "Error when loading the profiles parameter from database: %s", err_
                 )
                 return []
+        return []
 
     def profile_list_set(self, data_dic: Dict[str, object]) -> None:
         """Set the list of profiles in the database."""
