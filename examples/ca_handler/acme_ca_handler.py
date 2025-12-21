@@ -348,7 +348,7 @@ class CAhandler(object):
         acme_sh_script_escaped = shlex.quote(self.acme_sh_script)
         dns_update_script_escaped = shlex.quote(self.dns_update_script)
         basename_w_ext_escaped = shlex.quote(basename_w_ext)
-        cmd_list = f"source {acme_sh_script_escaped} &>/dev/null; source {dns_update_script_escaped};  {basename_w_ext_escaped}_add {fqdn_escaped} {txt_record_value_escaped}"
+        cmd_list = f"source {acme_sh_script_escaped} &>/dev/null; source {dns_update_script_escaped};  {basename_w_ext_escaped}_add {fqdn_escaped} {txt_record_value_escaped}"  # noqa
 
         if self.acme_sh_shell:
             self.logger.debug(
@@ -1069,7 +1069,7 @@ class CAhandler(object):
 
         csr_pem = f"-----BEGIN CERTIFICATE REQUEST-----\n{textwrap.fill(str(b64_url_recode(self.logger, csr)), 64)}\n-----END CERTIFICATE REQUEST-----\n".encode(
             "utf-8"
-        )
+        )  # noqa
 
         cert_bundle = None
         cert_raw = None
