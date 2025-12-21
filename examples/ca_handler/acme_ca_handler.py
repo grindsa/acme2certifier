@@ -12,6 +12,7 @@ import josepy
 import subprocess
 import time
 import shlex
+from threading import Thread
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -34,9 +35,9 @@ from acme_srv.helper import (
     eab_profile_header_info_check,
     eab_profile_revocation_check,
     enrollment_config_log,
-    jwk_thumbprint_get,
     load_config,
     parse_url,
+    url_get,
     sha256_hash,
     txt_get,
     uts_now,
@@ -1129,6 +1130,66 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler.check() ended with %s", error)
         return error
+
+    def _syncronize_profiles(self, repository: object, acme_url: str, uts: int):
+        """synchronize profiles with CA"""
+        self.logger.debug("CAhandler.synchronize_profiles()")
+
+        result, code, error = url_get(self.logger, acme_url + "/directory", timeout=5)
+        if code == 200:
+            json_data = json.loads(result)
+            profiles = json.dumps(
+                {
+                    "profiles": json_data.get("meta").get("profiles", {}),
+                    "synchronized_at": uts,
+                }
+            )
+            data_dic = {"name": "profiles", "value": profiles}
+            repository.profile_list_set(data_dic)
+        else:
+            self.logger.error("Error during profile synchronization: %s", error)
+
+        self.logger.debug("CAhandler.synchronize_profiles() ended")
+
+    def load_profiles(
+        self,
+        repository: object,
+        acme_url: str,
+        profiles_sync_interval: int,
+        async_mode: bool = False,
+    ) -> Dict[str, str]:
+        """synchronize profiles with CA"""
+        self.logger.debug("CAhandler.load_profiles()")
+
+        uts = uts_now()
+        profiles_dic = repository.profile_list_get()
+
+        if not profiles_dic or (
+            "synchronized_at" in profiles_dic
+            and int(profiles_dic["synchronized_at"]) + profiles_sync_interval < uts
+        ):
+            # profile does not exist or is outdated
+            self.logger.info("CA-profiles outdated. Syncronize from acme_server")
+            # start profile update in separate thread
+            twrv = Thread(target=self._syncronize_profiles(repository, acme_url, uts))
+            twrv.start()
+            if async_mode:
+                # full async mode - do not wait for result
+                self.logger.info(
+                    "asynchronous processing enabled, not waiting for result"
+                )
+            else:
+                twrv.join(timeout=2)
+
+        else:
+            self.logger.info(
+                "Valid Profiles found in repository. Skipping syncronization."
+            )
+
+        if profiles_dic:
+            profiles = profiles_dic.get("profiles", {}) if profiles_dic else {}
+        self.logger.debug("CAhandler.synchronize_profiles() ended")
+        return profiles
 
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str

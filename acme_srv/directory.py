@@ -8,7 +8,12 @@ import json
 from typing import Dict, Optional, List, Tuple
 from dataclasses import dataclass, field
 from .version import __version__, __dbversion__
-from .helper import load_config, ca_handler_load, config_profile_load
+from .helper import (
+    load_config,
+    ca_handler_load,
+    config_profile_load,
+    config_async_mode_load,
+)
 from .db_handler import DBstore
 
 GH_HOME = "https://github.com/grindsa/acme2certifier"
@@ -27,6 +32,10 @@ class DirectoryConfig:
     caaidentities: List[str] = field(default_factory=list)
     profiles: Dict = field(default_factory=dict)
     eab: bool = False
+    acme_url: Optional[str] = None
+    profiles_sync: bool = False
+    profiles_sync_interval: int = 604800  # default: 7 days
+    async_mode: bool = False
 
 
 class DirectoryRepository:
@@ -46,6 +55,29 @@ class DirectoryRepository:
                 "Database error: failed to check database version: %s", err
             )
             return None, None
+
+    def profile_list_get(self) -> List[Dict[str, object]]:
+        """Get the list of profiles from the database."""
+        try:
+            profiles = self.dbstore.hkparameter_get("profiles")
+        except Exception as err:
+            self.logger.critical("Database error: failed to get profile list: %s", err)
+            profiles = []
+        if profiles:
+            try:
+                return json.loads(profiles)
+            except Exception as err_:
+                self.logger.error(
+                    "Error when loading the profiles parameter from database: %s", err_
+                )
+                return []
+
+    def profile_list_set(self, data_dic: Dict[str, object]) -> None:
+        """Set the list of profiles in the database."""
+        try:
+            self.dbstore.hkparameter_add(data_dic)
+        except Exception as err:
+            self.logger.critical("Database error: failed to set profile list: %s", err)
 
 
 class Directory:
@@ -85,7 +117,11 @@ class Directory:
         self._parse_directory_section(config_dic)
         self._parse_booleans(config_dic)
         self._parse_eab_and_profiles(config_dic)
+        self._parse_cahandler_section(config_dic)
         self._load_ca_handler(config_dic)
+        self.config.async_mode = config_async_mode_load(
+            self.logger, config_dic, self.dbstore.type
+        )
         self.logger.debug("Directory._load_configuration() ended")
 
     def _parse_directory_section(self, config_dic: object) -> None:
@@ -141,6 +177,48 @@ class Directory:
         ):
             self.config.eab = True
         self.config.profiles = config_profile_load(self.logger, config_dic)
+
+    def _parse_cahandler_section(self, config_dic: object) -> None:
+        """Parse the [CAHandler] section for ACME URL and profile sync settings."""
+        self.logger.debug("Directory._parse_cahandler_section()")
+        if "CAhandler" in config_dic:
+            cfg_dic = dict(config_dic["CAhandler"])
+            self.config.acme_url = cfg_dic.get("acme_url", None)
+            try:
+                self.config.profiles_sync = config_dic.getboolean(
+                    "CAhandler",
+                    "profiles_sync",
+                    fallback=self.config.profiles_sync,
+                )
+            except Exception as err_:
+                self.logger.error("profiles_sync not set: %s", err_)
+
+            if self.config.profiles_sync:
+                if self.config.profiles:
+                    self.logger.error(
+                        "Profiles are configured via acme_srv.cfg. Disabling profile sync."
+                    )
+                    self.config.profiles_sync = False
+
+                if not self.config.acme_url:
+                    self.logger.error(
+                        "profiles_sync is set but no acme_url configured."
+                    )
+                    self.config.profiles_sync = False
+            if self.config.profiles_sync:
+                try:
+                    self.config.profiles_sync_interval = config_dic.getint(
+                        "CAhandler",
+                        "profiles_sync_interval",
+                        fallback=self.config.profiles_sync_interval,
+                    )
+                except Exception as err_:
+                    self.logger.error("profiles_sync_interval not set: %s", err_)
+                self.logger.debug(
+                    "Directory._parse_cahandler_section(): profiles_sync is enabled. Interval: %s seconds",
+                    self.config.profiles_sync_interval,
+                )
+        self.logger.debug("Directory._parse_cahandler_section() ended")
 
     def _load_ca_handler(self, config_dic: object) -> None:
         """Load the CA handler module as configured."""
@@ -223,6 +301,18 @@ class Directory:
             with self.cahandler(None, self.logger) as ca_handler:
                 if hasattr(ca_handler, "handler_check"):
                     error = ca_handler.handler_check()
+                if (
+                    self.config.profiles_sync
+                    and hasattr(ca_handler, "load_profiles")
+                    and not error
+                ):
+                    self.config.profiles = ca_handler.load_profiles(
+                        self.repository,
+                        self.config.acme_url,
+                        self.config.profiles_sync_interval,
+                        self.config.async_mode,
+                    )
+
         else:
             error = "No handler loaded"
 
