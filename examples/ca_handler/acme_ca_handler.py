@@ -1169,26 +1169,26 @@ class CAhandler(object):
             and int(profiles_dic["synchronized_at"]) + profiles_sync_interval < uts
         ):
             # profile does not exist or is outdated
-            self.logger.info("CA-profiles outdated. Syncronize from acme_server")
+            self.logger.info("CA profiles outdated. Synchronize from acme_server")
             # start profile update in separate thread
             twrv = Thread(target=self._syncronize_profiles(repository, acme_url, uts))
             twrv.start()
             if async_mode:
                 # full async mode - do not wait for result
-                self.logger.info(
-                    "asynchronous processing enabled, not waiting for result"
+                self.logger.debug(
+                    "CAhandler.load_profiles(): asynchronous processing enabled, not waiting for result"
                 )
             else:
                 twrv.join(timeout=2)
 
         else:
-            self.logger.info(
-                "Valid Profiles found in repository. Skipping syncronization."
+            self.logger.debug(
+                "CAhandler.load_profiles(): valid profile information found in repository. Skipping syncronization."
             )
 
-        if profiles_dic:
-            profiles = profiles_dic.get("profiles", {}) if profiles_dic else {}
-        self.logger.debug("CAhandler.synchronize_profiles() ended")
+        profiles = profiles_dic.get("profiles", {}) if profiles_dic else {}
+
+        self.logger.debug("CAhandler.load_profiles() ended")
         return profiles
 
     def poll(
