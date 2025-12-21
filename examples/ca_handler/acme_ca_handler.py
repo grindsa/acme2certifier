@@ -1183,7 +1183,7 @@ class CAhandler(object):
         renewalinfo_enpoint_url = f"{acme_url}/renewal-info"  # default fallback
 
         try:
-            response = url_get(self.logger, f"{acme_url}{self.path_dic["directory_path"]}", timeout=10)
+            response = url_get(self.logger, f"{acme_url}{self.path_dic['directory_path']}", timeout=10)
             if (
                 isinstance(response, (list, tuple))
                 and len(response) >= 2
