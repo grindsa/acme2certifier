@@ -194,32 +194,40 @@ class Directory:
             except Exception as err_:
                 self.logger.error("profiles_sync not set: %s", err_)
 
-            if self.config.profiles_sync:
-                if self.config.profiles:
-                    self.logger.error(
-                        "Profiles are configured via acme_srv.cfg. Disabling profile sync."
-                    )
-                    self.config.profiles_sync = False
+            self._validate_profiles_sync()
+            self._set_profiles_sync_interval(config_dic)
 
-                if not self.config.acme_url:
-                    self.logger.error(
-                        "profiles_sync is set but no acme_url configured."
-                    )
-                    self.config.profiles_sync = False
-            if self.config.profiles_sync:
-                try:
-                    self.config.profiles_sync_interval = config_dic.getint(
-                        "CAhandler",
-                        "profiles_sync_interval",
-                        fallback=self.config.profiles_sync_interval,
-                    )
-                except Exception as err_:
-                    self.logger.error("profiles_sync_interval not set: %s", err_)
-                self.logger.debug(
-                    "Directory._parse_cahandler_section(): profiles_sync is enabled. Interval: %s seconds",
-                    self.config.profiles_sync_interval,
-                )
         self.logger.debug("Directory._parse_cahandler_section() ended")
+
+    def _validate_profiles_sync(self) -> None:
+        if not self.config.profiles_sync:
+            return
+        if self.config.profiles:
+            self.logger.error(
+                "Profiles are configured via acme_srv.cfg. Disabling profile sync."
+            )
+            self.config.profiles_sync = False
+        elif not self.config.acme_url:
+            self.logger.error(
+                "profiles_sync is set but no acme_url configured."
+            )
+            self.config.profiles_sync = False
+
+    def _set_profiles_sync_interval(self, config_dic: object) -> None:
+        if not self.config.profiles_sync:
+            return
+        try:
+            self.config.profiles_sync_interval = config_dic.getint(
+                "CAhandler",
+                "profiles_sync_interval",
+                fallback=self.config.profiles_sync_interval,
+            )
+        except Exception as err_:
+            self.logger.error("profiles_sync_interval not set: %s", err_)
+        self.logger.debug(
+            "Directory._parse_cahandler_section(): profiles_sync is enabled. Interval: %s seconds",
+            self.config.profiles_sync_interval,
+        )
 
     def _load_ca_handler(self, config_dic: object) -> None:
         """Load the CA handler module as configured."""
