@@ -294,6 +294,8 @@ class Order(object):
                     self.logger.critical(
                         "Database error: failed to get profile list: %s", err
                     )
+                    profiles = None
+
                 if profiles:
                     try:
                         profile_dic = json.loads(profiles)
