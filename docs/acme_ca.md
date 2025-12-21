@@ -85,6 +85,7 @@ The handler must be configured via `acme_srv`.
 | enrollment_config_log           | Log enrollment parameters                                                                                                                                      |    No     | `False`      |
 | enrollment_config_log_skip_list | List of enrollment parameters not to be logged in JSON format, e.g., `["parameter1", "parameter2"]`                                                            |    No     | `[]`         |
 | ssl_verify                      | Verify certificates on SSL connections                                                                                                                         |    No     | `True`       |
+| renewalinfo_lookup              | Enable or disable renewalinfo endpoint lookup on ACME server to obtain renewal window                                                                          |    No     | False        |
 
 Modify the server configuration (`acme_srv/acme_srv.cfg`) and add at least the following parameters:
 
