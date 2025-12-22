@@ -6,8 +6,8 @@ from acme_srv.helper import signature_check, load_config, error_dic_get
 from acme_srv.db_handler import DBstore
 
 
-class Signature(object):
-    """Signature handler"""
+class Signature:
+    """Handles signature verification and key loading for ACME accounts."""
 
     def __init__(
         self, debug: bool = False, srv_name: str = None, logger: object = None
@@ -18,60 +18,37 @@ class Signature(object):
         self.err_msg_dic = error_dic_get(self.logger)
         self.server_name = srv_name
         cfg = load_config()
-        if "Directory" in cfg:
-            if "url_prefix" in cfg["Directory"]:
-                self.revocation_path = (
-                    cfg["Directory"]["url_prefix"] + "/acme/revokecert"
-                )
-            else:
-                self.revocation_path = "/acme/revokecert"
+        self.revocation_path = self._get_revocation_path(cfg)
 
-    def _cli_jwk_load(self, kid: int) -> Dict[str, str]:
-        """get key for a specific account id"""
-        self.logger.debug("Signature._cli_jwk_load(%s)", kid)
+    def _get_revocation_path(self, cfg) -> str:
+        if "Directory" in cfg and "url_prefix" in cfg["Directory"]:
+            return cfg["Directory"]["url_prefix"] + "/acme/revokecert"
+        return "/acme/revokecert"
+
+    def _jwk_loader(self, kid, cli: bool = False) -> Dict[str, str]:
+        """Load JWK for a specific account id, optionally using CLI method."""
+        method = self.dbstore.cli_jwk_load if cli else self.dbstore.jwk_load
+        self.logger.debug(f"Signature._jwk_loader({kid}, cli={cli})")
         try:
-            result = self.dbstore.cli_jwk_load(kid)
+            return method(kid)
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to load CLI JWK for account id %s: %s",
-                kid,
-                err_,
+                f"Database error: failed to load {'CLI ' if cli else ''}JWK for account id {kid}: {err_}"
             )
-            result = None
-        return result
+            return None
 
-    def _jwk_load(self, kid: str) -> Dict[str, str]:
-        """get key for a specific account id"""
-        self.logger.debug("Signature._jwk_load(%s)", kid)
-        try:
-            result = self.dbstore.jwk_load(kid)
-        except Exception as err_:
-            self.logger.critical(
-                "Database error: failed to load JWK for account id %s: %s", kid, err_
-            )
-            result = None
-        return result
-
-    def cli_check(self, aname: str, content: str) -> Tuple[str, str, None]:
-        """signature check against cli key"""
-        self.logger.debug("Signature.cli_check(%s)", aname)
-        result = False
-        error = None
-
-        if content:
-            if aname:
-                self.logger.debug("check signature against account key")
-                pub_key = self._cli_jwk_load(aname)
-                if pub_key:
-                    (result, error) = signature_check(self.logger, content, pub_key)
-                else:
-                    error = self.err_msg_dic["accountdoesnotexist"]
-            else:
-                error = self.err_msg_dic["accountdoesnotexist"]
-        else:
-            error = self.err_msg_dic["malformed"]
-
-        self.logger.debug("Signature.cli_check() ended with: %s:%s", result, error)
+    def cli_check(self, aname: str, content: str) -> Tuple[bool, str, None]:
+        """Check signature against CLI key for account."""
+        self.logger.debug(f"Signature.cli_check({aname})")
+        if not content:
+            return (False, self.err_msg_dic["malformed"], None)
+        if not aname:
+            return (False, self.err_msg_dic["accountdoesnotexist"], None)
+        pub_key = self._jwk_loader(aname, cli=True)
+        if not pub_key:
+            return (False, self.err_msg_dic["accountdoesnotexist"], None)
+        result, error = signature_check(self.logger, content, pub_key)
+        self.logger.debug(f"Signature.cli_check() ended with: {result}:{error}")
         return (result, error, None)
 
     def check(
@@ -80,43 +57,39 @@ class Signature(object):
         content: str,
         use_emb_key: bool = False,
         protected: Dict[str, str] = None,
-    ) -> Tuple[str, str, None]:
-        """signature check"""
-        self.logger.debug("Signature.check(%s)", aname)
-        result = False
-        if content:
-            error = None
-            if aname:
-                self.logger.debug("check signature against account key")
-                pub_key = self._jwk_load(aname)
-                if pub_key:
-                    (result, error) = signature_check(self.logger, content, pub_key)
-                else:
-                    error = self.err_msg_dic["accountdoesnotexist"]
-            elif use_emb_key:
-                self.logger.debug("check signature against key includedn in jwk")
-                if "jwk" in protected:
-                    pub_key = protected["jwk"]
-                    (result, error) = signature_check(self.logger, content, pub_key)
-                else:
-                    error = self.err_msg_dic["accountdoesnotexist"]
+    ) -> Tuple[bool, str, None]:
+        """Check signature against account key or embedded JWK."""
+        self.logger.debug(f"Signature.check({aname})")
+        if not content:
+            return (False, self.err_msg_dic["malformed"], None)
+        error = None
+        if aname:
+            pub_key = self._jwk_loader(aname)
+            if not pub_key:
+                error = self.err_msg_dic["accountdoesnotexist"]
+                return (False, error, None)
+            result, error = signature_check(self.logger, content, pub_key)
+            self.logger.debug(f"Signature.check() ended with: {result}:{error}")
+            return (result, error, None)
+        elif use_emb_key:
+            self.logger.debug("Signature.check() check signature against key included in jwk")
+            if protected and "jwk" in protected:
+                pub_key = protected["jwk"]
+                result, error = signature_check(self.logger, content, pub_key)
+                self.logger.debug(f"Signature.check() ended with: {result}:{error}")
+                return (result, error, None)
             else:
                 error = self.err_msg_dic["accountdoesnotexist"]
+                return (False, error, None)
         else:
-            error = self.err_msg_dic["malformed"]
+            error = self.err_msg_dic["accountdoesnotexist"]
+            return (False, error, None)
 
-        self.logger.debug("Signature.check() ended with: %s:%s", result, error)
-        return (result, error, None)
-
-    def eab_check(self, content: str, mac_key: str) -> Tuple[str, str]:
-        """signature check"""
+    def eab_check(self, content: str, mac_key: str) -> Tuple[bool, str]:
+        """Check signature for External Account Binding (EAB)."""
         self.logger.debug("Signature.eab_check()")
-        result = False
-        error = None
-        if content and mac_key:
-            (result, error) = signature_check(self.logger, content, mac_key, json_=True)
-
-        self.logger.debug(
-            "Signature.signature_check() ended with: %s:%s", result, error
-        )
+        if not (content and mac_key):
+            return (False, self.err_msg_dic["malformed"])
+        result, error = signature_check(self.logger, content, mac_key, json_=True)
+        self.logger.debug(f"Signature.eab_check() ended with: {result}:{error}")
         return (result, error)
