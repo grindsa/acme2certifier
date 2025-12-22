@@ -20,12 +20,12 @@ class Signature:
         cfg = load_config()
         self.revocation_path = self._get_revocation_path(cfg)
 
-    def _get_revocation_path(self, cfg):
+    def _get_revocation_path(self, cfg) -> str:
         if "Directory" in cfg and "url_prefix" in cfg["Directory"]:
             return cfg["Directory"]["url_prefix"] + "/acme/revokecert"
         return "/acme/revokecert"
 
-    def _jwk_loader(self, kid, cli: bool = False):
+    def _jwk_loader(self, kid, cli: bool = False) -> Dict[str, str]:
         """Load JWK for a specific account id, optionally using CLI method."""
         method = self.dbstore.cli_jwk_load if cli else self.dbstore.jwk_load
         self.logger.debug(f"Signature._jwk_loader({kid}, cli={cli})")
@@ -72,7 +72,7 @@ class Signature:
             self.logger.debug(f"Signature.check() ended with: {result}:{error}")
             return (result, error, None)
         elif use_emb_key:
-            self.logger.debug("check signature against key included in jwk")
+            self.logger.debug("Signature.check() check signature against key included in jwk")
             if protected and "jwk" in protected:
                 pub_key = protected["jwk"]
                 result, error = signature_check(self.logger, content, pub_key)
@@ -85,7 +85,7 @@ class Signature:
             error = self.err_msg_dic["accountdoesnotexist"]
             return (False, error, None)
 
-    def eab_check(self, content: str, mac_key: str) -> Tuple[bool, str, None]:
+    def eab_check(self, content: str, mac_key: str) -> Tuple[bool, str]:
         """Check signature for External Account Binding (EAB)."""
         self.logger.debug("Signature.eab_check()")
         if not (content and mac_key):
