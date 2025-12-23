@@ -72,7 +72,9 @@ class Signature:
             self.logger.debug(f"Signature.check() ended with: {result}:{error}")
             return (result, error, None)
         elif use_emb_key:
-            self.logger.debug("Signature.check() check signature against key included in jwk")
+            self.logger.debug(
+                "Signature.check() check signature against key included in jwk"
+            )
             if protected and "jwk" in protected:
                 pub_key = protected["jwk"]
                 result, error = signature_check(self.logger, content, pub_key)

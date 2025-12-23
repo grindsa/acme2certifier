@@ -20,7 +20,8 @@ from acme_srv.signature import Signature
 
 @dataclass
 class MessageConfiguration:
-    """ contains message related configuration options"""
+    """contains message related configuration options"""
+
     signature_check_disable: bool = False
     nonce_check_disable: bool = False
     acct_path: str = "/acme/acct/"
@@ -32,6 +33,7 @@ class MessageConfiguration:
 
 class AccountRepository:
     """Repository for account related database operations"""
+
     def __init__(self, dbstore):
         self.dbstore = dbstore
 

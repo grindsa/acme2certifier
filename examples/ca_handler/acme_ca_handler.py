@@ -538,7 +538,6 @@ class CAhandler(object):
         self.logger.debug("CAhandler._user_key_load() ended with: %s", bool(user_key))
         return user_key
 
-
     def _order_authorization(
         self,
         acmeclient: client.ClientV2,
@@ -549,15 +548,21 @@ class CAhandler(object):
         self.logger.debug("CAhandler._order_authorization()")
         authz_valid = False
         for authzr in order.authorizations:
-            authz_valid = self._handle_authzr_status(acmeclient, authzr, user_key) or authz_valid
-        self.logger.debug("CAhandler._order_authorization() ended with: %s", authz_valid)
+            authz_valid = (
+                self._handle_authzr_status(acmeclient, authzr, user_key) or authz_valid
+            )
+        self.logger.debug(
+            "CAhandler._order_authorization() ended with: %s", authz_valid
+        )
         return authz_valid
 
     def _handle_authzr_status(self, acmeclient, authzr, user_key):
         if authzr.body.status == messages.STATUS_PENDING:
             return self._handle_pending_status(acmeclient, authzr, user_key)
         elif authzr.body.status == messages.STATUS_VALID:
-            self.logger.info("Authorization already valid. Skipping challenge validation.")
+            self.logger.info(
+                "Authorization already valid. Skipping challenge validation."
+            )
             return True
         else:
             self.logger.warning(
@@ -567,13 +572,21 @@ class CAhandler(object):
             return False
 
     def _handle_pending_status(self, acmeclient, authzr, user_key):
-        challenge_name, challenge_content, challenge = self._challenge_info(authzr, user_key)
+        challenge_name, challenge_content, challenge = self._challenge_info(
+            authzr, user_key
+        )
         if challenge_name and challenge_content:
             if self.dns_update_script and self.acme_sh_script:
-                self.logger.debug("CAhandler._order_authorization(): dns challenge detected")
-                self._dns_challenge_provision(authzr.body.identifier.value, challenge_content, user_key)
+                self.logger.debug(
+                    "CAhandler._order_authorization(): dns challenge detected"
+                )
+                self._dns_challenge_provision(
+                    authzr.body.identifier.value, challenge_content, user_key
+                )
             else:
-                self.logger.debug("CAhandler._order_authorization(): http challenge detected")
+                self.logger.debug(
+                    "CAhandler._order_authorization(): http challenge detected"
+                )
                 self._http_challenge_store(challenge_name, challenge_content)
             self.logger.debug("CAhandler._order_authorization(): answer challenge")
             _auth_response = acmeclient.answer_challenge(
@@ -585,7 +598,9 @@ class CAhandler(object):
             and challenge_content.get("type", None) == "sectigo-email-01"
             and challenge_content.get("status", None) == "valid"
         ):
-            self.logger.debug("CAhandler._order_authorization(): sectigo-email-01 challenge detected")
+            self.logger.debug(
+                "CAhandler._order_authorization(): sectigo-email-01 challenge detected"
+            )
             return True
         return False
 
@@ -1120,7 +1135,9 @@ class CAhandler(object):
         """synchronize profiles with CA"""
         self.logger.debug("CAhandler.synchronize_profiles()")
 
-        result, code, error = url_get(self.logger, acme_url + self.path_dic["directory_path"], timeout=5)
+        result, code, error = url_get(
+            self.logger, acme_url + self.path_dic["directory_path"], timeout=5
+        )
         if code == 200:
             json_data = json.loads(result)
             profiles = json.dumps(
@@ -1183,7 +1200,9 @@ class CAhandler(object):
         renewalinfo_enpoint_url = f"{acme_url}/renewal-info"  # default fallback
 
         try:
-            response = url_get(self.logger, f"{acme_url}{self.path_dic['directory_path']}", timeout=10)
+            response = url_get(
+                self.logger, f"{acme_url}{self.path_dic['directory_path']}", timeout=10
+            )
             if (
                 isinstance(response, (list, tuple))
                 and len(response) >= 2
