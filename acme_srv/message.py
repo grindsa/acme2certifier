@@ -218,6 +218,17 @@ class Message(object):
             )
         return kid
 
+    def extract_account_name_from_content(
+        self, content: Dict[str, str]
+    ) -> Optional[str]:
+        """public method to get name for account"""
+        self.logger.debug("Message.extract_account_name_from_content()")
+        kid = self._extract_account_name_from_content(content)
+        self.logger.debug(
+            "Message.extract_account_name_from_content() ended with: %s", kid
+        )
+        return kid
+
     def _check_nonce_for_replay_protection(
         self, skip_nonce_check: bool, protected: Dict[str, str]
     ) -> Tuple[int, Optional[str], Optional[str]]:
