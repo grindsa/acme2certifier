@@ -738,7 +738,7 @@ class Account(object):
         """get id for account depricated"""
         self.logger.debug("Account._name_get()")
         # _deprecated
-        return self.message._name_get(content)
+        return self.message.extract_account_name_from_content(content)
 
     def _onlyreturnexisting(
         self, protected: Dict[str, str], payload: Dict[str, str]
