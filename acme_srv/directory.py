@@ -208,9 +208,7 @@ class Directory:
             )
             self.config.profiles_sync = False
         elif not self.config.acme_url:
-            self.logger.error(
-                "profiles_sync is set but no acme_url configured."
-            )
+            self.logger.error("profiles_sync is set but no acme_url configured.")
             self.config.profiles_sync = False
 
     def _set_profiles_sync_interval(self, config_dic: object) -> None:
