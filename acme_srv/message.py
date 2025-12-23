@@ -20,7 +20,7 @@ from acme_srv.signature import Signature
 
 @dataclass
 class MessageConfiguration:
-    """contains message related configuration options"""
+    """Contains message related configuration options."""
 
     signature_check_disable: bool = False
     nonce_check_disable: bool = False
@@ -112,7 +112,7 @@ class Message(object):
 
     def _check_and_handle_invalid_eab_credentials(self, account_name: str):
         """Check for accounts with invalid eab credentials."""
-        self.logger.debug("Message._invalid_eab_check()")
+        self.logger.debug("Message._check_and_handle_invalid_eab_credentials()")
 
         try:
             account_dic = self.repo.account_lookup("name", account_name)
@@ -180,9 +180,9 @@ class Message(object):
         else:
             kid = None
 
-            self.logger.debug(
-                "Message._get_account_name_for_revocation() ended with kid: %s", kid
-            )
+        self.logger.debug(
+            "Message._get_account_name_for_revocation() ended with kid: %s", kid
+        )
         return kid
 
     def _extract_account_name_from_content(
@@ -213,9 +213,9 @@ class Message(object):
         else:
             kid = None
 
-            self.logger.debug(
-                "Message._extract_account_name_from_content() returns: %s", kid
-            )
+        self.logger.debug(
+            "Message._extract_account_name_from_content() returns: %s", kid
+        )
         return kid
 
     def extract_account_name_from_content(
@@ -335,7 +335,7 @@ class Message(object):
             message = "urn:ietf:params:acme:error:malformed"
             detail = error_detail
 
-            self.logger.debug("Message._check() ended with:%s", code)
+        self.logger.debug("Message._check() ended with:%s", code)
         return (code, message, detail, protected, payload, account_name)
 
     def cli_check(
@@ -376,7 +376,7 @@ class Message(object):
             message = "urn:ietf:params:acme:error:malformed"
             detail = error_detail
 
-            self.logger.debug("Message._cli_check() ended with:%s", code)
+        self.logger.debug("Message.cli_check() ended with:%s", code)
         return (code, message, detail, protected, payload, account_name, permissions)
 
     def prepare_response(

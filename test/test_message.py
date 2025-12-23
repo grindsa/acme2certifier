@@ -405,7 +405,7 @@ class TestACMEHandler(unittest.TestCase):
         """test Message.name_get() with 'jwk' and correct 'url' but account lookup failed"""
         protected = {"jwk": {"n": "n"}, "url": "http://tester.local/acme/revokecert"}
         self.message.repo = MagicMock()
-        self.message.dbstore.account_lookup.return_value = {}
+        self.message.repo.account_lookup.return_value = {}
         self.assertEqual(
             None, self.message._extract_account_name_from_content(protected)
         )
@@ -633,15 +633,18 @@ class TestACMEHandler(unittest.TestCase):
         parser["EABhandler"] = {"eab_handler_file": "eab_handler_file"}
         mock_load_cfg.return_value = parser
         mock_eab.return_value = None
+        from acme_srv.message import Message
+
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.message._load_configuration()
+
+            self.message = Message(False, "http://tester.local", self.logger)
         self.assertIn(
             "CRITICAL:test_a2c:EABHandler could not get loaded",
             lcm.output,
         )
         self.assertFalse(self.message.config.nonce_check_disable)
         self.assertFalse(self.message.config.signature_check_disable)
-        self.assertTrue(self.message.config.eabkid_check_disable)
+        self.assertFalse(self.message.config.eabkid_check_disable)
         self.assertTrue(mock_eab.called)
         self.assertFalse(self.message.config.invalid_eabkid_deactivate)
 
@@ -745,8 +748,8 @@ class TestACMEHandler(unittest.TestCase):
         eab_handler_module = importlib.import_module(
             "examples.eab_handler.skeleton_eab_handler"
         )
-        self.message.eab_handler = eab_handler_module.EABhandler
-        self.message.eab_handler.mac_key_get = MagicMock(return_value="mac_key")
+        self.message.config.eab_handler = eab_handler_module.EABhandler
+        self.message.config.eab_handler.mac_key_get = MagicMock(return_value="mac_key")
         self.assertEqual(
             "account_name",
             self.message._check_and_handle_invalid_eab_credentials("account_name"),
