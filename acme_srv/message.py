@@ -33,7 +33,6 @@ class MessageConfiguration:
 
 class AccountRepository:
     """Repository for account related database operations"""
-
     def __init__(self, dbstore):
         self.dbstore = dbstore
 
@@ -69,7 +68,7 @@ class Message(object):
         return self
 
     def __exit__(self, *args):
-        """cose the connection at the end of the context"""
+        """Close the connection at the end of the context"""
 
     def _load_configuration(self) -> MessageConfiguration:
         """Load and parse config from file and return MessageConfiguration dataclass."""
@@ -156,10 +155,10 @@ class Message(object):
         else:
             self.logger.error("Account lookup for %s failed.", account_name)
             account_name = None
-            self.logger.debug(
-                "Message._check_and_handle_invalid_eab_credentials() ended with account_name: %s",
-                account_name,
-            )
+        self.logger.debug(
+            "Message._check_and_handle_invalid_eab_credentials() ended with account_name: %s",
+            account_name,
+        )
         return account_name
 
     def _extract_account_name_for_revocation(
