@@ -36,30 +36,30 @@ class TestACMEHandler(unittest.TestCase):
 
         self.nonce = Nonce(False, self.logger)
 
-    def test_001_nonce__new(self):
+    def test_001_nonce__generate_nonce_value(self):
         """test Nonce.new() and check if we get something back"""
-        self.assertIsNotNone(self.nonce._new())
+        self.assertIsNotNone(self.nonce._generate_nonce_value())
 
     def test_002_nonce_generate_and_add(self):
         """test Nonce.nonce_generate_and_add() and check if we get something back"""
         self.assertIsNotNone(self.nonce.generate_and_add())
 
     def test_003_nonce_check(self):
-        """test Nonce.nonce_check_and_delete"""
+        """test Nonce.nonce_validate_and_consume_nonce"""
         self.assertEqual(
             (400, "urn:ietf:params:acme:error:badNonce", "NONE"),
             self.nonce.check({"foo": "bar"}),
         )
 
-    @patch("acme_srv.nonce.Nonce._check_and_delete")
-    def test_004_nonce_check(self, mock_check_and_delete):
-        """test Nonce.nonce_check_and_delete"""
-        mock_check_and_delete.return_value = (200, None, None)
+    @patch("acme_srv.nonce.Nonce._validate_and_consume_nonce")
+    def test_004_nonce_check(self, mock_validate_and_consume_nonce):
+        """test Nonce.nonce_validate_and_consume_nonce"""
+        mock_validate_and_consume_nonce.return_value = (200, None, None)
         self.assertEqual((200, None, None), self.nonce.check({"nonce": "aaa"}))
 
     @patch("acme_srv.nonce.DBstore")
-    def test_005_nonce__check_and_delete(self, mock_dbstore_class):
-        """test Nonce.nonce_check_and_delete"""
+    def test_005_nonce__validate_and_consume_nonce(self, mock_dbstore_class):
+        """test Nonce.nonce_validate_and_consume_nonce"""
         # Setup mock to return True for nonce_check
         mock_dbstore_instance = MagicMock()
         mock_dbstore_instance.nonce_check.return_value = True
@@ -71,7 +71,7 @@ class TestACMEHandler(unittest.TestCase):
 
         nonce = Nonce(False, self.logger)
 
-        self.assertEqual((200, None, None), nonce._check_and_delete("aaa"))
+        self.assertEqual((200, None, None), nonce._validate_and_consume_nonce("aaa"))
 
     @patch("acme_srv.nonce.DBstore")
     def test_006_nonce_generate_and_add(self, mock_dbstore_class):
@@ -94,8 +94,8 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme_srv.nonce.DBstore")
-    def test_007_nonce__check_and_delete(self, mock_dbstore_class):
-        """test Nonce._check_and_delete() if dbstore.nonce_delete raises an exception"""
+    def test_007_nonce__validate_and_consume_nonce(self, mock_dbstore_class):
+        """test Nonce._validate_and_consume_nonce() if dbstore.nonce_delete raises an exception"""
         # Setup mock: nonce_check returns True, nonce_delete raises exception
         mock_dbstore_instance = MagicMock()
         mock_dbstore_instance.nonce_check.return_value = True
@@ -108,15 +108,15 @@ class TestACMEHandler(unittest.TestCase):
         nonce = Nonce(False, self.logger)
 
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            nonce._check_and_delete("nonce")
+            nonce._validate_and_consume_nonce("nonce")
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to delete nonce: exc_nonce_delete",
             lcm.output,
         )
 
     @patch("acme_srv.nonce.DBstore")
-    def test_008_nonce__check_and_delete(self, mock_dbstore_class):
-        """test Nonce._check_and_delete() if dbstore.nonce_check raises an exception"""
+    def test_008_nonce__validate_and_consume_nonce(self, mock_dbstore_class):
+        """test Nonce._validate_and_consume_nonce() if dbstore.nonce_check raises an exception"""
         # Setup mock to raise exception on nonce_check
         mock_dbstore_instance = MagicMock()
         mock_dbstore_instance.nonce_check.side_effect = Exception("exc_nonce_check")
@@ -128,7 +128,7 @@ class TestACMEHandler(unittest.TestCase):
         nonce = Nonce(False, self.logger)
 
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            nonce._check_and_delete("nonce")
+            nonce._validate_and_consume_nonce("nonce")
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to check nonce: exc_nonce_check",
             lcm.output,
