@@ -8,16 +8,18 @@ from acme_srv.db_handler import DBstore
 
 
 class NonceRepository:
-    def __init__(self, dbstore):
+    """Repository class for Nonce operations."""
+
+    def __init__(self, dbstore) -> None:
         self.dbstore = dbstore
 
-    def check_nonce(self, nonce):
+    def check_nonce(self, nonce) -> bool:
         return self.dbstore.nonce_check(nonce)
 
-    def delete_nonce(self, nonce):
+    def delete_nonce(self, nonce) -> None:
         return self.dbstore.nonce_delete(nonce)
 
-    def add_nonce(self, nonce):
+    def add_nonce(self, nonce) -> int:
         return self.dbstore.nonce_add(nonce)
 
 
@@ -27,15 +29,14 @@ class Nonce(object):
     def __init__(self, debug: bool = False, logger: object = None, repo: object = None):
         self.debug = debug
         self.logger = logger
-        self.dbstore = DBstore(self.debug, self.logger)
-        self.repo = repo or NonceRepository(self.dbstore)
+        self.repo = repo or NonceRepository(DBstore(self.debug, self.logger))
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
         return self
 
     def __exit__(self, *args):
-        """cose the connection at the end of the context"""
+        """Close the connection at the end of the context"""
 
     def _validate_and_consume_nonce(self, nonce: str) -> Tuple[int, str, str]:
         """Check if nonce exists and delete it (consume)."""
@@ -86,7 +87,7 @@ class Nonce(object):
         nonce = self._generate_nonce_value()
         self.logger.debug("got nonce: %s", nonce)
         try:
-            _id = self.repo.add_nonce(nonce)  # lgtm [py/unused-local-variable]
+            self.repo.add_nonce(nonce)
         except Exception as err_:
             self.logger.critical("Database error: failed to add new nonce: %s", err_)
         self.logger.debug("Nonce.generate_and_add() ended with:%s", nonce)
