@@ -36,16 +36,16 @@ class TestACMEHandler(unittest.TestCase):
 
         self.nonce = Nonce(False, self.logger)
 
-    def test_001_nonce__generate_nonce_value(self):
-        """test Nonce.new() and check if we get something back"""
+    def test_001_generate_nonce_value(self):
+        """test Nonce._generate_nonce_value() and check if we get something back"""
         self.assertIsNotNone(self.nonce._generate_nonce_value())
 
-    def test_002_nonce_generate_and_add(self):
-        """test Nonce.nonce_generate_and_add() and check if we get something back"""
+    def test_002_generate_and_add(self):
+        """test Nonce._generate_and_add() and check if we get something back"""
         self.assertIsNotNone(self.nonce.generate_and_add())
 
     def test_003_nonce_check(self):
-        """test Nonce.nonce_validate_and_consume_nonce"""
+        """test Nonce.check() with missing nonce"""
         self.assertEqual(
             (400, "urn:ietf:params:acme:error:badNonce", "NONE"),
             self.nonce.check({"foo": "bar"}),
@@ -53,13 +53,13 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme_srv.nonce.Nonce._validate_and_consume_nonce")
     def test_004_nonce_check(self, mock_validate_and_consume_nonce):
-        """test Nonce.nonce_validate_and_consume_nonce"""
+        """test Nonce.check() calls _validate_and_consume_nonce()"""
         mock_validate_and_consume_nonce.return_value = (200, None, None)
         self.assertEqual((200, None, None), self.nonce.check({"nonce": "aaa"}))
 
     @patch("acme_srv.nonce.DBstore")
     def test_005_nonce__validate_and_consume_nonce(self, mock_dbstore_class):
-        """test Nonce.nonce_validate_and_consume_nonce"""
+        """test Nonce._validate_and_consume_nonce()"""
         # Setup mock to return True for nonce_check
         mock_dbstore_instance = MagicMock()
         mock_dbstore_instance.nonce_check.return_value = True
