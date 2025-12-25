@@ -19,8 +19,17 @@ and pick the appropriate release branch.
   - Support of [domain prevalidation](docs/prevalidated_domainlist.md)
   - challenge_validation_disable, forward_address_check and reverse_address_check parameters can be configured via[EAB-Profiling feature](docs/eab_profiling.md)
   - eab_pofiling to be enabled in the `[EABhandler]` section of `acme_srv.cfg`
-
 - **Challenge Error Reporting**: Challange validation error status will be reported to ACME-client
+- **ACME CA Handla**:
+  - Option to enable periodic synchronization of profiles information from ACME server to be shown as meta-information in Directory ressource
+  - Option to configure renewalinfo endpoint lookup on ACME server to obtain renewal window
+  - Support pre-authorization of domain-names as done by [harica.gr](https://harica.gr)
+
+## Changes in 0.40.1
+
+**Bug Fixes**:
+
+- [#281 - CAhandler' object has no attribute 'profiles'](https://github.com/grindsa/acme2certifier/issues/281)
 
 ## Changes in 0.40
 
