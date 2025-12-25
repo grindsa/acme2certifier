@@ -23,6 +23,7 @@ and pick the appropriate release branch.
 - **ACME CA Handla**:
   - Option to enable periodic synchronization of profiles information from ACME server to be shown as meta-information in Directory ressource
   - Option to configure renewalinfo endpoint lookup on ACME server to obtain renewal window
+  - Support pre-authorization of domain-names as done by [harica.gr](https://harica.gr)
 
 ## Changes in 0.40.1
 

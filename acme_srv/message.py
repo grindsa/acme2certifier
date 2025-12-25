@@ -33,6 +33,7 @@ class MessageConfiguration:
 
 class AccountRepository:
     """Repository for account related database operations"""
+
     def __init__(self, dbstore):
         self.dbstore = dbstore
 
