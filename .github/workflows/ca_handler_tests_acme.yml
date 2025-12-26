@@ -100,7 +100,7 @@ jobs:
         sudo echo "acme_sh_shell: /bin/bash" >> examples/Docker/data/acme_srv.cfg
         sudo echo "dns_validation_timeout: 20" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "profile_sync: True" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "profiles_sync: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "renewalinfo_lookup: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
@@ -156,7 +156,7 @@ jobs:
         sudo echo "dns_validation_timeout: 30" >> examples/Docker/data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "profile_sync: True" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "profiles_sync: True" >> examples/Docker/data/acme_srv.cfg
         sudo echo "renewalinfo_lookup: True" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 15/g" examples/Docker/data/acme_srv.cfg
@@ -292,7 +292,7 @@ jobs:
         sudo echo "acme_sh_shell: /bin/bash" >> data/acme_srv.cfg
         sudo echo "dns_validation_timeout: 30" >> data/acme_srv.cfg
         sudo echo "enrollment_config_log: True" >> data/acme_srv.cfg
-        sudo echo "profile_sync: True" >> data/acme_srv.cfg
+        sudo echo "profiles_sync: True" >> data/acme_srv.cfg
         sudo echo "renewalinfo_lookup: True" >> data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
