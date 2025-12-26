@@ -67,19 +67,17 @@ runs:
 
       LE_RENEWAL_OUTPUT=$(docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://acme-staging-v02.api.letsencrypt.org/acme/renewal-info/$RENEWAL_INFO)
       A2C_RENEWAL_OUTPUT=$(docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SERVER:$HTTPS_PORT/acme/renewal-info/$RENEWAL_INFO)
-      LE_RENEWAL=$(echo "$LE_RENEWAL_OUTPUT" | jq '.meta.profiles // empty')
-      A2C_RENEWAL_OUTPUT=$(echo "$A2C_RENEWAL_OUTPUT" | jq '.meta.profiles // empty')
-      echo "LE_RENEWAL: $LE_RENEWAL"
-      echo "A2C_RENEWAL: $A2C_RENEWAL"
+      LE_RENEWAL_INFO=$(echo "$LE_RENEWAL_OUTPUT" | jq | sha224sum)
+      A2C_RENEWAL_INFO=$(echo "$A2C_RENEWAL_OUTPUT" | jq | sha224sum)
+      echo "LE_RENEWAL: $LE_RENEWAL_INFO"
+      echo "A2C_RENEWAL: $A2C_RENEWAL_INFO"
 
-
-
-      #if [ "$RENEWAL_INFO" != "$A2C_RENEWAL_INFO" ]; then
-      #  echo "Renewal information does not match!"
-      #  exit 1
-      #else
-      #  echo "Renewal information matches."
-      #fi
+      if [ "$LE_RENEWAL_INFO" != "$A2C_RENEWAL_INFO" ]; then
+        echo "Renewal information does not match!"
+        exit 1
+      else
+        echo "Renewal information matches."
+      fi
     shell: bash
     env:
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
