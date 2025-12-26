@@ -15,6 +15,11 @@ runs:
     with:
       time: 5s
 
+  - name: "Trigger fetch profile information"
+    run: |
+        docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://acme-srv/directory --insecure
+    shell: bash
+
   - name: "Get and compare profile information"
     run: |
 
