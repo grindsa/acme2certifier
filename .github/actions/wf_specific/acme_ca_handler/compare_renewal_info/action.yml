@@ -43,7 +43,6 @@ runs:
     run: |
       echo "$RENEWAL_INFO"
 
-
       #if [ "$LE_PROFILES" != "$A2C_PROFILES" ]; then
       #  echo "Profile information does not match!"
       #  exit 1
@@ -54,3 +53,6 @@ runs:
     env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
+  - name: "Delete lego folders"
+    run: |
+      sudo rm -rf  lego/*
