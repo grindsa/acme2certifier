@@ -140,7 +140,7 @@ jobs:
       with:
         NAME_SPACE: acme.dynamop.de
         HOSTNAME_SUFFIX: -${{ env.UUID }}
-        CERTIFICATE_FILE: "$PWD/lego/certificates/lego-${{ env.UUID }}.acme.dynamop.de.crt"
+        CERTIFICATE_FILE: "lego/certificates/lego-${{ env.UUID }}.acme.dynamop.de.crt"
 
     - name: "ACMEDNS - Setup acme ca_handler"
       run: |
