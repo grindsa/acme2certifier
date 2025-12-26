@@ -139,7 +139,7 @@ jobs:
       uses: ./.github/actions/wf_specific/acme_ca_handler/compare_renewal_info
       with:
         NAME_SPACE: acme.dynamop.de
-        CERTIFICATE_FILE: "$PWD/lego/certificate/lego-${{ env.UUID }}.acme.dynamop.de.crt"
+        CERTIFICATE_FILE: "$PWD/lego/certificates/lego-${{ env.UUID }}.acme.dynamop.de.crt"
 
     - name: "ACMEDNS - Setup acme ca_handler"
       run: |
