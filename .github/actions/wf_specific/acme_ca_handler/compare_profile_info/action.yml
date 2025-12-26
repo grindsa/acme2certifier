@@ -45,7 +45,6 @@ runs:
         else
           echo "Profile information matches."
         fi
-        exit 1
     shell: bash
     env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
