@@ -29,8 +29,8 @@ jobs:
         DB_HANDLER: ${{ matrix.dbhandler }}
         WEB_SRV: ${{ matrix.websrv }}
 
-  acme_ca_handler_dns_test:
-    name: "acme_ca_handler_dns_test"
+  acme_ca_handler_le_test:
+    name: "acme_ca_handler_le_test"
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
@@ -212,7 +212,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: acme_ca_handler_dns_test-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+        name: acme_ca_handler_le_test-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   cleanup:
@@ -220,7 +220,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: [acme_ca_handler_dns_test]
+    needs: [acme_ca_handler_le_test]
     strategy:
       fail-fast: false
       matrix:
@@ -245,8 +245,8 @@ jobs:
       id: rpm_build
       uses: ./.github/actions/rpm_build_upload
 
-  rpm_acme_ca_handler_dns_test:
-    name: "rpm_acme_ca_handler_dns_test"
+  rpm_acme_ca_handler_le_test:
+    name: "rpm_acme_ca_handler_le_test"
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
@@ -317,7 +317,24 @@ jobs:
       run: |
         docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
 
+    - name: "Compare profile information"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/compare_profile_info
+      with:
+        NAME_SPACE: acme.dynamop.de
+
     - name: "Generate UUID"
+      run: |
+        echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+    - run: echo "UUID ${{ env.UUID }}"
+
+    - name: "Compare renewal information between A2C and LE"
+      uses: ./.github/actions/wf_specific/acme_ca_handler/compare_renewal_info
+      with:
+        NAME_SPACE: acme.dynamop.de
+        HOSTNAME_SUFFIX: -${{ env.UUID }}
+        CERTIFICATE_FILE: "lego/certificates/lego-${{ env.UUID }}.acme.dynamop.de.crt"
+
+    - name: "Generate new UUID"
       run: |
         echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
     - run: echo "UUID ${{ env.UUID }}"
@@ -327,8 +344,9 @@ jobs:
       with:
         HOSTNAME_SUFFIX: -${{ env.UUID }}
         NAME_SPACE: acme.dynamop.de
-        CERT_TIMEOUT: 300
+        CERT_TIMEOUT: "360"
         VERIFY_CERT: false
+
 
     - name: "Check acme account found in keyfile"
       run: |
@@ -351,7 +369,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: rpm_acme_ca_handler_dns_test-rh${{ matrix.rhversion }}.tar.gz
+        name: rpm_acme_ca_handler_le_test-rh${{ matrix.rhversion }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
   rpm_cleanup:
@@ -359,7 +377,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: [rpm_acme_ca_handler_dns_test]
+    needs: [rpm_acme_ca_handler_le_test]
     steps:
     - name: "Delete artifact"
       uses: geekyeggo/delete-artifact@v5
