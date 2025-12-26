@@ -46,6 +46,7 @@ runs:
       CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
 
   - name: "Construct renewal info string"
+    id: construct_renewal_info
     run: |
       AKI_HEX=$(sudo openssl x509 -in "$CERT" -noout -text | awk '/Authority Key Identifier/{getline; print}' | sed 's/ *keyid://;s/://g')
       SERIAL_HEX=$(sudo openssl x509 -in "$CERT" -noout -serial | cut -d'=' -f2)
@@ -54,6 +55,7 @@ runs:
       AKI_B64=$(openssl base64 -A -in /tmp/aki.bin | tr '+/' '-_' | tr -d '=')
       SERIAL_B64=$(openssl base64 -A -in /tmp/serial.bin | tr '+/' '-_' | tr -d '=')
       RENEWAL_INFO="${AKI_B64}.${SERIAL_B64}"
+      echo "RENEWAL_INFO=$RENEWAL_INFO" >> $GITHUB_OUTPUT
     shell: bash
     env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
@@ -63,7 +65,7 @@ runs:
     run: |
       echo "LEGO RENEWAL INFO: $RENEWAL_INFO"
 
-      LE_RENEWAL_OUTPUT=$(docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://acme-staging-v02.api.letsencrypt.org/acme/renewal-info_lookup/$RENEWAL_INFO)
+      LE_RENEWAL_OUTPUT=$(docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://acme-staging-v02.api.letsencrypt.org/acme/renewal-info/$RENEWAL_INFO)
       A2C_RENEWAL_OUTPUT=$(docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SERVER:$HTTPS_PORT/acme/renewal-info/$RENEWAL_INFO)
       LE_RENEWAL=$(echo "$LE_RENEWAL_OUTPUT" | jq '.meta.profiles // empty')
       A2C_RENEWAL_OUTPUT=$(echo "$A2C_RENEWAL_OUTPUT" | jq '.meta.profiles // empty')
