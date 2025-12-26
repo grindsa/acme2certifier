@@ -15,10 +15,17 @@ runs:
     with:
       time: 5s
 
-  - name: "Trigger fetch profile information"
+  - name: "Trigger fetch sync of profile information from LE"
     run: |
         docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://acme-srv/directory --insecure
     shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
 
   - name: "Get and compare profile information"
     run: |
