@@ -36,7 +36,7 @@ runs:
   - name: "HTTPS - Enroll lego"
     run: |
       echo "##### HTTP - Enroll lego #####"
-      docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify --a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --cert.timeout $CERT_TIMEOUT --tls run
+      docker run -i --rm -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify --a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --cert.timeout $CERT_TIMEOUT --tls run
     shell: bash
     env:
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
