@@ -66,8 +66,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("authorization in unexpected state: foobar", " ".join(lcm.output))
 
     @patch("examples.ca_handler.acme_ca_handler.url_get")
-    def test_200__syncronize_profiles_success(self, mock_url_get):
-        """CAhandler._syncronize_profiles() - success path"""
+    def test_200__synchronize_profiles_success(self, mock_url_get):
+        """CAhandler._synchronize_profiles() - success path"""
         from examples.ca_handler.acme_ca_handler import CAhandler
 
         cah = self.cahandler
@@ -77,64 +77,66 @@ class TestACMEHandler(unittest.TestCase):
             None,
         )
         repository = MagicMock()
-        cah._syncronize_profiles(repository, "http://acme", 123456)
+        cah._synchronize_profiles(repository, "http://acme", 123456)
         self.assertTrue(repository.profile_list_set.called)
         args = repository.profile_list_set.call_args[0][0]
         self.assertIn("profiles", args["value"])
         self.assertIn("synchronized_at", args["value"])
 
     @patch("examples.ca_handler.acme_ca_handler.url_get")
-    def test_201__syncronize_profiles_error(self, mock_url_get):
-        """CAhandler._syncronize_profiles() - error path"""
+    def test_201__synchronize_profiles_error(self, mock_url_get):
+        """CAhandler._synchronize_profiles() - error path"""
         from examples.ca_handler.acme_ca_handler import CAhandler
 
         cah = self.cahandler
         mock_url_get.return_value = ("fail", 500, "error")
         repository = MagicMock()
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
-            cah._syncronize_profiles(repository, "http://acme", 123456)
+            cah._synchronize_profiles(repository, "http://acme", 123456)
         self.assertIn("Error during profile synchronization", " ".join(lcm.output))
 
     @patch("examples.ca_handler.acme_ca_handler.Thread")
     @patch("examples.ca_handler.acme_ca_handler.uts_now", return_value=1000)
     def test_202_load_profiles_outdated_sync(self, mock_uts, mock_thread):
-        """CAhandler.load_profiles() - outdated, sync mode"""
+        """CAhandler.synchronize_profiles() - outdated, sync mode"""
         cah = self.cahandler
         repository = MagicMock()
         repository.profile_list_get.return_value = {"synchronized_at": 0}
-        cah._syncronize_profiles = MagicMock()
+        cah._synchronize_profiles = MagicMock()
         thread_instance = MagicMock()
         mock_thread.return_value = thread_instance
-        cah.load_profiles(repository, "http://acme", 100, async_mode=False)
+        cah.synchronize_profiles(repository, "http://acme", 100, async_mode=False)
         self.assertTrue(thread_instance.start.called)
         self.assertTrue(thread_instance.join.called)
 
     @patch("examples.ca_handler.acme_ca_handler.Thread")
     @patch("examples.ca_handler.acme_ca_handler.uts_now", return_value=1000)
     def test_203_load_profiles_outdated_async(self, mock_uts, mock_thread):
-        """CAhandler.load_profiles() - outdated, async mode"""
+        """CAhandler.synchronize_profiles() - outdated, async mode"""
         cah = self.cahandler
         repository = MagicMock()
         repository.profile_list_get.return_value = {"synchronized_at": 0}
-        cah._syncronize_profiles = MagicMock()
+        cah._synchronize_profiles = MagicMock()
         thread_instance = MagicMock()
         mock_thread.return_value = thread_instance
-        cah.load_profiles(repository, "http://acme", 100, async_mode=True)
+        cah.synchronize_profiles(repository, "http://acme", 100, async_mode=True)
         self.assertTrue(thread_instance.start.called)
         self.assertFalse(thread_instance.join.called)
 
     @patch("examples.ca_handler.acme_ca_handler.Thread")
     @patch("examples.ca_handler.acme_ca_handler.uts_now", return_value=1000)
     def test_204_load_profiles_up_to_date(self, mock_uts, mock_thread):
-        """CAhandler.load_profiles() - up-to-date profiles"""
+        """CAhandler.synchronize_profiles() - up-to-date profiles"""
         cah = self.cahandler
         repository = MagicMock()
         repository.profile_list_get.return_value = {
             "synchronized_at": 2000,
             "profiles": {"foo": "bar"},
         }
-        cah._syncronize_profiles = MagicMock()
-        profiles = cah.load_profiles(repository, "http://acme", 100, async_mode=False)
+        cah._synchronize_profiles = MagicMock()
+        profiles = cah.synchronize_profiles(
+            repository, "http://acme", 100, async_mode=False
+        )
         self.assertEqual(profiles, {"foo": "bar"})
         self.assertFalse(mock_thread.return_value.start.called)
 

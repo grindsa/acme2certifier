@@ -310,10 +310,10 @@ class Directory:
                     error = ca_handler.handler_check()
                 if (
                     self.config.profiles_sync
-                    and hasattr(ca_handler, "load_profiles")
+                    and hasattr(ca_handler, "synchronize_profiles")
                     and not error
                 ):
-                    self.config.profiles = ca_handler.load_profiles(
+                    self.config.profiles = ca_handler.synchronize_profiles(
                         self.repository,
                         self.config.acme_url,
                         self.config.profiles_sync_interval,

@@ -285,13 +285,15 @@ class TestDirectory(unittest.TestCase):
         mock_cahandler_instance.__enter__.return_value = mock_cahandler_instance
         mock_cahandler_instance.__exit__.return_value = None
         mock_cahandler_instance.handler_check.return_value = None
-        mock_cahandler_instance.load_profiles.return_value = {"profile": "loaded"}
+        mock_cahandler_instance.synchronize_profiles.return_value = {
+            "profile": "loaded"
+        }
         self.directory.cahandler = MagicMock(return_value=mock_cahandler_instance)
         # Ensure hasattr returns True for load_profiles
         with patch.object(
             mock_cahandler_instance,
             "load_profiles",
-            wraps=mock_cahandler_instance.load_profiles,
+            wraps=mock_cahandler_instance.synchronize_profiles,
         ):
             resp = self.directory.get_directory_response()
             self.assertEqual(self.directory.config.profiles, {"profile": "loaded"})
