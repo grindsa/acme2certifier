@@ -208,7 +208,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: [acme_ca_handler_test, acme_ca_handler_sectigo_test, acme_ca_handler_profiling_test, acme_ca_handler_smallstep_test, acme_ca_handler_dns_test]
+    needs: [acme_ca_handler_dns_test]
     strategy:
       fail-fast: false
       matrix:
