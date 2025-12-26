@@ -1,0 +1,56 @@
+name: "compare_profile_info"
+description: "compare_profile_info"
+inputs:
+  NAME_SPACE:
+    description: "Namespace for the test"
+    required: true
+    default: "acme"
+  CERTIFICATE_FILE:
+    description: "Path to certificate file"
+    required: false
+    default: "/tmp/cert.pem"
+
+runs:
+  using: "composite"
+  steps:
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Construct renewal info string"
+    run: |
+      AKI_HEX=$(sudo openssl x509 -in "$CERT" -noout -text | awk '/Authority Key Identifier/{getline; print}' | sed 's/ *keyid://;s/://g')
+      SERIAL_HEX=$(sudo openssl x509 -in "$CERT" -noout -serial | cut -d'=' -f2)
+      echo "$AKI_HEX" | xxd -r -p > /tmp/aki.bin
+      echo "$SERIAL_HEX" | xxd -r -p > /tmp/serial.bin
+      AKI_B64=$(openssl base64 -A -in /tmp/aki.bin | tr '+/' '-_' | tr -d '=')
+      SERIAL_B64=$(openssl base64 -A -in /tmp/serial.bin | tr '+/' '-_' | tr -d '=')
+      RENEWAL_INFO="${AKI_B64}.${SERIAL_B64}"
+      echo "$RENEWAL_INFO"
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      CERT: ${{ inputs.CERTIFICATE_FILE }}
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Get and compare profile information"
+    run: |
+      echo "$RENEWAL_INFO"
+
+
+      #if [ "$LE_PROFILES" != "$A2C_PROFILES" ]; then
+      #  echo "Profile information does not match!"
+      #  exit 1
+      #else
+      #  echo "Profile information matches."
+      #fi
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
