@@ -129,6 +129,7 @@ class CAhandler(object):
         self.eab_kid = config_dic.get("CAhandler", "eab_kid", fallback=None)
         self.eab_hmac_key = config_dic.get("CAhandler", "eab_hmac_key", fallback=None)
         self.acme_keypath = config_dic.get("CAhandler", "acme_keypath", fallback=None)
+        # load profile from config file if set
         self.profile = config_dic.get("CAhandler", "profile", fallback=None)
 
         self.logger.debug("CAhandler._config_eab_load() ended")
@@ -195,6 +196,27 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_dns_update_script_load() ended")
 
+    def _config_profiles_load(self, config_dic: Dict[str, str]) -> Dict[str, str]:
+        """ " load profiles from config file"""
+        self.logger.debug("CAhandler._config_profiles_load()")
+        if "CAhandler" in config_dic and "profiles_sync" in config_dic["CAhandler"]:
+            # load profiles from db if profiles_sync is set
+            try:
+                profiles_string = self.dbstore.hkparameter_get("profiles")
+                profile_dic = json.loads(profiles_string)
+                profiles = profile_dic.get("profiles", {})
+            except Exception as err:
+                self.logger.critical(
+                    "Database error: failed to get profile list: %s", err
+                )
+                profiles = {}
+        else:
+            # load profiles from config file
+            profiles = config_profile_load(self.logger, config_dic)
+
+        self.logger.debug("CAhandler._config_profiles_load() ended")
+        return profiles
+
     def _config_load(self):
         """ " load config from file"""
         self.logger.debug("CAhandler._config_load()")
@@ -220,7 +242,9 @@ class CAhandler(object):
             self.logger, config_dic
         )
         # load profiles
-        self.profiles = config_profile_load(self.logger, config_dic)
+        # self.profiles = config_profile_load(self.logger, config_dic)
+        self.profiles = self._config_profiles_load(config_dic)
+
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
         # load enrollment config log
@@ -1131,7 +1155,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler.check() ended with %s", error)
         return error
 
-    def _syncronize_profiles(self, repository: object, acme_url: str, uts: int):
+    def _synchronize_profiles(self, repository: object, acme_url: str, uts: int):
         """synchronize profiles with CA"""
         self.logger.debug("CAhandler.synchronize_profiles()")
 
@@ -1153,7 +1177,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler.synchronize_profiles() ended")
 
-    def load_profiles(
+    def synchronize_profiles(
         self,
         repository: object,
         acme_url: str,
@@ -1161,7 +1185,7 @@ class CAhandler(object):
         async_mode: bool = False,
     ) -> Dict[str, str]:
         """synchronize profiles with CA"""
-        self.logger.debug("CAhandler.load_profiles()")
+        self.logger.debug("CAhandler.synchronize_profiles()")
 
         uts = uts_now()
         profiles_dic = repository.profile_list_get()
@@ -1173,24 +1197,24 @@ class CAhandler(object):
             # profile does not exist or is outdated
             self.logger.info("CA profiles outdated. Synchronize from acme_server")
             # start profile update in separate thread
-            twrv = Thread(target=self._syncronize_profiles(repository, acme_url, uts))
+            twrv = Thread(target=self._synchronize_profiles(repository, acme_url, uts))
             twrv.start()
             if async_mode:
                 # full async mode - do not wait for result
                 self.logger.debug(
-                    "CAhandler.load_profiles(): asynchronous processing enabled, not waiting for result"
+                    "CAhandler.synchronize_profiles(): asynchronous processing enabled, not waiting for result"
                 )
             else:
                 twrv.join(timeout=2)
 
         else:
             self.logger.debug(
-                "CAhandler.load_profiles(): valid profile information found in repository. Skipping syncronization."
+                "CAhandler.synchronize_profiles(): valid profile information found in repository. Skipping syncronization."
             )
 
         profiles = profiles_dic.get("profiles", {}) if profiles_dic else {}
 
-        self.logger.debug("CAhandler.load_profiles() ended")
+        self.logger.debug("CAhandler.synchronize_profiles() ended")
         return profiles
 
     def _get_renewalinfo_endpoint_url(self, acme_url: str) -> str:

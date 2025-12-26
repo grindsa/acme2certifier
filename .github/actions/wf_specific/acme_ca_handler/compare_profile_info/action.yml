@@ -1,0 +1,51 @@
+name: "compare_profile_info"
+description: "compare_profile_info"
+inputs:
+  NAME_SPACE:
+    description: "Namespace for the test"
+    required: true
+    default: "acme"
+
+runs:
+  using: "composite"
+  steps:
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Trigger fetch sync of profile information from LE"
+    run: |
+        docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://acme-srv/directory --insecure
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Get and compare profile information"
+    run: |
+
+        LE_OUTPUT=$(docker run -i --rm --network $NAME_SPACE curlimages/curl -f https://acme-staging-v02.api.letsencrypt.org/directory --insecure)
+        A2C_OUTPUT=$(docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://acme-srv/directory --insecure)
+
+        # Parse LE_OUTPUT for .meta.profiles using jq
+        LE_PROFILES=$(echo "$LE_OUTPUT" | jq '.meta.profiles // empty')
+        A2C_PROFILES=$(echo "$A2C_OUTPUT" | jq '.meta.profiles // empty')
+        echo "LE_PROFILES: $LE_PROFILES"
+        echo "A2C_PROFILES: $A2C_PROFILES"
+
+        if [ "$LE_PROFILES" != "$A2C_PROFILES" ]; then
+          echo "Profile information does not match!"
+          exit 1
+        else
+          echo "Profile information matches."
+        fi
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
