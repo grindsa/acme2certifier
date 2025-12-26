@@ -1,0 +1,29 @@
+name: "compare_profile_info"
+description: "compare_profile_info"
+inputs:
+  NAME_SPACE:
+    description: "Namespace for the test"
+    required: true
+    default: "acme"
+
+runs:
+  using: "composite"
+  steps:
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Get and compare profile information"
+    run: |
+        # LE_HASH=$(curl https://acme-staging-v02.api.letsencrypt.org/directory | jq .meta.profiles | sha224sum)
+        # A2C_HASH=$(curl http://192.168.64.1/directory  | jq .meta.profiles | sha224sum)
+        docker run -i --rm --network $NAME_SPACE curlimages/curl -f https://acme-staging-v02.api.letsencrypt.org/directory --insecure
+        docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://acme-srv/directory --insecure
+      # set -e
+      # LE_P=$(curl -o /dev/null -s -w "%{http_code}\n" https://step-ca.acme/acme/acme/directory)
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
