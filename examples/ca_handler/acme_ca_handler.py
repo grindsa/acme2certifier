@@ -129,6 +129,7 @@ class CAhandler(object):
         self.eab_kid = config_dic.get("CAhandler", "eab_kid", fallback=None)
         self.eab_hmac_key = config_dic.get("CAhandler", "eab_hmac_key", fallback=None)
         self.acme_keypath = config_dic.get("CAhandler", "acme_keypath", fallback=None)
+        # load profile from config file if set
         self.profile = config_dic.get("CAhandler", "profile", fallback=None)
 
         self.logger.debug("CAhandler._config_eab_load() ended")
@@ -195,6 +196,27 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_dns_update_script_load() ended")
 
+    def _config_profiles_load(self, config_dic: Dict[str, str]) -> Dict[str, str]:
+        """ " load profiles from config file"""
+        self.logger.debug("CAhandler._config_profiles_load()")
+        if "CAhandler" in config_dic and "profiles_sync" in config_dic["CAhandler"]:
+            # load profiles from db if profiles_sync is set
+            try:
+                profiles_string = self.dbstore.hkparameter_get("profiles")
+                profile_dic = json.loads(profiles_string)
+                profiles = profile_dic.get("profiles", {})
+            except Exception as err:
+                self.logger.critical(
+                    "Database error: failed to get profile list: %s", err
+                )
+                profiles = {}
+        else:
+            # load profiles from config file
+            profiles = config_profile_load(self.logger, config_dic)
+
+        self.logger.debug("CAhandler._config_profiles_load() ended")
+        return profiles
+
     def _config_load(self):
         """ " load config from file"""
         self.logger.debug("CAhandler._config_load()")
@@ -220,7 +242,9 @@ class CAhandler(object):
             self.logger, config_dic
         )
         # load profiles
-        self.profiles = config_profile_load(self.logger, config_dic)
+        # self.profiles = config_profile_load(self.logger, config_dic)
+        self.profiles = self._config_profiles_load(config_dic)
+
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
         # load enrollment config log
@@ -538,7 +562,6 @@ class CAhandler(object):
         self.logger.debug("CAhandler._user_key_load() ended with: %s", bool(user_key))
         return user_key
 
-
     def _order_authorization(
         self,
         acmeclient: client.ClientV2,
@@ -549,15 +572,21 @@ class CAhandler(object):
         self.logger.debug("CAhandler._order_authorization()")
         authz_valid = False
         for authzr in order.authorizations:
-            authz_valid = self._handle_authzr_status(acmeclient, authzr, user_key) or authz_valid
-        self.logger.debug("CAhandler._order_authorization() ended with: %s", authz_valid)
+            authz_valid = (
+                self._handle_authzr_status(acmeclient, authzr, user_key) or authz_valid
+            )
+        self.logger.debug(
+            "CAhandler._order_authorization() ended with: %s", authz_valid
+        )
         return authz_valid
 
     def _handle_authzr_status(self, acmeclient, authzr, user_key):
         if authzr.body.status == messages.STATUS_PENDING:
             return self._handle_pending_status(acmeclient, authzr, user_key)
         elif authzr.body.status == messages.STATUS_VALID:
-            self.logger.info("Authorization already valid. Skipping challenge validation.")
+            self.logger.info(
+                "Authorization already valid. Skipping challenge validation."
+            )
             return True
         else:
             self.logger.warning(
@@ -567,13 +596,21 @@ class CAhandler(object):
             return False
 
     def _handle_pending_status(self, acmeclient, authzr, user_key):
-        challenge_name, challenge_content, challenge = self._challenge_info(authzr, user_key)
+        challenge_name, challenge_content, challenge = self._challenge_info(
+            authzr, user_key
+        )
         if challenge_name and challenge_content:
             if self.dns_update_script and self.acme_sh_script:
-                self.logger.debug("CAhandler._order_authorization(): dns challenge detected")
-                self._dns_challenge_provision(authzr.body.identifier.value, challenge_content, user_key)
+                self.logger.debug(
+                    "CAhandler._order_authorization(): dns challenge detected"
+                )
+                self._dns_challenge_provision(
+                    authzr.body.identifier.value, challenge_content, user_key
+                )
             else:
-                self.logger.debug("CAhandler._order_authorization(): http challenge detected")
+                self.logger.debug(
+                    "CAhandler._order_authorization(): http challenge detected"
+                )
                 self._http_challenge_store(challenge_name, challenge_content)
             self.logger.debug("CAhandler._order_authorization(): answer challenge")
             _auth_response = acmeclient.answer_challenge(
@@ -585,7 +622,9 @@ class CAhandler(object):
             and challenge_content.get("type", None) == "sectigo-email-01"
             and challenge_content.get("status", None) == "valid"
         ):
-            self.logger.debug("CAhandler._order_authorization(): sectigo-email-01 challenge detected")
+            self.logger.debug(
+                "CAhandler._order_authorization(): sectigo-email-01 challenge detected"
+            )
             return True
         return False
 
@@ -1116,11 +1155,13 @@ class CAhandler(object):
         self.logger.debug("CAhandler.check() ended with %s", error)
         return error
 
-    def _syncronize_profiles(self, repository: object, acme_url: str, uts: int):
+    def _synchronize_profiles(self, repository: object, acme_url: str, uts: int):
         """synchronize profiles with CA"""
         self.logger.debug("CAhandler.synchronize_profiles()")
 
-        result, code, error = url_get(self.logger, acme_url + self.path_dic["directory_path"], timeout=5)
+        result, code, error = url_get(
+            self.logger, acme_url + self.path_dic["directory_path"], timeout=5
+        )
         if code == 200:
             json_data = json.loads(result)
             profiles = json.dumps(
@@ -1136,7 +1177,7 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler.synchronize_profiles() ended")
 
-    def load_profiles(
+    def synchronize_profiles(
         self,
         repository: object,
         acme_url: str,
@@ -1144,7 +1185,7 @@ class CAhandler(object):
         async_mode: bool = False,
     ) -> Dict[str, str]:
         """synchronize profiles with CA"""
-        self.logger.debug("CAhandler.load_profiles()")
+        self.logger.debug("CAhandler.synchronize_profiles()")
 
         uts = uts_now()
         profiles_dic = repository.profile_list_get()
@@ -1156,24 +1197,24 @@ class CAhandler(object):
             # profile does not exist or is outdated
             self.logger.info("CA profiles outdated. Synchronize from acme_server")
             # start profile update in separate thread
-            twrv = Thread(target=self._syncronize_profiles(repository, acme_url, uts))
+            twrv = Thread(target=self._synchronize_profiles(repository, acme_url, uts))
             twrv.start()
             if async_mode:
                 # full async mode - do not wait for result
                 self.logger.debug(
-                    "CAhandler.load_profiles(): asynchronous processing enabled, not waiting for result"
+                    "CAhandler.synchronize_profiles(): asynchronous processing enabled, not waiting for result"
                 )
             else:
                 twrv.join(timeout=2)
 
         else:
             self.logger.debug(
-                "CAhandler.load_profiles(): valid profile information found in repository. Skipping syncronization."
+                "CAhandler.synchronize_profiles(): valid profile information found in repository. Skipping syncronization."
             )
 
         profiles = profiles_dic.get("profiles", {}) if profiles_dic else {}
 
-        self.logger.debug("CAhandler.load_profiles() ended")
+        self.logger.debug("CAhandler.synchronize_profiles() ended")
         return profiles
 
     def _get_renewalinfo_endpoint_url(self, acme_url: str) -> str:
@@ -1183,7 +1224,9 @@ class CAhandler(object):
         renewalinfo_enpoint_url = f"{acme_url}/renewal-info"  # default fallback
 
         try:
-            response = url_get(self.logger, f"{acme_url}{self.path_dic['directory_path']}", timeout=10)
+            response = url_get(
+                self.logger, f"{acme_url}{self.path_dic['directory_path']}", timeout=10
+            )
             if (
                 isinstance(response, (list, tuple))
                 and len(response) >= 2

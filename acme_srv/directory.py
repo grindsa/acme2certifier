@@ -208,9 +208,7 @@ class Directory:
             )
             self.config.profiles_sync = False
         elif not self.config.acme_url:
-            self.logger.error(
-                "profiles_sync is set but no acme_url configured."
-            )
+            self.logger.error("profiles_sync is set but no acme_url configured.")
             self.config.profiles_sync = False
 
     def _set_profiles_sync_interval(self, config_dic: object) -> None:
@@ -312,10 +310,10 @@ class Directory:
                     error = ca_handler.handler_check()
                 if (
                     self.config.profiles_sync
-                    and hasattr(ca_handler, "load_profiles")
+                    and hasattr(ca_handler, "synchronize_profiles")
                     and not error
                 ):
-                    self.config.profiles = ca_handler.load_profiles(
+                    self.config.profiles = ca_handler.synchronize_profiles(
                         self.repository,
                         self.config.acme_url,
                         self.config.profiles_sync_interval,
