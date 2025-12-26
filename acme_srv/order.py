@@ -290,7 +290,9 @@ class Order(object):
                 "CAhandler", "profiles_sync", fallback=False
             )
             if self.profiles_sync:
-                self.logger.debug("Order._config_load(): profile_sync set. Loading profiles")
+                self.logger.debug(
+                    "Order._config_load(): profile_sync set. Loading profiles"
+                )
                 profiles = self._get_profiles_from_db()
                 if profiles:
                     self._set_profiles_from_db(profiles)
