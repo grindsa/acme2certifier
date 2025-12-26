@@ -198,7 +198,7 @@ runs:
 
     - name: "Delete acme-sh, letsencypt and lego folders"
       run: |
-        # sudo rm -rf  lego/*
+        sudo rm -rf  lego/*
         sudo rm -rf  acme-sh/*
         sudo rm -rf  certbot/*
       shell: bash

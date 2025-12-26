@@ -127,18 +127,19 @@ jobs:
         echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
     - run: echo "UUID ${{ env.UUID }}"
 
-    - name: "Enrollment"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns
-      with:
-        HOSTNAME_SUFFIX: -${{ env.UUID }}
-        NAME_SPACE: acme.dynamop.de
-        CERT_TIMEOUT: "360"
-        VERIFY_CERT: false
+    #- name: "Enrollment"
+    #  uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns
+    #  with:
+    #    HOSTNAME_SUFFIX: -${{ env.UUID }}
+    #    NAME_SPACE: acme.dynamop.de
+    #    CERT_TIMEOUT: "360"
+    #    VERIFY_CERT: false
 
     - name: "Compare renewal information between A2C and LE"
       uses: ./.github/actions/wf_specific/acme_ca_handler/compare_renewal_info
       with:
         NAME_SPACE: acme.dynamop.de
+        HOSTNAME_SUFFIX: -${{ env.UUID }}
         CERTIFICATE_FILE: "$PWD/lego/certificates/lego-${{ env.UUID }}.acme.dynamop.de.crt"
 
     - name: "ACMEDNS - Setup acme ca_handler"
