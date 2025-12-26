@@ -1,0 +1,130 @@
+name: "compare_profile_info"
+description: "compare_profile_info"
+inputs:
+  NAME_SPACE:
+    description: "Namespace for the test"
+    required: true
+    default: "acme"
+  CERTIFICATE_FILE:
+    description: "Path to certificate file"
+    required: false
+    default: "/tmp/cert.pem"
+  HTTPS_PORT:
+    description: "HTTPS port"
+    required: true
+    default: "443"
+  HOSTNAME_SUFFIX:
+    description: "Hostname suffix"
+  ACME_SERVER:
+    description: "ACME server URL"
+    required: true
+    default: "acme-srv"
+  CERT_TIMEOUT:
+    description: "Certificate timeout"
+    required: true
+    default: "120"
+
+runs:
+  using: "composite"
+  steps:
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "HTTPS - Enroll lego"
+    run: |
+      echo "##### HTTP - Enroll lego #####"
+      docker run -i --rm -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify --a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --cert.timeout $CERT_TIMEOUT --tls run
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+      HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
+
+  - name: "Construct renewal info string"
+    id: construct_renewal_info
+    run: |
+      AKI_HEX=$(sudo openssl x509 -in "$CERT" -noout -text | awk '/Authority Key Identifier/{getline; print}' | sed 's/ *keyid://;s/://g')
+      SERIAL_HEX=$(sudo openssl x509 -in "$CERT" -noout -serial | cut -d'=' -f2)
+      echo "$AKI_HEX" | xxd -r -p > /tmp/aki.bin
+      echo "$SERIAL_HEX" | xxd -r -p > /tmp/serial.bin
+      AKI_B64=$(openssl base64 -A -in /tmp/aki.bin | tr '+/' '-_' | tr -d '=')
+      SERIAL_B64=$(openssl base64 -A -in /tmp/serial.bin | tr '+/' '-_' | tr -d '=')
+      RENEWAL_INFO="${AKI_B64}.${SERIAL_B64}"
+      echo "RENEWAL_INFO=$RENEWAL_INFO" >> $GITHUB_OUTPUT
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      CERT: ${{ inputs.CERTIFICATE_FILE }}
+
+  - name: "Get and compare renewal strings from a2c and LE"
+    run: |
+      echo "LEGO RENEWAL INFO: $RENEWAL_INFO"
+
+      LE_RENEWAL_OUTPUT=$(docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://acme-staging-v02.api.letsencrypt.org/acme/renewal-info/$RENEWAL_INFO)
+      A2C_RENEWAL_OUTPUT=$(docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SERVER:$HTTPS_PORT/acme/renewal-info/$RENEWAL_INFO)
+      LE_RENEWAL_INFO=$(echo "$LE_RENEWAL_OUTPUT" | jq | sha224sum)
+      A2C_RENEWAL_INFO=$(echo "$A2C_RENEWAL_OUTPUT" | jq | sha224sum)
+      echo "LE_RENEWAL: $LE_RENEWAL_INFO"
+      echo "A2C_RENEWAL: $A2C_RENEWAL_INFO"
+
+      if [ -z "$LE_RENEWAL_INFO" ] || [ -z "$A2C_RENEWAL_INFO" ]; then
+        echo "One of the renewal info values is empty (None)!"
+        exit 1
+      fi
+
+      if [ "$LE_RENEWAL_INFO" != "$A2C_RENEWAL_INFO" ]; then
+        echo "Renewal information does not match!"
+        exit 1
+      else
+        echo "Renewal information matches."
+      fi
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+      HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      RENEWAL_INFO: ${{ steps.construct_renewal_info.outputs.RENEWAL_INFO }}
+
+  - name: "HTTPS - Revoke lego"
+    if: ${{ inputs.REVOCATION == 'true' }}
+    run: |
+      echo "#### HTTPS - Revoke lego"
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE revoke
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+      HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+
+
+  - name: "Get and compare profile information"
+    run: |
+      echo "$RENEWAL_INFO"
+
+      #if [ "$LE_PROFILES" != "$A2C_PROFILES" ]; then
+      #  echo "Profile information does not match!"
+      #  exit 1
+      #else
+      #  echo "Profile information matches."
+      #fi
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Delete lego folders"
+    run: |
+      sudo rm -rf  lego/*
+    shell: bash
