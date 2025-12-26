@@ -72,6 +72,11 @@ runs:
       echo "LE_RENEWAL: $LE_RENEWAL_INFO"
       echo "A2C_RENEWAL: $A2C_RENEWAL_INFO"
 
+      if [ -z "$LE_RENEWAL_INFO" ] || [ -z "$A2C_RENEWAL_INFO" ]; then
+        echo "One of the renewal info values is empty (None)!"
+        exit 1
+      fi
+
       if [ "$LE_RENEWAL_INFO" != "$A2C_RENEWAL_INFO" ]; then
         echo "Renewal information does not match!"
         exit 1
