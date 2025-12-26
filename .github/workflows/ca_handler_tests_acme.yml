@@ -347,7 +347,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: [rpm_acme_ca_handler_test, rpm_acme_ca_handler_sectigo_test, rpm_acme_ca_handler_profiling_test, rpm_acme_ca_handler_smallstep_test, rpm_acme_ca_handler_dns_test]
+    needs: [rpm_acme_ca_handler_dns_test]
     steps:
     - name: "Delete artifact"
       uses: geekyeggo/delete-artifact@v5
