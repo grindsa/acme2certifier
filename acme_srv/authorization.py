@@ -45,7 +45,7 @@ class ConfigurationError(AuthorizationError):
 
 
 @dataclass
-class AuthorizationConfig:
+class AuthorizationConfiguration:
     """Configuration for Authorization operations"""
 
     validity: int = 86400
@@ -223,7 +223,7 @@ class AuthorizationBusinessLogic:
     """Business logic for authorization operations"""
 
     def __init__(
-        self, config: AuthorizationConfig, repository: AuthorizationRepository, logger
+        self, config: AuthorizationConfiguration, repository: AuthorizationRepository, logger
     ):
         self.config = config
         self.repository = repository
@@ -380,7 +380,7 @@ class Authorization(object):
         self.nonce = Nonce(debug, self.logger)
 
         # Initialize components immediately
-        self.config = AuthorizationConfig()
+        self.config = AuthorizationConfiguration()
         self.repository = AuthorizationRepository(self.dbstore, self.logger)
         self.business_logic = AuthorizationBusinessLogic(
             self.config, self.repository, self.logger
@@ -402,7 +402,7 @@ class Authorization(object):
         """Close the connection at the end of the context"""
         pass
 
-    def _load_configuration(self) -> AuthorizationConfig:
+    def _load_configuration(self) -> AuthorizationConfiguration:
         """Load configuration from file"""
         self.logger.debug("Authorization._load_configuration()")
 
