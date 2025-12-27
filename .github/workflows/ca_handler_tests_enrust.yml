@@ -103,13 +103,16 @@ jobs:
         sudo echo "allowed_domainlist: [\"*.rm-rf.ninja\", \"bar.local\"]" >> examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+
         sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
         sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
         sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
         sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
         sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+        sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
+        sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
         sudo chmod 777 examples/eab_handler/kid_profiles.json
         sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"STANDARD_SSL\", \"ADVANTAGE_SSL\"\]/g" examples/Docker/data/kid_profiles.json
         sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ADVANTAGE_SSL\"/g" examples/Docker/data/kid_profiles.json

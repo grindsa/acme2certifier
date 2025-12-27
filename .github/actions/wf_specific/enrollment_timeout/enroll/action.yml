@@ -1,5 +1,5 @@
-name: "enroll_102_profile"
-description: "wf enrollment 102 profile"
+name: "enroll timeout"
+description: test enrollment timeout handling for various ACME clients"
 inputs:
   DEPLOYMENT_TYPE:
     description: "Deployment type"
@@ -32,10 +32,10 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        docker compose logs | grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec acme-srv grep "Certificate.enroll_and_store() ended with: None:timeout" /var/log/messages
+        docker exec acme-srv grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out" /var/log/messages
       fi
     shell: bash
     env:
@@ -79,7 +79,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        docker compose logs | grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash
@@ -100,7 +100,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        docker compose logs | grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash

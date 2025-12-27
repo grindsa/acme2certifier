@@ -74,7 +74,6 @@ template: <template_name>
 timeout: 5
 use_kerberos: False
 allowed_domainlist: ["example.com", "*.example2.com"]
-eab_profiling: False
 ```
 
 ### Parameter Explanations
@@ -94,7 +93,6 @@ eab_profiling: False
 - **timeout** *(optional)* – Enrollment timeout in seconds (default: `5`).
 - **use_kerberos** – Use Kerberos for authentication. If `False`, authentication is done via NTLM. Due to Microsoft's [October 2023 announcement](https://techcommunity.microsoft.com/t5/windows-it-pro-blog/the-evolution-of-windows-authentication/ba-p/3926848), Kerberos is recommended, but NTLM remains the default for backward compatibility.
 - **allowed_domainlist** *(optional)* – List of allowed domains for enrollment (JSON format).
-- **eab_profiling** *(optional)* – [Enable EAB profiling](eab_profiling.md) (default: `False`).
 - **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`).
 - **enrollment_config_log_skip_list** *(optional)* – List of enrollment parameters to exclude from logs (JSON format).
 
@@ -144,9 +142,10 @@ This handler supports [EAB profiling](eab_profiling.md), which allows individual
 [EABhandler]
 eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: <profile_file>
+eab_profiling: True
 
 [CAhandler]
-eab_profiling: True
+...
 ```
 
 ## Example Key File

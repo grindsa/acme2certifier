@@ -35,7 +35,6 @@ runs:
         INPUT_UPPERCASE: ${{ inputs.uppercase }}
       run: |
         # Validate inputs
-        echo ${JSON_SECRET}
         if [ -z "$JSON_SECRET" ]; then
           echo "❌ Error: json_secret input is required"
           exit 1
@@ -97,9 +96,10 @@ runs:
         # Count variables
         VARIABLE_COUNT=$(echo "$JSON_SECRET" | jq '. | length')
 
-        # Set outputs
+        # Set outputs (avoid exposing variable names that might contain sensitive info)
         echo "variable_count=$VARIABLE_COUNT" >> $GITHUB_OUTPUT
-        echo "variable_names=$VARIABLE_NAMES" >> $GITHUB_OUTPUT
+        # Only output variable count, not names to avoid potential exposure
+        echo "variable_names=***" >> $GITHUB_OUTPUT
 
         echo "✅ Created $VARIABLE_COUNT environment variables"
-        echo "📋 Variables: $VARIABLE_NAMES"
+        echo "📋 Variables created successfully (names hidden for security)"

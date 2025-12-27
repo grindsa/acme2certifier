@@ -9,11 +9,14 @@ Starting with version 0.34 acme2certifier supports the configuration of account 
 Currently the following ca-handlers have been modified and support this feature:
 
 - [generic ACME](acme_ca.md)
+- [Digicert](digicert.md)
 - [EJBCA](ejbca.md)
 - [Insta ActiveCMS](asa.md)
 - [Insta certifier/NetGuard Certificate manager](certifier.md)
 - [Microsoft Certificate Enrollment Web Services](mscertsrv.md)
 - [Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM](mswcce.md)
+- [OpenXPKI](openxpki.md)
+- [Vault](vault.md)
 - [XCA](xca.md)
 
 In case you need support for a different ca-handler feel free to open an [issue](https://github.com/grindsa/acme2certifier/issues/new).
@@ -26,6 +29,7 @@ This feature requires [external account binding](eab.md) to be enabled and a spe
 [EABhandler]
 eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: volume/kid_profiles.json
+eab_profiling: True
 ```
 
 The `key_file` allows the specification enrollment parameters per (external) acme-account. Main identifier is the key_id to be used during account registration. Any parameter used in the \[CAhandler\] configuration section of a handler can be customized. Starting from acme2certifier v0.38 challenge validation can be disabled for a specific eab-user.
@@ -55,20 +59,29 @@ Below is an example configuration to be used for [Insta Certifier](certifier.md)
     }
   },
   "keyid_02": {
-    "hmac": "hmac-key"
+    "hmac": "hmac-key",
+    "challenge": {
+      "challenge_validation_disable": "True",
+      "foward_address_check": "True",
+      "reverse_address_check": "True"
+    }
+  },
+  "keyid_03": {
+  "hmac": "hmac-key",
+  "authorization": {
+    "prevalidated_domainlist": ["www.example.fi", "*.acme"]
   }
 }
 ```
 
 - ACME accounts created with keyid "keyid_00" will always use profile-id "profile_1" and specific api-user credentials for enrollment from certificate authority "non_default_ca". Further, the SANs/Common Names to be used in enrollment requests are restricted to the domains "example.com", "example.org" and "example.fi".
 - ACME accounts created with keyid "keyid_01" and can specify 3 different profile_ids by using the [header_info feature](header_info.md). Enrollment requests having other profile_ids will be rejected. In case no profile_id get specified the first profile_id in the list ("profile_1") will be used. SAN/CNs to be used are restricted to "example.fi" and ".local" All other enrollment parameters will be taken from acme_srv.cfg. Furthermore the challenge validation got disabled for this user which means that acme2certifier will accept any CN/SAN matching the pattern "*.example.fi" or "*.acme".
-- ACME accounts created with keyid "keyid_02" do not have any restriction. Enrolment parameters will be taken from the \[CAhandler\] section in ´acme_srv.cfg´
+- ACME accounts created with keyid "keyid_02" do not have any special enrollment configuation as al parameters will be taken from the \[CAhandler\] section in ´acme_srv.cfg´. Furthermore, challenge validadaion got disabled and both forward and reverse address checking gets activated.
+- ACME accounts created wiht keyid "keyid_03" can use the [pre-validaton domainlist](prevalidated_domainlist.md) feature to enroll certificates for "www.example.fi" and "\*.acme" without challenge-validation
 
 Starting from v0.36 acme2certifier does support profile configuration in yaml format. Below a configuration example providing the same level of functionality as the above JSON configuration
 
 ```yaml
----
-{
 ---
 keyid_00:
   hmac: "hmac-key"
@@ -81,6 +94,7 @@ keyid_00:
     ca_name: "non_default_ca"
     api_user: "non_default_api_user"
     api_password: "api_password"
+
 keyid_01:
   hmac: "hmac-key"
   cahandler:
@@ -91,8 +105,22 @@ keyid_01:
     allowed_domainlist:
     - "*.example.fi"
     - "*.acme"
+  challenge:
+    challenge_validation_disable": True
+
 keyid_02:
   hmac: "hmac-key"
+  challenge:
+    challenge_validation_disable": True
+    forward_address_check: True
+    reverse_address_check: True
+
+keyid_03:
+  hmac: "hmac-key"
+  authorization:
+    prevalidated_domainlist:
+    - "www.example.fi"
+    - "*.acme"
 ```
 
 ## Subject Profiling

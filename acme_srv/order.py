@@ -46,6 +46,7 @@ class Order(object):
         self.identifier_limit = 20
         self.header_info_list = []
         self.profiles = {}
+        self.profiles_sync = False
         # turn off check by default
         self.profiles_check_disable = True
         self.idempotent_finalize = False
@@ -269,6 +270,55 @@ class Order(object):
 
         self.logger.debug("Order._config_orderconfig_load() ended")
 
+    def _config_profile_load(self, config_dic: Dict[str, str]):
+        """load profiles from file or database, refactored for clarity"""
+        self.logger.debug("Order._config_profile_load()")
+        self._load_profiles_from_config(config_dic)
+        self._load_profiles_from_db_if_sync(config_dic)
+        self._maybe_disable_profile_check(config_dic)
+        self.logger.debug("Order._config_profile_load() ended")
+
+    def _load_profiles_from_config(self, config_dic: Dict[str, str]):
+        if "Order" in config_dic and "profiles" in config_dic["Order"]:
+            self.logger.debug("Order._config_load(): profile check enabled")
+            self.profiles_check_disable = False
+            self.profiles = config_profile_load(self.logger, config_dic)
+
+    def _load_profiles_from_db_if_sync(self, config_dic: Dict[str, str]):
+        if "CAhandler" in config_dic and "profiles_sync" in config_dic["CAhandler"]:
+            self.profiles_sync = config_dic.getboolean(
+                "CAhandler", "profiles_sync", fallback=False
+            )
+            if self.profiles_sync:
+                self.logger.debug(
+                    "Order._config_load(): profile_sync set. Loading profiles"
+                )
+                profiles = self._get_profiles_from_db()
+                if profiles:
+                    self._set_profiles_from_db(profiles)
+
+    def _get_profiles_from_db(self):
+        try:
+            return self.dbstore.hkparameter_get("profiles")
+        except Exception as err:
+            self.logger.critical("Database error: failed to get profile list: %s", err)
+            return None
+
+    def _set_profiles_from_db(self, profiles):
+        try:
+            profile_dic = json.loads(profiles)
+            self.profiles = profile_dic.get("profiles", {})
+        except Exception as err_:
+            self.logger.error(
+                "Error when loading the profiles parameter from database: %s", err_
+            )
+
+    def _maybe_disable_profile_check(self, config_dic: Dict[str, str]):
+        if self.profiles and "Order" in config_dic:
+            self.profiles_check_disable = config_dic.getboolean(
+                "Order", "profiles_check_disable", fallback=False
+            )
+
     def _config_load(self):
         """ " load config from file"""
         self.logger.debug("Order._config_load()")
@@ -297,16 +347,7 @@ class Order(object):
                 for k, v in self.path_dic.items()
             }
 
-        # load profile
-        if "Order" in config_dic and "profiles" in config_dic["Order"]:
-            # we have a profile configuration turn on check
-            self.logger.debug("Order._config_load(): profile check enabled")
-            self.profiles_check_disable = False
-            self.profiles = config_profile_load(self.logger, config_dic)
-            # disable profile check if configured
-            self.profiles_check_disable = config_dic.getboolean(
-                "Order", "profiles_check_disable", fallback=False
-            )
+        self._config_profile_load(config_dic)
 
         self.logger.debug("Order._config_load() ended.")
 
