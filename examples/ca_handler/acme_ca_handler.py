@@ -12,6 +12,7 @@ import josepy
 import subprocess
 import time
 import shlex
+from threading import Thread
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
@@ -34,9 +35,9 @@ from acme_srv.helper import (
     eab_profile_header_info_check,
     eab_profile_revocation_check,
     enrollment_config_log,
-    jwk_thumbprint_get,
     load_config,
     parse_url,
+    url_get,
     sha256_hash,
     txt_get,
     uts_now,
@@ -123,11 +124,12 @@ class CAhandler(object):
         self.logger.debug("CAhandler._config_eab_load()")
 
         self.path_dic["directory_path"] = config_dic.get(
-            "CAhandler", "directory_path", fallback="/directory"
+            "CAhandler", "directory_path", fallback=self.path_dic["directory_path"]
         )
         self.eab_kid = config_dic.get("CAhandler", "eab_kid", fallback=None)
         self.eab_hmac_key = config_dic.get("CAhandler", "eab_hmac_key", fallback=None)
         self.acme_keypath = config_dic.get("CAhandler", "acme_keypath", fallback=None)
+        # load profile from config file if set
         self.profile = config_dic.get("CAhandler", "profile", fallback=None)
 
         self.logger.debug("CAhandler._config_eab_load() ended")
@@ -194,6 +196,27 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_dns_update_script_load() ended")
 
+    def _config_profiles_load(self, config_dic: Dict[str, str]) -> Dict[str, str]:
+        """ " load profiles from config file"""
+        self.logger.debug("CAhandler._config_profiles_load()")
+        if "CAhandler" in config_dic and "profiles_sync" in config_dic["CAhandler"]:
+            # load profiles from db if profiles_sync is set
+            try:
+                profiles_string = self.dbstore.hkparameter_get("profiles")
+                profile_dic = json.loads(profiles_string)
+                profiles = profile_dic.get("profiles", {})
+            except Exception as err:
+                self.logger.critical(
+                    "Database error: failed to get profile list: %s", err
+                )
+                profiles = {}
+        else:
+            # load profiles from config file
+            profiles = config_profile_load(self.logger, config_dic)
+
+        self.logger.debug("CAhandler._config_profiles_load() ended")
+        return profiles
+
     def _config_load(self):
         """ " load config from file"""
         self.logger.debug("CAhandler._config_load()")
@@ -219,7 +242,9 @@ class CAhandler(object):
             self.logger, config_dic
         )
         # load profiles
-        self.profiles = config_profile_load(self.logger, config_dic)
+        # self.profiles = config_profile_load(self.logger, config_dic)
+        self.profiles = self._config_profiles_load(config_dic)
+
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
         # load enrollment config log
@@ -347,7 +372,7 @@ class CAhandler(object):
         acme_sh_script_escaped = shlex.quote(self.acme_sh_script)
         dns_update_script_escaped = shlex.quote(self.dns_update_script)
         basename_w_ext_escaped = shlex.quote(basename_w_ext)
-        cmd_list = f"source {acme_sh_script_escaped} &>/dev/null; source {dns_update_script_escaped};  {basename_w_ext_escaped}_add {fqdn_escaped} {txt_record_value_escaped}"
+        cmd_list = f"source {acme_sh_script_escaped} &>/dev/null; source {dns_update_script_escaped};  {basename_w_ext_escaped}_add {fqdn_escaped} {txt_record_value_escaped}"  # noqa
 
         if self.acme_sh_shell:
             self.logger.debug(
@@ -468,7 +493,7 @@ class CAhandler(object):
         return chall_name, chall_content, challenge
 
     def _get_http_or_email_challenge(self, authzr, user_key):
-        self.logger.debug("_get_http_or_email_challenge()")
+        self.logger.debug("CAhandler._get_http_or_email_challenge()")
         challenge = self._challenge_filter(authzr)
         chall_name = None
         chall_content = None
@@ -485,6 +510,7 @@ class CAhandler(object):
             challenge = self._challenge_filter(authzr, chall_type="sectigo-email-01")
             if challenge:
                 chall_content = challenge.to_partial_json()
+        self.logger.debug("CAhandler._get_http_or_email_challenge() ended")
         return chall_name, chall_content, challenge
 
     def _http_challenge_store(self, challenge_name: str, challenge_content: str):
@@ -495,6 +521,7 @@ class CAhandler(object):
             data_dic = {"name": challenge_name, "value1": challenge_content}
             # store challenge into db
             self.dbstore.cahandler_add(data_dic)
+        self.logger.debug("CAhandler._http_challenge_store() ended.")
 
     def _key_generate(self) -> josepy.jwk.JWKRSA:
         """generate key"""
@@ -512,7 +539,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._user_key_load(%s)", self.acme_keyfile)
 
         if os.path.exists(self.acme_keyfile):
-            self.logger.debug("CAhandler.enroll() opening user_key")
+            self.logger.debug("CAhandler._user_key_load() opening user_key")
             with open(self.acme_keyfile, "r", encoding="utf8") as keyf:
 
                 user_key_dic = json.loads(keyf.read())
@@ -523,7 +550,7 @@ class CAhandler(object):
                     del user_key_dic["account"]
                 user_key = josepy.JWKRSA.fields_from_json(user_key_dic)
         else:
-            self.logger.debug("CAhandler.enroll() generate and register key")
+            self.logger.debug("CAhandler._user_key_load() generate and register key")
             user_key = self._key_generate()
             # dump keyfile to file
             try:
@@ -541,51 +568,65 @@ class CAhandler(object):
         order: messages.OrderResource,
         user_key: josepy.jwk.JWKRSA,
     ) -> bool:
-        """validate challgenges"""
+        """validate challenges (refactored for clarity)"""
         self.logger.debug("CAhandler._order_authorization()")
-
         authz_valid = False
-
-        # query challenges
         for authzr in order.authorizations:
-            (challenge_name, challenge_content, challenge) = self._challenge_info(
-                authzr, user_key
+            authz_valid = (
+                self._handle_authzr_status(acmeclient, authzr, user_key) or authz_valid
             )
-            if challenge_name and challenge_content:
-                if self.dns_update_script and self.acme_sh_script:
-                    self.logger.debug(
-                        "CAhandler._order_authorization(): dns challenge detected"
-                    )
-                    self._dns_challenge_provision(
-                        authzr.body.identifier.value, challenge_content, user_key
-                    )
-                else:
-                    self.logger.debug(
-                        "CAhandler._order_authorization(): http challenge detected"
-                    )
-                    # store challenge in database to allow challenge validation
-                    self._http_challenge_store(challenge_name, challenge_content)
-
-                _auth_response = acmeclient.answer_challenge(
-                    challenge, challenge.chall.response(user_key)
-                )  # lgtm [py/unused-local-variable]
-
-                authz_valid = True
-            else:
-                if (
-                    isinstance(challenge_content, dict)
-                    and challenge_content.get("type", None) == "sectigo-email-01"
-                    and challenge_content.get("status", None) == "valid"
-                ):
-                    self.logger.debug(
-                        "CAhandler._order_authorization(): sectigo-email-01 challenge detected"
-                    )
-                    authz_valid = True
-
         self.logger.debug(
             "CAhandler._order_authorization() ended with: %s", authz_valid
         )
         return authz_valid
+
+    def _handle_authzr_status(self, acmeclient, authzr, user_key):
+        if authzr.body.status == messages.STATUS_PENDING:
+            return self._handle_pending_status(acmeclient, authzr, user_key)
+        elif authzr.body.status == messages.STATUS_VALID:
+            self.logger.info(
+                "Authorization already valid. Skipping challenge validation."
+            )
+            return True
+        else:
+            self.logger.warning(
+                "CAhandler._order_authorization(): authorization in unexpected state: %s",
+                authzr.body.status,
+            )
+            return False
+
+    def _handle_pending_status(self, acmeclient, authzr, user_key):
+        challenge_name, challenge_content, challenge = self._challenge_info(
+            authzr, user_key
+        )
+        if challenge_name and challenge_content:
+            if self.dns_update_script and self.acme_sh_script:
+                self.logger.debug(
+                    "CAhandler._order_authorization(): dns challenge detected"
+                )
+                self._dns_challenge_provision(
+                    authzr.body.identifier.value, challenge_content, user_key
+                )
+            else:
+                self.logger.debug(
+                    "CAhandler._order_authorization(): http challenge detected"
+                )
+                self._http_challenge_store(challenge_name, challenge_content)
+            self.logger.debug("CAhandler._order_authorization(): answer challenge")
+            _auth_response = acmeclient.answer_challenge(
+                challenge, challenge.chall.response(user_key)
+            )  # lgtm [py/unused-local-variable]
+            return True
+        elif (
+            isinstance(challenge_content, dict)
+            and challenge_content.get("type", None) == "sectigo-email-01"
+            and challenge_content.get("status", None) == "valid"
+        ):
+            self.logger.debug(
+                "CAhandler._order_authorization(): sectigo-email-01 challenge detected"
+            )
+            return True
+        return False
 
     def _order_new(
         self, acmeclient: client.ClientV2, csr_pem: str
@@ -631,7 +672,7 @@ class CAhandler(object):
         order_valid = self._order_authorization(acmeclient, order, user_key)
 
         if order_valid:
-            self.logger.debug("CAhandler.enroll() polling for certificate")
+            self.logger.debug("CAhandler._order_issue() polling for certificate")
             order = acmeclient.poll_and_finalize(order)
 
             if self.dns_update_script and self.acme_sh_script:
@@ -639,7 +680,7 @@ class CAhandler(object):
                 self._dns_challenge_deprovision()
 
             if order.fullchain_pem:
-                self.logger.debug("CAhandler.enroll() successful")
+                self.logger.debug("CAhandler._order_issue() successful")
                 cert_bundle = str(order.fullchain_pem)
                 # Split the chain into individual certificates
                 certs = cert_bundle.strip().split("-----END CERTIFICATE-----")
@@ -963,6 +1004,7 @@ class CAhandler(object):
         cert_raw = None
 
         if regr.body.status == "valid":
+            self.logger.debug("CAhandler._enroll(): Valid ACME account: %s", regr.uri)
             (error, cert_bundle, cert_raw) = self._order_issue(
                 acmeclient, user_key, csr_pem
             )
@@ -1051,7 +1093,7 @@ class CAhandler(object):
 
         csr_pem = f"-----BEGIN CERTIFICATE REQUEST-----\n{textwrap.fill(str(b64_url_recode(self.logger, csr)), 64)}\n-----END CERTIFICATE REQUEST-----\n".encode(
             "utf-8"
-        )
+        )  # noqa
 
         cert_bundle = None
         cert_raw = None
@@ -1112,6 +1154,148 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler.check() ended with %s", error)
         return error
+
+    def _synchronize_profiles(self, repository: object, acme_url: str, uts: int):
+        """synchronize profiles with CA"""
+        self.logger.debug("CAhandler.synchronize_profiles()")
+
+        result, code, error = url_get(
+            self.logger, acme_url + self.path_dic["directory_path"], timeout=5
+        )
+        if code == 200:
+            json_data = json.loads(result)
+            profiles = json.dumps(
+                {
+                    "profiles": json_data.get("meta").get("profiles", {}),
+                    "synchronized_at": uts,
+                }
+            )
+            data_dic = {"name": "profiles", "value": profiles}
+            repository.profile_list_set(data_dic)
+        else:
+            self.logger.error("Error during profile synchronization: %s", error)
+
+        self.logger.debug("CAhandler.synchronize_profiles() ended")
+
+    def synchronize_profiles(
+        self,
+        repository: object,
+        acme_url: str,
+        profiles_sync_interval: int,
+        async_mode: bool = False,
+    ) -> Dict[str, str]:
+        """synchronize profiles with CA"""
+        self.logger.debug("CAhandler.synchronize_profiles()")
+
+        uts = uts_now()
+        profiles_dic = repository.profile_list_get()
+
+        if not profiles_dic or (
+            "synchronized_at" in profiles_dic
+            and int(profiles_dic["synchronized_at"]) + profiles_sync_interval < uts
+        ):
+            # profile does not exist or is outdated
+            self.logger.info("CA profiles outdated. Synchronize from acme_server")
+            # start profile update in separate thread
+            twrv = Thread(target=self._synchronize_profiles(repository, acme_url, uts))
+            twrv.start()
+            if async_mode:
+                # full async mode - do not wait for result
+                self.logger.debug(
+                    "CAhandler.synchronize_profiles(): asynchronous processing enabled, not waiting for result"
+                )
+            else:
+                twrv.join(timeout=2)
+
+        else:
+            self.logger.debug(
+                "CAhandler.synchronize_profiles(): valid profile information found in repository. Skipping syncronization."
+            )
+
+        profiles = profiles_dic.get("profiles", {}) if profiles_dic else {}
+
+        self.logger.debug("CAhandler.synchronize_profiles() ended")
+        return profiles
+
+    def _get_renewalinfo_endpoint_url(self, acme_url: str) -> str:
+        """get renewalinfo endpoint url"""
+        self.logger.debug("CAhandler._get_renewalinfo_endpoint_url()")
+
+        renewalinfo_enpoint_url = f"{acme_url}/renewal-info"  # default fallback
+
+        try:
+            response = url_get(
+                self.logger, f"{acme_url}{self.path_dic['directory_path']}", timeout=10
+            )
+            if (
+                isinstance(response, (list, tuple))
+                and len(response) >= 2
+                and response[1] == 200
+            ):
+                try:
+                    directory_dic = json.loads(response[0])
+                    if (
+                        isinstance(directory_dic, dict)
+                        and "renewalInfo" in directory_dic
+                    ):
+                        self.logger.debug(
+                            "CAhandler._get_renewalinfo_endpoint_url(): using renewalInfo from directory"
+                        )
+                        renewalinfo_enpoint_url = directory_dic["renewalInfo"]
+                    else:
+                        self.logger.debug(
+                            "CAhandler._get_renewalinfo_endpoint_url(): renewalInfo not found in directory, using default path"
+                        )
+                except Exception as e:
+                    self.logger.error("Failed to parse directory JSON: %s", e)
+            else:
+                self.logger.warning(
+                    "Failed to fetch directory or unexpected response: %s", response
+                )
+        except Exception as e:
+            self.logger.error("Exception in _get_renewalinfo_endpoint_url: %s", e)
+
+        self.logger.debug(
+            "CAhandler._get_renewalinfo_endpoint_url() ended with: %s",
+            renewalinfo_enpoint_url,
+        )
+        return renewalinfo_enpoint_url
+
+    def lookup_renewalinfo(
+        self, acme_url, renewalinfo_string: str
+    ) -> Tuple[str, Dict[str, str]]:
+        """lookup renewalinfo and return cert and csr"""
+        self.logger.debug("CAhandler.lookup_renewalinfo()")
+
+        renewal_enpoint_url = self._get_renewalinfo_endpoint_url(acme_url)
+        url = f"{renewal_enpoint_url}/{renewalinfo_string}"
+        rcode = 500
+        renewalinfo_dic = {}
+
+        try:
+            ca_renewal_string = url_get(self.logger, url, timeout=10)
+            if (
+                isinstance(ca_renewal_string, (list, tuple))
+                and len(ca_renewal_string) >= 2
+            ):
+                try:
+                    renewalinfo_dic = json.loads(ca_renewal_string[0])
+                    rcode = ca_renewal_string[1]
+                except Exception as err:
+                    self.logger.error("Error decoding renewalinfo JSON: %s", err)
+                    renewalinfo_dic = {}
+                    rcode = 500
+            else:
+                self.logger.error(
+                    "Unexpected response from url_get: %s", ca_renewal_string
+                )
+        except Exception as err:
+            self.logger.error("Error during renewalinfo lookup: %s", err)
+            renewalinfo_dic = {}
+            rcode = 400
+
+        self.logger.debug("CAhandler.lookup_renewalinfo() ended")
+        return (rcode, renewalinfo_dic)
 
     def poll(
         self, _cert_name: str, poll_identifier: str, _csr: str

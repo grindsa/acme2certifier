@@ -3,7 +3,8 @@
 """message class"""
 from __future__ import print_function
 import json
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
+from dataclasses import dataclass
 from acme_srv.helper import (
     decode_message,
     load_config,
@@ -17,8 +18,40 @@ from acme_srv.nonce import Nonce
 from acme_srv.signature import Signature
 
 
+@dataclass
+class MessageConfiguration:
+    """Contains message related configuration options."""
+
+    signature_check_disable: bool = False
+    nonce_check_disable: bool = False
+    acct_path: str = "/acme/acct/"
+    revocation_path: str = "/acme/revokecert"
+    eabkid_check_disable: bool = False
+    invalid_eabkid_deactivate: bool = False
+    eab_handler: Optional[object] = None
+
+
+class AccountRepository:
+    """Repository for account related database operations"""
+
+    def __init__(self, dbstore):
+        self.dbstore = dbstore
+
+    def account_lookup(self, key, value):
+        """Lookup an account by a given key and value."""
+        return self.dbstore.account_lookup(key, value)
+
+    def account_update(self, data_dic, active):
+        """Update account information in the database."""
+        return self.dbstore.account_update(data_dic, active)
+
+    def cli_permissions_get(self, account_name):
+        """Get CLI permissions for a specific account."""
+        return self.dbstore.cli_permissions_get(account_name)
+
+
 class Message(object):
-    """Message  handler"""
+    """Message handler"""
 
     def __init__(
         self, debug: bool = False, srv_name: str = None, logger: object = None
@@ -27,145 +60,141 @@ class Message(object):
         self.logger = logger
         self.nonce = Nonce(self.debug, self.logger)
         self.dbstore = DBstore(self.debug, self.logger)
+        self.repo = AccountRepository(self.dbstore)
         self.server_name = srv_name
-        self.path_dic = {
-            "acct_path": "/acme/acct/",
-            "revocation_path": "/acme/revokecert",
-        }
-        self.disable_dic = {
-            "signature_check_disable": False,
-            "nonce_check_disable": False,
-        }
-        self.eabkid_check_disable = False
-        self.invalid_eabkid_deactivate = False
-        self.eab_handler = None
-        self._config_load()
+        self.config = self._load_configuration()
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
         return self
 
     def __exit__(self, *args):
-        """cose the connection at the end of the context"""
+        """Close the connection at the end of the context"""
 
-    def _config_load(self):
-        """ " load config from file"""
-        self.logger.debug("_config_load()")
+    def _load_configuration(self) -> MessageConfiguration:
+        """Load and parse config from file and return MessageConfiguration dataclass."""
+        self.logger.debug("Message._load_configuration()")
         config_dic = load_config()
+        msg_config = MessageConfiguration()
         if "Nonce" in config_dic:
-            self.disable_dic["nonce_check_disable"] = config_dic.getboolean(
+            msg_config.nonce_check_disable = config_dic.getboolean(
                 "Nonce", "nonce_check_disable", fallback=False
             )
-            self.disable_dic["signature_check_disable"] = config_dic.getboolean(
+            msg_config.signature_check_disable = config_dic.getboolean(
                 "Nonce", "signature_check_disable", fallback=False
             )
-
         if "EABhandler" in config_dic:
             if config_dic.getboolean(
                 "EABhandler", "eabkid_check_disable", fallback=False
             ):
-                # disable eabkid check no need to lead handler
-                self.eabkid_check_disable = True
+                msg_config.eabkid_check_disable = True
             elif "eab_handler_file" in config_dic["EABhandler"]:
-                # load eab_handler according to configuration as we need to check kid
                 eab_handler_module = eab_handler_load(self.logger, config_dic)
                 if eab_handler_module:
-                    self.invalid_eabkid_deactivate = config_dic.getboolean(
+                    msg_config.invalid_eabkid_deactivate = config_dic.getboolean(
                         "EABhandler", "invalid_eabkid_deactivate", fallback=False
                     )
-                    # store handler in variable
-                    self.eab_handler = eab_handler_module.EABhandler
+                    msg_config.eab_handler = eab_handler_module.EABhandler
                 else:
                     self.logger.critical("EABHandler could not get loaded")
             else:
                 self.logger.critical("EABHandler configuration incomplete")
         else:
-            # no eab_handler configuration found - disable check
-            self.eabkid_check_disable = True
+            msg_config.eabkid_check_disable = True
 
         if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
-            self.path_dic = {
-                k: config_dic["Directory"]["url_prefix"] + v
-                for k, v in self.path_dic.items()
-            }
+            url_prefix = config_dic["Directory"]["url_prefix"]
+            msg_config.acct_path = url_prefix + "/acme/acct/"
+            msg_config.revocation_path = url_prefix + "/acme/revokecert"
 
-    def _invalid_eab_check(self, account_name: str):
-        """check for accounts with invalid eab credentials"""
-        self.logger.debug("Message._invalid_eab_check()")
+        self.logger.debug("Message._load_configuration() ended")
+        return msg_config
 
-        account_dic = self.dbstore.account_lookup("name", account_name)
+    def _check_and_handle_invalid_eab_credentials(self, account_name: str):
+        """Check for accounts with invalid eab credentials."""
+        self.logger.debug("Message._check_and_handle_invalid_eab_credentials()")
+
+        try:
+            account_dic = self.repo.account_lookup("name", account_name)
+        except Exception as err:
+            self.logger.error(f"Account lookup for {account_name} failed: {err}")
+            account_dic = None
+
         if account_dic:
             eab_kid = account_dic.get("eab_kid", None)
-            if eab_kid:
-                with self.eab_handler(self.logger) as eab_handler:
-                    eab_mac_key = eab_handler.mac_key_get(eab_kid)
-                    if not eab_mac_key:
-                        self.logger.error(
-                            "EAB credentials: %s could not be found in eab-credential store.",
-                            eab_kid,
-                        )
-                        if self.invalid_eabkid_deactivate:
-                            # deactivate account
+            if eab_kid and self.config.eab_handler:
+                try:
+                    with self.config.eab_handler(self.logger) as eab_handler:
+                        eab_mac_key = eab_handler.mac_key_get(eab_kid)
+                        if not eab_mac_key:
                             self.logger.error(
-                                "Account %s will be deactivated due to missing eab credentials",
-                                account_name,
+                                "EAB credentials: %s could not be found in eab-credential store.",
+                                eab_kid,
                             )
-                            data_dic = {
-                                "name": account_name,
-                                "status_id": 7,
-                                "jwk": f"DEACTIVATED invalid_eabkid_deactivate {uts_to_date_utc(uts_now())}",
-                            }
-                            _result = self.dbstore.account_update(
-                                data_dic, active=False
-                            )
-                        # invalidate account_name
-                        account_name = None
-            else:
-                # no eab credentials found
+                            if self.config.invalid_eabkid_deactivate:
+                                self.logger.error(
+                                    "Account %s will be deactivated due to missing eab credentials",
+                                    account_name,
+                                )
+                                data_dic = {
+                                    "name": account_name,
+                                    "status_id": 7,
+                                    "jwk": f"DEACTIVATED invalid_eabkid_deactivate {uts_to_date_utc(uts_now())}",
+                                }
+                                try:
+                                    self.repo.account_update(data_dic, active=False)
+                                except Exception as err:
+                                    self.logger.error(f"Account update failed: {err}")
+                            account_name = None
+
+                except Exception as err:
+                    self.logger.error(f"EAB handler error: {err}")
+                    account_name = None
+            elif not eab_kid:
                 self.logger.error("Account %s has no eab credentials", account_name)
                 account_name = None
         else:
-            self.logger.error("Account lookup for  %s failed.", account_name)
+            self.logger.error("Account lookup for %s failed.", account_name)
             account_name = None
-
         self.logger.debug(
-            "Message._invalid_eab_check() ended with account_name: %s", account_name
+            "Message._check_and_handle_invalid_eab_credentials() ended with account_name: %s",
+            account_name,
         )
         return account_name
 
-    def _name_rev_get(self, content: Dict[str, str]) -> str:
+    def _extract_account_name_for_revocation(
+        self, content: Dict[str, str]
+    ) -> Optional[str]:
         """this is needed for cases where we get a revocation message signed with account key but account name is missing"""
-        self.logger.debug("Message._name_rev_get()")
+        self.logger.debug("Message._extract_account_name_for_revocation()")
 
         try:
-            account_list = self.dbstore.account_lookup(
-                "jwk", json.dumps(content["jwk"])
-            )
+            account_list = self.repo.account_lookup("jwk", json.dumps(content["jwk"]))
         except Exception as err_:
             self.logger.critical(
-                "Database error: failed to look up account name for revocation: %s",
-                err_,
+                f"Database error: failed to look up account name for revocation: {err_}"
             )
-            account_list = []
-        if account_list:
-            if "name" in account_list:
-                kid = account_list["name"]
-            else:
-                kid = None
+            return None
+        if account_list and "name" in account_list:
+            kid = account_list["name"]
         else:
             kid = None
 
-        self.logger.debug("Message._name_rev_get() ended with kid: %s", kid)
+        self.logger.debug(
+            "Message._get_account_name_for_revocation() ended with kid: %s", kid
+        )
         return kid
 
-    def _name_get(self, content: Dict[str, str]) -> str:
+    def _extract_account_name_from_content(
+        self, content: Dict[str, str]
+    ) -> Optional[str]:
         """get name for account"""
         self.logger.debug("Message._name_get(): content: %s", content)
 
         if "kid" in content:
             self.logger.debug("Message._name_get(): kid: %s", content["kid"])
             kid = content["kid"].replace(
-                f'{self.server_name}{self.path_dic["acct_path"]}', ""
+                f"{self.server_name}{self.config.acct_path}", ""
             )
             if "/" in kid:
                 self.logger.debug("Message._name_get(): clear kid")
@@ -176,29 +205,37 @@ class Message(object):
                 self.server_name,
                 content["url"],
             )
-            if (
-                content["url"]
-                == f'{self.server_name}{self.path_dic["revocation_path"]}'
-            ):
-                # this is needed for cases where we get a revocation message signed with account key but account name is missing
+            if content["url"] == f"{self.server_name}{self.config.revocation_path}":
                 self.logger.debug("Message._name_get(): revocation")
-                kid = self._name_rev_get(content)
+                kid = self._extract_account_name_for_revocation(content)
             else:
                 kid = None
         else:
             kid = None
 
-        self.logger.debug("Message._name_get() returns: %s", kid)
+        self.logger.debug(
+            "Message._extract_account_name_from_content() returns: %s", kid
+        )
         return kid
 
-    def _nonce_check(
+    def extract_account_name_from_content(
+        self, content: Dict[str, str]
+    ) -> Optional[str]:
+        """public method to get name for account"""
+        self.logger.debug("Message.extract_account_name_from_content()")
+        kid = self._extract_account_name_from_content(content)
+        self.logger.debug(
+            "Message.extract_account_name_from_content() ended with: %s", kid
+        )
+        return kid
+
+    def _check_nonce_for_replay_protection(
         self, skip_nonce_check: bool, protected: Dict[str, str]
-    ) -> Tuple[int, str, str]:
+    ) -> Tuple[int, Optional[str], Optional[str]]:
         """check nonce for anti replay protection"""
-        self.logger.debug("Message._nonce_check()")
-        if skip_nonce_check or self.disable_dic["nonce_check_disable"]:
-            # nonce check can be skipped by configuration and in case of key-rollover
-            if self.disable_dic["nonce_check_disable"]:
+        self.logger.debug("Message._check_nonce_for_replay_protection()")
+        if skip_nonce_check or self.config.nonce_check_disable:
+            if self.config.nonce_check_disable:
                 self.logger.error(
                     "**** NONCE CHECK DISABLED!!! Severe security issue ****"
                 )
@@ -207,14 +244,15 @@ class Message(object):
             code = 200
             message = None
             detail = None
-
         else:
             (code, message, detail) = self.nonce.check(protected)
 
-        self.logger.debug("Message._nonce_check() ended with: %s", code)
+        self.logger.debug(
+            "Message._check_nonce_for_replay_protection() ended with: %s", code
+        )
         return (code, message, detail)
 
-    def _check(
+    def _validate_message_and_check_signature(
         self,
         skip_nonce_check: bool,
         skip_signature_check: bool,
@@ -222,17 +260,19 @@ class Message(object):
         protected: Dict[str, str],
         use_emb_key: bool,
     ) -> Tuple[int, str, str, str]:
-        """decoding successful - check nonce for anti replay protection"""
-        self.logger.debug("Message._check()")
+        """Decoding successful - check nonce for anti replay protection and signature."""
+        self.logger.debug("Message._validate_message_and_check_signature()")
 
-        (code, message, detail) = self._nonce_check(skip_nonce_check, protected)
+        (code, message, detail) = self._check_nonce_for_replay_protection(
+            skip_nonce_check, protected
+        )
         account_name = None
 
         # nonce check successful - get account name
-        account_name = self._name_get(protected)
+        account_name = self._extract_account_name_from_content(protected)
         # check for invalid eab-credentials if not disabled and not using embedded key
-        if code == 200 and not self.eabkid_check_disable and not use_emb_key:
-            account_name = self._invalid_eab_check(account_name)
+        if code == 200 and not self.config.eabkid_check_disable and not use_emb_key:
+            account_name = self._check_and_handle_invalid_eab_credentials(account_name)
             if not account_name:
                 return (
                     403,
@@ -242,9 +282,7 @@ class Message(object):
                 )
 
         if code == 200 and not skip_signature_check:
-            # check signature
             signature = Signature(self.debug, self.server_name, self.logger)
-            # we need the decoded protected header to grab a key to verify signature
             (sig_check, error, error_detail) = signature.check(
                 account_name, content, use_emb_key, protected
             )
@@ -257,7 +295,9 @@ class Message(object):
                 message = error
                 detail = error_detail
 
-        self.logger.debug("Message._check() ended with: %s", code)
+            self.logger.debug(
+                "Message._validate_message_and_check_signature() ended with: %s", code
+            )
         return (code, message, detail, account_name)
 
     # pylint: disable=R0914
@@ -268,7 +308,7 @@ class Message(object):
         self.logger.debug("Message.check()")
 
         # disable signature check if paramter has been set
-        if self.disable_dic["signature_check_disable"]:
+        if self.config.signature_check_disable:
             self.logger.error(
                 "**** SIGNATURE_CHECK_DISABLE!!! Severe security issue ****"
             )
@@ -282,16 +322,20 @@ class Message(object):
         )
         account_name = None
         if result:
-            (code, message, detail, account_name) = self._check(
+            (
+                code,
+                message,
+                detail,
+                account_name,
+            ) = self._validate_message_and_check_signature(
                 skip_nonce_check, skip_signature_check, content, protected, use_emb_key
             )
         else:
-            # message could not get decoded
             code = 400
             message = "urn:ietf:params:acme:error:malformed"
             detail = error_detail
 
-        self.logger.debug("Message.check() ended with:%s", code)
+        self.logger.debug("Message._check() ended with:%s", code)
         return (code, message, detail, protected, payload, account_name)
 
     def cli_check(
@@ -308,9 +352,8 @@ class Message(object):
         permissions = {}
         if result:
             # check signature
-            account_name = self._name_get(protected)
+            account_name = self._extract_account_name_from_content(protected)
             signature = Signature(self.debug, self.server_name, self.logger)
-            # we need the decoded protected header to grab a key to verify signature
             (sig_check, error, error_detail) = signature.cli_check(
                 account_name, content
             )
@@ -318,7 +361,11 @@ class Message(object):
                 code = 200
                 message = None
                 detail = None
-                permissions = self.dbstore.cli_permissions_get(account_name)
+                try:
+                    permissions = self.repo.cli_permissions_get(account_name)
+                except Exception as err:
+                    self.logger.error(f"cli_permissions_get failed: {err}")
+                    permissions = {}
             else:
                 code = 403
                 message = error
@@ -329,7 +376,7 @@ class Message(object):
             message = "urn:ietf:params:acme:error:malformed"
             detail = error_detail
 
-        self.logger.debug("Message.check() ended with:%s", code)
+        self.logger.debug("Message.cli_check() ended with:%s", code)
         return (code, message, detail, protected, payload, account_name, permissions)
 
     def prepare_response(
@@ -341,7 +388,7 @@ class Message(object):
         """prepare response_dic"""
         self.logger.debug("Message.prepare_response()")
         if "code" not in status_dic:
-            status_dic["code"] = 400
+            status_dic["code"] = 500
             status_dic["type"] = "urn:ietf:params:acme:error:serverInternal"
             status_dic["detail"] = "http status code missing"
 

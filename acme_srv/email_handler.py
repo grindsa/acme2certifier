@@ -97,6 +97,10 @@ class EmailHandler:
 
             # Authentication
             self.username = config_dic.get("DEFAULT", "username", fallback=None)
+            if not self.username:
+                # Fallback to 'user' if 'username' is not set
+                self.logger.debug("Falling back to 'user' for username")
+                self.username = config_dic.get("DEFAULT", "user", fallback=None)
             self.password = config_dic.get("DEFAULT", "password", fallback=None)
             self.email_address = config_dic.get(
                 "DEFAULT", "email_address", fallback=self.username
@@ -128,6 +132,24 @@ class EmailHandler:
             self.logger.warning("DEFAULT configuration section not found")
 
         self.logger.debug("EmailHandler._config_load() ended")
+
+    def send_email_challenge(self, to_address: str = None, token1: str = None):
+        """send challenge email"""
+        self.logger.debug("Challenge._email_send(%s)", to_address)
+        message_text = f"""
+This is an automatically generated ACME challenge for the email address
+"{to_address}". If you did not request an S/MIME certificate for this
+address, please disregard this message and consider taking appropriate
+security precautions.
+
+If you did initiate the request, your email client may be able to process
+this challenge automatically. Alternatively, you may need to manually
+copy the first token and paste it into the designated verification tool
+or application."""
+
+        self.send(
+            to_address=to_address, subject=f"ACME: {token1}", message=message_text
+        )
 
     def send(
         self,
@@ -251,7 +273,7 @@ class EmailHandler:
                     break
                 else:
                     self.logger.debug(
-                        "mailHandler.receive(): email did not pass filter: %s",
+                        "EmailHandler.receive(): email did not pass filter: %s",
                         parsed_email["subject"],
                     )
             else:

@@ -17,8 +17,6 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # websrv: ['apache2', 'nginx']
-        # dbhandler: ['wsgi', 'django']
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
@@ -43,7 +41,7 @@ jobs:
     - name: "Enroll via acmeshell"
       uses: ./.github/actions/acmeshell
       with:
-        INDEPOTENT_FINALIZE: "false"
+        IDEMPOTENT_FINALIZE: "false"
         ALMA_START: "true"
 
     - name: "Update configuration - add idempotent_finalize parameter"
@@ -55,7 +53,7 @@ jobs:
     - name: "Enroll via acmeshell"
       uses: ./.github/actions/acmeshell
       with:
-        INDEPOTENT_FINALIZE: "true"
+        IDEMPOTENT_FINALIZE: "true"
         ALMA_START: "false"
 
     - name: "Check container configuration"
@@ -133,7 +131,7 @@ jobs:
     - name: "Enroll via acmeshell"
       uses: ./.github/actions/acmeshell
       with:
-        INDEPOTENT_FINALIZE: "false"
+        IDEMPOTENT_FINALIZE: "false"
         ALMA_START: "true"
 
     - name: "Update configuration - add idempotent_finalize parameter"
@@ -155,7 +153,7 @@ jobs:
     - name: "Enroll via acmeshell"
       uses: ./.github/actions/acmeshell
       with:
-        INDEPOTENT_FINALIZE: "true"
+        IDEMPOTENT_FINALIZE: "true"
         ALMA_START: "false"
 
     - name: "[ * ] collecting test logs"

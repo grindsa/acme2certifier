@@ -42,6 +42,7 @@ jobs:
     - name: cp
       run: |
          cp examples/ca_handler/skeleton_ca_handler.py acme_srv/ca_handler.py
+         cp examples/db_handler/wsgi_handler.py acme_srv/db_handler.py
          cp examples/acme_srv.cfg acme_srv/
     - name: Python test
       run: |
