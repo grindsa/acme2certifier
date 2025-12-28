@@ -47,6 +47,7 @@ ports:
 ```
 
 **Note:**
+
 - The container does **not** expose ports 22280 or 22443 internally; these are just example host ports for mapping.
 - HTTPS (port 443) will only be available if both `acme2certifier_cert.pem` and `acme2certifier_key.pem` are present in `/var/www/acme2certifier/volume`.
 
