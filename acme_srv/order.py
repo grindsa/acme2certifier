@@ -1,3 +1,63 @@
+class OrderDatabaseError(Exception):
+    """Exception raised for database-related errors in Order operations."""
+    pass
+
+class OrderValidationError(Exception):
+    """Exception raised for validation errors in Order operations."""
+    pass
+
+class OrderRepository:
+    """Repository for all Order-related database operations."""
+    def __init__(self, dbstore):
+        self.dbstore = dbstore
+
+    def add_order(self, data_dic):
+        try:
+            return self.dbstore.order_add(data_dic)
+        except Exception as err:
+            raise OrderDatabaseError(f"Failed to add order: {err}")
+
+    def add_authorization(self, auth):
+        try:
+            return self.dbstore.authorization_add(auth)
+        except Exception as err:
+            raise OrderDatabaseError(f"Failed to add authorization: {err}")
+
+    def update_authorization(self, auth):
+        try:
+            return self.dbstore.authorization_update(auth)
+        except Exception as err:
+            raise OrderDatabaseError(f"Failed to update authorization: {err}")
+
+    def order_lookup(self, key, value):
+        try:
+            return self.dbstore.order_lookup(key, value)
+        except Exception as err:
+            raise OrderDatabaseError(f"Failed to look up order: {err}")
+
+    def order_update(self, data_dic):
+        try:
+            return self.dbstore.order_update(data_dic)
+        except Exception as err:
+            raise OrderDatabaseError(f"Failed to update order: {err}")
+
+    def authorization_lookup(self, key, value, fields):
+        try:
+            return self.dbstore.authorization_lookup(key, value, fields)
+        except Exception as err:
+            raise OrderDatabaseError(f"Failed to look up authorization: {err}")
+
+    def certificate_lookup(self, key, value):
+        try:
+            return self.dbstore.certificate_lookup(key, value)
+        except Exception as err:
+            raise OrderDatabaseError(f"Failed to look up certificate: {err}")
+
+    def hkparameter_get(self, param):
+        try:
+            return self.dbstore.hkparameter_get(param)
+        except Exception as err:
+            raise OrderDatabaseError(f"Failed to get hkparameter: {err}")
 # -*- coding: utf-8 -*-
 """Order class"""
 from __future__ import print_function
@@ -20,35 +80,99 @@ from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
 
 
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
+
+@dataclass
+class OrderConfiguration:
+    server_name: Optional[str] = None
+    debug: Optional[bool] = None
+    validity: int = 86400
+    authz_validity: int = 86400
+    expiry_check_disable: bool = False
+    path_dic: Dict[str, str] = field(default_factory=lambda: {
+        "authz_path": "/acme/authz/",
+        "order_path": "/acme/order/",
+        "cert_path": "/acme/cert/",
+    })
+    retry_after: int = 600
+    tnauthlist_support: bool = False
+    email_identifier_support: bool = False
+    email_identifier_rewrite: bool = False
+    sectigo_sim: bool = False
+    identifier_limit: int = 20
+    header_info_list: List[Any] = field(default_factory=list)
+    profiles: Dict[str, Any] = field(default_factory=dict)
+    profiles_sync: bool = False
+    profiles_check_disable: bool = True
+    idempotent_finalize: bool = False
+
+
 class Order(object):
     """class for order handling"""
 
-    def __init__(self, debug: bool = None, srv_name: str = None, logger: object = None):
-        self.server_name = srv_name
-        self.debug = debug
+    def __init__(self, config: OrderConfiguration, logger: object = None):
+        self.config = config
         self.logger = logger
-        self.dbstore = DBstore(self.debug, self.logger)
-        self.message = Message(self.debug, self.server_name, self.logger)
+        self.dbstore = DBstore(self.config.debug, self.logger)
+        self.repository = OrderRepository(self.dbstore)
+        self.message = Message(self.config.debug, self.config.server_name, self.logger)
         self.error_msg_dic = error_dic_get(self.logger)
-        self.validity = 86400
-        self.authz_validity = 86400
-        self.expiry_check_disable = False
-        self.path_dic = {
-            "authz_path": "/acme/authz/",
-            "order_path": "/acme/order/",
-            "cert_path": "/acme/cert/",
-        }
-        self.retry_after = 600
-        self.tnauthlist_support = False
-        self.email_identifier_support = False
-        self.email_identifier_rewrite = False
-        self.sectigo_sim = False
-        self.identifier_limit = 20
-        self.header_info_list = []
-        self.profiles = {}
-        # turn off check by default
-        self.profiles_check_disable = True
-        self.idempotent_finalize = False
+
+    # Compatibility properties for legacy code (to be removed after full refactor)
+    @property
+    def server_name(self):
+        return self.config.server_name
+    @property
+    def debug(self):
+        return self.config.debug
+    @property
+    def validity(self):
+        return self.config.validity
+    @property
+    def authz_validity(self):
+        return self.config.authz_validity
+    @property
+    def expiry_check_disable(self):
+        return self.config.expiry_check_disable
+    @property
+    def path_dic(self):
+        return self.config.path_dic
+    @property
+    def retry_after(self):
+        return self.config.retry_after
+    @property
+    def tnauthlist_support(self):
+        return self.config.tnauthlist_support
+    @property
+    def email_identifier_support(self):
+        return self.config.email_identifier_support
+    @property
+    def email_identifier_rewrite(self):
+        return self.config.email_identifier_rewrite
+    @property
+    def sectigo_sim(self):
+        return self.config.sectigo_sim
+    @property
+    def identifier_limit(self):
+        return self.config.identifier_limit
+    @property
+    def header_info_list(self):
+        return self.config.header_info_list
+    @property
+    def profiles(self):
+        return self.config.profiles
+    @property
+    def profiles_sync(self):
+        return self.config.profiles_sync
+    @property
+    def profiles_check_disable(self):
+        return self.config.profiles_check_disable
+    @property
+    def idempotent_finalize(self):
+        return self.config.idempotent_finalize
+
+    # ...existing code...
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -58,150 +182,134 @@ class Order(object):
     def __exit__(self, *args):
         """cose the connection at the end of the context"""
 
-    def _auth_add(
+    def _add_authorizations_to_db(
         self, oid: str, payload: Dict[str, str], auth_dic: Dict[str, str]
     ) -> str:
-        self.logger.debug("Order._auth_add(%s)", oid)
+        """Add authorizations to the database for the given order id."""
+        self.logger.debug("Order._add_authorizations_to_db(%s)", oid)
 
         if oid:
             error = None
             for auth in payload["identifiers"]:
-                # generate name
                 auth_name = generate_random_string(self.logger, 12)
-                # store to return to upper func
                 auth_dic[auth_name] = auth.copy()
                 auth["name"] = auth_name
                 auth["order"] = oid
                 auth["status"] = "pending"
                 auth["expires"] = uts_now() + self.authz_validity
                 try:
-                    self.dbstore.authorization_add(auth)
+                    self.repository.add_authorization(auth)
                     if self.sectigo_sim:
                         auth["status"] = "valid"
-                        self.dbstore.authorization_update(auth)
-                except Exception as err_:
+                        self.repository.update_authorization(auth)
+                except OrderDatabaseError as err_:
                     self.logger.critical(
                         "Database error: failed to add authorization: %s", err_
                     )
         else:
             error = self.error_msg_dic["malformed"]
 
-        self.logger.debug("Order._auth_add() ended with %s", error)
+        self.logger.debug("Order._add_authorizations_to_db() ended with %s", error)
         return error
 
-    def _profile_check(self, profile: str) -> str:
-        """check if profile is valid"""
-        self.logger.debug("Order._profile_check(%s)", profile)
-
+    def is_profile_valid(self, profile: str) -> str:
+        """Check if the given profile is valid."""
+        self.logger.debug("Order.is_profile_valid(%s)", profile)
         error = self.error_msg_dic["invalidprofile"]
         if self.profiles_check_disable:
-            self.logger.debug("Order._profile_check(): profile check disabled")
+            self.logger.debug("Order.is_profile_valid(): profile check disabled")
             error = None
         else:
-            # profie check is enabled
             if profile in self.profiles:
-                # check if profile is valid
                 error = None
             else:
-                # profile is not valid
                 self.logger.warning(
                     "Profile '%s' is not valid. Ignoring submitted profile.", profile
                 )
-
-        self.logger.debug("Order._profile_check() ended with %s", error)
+        self.logger.debug("Order.is_profile_valid() ended with %s", error)
         return error
 
-    def _order_auth_add(
+    def _add_order_and_authorizations(
         self,
         data_dic: Dict[str, str],
         auth_dic: Dict[str, str],
         payload: Dict[str, str],
         error: str,
     ) -> Tuple[str, Dict[str, str]]:
-        """add order and authorization to database"""
-        self.logger.debug("Order._order_auth_add()")
+        """Add order and its authorizations to the database."""
+        self.logger.debug("Order._add_order_and_authorizations()")
 
         try:
-            # add order to db
-            oid = self.dbstore.order_add(data_dic)
-        except Exception as err_:
+            oid = self.repository.add_order(data_dic)
+        except OrderDatabaseError as err_:
             self.logger.critical("Database error: failed to add order: %s", err_)
             oid = None
 
         if not error:
-            # authorization add
-            error = self._auth_add(oid, payload, auth_dic)
+            error = self._add_authorizations_to_db(oid, payload, auth_dic)
 
-        self.logger.debug("Order._order_auth_add() ended with %s", error)
+        self.logger.debug("Order._add_order_and_authorizations() ended with %s", error)
         return error
 
-    def _profile_add(
+    def add_profile_to_order(
         self, data_dic: Dict[str, str], payload: Dict[str, str]
     ) -> Tuple[str, Dict[str, str]]:
-        """add profile to database"""
-        self.logger.debug("Order._profile_add(%s)", data_dic)
-
-        # check if profile is valid
-        error = self._profile_check(payload["profile"])
+        """Add a profile to the order if valid."""
+        self.logger.debug("Order.add_profile_to_order(%s)", data_dic)
+        error = self.is_profile_valid(payload["profile"])
         if not error:
             if self.profiles:
-                # add profile to order
                 data_dic["profile"] = payload["profile"]
             else:
-                # profile check is enabled but no profiles are configured
                 self.logger.warning(
                     "Ignore submitted profile '%s' as no profiles are configured.",
                     payload["profile"],
                 )
-
-        self.logger.debug("Order._profile_add() ended with %s", error)
+        self.logger.debug("Order.add_profile_to_order() ended with %s", error)
         return error, data_dic
 
-    def _add(
-        self, payload: Dict[str, str], aname: str
+    def create_order(
+        self, payload: Dict[str, str], account_name: str
     ) -> Tuple[str, str, Dict[str, str], int]:
-        """add order request"""
-        self.logger.debug("Order._add(%s)", aname)
+        """Create a new order and add it to the database."""
+        self.logger.debug("Order.create_order(%s)", account_name)
 
         error = None
         auth_dic = {}
         order_name = generate_random_string(self.logger, 12)
         expires = uts_now() + self.validity
 
+
         if "identifiers" in payload:
-
-            data_dic = {"status": 2, "expires": expires, "account": aname}
-
+            data_dic = {"status": 2, "expires": expires, "account": account_name}
             data_dic["name"] = order_name
             data_dic["identifiers"] = json.dumps(payload["identifiers"])
-
-            # check identifiers
-            error = self._identifiers_check(payload["identifiers"])
-
-            # change order status if needed
+            error = self.check_identifiers_validity(payload["identifiers"])
             if error:
                 data_dic["status"] = 1
             else:
                 if "profile" in payload:
-                    # check if profile is valid
-                    (error, data_dic) = self._profile_add(data_dic, payload)
-
-            # add order and authorization to database
-            error = self._order_auth_add(data_dic, auth_dic, payload, error)
-
+                    (error, data_dic) = self.add_profile_to_order(data_dic, payload)
+            error = self._add_order_and_authorizations(data_dic, auth_dic, payload, error)
         else:
             error = self.error_msg_dic["unsupportedidentifier"]
 
-        self.logger.debug("Order._add() ended")
+        self.logger.debug("Order.create_order() ended")
         return (error, order_name, auth_dic, uts_to_date_utc(expires))
+
+    # Compatibility wrapper for legacy code
+    def _add(self, payload: Dict[str, str], aname: str) -> Tuple[str, str, Dict[str, str], int]:
+        """Deprecated: use create_order instead."""
+        return self.create_order(payload, aname)
 
     def _config_headerinfo_config_load(self, config_dic: Dict[str, str]):
         """ " load config from file"""
         self.logger.debug("Order._config_headerinfo_config_load()")
 
+
         if "Order" in config_dic and "header_info_list" in config_dic["Order"]:
             try:
-                self.header_info_list = json.loads(
+                self.config.header_info_list = json.loads(
                     config_dic["Order"]["header_info_list"]
                 )
             except Exception as err_:
@@ -216,58 +324,108 @@ class Order(object):
         """ " load config from file"""
         self.logger.debug("Order._config_orderconfig_load()")
 
+
         if "Challenge" in config_dic:
-            self.sectigo_sim = config_dic.getboolean(
+            self.config.sectigo_sim = config_dic.getboolean(
                 "Challenge", "sectigo_sim", fallback=False
             )
 
         if "Order" in config_dic:
-            self.tnauthlist_support = config_dic.getboolean(
+            self.config.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
             )
-            self.email_identifier_support = config_dic.getboolean(
+            self.config.email_identifier_support = config_dic.getboolean(
                 "Order", "email_identifier_support", fallback=False
             )
-            self.email_identifier_rewrite = config_dic.getboolean(
+            self.config.email_identifier_rewrite = config_dic.getboolean(
                 "Order", "email_identifier_rewrite", fallback=False
             )
-            self.expiry_check_disable = config_dic.getboolean(
+            self.config.expiry_check_disable = config_dic.getboolean(
                 "Order", "expiry_check_disable", fallback=False
             )
-            self.idempotent_finalize = config_dic.getboolean(
+            self.config.idempotent_finalize = config_dic.getboolean(
                 "Order", "idempotent_finalize", fallback=False
             )
             try:
-                self.retry_after = int(
+                self.config.retry_after = int(
                     config_dic.get(
-                        "Order", "retry_after_timeout", fallback=self.retry_after
+                        "Order", "retry_after_timeout", fallback=self.config.retry_after
                     )
                 )
             except Exception:
                 self.logger.warning(
                     "Failed to parse retry_after from configuration: %s",
-                    config_dic["Order"]["retry_after_timeout"],
+                    config_dic["Order"].get("retry_after_timeout", None),
                 )
             try:
-                self.validity = int(
-                    config_dic.get("Order", "validity", fallback=self.validity)
+                self.config.validity = int(
+                    config_dic.get("Order", "validity", fallback=self.config.validity)
                 )
             except Exception:
                 self.logger.warning(
                     "Failed to parse validity from configuration: %s",
-                    config_dic["Order"]["validity"],
+                    config_dic["Order"].get("validity", None),
                 )
             try:
-                self.identifier_limit = int(
+                self.config.identifier_limit = int(
                     config_dic.get("Order", "identifier_limit", fallback=20)
                 )
             except Exception:
                 self.logger.warning(
                     "Failed to parse identifier_limit from configuration: %s",
-                    config_dic["Order"]["identifier_limit"],
+                    config_dic["Order"].get("identifier_limit", None),
                 )
 
         self.logger.debug("Order._config_orderconfig_load() ended")
+
+    def _config_profile_load(self, config_dic: Dict[str, str]):
+        """load profiles from file or database, refactored for clarity"""
+        self.logger.debug("Order._config_profile_load()")
+        self._load_profiles_from_config(config_dic)
+        self._load_profiles_from_db_if_sync(config_dic)
+        self._maybe_disable_profile_check(config_dic)
+        self.logger.debug("Order._config_profile_load() ended")
+
+    def _load_profiles_from_config(self, config_dic: Dict[str, str]):
+        if "Order" in config_dic and "profiles" in config_dic["Order"]:
+            self.logger.debug("Order._config_load(): profile check enabled")
+            self.config.profiles_check_disable = False
+            self.config.profiles = config_profile_load(self.logger, config_dic)
+
+    def _load_profiles_from_db_if_sync(self, config_dic: Dict[str, str]):
+        if "CAhandler" in config_dic and "profiles_sync" in config_dic["CAhandler"]:
+            self.config.profiles_sync = config_dic.getboolean(
+                "CAhandler", "profiles_sync", fallback=False
+            )
+            if self.config.profiles_sync:
+                self.logger.debug(
+                    "Order._config_load(): profile_sync set. Loading profiles"
+                )
+                profiles = self._get_profiles_from_db()
+                if profiles:
+                    self._set_profiles_from_db(profiles)
+
+    def _get_profiles_from_db(self):
+        try:
+            return self.repository.hkparameter_get("profiles")
+        except OrderDatabaseError as err:
+            self.logger.critical("Database error: failed to get profile list: %s", err)
+            return None
+
+    def _set_profiles_from_db(self, profiles):
+        try:
+            profile_dic = json.loads(profiles)
+            self.config.profiles = profile_dic.get("profiles", {})
+        except Exception as err_:
+            self.logger.error(
+                "Error when loading the profiles parameter from database: %s", err_
+            )
+
+    def _maybe_disable_profile_check(self, config_dic: Dict[str, str]):
+        if self.config.profiles and "Order" in config_dic:
+            self.config.profiles_check_disable = config_dic.getboolean(
+                "Order", "profiles_check_disable", fallback=False
+            )
 
     def _config_load(self):
         """ " load config from file"""
@@ -278,23 +436,24 @@ class Order(object):
         self._config_orderconfig_load(config_dic)
         self._config_headerinfo_config_load(config_dic)
 
+
         if "Authorization" in config_dic:
             try:
-                self.authz_validity = int(
+                self.config.authz_validity = int(
                     config_dic.get(
-                        "Authorization", "validity", fallback=self.authz_validity
+                        "Authorization", "validity", fallback=self.config.authz_validity
                     )
                 )
             except Exception:
                 self.logger.warning(
                     "Failed to parse authz validity from configuration: %s",
-                    config_dic["Authorization"]["validity"],
+                    config_dic["Authorization"].get("validity", None),
                 )
 
         if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
-            self.path_dic = {
+            self.config.path_dic = {
                 k: config_dic["Directory"]["url_prefix"] + v
-                for k, v in self.path_dic.items()
+                for k, v in self.config.path_dic.items()
             }
 
         # load profile
@@ -321,22 +480,17 @@ class Order(object):
         self.logger.debug("Order._name_get() ended")
         return order_name
 
-    def _identifiers_allowed(self, identifiers_list: List[str]) -> bool:
-        """check if identifiers are allowed"""
-        self.logger.debug("Order._identifiers_allowed()")
-
+    def are_identifiers_allowed(self, identifiers_list: List[str]) -> bool:
+        """Check if the provided identifiers are allowed."""
+        self.logger.debug("Order.are_identifiers_allowed()")
         error = None
         allowed_identifers = ["dns", "ip"]
-
-        # add tnauthlist to list of supported identfiers if configured to do so
         if self.tnauthlist_support:
             allowed_identifers.append("tnauthlist")
         if self.email_identifier_support:
             allowed_identifers.append("email")
-
         for identifier in identifiers_list:
             if "type" in identifier:
-                # pylint: disable=R1723
                 if identifier["type"].lower() not in allowed_identifers:
                     error = self.error_msg_dic["unsupportedidentifier"]
                     break
@@ -351,15 +505,14 @@ class Order(object):
                         break
             else:
                 error = self.error_msg_dic["malformed"]
-
-        self.logger.debug("Order._identifiers_allowed() ended with: %s", error)
+        self.logger.debug("Order.are_identifiers_allowed() ended with: %s", error)
         return error
 
-    def _email_identifier_rewrite(
+    def rewrite_email_identifiers(
         self, identifiers_list: List[Dict[str, str]]
     ) -> List[Dict[str, str]]:
-        """rewrite email identifiers to address acme_email issue"""
-        self.logger.debug("Order._email_identifier_rewrite()")
+        """Rewrite DNS identifiers with @ to email identifiers."""
+        self.logger.debug("Order.rewrite_email_identifiers()")
         identifiers_modified = []
         for ident in identifiers_list:
             if (
@@ -372,39 +525,33 @@ class Order(object):
                     "Rewrite DNS identifier '%s' to email identifier",
                     ident["value"],
                 )
-                # rewrite dns identifier to acme_email
                 ident["type"] = "email"
             identifiers_modified.append(ident)
-        self.logger.debug("Order._email_identifier_rewrite() ended")
+        self.logger.debug("Order.rewrite_email_identifiers() ended")
         return identifiers_modified
 
-    def _identifiers_check(self, identifiers_list: List[str]) -> str:
-        """check validity of identifers in order"""
-        self.logger.debug("Order._identifiers_check(%s)", identifiers_list)
-
-        # Create a deep copy to avoid modifying the original
+    def check_identifiers_validity(self, identifiers_list: List[str]) -> str:
+        """Check validity of identifiers in the order."""
+        self.logger.debug("Order.check_identifiers_validity(%s)", identifiers_list)
         identifiers_list = copy.deepcopy(identifiers_list)
-
         if identifiers_list and isinstance(identifiers_list, list):
             if len(identifiers_list) > self.identifier_limit:
                 error = self.error_msg_dic["rejectedidentifier"]
             else:
                 if self.email_identifier_support and self.email_identifier_rewrite:
-                    # rewirte email identifiers to address acme_email issue
-                    identifiers_list = self._email_identifier_rewrite(identifiers_list)
-                error = self._identifiers_allowed(identifiers_list)
+                    identifiers_list = self.rewrite_email_identifiers(identifiers_list)
+                error = self.are_identifiers_allowed(identifiers_list)
         else:
             error = self.error_msg_dic["malformed"]
-
-        self.logger.debug("Order._identifiers_check() done with %s:", error)
+        self.logger.debug("Order.check_identifiers_validity() done with %s:", error)
         return error
 
     def _info(self, order_name: str) -> Dict[str, str]:
         """list details of an order"""
         self.logger.debug("Order._info(%s)", order_name)
         try:
-            result = self.dbstore.order_lookup("name", order_name)
-        except Exception as err_:
+            result = self.repository.order_lookup("name", order_name)
+        except OrderDatabaseError as err_:
             self.logger.critical("Database error: failed to look up order: %s", err_)
             result = None
         return result
@@ -491,21 +638,18 @@ class Order(object):
             and order_dic["status"] == "valid"
             and self.idempotent_finalize
         ):
-            # this is polling request via finalize call; lookup certificate
             self.logger.debug(
                 "Order._finalize(): kind of polling request - order is already valid - lookup certificate"
             )
             code = 200
             try:
-                cert_dic = self.dbstore.certificate_lookup("order__name", order_name)
-            except Exception as err_:
+                cert_dic = self.repository.certificate_lookup("order__name", order_name)
+            except OrderDatabaseError as err_:
                 self.logger.critical(
                     "Database error: Certificate lookup failed: %s", err_
                 )
                 cert_dic = {}
             if cert_dic:
-                # we found a cert in the database
-                # pylint: disable=R1715
                 if "name" in cert_dic:
                     certificate_name = cert_dic["name"]
         else:
@@ -532,26 +676,22 @@ class Order(object):
 
         if "url" in protected:
             if "finalize" in protected["url"]:
-                # finalize order
                 (code, message, detail, certificate_name) = self._finalize(
                     order_name, payload, header
                 )
             else:
                 self.logger.debug("polling request()")
                 code = 200
-                # this is a polling request; lookup certificate
                 try:
-                    cert_dic = self.dbstore.certificate_lookup(
+                    cert_dic = self.repository.certificate_lookup(
                         "order__name", order_name
                     )
-                except Exception as err_:
+                except OrderDatabaseError as err_:
                     self.logger.critical(
                         "Database error: Certificate lookup failed: %s", err_
                     )
                     cert_dic = {}
                 if cert_dic:
-                    # we found a cert in the database
-                    # pylint: disable=R1715
                     if "name" in cert_dic:
                         certificate_name = cert_dic["name"]
         else:
@@ -618,10 +758,9 @@ class Order(object):
     def _update(self, data_dic: Dict[str, str]):
         """update order based on ordername"""
         self.logger.debug("Order._update(%s)", data_dic)
-
         try:
-            self.dbstore.order_update(data_dic)
-        except Exception as err_:
+            self.repository.order_update(data_dic)
+        except OrderDatabaseError as err_:
             self.logger.critical("Database error: failed to update order: %s", err_)
 
     def _order_dic_create(self, tmp_dic: Dict[str, str]) -> Dict[str, str]:
@@ -652,17 +791,15 @@ class Order(object):
     def _authz_list_lookup(self, order_name: str) -> List[str]:
         """lookup authorization list"""
         self.logger.debug("Order._authz_list_lookup(%s)", order_name)
-
         try:
-            authz_list = self.dbstore.authorization_lookup(
+            authz_list = self.repository.authorization_lookup(
                 "order__name", order_name, ["name", "status__name"]
             )
-        except Exception as err_:
+        except OrderDatabaseError as err_:
             self.logger.critical(
                 "Database error: failed to look up authorization list: %s", err_
             )
             authz_list = []
-
         self.logger.debug("Order._authz_list_lookup() ended")
         return authz_list
 
