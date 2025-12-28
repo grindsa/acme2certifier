@@ -22,14 +22,33 @@ By default, these files are stored in the **`data/`** folder and mounted inside 
 
 The **data folder path** can be modified in [`docker-compose.yml`](https://github.com/grindsa/acme2certifier/blob/master/examples/Docker/docker-compose.yml) to match your setup.
 
+
 ## Ports
 
-By default, **acme2certifier** runs on:
+By default, **acme2certifier** exposes its web services on the following ports **inside the container**:
 
-- **HTTP:** Port **22280**
-- **HTTPS:** Port **22443** *(optional)*
+- **HTTP:** Port **80**
+- **HTTPS:** Port **443** (optional, enabled if certificate and key are present)
 
-To expose these services externally, **map ports 80 and 443** accordingly.
+You can map these internal ports to any available ports on your host system using Docker’s port mapping. For example, in `docker-compose.yml`:
+
+```yaml
+ports:
+  - "22280:80"   # Maps host port 22280 to container port 80 (HTTP)
+  - "22443:443"  # Maps host port 22443 to container port 443 (HTTPS)
+```
+
+You may also use the default ports:
+
+```yaml
+ports:
+  - "80:80"
+  - "443:443"
+```
+
+**Note:**
+- The container does **not** expose ports 22280 or 22443 internally; these are just example host ports for mapping.
+- HTTPS (port 443) will only be available if both `acme2certifier_cert.pem` and `acme2certifier_key.pem` are present in `/var/www/acme2certifier/volume`.
 
 ## Configuration via `.env`
 
@@ -207,16 +226,17 @@ ______________________________________________________________________
 
 ## Running acme2certifier Without Docker-Compose
 
+
 You can run the **container manually** with:
 
 ```bash
-docker run -d -p 80:22280 -p 443:22443 --rm --name=a2c-srv   -v "/home/grindsa/docker/a2c/data":/var/www/acme2certifier/volume/   grindsa/acme2certifier:apache2-wsgi
+docker run -d -p 22280:80 -p 22443:443 --rm --name=a2c-srv   -v "/home/grindsa/docker/a2c/data":/var/www/acme2certifier/volume/   grindsa/acme2certifier:apache2-wsgi
 ```
 
 This will:
 
-- **Map internal port 22280** to **external port 80**.
-- **Map internal port 22443** to **external port 443**.
+- **Map internal port 80** to **external port 22280**.
+- **Map internal port 443** to **external port 22443**.
 - **Mount the `data/` directory** for persistent storage.
 
 ______________________________________________________________________
