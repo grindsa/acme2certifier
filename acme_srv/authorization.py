@@ -227,7 +227,10 @@ class AuthorizationBusinessLogic:
     """Business logic for authorization operations"""
 
     def __init__(
-        self, config: AuthorizationConfiguration, repository: AuthorizationRepository, logger
+        self,
+        config: AuthorizationConfiguration,
+        repository: AuthorizationRepository,
+        logger,
     ):
         self.config = config
         self.repository = repository
