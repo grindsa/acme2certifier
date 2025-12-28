@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Signature class"""
 from __future__ import print_function
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 from acme_srv.helper import signature_check, load_config, error_dic_get
 from acme_srv.db_handler import DBstore
 
