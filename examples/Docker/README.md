@@ -4,15 +4,16 @@
 
 # Containerized Installation Using Apache2 or Nginx as Web Server with WSGI or Django
 
-This is the **fastest and most convenient** way to deploy **acme2certifier**. After installation, **acme2certifier** will run inside a **minimal Ubuntu 20.04 container**, using either **Apache2** or **Nginx** as the web server.
+This is the **fastest and most convenient** way to deploy **acme2certifier**. After installation, **acme2certifier** will run inside a **minimal Ubuntu 24.04 container**, using either **Apache2** or **Nginx** as the web server.
 
 ## Persistent Storage
 
 **acme2certifier** requires persistent storage for:
 
-- **Database:** `acme_srv.db`
-- **CA Handler:** `ca_handler.py`
 - **Configuration File:** `acme_srv.cfg`
+- **Customized CA Handlers or runtime data (files and directories) belonging to CA handlers:** `ca_handler.py`
+- **Database:** `acme_srv.db` (in case of WSGI installations)
+- **Django migration sets** (in case of Django based deployments)
 
 By default, these files are stored in the **`data/`** folder and mounted inside the container at:
 
@@ -21,7 +22,6 @@ By default, these files are stored in the **`data/`** folder and mounted inside 
 ```
 
 The **data folder path** can be modified in [`docker-compose.yml`](https://github.com/grindsa/acme2certifier/blob/master/examples/Docker/docker-compose.yml) to match your setup.
-
 
 ## Ports
 
@@ -81,7 +81,7 @@ Expected output:
 
 ```bash
 Building srv
-Step 1/17 : FROM ubuntu:20.04
+Step 1/17 : FROM ubuntu:24.04
  ---> 1d622ef86b13
 Step 2/17 : LABEL maintainer="grindelsack@gmail.com"
  ---> Running in 03f043052bc9
