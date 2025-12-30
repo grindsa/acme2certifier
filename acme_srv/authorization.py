@@ -441,9 +441,10 @@ class Authorization(object):
                         "Authorization", "prevalidated_domainlist", fallback="null"
                     )
                 )
-                self.logger.warning(
-                    "Prevalidated list of domains loaded globally. Such configuration is NOT recommended as this is a severe security risk!"
-                )
+                if self.config.prevalidated_domainlist:
+                    self.logger.warning(
+                        "Prevalidated list of domains loaded globally. Such configuration is NOT recommended as this is a severe security risk!"
+                    )
             except json.JSONDecodeError as err:
                 self.config.prevalidated_domainlist = None
                 raise ConfigurationError(

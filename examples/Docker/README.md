@@ -227,7 +227,6 @@ ______________________________________________________________________
 
 ## Running acme2certifier Without Docker-Compose
 
-
 You can run the **container manually** with:
 
 ```bash
