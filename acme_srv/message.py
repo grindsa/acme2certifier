@@ -114,53 +114,74 @@ class Message(object):
         """Check for accounts with invalid eab credentials."""
         self.logger.debug("Message._check_and_handle_invalid_eab_credentials()")
 
-        try:
-            account_dic = self.repo.account_lookup("name", account_name)
-        except Exception as err:
-            self.logger.error(f"Account lookup for {account_name} failed: {err}")
-            account_dic = None
-
-        if account_dic:
-            eab_kid = account_dic.get("eab_kid", None)
-            if eab_kid and self.config.eab_handler:
-                try:
-                    with self.config.eab_handler(self.logger) as eab_handler:
-                        eab_mac_key = eab_handler.mac_key_get(eab_kid)
-                        if not eab_mac_key:
-                            self.logger.error(
-                                "EAB credentials: %s could not be found in eab-credential store.",
-                                eab_kid,
-                            )
-                            if self.config.invalid_eabkid_deactivate:
-                                self.logger.error(
-                                    "Account %s will be deactivated due to missing eab credentials",
-                                    account_name,
-                                )
-                                data_dic = {
-                                    "name": account_name,
-                                    "status_id": 7,
-                                    "jwk": f"DEACTIVATED invalid_eabkid_deactivate {uts_to_date_utc(uts_now())}",
-                                }
-                                try:
-                                    self.repo.account_update(data_dic, active=False)
-                                except Exception as err:
-                                    self.logger.error(f"Account update failed: {err}")
-                            account_name = None
-
-                except Exception as err:
-                    self.logger.error(f"EAB handler error: {err}")
-                    account_name = None
-            elif not eab_kid:
-                self.logger.error("Account %s has no eab credentials", account_name)
-                account_name = None
-        else:
+        account_dic = self._safe_account_lookup(account_name)
+        if not account_dic:
             self.logger.error("Account lookup for %s failed.", account_name)
-            account_name = None
+            self.logger.debug(
+                "Message._check_and_handle_invalid_eab_credentials() ended with account_name: %s",
+                None,
+            )
+            return None
+
+        eab_kid = account_dic.get("eab_kid", None)
+        if not eab_kid:
+            self.logger.error("Account %s has no eab credentials", account_name)
+            self.logger.debug(
+                "Message._check_and_handle_invalid_eab_credentials() ended with account_name: %s",
+                None,
+            )
+            return None
+
+        if self.config.eab_handler and not self._eab_mac_key_exists(eab_kid):
+            self._handle_missing_eab_credentials(account_name, eab_kid)
+            self.logger.debug(
+                "Message._check_and_handle_invalid_eab_credentials() ended with account_name: %s",
+                None,
+            )
+            return None
         self.logger.debug(
             "Message._check_and_handle_invalid_eab_credentials() ended with account_name: %s",
             account_name,
         )
         return account_name
+
+    def _safe_account_lookup(self, account_name: str):
+        try:
+            return self.repo.account_lookup("name", account_name)
+        except Exception as err:
+            self.logger.error(f"Account lookup for {account_name} failed: {err}")
+            return None
+
+    def _eab_mac_key_exists(self, eab_kid: str) -> bool:
+        try:
+            with self.config.eab_handler(self.logger) as eab_handler:
+                eab_mac_key = eab_handler.mac_key_get(eab_kid)
+                if not eab_mac_key:
+                    return False
+                return True
+        except Exception as err:
+            self.logger.error(f"EAB handler error: {err}")
+            return False
+
+    def _handle_missing_eab_credentials(self, account_name: str, eab_kid: str):
+        self.logger.error(
+            "EAB credentials: %s could not be found in eab-credential store.",
+            eab_kid,
+        )
+        if self.config.invalid_eabkid_deactivate:
+            self.logger.error(
+                "Account %s will be deactivated due to missing eab credentials",
+                account_name,
+            )
+            data_dic = {
+                "name": account_name,
+                "status_id": 7,
+                "jwk": f"DEACTIVATED invalid_eabkid_deactivate {uts_to_date_utc(uts_now())}",
+            }
+            try:
+                self.repo.account_update(data_dic, active=False)
+            except Exception as err:
+                self.logger.error(f"Account update failed: {err}")
 
     def _extract_account_name_for_revocation(
         self, content: Dict[str, str]
