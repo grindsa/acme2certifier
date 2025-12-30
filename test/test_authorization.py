@@ -22,7 +22,7 @@ from acme_srv.authorization import (
     AuthorizationRepository,
     AuthorizationBusinessLogic,
     ChallengeSetManager,
-    AuthorizationConfig,
+    AuthorizationConfiguration,
     AuthorizationData,
     AuthorizationError,
     AuthorizationNotFoundError,
@@ -31,19 +31,19 @@ from acme_srv.authorization import (
 )
 
 
-class TestAuthorizationConfig(unittest.TestCase):
-    """Test AuthorizationConfig dataclass"""
+class TestAuthorizationConfiguration(unittest.TestCase):
+    """Test AuthorizationConfiguration dataclass"""
 
     def test_0001_config_default_values(self):
         """Test default configuration values"""
-        config = AuthorizationConfig()
+        config = AuthorizationConfiguration()
         self.assertEqual(config.validity, 86400)
         self.assertFalse(config.expiry_check_disable)
         self.assertEqual(config.authz_path, "/acme/authz/")
 
     def test_0002_config_custom_values(self):
         """Test custom configuration values"""
-        config = AuthorizationConfig(
+        config = AuthorizationConfiguration(
             validity=172800, expiry_check_disable=True, authz_path="/custom/authz/"
         )
         self.assertEqual(config.validity, 172800)
@@ -367,7 +367,7 @@ class TestAuthorizationBusinessLogic(unittest.TestCase):
     """Test AuthorizationBusinessLogic class"""
 
     def setUp(self):
-        self.config = AuthorizationConfig()
+        self.config = AuthorizationConfiguration()
         self.mock_repository = Mock()
         self.mock_logger = Mock()
         self.business_logic = AuthorizationBusinessLogic(
@@ -690,7 +690,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIsNone(authorization.server_name)
         self.assertFalse(authorization.debug)
         self.assertEqual(authorization.logger, self.mock_logger)
-        self.assertIsInstance(authorization.config, AuthorizationConfig)
+        self.assertIsInstance(authorization.config, AuthorizationConfiguration)
         self.assertIsInstance(authorization.repository, AuthorizationRepository)
         self.assertIsInstance(authorization.business_logic, AuthorizationBusinessLogic)
         self.assertIsInstance(authorization.challenge_manager, ChallengeSetManager)
