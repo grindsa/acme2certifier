@@ -6,7 +6,7 @@ on:
     branches: [ devel ]
   schedule:
     # * is a special character in YAML so you have to quote this stringv
-    - cron:  '0 2 * * 6'
+    - cron:  '0 4 * * 6'
 
 jobs:
   certmgr_http01_tests:
@@ -218,11 +218,11 @@ jobs:
         sudo systemctl disable systemd-resolved
         sudo systemctl stop systemd-resolved
         sudo chmod -R 777 /etc/resolv.conf
-        sudo echo "nameserver 8.8.8.8" > /etc/resolv.conf
+        sudo echo "nameserver 1.1.1.1" > /etc/resolv.conf
         sudo cat /etc/resolv.conf
         sudo cp .github/k8s-acme-srv.yml data/
         sudo chmod 777 data/k8s-acme-srv.yml
-        sudo sed -i "s/DNSMASQ_IP/8.8.8.8/g" data/k8s-acme-srv.yml
+        sudo sed -i "s/DNSMASQ_IP/1.1.1.1/g" data/k8s-acme-srv.yml
         cat data/k8s-acme-srv.yml
 
     - name: "[ PREPARE ] install microk8s"
