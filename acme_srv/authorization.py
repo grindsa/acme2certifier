@@ -459,30 +459,6 @@ class Authorization(object):
 
         self.logger.debug("Authorization._load_configuration() ended:")
 
-    @property
-    def validity(self):
-        """Backward compatibility property for validity"""
-        return self.config.validity
-
-    @validity.setter
-    def validity(self, value):
-        """Setter for validity"""
-        self.config.validity = value
-
-    @property
-    def expiry_check_disable(self):
-        """Backward compatibility property for expiry_check_disable"""
-        return self.config.expiry_check_disable
-
-    @expiry_check_disable.setter
-    def expiry_check_disable(self, value):
-        """Setter for expiry_check_disable"""
-        self.config.expiry_check_disable = value
-
-    def _authz_info(self, url: str) -> Dict[str, str]:
-        """Backward compatibility method - delegates to get_authorization_details"""
-        return self.get_authorization_details(url)
-
     def get_authorization_details(self, url: str) -> Optional[Dict[str, str]]:
         """Get detailed authorization information"""
         self.logger.debug("Authorization.get_authorization_details()")
@@ -716,7 +692,7 @@ class Authorization(object):
         self.logger.debug("Authorization.handle_post_request()")
 
         # Expire invalid authorizations if not disabled
-        if not self.expiry_check_disable:
+        if not self.config.expiry_check_disable:
             try:
                 self.invalidate()  # Call public method for backward compatibility
             except Exception as err:
@@ -747,7 +723,7 @@ class Authorization(object):
                     self.logger.error("Authorization error: %s", err)
                     code = 403
                     message = "urn:ietf:params:acme:error:unauthorized"
-                    detail = f"authorization error: {err}"
+                    detail = "authorization error"
 
         # Prepare response
         status_dic = {"code": code, "type": message, "detail": detail}
