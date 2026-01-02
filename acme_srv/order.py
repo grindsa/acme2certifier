@@ -493,6 +493,7 @@ class Order(object):
         if identifiers_list and isinstance(identifiers_list, list):
             if len(identifiers_list) > self.config.identifier_limit:
                 error = self.error_msg_dic["rejectedidentifier"]
+                self.logger.warning("Number of identifiers %d exceeds limit %d", len(identifiers_list), self.config.identifier_limit)
             else:
                 if (
                     self.config.email_identifier_support
