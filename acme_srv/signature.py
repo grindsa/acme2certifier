@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Signature class"""
 from __future__ import print_function
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 from acme_srv.helper import signature_check, load_config, error_dic_get
 from acme_srv.db_handler import DBstore
 
@@ -25,7 +25,7 @@ class Signature:
             return cfg["Directory"]["url_prefix"] + "/acme/revokecert"
         return "/acme/revokecert"
 
-    def _jwk_loader(self, kid, cli: bool = False) -> Dict[str, str]:
+    def _jwk_loader(self, kid, cli: bool = False) -> Optional[Dict[str, str]]:
         """Load JWK for a specific account id, optionally using CLI method."""
         method = self.dbstore.cli_jwk_load if cli else self.dbstore.jwk_load
         self.logger.debug(f"Signature._jwk_loader({kid}, cli={cli})")
