@@ -23,12 +23,14 @@ from acme_srv.message import Message
 
 class OrderDatabaseError(Exception):
     """Exception raised for database-related errors in Order operations."""
+
     # pylint: disable=unnecessary-pass
     pass
 
 
 class OrderValidationError(Exception):
     """Exception raised for validation errors in Order operations."""
+
     # pylint: disable=unnecessary-pass
     pass
 
@@ -102,12 +104,15 @@ class OrderRepository:
                 order_field, timestamp, vlist=vlist, operant=operant
             )
         except Exception as err:
-            raise OrderDatabaseError(f"Failed to search for invalid orders: {err}") from err
+            raise OrderDatabaseError(
+                f"Failed to search for invalid orders: {err}"
+            ) from err
 
 
 @dataclass
 class OrderConfiguration:
     """Configuration parameters for Order handling"""
+
     validity: int = 86400
     authz_validity: int = 86400
     expiry_check_disable: bool = False
@@ -129,29 +134,36 @@ class Order(object):
 
     def __init__(
         self, debug: bool = None, server_name: str = None, logger: object = None
-    ):
+    ) -> None:
+        """Initialize the Order handler"""
         self.debug = debug
         self.server_name = server_name
         self.config = OrderConfiguration()
         self.logger = logger
         self.dbstore = DBstore(self.debug, self.logger)
-        self.path_dic = {"authz_path": "/acme/authz/", "order_path": "/acme/order/", "cert_path": "/acme/cert/"}
+        self.path_dic = {
+            "authz_path": "/acme/authz/",
+            "order_path": "/acme/order/",
+            "cert_path": "/acme/cert/",
+        }
         self.repository = OrderRepository(self.dbstore)
         self.message = Message(self.debug, self.server_name, self.logger)
         self.error_msg_dic = error_dic_get(self.logger)
 
-    def __enter__(self):
-        """Makes ACMEHandler a Context Manager"""
+    def __enter__(self) -> "Order":
+        """Enter the context manager, loading configuration."""
         self._load_configuration()
         return self
 
-    def __exit__(self, *args):
-        """cose the connection at the end of the context"""
+    def __exit__(self, *args) -> None:
+        """
+        Exit the context manager. (No-op, placeholder for cleanup.)
+        """
 
     def _add_authorizations_to_db(
         self, oid: str, payload: Dict[str, str], auth_dic: Dict[str, str]
     ) -> str:
-        """Add authorizations to the database for the given order id."""
+        """Add authorizations to the database for the given order id. Returns error message or None."""
         self.logger.debug("Order._add_authorizations_to_db(%s)", oid)
 
         if oid:
@@ -202,7 +214,7 @@ class Order(object):
         payload: Dict[str, str],
         error: str,
     ) -> Tuple[str, Dict[str, str]]:
-        """Add order and its authorizations to the database."""
+        """Add order and its authorizations to the database. Returns error message or None."""
         self.logger.debug("Order._add_order_and_authorizations()")
 
         try:
@@ -342,12 +354,14 @@ class Order(object):
         self.logger.debug("Order._load_profile_config() ended")
 
     def _load_profiles_from_config(self, config_dic: Dict[str, str]):
+        """Load profiles from configuration file."""
         if "Order" in config_dic and "profiles" in config_dic["Order"]:
             self.logger.debug("Order._config_load(): profile check enabled")
             self.config.profiles_check_disable = False
             self.config.profiles = config_profile_load(self.logger, config_dic)
 
     def _load_profiles_from_db_if_sync(self, config_dic: Dict[str, str]):
+        """Load profiles from database if profiles_sync is set."""
         if "CAhandler" in config_dic and "profiles_sync" in config_dic["CAhandler"]:
             self.config.profiles_sync = config_dic.getboolean(
                 "CAhandler", "profiles_sync", fallback=False
@@ -359,12 +373,15 @@ class Order(object):
                 try:
                     profiles = self.repository.hkparameter_get("profiles")
                 except OrderDatabaseError as err:
-                    self.logger.critical("Database error: failed to get profile list: %s", err)
+                    self.logger.critical(
+                        "Database error: failed to get profile list: %s", err
+                    )
                     profiles = None
                 if profiles:
                     self._set_profiles_from_db(profiles)
 
     def _set_profiles_from_db(self, profiles):
+        """Set profiles from database string."""
         try:
             profile_dic = json.loads(profiles)
             self.config.profiles = profile_dic.get("profiles", {})
@@ -374,6 +391,7 @@ class Order(object):
             )
 
     def _maybe_disable_profile_check(self, config_dic: Dict[str, str]):
+        """Disable profile check"""
         if self.config.profiles and "Order" in config_dic:
             self.config.profiles_check_disable = config_dic.getboolean(
                 "Order", "profiles_check_disable", fallback=False
@@ -488,7 +506,7 @@ class Order(object):
         return error
 
     def _get_order_info(self, order_name: str) -> Dict[str, str]:
-        """list details of an order"""
+        """List details of an order. Returns order dict or empty dict on error."""
         self.logger.debug("Order._get_order_info(%s)", order_name)
         try:
             result = self.repository.order_lookup("name", order_name)
@@ -560,7 +578,6 @@ class Order(object):
 
         # lookup order-status (must be ready to proceed)
         order_dic = self._get_order_info(order_name)
-
         if "status" in order_dic and order_dic["status"] == "ready":
             # update order_status / set to processing
             self.repository.order_update({"name": order_name, "status": "processing"})
@@ -719,7 +736,7 @@ class Order(object):
         return order_dic
 
     def _get_authorization_list(self, order_name: str) -> List[str]:
-        """lookup authorization list"""
+        """Lookup authorization list. Returns list or empty list on error."""
         self.logger.debug("Order._get_authorization_list(%s)", order_name)
         try:
             authz_list = self.repository.authorization_lookup(
@@ -736,6 +753,7 @@ class Order(object):
     def _update_validity_list(
         self, authz_list: List[str], order_dic: Dict[str, str], order_name: str
     ):
+        """update validity list and order status"""
         self.logger.debug("Order._update_validity_list()")
         validity_list = []
         for authz in authz_list:
@@ -757,8 +775,9 @@ class Order(object):
         self.logger.debug("Order.get_order_details() ended")
 
     def get_order_details(self, order_name: str) -> Dict[str, str]:
-        """show order details based on ordername"""
+        """Show order details based on order name."""
         self.logger.debug("Order.get_order_details(%s)", order_name)
+
         order_dic = {}
         tmp_dic = self._get_order_info(order_name)
         if tmp_dic:
@@ -775,8 +794,9 @@ class Order(object):
     def invalidate_expired_orders(
         self, timestamp: int = None
     ) -> Tuple[List[str], List[str]]:
-        """invalidate orders"""
+        """Invalidate orders that have expired."""
         self.logger.debug("Order.invalidate_expired_orders(%s)", timestamp)
+
         if not timestamp:
             timestamp = uts_now()
             self.logger.debug(
