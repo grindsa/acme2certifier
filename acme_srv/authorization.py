@@ -441,9 +441,10 @@ class Authorization(object):
                         "Authorization", "prevalidated_domainlist", fallback="null"
                     )
                 )
-                self.logger.warning(
-                    "Prevalidated list of domains loaded globally. Such configuration is NOT recommended as this is a severe security risk!"
-                )
+                if self.config.prevalidated_domainlist:
+                    self.logger.warning(
+                        "Prevalidated list of domains loaded globally. Such configuration is NOT recommended as this is a severe security risk!"
+                    )
             except json.JSONDecodeError as err:
                 self.config.prevalidated_domainlist = None
                 raise ConfigurationError(
@@ -457,30 +458,6 @@ class Authorization(object):
             ) = config_eab_profile_load(self.logger, config_dic)
 
         self.logger.debug("Authorization._load_configuration() ended:")
-
-    @property
-    def validity(self):
-        """Backward compatibility property for validity"""
-        return self.config.validity
-
-    @validity.setter
-    def validity(self, value):
-        """Setter for validity"""
-        self.config.validity = value
-
-    @property
-    def expiry_check_disable(self):
-        """Backward compatibility property for expiry_check_disable"""
-        return self.config.expiry_check_disable
-
-    @expiry_check_disable.setter
-    def expiry_check_disable(self, value):
-        """Setter for expiry_check_disable"""
-        self.config.expiry_check_disable = value
-
-    def _authz_info(self, url: str) -> Dict[str, str]:
-        """Backward compatibility method - delegates to get_authorization_details"""
-        return self.get_authorization_details(url)
 
     def get_authorization_details(self, url: str) -> Optional[Dict[str, str]]:
         """Get detailed authorization information"""
@@ -715,7 +692,7 @@ class Authorization(object):
         self.logger.debug("Authorization.handle_post_request()")
 
         # Expire invalid authorizations if not disabled
-        if not self.expiry_check_disable:
+        if not self.config.expiry_check_disable:
             try:
                 self.invalidate()  # Call public method for backward compatibility
             except Exception as err:
@@ -746,7 +723,7 @@ class Authorization(object):
                     self.logger.error("Authorization error: %s", err)
                     code = 403
                     message = "urn:ietf:params:acme:error:unauthorized"
-                    detail = f"authorization error: {err}"
+                    detail = "authorization error"
 
         # Prepare response
         status_dic = {"code": code, "type": message, "detail": detail}

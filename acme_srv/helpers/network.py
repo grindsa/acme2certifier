@@ -381,6 +381,7 @@ def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> Lis
 
     # rewrite dns resolver if configured
     if dns_srv:
+        logger.debug("Helper.txt_get(): use custom dns servers: %s", dns_srv)
         dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
         dns.resolver.default_resolver.nameservers = dns_srv
     txt_record_list = []
