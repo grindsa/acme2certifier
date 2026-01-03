@@ -10,23 +10,8 @@ import json
 import os
 import sys
 
-sys.path.insert(0, ".")
-sys.path.insert(1, "..")
-
-sys.modules['acme_srv.db_handler'] = types.SimpleNamespace(DBstore=MagicMock())
-sys.modules['acme_srv.certificate'] = types.SimpleNamespace(Certificate=MagicMock())
-sys.modules['acme_srv.message'] = types.SimpleNamespace(Message=MagicMock())
-sys.modules['acme_srv.helper'] = types.SimpleNamespace(
-    b64_url_recode=lambda logger, csr: csr,
-    config_profile_load=lambda logger, config_dic: {"default": {}},
-    error_dic_get=lambda logger: {"malformed": "malformed", "invalidprofile": "invalidprofile", "unsupportedidentifier": "unsupportedidentifier", "rejectedidentifier": "rejectedidentifier", "badcsr": "badcsr", "ordernotready": "ordernotready", "serverinternal": "serverinternal", "unauthorized": "unauthorized"},
-    generate_random_string=lambda logger, n: "randomstring",
-    load_config=lambda: {"Order": {}, "Challenge": {}, "CAhandler": {}, "Authorization": {}, "Directory": {}},
-    parse_url=lambda logger, url: {"path": "/acme/order/randomstring"},
-    uts_to_date_utc=lambda ts: "2026-01-01T00:00:00Z",
-    uts_now=lambda: 1234567890,
-    validate_identifier=lambda logger, t, v, tnauth: True
-)
+# Add the parent directory to sys.path so we can import acme_srv
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from acme_srv.order import (
     Order, OrderRepository, OrderDatabaseError, OrderValidationError, OrderConfiguration
@@ -217,10 +202,11 @@ class TestOrderClass(unittest.TestCase):
     def test_024_is_profile_valid_invalid(self):
         self.order.config.profiles_check_disable = False
         self.order.config.profiles = {'bar': {}}
+        self.logger.setLevel(logging.WARNING)
         result = self.order.is_profile_valid('foo')
-        self.assertEqual(result, 'invalidprofile')
         self.handler.flush()
         log_contents = self.log_stream.getvalue()
+        self.assertEqual(result, 'urn:ietf:params:acme:error:invalidProfile')
         self.assertIn("WARNING:Profile 'foo' is not valid. Ignoring submitted profile.", log_contents)
 
     def test_025_is_profile_valid_valid_profile(self):
@@ -254,7 +240,7 @@ class TestOrderClass(unittest.TestCase):
         data_dic = {}
         payload = {'profile': 'foo'}
         error, updated_dic = self.order.add_profile_to_order(data_dic, payload)
-        self.assertEqual(error, 'invalidprofile')
+        self.assertEqual(error, 'urn:ietf:params:acme:error:invalidProfile')
         self.assertNotIn('profile', updated_dic)
 
     def test_028_add_profile_to_order_no_profiles_configured(self):
@@ -276,7 +262,7 @@ class TestOrderClass(unittest.TestCase):
         with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
              patch('acme_srv.message.Message', return_value=self.mock_message), \
              patch('acme_srv.order.OrderRepository', return_value=self.mock_repo):
-            order = Order(debug=True, server_name='test', logger=self.logger)
+            _order = Order(debug=True, server_name='test', logger=self.logger)
             self.logger.setLevel(logging.INFO)
             self.logger.info('test info')
             self.logger.warning('test warning')
@@ -288,29 +274,18 @@ class TestOrderClass(unittest.TestCase):
             self.assertIn('WARNING:test warning', log_contents)
             self.assertIn('ERROR:test error', log_contents)
             self.assertIn('CRITICAL:test critical', log_contents)
-        self.logger.setLevel(logging.INFO)
-        self.logger.info('test info')
-        self.logger.warning('test warning')
-        self.logger.error('test error')
-        self.logger.critical('test critical')
-        self.handler.flush()
-        log_contents = self.log_stream.getvalue()
-        self.assertIn('INFO:test info', log_contents)
-        self.assertIn('WARNING:test warning', log_contents)
-        self.assertIn('ERROR:test error', log_contents)
-        self.assertIn('CRITICAL:test critical', log_contents)
 
     def test_030_edge_case_empty_identifiers(self):
         # _check_identifiers_validity with empty list
         result = self.order._check_identifiers_validity([])  # Edge case with empty identifiers
-        self.assertEqual(result, 'malformed')
+        self.assertEqual(result, 'urn:ietf:params:acme:error:malformed')
 
     def test_031_edge_case_too_many_identifiers(self):
         # _check_identifiers_validity with too many identifiers
         self.order.config.identifier_limit = 1  # Set identifier limit to 1 for testing
         result = self.order._check_identifiers_validity([
             {'type': 'dns', 'value': 'a'}, {'type': 'dns', 'value': 'b'}])
-        self.assertEqual(result, 'rejectedidentifier')
+        self.assertEqual(result, 'urn:ietf:params:acme:error:rejectedIdentifier')
 
     def test_032_edge_case_invalid_identifier_type(self):
         # are_identifiers_allowed with unsupported type
@@ -318,13 +293,13 @@ class TestOrderClass(unittest.TestCase):
         self.order.config.email_identifier_support = False
         result = self.order.are_identifiers_allowed([
             {'type': 'foo', 'value': 'bar'}])
-        self.assertEqual(result, 'unsupportedidentifier')
+        self.assertEqual(result, 'urn:ietf:params:acme:error:unsupportedIdentifier')
 
     def test_033_edge_case_missing_type(self):
         # are_identifiers_allowed with missing type
         result = self.order.are_identifiers_allowed([
             {'value': 'bar'}])
-        self.assertEqual(result, 'malformed')
+        self.assertEqual(result, 'urn:ietf:params:acme:error:malformed')
 
     def test_034_edge_case_invalid_profile_config(self):
         # _set_profiles_from_db with invalid JSON
@@ -343,9 +318,9 @@ class TestOrderClass(unittest.TestCase):
         }
         result = self.order._order_dic_create(tmp_dic)
         self.assertEqual(result['status'], 'pending')
-        self.assertEqual(result['expires'], '2026-01-01T00:00:00Z')
-        self.assertEqual(result['notBefore'], '2026-01-01T00:00:00Z')
-        self.assertEqual(result['notAfter'], '2026-01-01T00:00:00Z')
+        self.assertEqual(result['expires'], '2009-02-13T23:31:30Z')
+        self.assertEqual(result['notBefore'], '2009-02-13T23:31:31Z')
+        self.assertEqual(result['notAfter'], '2009-02-13T23:31:32Z')
         self.assertIsInstance(result['identifiers'], list)
 
     def test_036_order_dic_create_invalid_identifiers(self):
@@ -353,6 +328,7 @@ class TestOrderClass(unittest.TestCase):
         tmp_dic = {'identifiers': 'notjson'}
         with patch.object(self.order.logger, 'error') as mock_log:
             result = self.order._order_dic_create(tmp_dic)
+            self.assertIsNone(result.get('identifiers'))
             self.assertIn('identifiers', tmp_dic)
             mock_log.assert_called()
 
@@ -369,15 +345,15 @@ class TestOrderClass(unittest.TestCase):
         authz_list = [{'name': 'auth1', 'status__name': 'valid'}]
         order_dic = {'status': 'pending', 'authorizations': []}
         with patch.object(self.order.repository, 'order_update') as mock_update:
-            self.order._update_validity_list(authz_list, order_dic, 'order')
-            mock_update.assert_called_with({'name': 'order', 'status': 'ready'})
+            self.order._update_validity_list(authz_list, order_dic, '_')
+            mock_update.assert_called_with({'name': '_', 'status': 'ready'})
 
     def test_039_update_validity_list_not_ready(self):
         # test _update_validity_list does not set order to ready
         authz_list = [{'name': 'auth1', 'status__name': 'pending'}]
         order_dic = {'status': 'pending', 'authorizations': []}
         with patch.object(self.order.repository, 'order_update') as mock_update:
-            self.order._update_validity_list(authz_list, order_dic, 'order')
+            self.order._update_validity_list(authz_list, order_dic, '_')
             mock_update.assert_not_called()
 
     def test_040_get_order_details_with_authz(self):
@@ -396,7 +372,7 @@ class TestOrderClass(unittest.TestCase):
             {'name': 'order2', 'status__name': 'invalid'}
         ]
         with patch.object(self.order.repository, 'order_update') as mock_update:
-            fields, output = self.order.invalidate_expired_orders(1234567890)
+            _, output = self.order.invalidate_expired_orders(1234567890)
             self.assertIn('order1', [o['name'] for o in output])
             self.assertNotIn('order2', [o['name'] for o in output])
             mock_update.assert_called_once_with({'name': 'order1', 'status': 'invalid'})
@@ -439,18 +415,18 @@ class TestOrderClass(unittest.TestCase):
         with patch.object(self.order, '_name_get', return_value='order'):
             with patch.object(self.order, 'get_order_details', return_value={'status': 'ok'}):
                 with patch.object(self.order, '_process_order_request', return_value=(200, 'msg', 'detail', 'cert',)):
-                    code, msg, detail, cert, order = self.order._parse_order_message({'url': 'url'}, {}, None)
+                    code, _msg, _detail, _cert, _order = self.order._parse_order_message({'url': 'url'}, {}, None)
                     self.assertEqual(code, 200)
             # url in protected, order_name, no order_dic
             with patch.object(self.order, 'get_order_details', return_value={}):
-                code, msg, detail, cert, order = self.order._parse_order_message({'url': 'url'}, {}, None)
+                code, _msg, _detail, _cert, _order = self.order._parse_order_message({'url': 'url'}, {}, None)
                 self.assertEqual(code, 403)
             # url in protected, no order_name
             with patch.object(self.order, '_name_get', return_value=None):
-                code, msg, detail, cert, order = self.order._parse_order_message({'url': 'url'}, {}, None)
+                code, _msg, _detail, _cert, _order = self.order._parse_order_message({'url': 'url'}, {}, None)
                 self.assertEqual(code, 400)
         # no url in protected
-        code, msg, detail, cert, order = self.order._parse_order_message({}, {}, None)
+        code, _msg, _detail, _cert, _order = self.order._parse_order_message({}, {}, None)
         self.assertEqual(code, 400)
 
     def test_047_parse_order_content_success(self):
@@ -509,11 +485,11 @@ class TestOrderClass(unittest.TestCase):
         error = None
         with patch.object(self.order, '_add_authorizations_to_db', wraps=self.order._add_authorizations_to_db) as mock_add_authz:
             result = self.order._add_order_and_authorizations(data_dic, auth_dic, payload, error)
-            self.assertEqual(result, 'malformed')  # error is set to 'malformed' if oid is None
+            self.assertEqual(result, 'urn:ietf:params:acme:error:malformed')  # error is set to 'malformed' if oid is None
             self.handler.flush()
             log_contents = self.log_stream.getvalue()
             self.assertIn('CRITICAL:Database error: failed to add order: fail', log_contents)
-            self.assertIn('DEBUG:Order._add_order_and_authorizations() ended with malformed', log_contents)
+            self.assertIn('DEBUG:Order._add_order_and_authorizations() ended with urn:ietf:params:acme:error:malformed', log_contents)
             mock_add_authz.assert_called_once_with(None, payload, auth_dic)
 
     def test_052_add_order_and_authorizations_authz_db_error(self):
@@ -544,14 +520,14 @@ class TestOrderClass(unittest.TestCase):
         auth_dic = {}
         with patch('acme_srv.order.generate_random_string', return_value='authname'), \
              patch('acme_srv.helper.uts_now', return_value=1000), \
-             patch.object(self.order.repository, 'add_authorization') as mock_add_auth, \
+             patch.object(self.order.repository, 'add_authorization') as _mock_add_auth, \
              patch.object(self.order.repository, 'update_authorization') as mock_update_auth:
             error = self.order._add_authorizations_to_db('oid123', payload, auth_dic)
             self.assertIsNone(error)
             self.assertIn('authname', auth_dic)
             # Ensure update_authorization called with status 'valid'
             self.assertTrue(mock_update_auth.called)
-            called_args, called_kwargs = mock_update_auth.call_args
+            called_args, _called_kwargs = mock_update_auth.call_args
             self.assertEqual(called_args[0]['status'], 'valid')
         self.handler.flush()
         log_contents = self.log_stream.getvalue()
@@ -614,7 +590,7 @@ class TestOrderClass(unittest.TestCase):
         with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
                 patch('acme_srv.message.Message', return_value=self.mock_message), \
                 patch('acme_srv.order.OrderRepository', return_value=self.mock_repo):
-            order = Order(debug=True, server_name='test', logger=self.logger)
+            order = Order(debug=True, server_name='_', logger=self.logger)
             config_dic = {'Order': {'header_info_list': '["X-Header1"]'}}
             order._load_header_info_config(config_dic)
             config_dic = {'Order': {'header_info_list': 'notjson'}}
@@ -680,8 +656,8 @@ class TestOrderClass(unittest.TestCase):
         account_name = 'acct'
         with patch.object(self.order, '_check_identifiers_validity', return_value='rejectedidentifier') as mock_check, \
              patch.object(self.order, '_add_order_and_authorizations', return_value=None) as mock_add_order_authz:
-            error, order_name, auth_dic, expires = self.order.create_order(payload, account_name)
-            self.assertEqual(error, None)  # _add_order_and_authorizations returns None
+            error, _order_name, _auth_dic, _expires = self.order.create_order(payload, account_name)
+            self.assertIsNone(error)  # _add_order_and_authorizations returns None
             mock_check.assert_called_once()
             mock_add_order_authz.assert_called_once()
 
@@ -692,7 +668,7 @@ class TestOrderClass(unittest.TestCase):
         with patch.object(self.order, '_check_identifiers_validity', return_value=None) as mock_check, \
              patch.object(self.order, 'add_profile_to_order', return_value=('invalidprofile', {'status': 2, 'expires': 1234567890, 'account': account_name, 'name': 'randomstring', 'identifiers': '[{"type": "dns", "value": "example.com"}]'})) as mock_add_profile, \
              patch.object(self.order, '_add_order_and_authorizations', return_value=None) as mock_add_order_authz:
-            error, order_name, auth_dic, expires = self.order.create_order(payload, account_name)
+            error, _order_name, _auth_dic, _expires = self.order.create_order(payload, account_name)
             self.assertIsNone(error)
             mock_check.assert_called_once()
             mock_add_profile.assert_called_once()
@@ -704,7 +680,7 @@ class TestOrderClass(unittest.TestCase):
         account_name = 'acct'
         with patch.object(self.order, '_check_identifiers_validity', return_value=None) as mock_check, \
              patch.object(self.order, '_add_order_and_authorizations', return_value='someerror') as mock_add_order_authz:
-            error, order_name, auth_dic, expires = self.order.create_order(payload, account_name)
+            error, _order_name, _auth_dic, _expires = self.order.create_order(payload, account_name)
             self.assertEqual(error, 'someerror')
             mock_check.assert_called_once()
             mock_add_order_authz.assert_called_once()
@@ -713,11 +689,13 @@ class TestOrderClass(unittest.TestCase):
         # Payload missing 'identifiers', triggers unsupportedidentifier error
         payload = {'profile': 'foo'}
         account_name = 'acct'
-        error, order_name, auth_dic, expires = self.order.create_order(payload, account_name)
-        self.assertEqual(error, 'unsupportedidentifier')
-        self.assertEqual(order_name, 'randomstring')
-        self.assertIsInstance(auth_dic, dict)
-        self.assertEqual(expires, '2026-01-01T00:00:00Z')
+        with patch('acme_srv.order.generate_random_string', return_value='randomstring'), \
+            patch('acme_srv.order.uts_now', return_value=1234567890):
+            error, order_name, auth_dic, expires = self.order.create_order(payload, account_name)
+            self.assertEqual(error, 'urn:ietf:params:acme:error:unsupportedIdentifier')
+            self.assertEqual(order_name, 'randomstring')
+            self.assertIsInstance(auth_dic, dict)
+            self.assertEqual(expires, '2009-02-14T23:31:30Z')
 
     def test_067_create_order_logging(self):
         # Check all log messages with severity INFO and higher
@@ -985,25 +963,25 @@ class TestOrderClass(unittest.TestCase):
 
     def test_083_name_get_with_slash(self):
         # Should split and return first part if slash in order name
-        with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
-             patch('acme_srv.message.Message', return_value=self.mock_message), \
-             patch('acme_srv.order.OrderRepository', return_value=self.mock_repo), \
-             patch('acme_srv.order.parse_url', return_value={'path': '/acme/order/ord123/extra'}):
-            order = Order(debug=True, server_name='test', logger=self.logger)
-            result = order._name_get('/acme/order/ord123/extra')
-            self.assertEqual(result, 'ord123')
+           with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
+               patch('acme_srv.message.Message', return_value=self.mock_message), \
+               patch('acme_srv.order.OrderRepository', return_value=self.mock_repo), \
+               patch('acme_srv.order.parse_url', return_value={'path': '/acme/order/ord456/extra'}):
+              order = Order(debug=True, server_name='test', logger=self.logger)
+              result = order._name_get('/acme/order/ord456/extra')
+              self.assertEqual(result, 'ord456')
 
     def test_084_name_get_logging(self):
         # Should log debug messages using central logger and log_stream
         with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
              patch('acme_srv.message.Message', return_value=self.mock_message), \
              patch('acme_srv.order.OrderRepository', return_value=self.mock_repo), \
-             patch('acme_srv.order.parse_url', return_value={'path': '/acme/order/ord123'}):
+             patch('acme_srv.order.parse_url', return_value={'path': '/acme/order/ord789'}):
             order = Order(debug=True, server_name='test', logger=self.logger)
-            order._name_get('/acme/order/ord123')
+            order._name_get('/acme/order/ord789')
         self.handler.flush()
         log_contents = self.log_stream.getvalue()
-        self.assertIn('DEBUG:Order._name_get(/acme/order/ord123)', log_contents)
+        self.assertIn('DEBUG:Order._name_get(/acme/order/ord789)', log_contents)
         self.assertIn('DEBUG:Order._name_get() ended', log_contents)
 
     def test_085_are_identifiers_allowed_valid(self):
@@ -1062,23 +1040,25 @@ class TestOrderClass(unittest.TestCase):
 
     def test_090_rewrite_email_identifiers_basic(self):
         # Should rewrite DNS with @ to email
-           with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
-               patch('acme_srv.message.Message', return_value=self.mock_message), \
-               patch('acme_srv.order.OrderRepository', return_value=self.mock_repo):
-              order = Order(debug=True, server_name='test', logger=self.logger)
-              input_list = [{'type': 'dns', 'value': 'foo@bar.com'}]
-              result = order._rewrite_email_identifiers(input_list)
-              self.assertEqual(result[0]['type'], 'email')
+        with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
+             patch('acme_srv.message.Message', return_value=self.mock_message), \
+             patch('acme_srv.order.OrderRepository', return_value=self.mock_repo):
+            order = Order(debug=True, server_name='test', logger=self.logger)
+            input_list = [{'type': 'dns', 'value': 'foo@bar.com'}]
+            result = order._rewrite_email_identifiers(input_list)
+            self.assertEqual(result[0]['type'], 'email')
+            self.assertEqual(result[0]['value'], 'foo@bar.com')  # Additional assertion to differentiate
 
     def test_091_rewrite_email_identifiers_no_rewrite(self):
         # Should not rewrite if no @ in value
-           with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
-               patch('acme_srv.message.Message', return_value=self.mock_message), \
-               patch('acme_srv.order.OrderRepository', return_value=self.mock_repo):
-              order = Order(debug=True, server_name='test', logger=self.logger)
-              input_list = [{'type': 'dns', 'value': 'foobar.com'}]
-              result = order._rewrite_email_identifiers(input_list)
-              self.assertEqual(result[0]['type'], 'dns')
+        with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
+             patch('acme_srv.message.Message', return_value=self.mock_message), \
+             patch('acme_srv.order.OrderRepository', return_value=self.mock_repo):
+            order = Order(debug=True, server_name='test', logger=self.logger)
+            input_list = [{'type': 'dns', 'value': 'foobar.com'}]
+            result = order._rewrite_email_identifiers(input_list)
+            self.assertEqual(result[0]['type'], 'dns')
+            self.assertEqual(result[0]['value'], 'foobar.com')  # Additional assertion to differentiate
 
     def test_092_rewrite_email_identifiers_other_types(self):
         # Should not rewrite if type is not dns
@@ -1124,109 +1104,8 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._name_get(/acme/order/ord123)', log_contents)
         self.assertIn('DEBUG:Order._name_get() ended', log_contents)
 
-    def test_095_are_identifiers_allowed_valid(self):
-        # Should return None for valid identifiers
-           with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
-               patch('acme_srv.message.Message', return_value=self.mock_message), \
-               patch('acme_srv.order.OrderRepository', return_value=self.mock_repo), \
-               patch('acme_srv.order.validate_identifier', return_value=True):
-              order = Order(debug=True, server_name='test', logger=self.logger)
-              result = order.are_identifiers_allowed([{'type': 'dns', 'value': 'foo.com'}])
-              self.assertIsNone(result)
 
-    def test_096_are_identifiers_allowed_invalid_type(self):
-        # Should return unsupportedidentifier for unknown type
-           with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
-               patch('acme_srv.message.Message', return_value=self.mock_message), \
-               patch('acme_srv.order.OrderRepository', return_value=self.mock_repo), \
-               patch('acme_srv.order.validate_identifier', return_value=True):
-              order = Order(debug=True, server_name='test', logger=self.logger)
-              result = order.are_identifiers_allowed([{'type': 'foo', 'value': 'bar'}])
-              self.assertEqual(result, order.error_msg_dic['unsupportedidentifier'])
-
-    def test_097_are_identifiers_allowed_invalid_value(self):
-        # Should return rejectedidentifier if validate_identifier returns False
-           with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
-               patch('acme_srv.message.Message', return_value=self.mock_message), \
-               patch('acme_srv.order.OrderRepository', return_value=self.mock_repo), \
-               patch('acme_srv.order.validate_identifier', return_value=False):
-              order = Order(debug=True, server_name='test', logger=self.logger)
-              result = order.are_identifiers_allowed([{'type': 'dns', 'value': 'foo.com'}])
-              self.assertEqual(result, order.error_msg_dic['rejectedidentifier'])
-
-    def test_098_are_identifiers_allowed_missing_type(self):
-        # Should return malformed if type is missing
-           with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
-               patch('acme_srv.message.Message', return_value=self.mock_message), \
-               patch('acme_srv.order.OrderRepository', return_value=self.mock_repo):
-              order = Order(debug=True, server_name='test', logger=self.logger)
-              result = order.are_identifiers_allowed([{'value': 'foo.com'}])
-              self.assertEqual(result, order.error_msg_dic['malformed'])
-
-    def test_099_are_identifiers_allowed_tnauthlist_and_email(self):
-        # Should allow tnauthlist and email if config enabled
-           with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
-               patch('acme_srv.message.Message', return_value=self.mock_message), \
-               patch('acme_srv.order.OrderRepository', return_value=self.mock_repo), \
-               patch('acme_srv.order.validate_identifier', return_value=True):
-            order = Order(debug=True, server_name='test', logger=self.logger)
-            order.config.tnauthlist_support = True
-            order.config.email_identifier_support = True
-            result = order.are_identifiers_allowed([
-                {'type': 'tnauthlist', 'value': 'foo'},
-                {'type': 'email', 'value': 'bar'}
-            ])
-            self.assertIsNone(result)
-
-    def test_100_are_identifiers_allowed_logging(self):
-        # Should log debug messages and warning for unsupported type
-        self.log_stream.truncate(0)
-        self.log_stream.seek(0)
-        self.logger.setLevel(logging.DEBUG)
-        with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
-             patch('acme_srv.message.Message', return_value=self.mock_message), \
-             patch('acme_srv.order.OrderRepository', return_value=self.mock_repo), \
-             patch('acme_srv.order.validate_identifier', return_value=True):
-            order = Order(debug=True, server_name='test', logger=self.logger)
-            order.are_identifiers_allowed([{'type': 'foo', 'value': 'bar'}])
-        self.handler.flush()
-        log_contents = self.log_stream.getvalue()
-        self.assertIn('DEBUG:Order.are_identifiers_allowed()', log_contents)
-        self.assertIn('DEBUG:Order.are_identifiers_allowed() ended with:', log_contents)
-
-    def test_101_rewrite_email_identifiers_basic(self):
-        # Should rewrite DNS with @ to email
-           with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
-                patch('acme_srv.message.Message', return_value=self.mock_message), \
-                patch('acme_srv.order.OrderRepository', return_value=self.mock_repo):
-                order = Order(debug=True, server_name='test', logger=self.logger)
-                input_list = [{'type': 'dns', 'value': 'foo@bar.com'}]
-                result = order._rewrite_email_identifiers(input_list)
-                self.assertEqual(result[0]['type'], 'email')
-
-    def test_102_rewrite_email_identifiers_no_rewrite(self):
-        # Should not rewrite if no @ in value
-           with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
-               patch('acme_srv.message.Message', return_value=self.mock_message), \
-               patch('acme_srv.order.OrderRepository', return_value=self.mock_repo):
-              order = Order(debug=True, server_name='test', logger=self.logger)
-              input_list = [{'type': 'dns', 'value': 'foobar.com'}]
-              result = order._rewrite_email_identifiers(input_list)
-              self.assertEqual(result[0]['type'], 'dns')
-
-    def test_103_rewrite_email_identifiers_other_types(self):
-        # Should not rewrite if type is not dns
-        # This test is intentionally different from test_094 by checking the value as well
-        with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
-             patch('acme_srv.message.Message', return_value=self.mock_message), \
-             patch('acme_srv.order.OrderRepository', return_value=self.mock_repo):
-            order = Order(debug=True, server_name='test', logger=self.logger)
-            input_list = [{'type': 'email', 'value': 'foo@bar.com'}]
-            result = order._rewrite_email_identifiers(input_list)
-            self.assertEqual(result[0]['type'], 'email')
-            self.assertEqual(result[0]['value'], 'foo@bar.com')  # Additional assertion to differentiate
-
-    def test_104_process_csr_all_paths(self):
+    def test_095_process_csr_all_paths(self):
         # Covers: found, not found, error, logging
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1254,7 +1133,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._process_csr(', log_contents)
         self.assertIn('Order._process_csr() ended with order:', log_contents)
 
-    def test_105_process_csr_rejected_identifier(self):
+    def test_096_process_csr_rejected_identifier(self):
         # Covers: enroll_and_store returns rejectedIdentifier leading to 401
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1278,7 +1157,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._process_csr(', log_contents)
         self.assertIn('Order._process_csr() ended with order:', log_contents)
 
-    def test_106_process_csr_serverinternal_error(self):
+    def test_097_process_csr_serverinternal_error(self):
         # Covers: enroll_and_store returns serverinternal leading to 500
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1302,7 +1181,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._process_csr(', log_contents)
         self.assertIn('Order._process_csr() ended with order:', log_contents)
 
-    def test_107_process_csr_certificate_store_failure(self):
+    def test_098_process_csr_certificate_store_failure(self):
         # Covers: store_csr returns falsy leading to 500 and CSR processing failed detail
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1326,7 +1205,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._process_csr(', log_contents)
         self.assertIn('Order._process_csr() ended with order:', log_contents)
 
-    def test_108_finalize_order_all_paths(self):
+    def test_099_finalize_order_all_paths(self):
         # Covers: ready, valid/idempotent, not ready, logging
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1356,7 +1235,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._finalize_order()', log_contents)
         self.assertIn('DEBUG:Order._finalize_order() ended', log_contents)
 
-    def test_109_finalize_csr_updates_status_when_no_detail(self):
+    def test_100_finalize_csr_updates_status_when_no_detail(self):
         # When code==200 and no detail, order_status should update to valid
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1376,7 +1255,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._finalize_csr(order1)', log_contents)
         self.assertIn('DEBUG:Order._finalize_csr() ended', log_contents)
 
-    def test_110_finalize_csr_handles_timeout(self):
+    def test_101_finalize_csr_handles_timeout(self):
         # When certificate_name=='timeout', code is set to 200 and message=timeout
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1396,7 +1275,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._finalize_csr(order1)', log_contents)
         self.assertIn('DEBUG:Order._finalize_csr() ended', log_contents)
 
-    def test_111_finalize_csr_handles_rejected_identifier(self):
+    def test_102_finalize_csr_handles_rejected_identifier(self):
         # When certificate_name=='urn:ietf:params:acme:error:rejectedIdentifier', code=401 and message set
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1417,7 +1296,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._finalize_csr(order1)', log_contents)
         self.assertIn('DEBUG:Order._finalize_csr() ended', log_contents)
 
-    def test_112_finalize_csr_enrollment_failed_else_branch(self):
+    def test_103_finalize_csr_enrollment_failed_else_branch(self):
         # Else branch: message set to certificate_name and detail='enrollment failed'
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1437,7 +1316,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._finalize_csr(order1)', log_contents)
         self.assertIn('DEBUG:Order._finalize_csr() ended', log_contents)
 
-    def test_113_order_dic_create_all_paths(self):
+    def test_104_order_dic_create_all_paths(self):
         # Covers: all fields, parse error, logging
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1445,7 +1324,7 @@ class TestOrderClass(unittest.TestCase):
         with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
                 patch('acme_srv.message.Message', return_value=self.mock_message), \
                 patch('acme_srv.order.OrderRepository', return_value=self.mock_repo), \
-                patch('acme_srv.helper.uts_to_date_utc', return_value='2026-01-01T00:00:00Z'):
+                patch('acme_srv.order.uts_to_date_utc', return_value='2026-01-01T00:00:00Z'):
             order = Order(debug=True, server_name='test', logger=self.logger)
             tmp_dic = {
                 'status': 'pending',
@@ -1470,7 +1349,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._order_dic_create() ended', log_contents)
         self.assertIn('Error while parsing the identifier', log_contents)
 
-    def test_114_get_authorization_list_all_paths(self):
+    def test_105_get_authorization_list_all_paths(self):
         # Covers: success, db error, logging
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1485,7 +1364,7 @@ class TestOrderClass(unittest.TestCase):
             result = order._get_authorization_list('order1')
             self.assertIsInstance(result, list)
 
-    def test_115_get_authorization_list_all_paths(self):
+    def test_106_get_authorization_list_all_paths(self):
         # DB error path
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1504,7 +1383,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._get_authorization_list() ended', log_contents)
         self.assertIn('CRITICAL:Database error: failed to look up authorization list:', log_contents)
 
-    def test_116_update_validity_list_all_paths(self):
+    def test_107_update_validity_list_all_paths(self):
         # Covers: all code paths, logging
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1530,7 +1409,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._update_validity_list()', log_contents)
         self.assertIn('Order.get_order_details() ended', log_contents)
 
-    def test_117_get_order_details_all_paths(self):
+    def test_108_get_order_details_all_paths(self):
         # Covers: found, not found, logging
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1550,7 +1429,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order.get_order_details(', log_contents)
         self.assertIn('DEBUG:Order.get_order_details() ended', log_contents)
 
-    def test_118_invalidate_expired_orders_all_paths(self):
+    def test_109_invalidate_expired_orders_all_paths(self):
         # Covers: success, db error, logging
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1566,7 +1445,7 @@ class TestOrderClass(unittest.TestCase):
             result = order.invalidate_expired_orders()
             self.assertIsInstance(result, tuple)
 
-    def test_119_invalidate_expired_orders_all_paths(self):
+    def test_110_invalidate_expired_orders_all_paths(self):
         # DB error path
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1585,7 +1464,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order.invalidate_expired_orders() ended:', log_contents)
         self.assertIn('CRITICAL:Database error: failed to search for expired orders:', log_contents)
 
-    def test_120_create_from_content_all_paths(self):
+    def test_111_create_from_content_all_paths(self):
         # Covers: success, error, logging
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1610,7 +1489,7 @@ class TestOrderClass(unittest.TestCase):
         log_contents = self.log_stream.getvalue()
         self.assertIn('DEBUG:Order.create_from_content()', log_contents)
 
-    def test_121_process_order_request_all_paths(self):
+    def test_112_process_order_request_all_paths(self):
         # Covers: finalize, polling, cert found, cert not found, url missing, logging
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1640,7 +1519,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._process_order_request() ended with order:', log_contents)
 
 
-    def test_122_check_identifiers_validity_all_paths(self):
+    def test_113_check_identifiers_validity_all_paths(self):
         # Covers: valid, too many, malformed, email rewrite, allowed, rejected, and logging
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1665,7 +1544,7 @@ class TestOrderClass(unittest.TestCase):
             result = order._check_identifiers_validity(None)
             self.assertEqual(result, order.error_msg_dic['malformed'])
 
-    def test_123_check_identifiers_validity_all_paths(self):
+    def test_114_check_identifiers_validity_all_paths(self):
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
         self.logger.setLevel(logging.DEBUG)
@@ -1685,7 +1564,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._check_identifiers_validity(', log_contents)
         self.assertIn('DEBUG:Order._check_identifiers_validity() done with', log_contents)
 
-    def test_124_get_order_info_all_paths(self):
+    def test_115_get_order_info_all_paths(self):
         # Covers: successful lookup, DB error, logging
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1704,7 +1583,7 @@ class TestOrderClass(unittest.TestCase):
             log_contents = self.log_stream.getvalue()
             self.assertIn('DEBUG:Order._get_order_info(', log_contents)
 
-    def test_125_get_order_info_all_paths(self):
+    def test_116_get_order_info_all_paths(self):
         # Clear log buffer before error path
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1723,7 +1602,7 @@ class TestOrderClass(unittest.TestCase):
             self.assertIn('DEBUG:Order._get_order_info(', log_contents)
             self.assertIn('CRITICAL:Database error: failed to look up order:', log_contents)
 
-    def test_126_header_info_lookup_all_paths(self):
+    def test_117_header_info_lookup_all_paths(self):
         # Covers: header present, header missing, header_info_list missing, logging
         # Use central logger and log_stream from setUp
         with patch('acme_srv.db_handler.DBstore', return_value=self.mock_dbstore), \
@@ -1748,14 +1627,14 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn('DEBUG:Order._header_info_lookup()', log_contents)
         self.assertIn('DEBUG:Order._header_info_lookup() ended with:', log_contents)
 
-    def test_127_enter_loads_configuration_and_returns_self(self):
+    def test_118_enter_loads_configuration_and_returns_self(self):
         # Covers __enter__: should call _load_configuration and return self
         with patch.object(self.order, '_load_configuration') as mock_load_config:
             result = self.order.__enter__()
             mock_load_config.assert_called_once()
             self.assertIs(result, self.order)
 
-    def test_128_parse_order_content_adds_certificate(self):
+    def test_119_parse_order_content_adds_certificate(self):
         # Covers lines 976-978: certificate_name and status valid adds certificate path
         with patch.object(self.order.message, 'check', return_value=(200, None, None, {'url': 'url'}, {}, 'account')):
             with patch.object(self.order, '_parse_order_message', return_value=(200, None, None, 'cert123', 'order1')):
@@ -1766,7 +1645,7 @@ class TestOrderClass(unittest.TestCase):
                         result = self.order.parse_order_content('content')
                         self.assertIn('certificate', result['data'])
                         self.assertEqual(result['data']['certificate'], 'https://example.com/acme/cert/cert123')
-    def test_129_invalidate_expired_orders_update_error_logging(self):
+    def test_120_invalidate_expired_orders_update_error_logging(self):
         # Covers lines 831-840: order_update raises OrderDatabaseError and logs CRITICAL
         # Use central logger and log_stream from setUp
         self.order.logger = self.logger
@@ -1774,12 +1653,12 @@ class TestOrderClass(unittest.TestCase):
         self.order.repository.orders_invalid_search = MagicMock(return_value=[{'name': 'order1', 'status__name': 'pending'}])
         self.order.repository.order_update = MagicMock(side_effect=OrderDatabaseError('fail'))
         # Run
-        fields, output = self.order.invalidate_expired_orders(1234567890)
+        self.order.invalidate_expired_orders(1234567890)
         self.handler.flush()
         log_contents = self.log_stream.getvalue()
         self.assertIn('CRITICAL:Database error: failed to update order status to invalid: fail', log_contents)
 
-    def test_130_process_csr_generic_error(self):
+    def test_121_process_csr_generic_error(self):
         # Covers lines 681-684: error is not rejectedIdentifier or serverinternal
         with patch.object(self.order, '_get_order_info', return_value={'name': 'order1'}):
             cert_mock = MagicMock()
@@ -1791,19 +1670,19 @@ class TestOrderClass(unittest.TestCase):
                 self.assertEqual(result[0], 400)
                 self.assertEqual(result[1], 'someerror')
 
-    def test_131_process_csr_serverinternal_error(self):
+    def test_122_process_csr_serverinternal_error(self):
         # Covers lines 684-689: error == serverinternal triggers code=500
         with patch.object(self.order, '_get_order_info', return_value={'name': 'order1'}):
             cert_mock = MagicMock()
             cert_mock.store_csr.return_value = 'cert1'
-            cert_mock.enroll_and_store.return_value = ('serverinternal', 'detail')
+            cert_mock.enroll_and_store.return_value = ('urn:ietf:params:acme:error:serverInternal', 'detail')
             with patch('acme_srv.order.Certificate') as cert_class:
                 cert_class.return_value.__enter__.return_value = cert_mock
                 result = self.order._process_csr('order1', 'csr', 'header')
                 self.assertEqual(result[0], 500)
-                self.assertEqual(result[1], 'serverinternal')
+                self.assertEqual(result[1], 'urn:ietf:params:acme:error:serverInternal')
 
-    def test_132_process_order_request_db_error_logging(self):
+    def test_123_process_order_request_db_error_logging(self):
         # Covers: OrderDatabaseError in certificate_lookup and CRITICAL log
         self.log_stream.truncate(0)
         self.log_stream.seek(0)
@@ -1825,47 +1704,41 @@ class TestOrderClass(unittest.TestCase):
         log_contents = self.log_stream.getvalue()
         self.assertIn('CRITICAL:Database error: Certificate lookup failed: fail', log_contents)
 
-    def test_133_process_order_request_no_url(self):
+    def test_124_process_order_request_no_url(self):
         # Covers lines 634-638: protected dict missing 'url' and checks log
         with patch.object(self.order.logger, 'debug') as mock_debug:
             result = self.order._process_order_request('ordername', {}, {}, None)
             self.assertEqual(result[0], 400)
-            self.assertEqual(result[1], 'malformed')
+            self.assertEqual(result[1], 'urn:ietf:params:acme:error:malformed')
             self.assertEqual(result[2], 'url is missing in protected')
             self.assertIsNone(result[3])
-            expected_call = (
-                'Order._process_order_request() ended with order:%s %s:%s:%s',
-                'ordername', 400, 'malformed', 'url is missing in protected'
-            )
-            found = any(call_args[0] == expected_call for call_args in mock_debug.call_args_list)
-            self.assertTrue(found, f"Expected log call not found in: {mock_debug.call_args_list}")
+            mock_debug.assert_any_call('Order._process_order_request() ended with order:%s %s:%s:%s', 'ordername', 400, 'urn:ietf:params:acme:error:malformed', 'url is missing in protected')
 
-    def test_134_finalize_order_valid_OrderDatabaseError(self):
+    def test_125_finalize_order_valid_OrderDatabaseError(self):
         # Covers lines 593-597: status not ready
         self.mock_repo.order_lookup.return_value = {'status': 'valid'}
         self.order.config.idempotent_finalize = True
         self.order.repository.certificate_lookup.side_effect = OrderDatabaseError('db error')
         result = self.order._finalize_order('ordername', {}, None)
-
         self.assertEqual(result[0], 200)
-        self.assertEqual(result[1], None)
-        self.assertEqual(result[2], None)
+        self.assertIsNone(result[1])
+        self.assertIsNone(result[2])
         self.assertIsNone(result[3])
         # Extract critical log messages from the log stream
         self.handler.flush()
         log_contents = self.log_stream.getvalue()
         self.assertIn('CRITICAL:Database error: Certificate lookup failed: db error', log_contents)
 
-    def test_135_finalize_order_ready_nocsr(self):
+    def test_126_finalize_order_ready_nocsr(self):
         # Covers lines 593-597: status not ready
         self.mock_repo.order_lookup.return_value = {'status': 'ready'}
         result = self.order._finalize_order('ordername', {}, None)
         self.assertEqual(result[0], 400)
-        self.assertEqual(result[1], 'badcsr')
+        self.assertEqual(result[1], 'urn:ietf:params:acme:error:badCSR')
         self.assertEqual(result[2], 'csr is missing in payload')
         self.assertIsNone(result[3])
 
-    def test_136_finalize_csr_timeout(self):
+    def test_127_finalize_csr_timeout(self):
         # Patch _process_csr to return (200, 'timeout', 'not_none') so the elif branch is taken
         with patch.object(self.order, '_process_csr', return_value=(400, 'timeout', 'not_none')):
             result = self.order._finalize_csr('ordername', {'csr': 'csrdata'}, header=None)
@@ -1873,6 +1746,17 @@ class TestOrderClass(unittest.TestCase):
             self.assertEqual(result[1], 'timeout')
             self.assertEqual(result[2], 'not_none')
             self.assertEqual(result[3], 'timeout')
+
+    def test_128_from_content_rejectedidentifier_branch(self):
+        # Ensure the 'rejectedidentifier' error branch is covered
+        rejected = self.order.error_msg_dic["rejectedidentifier"]
+        with patch.object(self.order.message, 'check', return_value=(200, None, None, None, {'identifiers': [{'type': 'dns', 'value': 'a'}]}, 'account')):
+            with patch.object(self.order, 'create_order', return_value=(rejected, 'order', {}, '2026-01-01T00:00:00Z')):
+                with patch.object(self.order.message, 'prepare_response', side_effect=lambda resp, stat: {**resp, **stat}):
+                    result = self.order.create_from_content('content')
+                    self.assertEqual(result["code"], 403)
+                    self.assertEqual(result["type"], rejected)
+                    self.assertEqual(result["detail"], "Some of the requested identifiers got rejected")
 
 if __name__ == "__main__":
     unittest.main()

@@ -3,7 +3,7 @@
 from __future__ import print_function
 import json
 import copy
-from typing import Any, List, Tuple, Dict
+from typing import Any, List, Tuple, Dict, Optional
 from dataclasses import dataclass, field
 from acme_srv.helper import (
     b64_url_recode,
@@ -212,7 +212,7 @@ class Order(object):
         data_dic: Dict[str, str],
         auth_dic: Dict[str, str],
         payload: Dict[str, str],
-        error: str,
+        error: Optional[str] = None,
     ) -> Tuple[str, Dict[str, str]]:
         """Add order and its authorizations to the database. Returns error message or None."""
         self.logger.debug("Order._add_order_and_authorizations()")
@@ -516,7 +516,7 @@ class Order(object):
             result = None
         return result
 
-    def _header_info_lookup(self, header: str) -> str:
+    def _header_info_lookup(self, header: Optional[Dict[str, Any]]) -> str:
         """lookup header information and serialize them in a string"""
         self.logger.debug("Order._header_info_lookup()")
 
@@ -606,9 +606,8 @@ class Order(object):
                     "Database error: Certificate lookup failed: %s", err_
                 )
                 cert_dic = {}
-            if cert_dic:
-                if "name" in cert_dic:
-                    certificate_name = cert_dic["name"]
+            if cert_dic and "name" in cert_dic:
+                certificate_name = cert_dic["name"]
         else:
             code = 403
             message = self.error_msg_dic["ordernotready"]
@@ -622,7 +621,7 @@ class Order(object):
         order_name: str,
         protected: Dict[str, str],
         payload: Dict[str, str],
-        header: str = None,
+        header: Optional[str] = None,
     ) -> Tuple[int, str, str, str]:
         """process order"""
         self.logger.debug("Order._process_order_request({%s)", order_name)
@@ -648,9 +647,8 @@ class Order(object):
                         "Database error: Certificate lookup failed: %s", err_
                     )
                     cert_dic = {}
-                if cert_dic:
-                    if "name" in cert_dic:
-                        certificate_name = cert_dic["name"]
+                if cert_dic and "name" in cert_dic:
+                    certificate_name = cert_dic["name"]
         else:
             code = 400
             message = self.error_msg_dic["malformed"]
