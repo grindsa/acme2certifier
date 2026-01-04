@@ -7,6 +7,7 @@ from typing import Any, List, Tuple, Dict, Optional
 from dataclasses import dataclass, field
 from acme_srv.helper import (
     b64_url_recode,
+    config_allowed_domainlist_load,
     config_profile_load,
     error_dic_get,
     generate_random_string,
@@ -15,6 +16,8 @@ from acme_srv.helper import (
     uts_to_date_utc,
     uts_now,
     validate_identifier,
+    is_domain_whitelisted,
+    config_eab_profile_load,
 )
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
@@ -83,6 +86,13 @@ class OrderRepository:
         except Exception as err:
             raise OrderDatabaseError(f"Failed to look up authorization: {err}") from err
 
+    def account_lookup(self, key, value):
+        """Look up an account in the database."""
+        try:
+            return self.dbstore.account_lookup(key, value)
+        except Exception as err:
+            raise OrderDatabaseError(f"Failed to look up account: {err}") from err
+
     def certificate_lookup(self, key, value):
         """Look up a certificate in the database."""
         try:
@@ -127,6 +137,9 @@ class OrderConfiguration:
     profiles_sync: bool = False
     profiles_check_disable: bool = True
     idempotent_finalize: bool = False
+    allowed_domainlist: List[str] = field(default_factory=list)
+    eab_profiling: bool = False
+    eab_handler: Optional[Any] = None
 
 
 class Order(object):
@@ -246,6 +259,60 @@ class Order(object):
         self.logger.debug("Order.add_profile_to_order() ended with %s", error)
         return error, data_dic
 
+    def _apply_eab_profile(self, account_name: str) -> None:
+        """Apply EAB profile settings to the order configuration."""
+        self.logger.debug(
+            "Order._apply_eab_profile() - apply eab profile setting for account %s",
+            account_name,
+        )
+
+        if not self.config.eab_profiling:
+            return
+
+        try:
+            account_dic = self.repository.account_lookup("name", account_name)
+        except OrderDatabaseError as err_:
+            self.logger.critical(
+                "Database error: failed to look up account list: %s", err_
+            )
+            account_dic = {}
+
+        eab_kid = account_dic.get("eab_kid") if account_dic else None
+
+        if not eab_kid:
+            return
+
+        try:
+            with self.config.eab_handler(self.logger) as eab_handler:
+                profile_dic = eab_handler.key_file_load()
+                allowed_domainlist = (
+                    profile_dic.get(eab_kid, {})
+                    .get("order", {})
+                    .get("allowed_domainlist")
+                )
+                if not allowed_domainlist:
+                    allowed_domainlist = (
+                        profile_dic.get(eab_kid, {})
+                        .get("cahandler", {})
+                        .get("allowed_domainlist")
+                    )
+                    if allowed_domainlist:
+                        self.logger.warning(
+                            "allowed_domainlist parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section"
+                        )
+                if allowed_domainlist:
+                    self.logger.debug(
+                        "Order._apply_eab_profile() - apply allowed_domainlist from eab profile."
+                    )
+                    self.config.allowed_domainlist = allowed_domainlist
+        except Exception as err:
+            self.logger.error(
+                "Failed to process EAB profile for Account %s (kid: %s): %s",
+                account_name,
+                eab_kid,
+                err,
+            )
+
     def create_order(
         self, payload: Dict[str, str], account_name: str
     ) -> Tuple[str, str, Dict[str, str], int]:
@@ -253,20 +320,27 @@ class Order(object):
         self.logger.debug("Order.create_order(%s)", account_name)
 
         error = None
+        detail = None
         auth_dic = {}
         order_name = generate_random_string(self.logger, 12)
         expires = uts_now() + self.config.validity
+
+        # apply eab profiling if enabled
+        if self.config.eab_profiling and self.config.eab_handler:
+            self._apply_eab_profile(account_name)
 
         if "identifiers" in payload:
             data_dic = {"status": 2, "expires": expires, "account": account_name}
             data_dic["name"] = order_name
             data_dic["identifiers"] = json.dumps(payload["identifiers"])
-            error = self._check_identifiers_validity(payload["identifiers"])
+            error, detail = self._check_identifiers_validity(payload["identifiers"])
             if error:
                 data_dic["status"] = 1
             else:
                 if "profile" in payload:
                     (error, data_dic) = self.add_profile_to_order(data_dic, payload)
+                    if error == self.error_msg_dic["invalidprofile"]:
+                        detail = "Invalid profile specified"
             error = self._add_order_and_authorizations(
                 data_dic, auth_dic, payload, error
             )
@@ -274,7 +348,7 @@ class Order(object):
             error = self.error_msg_dic["unsupportedidentifier"]
 
         self.logger.debug("Order.create_order() ended")
-        return (error, order_name, auth_dic, uts_to_date_utc(expires))
+        return (error, detail, order_name, auth_dic, uts_to_date_utc(expires))
 
     def _load_header_info_config(self, config_dic: Dict[str, str]):
         """Load header info list from config file."""
@@ -422,6 +496,17 @@ class Order(object):
                 for k, v in self.path_dic.items()
             }
         self._load_profile_config(config_dic)
+
+        # load allowed domainlist
+        self.config.allowed_domainlist = config_allowed_domainlist_load(
+            self.logger, config_dic
+        )
+        # load profiling
+        (
+            self.config.eab_profiling,
+            self.config.eab_handler,
+        ) = config_eab_profile_load(self.logger, config_dic)
+
         self.logger.debug("Order._config_load() ended.")
 
     def _name_get(self, url: str) -> str:
@@ -435,76 +520,164 @@ class Order(object):
         self.logger.debug("Order._name_get() ended")
         return order_name
 
-    def are_identifiers_allowed(self, identifiers_list: List[str]) -> bool:
+    def are_identifiers_allowed(self, identifiers_list: List[str]) -> Tuple[str, str]:
         """Check if the provided identifiers are allowed."""
         self.logger.debug("Order.are_identifiers_allowed()")
         error = None
-        allowed_identifers = ["dns", "ip"]
-        if self.config.tnauthlist_support:
-            allowed_identifers.append("tnauthlist")
-        if self.config.email_identifier_support:
-            allowed_identifers.append("email")
+        detail = None
+        allowed_identifiers = self._get_allowed_identifier_types()
         for identifier in identifiers_list:
-            if "type" in identifier:
-                # pylint: disable=R1723
-                if identifier["type"].lower() not in allowed_identifers:
-                    error = self.error_msg_dic["unsupportedidentifier"]
-                    break
-                else:
-                    if not validate_identifier(
-                        self.logger,
-                        identifier["type"].lower(),
-                        identifier["value"],
-                        self.config.tnauthlist_support,
-                    ):
-                        error = self.error_msg_dic["rejectedidentifier"]
-                        break
-            else:
-                error = self.error_msg_dic["malformed"]
+            error, detail = self._check_single_identifier(
+                identifier, allowed_identifiers
+            )
+            if error:
+                break
         self.logger.debug("Order.are_identifiers_allowed() ended with: %s", error)
-        return error
+        return error, detail
+
+    def _get_allowed_identifier_types(self) -> List[str]:
+        allowed = ["dns", "ip"]
+        if self.config.tnauthlist_support:
+            allowed.append("tnauthlist")
+        if self.config.email_identifier_support:
+            allowed.append("email")
+        return allowed
+
+    def _check_single_identifier(
+        self, identifier: dict, allowed_identifiers: List[str]
+    ) -> Tuple[str, str]:
+        """Check if a single identifier is allowed."""
+        self.logger.debug("Order._check_single_identifier(%s)", identifier)
+
+        # check if type is present
+        if "type" not in identifier:
+            self.logger.error("Identifier type is missing")
+            return self.error_msg_dic["malformed"], "identifier type is missing"
+
+        # check if type ius allowd
+        id_type = identifier["type"].lower()
+        if id_type not in allowed_identifiers:
+            self.logger.error("Identifier type %s not supported", identifier["type"])
+            return (
+                self.error_msg_dic["unsupportedidentifier"],
+                f'identifier type {identifier["type"]} not supported',
+            )
+
+        # check if value is valid
+        if not validate_identifier(
+            self.logger,
+            id_type,
+            identifier["value"],
+            self.config.tnauthlist_support,
+        ):
+            self.logger.error(
+                "Identifier value %s not allowed for type %s",
+                identifier["value"],
+                identifier["type"],
+            )
+            return (
+                self.error_msg_dic["rejectedidentifier"],
+                f'identifier value {identifier["value"]} not allowed',
+            )
+
+        # check allowed domainlist for dns identifiers
+        if (
+            id_type == "dns"
+            and self.config.allowed_domainlist
+            and not is_domain_whitelisted(
+                self.logger,
+                identifier["value"],
+                self.config.allowed_domainlist,
+            )
+        ):
+            self.logger.error(
+                "FQDN/SAN %s not allowed by configuration",
+                identifier["value"],
+            )
+            return (
+                self.error_msg_dic["rejectedidentifier"],
+                f'FQDN/SAN {identifier["value"]} not allowed by configuration',
+            )
+        return None, None
 
     def _rewrite_email_identifiers(
         self, identifiers_list: List[Dict[str, str]]
     ) -> List[Dict[str, str]]:
         """Rewrite DNS identifiers with @ to email identifiers."""
         self.logger.debug("Order._rewrite_email_identifiers()")
-        identifiers_modified = []
-        for ident in identifiers_list:
-            if (
-                "type" in ident
-                and "value" in ident
-                and ident["type"].lower() == "dns"
-                and "@" in ident["value"]
-            ):
-                self.logger.info(
-                    "Rewrite DNS identifier '%s' to email identifier",
-                    ident["value"],
-                )
-                ident["type"] = "email"
-            identifiers_modified.append(ident)
+
+        if (
+            self.config.email_identifier_support
+            and self.config.email_identifier_rewrite
+        ):
+            identifiers_modified = []
+            for ident in identifiers_list:
+                if (
+                    "type" in ident
+                    and "value" in ident
+                    and ident["type"].lower() == "dns"
+                    and "@" in ident["value"]
+                ):
+                    self.logger.info(
+                        "Rewrite DNS identifier '%s' to email identifier",
+                        ident["value"],
+                    )
+                    ident["type"] = "email"
+                identifiers_modified.append(ident)
+        else:
+            identifiers_modified = identifiers_list
+
         self.logger.debug("Order._rewrite_email_identifiers() ended")
         return identifiers_modified
 
-    def _check_identifiers_validity(self, identifiers_list: List[str]) -> str:
+    def _check_identifier_limit(self, identifiers_list: List[str]) -> bool:
+        """Check and log if identifier limit is exceeded."""
+        self.logger.debug("Order._check_identifier_limit()")
+        error = False
+        if len(identifiers_list) > self.config.identifier_limit:
+            self.logger.warning(
+                "Number of identifiers %d exceeds limit %d",
+                len(identifiers_list),
+                self.config.identifier_limit,
+            )
+            error = True
+        return error
+
+    def _check_identifiers_validity(
+        self, identifiers_list: List[str]
+    ) -> Tuple[str, str]:
         """Check validity of identifiers in the order."""
         self.logger.debug("Order._check_identifiers_validity(%s)", identifiers_list)
+        # make a deep copy to avoid modifying the original list
         identifiers_list = copy.deepcopy(identifiers_list)
+
         if identifiers_list and isinstance(identifiers_list, list):
-            if len(identifiers_list) > self.config.identifier_limit:
-                error = self.error_msg_dic["rejectedidentifier"]
-                self.logger.warning("Number of identifiers %d exceeds limit %d", len(identifiers_list), self.config.identifier_limit)
-            else:
-                if (
-                    self.config.email_identifier_support
-                    and self.config.email_identifier_rewrite
-                ):
-                    identifiers_list = self._rewrite_email_identifiers(identifiers_list)
-                error = self.are_identifiers_allowed(identifiers_list)
+
+            # rewrite email identifiers if configured
+            identifiers_list = self._rewrite_email_identifiers(identifiers_list)
+
+            # check identifier limit
+            if self._check_identifier_limit(identifiers_list):
+                return (
+                    self.error_msg_dic["rejectedidentifier"],
+                    "identifier limit exceeded",
+                )
+
+            # check if identifier types and values are allowed
+            error, detail = self.are_identifiers_allowed(identifiers_list)
+            if error:
+                self.logger.debug(
+                    "Order._check_identifiers_validity() ended with %s:", error
+                )
+                return error, detail
+
         else:
+            # malformed identifiers list
             error = self.error_msg_dic["malformed"]
+            detail = "malformed identifiers list"
+
         self.logger.debug("Order._check_identifiers_validity() done with %s:", error)
-        return error
+        return error, detail
 
     def _get_order_info(self, order_name: str) -> Dict[str, str]:
         """List details of an order. Returns order dict or empty dict on error."""
@@ -859,7 +1032,7 @@ class Order(object):
         )
 
         if code == 200:
-            (error, order_name, auth_dic, expires) = self.create_order(
+            (error, detail, order_name, auth_dic, expires) = self.create_order(
                 payload, account_name
             )
             if not error:
@@ -881,10 +1054,14 @@ class Order(object):
                         f'{self.server_name}{self.path_dic["authz_path"]}{auth_name}'
                     )
                     response_dic["data"]["identifiers"].append(value)
-            elif error == self.error_msg_dic["rejectedidentifier"]:
+            elif error in [
+                self.error_msg_dic["rejectedidentifier"],
+                self.error_msg_dic["invalidprofile"],
+            ]:
                 code = 403
                 message = error
-                detail = "Some of the requested identifiers got rejected"
+                if not detail:
+                    detail = "Some of the requested identifiers got rejected"
             else:
                 code = 400
                 message = error
