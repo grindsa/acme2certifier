@@ -70,7 +70,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
     - name: "Generate UUID"
       run: |
@@ -203,7 +203,7 @@ jobs:
 
     - name: "Verify allowed_domainlist error"
       run: |
-        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
+        docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
 
     - name: "Generate UUID"
       run: |
