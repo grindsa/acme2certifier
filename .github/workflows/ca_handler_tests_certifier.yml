@@ -79,7 +79,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker compose logs | grep "allowed_domainlist" | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+        docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
     - name: "No profile - Enrollmnet"
       uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_no_profile
