@@ -235,7 +235,7 @@ jobs:
     - name: "NTLM Headerinfo - Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker compose logs | grep "allowed_domainlist" | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+        docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
     - name: "NTLM ACME Profiling - Setup a2c with mscertsrv_ca_handler"
       run: |
@@ -714,7 +714,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker compose logs | grep "allowed_domainlist" | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+        docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
     - name: "KRB ACME Profile - Setup a2c with ms_wcce_ca_handler"
       run: |
