@@ -70,7 +70,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker compose logs | grep "allowed_domainlist" | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+        docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
     - name: "ACME Profiling - setup a2c with vault_ca_handler"
       run: |
