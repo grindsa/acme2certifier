@@ -137,7 +137,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
     - name: "Setup a2c with cmp_ca_handler with PSK refnum authentication"
       run: |
@@ -209,7 +209,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
     - name: "Check container configuration"
       uses: ./.github/actions/container_check
@@ -373,7 +373,7 @@ jobs:
 
     - name: "Verify allowed_domainlist error"
       run: |
-        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
+        docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}
@@ -533,7 +533,7 @@ jobs:
 
     - name: "Verify allowed_domainlist error"
       run: |
-        docker exec acme-srv grep -i "Either CN or SANs are not allowed by configuration" /var/log/messages
+        docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
 
     - name: "[ * ] collecting test logs"
       if: ${{ failure() }}

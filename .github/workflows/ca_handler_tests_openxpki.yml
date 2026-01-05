@@ -126,7 +126,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
     - name: "Delete acme-sh, letsencypt and lego folders"
       run: |
@@ -162,7 +162,7 @@ jobs:
     - name: "Verify allowed_domainlist error"
       run: |
         cd examples/Docker
-        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+        docker compose logs | grep "allowed_domainlist" | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
     - name: "ACME Profiling - setup a2c with openxpki_ca_handler"
       run: |
@@ -383,7 +383,7 @@ jobs:
 
     # - name: "Verify allowed_domainlist error"
     #  run: |
-    #    docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
+    #    docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
 
     - name: "Delete acme-sh, letsencypt and lego folders"
       run: |
