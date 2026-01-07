@@ -22,7 +22,7 @@ from acme_srv.authorization import (
     AuthorizationRepository,
     AuthorizationBusinessLogic,
     ChallengeSetManager,
-    AuthorizationConfig,
+    AuthorizationConfiguration,
     AuthorizationData,
     AuthorizationError,
     AuthorizationNotFoundError,
@@ -31,19 +31,19 @@ from acme_srv.authorization import (
 )
 
 
-class TestAuthorizationConfig(unittest.TestCase):
-    """Test AuthorizationConfig dataclass"""
+class TestAuthorizationConfiguration(unittest.TestCase):
+    """Test AuthorizationConfiguration dataclass"""
 
     def test_001_config_default_values(self):
         """Test default configuration values"""
-        config = AuthorizationConfig()
+        config = AuthorizationConfiguration()
         self.assertEqual(config.validity, 86400)
         self.assertFalse(config.expiry_check_disable)
         self.assertEqual(config.authz_path, "/acme/authz/")
 
     def test_002_config_custom_values(self):
         """Test custom configuration values"""
-        config = AuthorizationConfig(
+        config = AuthorizationConfiguration(
             validity=172800, expiry_check_disable=True, authz_path="/custom/authz/"
         )
         self.assertEqual(config.validity, 172800)
@@ -370,7 +370,7 @@ class TestAuthorizationBusinessLogic(unittest.TestCase):
     """Test AuthorizationBusinessLogic class"""
 
     def setUp(self):
-        self.config = AuthorizationConfig()
+        self.config = AuthorizationConfiguration()
         self.mock_repository = Mock()
         self.mock_logger = Mock()
         self.business_logic = AuthorizationBusinessLogic(
@@ -691,7 +691,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIsNone(authorization.server_name)
         self.assertFalse(authorization.debug)
         self.assertEqual(authorization.logger, self.mock_logger)
-        self.assertIsInstance(authorization.config, AuthorizationConfig)
+        self.assertIsInstance(authorization.config, AuthorizationConfiguration)
         self.assertIsInstance(authorization.repository, AuthorizationRepository)
         self.assertIsInstance(authorization.business_logic, AuthorizationBusinessLogic)
         self.assertIsInstance(authorization.challenge_manager, ChallengeSetManager)
@@ -1357,25 +1357,6 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(result.get("error"), "malformed")
 
     def test_075_handle_post_request_authorization_lookup_failed(self):
-        self.mock_message.check.return_value = (
-            200,
-            "OK",
-            "",
-            {},
-            {},
-            "account",
-        )  # No "url" in protected
-        self.mock_message.prepare_response.return_value = {"error": "malformed"}
-
-        result = authorization.handle_post_request('{"test": "content"}')
-
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get("code"), 400)
-        self.assertIn("header", result)
-        self.assertIn("data", result)
-        self.assertEqual(result["data"].get("status"), 400)
-
-    def test_0070_handle_post_request_authorization_lookup_failed(self):
         """Test POST request handling when authorization lookup fails"""
         authorization = Authorization(logger=self.mock_logger)
         # Patch check to return a valid url in protected
@@ -1412,15 +1393,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get("error"), "unauthorized")
 
-        result = authorization.handle_post_request('{"test": "content"}')
-
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get("code"), 400)
-        self.assertIn("header", result)
-        self.assertIn("data", result)
-        self.assertEqual(result["data"].get("status"), 400)
-
-    def test_0071_handle_post_request_authorization_error(self):
+    def test_076_handle_post_request_authorization_error(self):
         """Test POST request handling when authorization error occurs"""
         authorization = Authorization(logger=self.mock_logger)
         # Patch check to return a valid url in protected
@@ -1496,13 +1469,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get("error"), "unauthorized")
 
-        self.assertIsInstance(result, dict)
-        self.assertEqual(result.get("code"), 400)
-        self.assertIn("header", result)
-        self.assertIn("data", result)
-        self.assertEqual(result["data"].get("status"), 400)
-
-    def test_0072_new_get_backward_compatibility(self):
+    def test_078_new_get_backward_compatibility(self):
         """Test new_get backward compatibility method"""
         authorization = Authorization(logger=self.mock_logger)
 
@@ -1807,27 +1774,27 @@ class TestAuthorizationExceptions(unittest.TestCase):
         self.assertEqual(str(context.exception), "Configuration invalid")
         self.assertIsInstance(context.exception, AuthorizationError)
 
-    def test_0075_authorization_error(self):
+    def test_096_authorization_error(self):
         """Test AuthorizationError exception"""
         with self.assertRaises(AuthorizationError) as context:
             raise AuthorizationError("Test error message")
         self.assertEqual(str(context.exception), "Test error message")
 
-    def test_0076_authorization_not_found_error(self):
+    def test_097_authorization_not_found_error(self):
         """Test AuthorizationNotFoundError exception"""
         with self.assertRaises(AuthorizationNotFoundError) as context:
             raise AuthorizationNotFoundError("Authorization not found")
         self.assertEqual(str(context.exception), "Authorization not found")
         self.assertIsInstance(context.exception, AuthorizationError)
 
-    def test_0077_authorization_expired_error(self):
+    def test_098_authorization_expired_error(self):
         """Test AuthorizationExpiredError exception"""
         with self.assertRaises(AuthorizationExpiredError) as context:
             raise AuthorizationExpiredError("Authorization expired")
         self.assertEqual(str(context.exception), "Authorization expired")
         self.assertIsInstance(context.exception, AuthorizationError)
 
-    def test_0078_configuration_error(self):
+    def test_099_configuration_error(self):
         """Test ConfigurationError exception"""
         with self.assertRaises(ConfigurationError) as context:
             raise ConfigurationError("Configuration invalid")
