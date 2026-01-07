@@ -74,11 +74,11 @@ The Renewalinfo subsystem implements a modular, maintainable architecture using 
 
 ### Certificate Lookup and Renewal Info Generation
 
-- **Request Handling**: Public `get()` method receives a URL, parses the renewal info string.
-- **Housekeeping**: Ensures certificate table is up-to-date (triggers update if needed).
-- **Certificate Lookup**: Uses repository to find certificate by certid or serial/AKI.
-- **Renewal Window Calculation**: Computes suggested renewal window based on config and certificate data.
-- **Response Construction**: Returns structured response with renewal info or error details.
+1. **Request Handling**: Public `get()` method receives a URL, parses the renewal info string.
+2. **Housekeeping**: Ensures certificate table is up-to-date (triggers update if needed).
+3. **Certificate Lookup**: Uses repository to find certificate by certid or serial/AKI.
+4. **Renewal Window Calculation**: Computes suggested renewal window based on config and certificate data.
+5. **Response Construction**: Returns structured response with renewal info or error details.
 
 ### Configuration Loading
 
