@@ -534,15 +534,20 @@ class Order(object):
         # check if type is present
         if "type" not in identifier:
             self.logger.error("Identifier type is missing")
-            return self.error_msg_dic["malformed"], "identifier type is missing"
+            return self.error_msg_dic["malformed"], "Identifier type is missing"
 
-        # check if type ius allowd
+        # check if value is present
+        if "value" not in identifier:
+            self.logger.error("Identifier value is missing")
+            return self.error_msg_dic["malformed"], "Identifier value is missing"
+
+        # check if type is allowd
         id_type = identifier["type"].lower()
         if id_type not in allowed_identifiers:
             self.logger.error("Identifier type %s not supported", identifier["type"])
             return (
                 self.error_msg_dic["unsupportedidentifier"],
-                f'identifier type {identifier["type"]} not supported',
+                f'Identifier type {identifier["type"]} not supported',
             )
 
         # check if value is valid
@@ -1042,6 +1047,11 @@ class Order(object):
                 message = error
                 if not detail:
                     detail = "Some of the requested identifiers got rejected"
+            elif error == self.error_msg_dic["malformed"]:
+                code = 400
+                message = error
+                if not detail:
+                    detail = "One of the requested identifiers is not supported"
             else:
                 code = 400
                 message = error
