@@ -11,6 +11,7 @@ from acme_srv.helper import (
     uts_to_date_utc,
     error_dic_get,
     load_config,
+    ca_handler_load,
     uts_now,
     cert_serial_get,
     cert_aki_get,
@@ -26,6 +27,7 @@ class RenewalinfoConfig:
     renewal_force: bool = False
     renewalthreshold_pctg: float = 85.0
     retry_after_timeout: int = 86400
+    renewalinfo_lookup: bool = False
 
 
 class RenewalinfoRepository:
@@ -120,6 +122,7 @@ class Renewalinfo(object):
         self.err_msg_dic = error_dic_get(self.logger)
         self.config = RenewalinfoConfig()
         self.repository = RenewalinfoRepository(self.dbstore, self.logger)
+        self.cahandler = None
 
     def _load_configuration(self):
         """Load renewalinfo configuration from file (harmonized approach)"""
@@ -152,7 +155,39 @@ class Renewalinfo(object):
                 self.logger.error("retry_after_timeout parsing error: %s", err_)
                 self.config.retry_after_timeout = 86400
 
+        self._load_ca_handler(config_dic)
+        self._parse_cahandler_section(config_dic)
+
         self.logger.debug("Renewalinfo._load_configuration() ended.")
+
+    def _parse_cahandler_section(self, config_dic: object) -> None:
+        """Parse the [CAHandler] section for ACME URL and profile sync settings."""
+        self.logger.debug("Directory._parse_cahandler_section()")
+        if "CAhandler" in config_dic:
+            cfg_dic = dict(config_dic["CAhandler"])
+            self.config.acme_url = cfg_dic.get("acme_url", None)
+
+            try:
+                self.config.renewalinfo_lookup = config_dic.getboolean(
+                    "CAhandler", "renewalinfo_lookup", fallback=False
+                )
+            except Exception as err_:
+                self.logger.error("renewalinfo_lookup parsing error: %s", err_)
+                self.config.renewalinfo_lookup = False
+
+        if self.config.renewalinfo_lookup and not self.config.acme_url:
+            self.logger.error("CAhandler section incomplete for renewalinfo lookup")
+            self.config.renewalinfo_lookup = False
+
+        self.logger.debug("Directory._parse_cahandler_section() ended")
+
+    def _load_ca_handler(self, config_dic: object) -> None:
+        """Load the CA handler module as configured."""
+        ca_handler_module = ca_handler_load(self.logger, config_dic)
+        if ca_handler_module:
+            self.cahandler = ca_handler_module.CAhandler
+        else:
+            self.logger.critical("No ca_handler loaded")
 
     def __enter__(self):
         self._load_configuration()
@@ -319,20 +354,32 @@ class Renewalinfo(object):
     def get(self, url: str) -> Dict[str, str]:
         """Get renewal information (backwards compatible public method)"""
         self.logger.debug("Renewalinfo.get()")
-        if not self.repository.get_housekeeping_param("cert_aki_serial_update"):
-            self._update_certificate_table_with_serial_and_aki()
-            self.logger.debug("Renewalinfo.get() - update housekeeping")
-            self.repository.add_housekeeping_param(
-                {"name": "cert_aki_serial_update", "value": True}
-            )
+
         renewalinfo_string = self._parse_renewalinfo_string_from_url(url)
-        try:
-            renewalinfo_dic = self._get_renewalinfo_data(renewalinfo_string)
-            rc_code = 200 if renewalinfo_dic else 404
-        except Exception as err_:
-            self.logger.error("Error when getting renewal information: %s", err_)
-            renewalinfo_dic = {}
-            rc_code = 400
+        if self.config.renewalinfo_lookup and hasattr(
+            self.cahandler, "lookup_renewalinfo"
+        ):
+            with self.cahandler(None, self.logger) as ca_handler:
+                # get renewal info from CA handler
+                rc_code, renewalinfo_dic = ca_handler.lookup_renewalinfo(
+                    self.config.acme_url, renewalinfo_string
+                )
+        else:
+            # ensure serial and aki fields are populated in certificate table
+            if not self.repository.get_housekeeping_param("cert_aki_serial_update"):
+                self._update_certificate_table_with_serial_and_aki()
+                self.logger.debug("Renewalinfo.get() - update housekeeping")
+                self.repository.add_housekeeping_param(
+                    {"name": "cert_aki_serial_update", "value": True}
+                )
+
+            try:
+                renewalinfo_dic = self._get_renewalinfo_data(renewalinfo_string)
+                rc_code = 200 if renewalinfo_dic else 404
+            except Exception as err_:
+                self.logger.error("Error when getting renewal information: %s", err_)
+                renewalinfo_dic = {}
+                rc_code = 400
         response_dic = {"code": rc_code}
         if renewalinfo_dic:
             response_dic["data"] = renewalinfo_dic

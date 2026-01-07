@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """Authorization class - refactored version"""
-# pylint: disable=R0913
+# pylint: disable=R0913, R1705
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict, Optional, Any
@@ -49,7 +49,7 @@ class ConfigurationError(AuthorizationError):
 
 
 @dataclass
-class AuthorizationConfig:
+class AuthorizationConfiguration:
     """Configuration for Authorization operations"""
 
     validity: int = 86400
@@ -227,7 +227,10 @@ class AuthorizationBusinessLogic:
     """Business logic for authorization operations"""
 
     def __init__(
-        self, config: AuthorizationConfig, repository: AuthorizationRepository, logger
+        self,
+        config: AuthorizationConfiguration,
+        repository: AuthorizationRepository,
+        logger,
     ):
         self.config = config
         self.repository = repository
@@ -384,7 +387,7 @@ class Authorization(object):
         self.nonce = Nonce(debug, self.logger)
 
         # Initialize components immediately
-        self.config = AuthorizationConfig()
+        self.config = AuthorizationConfiguration()
         self.repository = AuthorizationRepository(self.dbstore, self.logger)
         self.business_logic = AuthorizationBusinessLogic(
             self.config, self.repository, self.logger
@@ -404,9 +407,10 @@ class Authorization(object):
 
     def __exit__(self, *args):
         """Close the connection at the end of the context"""
+        # pylint: disable=unnecessary-pass
         pass
 
-    def _load_configuration(self) -> AuthorizationConfig:
+    def _load_configuration(self) -> AuthorizationConfiguration:
         """Load configuration from file"""
         self.logger.debug("Authorization._load_configuration()")
 
@@ -437,9 +441,10 @@ class Authorization(object):
                         "Authorization", "prevalidated_domainlist", fallback="null"
                     )
                 )
-                self.logger.warning(
-                    "Prevalidated list of domains loaded globally. Such configuration is NOT recommended as this is a severe security risk!"
-                )
+                if self.config.prevalidated_domainlist:
+                    self.logger.warning(
+                        "Prevalidated list of domains loaded globally. Such configuration is NOT recommended as this is a severe security risk!"
+                    )
             except json.JSONDecodeError as err:
                 self.config.prevalidated_domainlist = None
                 raise ConfigurationError(
