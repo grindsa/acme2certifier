@@ -478,7 +478,7 @@ class TestChallenge(unittest.TestCase):
         config_dic = {"DEFAULT": {"proxy_server_list": "badjson"}}
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.challenge._load_proxy_configuration(config_dic)
-        self.assertFalse(hasattr(self.challenge, "proxy_server_list"))
+        self.assertFalse(self.challenge.proxy_server_list)
         self.assertIn(
             "WARNING:test_a2c:Failed to load proxy_server_list from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
