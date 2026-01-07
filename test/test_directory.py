@@ -1,689 +1,268 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-"""unittests for account.py"""
-# pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
-import configparser
+from unittest.mock import MagicMock, patch
+import os
 import sys
-from unittest.mock import patch, MagicMock
 
-sys.path.insert(0, ".")
-sys.path.insert(1, "..")
+# Add the parent directory to sys.path so we can import acme_srv
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-
-class FakeDBStore(object):
-    """face DBStore class needed for mocking"""
-
-    # pylint: disable=W0107, R0903
-    pass
+from acme_srv.directory import Directory, DirectoryConfig, DirectoryRepository
 
 
-class TestACMEHandler(unittest.TestCase):
-    """test class for ACMEHandler"""
-
-    acme = None
-
+class TestDirectory(unittest.TestCase):
     def setUp(self):
-        """setup unittest"""
-        models_mock = MagicMock()
-        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
-        modules = {"acme_srv.db_handler": models_mock}
-        patch.dict("sys.modules", modules).start()
-        import logging
-
-        logging.basicConfig(level=logging.CRITICAL)
-        self.logger = logging.getLogger("test_a2c")
-        from acme_srv.directory import Directory
-
-        self.directory = Directory(False, "http://tester.local", self.logger)
-
-    def test_001_directory_servername_get(self):
-        """test Directory.get_server_name() method"""
-        self.assertEqual("http://tester.local", self.directory.servername_get())
-
-    def test_002_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "newnonce" tag in output"""
-        self.directory.cahandler = MagicMock()
-        output_dic = {"newNonce": "http://tester.local/acme/newnonce"}
-        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
-
-    def test_003_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "newnonce" tag in output"""
-        self.directory.cahandler = MagicMock()
-        output_dic = {"newAccount": "http://tester.local/acme/newaccount"}
-        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
-
-    def test_004_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.supress_version = True
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "meta": {
-                "home": "https://github.com/grindsa/acme2certifier",
-                "author": "grindsa <grindelsack@gmail.com>",
-                "name": "acme2certifier",
-            }
-        }
-        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
-
-    def test_005_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.tos_url = "foo"
-        self.directory.supress_version = True
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "meta": {
-                "home": "https://github.com/grindsa/acme2certifier",
-                "author": "grindsa <grindelsack@gmail.com>",
-                "name": "acme2certifier",
-                "termsOfService": "foo",
-            }
-        }
-        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
-
-    def test_006_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.version = "0.1"
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "meta": {
-                "home": "https://github.com/grindsa/acme2certifier",
-                "author": "grindsa <grindelsack@gmail.com>",
-                "name": "acme2certifier",
-                "version": "0.1",
-            }
-        }
-        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
-
-    def test_007_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.version = "0.1"
-        self.directory.tos_url = "foo"
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "meta": {
-                "home": "https://github.com/grindsa/acme2certifier",
-                "author": "grindsa <grindelsack@gmail.com>",
-                "name": "acme2certifier",
-                "version": "0.1",
-                "termsOfService": "foo",
-            }
-        }
-        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
-
-    def test_008_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "eab" key in meta tag"""
-        self.directory.version = "0.1"
-        self.directory.eab = "foo"
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "meta": {
-                "home": "https://github.com/grindsa/acme2certifier",
-                "author": "grindsa <grindelsack@gmail.com>",
-                "name": "acme2certifier",
-                "version": "0.1",
-                "externalAccountRequired": True,
-            }
-        }
-        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
-
-    def test_009_directory_directory_get(self):
-        """test Directory.get_directory()  url prefix"""
-        self.directory.url_prefix = "url_prefix"
-        self.directory.version = "0.1"
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "renewalInfo": "http://tester.localurl_prefix/acme/renewal-info",
-            "newAuthz": "http://tester.localurl_prefix/acme/new-authz",
-            "newNonce": "http://tester.localurl_prefix/acme/newnonce",
-            "newAccount": "http://tester.localurl_prefix/acme/newaccount",
-            "newOrder": "http://tester.localurl_prefix/acme/neworders",
-            "revokeCert": "http://tester.localurl_prefix/acme/revokecert",
-            "keyChange": "http://tester.localurl_prefix/acme/key-change",
-        }
-        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
-
-    def test_010_directory_directory_get(self):
-        """test Directory.get_directory() - dbcheck nok"""
-        self.directory.url_prefix = "url_prefix"
-        self.directory.dbstore.dbversion_get.return_value = ("0.1", "script_name")
-        self.directory.version = "0.1"
-        self.directory.dbversion = "0.1.1"
-        self.directory.db_check = True
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "renewalInfo": "http://tester.localurl_prefix/acme/renewal-info",
-            "newAuthz": "http://tester.localurl_prefix/acme/new-authz",
-            "newNonce": "http://tester.localurl_prefix/acme/newnonce",
-            "newAccount": "http://tester.localurl_prefix/acme/newaccount",
-            "newOrder": "http://tester.localurl_prefix/acme/neworders",
-            "revokeCert": "http://tester.localurl_prefix/acme/revokecert",
-            "keyChange": "http://tester.localurl_prefix/acme/key-change",
-        }
-        result = self.directory.directory_get()
-        self.assertTrue(output_dic.items() <= result.items())
-        self.assertEqual("NOK", result["meta"]["db_check"])
-
-    def test_011_directory_directory_get(self):
-        """test Directory.get_directory() - dbcheck ok"""
-        self.directory.url_prefix = "url_prefix"
-        self.directory.dbstore.dbversion_get.return_value = ("0.1", "script_name")
-        self.directory.version = "0.1"
-        self.directory.dbversion = "0.1"
-        self.directory.db_check = True
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "renewalInfo": "http://tester.localurl_prefix/acme/renewal-info",
-            "newAuthz": "http://tester.localurl_prefix/acme/new-authz",
-            "newNonce": "http://tester.localurl_prefix/acme/newnonce",
-            "newAccount": "http://tester.localurl_prefix/acme/newaccount",
-            "newOrder": "http://tester.localurl_prefix/acme/neworders",
-            "revokeCert": "http://tester.localurl_prefix/acme/revokecert",
-            "keyChange": "http://tester.localurl_prefix/acme/key-change",
-        }
-        result = self.directory.directory_get()
-        self.assertTrue(output_dic.items() <= result.items())
-        self.assertEqual("OK", result["meta"]["db_check"])
-
-    def test_012_directory_directory_get(self):
-        """test Directory.get_directory() - dbcheck returned exception"""
-        self.directory.url_prefix = "url_prefix"
-        self.directory.dbstore.dbversion_get.side_effect = Exception(
-            "exc_dbversion_get"
+        self.mock_logger = MagicMock()
+        self.mock_dbstore = MagicMock()
+        self.mock_repository = DirectoryRepository(self.mock_dbstore, self.mock_logger)
+        self.mock_config = DirectoryConfig()
+        self.mock_cahandler = MagicMock()
+        self.mock_cahandler_instance = MagicMock()
+        self.mock_cahandler.return_value = self.mock_cahandler_instance
+        self.mock_cahandler_instance.__enter__.return_value = (
+            self.mock_cahandler_instance
         )
-        self.directory.version = "0.1"
-        self.directory.dbversion = "0.1"
-        self.directory.db_check = True
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "renewalInfo": "http://tester.localurl_prefix/acme/renewal-info",
-            "newAuthz": "http://tester.localurl_prefix/acme/new-authz",
-            "newNonce": "http://tester.localurl_prefix/acme/newnonce",
-            "newAccount": "http://tester.localurl_prefix/acme/newaccount",
-            "newOrder": "http://tester.localurl_prefix/acme/neworders",
-            "revokeCert": "http://tester.localurl_prefix/acme/revokecert",
-            "keyChange": "http://tester.localurl_prefix/acme/key-change",
-        }
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            result = self.directory.directory_get()
-        self.assertIn(
-            "CRITICAL:test_a2c:Database error: failed to check database version: exc_dbversion_get",
-            lcm.output,
+        self.mock_cahandler_instance.__exit__.return_value = None
+        self.mock_cahandler_instance.handler_check.return_value = None
+        self.directory = Directory(
+            debug=None, srv_name="http://localhost", logger=self.mock_logger
         )
-        self.assertTrue(output_dic.items() <= result.items())
-        self.assertEqual("NOK", result["meta"]["db_check"])
+        self.directory.dbstore = self.mock_dbstore
+        self.directory.repository = self.mock_repository
+        self.directory.config = self.mock_config
+        self.directory.cahandler = self.mock_cahandler
 
-    def test_013_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.home = "home"
-        self.directory.version = "0.1"
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "meta": {
-                "home": "home",
-                "author": "grindsa <grindelsack@gmail.com>",
-                "name": "acme2certifier",
-                "version": "0.1",
-            }
-        }
-        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
+    def test_001_context_manager(self):
+        with patch.object(self.directory, "_load_configuration") as mock_load_config:
+            with self.directory as d:
+                mock_load_config.assert_called_once()
+                self.assertIs(d, self.directory)
 
-    def test_014_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.home = "home"
-        self.directory.version = "0.1"
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "home": "home",
-            "author": "grindsa <grindelsack@gmail.com>",
-            "name": "acme2certifier",
-            "version": "0.1",
-        }
-        self.assertEqual(output_dic, self.directory.directory_get()["meta"])
+    def test_002_load_configuration(self):
+        with patch("acme_srv.directory.load_config", return_value={"Directory": {}}):
+            with patch.object(
+                self.directory, "_parse_directory_section"
+            ) as mock_parse_dir, patch.object(
+                self.directory, "_parse_booleans"
+            ) as mock_parse_bool, patch.object(
+                self.directory, "_parse_eab_and_profiles"
+            ) as mock_parse_eab, patch.object(
+                self.directory, "_load_ca_handler"
+            ) as mock_load_ca:
+                self.directory._load_configuration()
+                mock_parse_dir.assert_called()
+                mock_parse_bool.assert_called()
+                mock_parse_eab.assert_called()
+                mock_load_ca.assert_called()
 
-    def test_015_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.home = "home"
-        self.directory.version = "0.1"
-        self.directory.suppress_product_information = True
-        self.directory.cahandler = MagicMock()
-        output_dic = {"home": "home"}
-        self.assertEqual(output_dic, self.directory.directory_get()["meta"])
+    def test_003_parse_directory_section_sets_config(self):
+        # Mock config_dic to behave like configparser.ConfigParser
+        config_dic = MagicMock()
+        config_dic.__contains__.side_effect = lambda k: k == "Directory"
+        config_dic.__getitem__.side_effect = (
+            lambda k: {"tos_url": "tos", "url_prefix": "/prefix", "home": "custom_home"}
+            if k == "Directory"
+            else None
+        )
+        config_dic.get.side_effect = lambda section, key, fallback=None: None
+        self.directory._parse_directory_section(config_dic)
+        self.assertEqual(self.directory.config.tos_url, "tos")
+        self.assertEqual(self.directory.config.url_prefix, "/prefix")
+        self.assertEqual(self.directory.config.home, "custom_home")
 
-    def test_016_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.suppress_product_information = True
-        self.directory.cahandler = MagicMock()
-        output_dic = {}
-        self.assertEqual(output_dic, self.directory.directory_get()["meta"])
+    def test_004_parse_caaidentities_json(self):
+        value = '["id1", "id2"]'
+        result = self.directory._parse_caaidentities(value)
+        self.assertEqual(result, ["id1", "id2"])
 
-    def test_017_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.suppress_product_information = False
-        self.directory.version = "0.1"
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "home": "https://github.com/grindsa/acme2certifier",
-            "author": "grindsa <grindelsack@gmail.com>",
-            "name": "acme2certifier",
-            "version": "0.1",
-        }
-        self.assertEqual(output_dic, self.directory.directory_get()["meta"])
+    def test_005_parse_caaidentities_fallback(self):
+        value = "id1"
+        result = self.directory._parse_caaidentities(value)
+        self.assertEqual(result, ["id1"])
 
-    def test_018_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.suppress_product_information = False
-        self.directory.version = "0.1"
+    def test_006_parse_caaidentities_error(self):
+        value = "[invalid_json]"
+        with patch.object(self.mock_logger, "error") as mock_error:
+            result = self.directory._parse_caaidentities(value)
+            self.assertEqual(result, [])
+            mock_error.assert_called()
+
+    def test_007_parse_booleans(self):
+        config_dic = MagicMock()
+        config_dic.getboolean.side_effect = lambda section, key, fallback: True
+        self.directory._parse_booleans(config_dic)
+        self.assertTrue(self.directory.config.supress_version)
+        self.assertTrue(self.directory.config.db_check)
+        self.assertTrue(self.directory.config.suppress_product_information)
+
+    def test_008_parse_booleans_error(self):
+        config_dic = MagicMock()
+        config_dic.getboolean.side_effect = Exception("fail")
+        with patch.object(self.mock_logger, "error") as mock_error:
+            self.directory._parse_booleans(config_dic)
+            self.assertTrue(mock_error.called)
+
+    def test_009_parse_eab_and_profiles(self):
+        config_dic = {"EABhandler": {"eab_handler_file": "file"}}
+        with patch(
+            "acme_srv.directory.config_profile_load", return_value={"profile": "data"}
+        ):
+            self.directory._parse_eab_and_profiles(config_dic)
+            self.assertTrue(self.directory.config.eab)
+            self.assertEqual(self.directory.config.profiles, {"profile": "data"})
+
+    def test_010_load_ca_handler_success(self):
+        config_dic = {}
+        ca_handler_module = MagicMock()
+        ca_handler_module.CAhandler = MagicMock()
+        with patch(
+            "acme_srv.directory.ca_handler_load", return_value=ca_handler_module
+        ):
+            self.directory._load_ca_handler(config_dic)
+            self.assertEqual(self.directory.cahandler, ca_handler_module.CAhandler)
+
+    def test_011_load_ca_handler_failure(self):
+        config_dic = {}
+        with patch("acme_srv.directory.ca_handler_load", return_value=None):
+            with patch.object(self.mock_logger, "critical") as mock_critical:
+                self.directory._load_ca_handler(config_dic)
+                mock_critical.assert_called()
+
+    def test_012_build_meta_information(self):
+        self.directory.config.suppress_product_information = False
+        self.directory.config.supress_version = False
+        self.directory.config.tos_url = "tos"
+        self.directory.config.caaidentities = ["id1"]
+        self.directory.config.profiles = {"profile": "data"}
+        self.directory.config.eab = True
+        meta = self.directory._build_meta_information()
+        self.assertIn("home", meta)
+        self.assertIn("author", meta)
+        self.assertIn("name", meta)
+        self.assertIn("version", meta)
+        self.assertIn("termsOfService", meta)
+        self.assertIn("caaIdentities", meta)
+        self.assertIn("profiles", meta)
+        self.assertIn("externalAccountRequired", meta)
+
+    def test_013_build_meta_information_suppress(self):
+        self.directory.config.suppress_product_information = True
+        self.directory.config.home = "custom_home"
+        meta = self.directory._build_meta_information()
+        self.assertIn("home", meta)
+        self.assertNotIn("author", meta)
+        self.assertNotIn("name", meta)
+        self.assertNotIn("version", meta)
+
+    def test_014_build_directory_response_db_check_ok(self):
+        self.directory.config.db_check = True
+        self.directory.dbversion = "1.0"
+        self.directory.repository = self.mock_repository
+        with patch.object(
+            self.mock_repository, "get_db_version", return_value=("1.0", "script")
+        ):
+            resp = self.directory._build_directory_response()
+            self.assertEqual(resp["meta"]["db_check"], "OK")
+
+    def test_015_build_directory_response_db_check_nok(self):
+        self.directory.config.db_check = True
+        self.directory.dbversion = "1.0"
+        self.directory.repository = self.mock_repository
+        with patch.object(
+            self.mock_repository, "get_db_version", return_value=("2.0", "script")
+        ):
+            with patch.object(self.mock_logger, "error") as mock_error:
+                resp = self.directory._build_directory_response()
+                self.assertEqual(resp["meta"]["db_check"], "NOK")
+                mock_error.assert_called()
+
+    def test_016_build_directory_response_db_exception(self):
+        self.directory.config.db_check = True
+        self.directory.dbversion = "1.0"
+        self.directory.repository = self.mock_repository
+        with patch.object(
+            self.mock_repository, "get_db_version", return_value=(None, None)
+        ):
+            with patch.object(self.mock_logger, "error") as mock_error:
+                resp = self.directory._build_directory_response()
+                self.assertEqual(resp["meta"]["db_check"], "NOK")
+                mock_error.assert_called()
+
+    def test_017_build_directory_response_random_key(self):
+        resp = self.directory._build_directory_response()
+        found_random = any(
+            v
+            == "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417"
+            for v in resp.values()
+        )
+        self.assertTrue(found_random)
+
+    def test_018_get_directory_response_success(self):
+        self.directory.cahandler = self.mock_cahandler
+        self.mock_cahandler_instance.handler_check.return_value = None
+        resp = self.directory.get_directory_response()
+        self.assertIn("newAuthz", resp)
+        self.assertIn("meta", resp)
+
+    def test_019_get_directory_response_error(self):
+        self.directory.cahandler = self.mock_cahandler
+        self.mock_cahandler_instance.handler_check.return_value = "error"
+        resp = self.directory.get_directory_response()
+        self.assertIn("error", resp)
+
+    def test_020_get_directory_response_no_handler(self):
         self.directory.cahandler = None
-        output_dic = {"error": "error in ca_handler configuration"}
-        self.assertEqual(output_dic, self.directory.directory_get())
+        resp = self.directory.get_directory_response()
+        self.assertIn("error", resp)
 
-    def test_019_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.suppress_product_information = False
-        self.directory.version = "0.1"
-        self.directory.cahandler = MagicMock()
-        self.directory.cahandler.return_value.__enter__.return_value.handler_check.return_value = (
-            None
+    def test_021_directory_get(self):
+        with patch.object(
+            self.directory, "get_directory_response", return_value={"key": "value"}
+        ):
+            resp = self.directory.directory_get()
+            self.assertEqual(resp, {"key": "value"})
+
+    def test_022_servername_get(self):
+        self.directory.server_name = "test_server"
+        self.assertEqual(self.directory.servername_get(), "test_server")
+
+    def test_023_parse_directory_section_calls_parse_caaidentities(self):
+        # Mock config_dic to behave like configparser.ConfigParser
+        config_dic = MagicMock()
+        config_dic.__contains__.side_effect = lambda k: k == "Directory"
+        config_dic.__getitem__.side_effect = (
+            lambda k: {"tos_url": "tos", "url_prefix": "/prefix", "home": "custom_home"}
+            if k == "Directory"
+            else None
         )
-        output_dic = {
-            "home": "https://github.com/grindsa/acme2certifier",
-            "author": "grindsa <grindelsack@gmail.com>",
-            "name": "acme2certifier",
-            "version": "0.1",
-        }
-        self.assertEqual(output_dic, self.directory.directory_get()["meta"])
-
-    def test_020_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.suppress_product_information = False
-        self.directory.version = "0.1"
-        self.directory.cahandler = MagicMock()
-        self.directory.cahandler.return_value.__enter__.return_value.handler_check.return_value = (
-            "error"
+        # Return a non-None value for caaidentities
+        config_dic.get.side_effect = (
+            lambda section, key, fallback=None: '["id1", "id2"]'
+            if key == "caaidentities"
+            else None
         )
-        output_dic = {"error": "error in ca_handler configuration"}
-        self.assertEqual(output_dic, self.directory.directory_get())
+        with patch.object(
+            self.directory,
+            "_parse_caaidentities",
+            wraps=self.directory._parse_caaidentities,
+        ) as mock_parse_caaidentities:
+            self.directory._parse_directory_section(config_dic)
+            mock_parse_caaidentities.assert_called_once_with('["id1", "id2"]')
 
-    def test_021_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.caaidentities = "foo"
-        self.directory.supress_version = True
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "meta": {
-                "home": "https://github.com/grindsa/acme2certifier",
-                "author": "grindsa <grindelsack@gmail.com>",
-                "name": "acme2certifier",
-                "caaIdentities": "foo",
-            }
-        }
-        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
+    def test_024_repository_get_db_version_success(self):
+        mock_dbstore = MagicMock()
+        mock_dbstore.dbversion_get.return_value = ("1.0", "script")
+        repo = DirectoryRepository(mock_dbstore, self.mock_logger)
+        result = repo.get_db_version()
+        self.assertEqual(result, ("1.0", "script"))
 
-    def test_022_directory_directory_get(self):
-        """test Directory.get_directory() method and check for "meta" tag in output"""
-        self.directory.profiles = "foo"
-        self.directory.supress_version = True
-        self.directory.cahandler = MagicMock()
-        output_dic = {
-            "meta": {
-                "home": "https://github.com/grindsa/acme2certifier",
-                "author": "grindsa <grindelsack@gmail.com>",
-                "name": "acme2certifier",
-                "profiles": "foo",
-            }
-        }
-        self.assertTrue(output_dic.items() <= self.directory.directory_get().items())
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_023_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load empty config"""
-        parser = configparser.ConfigParser()
-        # parser['Account'] = {'foo': 'bar'}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_024_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load with unknown values config"""
-        parser = configparser.ConfigParser()
-        parser["Account"] = {"foo": "bar"}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_025_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load with unknown values config"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"foo": "bar"}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_026_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load supress version number"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"supress_version": True}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertTrue(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_027_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"supress_version": "aa"}
-        mock_load_cfg.return_value = parser
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertEqual(False, self.directory.suppress_product_information)
-        self.assertIn(
-            "ERROR:test_a2c:supress_version not set: Not a boolean: aa",
-            lcm.output,
-        )
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_028_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load tos url"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"tos_url": "tos_url"}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertEqual("tos_url", self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_029_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["EABhandler"] = {"eab_handler_file": "eab_handler_file"}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertTrue(self.directory.eab)
-        self.assertFalse(self.directory.url_prefix)
-        self.assertFalse(self.directory.db_check)
-        self.assertFalse(self.directory.db_check)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_030_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load all parameters set"""
-        parser = configparser.ConfigParser()
-        parser["EABhandler"] = {"eab_handler_file": "eab_handler_file"}
-        parser["Directory"] = {"tos_url": "tos_url", "supress_version": True}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertTrue(self.directory.supress_version)
-        self.assertEqual("tos_url", self.directory.tos_url)
-        self.assertTrue(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_031_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"url_prefix": "url_prefix"}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertEqual("url_prefix", self.directory.url_prefix)
-        self.assertFalse(self.directory.db_check)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_032_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"db_check": True}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertTrue(self.directory.db_check)
-        self.assertEqual(False, self.directory.suppress_product_information)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_033_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"db_check": False}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertEqual(
-            "https://github.com/grindsa/acme2certifier", self.directory.home
-        )
-        self.assertEqual(False, self.directory.suppress_product_information)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_034_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"db_check": "aa"}
-        mock_load_cfg.return_value = parser
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertEqual(False, self.directory.suppress_product_information)
-        self.assertIn(
-            "ERROR:test_a2c:db_check not set: Not a boolean: aa",
-            lcm.output,
-        )
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_035_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"home": "home"}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertEqual("home", self.directory.home)
-        self.assertEqual(False, self.directory.suppress_product_information)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_036_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"suppress_product_information": True}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertEqual(True, self.directory.suppress_product_information)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_037_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"suppress_product_information": False}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertEqual(False, self.directory.suppress_product_information)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_038_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"suppress_product_information": "aa"}
-        mock_load_cfg.return_value = parser
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertEqual(False, self.directory.suppress_product_information)
-        self.assertIn(
-            "ERROR:test_a2c:suppress_product_information not set: Not a boolean: aa",
-            lcm.output,
-        )
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_039_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"caaidentities": "foo.bar"}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertEqual(False, self.directory.suppress_product_information)
-        self.assertEqual(["foo.bar"], self.directory.caaidentities)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_040_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"caaidentities": '["foo.bar", "foo.baz"]'}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertEqual(False, self.directory.suppress_product_information)
-        self.assertEqual(["foo.bar", "foo.baz"], self.directory.caaidentities)
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_041_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"caaidentities": '["foo.bar"'}
-        mock_load_cfg.return_value = parser
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertEqual(False, self.directory.suppress_product_information)
-        self.assertFalse(self.directory.caaidentities)
-        self.assertIn(
-            "ERROR:test_a2c:Error when loading the caaIdentities parameter from config: Expecting ',' delimiter: line 1 column 11 (char 10)",
-            lcm.output,
-        )
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=None)
-    @patch("acme_srv.directory.load_config")
-    def test_042_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load eab"""
-        parser = configparser.ConfigParser()
-        parser["Directory"] = {"caaidentities": "foo.bar"}
-        mock_load_cfg.return_value = parser
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertEqual(False, self.directory.suppress_product_information)
-        self.assertEqual(["foo.bar"], self.directory.caaidentities)
-        self.assertIn(
-            "CRITICAL:test_a2c:No ca_handler loaded",
-            lcm.output,
-        )
-        self.assertFalse(self.directory.profiles)
-
-    @patch("acme_srv.directory.ca_handler_load", return_value=MagicMock())
-    @patch("acme_srv.directory.load_config")
-    def test_043_config_load(self, mock_load_cfg, mock_ca_handler_load):
-        """test _config_load with unknown values config"""
-        parser = configparser.ConfigParser()
-        parser["Order"] = {"profiles": '{"foo": "bar", "bar": "foo"}'}
-        mock_load_cfg.return_value = parser
-        self.directory._config_load()
-        self.assertFalse(self.directory.supress_version)
-        self.assertFalse(self.directory.tos_url)
-        self.assertFalse(self.directory.eab)
-        self.assertFalse(self.directory.db_check)
-        self.assertEqual({"foo": "bar", "bar": "foo"}, self.directory.profiles)
-
-    @patch("acme_srv.directory.Directory._config_load")
-    def test_044__enter__(self, mock_cfg):
-        """test enter"""
-        mock_cfg.return_value = True
-        self.directory.__enter__()
-        self.assertTrue(mock_cfg.called)
+    def test_025_repository_get_db_version_exception(self):
+        mock_dbstore = MagicMock()
+        mock_dbstore.dbversion_get.side_effect = Exception("fail")
+        repo = DirectoryRepository(mock_dbstore, self.mock_logger)
+        with patch.object(self.mock_logger, "critical") as mock_critical:
+            result = repo.get_db_version()
+            self.assertEqual(result, (None, None))
+            mock_critical.assert_called()
 
 
 if __name__ == "__main__":
