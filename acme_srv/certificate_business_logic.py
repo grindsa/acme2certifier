@@ -1,0 +1,231 @@
+# -*- coding: utf-8 -*-
+"""Certificate Business Logic - Core Business Rules for Certificate Operations"""
+
+from typing import Dict, Tuple, Union
+from acme_srv.helper import (
+    cert_aki_get,
+    cert_cn_get,
+    cert_dates_get,
+    cert_san_get,
+    cert_serial_get,
+    generate_random_string,
+    string_sanitize,
+)
+from acme_srv.helpers.csr import csr_load
+
+# Import will be added when needed to avoid circular imports
+# from acme_srv.certificate import CertificateConfig
+
+
+class CertificateBusinessLogic:
+    """
+    Business Logic Layer for Certificate operations.
+
+    This class handles core business rules and processing logic including:
+    - Certificate and CSR validation
+    - Certificate date calculations
+    - Authorization checks
+    - Certificate processing workflows
+    - CA handler interactions
+
+    Follows the Business Logic pattern to encapsulate domain rules.
+    """
+
+    def __init__(self, debug: bool = False, logger=None, err_msg_dic=None, config=None):
+        """Initialize the Certificate Business Logic"""
+        self.debug = debug
+        self.logger = logger
+        self.err_msg_dic = err_msg_dic or {}
+
+        # Configuration from dataclass or defaults
+        if config:
+            self.tnauthlist_support = config.tnauthlist_support
+            self.cn2san_add = config.cn2san_add
+            self.cert_reusage_timeframe = config.cert_reusage_timeframe
+        else:
+            self.tnauthlist_support = False
+            self.cn2san_add = False
+            self.cert_reusage_timeframe = 0
+
+    def validate_csr(
+        self, csr: str, _certificate_name: str = None
+    ) -> Tuple[int, str, str]:
+        """
+        Validate Certificate Signing Request.
+
+        Args:
+            csr: Certificate Signing Request data
+            certificate_name: Optional certificate name for validation context
+
+        Returns:
+            Tuple of (code, error, detail) indicating validation result
+        """
+        self.logger.debug("CertificateBusinessLogic.validate_csr()")
+
+        code = 200
+        error = None
+        detail = None
+
+        try:
+            # Basic CSR validation
+            if not csr:
+                code = 400
+                error = self.err_msg_dic.get("badcsr", "Invalid CSR")
+                detail = "CSR is empty"
+
+            else:
+                # Additional CSR format validation could go here
+                csr_obj = csr_load(self.logger, csr)
+                if not csr_obj:
+                    code = 400
+                    error = self.err_msg_dic.get("badcsr", "Invalid CSR")
+                    detail = "CSR format is invalid"
+        except Exception as err:
+            self.logger.error(f"CSR validation error: {err}")
+            code = 500
+            error = self.err_msg_dic.get("serverinternal", "Internal server error")
+            detail = "CSR validation failed"
+
+        self.logger.debug(f"CertificateBusinessLogic.validate_csr() result: {code}")
+        return (code, error, detail)
+
+    def calculate_certificate_dates(self, certificate_raw: str) -> Tuple[int, int]:
+        """
+        Calculate issue and expiry dates from certificate.
+
+        Args:
+            certificate_raw: Raw certificate data
+
+        Returns:
+            Tuple of (issue_timestamp, expiry_timestamp)
+        """
+        self.logger.debug("CertificateBusinessLogic.calculate_certificate_dates()")
+
+        try:
+            (issue_uts, expire_uts) = cert_dates_get(self.logger, certificate_raw)
+        except Exception as err:
+            self.logger.error(f"Certificate date calculation error: {err}")
+            issue_uts = 0
+            expire_uts = 0
+
+        return (issue_uts, expire_uts)
+
+    def generate_certificate_name(self) -> str:
+        """
+        Generate a random certificate name.
+
+        Returns:
+            Random certificate name string
+        """
+        return generate_random_string(self.logger, 12)
+
+    def validate_certificate_data(self, certificate: str) -> bool:
+        """
+        Validate certificate data format and structure.
+
+        Args:
+            certificate: Certificate data to validate
+
+        Returns:
+            True if valid, False otherwise
+        """
+        self.logger.debug("CertificateBusinessLogic.validate_certificate_data()")
+
+        try:
+            if not certificate or not isinstance(certificate, str):
+                self.logger.warning("Empty or non-string certificate data.")
+                return False
+
+            # Check for PEM format
+            if certificate.strip().startswith(
+                "-----BEGIN CERTIFICATE-----"
+            ) and certificate.strip().endswith("-----END CERTIFICATE-----"):
+                return True
+
+            # Optionally, check for DER (base64) format (very basic check)
+            if all(
+                c
+                in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=\n\r"
+                for c in certificate.strip()
+            ):
+                self.logger.info("Certificate appears to be in base64/DER format.")
+                return True
+
+            self.logger.warning("Certificate format not recognized.")
+            return False
+
+        except Exception as err:
+            self.logger.error(f"Certificate validation error: {err}")
+            return False
+
+    def extract_certificate_info(self, certificate: str) -> Dict[str, str]:
+        """
+        Extract information from certificate.
+
+        Args:
+            certificate: Certificate data
+
+        Returns:
+            Dictionary containing extracted certificate information
+        """
+        self.logger.debug("CertificateBusinessLogic.extract_certificate_info()")
+
+        cert_info = {}
+
+        try:
+            cert_info["serial"] = cert_serial_get(self.logger, certificate)
+            cert_info["cn"] = cert_cn_get(self.logger, certificate)
+            cert_info["san"] = str(cert_san_get(self.logger, certificate))
+            cert_info["aki"] = cert_aki_get(self.logger, certificate)
+
+            # Get certificate dates
+            (issue_uts, expire_uts) = self.calculate_certificate_dates(certificate)
+            cert_info["issue_date"] = issue_uts
+            cert_info["expire_date"] = expire_uts
+
+        except Exception as err:
+            self.logger.error(f"Certificate info extraction error: {err}")
+
+        self.logger.debug("CertificateBusinessLogic.extract_certificate_info() ended")
+        return cert_info
+
+    def sanitize_certificate_name(self, certificate_name: str) -> str:
+        """
+        Sanitize certificate name for safe database storage.
+
+        Args:
+            certificate_name: Original certificate name
+
+        Returns:
+            Sanitized certificate name
+        """
+        try:
+            return string_sanitize(self.logger, certificate_name)
+        except Exception as err:
+            self.logger.error(f"Certificate name sanitization error: {err}")
+            return certificate_name
+
+    def format_certificate_response(
+        self, certificate: str, status_code: int = 200
+    ) -> Dict[str, Union[str, int]]:
+        """
+        Format certificate for response.
+
+        Args:
+            certificate: Certificate data
+            status_code: HTTP status code
+
+        Returns:
+            Formatted response dictionary
+        """
+        self.logger.debug("CertificateBusinessLogic.format_certificate_response()")
+
+        response = {
+            "code": status_code,
+            "data": certificate if certificate else "",
+        }
+
+        if certificate:
+            response["headers"] = {"Content-Type": "application/pem-certificate-chain"}
+
+        return response
