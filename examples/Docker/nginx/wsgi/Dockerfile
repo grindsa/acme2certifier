@@ -50,7 +50,7 @@ RUN pip3 install impacket --break-system-packages && \
     rm -rf /var/www/acme2certifier/examples/apache2 && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
     rm -rf /var/www/acme2certifier/examples/acme2certifier_wsgi.py  && \
-	chmod a+rx /docker-entrypoint.sh
+	chmod a+rx /docker-entrypoint.sh  # NOSONAR
 
 WORKDIR /var/www/acme2certifier
 

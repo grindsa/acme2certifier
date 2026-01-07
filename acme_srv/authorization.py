@@ -23,24 +23,28 @@ from acme_srv.nonce import Nonce
 class AuthorizationError(Exception):
     """Base exception for authorization operations"""
 
+    # pylint: disable=unnecessary-pass
     pass
 
 
 class AuthorizationNotFoundError(AuthorizationError):
     """Raised when authorization is not found"""
 
+    # pylint: disable=unnecessary-pass
     pass
 
 
 class AuthorizationExpiredError(AuthorizationError):
     """Raised when authorization has expired"""
 
+    # pylint: disable=unnecessary-pass
     pass
 
 
 class ConfigurationError(AuthorizationError):
     """Raised when configuration is invalid"""
 
+    # pylint: disable=unnecessary-pass
     pass
 
 
@@ -539,15 +543,21 @@ class Authorization(object):
         )
         return authz_info
 
-    def _apply_eab_and_domain_whitelist(self, authz_name, auth_details, id_type, id_value, authz_info):
+    def _apply_eab_and_domain_whitelist(
+        self, authz_name, auth_details, id_type, id_value, authz_info
+    ):
         """Apply EAB profile settings and domain whitelist logic to authorization info."""
         self._apply_eab_profile(authz_name, auth_details)
-        self._apply_domain_whitelist(authz_name, auth_details, id_type, id_value, authz_info)
+        self._apply_domain_whitelist(
+            authz_name, auth_details, id_type, id_value, authz_info
+        )
 
     def _apply_eab_profile(self, authz_name, auth_details):
         if not self.config.eab_profiling:
             return
-        self.logger.debug("Authorization._apply_eab_and_domain_whitelist() - apply eab profile setting")
+        self.logger.debug(
+            "Authorization._apply_eab_and_domain_whitelist() - apply eab profile setting"
+        )
         eab_kid = auth_details.get("order__account__eab_kid") if auth_details else None
         if not eab_kid:
             return
@@ -567,18 +577,27 @@ class Authorization(object):
         except Exception as err:
             self.logger.error(
                 "Failed to process EAB profile for challenge %s (kid: %s): %s",
-                authz_name, eab_kid, err
+                authz_name,
+                eab_kid,
+                err,
             )
 
-    def _apply_domain_whitelist(self, authz_name, auth_details, id_type, id_value, authz_info):
-        if id_type != "dns" or not getattr(self.config, "prevalidated_domainlist", None):
+    def _apply_domain_whitelist(
+        self, authz_name, auth_details, id_type, id_value, authz_info
+    ):
+        if id_type != "dns" or not getattr(
+            self.config, "prevalidated_domainlist", None
+        ):
             return
         self.logger.debug(
             "Authorization.get_authorization_details() - Checking preauthorized domain list for DNS identifier"
         )
-        if is_domain_whitelisted(self.logger, id_value, self.config.prevalidated_domainlist):
+        if is_domain_whitelisted(
+            self.logger, id_value, self.config.prevalidated_domainlist
+        ):
             self.logger.debug(
-                "Domain %s is preauthorized, setting authorization status to 'valid'", id_value
+                "Domain %s is preauthorized, setting authorization status to 'valid'",
+                id_value,
             )
             authz_info["status"] = "valid"
             self.repository.mark_authorization_as_valid(authz_name)
