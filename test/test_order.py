@@ -4,22 +4,34 @@
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 from unittest.mock import patch, MagicMock, call, ANY
+
 import logging
 import types
 import json
 import os
 import sys
 
+# Inject a mock acme_srv.db_handler.DBstore into sys.modules if missing
+import types as _types
+
+mock_db_handler = _types.ModuleType("acme_srv.db_handler")
+mock_db_handler.DBstore = MagicMock(name="DBstore")
+sys.modules["acme_srv.db_handler"] = mock_db_handler
+
+
 # Add the parent directory to sys.path so we can import acme_srv
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from acme_srv.order import (
-    Order,
-    OrderRepository,
-    OrderDatabaseError,
-    OrderValidationError,
-    OrderConfiguration,
-)
+
+# Patch DBstore globally for all tests in this module
+with patch("acme_srv.db_handler.DBstore", new=MagicMock()):
+    from acme_srv.order import (
+        Order,
+        OrderRepository,
+        OrderDatabaseError,
+        OrderValidationError,
+        OrderConfiguration,
+    )
 
 
 class TestOrderRepository(unittest.TestCase):
