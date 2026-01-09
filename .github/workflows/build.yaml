@@ -93,7 +93,7 @@ jobs:
           for f in a2c*${{ github.run_id }}*; do
             echo $f
             [ -f "$f" ] || continue
-            if [ $FIRST -eq 0 ]; then echo "," >> images.json; fi
+            if [ $FIRST -eq 0 ]; then echo -n "," >> images.json; fi
             # cat "$f" >> images.json
             echo -n "\"$f\"" >> images.json
             FIRST=0
