@@ -76,7 +76,7 @@ jobs:
       - name: Download image meta artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: a*${{ github.run_id }}-*.*
+          pattern: a*${{ github.run_id }}*.*
           merge-multiple: true
 
       - name: "Retrieve Version from version.py"
@@ -88,7 +88,7 @@ jobs:
         run: |
           echo "[" > images.json
           FIRST=1
-          for f in *${{ github.run_id }}-*.json; do
+          for f in a*${{ github.run_id }}*.json; do
             [ -f "$f" ] || continue
             if [ $FIRST -eq 0 ]; then echo "," >> images.json; fi
             cat "$f" >> images.json
