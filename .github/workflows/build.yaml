@@ -115,7 +115,6 @@ jobs:
               "branch":     "${{ github.ref_name }}",
               "full_ref":   "${{ github.ref }}",
               "run_id":     "${{ steps.compose.outputs.run_id }}",
-              "images":     ${{ steps.compose.outputs.images }},
               "rpm_artifacts": ["acme2certifier-${{ github.run_id }}.noarch.rpm],
               "deb_artifacts": ["acme2certifier_${{ github.run_id }}_all.deb"]
             }
