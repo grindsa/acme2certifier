@@ -74,6 +74,7 @@ jobs:
     permissions:
       contents: read
       actions: read
+      deployments: write
     steps:
       - name: Download image meta artifacts
         uses: actions/download-artifact@v4
