@@ -74,13 +74,14 @@ jobs:
     permissions:
       contents: read
       actions: read
-      id-token: write
-      pull-requests: write
       issues: write
+      pull-requests: write
       repository-projects: write
+      deployments: write
+      id-token: write
       statuses: write
       packages: write
-      deployments: write
+
     steps:
       - name: Download image meta artifacts
         uses: actions/download-artifact@v4
