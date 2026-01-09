@@ -67,7 +67,7 @@ jobs:
   # ---------------------------------------------------------
   dispatch-tests:
     runs-on: ubuntu-latest
-    needs: [ build-containers, build-rpms, build-deb ]
+    needs: [ build-containers, build-rpm, build-deb ]
     if: github.repository == 'grindsa/acme2certifier'
     permissions:
       contents: read
