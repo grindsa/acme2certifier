@@ -95,6 +95,7 @@ jobs:
             FIRST=0
           done
           echo "]" >> images.json
+          cat images.json
           echo "images=$(cat images.json)" >> "$GITHUB_OUTPUT"
           echo "run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
 
