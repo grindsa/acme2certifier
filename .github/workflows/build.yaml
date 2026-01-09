@@ -88,7 +88,7 @@ jobs:
       - name: Compose images array JSON
         id: compose
         run: |
-          echo "[" > images.json
+          echo -n "[" > images.json
           FIRST=1
           for f in a2c*${{ github.run_id }}*; do
             echo $f
