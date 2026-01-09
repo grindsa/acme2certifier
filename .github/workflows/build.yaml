@@ -61,6 +61,8 @@ jobs:
 
       - name: "deb build and upload"
         uses: ./.github/actions/deb_build_upload
+        with:
+          NO_VERSION: "true"
 
   # ---------------------------------------------------------
   # Job 4: Dispatch tests with full payload (branch/ref-safe)
@@ -92,7 +94,8 @@ jobs:
             echo $f
             [ -f "$f" ] || continue
             if [ $FIRST -eq 0 ]; then echo "," >> images.json; fi
-            cat "$f" >> images.json
+            # cat "$f" >> images.json
+            echo "$f" >> images.json
             FIRST=0
           done
           echo "]" >> images.json
