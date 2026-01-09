@@ -1,0 +1,111 @@
+
+name: build
+on:
+  push:
+    branches: [ "**" ]       # build on any branch
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write            # push to GHCR
+  actions: read              # list artifacts for this run (used later)
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ${{ github.repository }}   # ghcr.io/<owner>/<repo>/<image>
+
+jobs:
+  # ---------------------------------------------------------
+  # Job 1: Build four container images (matrix) and push to GHCR
+  # ---------------------------------------------------------
+  build-containers:
+    runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Build container"
+        uses: ./.github/actions/container_build_upload
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+  # ---------------------------------------------------------
+  # Job 2: Build RPM and upload artifacts
+  # ---------------------------------------------------------
+  build-rpms:
+    runs-on: ubuntu-latest
+    needs: [ build-containers ]
+    if: github.repository == 'grindsa/acme2certifier'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Build rpm package"
+        id: rpm_build
+        uses: ./.github/actions/rpm_build_upload
+
+
+  # ---------------------------------------------------------
+  # Job 3: Build one DEB and upload artifact
+  # ---------------------------------------------------------
+  build-deb:
+    runs-on: ubuntu-latest
+    needs: [ build-containers ]
+    if: github.repository == 'grindsa/acme2certifier'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "deb build and upload"
+        uses: ./.github/actions/deb_build_upload
+
+  # ---------------------------------------------------------
+  # Job 4: Dispatch tests with full payload (branch/ref-safe)
+  # ---------------------------------------------------------
+  dispatch-tests:
+    runs-on: ubuntu-latest
+    needs: [ build-containers, build-rpms, build-deb ]
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - name: Download image meta artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: image-meta-*
+          merge-multiple: true
+
+      - name: Compose images array JSON
+        id: compose
+        run: |
+          echo "[" > images.json
+          FIRST=1
+          for f in image-meta-*.json; do
+            [ -f "$f" ] || continue
+            if [ $FIRST -eq 0 ]; then echo "," >> images.json; fi
+            cat "$f" >> images.json
+            FIRST=0
+          done
+          echo "]" >> images.json
+          echo "images=$(cat images.json)" >> "$GITHUB_OUTPUT"
+          echo "run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch repository event
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          event-type: artifacts_ready
+          client-payload: >-
+            {
+              "sha":        "${{ github.sha }}",
+              "branch":     "${{ github.ref_name }}",
+              "full_ref":   "${{ github.ref }}",
+              "run_id":     "${{ steps.compose.outputs.run_id }}",
+              "images":     ${{ steps.compose.outputs.images }},
+              "rpm_artifacts": ["rpm-el8", "rpm-el9"],
+              "deb_artifacts": ["deb-amd64"]
+            }
