@@ -100,9 +100,9 @@ jobs:
           done
           echo "]" >> images.json
           cat images.json
-          echo "images<<EOF" >> "$GITHUB_OUTPUT"
-          cat images.json >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
+          # echo "images<<EOF" >> "$GITHUB_OUTPUT"
+          # cat images.json >> "$GITHUB_OUTPUT"
+          # echo "EOF" >> "$GITHUB_OUTPUT"
           echo "run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
 
       - name: Dispatch repository event
