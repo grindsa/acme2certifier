@@ -74,6 +74,12 @@ jobs:
     permissions:
       contents: read
       actions: read
+      id-token: write
+      pull-requests: write
+      issues: write
+      repository-projects: write
+      statuses: write
+      packages: write
       deployments: write
     steps:
       - name: Download image meta artifacts
