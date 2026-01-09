@@ -76,7 +76,7 @@ jobs:
       - name: Download image meta artifacts
         uses: actions/download-artifact@v4
         with:
-          pattern: image-meta-*
+          pattern: a*${{ github.run_id }}-*.*
           merge-multiple: true
 
       - name: "Retrieve Version from version.py"
