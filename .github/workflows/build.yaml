@@ -94,15 +94,13 @@ jobs:
             echo $f
             [ -f "$f" ] || continue
             if [ $FIRST -eq 0 ]; then echo -n "," >> images.json; fi
-            # cat "$f" >> images.json
             echo -n "\"$f\"" >> images.json
             FIRST=0
           done
           echo "]" >> images.json
-          cat images.json
-          # echo "images<<EOF" >> "$GITHUB_OUTPUT"
-          # cat images.json >> "$GITHUB_OUTPUT"
-          # echo "EOF" >> "$GITHUB_OUTPUT"
+          # Compact the JSON array to a single line for safe embedding
+          images_compact=$(jq -c . images.json)
+          echo "images=$images_compact" >> "$GITHUB_OUTPUT"
           echo "run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
 
       - name: Dispatch repository event
@@ -115,6 +113,7 @@ jobs:
               "branch":     "${{ github.ref_name }}",
               "full_ref":   "${{ github.ref }}",
               "run_id":     "${{ steps.compose.outputs.run_id }}",
+              "images":     ${{ steps.compose.outputs.images }},
               "rpm_artifacts": ["acme2certifier-${{ github.run_id }}.noarch.rpm],
               "deb_artifacts": ["acme2certifier_${{ github.run_id }}_all.deb"]
             }
