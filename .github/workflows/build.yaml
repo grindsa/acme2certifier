@@ -90,12 +90,12 @@ jobs:
         run: |
           echo "[" > images.json
           FIRST=1
-          for f in a*${{ github.run_id }}*; do
+          for f in a2c*${{ github.run_id }}*; do
             echo $f
             [ -f "$f" ] || continue
             if [ $FIRST -eq 0 ]; then echo "," >> images.json; fi
             # cat "$f" >> images.json
-            echo "$f" >> images.json
+            echo "\"$f\"" >> images.json
             FIRST=0
           done
           echo "]" >> images.json
