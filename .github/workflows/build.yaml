@@ -39,9 +39,8 @@ jobs:
   # ---------------------------------------------------------
   # Job 2: Build RPM and upload artifacts
   # ---------------------------------------------------------
-  build-rpms:
+  build-rpm:
     runs-on: ubuntu-latest
-    needs: [ build-containers ]
     if: github.repository == 'grindsa/acme2certifier'
     steps:
       - uses: actions/checkout@v4
@@ -56,7 +55,6 @@ jobs:
   # ---------------------------------------------------------
   build-deb:
     runs-on: ubuntu-latest
-    needs: [ build-containers ]
     if: github.repository == 'grindsa/acme2certifier'
     steps:
       - uses: actions/checkout@v4
@@ -70,6 +68,7 @@ jobs:
   dispatch-tests:
     runs-on: ubuntu-latest
     needs: [ build-containers, build-rpms, build-deb ]
+    if: github.repository == 'grindsa/acme2certifier'
     permissions:
       contents: read
       actions: read
@@ -80,12 +79,16 @@ jobs:
           pattern: image-meta-*
           merge-multiple: true
 
+      - name: "Retrieve Version from version.py"
+        run: |
+          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+
       - name: Compose images array JSON
         id: compose
         run: |
           echo "[" > images.json
           FIRST=1
-          for f in image-meta-*.json; do
+          for f in *${{ github.run_id }}-*.json; do
             [ -f "$f" ] || continue
             if [ $FIRST -eq 0 ]; then echo "," >> images.json; fi
             cat "$f" >> images.json
@@ -106,6 +109,6 @@ jobs:
               "full_ref":   "${{ github.ref }}",
               "run_id":     "${{ steps.compose.outputs.run_id }}",
               "images":     ${{ steps.compose.outputs.images }},
-              "rpm_artifacts": ["rpm-el8", "rpm-el9"],
-              "deb_artifacts": ["deb-amd64"]
+              "rpm_artifacts": ["acme2certifier-${{ github.run_id }}.noarch.rpm],
+              "deb_artifacts": ["acme2certifier_${{ github.run_id }}_all.deb"]
             }
