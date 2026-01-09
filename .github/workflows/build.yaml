@@ -95,7 +95,7 @@ jobs:
             [ -f "$f" ] || continue
             if [ $FIRST -eq 0 ]; then echo "," >> images.json; fi
             # cat "$f" >> images.json
-            echo "\"$f\"" >> images.json
+            echo -n "\"$f\"" >> images.json
             FIRST=0
           done
           echo "]" >> images.json
