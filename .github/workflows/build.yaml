@@ -83,6 +83,9 @@ jobs:
       packages: write
 
     steps:
+
+      - uses: actions/checkout@v4
+
       - name: Download image meta artifacts
         uses: actions/download-artifact@v4
         with:
