@@ -1,0 +1,134 @@
+
+name: build
+on:
+  push:
+    branches: [ "**" ]       # build on any branch
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write            # push to GHCR
+  actions: read              # list artifacts for this run (used later)
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAMESPACE: ${{ github.repository }}   # ghcr.io/<owner>/<repo>/<image>
+
+jobs:
+  # ---------------------------------------------------------
+  # Job 1: Build four container images (matrix) and push to GHCR
+  # ---------------------------------------------------------
+  build-containers:
+    runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Build container"
+        uses: ./.github/actions/container_build_upload
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+  # ---------------------------------------------------------
+  # Job 2: Build RPM and upload artifacts
+  # ---------------------------------------------------------
+  build-rpm:
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Build rpm package"
+        id: rpm_build
+        uses: ./.github/actions/rpm_build_upload
+
+
+  # ---------------------------------------------------------
+  # Job 3: Build one DEB and upload artifact
+  # ---------------------------------------------------------
+  build-deb:
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "deb build and upload"
+        uses: ./.github/actions/deb_build_upload
+        with:
+          NO_VERSION: "true"
+
+  # ---------------------------------------------------------
+  # Job 4: Dispatch tests with full payload (branch/ref-safe)
+  # ---------------------------------------------------------
+  dispatch-tests:
+    runs-on: ubuntu-latest
+    needs: [ build-containers, build-rpm, build-deb ]
+    if: github.repository == 'grindsa/acme2certifier'
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      pull-requests: write
+      repository-projects: write
+      deployments: write
+      id-token: write
+      statuses: write
+      packages: write
+
+    steps:
+      - name: Download image meta artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: a*${{ github.run_id }}*.*
+          merge-multiple: true
+
+      - name: Parse software repository secrets from JSON
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.SWREPO_CFG }}
+
+      - name: "Retrieve Version from version.py"
+        run: |
+          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+        shell: bash
+
+      - name: Compose images array JSON
+        id: compose
+        run: |
+          echo -n "[" > images.json
+          FIRST=1
+          for f in a2c*${{ github.run_id }}*; do
+            echo $f
+            [ -f "$f" ] || continue
+            if [ $FIRST -eq 0 ]; then echo -n "," >> images.json; fi
+            echo -n "\"$f\"" >> images.json
+            FIRST=0
+          done
+          echo "]" >> images.json
+          # Compact the JSON array to a single line for safe embedding
+          images_compact=$(jq -c . images.json)
+          echo "images=$images_compact" >> "$GITHUB_OUTPUT"
+          echo "run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch repository event
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ env.GHCR_TOKEN }}
+          event-type: artifacts_ready
+          client-payload: >-
+            {
+              "sha":        "${{ github.sha }}",
+              "branch":     "${{ github.ref_name }}",
+              "full_ref":   "${{ github.ref }}",
+              "run_id":     "${{ steps.compose.outputs.run_id }}",
+              "images":     ${{ toJson(steps.compose.outputs.images) }},
+              "rpm_artifacts": ["acme2certifier-${{ github.run_id }}.noarch.rpm"],
+              "deb_artifacts": ["acme2certifier_${{ github.run_id }}_all.deb"]
+            }
