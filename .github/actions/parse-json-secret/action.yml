@@ -64,8 +64,9 @@ runs:
           VARIABLE_NAMES=$(echo "$JSON_SECRET" | jq -r --arg prefix "$PREFIX" '
             [to_entries[] | "\($prefix)\(.key)"] | join(",")
           ')
-          echo "VARIABLE_NAMES: $VARIABLE_NAMES" >&2
         fi
+
+        echo "VARIABLE_NAMES=$VARIABLE_NAMES"
 
         # Process each key-value pair individually to handle multi-line values
         if [ "$INPUT_UPPERCASE" = "true" ]; then
