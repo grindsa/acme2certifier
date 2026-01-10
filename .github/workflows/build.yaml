@@ -123,7 +123,7 @@ jobs:
       - name: Dispatch repository event
         uses: peter-evans/repository-dispatch@v3
         with:
-          token: ${{ env.GHCR_TOKEN }}
+          token: ${{ secrets.GH_WF_TOKEN }}
           event-type: artifacts_ready
           client-payload: >-
             {
