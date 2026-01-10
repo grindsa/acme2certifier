@@ -30,11 +30,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Parse software repository secrets from JSON
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.SWREPO_CFG }}
-
       - name: "Build container"
         uses: ./.github/actions/container_build_upload
         with:
@@ -94,10 +89,14 @@ jobs:
           pattern: a*${{ github.run_id }}*.*
           merge-multiple: true
 
+      - name: Parse software repository secrets from JSON
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.SWREPO_CFG }}
+
       - name: "Retrieve Version from version.py"
         run: |
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-          echo ${{ secrets.SWREPO_CFG }}
         shell: bash
 
       - name: Compose images array JSON
@@ -121,6 +120,7 @@ jobs:
       - name: Dispatch repository event
         uses: peter-evans/repository-dispatch@v3
         with:
+          token: ${{ env.GHCR_TOKEN }}
           event-type: artifacts_ready
           client-payload: >-
             {
