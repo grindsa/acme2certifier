@@ -92,6 +92,8 @@ jobs:
       - name: "Retrieve Version from version.py"
         run: |
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo ${{ secrets.SWREPO_CFG }}
+        shell: bash
 
       - name: Compose images array JSON
         id: compose
