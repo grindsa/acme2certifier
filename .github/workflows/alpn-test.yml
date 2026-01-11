@@ -59,6 +59,11 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v4
 
+      - name: "Test"
+        run: |
+          ls -la ./.github/actions/
+
+
       - name: "Download container"
         uses: ./.github/actions/download_artifact
         with:
