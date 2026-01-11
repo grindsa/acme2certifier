@@ -46,7 +46,7 @@ jobs:
   # ---------------------------------------------------------
   # Job A: Test container images (matrix from payload)
   # ---------------------------------------------------------
-  test-docker-containers:
+  test-containers:
     needs: guard
     runs-on: ubuntu-latest
     strategy:
@@ -60,10 +60,12 @@ jobs:
         with:
           ref: ${{ github.event.client_payload.full_ref || github.event.client_payload.branch }}
 
-      - name: Test
-        run:
-          echo "Testing container with WEB_SRV=${{ matrix.websrv }} and DB_HANDLER=${{ matrix.dbhandler }}"
-
+      - name: "Download container"
+        uses: ./.github/actions/download_artifact
+        with:
+          run_id: ${{ inputs.run_id }}
+          artifact_name: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+          path: /tmp
 
   # ---------------------------------------------------------
   # Job B: Test RPMs (EL8 & EL9) downloaded from the producer run

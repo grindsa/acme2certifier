@@ -1,0 +1,34 @@
+name: "download artifact"
+description: "download an artifact from a workflow run"
+
+inputs:
+  run_id:
+    description: "The run ID of the workflow run that produced the artifact"
+    required: true
+  artifact_name:
+    description: "The name of the artifact to download"
+    required: true
+  path:
+    description: "The path to download the artifact to"
+    required: false
+    default: "./"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: get artifacts-id
+      run: |
+          mkdir -p $PATH && cd $PATH
+          ART_ID=$(gh api repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts \
+            --jq '.artifacts[] | select(.name=="$ARTIFACT_NAME") | .id')
+          if [ -z "$ART_ID" ]; then
+            echo "Artifact $ARTIFACT_NAME not found in run $RUN_ID" >&2
+            exit 1
+      env:
+        PATH: ${{ inputs.path }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        RUN_ID: ${{ inputs.run_id }}
+        ARTIFACT_NAME: ${{ inputs.artifact_name }}
+      shell: bash
+
