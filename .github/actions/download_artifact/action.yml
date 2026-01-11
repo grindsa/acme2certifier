@@ -32,8 +32,9 @@ runs:
           echo "Artifact $ARTIFACT_NAME not found in run $RUN_ID" >&2
         fi
 
-        gh api repos/$REPO/actions/artifacts/$ART_ID/zip --output "$ARTIFACT_NAME.zip"
+        gh api repos/$REPO/actions/artifacts/$ART_ID/zip > "$ARTIFACT_NAME.zip"
         unzip -o "$ARTIFACT_NAME.zip"
+        rm -f "$ARTIFACT_NAME.zip"
 
         ls -la
 
