@@ -12,6 +12,10 @@ inputs:
     description: "The path to download the artifact to"
     required: false
     default: "./"
+  token:
+    description: "GitHub token with permissions to access the artifact"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -27,7 +31,7 @@ runs:
             exit 1
       env:
         PATH: ${{ inputs.path }}
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        TOKEN: ${{ inputs.token }}
         RUN_ID: ${{ inputs.run_id }}
         ARTIFACT_NAME: ${{ inputs.artifact_name }}
       shell: bash

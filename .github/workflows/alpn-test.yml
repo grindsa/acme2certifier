@@ -70,6 +70,7 @@ jobs:
           run_id: ${{ inputs.run_id }}
           artifact_name: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
           path: /tmp
+          token: ${{ secrets.GH_WF_TOKEN }}
 
   # ---------------------------------------------------------
   # Job B: Test RPMs (EL8 & EL9) downloaded from the producer run
