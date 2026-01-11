@@ -59,11 +59,11 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v4
 
-      - name: "Download container"
-        uses: ./.github/actions/download_artifact
+      - name: "Download and import container"
+        uses: ./.github/actions/container_load
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
           DESTINATION_PATH: /tmp
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}

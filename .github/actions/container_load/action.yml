@@ -1,0 +1,34 @@
+name: "container_load"
+description: "Download and import container image"
+inputs:
+  RUN_ID:
+    description: "The run ID of the workflow run that produced the artifact"
+    required: true
+  ARTIFACT_NAME:
+    description: "The name of the artifact to download"
+    required: true
+  DESTINATION_PATH:
+    description: "The path to download the artifact to"
+    required: false
+    default: "./"
+  TOKEN:
+    description: "GitHub token with permissions to access the artifact"
+    required: false
+    default: ""
+  REPO:
+    description: "The repository in the format owner/repo. Defaults to the current repository."
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "Download container"
+      uses: ./.github/actions/download_artifact
+      with:
+        RUN_ID: ${{ inputs.RUN_ID }}
+        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME }}
+        DESTINATION_PATH: /tmp
+        TOKEN: ${{ inputs.TOKEN }}
+        REPO: ${{ inputs.REPO }}
