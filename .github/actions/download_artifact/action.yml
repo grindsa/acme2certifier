@@ -26,6 +26,9 @@ runs:
 
     - name: "Get artifact"
       run: |
+        echo $ARTIFACT_NAME
+        echo $RUN_ID
+        echo $REPO
         mkdir -p $DESTINATION_PATH && cd $DESTINATION_PATH
         gh api repos/$REPO/actions/runs/$RUN_ID/artifacts --jq '.artifacts[] | select(.name=="$ARTIFACT_NAME") | .id'
         ART_ID=$(gh api repos/$REPO/actions/runs/$RUN_ID/artifacts --jq '.artifacts[] | select(.name=="$ARTIFACT_NAME") | .id')
