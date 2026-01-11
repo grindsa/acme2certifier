@@ -35,7 +35,6 @@ runs:
         gh api repos/$REPO/actions/artifacts/$ART_ID/zip > "$ARTIFACT_NAME.zip"
         unzip -o "$ARTIFACT_NAME.zip"
         rm -f "$ARTIFACT_NAME.zip"
-        ls -la
 
       shell: bash
       env:
