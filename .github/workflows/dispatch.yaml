@@ -12,7 +12,7 @@ jobs:
       ${{
         github.event.client_payload.sha != '' &&
         github.event.client_payload.run_id != '' &&
-        github.event.client_payload.branch != '' &&
+        github.event.client_payload.branch != ''
       }}
     steps:
       - run: |
