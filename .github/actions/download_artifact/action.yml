@@ -24,6 +24,9 @@ runs:
   using: "composite"
   steps:
 
+    - name: Install gh CLI
+      uses: cli/gh-action@v2
+
     - name: "Get artifact"
       run: |
         mkdir -p $DESTINATION_PATH && cd $DESTINATION_PATH
