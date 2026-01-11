@@ -56,9 +56,8 @@ jobs:
         dbhandler: ['wsgi', 'django']
     steps:
       # Checkout the SAME BRANCH that produced the artifacts
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.client_payload.full_ref || github.event.client_payload.branch }}
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
       - name: "Download container"
         uses: ./.github/actions/download_artifact
