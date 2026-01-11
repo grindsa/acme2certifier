@@ -1,4 +1,4 @@
-name: normal-workflow
+name: TLS-ALPN-01 challenge tests
 on:
   workflow_dispatch:
     inputs:
@@ -46,7 +46,7 @@ jobs:
   # ---------------------------------------------------------
   # Job A: Test container images (matrix from payload)
   # ---------------------------------------------------------
-  test-containers:
+  test-docker-containers:
     needs: guard
     runs-on: ubuntu-latest
     strategy:
@@ -60,6 +60,9 @@ jobs:
         with:
           ref: ${{ github.event.client_payload.full_ref || github.event.client_payload.branch }}
 
+      - name: Test
+        run:
+          echo "Testing container with WEB_SRV=${{ matrix.websrv }} and DB_HANDLER=${{ matrix.dbhandler }}"
 
 
   # ---------------------------------------------------------
@@ -112,10 +115,6 @@ jobs:
   test-deb:
     needs: guard
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        artifact_name: ${{ github.event.client_payload.deb_artifacts }}
     steps:
       - uses: actions/checkout@v4
         with:
