@@ -24,7 +24,7 @@ jobs:
   # Job A: Test container images (matrix from payload)
   # ---------------------------------------------------------
   test-containers:
-    needs: guard
+    # needs: guard
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -43,7 +43,7 @@ jobs:
   # Job B: Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
   test-rpms:
-    needs: guard
+    # needs: guard
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -87,7 +87,7 @@ jobs:
   # Job C: Test DEB downloaded from the producer run
   # ---------------------------------------------------------
   test-deb:
-    needs: guard
+    # needs: guard
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
