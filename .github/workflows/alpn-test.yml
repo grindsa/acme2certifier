@@ -59,17 +59,12 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v4
 
-      - name: "Test"
-        run: |
-          ls -la ./.github/actions/
-
-
       - name: "Download container"
         uses: ./.github/actions/download_artifact
         with:
           run_id: ${{ inputs.run_id }}
           artifact_name: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
-          path: /tmp
+          destination_path: /tmp
           token: ${{ secrets.GH_WF_TOKEN }}
 
   # ---------------------------------------------------------

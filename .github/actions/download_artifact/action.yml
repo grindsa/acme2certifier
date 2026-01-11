@@ -7,7 +7,7 @@ inputs:
   artifact_name:
     description: "The name of the artifact to download"
     required: true
-  path:
+  destination_path:
     description: "The path to download the artifact to"
     required: false
     default: "./"
@@ -22,8 +22,7 @@ runs:
 
     - name: "Get artifact"
       run: |
-        ls -la
-        mkdir -p $PATH && cd $PATH
+        mkdir -p $DESTINATION_PATH && cd $DESTINATION_PATH
         ART_ID=$(gh api repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts \
           --jq '.artifacts[] | select(.name=="$ARTIFACT_NAME") | .id')
         if [ -z "$ART_ID" ]; then
@@ -31,7 +30,7 @@ runs:
           exit 1
       shell: bash
       env:
-        PATH: ${{ inputs.path }}
+        DESTINATION_PATH: ${{ inputs.destination_path }}
         TOKEN: ${{ inputs.token }}
         RUN_ID: ${{ inputs.run_id }}
         ARTIFACT_NAME: ${{ inputs.artifact_name }}
