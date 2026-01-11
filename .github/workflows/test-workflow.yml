@@ -1,8 +1,27 @@
-
-name: test-dispatch
+name: normal-workflow
 on:
-  repository_dispatch:
-    types: [ artifacts_ready ]
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
 
 jobs:
   # (Optional) quick guard to validate incoming payload
@@ -10,21 +29,25 @@ jobs:
     runs-on: ubuntu-latest
     if: >
       ${{
-        github.event.client_payload.sha != '' &&
-        github.event.client_payload.run_id != '' &&
-        github.event.client_payload.branch != ''
+        inputs.sha != '' &&
+        inputs.run_id != '' &&
+        inputs.branch != ''
       }}
     steps:
       - run: |
-          echo "Triggered by SHA:    ${{ github.event.client_payload.sha }}"
-          echo "From branch:         ${{ github.event.client_payload.branch }}"
-          echo "Producer run_id:     ${{ github.event.client_payload.run_id }}"
+          echo "Triggered by SHA:    $SHA"
+          echo "From branch:         $BRANCH"
+          echo "Producer run_id:     $RUN_ID"
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
 
   # ---------------------------------------------------------
   # Job A: Test container images (matrix from payload)
   # ---------------------------------------------------------
   test-containers:
-    # needs: guard
+    needs: guard
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -43,7 +66,7 @@ jobs:
   # Job B: Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
   test-rpms:
-    # needs: guard
+    needs: guard
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -87,7 +110,7 @@ jobs:
   # Job C: Test DEB downloaded from the producer run
   # ---------------------------------------------------------
   test-deb:
-    # needs: guard
+    needs: guard
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
