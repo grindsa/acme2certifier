@@ -1,17 +1,17 @@
 name: "download artifact"
 description: "download an artifact from a workflow run"
 inputs:
-  run_id:
+  RUN_ID:
     description: "The run ID of the workflow run that produced the artifact"
     required: true
-  artifact_name:
+  ARTIFACT_NAME:
     description: "The name of the artifact to download"
     required: true
-  destination_path:
+  DESTINATION_PATH:
     description: "The path to download the artifact to"
     required: false
     default: "./"
-  token:
+  TOKEN:
     description: "GitHub token with permissions to access the artifact"
     required: false
     default: ""
@@ -30,9 +30,9 @@ runs:
           exit 1
       shell: bash
       env:
-        DESTINATION_PATH: ${{ inputs.destination_path }}
-        TOKEN: ${{ inputs.token }}
-        RUN_ID: ${{ inputs.run_id }}
-        ARTIFACT_NAME: ${{ inputs.artifact_name }}
+        DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
+        GH_TOKEN: ${{ inputs.TOKEN }}
+        RUN_ID: ${{ inputs.RUN_ID }}
+        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME }}
 
 
