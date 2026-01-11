@@ -23,11 +23,13 @@ runs:
     - name: "Get artifact"
       run: |
         mkdir -p $DESTINATION_PATH && cd $DESTINATION_PATH
-        ART_ID=$(gh api repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts \
-          --jq '.artifacts[] | select(.name=="$ARTIFACT_NAME") | .id')
+        ART_ID=$(gh api repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts --jq '.artifacts[] | select(.name=="$ARTIFACT_NAME") | .id')
         if [ -z "$ART_ID" ]; then
           echo "Artifact $ARTIFACT_NAME not found in run $RUN_ID" >&2
           exit 1
+        fi
+        echo $ART_ID
+        # gh api repos/${{ github.repository }}/actions/artifacts/$ART_ID/zip --output artifact.zip
       shell: bash
       env:
         DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
