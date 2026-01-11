@@ -31,4 +31,4 @@ jobs:
           repository: ${{ github.repository }}
           ref: ${{ github.event.client_payload.branch }}
           client_payload: ${{ toJson(github.event.client_payload) }}
-          exclude_workflows: "build.yaml, dispatch-broker.yaml"
+          exclude_workflows: "build.yml, dispatch-broker.yml"
