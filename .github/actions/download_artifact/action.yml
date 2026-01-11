@@ -15,6 +15,10 @@ inputs:
     description: "GitHub token with permissions to access the artifact"
     required: false
     default: ""
+  REPO:
+    description: "The repository in the format owner/repo. Defaults to the current repository."
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -23,7 +27,7 @@ runs:
     - name: "Get artifact"
       run: |
         mkdir -p $DESTINATION_PATH && cd $DESTINATION_PATH
-        ART_ID=$(gh api repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts --jq '.artifacts[] | select(.name=="$ARTIFACT_NAME") | .id')
+        ART_ID=$(gh api repos/$REPO/actions/runs/$RUN_ID/artifacts --jq '.artifacts[] | select(.name=="$ARTIFACT_NAME") | .id')
         if [ -z "$ART_ID" ]; then
           echo "Artifact $ARTIFACT_NAME not found in run $RUN_ID" >&2
           # exit 1
@@ -34,6 +38,7 @@ runs:
       env:
         DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
         GH_TOKEN: ${{ inputs.TOKEN }}
+        REPO: ${{ inputs.REPO }}
         RUN_ID: ${{ inputs.RUN_ID }}
         ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME }}
 

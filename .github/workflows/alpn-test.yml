@@ -66,6 +66,7 @@ jobs:
           ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar.gz
           DESTINATION_PATH: /tmp
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
   # ---------------------------------------------------------
   # Job B: Test RPMs (EL8 & EL9) downloaded from the producer run
