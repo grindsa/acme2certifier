@@ -102,7 +102,7 @@ jobs:
       #    echo "run_id=${{ github.run_id }}" >> "$GITHUB_OUTPUT"
 
       - name: Dispatch repository event
-        uses: peter-evans/repository-dispatch@v3
+        uses: peter-evans/repository-dispatch@v4
         with:
           token: ${{ secrets.GH_WF_TOKEN }}
           event-type: artifacts_ready
