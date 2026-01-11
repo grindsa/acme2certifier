@@ -1,0 +1,121 @@
+
+name: test-dispatch
+on:
+  repository_dispatch:
+    types: [ artifacts_ready ]
+
+jobs:
+  # (Optional) quick guard to validate incoming payload
+  guard:
+    runs-on: ubuntu-latest
+    if: >
+      ${{
+        github.event.client_payload.sha != '' &&
+        github.event.client_payload.run_id != '' &&
+        github.event.client_payload.branch != '' &&
+        github.event.client_payload.images != ''
+      }}
+    steps:
+      - run: |
+          echo "Triggered by SHA:    ${{ github.event.client_payload.sha }}"
+          echo "From branch:         ${{ github.event.client_payload.branch }}"
+          echo "Producer run_id:     ${{ github.event.client_payload.run_id }}"
+
+  # ---------------------------------------------------------
+  # Job A: Test container images (matrix from payload)
+  # ---------------------------------------------------------
+  test-containers:
+    needs: guard
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+    steps:
+      # Checkout the SAME BRANCH that produced the artifacts
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.full_ref || github.event.client_payload.branch }}
+
+
+
+  # ---------------------------------------------------------
+  # Job B: Test RPMs (EL8 & EL9) downloaded from the producer run
+  # ---------------------------------------------------------
+  test-rpms:
+    needs: guard
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        artifact_name: ${{ github.event.client_payload.rpm_artifacts }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.full_ref || github.event.client_payload.branch }}
+
+      - name: Install gh CLI
+        uses: cli/gh-action@v2
+
+      - name: Download RPM artifact by name from build run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.client_payload.run_id }}
+        run: |
+          mkdir -p rpms && cd rpms
+          ART_ID=$(gh api repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts \
+            --jq '.artifacts[] | select(.name=="${{ matrix.artifact_name }}") | .id')
+          if [ -z "$ART_ID" ]; then
+            echo "Artifact ${{ matrix.artifact_name }} not found in run $RUN_ID" >&2
+            exit 1
+          fi
+          ls -la
+          gh api repos/${{ github.repository }}/actions/artifacts/$ART_ID/zip --output "${{ matrix.artifact_name }}.zip"
+          unzip -o "${{ matrix.artifact_name }}.zip"
+
+      - name: Install rpm tools & validate
+        run: |
+          sudo apt-get update && sudo apt-get install -y rpm
+          for f in rpms/*.rpm; do
+            echo "Validating $f"
+            rpm -qp --info "$f"
+          done
+
+
+
+  # ---------------------------------------------------------
+  # Job C: Test DEB downloaded from the producer run
+  # ---------------------------------------------------------
+  test-deb:
+    needs: guard
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        artifact_name: ${{ github.event.client_payload.deb_artifacts }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.client_payload.full_ref || github.event.client_payload.branch }}
+
+      - name: Install gh CLI
+        uses: cli/gh-action@v2
+
+      - name: Download DEB artifact by name from build run
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.client_payload.run_id }}
+        run: |
+          mkdir -p deb && cd deb
+          ART_ID=$(gh api repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts \
+            --jq '.artifacts[] | select(.name=="${{ matrix.artifact_name }}") | .id')
+          if [ -z "$ART_ID" ]; then
+            echo "Artifact ${{ matrix.artifact_name }} not found in run $RUN_ID" >&2
+            exit 1
+          fi
+          ls -la
+          gh api repos/${{ github.repository }}/actions/artifacts/$ART_ID/zip --output "${{ matrix.artifact_name }}.zip"
+          unzip -o "${{ matrix.artifact_name }}.zip"
+
+
