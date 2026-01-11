@@ -28,7 +28,7 @@ runs:
       uses: ./.github/actions/download_artifact
       with:
         RUN_ID: ${{ inputs.RUN_ID }}
-        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME }}
+        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME }}.gz
         DESTINATION_PATH: /tmp
         TOKEN: ${{ inputs.TOKEN }}
         REPO: ${{ inputs.REPO }}
