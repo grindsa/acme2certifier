@@ -4,27 +4,19 @@ case "${1}" in
 
   "restart")
     echo "update configuration and restart service"
-    yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
-    yes | cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
+    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv
+    #if [[ -d /tmp/acme2certifier/acme_ca ]]; then
+    #  yes | cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
+    #fi
+    if [[ -d /tmp/acme2certifier/volume ]]
+      then
+      echo "copying volume"
+      mkdir -p /opt/acme2certifier/volume
+      yes | cp -R /tmp/acme2certifier/volume/* /opt/acme2certifier/volume/
+    fi
     systemctl restart acme2certifier.service
     systemctl restart nginx.service
     ;;
-
-  #"restart")
-  #  echo "update configuration and restart service"
-  #  yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv
-  #  #if [[ -d /tmp/acme2certifier/acme_ca ]]; then
-  #  #  yes | cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
-  #  #fi
-  #  if [[ -d /tmp/acme2certifier/volume ]]
-  #    then
-  #    echo "copying volume"
-  #    mkdir -p /opt/acme2certifier/volume
-  #    yes | cp -R /tmp/acme2certifier/volume/* /opt/acme2certifier/volume/
-  #  fi
-  #  systemctl restart acme2certifier.service
-  #  systemctl restart nginx.service
-  #  ;;
 
   *)
     echo "install missing packages"
@@ -42,13 +34,12 @@ case "${1}" in
     cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
     mkdir -p /opt/acme2certifier/volume/
 
-    yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
-    if [[ -d /tmp/acme2certifier/acme_ca ]]
+    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv
+    if [[ -d /tmp/acme2certifier/volume ]]
       then
-      mkdir -p /opt/acme2certifier/volume/acme_ca/certs
-      cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
+      mkdir -p /opt/acme2certifier/volume
+      yes | cp -R /tmp/acme2certifier/volume/* /opt/acme2certifier/volume/
     fi
-
     if [[ -d /tmp/acme2certifier/acme2certifier ]]
       then
       mkdir -p /opt/acme2certifier/acme2certifier
