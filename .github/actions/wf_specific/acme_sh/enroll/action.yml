@@ -126,3 +126,5 @@ runs:
       run: |
         docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --deactivate-account --debug 2 --output-insecure
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
