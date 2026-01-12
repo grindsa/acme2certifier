@@ -113,7 +113,6 @@ jobs:
           name: alpn-container-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/artifact.tar.gz
 
-
   # ---------------------------------------------------------
   # Job B: Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
@@ -188,7 +187,6 @@ jobs:
         with:
           name: alpn-rpm-rh${{ matrix.rhversion }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
-
 
   # ---------------------------------------------------------
   # Job C: Test DEB downloaded from the producer run
