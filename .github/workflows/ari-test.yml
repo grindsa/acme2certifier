@@ -249,6 +249,8 @@ jobs:
           sudo chmod 777  data/volume/acme_srv.cfg
           sudo echo -e "\n\n[Renewalinfo]" >> data/volume/acme_srv.cfg
           sudo echo "renewal_force: True" >>  data/volume/acme_srv.cfg
+          sudo sed -i "s/examples\/ca_handler/\/var\/www\/acme2certifier\/examples\/ca_handler/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
 
       - name: "Execute install scipt"
         run: |
