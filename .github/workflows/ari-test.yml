@@ -97,8 +97,6 @@ jobs:
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/ari/enroll
-        with:
-          CA_PATH: data/volume/acme_ca/
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
