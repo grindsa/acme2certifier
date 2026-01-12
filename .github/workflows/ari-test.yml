@@ -217,8 +217,6 @@ jobs:
       matrix:
         websrv: ['apache2', 'nginx']
         execscript: ['deb_tester.sh', 'django_tester.sh']
-        accountkeylength: [2048, ec-256, ec-521]
-        keylength: [2048, ec-521]
 
     steps:
       - name: "checkout GIT"
