@@ -1,4 +1,4 @@
-name: TLS-ALPN-01 challenge tests
+name: Feature Tests - TLS-ALPN-01
 on:
   workflow_dispatch:
     inputs:
