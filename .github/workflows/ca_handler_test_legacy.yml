@@ -1,0 +1,311 @@
+name: CA-Handler Tests - Backwards compatibility
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+
+jobs:
+
+  # ---------------------------------------------------------
+  # Quick guard to validate incoming payload
+  # ---------------------------------------------------------
+  guard:
+    runs-on: ubuntu-latest
+    if: >
+      ${{
+        inputs.sha != '' &&
+        inputs.run_id != '' &&
+        inputs.branch != ''
+      }} && github.repository == 'grindsa/acme2certifier'
+    steps:
+      - run: |
+          echo "Triggered by SHA:    $SHA"
+          echo "From branch:         $BRANCH"
+          echo "Producer run_id:     $RUN_ID"
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+
+  # ---------------------------------------------------------
+  # Job A: Test container images (matrix from payload)
+  # ---------------------------------------------------------
+  test-containers:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+    steps:
+
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
+
+      - name: "Download and import container"
+        uses: ./.github/actions/container_load
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+          DESTINATION_PATH: /tmp
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Prepare container environment"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          CONTAINER_BUILD: false
+
+      - name: "Setup a2c with legacy xca_ca_handler"
+        run: |
+          sudo mkdir -p examples/Docker/data/xca
+          sudo chmod -R 777 examples/Docker/data/xca
+          sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+          sudo touch examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/volume/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+
+          # download legacy handler
+          curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/tags/0.31 -o /tmp/a2c.tgz
+          tar -xvzf /tmp/a2c.tgz -C /tmp/ --strip-components=3 acme2certifier-0.31/examples/ca_handler/xca_ca_handler.py
+          sudo cp /tmp/xca_ca_handler.py examples/Docker/data/xca_ca_handler.py
+          sudo chmod 777 examples/Docker/data/xca_ca_handler.py
+        shell: bash
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          cd examples/Docker
+          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+
+      - name: "[ * ] uploading artificates"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Job B: Test RPMs (EL8 & EL9) downloaded from the producer run
+  # ---------------------------------------------------------
+  test-rpms:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        rhversion: [8, 9]
+        execscript: ['rpm_tester.sh', 'django_tester.sh']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
+
+      - name: Parse GitHub secrets from JSON
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
+
+      - name: "Parse XCA configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
+
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+
+      - name: "Setup acme_srv.cfg with legacy xca_ca_handler"
+        run: |
+          mkdir -p data/volume/acme_ca/certs
+          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /opt/acme2certifier/volume/acme_ca/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "xdb_file: /opt/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
+          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
+          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
+          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
+
+          # download legacy handler
+          curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/tags/0.31 -o /tmp/a2c.tgz
+          tar -xvzf /tmp/a2c.tgz -C /tmp/ --strip-components=3 acme2certifier-0.31/examples/ca_handler/xca_ca_handler.py
+          sudo cp /tmp/xca_ca_handler.py data/volume/acme_ca/xca_ca_handler.py
+          sudo chmod 777 data/volume/acme_ca/xca_ca_handler.py
+
+      - name: "Execute install scipt"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
+          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log # acme-sh
+
+      - name: "[ * ] uploading artificates"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-rpms-rh${{ matrix.rhversion }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Job C: Test DEB downloaded from the producer run
+  # ---------------------------------------------------------
+  test-deb:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        execscript: ['deb_tester.sh', 'django_tester.sh']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
+
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'deb_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'django_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+          DJANGO_DB: psql
+
+      - name: "Download DEB artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Setup acme_srv.cfg with legacy xca_ca_handler"
+        run: |
+          mkdir -p data/volume/acme_ca/certs
+          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /opt/acme2certifier/volume/acme_ca/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "xdb_file: /opt/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
+          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
+          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
+          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
+
+          # download legacy handler
+          curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/tags/0.31 -o /tmp/a2c.tgz
+          tar -xvzf /tmp/a2c.tgz -C /tmp/ --strip-components=3 acme2certifier-0.31/examples/ca_handler/xca_ca_handler.py
+          sudo cp /tmp/xca_ca_handler.py data/volume/acme_ca/xca_ca_handler.py
+          sudo chmod 777 data/volume/acme_ca/xca_ca_handler.py
+
+      - name: "Execute install scipt"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.deb
+          if [ ${{ matrix.websrv }} == "apache2" ]; then
+            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          else
+            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          fi
+          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
+
+      - name: "[ * ] uploading artificates"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
