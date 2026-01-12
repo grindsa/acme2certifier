@@ -13,6 +13,10 @@ inputs:
     description: "Account key length to use for the certificate"
     required: true
     default: "2048"
+  CA_PATH:
+    description: "Path to CA certificates"
+    required: false
+    default: "examples/Docker/data/acme_ca/"
 
 runs:
   using: "composite"
@@ -51,12 +55,13 @@ runs:
         if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+        openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         KEYLENGTH: ${{ inputs.KEYLENGTH }}
         ACCOUNTKEYLENGTH: ${{ inputs.ACCOUNTKEYLENGTH }}
+        CA_PATH: ${{ inputs.CA_PATH }}
 
     - name: "Renew HTTP-01 single domain acme.sh"
       run: |
@@ -67,11 +72,12 @@ runs:
         if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+        openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         KEYLENGTH: ${{ inputs.KEYLENGTH }}
+        CA_PATH: ${{ inputs.CA_PATH }}
 
     - name: "Revoke HTTP-01 single domain acme.sh"
       run: |
@@ -90,11 +96,12 @@ runs:
         if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+        openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         KEYLENGTH: ${{ inputs.KEYLENGTH }}
+        CA_PATH: ${{ inputs.CA_PATH }}
 
     - name: "Renew HTTP-01 2x domain acme.sh"
       run: |
@@ -105,11 +112,12 @@ runs:
         if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
           ECC="_ecc"
         fi
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+        openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         KEYLENGTH: ${{ inputs.KEYLENGTH }}
+        CA_PATH: ${{ inputs.CA_PATH }}
 
     - name: "Revoke HTTP-01 2x domain acme.sh"
       run: |
