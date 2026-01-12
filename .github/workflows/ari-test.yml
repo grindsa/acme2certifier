@@ -152,6 +152,7 @@ jobs:
           GH_USER: ${{ env.GH_USER }}
           GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
           RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: false
 
       - name: "Download RPM artifact by name from build run"
         uses: ./.github/actions/download_artifact
@@ -178,8 +179,6 @@ jobs:
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/ari/enroll
         with:
-          KEYLENGTH: ${{ matrix.keylength }}
-          ACCOUNTKEYLENGTH: ${{ matrix.accountkeylength }}
           CA_PATH: data/volume/acme_ca/
 
       - name: "[ * ] collecting test logs"
@@ -263,8 +262,6 @@ jobs:
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/ari/enroll
         with:
-          KEYLENGTH: ${{ matrix.keylength }}
-          ACCOUNTKEYLENGTH: ${{ matrix.accountkeylength }}
           CA_PATH: data/volume/acme_ca/
 
       - name: "[ * ] collecting test logs"
