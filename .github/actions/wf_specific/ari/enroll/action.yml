@@ -27,16 +27,23 @@ runs:
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://$ACME_SERVER/directory
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
     - name: "Test if https://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl --insecure -f https://$ACME_SERVER/directory
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
     - name: "Enroll lego"
       run: |
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme --http run
         sudo openssl verify -CAfile $CA_PATHroot-ca-cert.pem -untrusted $CA_PATHsub-ca-cert.pem lego/certificates/lego.acme.crt
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
 
     - name: "Renew lego"
       run: |
@@ -45,3 +52,6 @@ runs:
         cat ari.txt
         sudo openssl verify -CAfile $CA_PATHroot-ca-cert.pem -untrusted $CA_PATHsub-ca-cert.pem lego/certificates/lego.acme.crt
       shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
