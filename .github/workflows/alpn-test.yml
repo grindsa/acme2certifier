@@ -24,7 +24,9 @@ on:
         default: ''
 
 jobs:
-  # (Optional) quick guard to validate incoming payload
+  # ---------------------------------------------------------
+  # Quick guard to validate incoming payload
+  # ---------------------------------------------------------
   guard:
     runs-on: ubuntu-latest
     if: >

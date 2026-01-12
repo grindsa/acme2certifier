@@ -43,5 +43,3 @@ runs:
         REPO: ${{ inputs.REPO }}
         RUN_ID: ${{ inputs.RUN_ID }}
         ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME }}
-
-
