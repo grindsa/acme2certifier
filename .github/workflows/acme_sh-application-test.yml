@@ -201,7 +201,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
-          name: alpn-rpm-rh${{ matrix.rhversion }}.tar.gz
+          name: alpn-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
