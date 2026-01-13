@@ -846,11 +846,12 @@ jobs:
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
-      - name: "Execute install script"
+      - name: "Execute install scipt"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Create letsencrypt and lego folder"
         run: |
@@ -879,11 +880,12 @@ jobs:
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
-      - name: "Profile $ASA_PROFILE2 - reconfigure a2c "
+      - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "$ASA_PROFILE2 - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_2
@@ -907,11 +909,12 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
-      - name: "Profile $ASA_PROFILE2 - reconfigure a2c "
+      - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Hederinfo - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_headerinfo
@@ -950,11 +953,12 @@ jobs:
           sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
           sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
-      - name: "EAB without headerinfo - Reconfigure a2c "
+      - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB without headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_eab_wo_headerinfo
@@ -994,11 +998,12 @@ jobs:
           sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
           sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
-      - name: "EAB with headerinfo - Reconfigure a2c "
+      - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB with headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_eab_w_headerinfo
@@ -1023,11 +1028,12 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
-      - name: "ACME Profile - reconfigure a2c "
+      - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "ACME Profile  - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_acmeprofile
@@ -1067,11 +1073,12 @@ jobs:
           sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
           sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
-      - name: "EAB ACME Profiling - Reconfigure a2c "
+      - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_eab_acmeprofile
