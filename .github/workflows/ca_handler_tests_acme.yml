@@ -171,7 +171,7 @@ jobs:
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
-  # Test container images against for secitgo challenge
+  # Test container images for sectigo challenge
   # ---------------------------------------------------------
   test-containers-sectigo:
     needs: guard
@@ -586,6 +586,7 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
           CONTAINER_BUILD: false
+          NAME_SPACE: acme.dynamop.de
 
       - name: "CloudFlare - Setup acme ca_handler"
         run: |
@@ -720,631 +721,634 @@ jobs:
           name: test-containers-letsencrypt-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  rpm_build_and_upload:
-    name: "rpm_build_and_upload"
+  # ---------------------------------------------------------
+  # Test RPM against le-sim
+  # ---------------------------------------------------------
+  test-rpm-lesim:
+    needs: guard
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
-
-    - name: "Build rpm package"
-      id: rpm_build
-      uses: ./.github/actions/rpm_build_upload
-
-  rpm_acme_ca_handler_test:
-    name: "rpm_acme_ca_handler_test"
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
-    needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-
+        execscript: ['rpm_tester.sh', 'django_tester.sh']
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
 
-    - name: "Parse JSON secret - GH_CFG"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.GH_CFG }}
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Prepare Alma environment"
-      uses: ./.github/actions/rpm_prep
-      with:
-        GH_USER: ${{ env.GH_USER }}
-        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-        RH_VERSION: ${{ matrix.rhversion }}
-        RPM_BUILD: false
+      - name: "Parse JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
 
-    - name: Download rpm package
-      uses: actions/download-artifact@v4
-      with:
-        name: acme2certifier-${{ github.run_id }}.noarch.rpm
-        path: data/
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: false
 
-    - name: "Setup le-sim"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+      - name: "Download RPM artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Prepare setup acme_ca_handler"
-      run: |
-        sudo mkdir -p data/acme
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/acme_srv.cfg
-        sudo echo "acme_url: http://acme-le-sim" >> data/acme_srv.cfg
-        sudo echo "acme_account_email: grindsa@foo.bar" >> data/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
+      - name: "Setup le-sim"
+        uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
 
-    - name: "Run Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+      - name: "Prepare setup acme_ca_handler"
+        run: |
+          sudo mkdir -p data/acme
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/volume/acme_srv.cfg
+          sudo echo "acme_url: http://acme-le-sim" >> data/volume/acme_srv.cfg
+          sudo echo "acme_account_email: grindsa@foo.bar" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
-    - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
-      with:
-        TEST_ADL: "true"
+      - name: "Execute install scipt"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-    - name: "Verify allowed_domainlist error"
-      run: |
-        docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          TEST_ADL: "true"
 
-    - name: "Check acme account found in keyfile"
-      run: |
-        # docker exec acme-srv grep -i "found in keyfile" /var/log/messages
-        docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
+      - name: "Verify allowed_domainlist error"
+        run: |
+          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
 
+      - name: "Check acme account found in keyfile"
+        run: |
+          # docker exec acme-srv grep -i "found in keyfile" /var/log/messages
+          docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
 
-    - name: "ACME Profile - Setup acme ca_handler"
-      run: |
-        sudo mkdir -p data/acme
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/acme_srv.cfg
-        sudo echo "acme_url: http://acme-le-sim" >> data/acme_srv.cfg
-        sudo echo "acme_account_email: grindsa@foo.bar" >> data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile1\": \"http:\/\/foo.bar\/profile1\", \"profile2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
-        sudo echo "enrollment_config_log: True" >> data/acme_srv.cfg
+      - name: "ACME Profile - Setup acme ca_handler"
+        run: |
+          sudo mkdir -p data/acme
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/volume/acme_srv.cfg
+          sudo echo "acme_url: http://acme-le-sim" >> data/volume/acme_srv.cfg
+          sudo echo "acme_account_email: grindsa@foo.bar" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile1\": \"http:\/\/foo.bar\/profile1\", \"profile2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
 
-    - name: "ACME Profile - Reconfigure a2c"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+      - name: "ACME Profile - Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-    - name: "ACME Profile - enrollment"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_acmeprofile
-      with:
-        DEPLOYMENT_TYPE: "rpm"
+      - name: "ACME Profile - enrollment"
+        uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: "rpm"
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-        docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
+          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: acme_ca_handler_rpm-rh${{ matrix.rhversion }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "[ * ] uploading artificates"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-rpm-lesim-rh${{ matrix.rhversion }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
 
-  rpm_acme_ca_handler_sectigo_test:
-    name: "rpm_acme_ca_handler_sectigo_test"
+  # ---------------------------------------------------------
+  # Test RPM or sectigo challenge
+  # ---------------------------------------------------------
+  test-rpm-sectigo:
+    needs: guard
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-
+        execscript: ['rpm_tester.sh', 'django_tester.sh']
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
 
-    - name: "Parse JSON secret - GH_CFG"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.GH_CFG }}
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Prepare Alma environment"
-      uses: ./.github/actions/rpm_prep
-      with:
-        GH_USER: ${{ env.GH_USER }}
-        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-        RH_VERSION: ${{ matrix.rhversion }}
-        RPM_BUILD: false
+      - name: "Parse JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
 
-    - name: Download rpm package
-      uses: actions/download-artifact@v4
-      with:
-        name: acme2certifier-${{ github.run_id }}.noarch.rpm
-        path: data/
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: false
 
-    - name: "Setup le-sim"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
-      with:
-        SECTIGO_SIM: true
+      - name: "Download RPM artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Prepare setup acme_ca_handler"
-      run: |
-        sudo mkdir -p data/acme
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/acme_srv.cfg
-        sudo echo "acme_url: http://acme-le-sim" >> data/acme_srv.cfg
-        sudo echo "acme_account_email: grindsa@foo.bar" >> data/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
+      - name: "Setup le-sim"
+        uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+        with:
+          SECTIGO_SIM: true
 
-    - name: "Run Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+      - name: "Prepare setup acme_ca_handler"
+        run: |
+          sudo mkdir -p data/acme
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/volume/acme_srv.cfg
+          sudo echo "acme_url: http://acme-le-sim" >> data/volume/acme_srv.cfg
+          sudo echo "acme_account_email: grindsa@foo.bar" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
 
-    - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
+      - name: "Execute install scipt"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-    - name: "Check acme account found in keyfile"
-      run: |
-        docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-        docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+      - name: "Check acme account found in keyfile"
+        run: |
+          docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
 
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: acme_ca_handler_sectigo_rpm-rh${{ matrix.rhversion }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
+          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
-  rpm_acme_ca_handler_profiling_test:
-    name: "rpm_acme_ca_handler_profiling_test"
+      - name: "[ * ] uploading artificates"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-rpm-sectigo-rh${{ matrix.rhversion }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Test RPM or profiling
+  # ---------------------------------------------------------
+  test-rpm-profiling:
+    needs: guard
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
+        execscript: ['rpm_tester.sh', 'django_tester.sh']
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
 
-    - name: "Parse JSON secret - XCA_CFG"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.XCA_CFG }}
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Parse JSON secret - GH_CFG"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.GH_CFG }}
+      - name: "Parse JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
 
-    - name: "Prepare Alma environment"
-      uses: ./.github/actions/rpm_prep
-      with:
-        GH_USER: ${{ env.GH_USER }}
-        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-        RH_VERSION: ${{ matrix.rhversion }}
-        RPM_BUILD: false
+      - name: "Parse JSON secret - XCA_CFG"
+        uses: ./.github/actions/parse-json-secret
 
-    - name: Download rpm package
-      uses: actions/download-artifact@v4
-      with:
-        name: acme2certifier-${{ github.run_id }}.noarch.rpm
-        path: data/
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: false
 
+      - name: "Download RPM artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Setup acme-le-sim-1"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
-      with:
-        LESIM_NAME: acme-le-sim-1
+      - name: "Reconfigure acme-le-sim-2"
+        run: |
+          docker stop acme-le-sim-2
+          sudo mkdir acme-le-sim-2/xca
+          sudo chmod -R 777 acme-le-sim-2/xca
+          sudo cp test/ca/acme2certifier-clean.xdb acme-le-sim-2/xca/$XCA_DB_NAME
+          sudo chmod 777 acme-le-sim-2/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > acme-le-sim-2/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> acme-le-sim-2/acme_srv.cfg
+          sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> acme-le-sim-2/acme_srv.cfg
+          sudo echo "issuing_ca_name: root-ca" >> acme-le-sim-2/acme_srv.cfg
+          sudo echo "issuing_ca_key: root-ca" >> acme-le-sim-2/acme_srv.cfg
+          sudo echo "passphrase: $XCA_PASSPHRASE" >> acme-le-sim-2/acme_srv.cfg
+          # sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> acme-le-sim-2/acme_srv.cfg
+          sudo echo "template_name: $XCA_TEMPLATE" >> acme-le-sim-2/acme_srv.cfg
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" acme-le-sim-2/acme_srv.cfg
+          docker run -d --rm -id --network acme --name=acme-le-sim-2 -v "$(pwd)/acme-le-sim-2":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
+        env:
+          XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
+          XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
+          XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
+          XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
 
-    - name: "Setup acme-le-sim-2"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
-      with:
-        LESIM_NAME: acme-le-sim-2
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
 
-    - name: "Reconfigure acme-le-sim-2"
-      run: |
-        docker stop acme-le-sim-2
-        sudo mkdir acme-le-sim-2/xca
-        sudo chmod -R 777 acme-le-sim-2/xca
-        sudo cp test/ca/acme2certifier-clean.xdb acme-le-sim-2/xca/$XCA_DB_NAME
-        sudo chmod 777 acme-le-sim-2/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > acme-le-sim-2/acme_srv.cfg
-        sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> acme-le-sim-2/acme_srv.cfg
-        sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> acme-le-sim-2/acme_srv.cfg
-        sudo echo "issuing_ca_name: root-ca" >> acme-le-sim-2/acme_srv.cfg
-        sudo echo "issuing_ca_key: root-ca" >> acme-le-sim-2/acme_srv.cfg
-        sudo echo "passphrase: $XCA_PASSPHRASE" >> acme-le-sim-2/acme_srv.cfg
-        # sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> acme-le-sim-2/acme_srv.cfg
-        sudo echo "template_name: $XCA_TEMPLATE" >> acme-le-sim-2/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" acme-le-sim-2/acme_srv.cfg
-        docker run -d --rm -id --network acme --name=acme-le-sim-2 -v "$(pwd)/acme-le-sim-2":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
-      env:
-        XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
-        XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
-        XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
-        XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
+      - name: "Test http://acme-le-sim2/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim-2/directory
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
+      - name: "Enroll from acme-le-sim-2"
+        run: |
+          sudo rm -rf acme-sh/*
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue  --server http://acme-le-sim-2 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
+          openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+          openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i root-ca
 
-    - name: "Test http://acme-le-sim2/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim-2/directory
+      - name: "EAB Profiling - Setup acme_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "acme_keyfile: /opt/acme2certifier/volume/acme_ca/le_staging_private_key.json" >> data/volume/acme_srv.cfg
+          sudo echo "acme_keypath: /opt/acme2certifier/volume/acme_ca/" >> data/volume/acme_srv.cfg
+          sudo echo "acme_url: http://acme-le-sim-1" >> data/volume/acme_srv.cfg
+          sudo echo "acme_account_email: grindsa@foo.bar" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-    - name: "Enroll from acme-le-sim-2"
-      run: |
-        sudo rm -rf acme-sh/*
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue  --server http://acme-le-sim-2 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-        openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i root-ca
+          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
+          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
+          sudo chmod 777 examples/eab_handler/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"acme_url\"\: \[\"http:\/\/acme-le-sim-2.acme\", \"http:\/\/acme-le-sim-1.acme\"\]/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"acme_url\"\: \"http:\/\/acme-le-sim-2.acme\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"acme_keyfile\": \"\/var\/www\/acme2certifier\/volume\/acme-le-sim-2.json\"/" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"acme_keyfile\": \[\"\/var\/www\/acme2certifier\/volume\/acme-le-sim-1.json\", \"\/var\/www\/acme2certifier\/volume\/acme-le-sim-2.json\"\]/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
-    - name: "EAB Profiling - Setup acme_ca_handler"
-      run: |
-        sudo mkdir -p data/acme_ca
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "acme_keyfile: /opt/acme2certifier/volume/acme_ca/le_staging_private_key.json" >> data/acme_srv.cfg
-        sudo echo "acme_keypath: /opt/acme2certifier/volume/acme_ca/" >> data/acme_srv.cfg
-        sudo echo "acme_url: http://acme-le-sim-1" >> data/acme_srv.cfg
-        sudo echo "acme_account_email: grindsa@foo.bar" >> data/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
-        sudo echo -e "\n\n[EABhandler]" >> data/acme_srv.cfg
-        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
-        sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-        sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
-        sudo sed -i '29,33d' data/acme_ca/kid_profiles.json
-        sudo sed -i '20,22d' data/acme_ca/kid_profiles.json
-        sudo chmod 777 data/acme_ca/kid_profiles.json
-        sudo chmod 777 examples/eab_handler/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"acme_url\"\: \[\"http:\/\/acme-le-sim-2.acme\", \"http:\/\/acme-le-sim-1.acme\"\]/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"acme_url\"\: \"http:\/\/acme-le-sim-2.acme\"/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"acme_keyfile\": \"\/var\/www\/acme2certifier\/volume\/acme-le-sim-2.json\"/" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"acme_keyfile\": \[\"\/var\/www\/acme2certifier\/volume\/acme-le-sim-1.json\", \"\/var\/www\/acme2certifier\/volume\/acme-le-sim-2.json\"\]/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/example.net/acme/g" data/acme_ca/kid_profiles.json
-        sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
-        sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
+      - name: "EAB Profiling - Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
 
-    - name: "EAB Profiling - Run Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+      - name: "Test http://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "EAB Profiling - Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
+      - name: "EAB Profiling - Enrollment"
+        uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "EAB ACME Profiling - Setup acme_ca_handler"
+        run: |
+          sudo mkdir -p data/acme_ca
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "acme_keyfile: /opt/acme2certifier/volume/acme_ca/le_staging_private_key.json" >> data/volume/acme_srv.cfg
+          sudo echo "acme_keypath: /opt/acme2certifier/volume/acme_ca/" >> data/volume/acme_srv.cfg
+          sudo echo "acme_url: http://acme-le-sim-1" >> data/volume/acme_srv.cfg
+          sudo echo "acme_account_email: grindsa@foo.bar" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile_1\": \"http:\/\/foo.bar\/profile_1\", \"profile_2\": \"http:\/\/foo.bar\/profile_2\", \"profile_3\": \"http:\/\/foo.bar\/profile_3\"}/g" data/volume/acme_srv.cfg
+          sudo echo "profile: profile_1" >> data/volume/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
+          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-    - name: "EAB Profiling - Enrollment"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
+          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
+          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
+          sudo chmod 777 examples/eab_handler/kid_profiles.json
+          sudo sed -i "s/profile_id/profile/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
-    - name: "EAB ACME Profiling - Setup acme_ca_handler"
-      run: |
-        sudo mkdir -p data/acme_ca
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "acme_keyfile: /opt/acme2certifier/volume/acme_ca/le_staging_private_key.json" >> data/acme_srv.cfg
-        sudo echo "acme_keypath: /opt/acme2certifier/volume/acme_ca/" >> data/acme_srv.cfg
-        sudo echo "acme_url: http://acme-le-sim-1" >> data/acme_srv.cfg
-        sudo echo "acme_account_email: grindsa@foo.bar" >> data/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile_1\": \"http:\/\/foo.bar\/profile_1\", \"profile_2\": \"http:\/\/foo.bar\/profile_2\", \"profile_3\": \"http:\/\/foo.bar\/profile_3\"}/g" data/acme_srv.cfg
-        sudo echo "profile: profile_1" >> data/acme_srv.cfg
-        sudo echo "enrollment_config_log: True" >> data/acme_srv.cfg
-        sudo echo -e "\n\n[EABhandler]" >> data/acme_srv.cfg
-        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
-        sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
+      - name: "EAB ACME Profiling - Run Execute install scipt"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-        sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
-        sudo sed -i '29,33d' data/acme_ca/kid_profiles.json
-        sudo sed -i '20,22d' data/acme_ca/kid_profiles.json
-        sudo chmod 777 data/acme_ca/kid_profiles.json
-        sudo chmod 777 examples/eab_handler/kid_profiles.json
-        sudo sed -i "s/profile_id/profile/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/example.net/acme/g" data/acme_ca/kid_profiles.json
-        sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
-        sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
-
-    - name: "EAB ACME Profiling - Run Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
-
-    - name: "EAB ACME Profiling - enrollment"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_eab_acmeprofile
-      with:
-        DEPLOYMENT_TYPE: "rpm"
+      - name: "EAB ACME Profiling - enrollment"
+        uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: "rpm"
 
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        sudo cp -rp acme-le-sim-1/ ${{ github.workspace }}/artifact/data/acme-le-sim-1/
-        sudo cp -rp acme-le-sim-2/ ${{ github.workspace }}/artifact/data/acme-le-sim-2/
-        docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-        docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh acme-le-sim-1.log acme-le-sim-2.log
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          sudo cp -rp acme-le-sim-1/ ${{ github.workspace }}/artifact/data/acme-le-sim-1/
+          sudo cp -rp acme-le-sim-2/ ${{ github.workspace }}/artifact/data/acme-le-sim-2/
+          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
+          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh acme-le-sim-1.log acme-le-sim-2.log
 
-  rpm_acme_ca_handler_smallstep_test:
-    name: "rpm_acme_ca_handler_smallstep_test"
+      - name: "[ * ] uploading artificates"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-rpm-profiling-rh${{ matrix.rhversion }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Test RPM against smallstep
+  # ---------------------------------------------------------
+  test-rpm-smallstep:
+    needs: guard
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
+        execscript: ['rpm_tester.sh', 'django_tester.sh']
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
 
-    - name: "Parse JSON secret - GH_CFG"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.GH_CFG }}
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Prepare Alma environment"
-      uses: ./.github/actions/rpm_prep
-      with:
-        GH_USER: ${{ env.GH_USER }}
-        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-        RH_VERSION: ${{ matrix.rhversion }}
-        RPM_BUILD: false
+      - name: "Parse JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
 
-    - name: Download rpm package
-      uses: actions/download-artifact@v4
-      with:
-        name: acme2certifier-${{ github.run_id }}.noarch.rpm
-        path: data/
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: false
 
-    - name: "Instanciate smallstep"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/smallstep_prep
+      - name: "Download RPM artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Prepare setup acme_ca_handler"
-      run: |
-        sudo mkdir -p data/acme
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/acme_srv.cfg
-        sudo echo "acme_url: https://step-ca.acme:9000/acme/acme" >> data/acme_srv.cfg
-        sudo echo "acme_account_email: grindsa@foo.bar" >> data/acme_srv.cfg
-        sudo echo "account_path: /" >> data/acme_srv.cfg
-        sudo echo "ssl_verify: False" >> data/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
+      - name: "Instanciate smallstep"
+        uses: ./.github/actions/wf_specific/acme_ca_handler/smallstep_prep
 
-    - name: "Run Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+      - name: "Prepare setup acme_ca_handler"
+        run: |
+          sudo mkdir -p data/acme
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/volume/acme_srv.cfg
+          sudo echo "acme_url: https://step-ca.acme:9000/acme/acme" >> data/volume/acme_srv.cfg
+          sudo echo "acme_account_email: grindsa@foo.bar" >> data/volume/acme_srv.cfg
+          sudo echo "account_path: /" >> data/volume/acme_srv.cfg
+          sudo echo "ssl_verify: False" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-    - name: "Enroll via acme_ca_handler 1st attempt"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force
+      - name: "Test http://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Enroll via acme_ca_handler 2nd attempt"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force
+      - name: "Enroll via acme_ca_handler 1st attempt"
+        run: |
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "Check acme account found in keyfile"
-      run: |
-        # docker exec acme-srv grep -i "found in keyfile" /var/log/messages
-        docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
+      - name: "Enroll via acme_ca_handler 2nd attempt"
+        run: |
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-        docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+      - name: "Check acme account found in keyfile"
+        run: |
+          # docker exec acme-srv grep -i "found in keyfile" /var/log/messages
+          docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
 
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: rpm_acme_ca_handler_smallstep_test_rpm-rh${{ matrix.rhversion }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
+          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
-  rpm_acme_ca_handler_le_test:
-    name: "rpm_acme_ca_handler_le_test"
+      - name: "[ * ] uploading artificates"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-rpm-smallstep-rh${{ matrix.rhversion }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Test RPM against letsencrypt staging
+  # ---------------------------------------------------------
+  test-rpm-letsencrypt:
+    needs: guard
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: [rpm_build_and_upload]
     strategy:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-
+        execscript: ['rpm_tester.sh', 'django_tester.sh']
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
 
-    - name: "Parse JSON secret - CF_CFG"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.CF_CFG }}
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Parse JSON secret - GH_CFG"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.GH_CFG }}
+      - name: "Parse JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
 
-    - name: "Prepare Alma environment"
-      uses: ./.github/actions/rpm_prep
-      with:
-        GH_USER: ${{ env.GH_USER }}
-        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-        RH_VERSION: ${{ matrix.rhversion }}
-        RPM_BUILD: false
-        NAME_SPACE: acme.dynamop.de
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: false
+          NAME_SPACE: acme.dynamop.de
 
-    - name: Download rpm package
-      uses: actions/download-artifact@v4
-      with:
-        name: acme2certifier-${{ github.run_id }}.noarch.rpm
-        path: data/
+      - name: "Download RPM artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Prepare setup acme_ca_handler"
-      run: |
-        sudo mkdir -p data/acme_ca
-        sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/acme.sh --output data/acme_ca/acme.sh
-        sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/dnsapi/dns_cf.sh --output data/acme_ca/dns_cf.sh
-        sudo chmod a+x data/acme_ca/*.sh
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
+      - name: "Prepare setup acme_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca
+          sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/acme.sh --output data/volume/acme_ca/acme.sh
+          sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/dnsapi/dns_cf.sh --output data/volume/acme_ca/dns_cf.sh
+          sudo chmod a+x data/volume/acme_ca/*.sh
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
 
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/acme_srv.cfg
-        sudo echo "acme_url: https://acme-staging-v02.api.letsencrypt.org" >> data/acme_srv.cfg
-        sudo echo "acme_account_email: grindelsack@gmail.com" >> data/acme_srv.cfg
-        sudo echo "acme_sh_script: /opt/acme2certifier/volume/acme_ca/acme.sh" >> data/acme_srv.cfg
-        sudo echo "dns_update_script: /opt/acme2certifier/volume/acme_ca/dns_cf.sh" >> data/acme_srv.cfg
-        sudo echo "dns_update_script_variables: {\"CF_Token\": \"$CF_TOKEN\", \"CF_Zone_ID\": \"$CF_ZONE_ID\"}" >> data/acme_srv.cfg
-        sudo echo "acme_sh_shell: /bin/bash" >> data/acme_srv.cfg
-        sudo echo "dns_validation_timeout: 30" >> data/acme_srv.cfg
-        sudo echo "enrollment_config_log: True" >> data/acme_srv.cfg
-        sudo echo "profiles_sync: True" >> data/acme_srv.cfg
-        sudo echo "renewalinfo_lookup: True" >> data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> data/acme_srv.cfg
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
-      env:
-        CF_TOKEN: ${{ env.CF_TOKEN }}
-        CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/volume/acme_srv.cfg
+          sudo echo "acme_url: https://acme-staging-v02.api.letsencrypt.org" >> data/volume/acme_srv.cfg
+          sudo echo "acme_account_email: grindelsack@gmail.com" >> data/volume/acme_srv.cfg
+          sudo echo "acme_sh_script: /opt/acme2certifier/volume/acme_ca/acme.sh" >> data/volume/acme_srv.cfg
+          sudo echo "dns_update_script: /opt/acme2certifier/volume/acme_ca/dns_cf.sh" >> data/volume/acme_srv.cfg
+          sudo echo "dns_update_script_variables: {\"CF_Token\": \"$CF_TOKEN\", \"CF_Zone_ID\": \"$CF_ZONE_ID\"}" >> data/volume/acme_srv.cfg
+          sudo echo "acme_sh_shell: /bin/bash" >> data/volume/acme_srv.cfg
+          sudo echo "dns_validation_timeout: 30" >> data/volume/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
+          sudo echo "profiles_sync: True" >> data/volume/acme_srv.cfg
+          sudo echo "renewalinfo_lookup: True" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+        env:
+          CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
 
-    - name: "Run Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-    - name: "Compare profile information"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/compare_profile_info
-      with:
-        NAME_SPACE: acme.dynamop.de
+      - name: "Compare profile information"
+        uses: ./.github/actions/wf_specific/acme_ca_handler/compare_profile_info
+        with:
+          NAME_SPACE: acme.dynamop.de
 
-    - name: "Generate UUID"
-      run: |
-        echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
-    - run: echo "UUID ${{ env.UUID }}"
+      - name: "Generate UUID"
+        run: |
+          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+      - run: echo "UUID ${{ env.UUID }}"
 
-    - name: "Compare renewal information between A2C and LE"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/compare_renewal_info
-      with:
-        NAME_SPACE: acme.dynamop.de
-        HOSTNAME_SUFFIX: -${{ env.UUID }}
-        CERTIFICATE_FILE: "lego/certificates/lego-${{ env.UUID }}.acme.dynamop.de.crt"
+      - name: "Compare renewal information between A2C and LE"
+        uses: ./.github/actions/wf_specific/acme_ca_handler/compare_renewal_info
+        with:
+          NAME_SPACE: acme.dynamop.de
+          HOSTNAME_SUFFIX: -${{ env.UUID }}
+          CERTIFICATE_FILE: "lego/certificates/lego-${{ env.UUID }}.acme.dynamop.de.crt"
 
-    - name: "Generate new UUID"
-      run: |
-        echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
-    - run: echo "UUID ${{ env.UUID }}"
+      - name: "Generate new UUID"
+        run: |
+          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+      - run: echo "UUID ${{ env.UUID }}"
 
-    - name: "Enrollment"
-      uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns
-      with:
-        HOSTNAME_SUFFIX: -${{ env.UUID }}
-        NAME_SPACE: acme.dynamop.de
-        CERT_TIMEOUT: "360"
-        VERIFY_CERT: false
+      - name: "Enrollment"
+        uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns
+        with:
+          HOSTNAME_SUFFIX: -${{ env.UUID }}
+          NAME_SPACE: acme.dynamop.de
+          CERT_TIMEOUT: "360"
+          VERIFY_CERT: false
 
+      - name: "Check acme account found in keyfile"
+        run: |
+          # docker exec acme-srv grep -i "found in keyfile" /var/log/messages
+          docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
 
-    - name: "Check acme account found in keyfile"
-      run: |
-        # docker exec acme-srv grep -i "found in keyfile" /var/log/messages
-        docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
+          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-        docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-        docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
-
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: rpm_acme_ca_handler_le_test-rh${{ matrix.rhversion }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
-
-  rpm_cleanup:
-    name: "rpm_cleanup"
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
-    needs: [rpm_acme_ca_handler_test, rpm_acme_ca_handler_sectigo_test, rpm_acme_ca_handler_profiling_test, rpm_acme_ca_handler_smallstep_test, rpm_acme_ca_handler_le_test]
-    steps:
-    - name: "Delete artifact"
-      uses: geekyeggo/delete-artifact@v5
-      with:
-        name: acme2certifier-${{ github.run_id }}.noarch.rpm
+      - name: "[ * ] uploading artificates"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-rpm-letsencrypt-rh${{ matrix.rhversion }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
