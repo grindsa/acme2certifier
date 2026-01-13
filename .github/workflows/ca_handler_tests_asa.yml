@@ -543,7 +543,7 @@ jobs:
       - name: "Profile $ASA_PROFILE2 - reconfigure a2c "
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        with:
+        env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "$ASA_PROFILE2 - enrollment"
@@ -571,7 +571,7 @@ jobs:
       - name: "Profile $ASA_PROFILE2 - reconfigure a2c "
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        with:
+        env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "Hederinfo - enrollment"
@@ -614,7 +614,7 @@ jobs:
       - name: "EAB without headerinfo - Reconfigure a2c "
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        with:
+        env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB without headerinfo - enrollment"
@@ -658,7 +658,7 @@ jobs:
       - name: "EAB with headerinfo - Reconfigure a2c "
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        with:
+        env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB with headerinfo - enrollment"
@@ -687,7 +687,7 @@ jobs:
       - name: "ACME Profile - reconfigure a2c "
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        with:
+        env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "ACME Profile  - enrollment"
@@ -731,7 +731,7 @@ jobs:
       - name: "EAB ACME Profiling - Reconfigure a2c "
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        with:
+        env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB ACME Profiling - enrollment"
