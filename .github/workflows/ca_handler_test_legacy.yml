@@ -47,7 +47,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
   # ---------------------------------------------------------
-  # Job A: Test container images (matrix from payload)
+  # Test container images downloaded from the producer run
   # ---------------------------------------------------------
   test-containers:
     needs: guard
@@ -140,7 +140,7 @@ jobs:
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
-  # Job B: Test RPMs (EL8 & EL9) downloaded from the producer run
+  # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
   test-rpm:
     needs: guard
@@ -224,7 +224,7 @@ jobs:
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
-  # Job C: Test DEB downloaded from the producer run
+  # Test DEB downloaded from the producer run
   # ---------------------------------------------------------
   test-deb:
     needs: guard

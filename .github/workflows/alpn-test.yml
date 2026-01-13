@@ -24,6 +24,7 @@ on:
         default: ''
 
 jobs:
+
   # ---------------------------------------------------------
   # Quick guard to validate incoming payload
   # ---------------------------------------------------------
@@ -46,7 +47,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
   # ---------------------------------------------------------
-  # Job A: Test container images (matrix from payload)
+  # Test container images downloaded from the producer run
   # ---------------------------------------------------------
   test-containers:
     needs: guard
@@ -112,11 +113,11 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
-          name: alpn-container-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          name: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/artifact.tar.gz
 
   # ---------------------------------------------------------
-  # Job B: Test RPMs (EL8 & EL9) downloaded from the producer run
+  # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
   test-rpm:
     needs: guard
@@ -187,11 +188,11 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
-          name: alpn-rpm-rh${{ matrix.rhversion }}.tar.gz
+          name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
-  # Job C: Test DEB downloaded from the producer run
+  # Test DEB downloaded from the producer run
   # ---------------------------------------------------------
   test-deb:
     needs: guard

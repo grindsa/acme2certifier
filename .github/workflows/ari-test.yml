@@ -47,7 +47,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
   # ---------------------------------------------------------
-  # Job A: Test container images (matrix from payload)
+  # Test container images downloaded from the producer run
   # ---------------------------------------------------------
   test-containers:
     needs: guard
@@ -122,7 +122,7 @@ jobs:
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
-  # Job B: Test RPMs (EL8 & EL9) downloaded from the producer run
+  # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
   test-rpm:
     needs: guard
@@ -170,9 +170,11 @@ jobs:
           sudo echo -e "\n\n[Renewalinfo]" >> data/volume/acme_srv.cfg
           sudo echo "renewal_force: True" >>  data/volume/acme_srv.cfg
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/ari/enroll
@@ -203,7 +205,7 @@ jobs:
 
 
   # ---------------------------------------------------------
-  # Job C: Test DEB downloaded from the producer run
+  # Test DEB downloaded from the producer run
   # ---------------------------------------------------------
   test-deb:
     needs: guard
