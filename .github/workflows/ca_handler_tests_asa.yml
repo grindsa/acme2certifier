@@ -24,6 +24,28 @@ on:
         default: ''
 
 jobs:
+
+  # ---------------------------------------------------------
+  # Quick guard to validate incoming payload
+  # ---------------------------------------------------------
+  guard:
+    runs-on: ubuntu-latest
+    if: >
+      ${{
+        inputs.sha != '' &&
+        inputs.run_id != '' &&
+        inputs.branch != ''
+      }} && github.repository == 'grindsa/acme2certifier'
+    steps:
+      - run: |
+          echo "Triggered by SHA:    $SHA"
+          echo "From branch:         $BRANCH"
+          echo "Producer run_id:     $RUN_ID"
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+
   # ---------------------------------------------------------
   # test headerinfo feature for asa handler the first request
   # might fail for unknown reasons
@@ -150,7 +172,7 @@ jobs:
   # Test container images (matrix from payload)
   # ---------------------------------------------------------
   test-containers:
-    needs: guard
+    needs: [guard, test-containers-headerinfo]
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
@@ -447,7 +469,7 @@ jobs:
   # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
   test-rpm:
-    needs: guard
+    needs: [guard, test-containers-headerinfo]
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
