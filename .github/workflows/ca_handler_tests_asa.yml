@@ -787,7 +787,7 @@ jobs:
   # Test DEB downloaded from the producer run
   # ---------------------------------------------------------
   test-deb:
-    needs: guard
+    needs: [guard, test-containers-headerinfo]
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
