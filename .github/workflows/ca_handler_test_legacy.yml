@@ -142,7 +142,7 @@ jobs:
   # ---------------------------------------------------------
   # Job B: Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
-  test-rpms:
+  test-rpm:
     needs: guard
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
@@ -220,7 +220,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
-          name: test-rpms-rh${{ matrix.rhversion }}.tar.gz
+          name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------

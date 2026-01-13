@@ -80,7 +80,7 @@ runs:
         RH_VERSION: ${{ inputs.RH_VERSION }}
       shell: bash
 
-    - name: "Retrieve rpms from SBOM repo"
+    - name: "Retrieve rpm from SBOM repo"
       run: |
         git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
         cp /tmp/sbom/rpm-repo/RPMs/rhel$RH_VERSION/*.rpm  data

@@ -125,7 +125,7 @@ jobs:
   # ---------------------------------------------------------
   # Job B: Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
-  test-rpms:
+  test-rpm:
     needs: guard
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
