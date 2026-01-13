@@ -977,6 +977,16 @@ jobs:
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
+      - name: "Setup acme-le-sim-1"
+        uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+        with:
+          LESIM_NAME: acme-le-sim-1
+
+      - name: "Setup acme-le-sim-2"
+        uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+        with:
+          LESIM_NAME: acme-le-sim-2
+
       - name: "Reconfigure acme-le-sim-2"
         run: |
           docker stop acme-le-sim-2
