@@ -550,7 +550,7 @@ jobs:
 
   # ---------------------------------------------------------
   # Test container images against Letsencrypt staging
-  # inlcuding profile sync and renewal info checking
+  # including profile sync and renewal info checking
   # ---------------------------------------------------------
   test-containers-letsencrypt:
     needs: guard
@@ -934,7 +934,7 @@ jobs:
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
-  # Test RPM or profiling
+  # Test RPM for profiling
   # ---------------------------------------------------------
   test-rpm-profiling:
     needs: guard
@@ -955,8 +955,10 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: "Parse JSON secret - XCA_CFG"
+      - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
 
       - name: "Prepare Alma environment"
         uses: ./.github/actions/rpm_prep
@@ -1226,7 +1228,8 @@ jobs:
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
-  # Test RPM against letsencrypt staging
+  # Test RPM against Letsencrypt staging
+  # including profile sync and renewal info checking
   # ---------------------------------------------------------
   test-rpm-letsencrypt:
     needs: guard
