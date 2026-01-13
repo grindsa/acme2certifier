@@ -566,10 +566,15 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v4
 
-      - name: "Parse XCA configuration from JSON secret"
+      - name: "Parse JSON secret - ACMEDNS_CFG"
         uses: ./.github/actions/parse-json-secret
         with:
-          json_secret: ${{ secrets.XCA_CFG }}
+          json_secret: ${{ secrets.ACMEDNS_CFG }}
+
+      - name: "Parse JSON secret - CF_CFG"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.CF_CFG }}
 
       - name: "Download and import container"
         uses: ./.github/actions/container_load
@@ -1255,10 +1260,20 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v4
 
-      - name: "Parse JSON secret"
+      - name: "Parse JSON secret - GH_CFG"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.GH_CFG }}
+
+      - name: "Parse JSON secret - ACMEDNS_CFG"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.ACMEDNS_CFG }}
+
+      - name: "Parse JSON secret - CF_CFG"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.CF_CFG }}
 
       - name: "Prepare Alma environment"
         uses: ./.github/actions/rpm_prep
