@@ -544,7 +544,7 @@ jobs:
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
         with:
-          PROFILE: ${{ env.ASA_PROFILE1 }}
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "$ASA_PROFILE2 - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_2
@@ -572,7 +572,7 @@ jobs:
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
         with:
-          PROFILE: ${{ env.ASA_PROFILE1 }}
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "Hederinfo - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_headerinfo
@@ -615,7 +615,7 @@ jobs:
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
         with:
-          PROFILE: ${{ env.ASA_PROFILE1 }}
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB without headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_eab_wo_headerinfo
@@ -659,7 +659,7 @@ jobs:
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
         with:
-          PROFILE: ${{ env.ASA_PROFILE1 }}
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB with headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_eab_w_headerinfo
@@ -688,7 +688,7 @@ jobs:
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
         with:
-          PROFILE: ${{ env.ASA_PROFILE1 }}
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "ACME Profile  - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_acmeprofile
@@ -732,7 +732,7 @@ jobs:
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
         with:
-          PROFILE: ${{ env.ASA_PROFILE1 }}
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_eab_acmeprofile
