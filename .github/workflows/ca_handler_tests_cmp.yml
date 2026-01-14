@@ -648,15 +648,15 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
           sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
           sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg
           sudo echo "cmp_total_timeout: 5" >> data/volume/acme_srv.cfg
           sudo echo "cmp_server: ssh-forwarder.acme:8086" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_cert: /opt/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_key: /opt/acme2certifier/volume/acme_ca/ra_key.pem" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_trusted: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_cert: /var/www/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_key: /var/www/acme2certifier/volume/acme_ca/ra_key.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_trusted: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
           sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
         env:
@@ -716,14 +716,14 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
           sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
           sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg
           sudo echo "cmp_total_timeout: 5" >> data/volume/acme_srv.cfg
           sudo echo "cmp_server: ssh-forwarder.acme:8086" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_cert: /opt/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/volume/acme_srv.cfg
-          sudo echo "cmp_trusted: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_cert: /var/www/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_trusted: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
           sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/volume/acme_srv.cfg
           sudo echo "cmp_ref: $CMP_REF" >> data/volume/acme_srv.cfg
           sudo echo "cmp_secret: $CMP_SECRET" >> data/volume/acme_srv.cfg
