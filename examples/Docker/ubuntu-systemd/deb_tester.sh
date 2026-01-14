@@ -8,7 +8,12 @@ case "${1}" in
     echo "update configuration and restart service"
     yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv
     yes | cp -R /tmp/acme2certifier/volume/acme_ca/* /var/www/acme2certifier/volume/acme_ca/
-    systemctl restart acme2certifier
+    if [[ "${2}" = "apache2" ]]; then
+      systemctl restart apache2
+    elif [[ "${2}" = "nginx" ]]; then
+      systemctl restart nginx
+      systemctl restart acme2certifier
+    fi
     ;;
 
   *)
