@@ -280,7 +280,7 @@ jobs:
           docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -540,7 +540,7 @@ jobs:
           docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -792,7 +792,7 @@ jobs:
           docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:

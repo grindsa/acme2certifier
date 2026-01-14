@@ -841,7 +841,7 @@ jobs:
           docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -931,7 +931,7 @@ jobs:
           docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -1137,7 +1137,7 @@ jobs:
           docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh acme-le-sim-1.log acme-le-sim-2.log
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -1235,7 +1235,7 @@ jobs:
           docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -1374,7 +1374,7 @@ jobs:
           docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
