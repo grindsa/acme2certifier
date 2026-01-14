@@ -55,6 +55,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
@@ -287,7 +288,7 @@ jobs:
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
-  # Test RPMs (EL8 & EL9) downloaded from the producer run
+  # Test RPMs (EL9) downloaded from the producer run
   # ---------------------------------------------------------
   test-rpm:
     needs: guard
@@ -295,8 +296,10 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
-        rhversion: [8, 9]
+        # not possible on RH8 due to OpenSSL 3 dependency
+        rhversion: [9]
         execscript: ['rpm_tester.sh', 'django_tester.sh']
 
     steps:
@@ -456,7 +459,7 @@ jobs:
 
       - name: "Setup a2c with cmp_ca_handler"
         run: |
-          sudo mkdir data/volume/acme_ca
+          sudo mkdir -p data/volume/acme_ca
           sudo cp test/ca/root-ca-cert.pem data/volume/acme_ca
           sudo cp test/ca/sub-ca-cert.pem data/volume/acme_ca
           sudo touch data/volume/acme_ca/ca_bundle.pem
