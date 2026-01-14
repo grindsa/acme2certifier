@@ -695,7 +695,6 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-
       - name: "[ * ] collecting test logs"
         if: ${{ failure() }}
         run: |
@@ -709,7 +708,7 @@ jobs:
           docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
