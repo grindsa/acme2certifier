@@ -249,14 +249,14 @@ jobs:
 
       - name: "Allowed domainlist feature - Enroll lego (fail)"
         continue-on-error: true
-        id: legofail02
+        id: legofail01
         run: |
           docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
 
       - name: "Allowed domainlist feature - check  result "
-        if: ${{ steps.legofail02.outcome != 'failure' }}
+        if: ${{ steps.legofail01.outcome != 'failure' }}
         run: |
-          echo "legofail outcome is ${{steps.legofail02.outcome }}"
+          echo "legofail outcome is ${{steps.legofail01.outcome }}"
           exit 1
 
       - name: "Verify allowed_domainlist error"
@@ -435,14 +435,14 @@ jobs:
 
       - name: "Allowed domainlist feature - Enroll lego (fail)"
         continue-on-error: true
-        id: legofail01
+        id: legofail02
         run: |
           docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
 
       - name: "Allowed domainlist feature - check  result "
-        if: ${{ steps.legofail01.outcome != 'failure' }}
+        if: ${{ steps.legofail02.outcome != 'failure' }}
         run: |
-          echo "legofail outcome is ${{steps.legofail01.outcome }}"
+          echo "legofail outcome is ${{steps.legofail02.outcome }}"
           exit 1
 
       - name: "Sleep for 10s"
@@ -512,14 +512,14 @@ jobs:
 
       - name: "Allowed domainlist feature - Enroll lego (fail)"
         continue-on-error: true
-        id: legofail01
+        id: legofail02
         run: |
           docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
 
       - name: "Allowed domainlist feature - check  result "
-        if: ${{ steps.legofail01.outcome != 'failure' }}
+        if: ${{ steps.legofail02.outcome != 'failure' }}
         run: |
-          echo "legofail outcome is ${{steps.legofail01.outcome }}"
+          echo "legofail outcome is ${{steps.legofail02.outcome }}"
           exit 1
 
       - name: "Sleep for 10s"
