@@ -6,10 +6,9 @@ case "${1}" in
 
   "restart")
     echo "update configuration and restart service"
-    yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
-    yes | cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
-    systemctl restart acme2certifier.service
-    systemctl restart nginx.service
+    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv
+    yes | cp -R /tmp/acme2certifier/volume/acme_ca/* /var/www/acme2certifier/volume/acme_ca/
+    systemctl restart acme2certifier
     ;;
 
   *)
