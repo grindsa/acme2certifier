@@ -103,6 +103,13 @@ jobs:
           DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
           DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          NAME_SPACE: acme.dynamop.de
+
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
         with:
