@@ -83,6 +83,7 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
           CONTAINER_BUILD: false
+          NAME_SPACE: acme.dynamop.de
 
       - name: "Setup a2c with digicert_ca_handler"
         run: |
