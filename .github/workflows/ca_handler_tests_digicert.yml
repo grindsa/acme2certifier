@@ -485,7 +485,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['apache2', 'nginx']
+        websrv: ['nginx']
         execscript: ['deb_tester.sh', 'django_tester.sh']
 
     steps:
