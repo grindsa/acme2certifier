@@ -5,7 +5,7 @@ case "${1}" in
   "update")
     echo "update configuration only"
     # yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
-    yes | cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
+    yes | cp -R /tmp/acme2certifier/volume/acme_ca/* /opt/acme2certifier/volume/acme_ca/
     ;;
 
   "restart")
