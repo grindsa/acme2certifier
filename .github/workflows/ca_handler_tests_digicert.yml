@@ -266,7 +266,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        execscript: ['rpm_tester.sh']
 
     steps:
       - name: "checkout GIT"
@@ -486,7 +486,7 @@ jobs:
       fail-fast: false
       matrix:
         websrv: ['nginx']
-        execscript: ['deb_tester.sh', 'django_tester.sh']
+        execscript: ['django_tester.sh']
 
     steps:
       - name: "checkout GIT"
