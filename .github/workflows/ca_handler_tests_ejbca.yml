@@ -615,11 +615,11 @@ jobs:
           sudo mkdir -p data/volume/acme_ca/certs
           sudo touch data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
+          sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
           sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
           sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
           sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
           sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
@@ -648,11 +648,11 @@ jobs:
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
+          sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
           sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
           sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
           sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
           sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
@@ -660,8 +660,8 @@ jobs:
           sudo echo "enrollment_code: acme_srv" >> data/volume/acme_srv.cfg
 
           sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
           sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
@@ -691,11 +691,11 @@ jobs:
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
+          sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
           sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
           sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
           sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
           sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
@@ -704,8 +704,8 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
           sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
           sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
@@ -735,11 +735,11 @@ jobs:
       - name: "ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
+          sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
           sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
           sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
           sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
           sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
@@ -762,11 +762,11 @@ jobs:
       - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
-          sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
+          sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
           sudo echo "cert_passphrase: $SAEC" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
           sudo echo "ca_name: acmesubca" >> data/volume/acme_srv.cfg
           sudo echo "cert_profile_name: acmeca1" >> data/volume/acme_srv.cfg
           sudo echo "ee_profile_name: acmeca" >> data/volume/acme_srv.cfg
@@ -775,8 +775,8 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acmeca1\": \"http:\/\/foo.bar\/acmeca1\", \"acmeca2\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
           sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
           sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
