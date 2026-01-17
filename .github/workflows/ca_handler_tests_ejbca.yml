@@ -54,7 +54,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
-      max-parallel: 1
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
