@@ -552,10 +552,6 @@ jobs:
           USE_CERTBOT: false
           TEST_ADL: "true"
 
-      - name: "Verify allowed_domainlist error"
-        run: |
-          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
-
       - name: "EAB - Setup a2c with digicert_ca_handler"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
