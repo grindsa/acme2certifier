@@ -26,6 +26,8 @@ case "${1}" in
       apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 rsyslog
     fi
 
+    pip install requests-pkcs12 --break-system-package
+
     systemctl enable rsyslog
     systemctl start syslog
 
