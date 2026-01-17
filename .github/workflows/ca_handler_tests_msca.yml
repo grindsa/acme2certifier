@@ -1093,7 +1093,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: rpm_build_and_upload
+    needs: guard
     strategy:
       max-parallel: 1
       fail-fast: false
@@ -1305,7 +1305,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: rpm_build_and_upload
+    needs: guard
     strategy:
       max-parallel: 1
       fail-fast: false
@@ -1508,7 +1508,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: rpm_build_and_upload
+    needs: guard
     strategy:
       max-parallel: 1
       fail-fast: false
@@ -1739,7 +1739,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: rpm_build_and_upload
+    needs: guard
     strategy:
       max-parallel: 1
       fail-fast: false
