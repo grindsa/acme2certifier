@@ -279,12 +279,9 @@ jobs:
           sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
           sudo cp /etc/hosts ${{ github.workspace }}/artifact/data/
           sudo cp /etc/resolv.conf ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
           cd examples/Docker
           docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego dnsmasq
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data dnsmasq
 
       - name: "[ * ] uploading artificates"
         uses: actions/upload-artifact@v4
@@ -489,12 +486,9 @@ jobs:
           sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
           sudo cp /etc/hosts ${{ github.workspace }}/artifact/data/
           sudo cp /etc/resolv.conf ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
-          cd examples/Docker
+            cd examples/Docker
           docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego dnsmasq
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data dnsmasq
 
       - name: "[ * ] uploading artificates"
         uses: actions/upload-artifact@v4
@@ -751,9 +745,6 @@ jobs:
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
           sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
           sudo cp -rp dnsmasq/ ${{ github.workspace }}/artifact/dnsmasq/
           cd examples/Docker
           docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
@@ -966,13 +957,10 @@ jobs:
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
           sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
           sudo cp -rp dnsmasq/ ${{ github.workspace }}/artifact/dnsmasq/
           cd examples/Docker
           docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego dnsmasq
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data dnsmasq
 
       - name: "[ * ] uploading artificates"
         uses: actions/upload-artifact@v4
@@ -1304,11 +1292,10 @@ jobs:
         docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
         sudo rm -rf data/*.rpm
         sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
         docker exec acme-srv ls -la /tmp > ${{ github.workspace }}/artifact/data/tmp_list
         docker exec acme-srv ls -la /tmp
         docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
 
     - name: "[ * ] uploading artificates"
       uses: actions/upload-artifact@v4
