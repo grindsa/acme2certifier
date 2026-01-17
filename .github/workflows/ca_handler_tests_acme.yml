@@ -781,7 +781,7 @@ jobs:
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
         env:
@@ -904,7 +904,7 @@ jobs:
           sudo echo "acme_account_email: grindsa@foo.bar" >> data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
         env:
@@ -1110,7 +1110,7 @@ jobs:
           sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
           sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
-      - name: "EAB ACME Profiling - Run Execute install scipt"
+      - name: "EAB ACME Profiling - Run Execute install script"
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
         env:

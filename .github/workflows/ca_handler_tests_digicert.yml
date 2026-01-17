@@ -317,7 +317,7 @@ jobs:
           DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
           DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
         env:

@@ -237,7 +237,7 @@ jobs:
         env:
           ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
         env:

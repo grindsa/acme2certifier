@@ -413,7 +413,7 @@ jobs:
           CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
           CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
         env:
@@ -667,7 +667,7 @@ jobs:
           CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
 
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
         env:
