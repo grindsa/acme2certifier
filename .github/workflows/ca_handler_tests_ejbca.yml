@@ -57,7 +57,7 @@ jobs:
       max-parallel: 1
       fail-fast: false
       matrix:
-        websrv: ['apache2']
+        websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
 
     steps:
@@ -121,7 +121,6 @@ jobs:
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
-          NAME_SPACE: acme.dynamop.de
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
@@ -559,7 +558,7 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
-          name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
+          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
@@ -572,7 +571,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['nginx']
+        websrv: ['apache2', 'nginx']
         execscript: ['django_tester.sh']
 
     steps:
@@ -619,6 +618,7 @@ jobs:
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
           sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/ejbca_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
