@@ -78,7 +78,7 @@ runs:
         ISSUING_CA_PASSPHRASE: "Test1234"
         ROOT_CA_CERT: "test/ca/root-ca-cert.pem"
 
-    - name: "Instanciate Ubuntu 22.04"
+    - name: "Instanciate Ubuntu 24.04"
       run: |
         docker run -d --name acme-srv --network $NAME_SPACE --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:24.04
       shell: bash
