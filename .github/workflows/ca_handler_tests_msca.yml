@@ -1223,8 +1223,8 @@ jobs:
 
       - name: "NTLM - Setup a2c with mscertsrv_ca_handler with allowed_domainlist configuration"
         run: |
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> data/acme_srv.cfg
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
 
       - name: "NTLM - Reconfigure a2c "
         run: |
@@ -1666,7 +1666,7 @@ jobs:
       - name: "KRB - Setup a2c with mswcce_ca_handler with allowed_domainlist configuration"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> data/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
