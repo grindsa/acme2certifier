@@ -28,7 +28,7 @@ jobs:
   # ---------------------------------------------------------
   # Quick guard to validate incoming payload
   # ---------------------------------------------------------
-  guard:
+  guard1:
     runs-on: ubuntu-latest
     if: >
       ${{
@@ -49,7 +49,7 @@ jobs:
   # ---------------------------------------------------------
   # Test mscertserv - container images (matrix from payload)
   # ---------------------------------------------------------
-  test-containers:
+  mscertserv-test-containers:
     needs: guard
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
@@ -298,7 +298,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: guard
+    needs: [guard, mscertserv-test-containers]
     strategy:
       fail-fast: false
       # max-parallel: 1
@@ -763,7 +763,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: guard
+    needs: [guard, mswcce-test-containers]
     strategy:
       fail-fast: false
       # max-parallel: 2
@@ -975,6 +975,7 @@ jobs:
   mscertsrv-without-impacket_tests:
     name: "mscertsrv-without-impacket_tests"
     runs-on: ubuntu-latest
+    needs: [guard, mswcce-eab-container-tests]
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
@@ -1305,7 +1306,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: guard
+    needs: [guard, mscertsrv-test-rpm]
     strategy:
       max-parallel: 1
       fail-fast: false
@@ -1504,7 +1505,7 @@ jobs:
   # ---------------------------------------------------------
   # Test RPMs mswcce
   # ---------------------------------------------------------
-  mswcce_tests-rpm:
+  mswcce-tests-rpm:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
@@ -1739,7 +1740,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: guard
+    needs: [guard, mswcce-tests-rpm]
     strategy:
       max-parallel: 1
       fail-fast: false
@@ -1958,7 +1959,7 @@ jobs:
   # Test DEB mscertsrv
   # ---------------------------------------------------------
   mscertsrv-test-deb:
-    needs: guard
+    needs: guard1
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
@@ -2179,7 +2180,7 @@ jobs:
   # Test DEB mswcce
   # ---------------------------------------------------------
   mswcce-test-deb:
-    needs: guard
+    needs: guard1
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
@@ -2233,9 +2234,37 @@ jobs:
         run: |
           echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
           echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+
       - run: echo "runner IP is $RUNNER_IP"
         env:
           RUNNER_IP: ${{ env.RUNNER_IP }}
+
+      - name: "Install dnsmasq"
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dnsmasq
+          sudo systemctl disable systemd-resolved
+          sudo systemctl stop systemd-resolved
+          # sudo chmod -R 777 /etc/resolv.conf
+          # sudo echo "nameserver 8.8.8.8" > /etc/resolv.conf
+          sudo mkdir -p dnsmasq
+          sudo cp .github/dnsmasq.conf dnsmasq/
+          sudo chmod -R 777 dnsmasq/dnsmasq.conf
+          sudo sed -i "s/RUNNER_IP/$RUNNER_IP/g" dnsmasq/dnsmasq.conf
+          sudo echo "address=/$MSCA_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
+          sudo echo "address=/$MSCA_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
+          sudo echo "address=/$WES_HOST/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
+          cat dnsmasq/dnsmasq.conf
+          sudo cp dnsmasq/dnsmasq.conf /etc/
+          sudo sed -i "s/ --local-service/ /g" /etc/init.d/dnsmasq
+          sudo systemctl enable dnsmasq
+          sudo systemctl start dnsmasq
+
+      - name: "Test dns resulution"
+        run: |
+          host $MSCA_ADS_DOMAIN ${{ env.RUNNER_IP }}
+          host $MSCA_FQDN ${{ env.RUNNER_IP }}
+          host $WES_HOST 127.0.0.1
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
