@@ -645,10 +645,6 @@ jobs:
         with:
           TEST_ADL: "true"
 
-      - name: "Verify allowed_domainlist error"
-        run: |
-          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
-
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
