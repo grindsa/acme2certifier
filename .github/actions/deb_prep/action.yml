@@ -80,7 +80,7 @@ runs:
 
     - name: "Instanciate Ubuntu 22.04"
       run: |
-        docker run -d --name acme-srv --network $NAME_SPACE --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:22.04
+        docker run -d --name acme-srv --network $NAME_SPACE --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:24.04
       shell: bash
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
