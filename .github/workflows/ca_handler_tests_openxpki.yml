@@ -590,3 +590,288 @@ jobs:
         with:
           name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Test DEB downloaded from the producer run
+  # ---------------------------------------------------------
+  test-deb:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        execscript: ['deb_tester.sh','django_tester.sh']
+
+    steps:
+
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
+
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'deb_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'django_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+          DJANGO_DB: psql
+
+      - name: "Download DEB artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Get runner ip"
+        run: |
+          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+      - run: echo "runner IP is $RUNNER_IP"
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+
+      - name: "Instanciate OpenXPKI server"
+        uses: ./.github/actions/wf_specific/openxpki_ca_handler/openxpki_prep
+        with:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+          WORKING_DIR: ${{ github.workspace }}
+
+      - name: "Setup a2c with est_ca_handler"
+        run: |
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "est_host: https://openxpki:8443" >> data/volume/acme_srv.cfg
+          # sudo echo "est_host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
+          sudo echo "est_client_cert: /var/www/acme2certifier/volume/acme_ca/client_crt.pem" >> data/volume/acme_srv.cfg
+          sudo echo "est_client_key: /var/www/acme2certifier/volume/acme_ca/client_key.pem" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+        env:
+          OPENXPKI_IP: ${{ env.RUNNER_IP }}
+
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          REVOCATION: "false"
+          USE_CERTBOT: "false"
+
+      - name: "Delete acme-sh, letsencypt and lego folders"
+        run: |
+          sudo rm -rf  certbot/*
+          sudo rm -rf  lego/*
+          sudo rm -rf  acme-sh/*
+
+      - name: "Setup a2c with est_ca_handler (pkcs12)"
+        run: |
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "est_host: https://openxpki:8443" >> data/volume/acme_srv.cfg
+          sudo echo "est_client_cert: /var/www/acme2certifier/volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
+          sudo echo "cert_passphrase: Test1234" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+        env:
+          OPENXPKI_IP: ${{ env.RUNNER_IP }}
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          REVOCATION: "false"
+          USE_CERTBOT: "false"
+
+      - name: "Delete acme-sh, letsencypt and lego folders"
+        run: |
+          sudo rm -rf  certbot/*
+          sudo rm -rf  lego/*
+          sudo rm -rf  acme-sh/*
+
+      - name: "Setup a2c with openxpki_ca_handler"
+        run: |
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
+          # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
+          sudo echo "client_cert: /var/www/acme2certifier/volume/acme_ca/client_crt.pem" >> data/volume/acme_srv.cfg
+          sudo echo "client_key: /var/www/acme2certifier/volume/acme_ca/client_key.pem" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cert_profile_name: tls-server" >> data/volume/acme_srv.cfg
+          sudo echo "endpoint_name: enroll" >> data/volume/acme_srv.cfg
+          sudo echo "polling_timeout: 60" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+        env:
+          OPENXPKI_IP: ${{ env.RUNNER_IP }}
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          TEST_ADL: "true"
+
+
+      - name: "Delete acme-sh, letsencypt and lego folders"
+        run: |
+          sudo rm -rf  certbot/*
+          sudo rm -rf  lego/*
+          sudo rm -rf  acme-sh/*
+
+      - name: "Reconfigure a2c (pkcs12 support)"
+        run: |
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
+          # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
+          sudo echo "client_cert: /var/www/acme2certifier/volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
+          sudo echo "cert_passphrase: Test1234" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cert_profile_name: tls-server" >> data/volume/acme_srv.cfg
+          sudo echo "endpoint_name: enroll" >> data/volume/acme_srv.cfg
+          sudo echo "polling_timeout: 60" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+        env:
+          OPENXPKI_IP: ${{ env.RUNNER_IP }}
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          TEST_ADL: "true"
+
+      - name: "ACME Profiling - setup a2c with openxpki_ca_handler"
+        run: |
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
+          sudo echo "client_cert: volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
+          sudo echo "cert_passphrase: Test1234" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cert_profile_name: tls-server" >> data/volume/acme_srv.cfg
+          sudo echo "endpoint_name: enroll" >> data/volume/acme_srv.cfg
+          sudo echo "polling_timeout: 60" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"tls-client\": \"http:\/\/foo.bar\/profile1\", \"tls-server\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
+        env:
+          OPENXPKI_IP: ${{ env.RUNNER_IP }}
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "ACME Profile - Test enrollment"
+        uses: ./.github/actions/wf_specific/openxpki_ca_handler/enroll_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: "deb"
+
+      - name: "EAB ACME Profiling - setup a2c with openxpki_ca_handler"
+        run: |
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
+          # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
+          sudo echo "client_cert: volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
+          sudo echo "cert_passphrase: Test1234" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cert_profile_name: tls-server" >> data/volume/acme_srv.cfg
+          sudo echo "endpoint_name: enroll" >> data/volume/acme_srv.cfg
+          sudo echo "polling_timeout: 60" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"tls-client\": \"http:\/\/foo.bar\/profile1\", \"tls-server\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
+          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+
+          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
+          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"tls-server\", \"tls-client\", \"profile_3\"\]/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"tls-client\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/www.example.org/*.acme/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+        env:
+          OPENXPKI_IP: ${{ env.RUNNER_IP }}
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "EAB ACME Profile - Test enrollment"
+        uses: ./.github/actions/wf_specific/openxpki_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: "deb"
+
+      - name: "Delete acme-sh, letsencypt and lego folders"
+        run: |
+          sudo rm -rf  certbot/*
+          sudo rm -rf  lego/*
+          sudo rm -rf  acme-sh/*
+
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.deb
+          if [ ${{ matrix.websrv }} == "apache2" ]; then
+            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          else
+            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          fi
+          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
+
+      - name: "[ * ] uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
