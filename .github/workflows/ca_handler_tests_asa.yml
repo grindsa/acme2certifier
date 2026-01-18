@@ -1,4 +1,4 @@
-name: CA-Handler Tests - Insta ASA CA Handler
+name: CA-Handler Tests - Insta ASA CA
 on:
   workflow_dispatch:
     inputs:
