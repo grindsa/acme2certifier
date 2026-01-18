@@ -16,7 +16,7 @@ runs:
   - name: "Prepare Environment"
     working-directory: ${{ inputs.WORKING_DIR }}
     run: |
-      mkdir -p data/volume/acme_ca
+      sudo mkdir -p data/volume/acme_ca
       mkdir -p /tmp/openxpki
       sudo chmod -R 777 data
       sudo sh -c "echo '$OPENXPKI_IP openxpki' >> /etc/hosts"
