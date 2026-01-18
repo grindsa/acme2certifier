@@ -2301,8 +2301,8 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv apt-get install -y python3-impacket
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv apt-get install -y python3-impacket
         env:
           WEBSRV: ${{ matrix.websrv }}
           EXECSCRIPT: ${{ matrix.execscript }}
