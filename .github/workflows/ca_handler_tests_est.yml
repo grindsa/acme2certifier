@@ -1,4 +1,4 @@
-name: CA-Handler Tests - EST handler
+name: CA-Handler Tests - EST
 # Clientauth tests are not working on testrfc7030 and are done insed openxpi wf
 on:
   push:

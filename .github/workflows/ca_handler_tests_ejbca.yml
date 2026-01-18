@@ -1,4 +1,4 @@
-name: CA-Handler Tests - EJBCA handler
+name: CA-Handler Tests - EJBCA
 on:
   workflow_dispatch:
     inputs:

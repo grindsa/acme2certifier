@@ -2067,7 +2067,7 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           EXECSCRIPT: ${{ matrix.execscript }}
 
-      - name: "KRB - enrollment mit default profile and headerinfo"
+      - name: "KRB - enrollment default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
         with:
           NAME_SPACE: local

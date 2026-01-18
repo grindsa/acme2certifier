@@ -19,8 +19,18 @@ runs:
     env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-  - name: "Test if https://acme-srv/directory is accessible"
+  - name: "Test if https://acme-srv/directory is accessible "
     run: docker run -i --rm --network "$NAME_SPACE" curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll lego with template in acme_srv.cfg (WebServer)"
+    run: |
+      sudo rm -rf lego/
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network "$NAME_SPACE" goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d "lego.$NAME_SPACE" --http run
+      sudo openssl verify -CAfile cert-1.pem "lego/certificates/lego.$NAME_SPACE.crt"
+      sudo openssl x509 -in "lego/certificates/lego.$NAME_SPACE.crt" -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
     shell: bash
     env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
@@ -32,16 +42,6 @@ runs:
       awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < "acme-sh/acme-sh.${NAME_SPACE}_ecc/ca.cer"
       openssl verify -CAfile cert-1.pem "acme-sh/acme-sh.${NAME_SPACE}_ecc/acme-sh.$NAME_SPACE.cer"
       openssl x509 -in "acme-sh/acme-sh.${NAME_SPACE}_ecc/acme-sh.$NAME_SPACE.cer" -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
-    shell: bash
-    env:
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-  - name: "Enroll lego with template in acme_srv.cfg (WebServer)"
-    run: |
-      sudo rm -rf lego/
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network "$NAME_SPACE" goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d "lego.$NAME_SPACE" --http run
-      sudo openssl verify -CAfile cert-1.pem "lego/certificates/lego.$NAME_SPACE.crt"
-      sudo openssl x509 -in "lego/certificates/lego.$NAME_SPACE.crt" -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
     shell: bash
     env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
