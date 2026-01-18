@@ -834,8 +834,6 @@ jobs:
           sudo sed -i "s/www.example.org/*.acme/g" data/volume/acme_ca/kid_profiles.json
           sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
           sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/examples\/ca_handler/\/var\/www\/acme2certifier\/examples\/ca_handler/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
         env:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
