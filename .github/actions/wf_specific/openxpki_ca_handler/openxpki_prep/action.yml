@@ -16,8 +16,8 @@ runs:
   - name: "Prepare Environment"
     working-directory: ${{ inputs.WORKING_DIR }}
     run: |
-      mkdir -p data/acme_ca
-      mkdir -p data/volume/acme_ca
+      sudo mkdir -p data/acme_ca
+      sudo mkdir -p data/volume/acme_ca
       mkdir -p /tmp/openxpki
       sudo chmod -R 777 data
       sudo sh -c "echo '$OPENXPKI_IP openxpki' >> /etc/hosts"
@@ -35,11 +35,6 @@ runs:
   - name: "Instanciate OpenXPKI server"
     working-directory: /tmp/openxpki
     run: |
-      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-      sudo apt update
-      sudo apt install -y docker-compose-plugin
-
       git clone https://github.com/openxpki/openxpki-docker.git
       cd openxpki-docker/
       git clone https://github.com/openxpki/openxpki-config.git  --single-branch --branch=community
