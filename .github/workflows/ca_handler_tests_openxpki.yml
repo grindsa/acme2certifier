@@ -105,7 +105,7 @@ jobs:
           # sudo echo "est_host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
           sudo echo "est_client_cert: volume/acme_ca/client_crt.pem" >> examples/Docker/data/acme_srv.cfg
           sudo echo "est_client_key: volume/acme_ca/client_key.pem" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
         env:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -776,7 +776,7 @@ jobs:
       - name: "ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           sudo echo "client_cert: volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
           sudo echo "cert_passphrase: Test1234" >> data/volume/acme_srv.cfg
@@ -805,7 +805,7 @@ jobs:
       - name: "EAB ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
           sudo echo "client_cert: volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
