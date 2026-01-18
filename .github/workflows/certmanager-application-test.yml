@@ -68,6 +68,65 @@ jobs:
         with:
           json_secret: ${{ secrets.CF_CFG }}
 
+      - name: "Install microk8s"
+        run: |
+          sudo snap install microk8s --classic
+          sudo microk8s status --wait-ready
+          sudo microk8s enable helm3
+          sudo microk8s enable ingress
+
+      - name: "Install dnsmasq"
+        run: |
+          sudo mkdir -p data
+          sudo cp .github/dnsmasq.conf data
+          sudo cp .github/dnsmasq.yml data
+          sudo chmod -R 777 data/dnsmasq.conf
+          sudo chmod -R 777 data/dnsmasq.yml
+          sudo sed -i "s/RUNNER_IP/${{ env.RUNNER_IP }}/g" data/dnsmasq.conf
+          sudo sed -i "s/RUNNER_PATH/${{ env.RUNNER_PATH }}/g" data/dnsmasq.yml
+          cat data/dnsmasq.conf
+          cat data/dnsmasq.yml
+          docker pull gigantuar/dnsmasq:latest-amd64
+          docker save gigantuar/dnsmasq -o dnsmasq.tar
+          sudo microk8s ctr image import dnsmasq.tar
+          sudo microk8s ctr images ls | grep -i gigantuar
+
+      - name: "Deploy dnsmasq pod"
+        run: |
+          sudo microk8s.kubectl apply -f data/dnsmasq.yml
+
+      - name: "[ WAIT ] Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
+
+      - name: "Check status dnsmasq pod and grab ip"
+        run: |
+          sudo microk8s.kubectl get pods -n dnsmasq
+          sudo microk8s.kubectl -n dnsmasq describe pod dnsmasq
+          sudo microk8s.kubectl get pods -n dnsmasq | grep -i Running
+          sudo microk8s.kubectl -n dnsmasq describe pod dnsmasq | grep " IP:" | cut -d ' ' -f 5
+          echo DNSMASQ_IP=$(sudo microk8s.kubectl -n dnsmasq describe pod dnsmasq | grep " IP:" | cut -d ' ' -f 5) >> $GITHUB_ENV
+      - run: echo "dnsmasq pod IP is ${{ env.DNSMASQ_IP }}"
+
+      - name: "Change and test dns"
+        run: |
+          sudo cp .github/k8s-acme-srv.yml data/
+          sudo chmod 777 data/k8s-acme-srv.yml
+          sudo sed -i "s/DNSMASQ_IP/${{ env.DNSMASQ_IP }}/g" data/k8s-acme-srv.yml
+          cat data/k8s-acme-srv.yml
+          host www.bar.local ${{ env.DNSMASQ_IP }}
+
+      - name: "Install cert-manager charts"
+        run: |
+          sudo microk8s.kubectl create namespace cert-manager
+          sudo microk8s.helm3 repo add jetstack https://charts.jetstack.io
+          sudo microk8s.helm3 repo update
+          sudo microk8s.helm3 install cert-manager jetstack/cert-manager --namespace cert-manager  --set installCRDs=true  --set podDnsPolicy="None",podDnsConfig.nameservers={${{ env.DNSMASQ_IP }}}
+          echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
+
+      - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
+
       - name: "Download and import container"
         uses: ./.github/actions/container_load
         with:
@@ -206,6 +265,38 @@ jobs:
         with:
           json_secret: ${{ secrets.CF_CFG }}
 
+      - name: "Change dns"
+        run: |
+          sudo mkdir -p data
+          sudo systemctl disable systemd-resolved
+          sudo systemctl stop systemd-resolved
+          sudo chmod -R 777 /etc/resolv.conf
+          sudo echo "nameserver 1.1.1.1" > /etc/resolv.conf
+          sudo cat /etc/resolv.conf
+          sudo cp .github/k8s-acme-srv.yml data/
+          sudo chmod 777 data/k8s-acme-srv.yml
+          sudo sed -i "s/DNSMASQ_IP/1.1.1.1/g" data/k8s-acme-srv.yml
+          cat data/k8s-acme-srv.yml
+
+      - name: "Install microk8s"
+        run: |
+          sudo snap install microk8s --classic
+          sudo microk8s status --wait-ready
+          sudo microk8s enable helm3
+
+      - name: "Install cert-manager charts"
+        run: |
+          sudo microk8s.kubectl create namespace cert-manager
+          sudo microk8s.helm3 repo add jetstack https://charts.jetstack.io
+          sudo microk8s.helm3 repo update
+          sudo microk8s.helm3 install \
+            cert-manager jetstack/cert-manager \
+            --namespace cert-manager \
+            --set installCRDs=true
+          echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
+
+      - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
+
       - name: "Download and import container"
         uses: ./.github/actions/container_load
         with:
@@ -222,40 +313,9 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
           CONTAINER_BUILD: false
 
-      - name: "[ PREPARE ] change dns"
-        run: |
-          sudo mkdir -p data
-          sudo systemctl disable systemd-resolved
-          sudo systemctl stop systemd-resolved
-          sudo chmod -R 777 /etc/resolv.conf
-          sudo echo "nameserver 1.1.1.1" > /etc/resolv.conf
-          sudo cat /etc/resolv.conf
-          sudo cp .github/k8s-acme-srv.yml data/
-          sudo chmod 777 data/k8s-acme-srv.yml
-          sudo sed -i "s/DNSMASQ_IP/1.1.1.1/g" data/k8s-acme-srv.yml
-          cat data/k8s-acme-srv.yml
-
-      - name: "[ PREPARE ] install microk8s"
-        run: |
-          sudo snap install microk8s --classic
-          sudo microk8s status --wait-ready
-          sudo microk8s enable helm3
-
-      - name: "[ PREPARE ] install cert-manager charts"
-        run: |
-          sudo microk8s.kubectl create namespace cert-manager
-          sudo microk8s.helm3 repo add jetstack https://charts.jetstack.io
-          sudo microk8s.helm3 repo update
-          sudo microk8s.helm3 install \
-            cert-manager jetstack/cert-manager \
-            --namespace cert-manager \
-            --set installCRDs=true
-          echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
-      - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
-
       - name: "Import image to k8s"
         run: |
-          docker save grindsa/acme2certifier > a2c.tar
+          docker save acme2certifier/$DB_HANDLER > a2c.tar
           sudo microk8s ctr image import a2c.tar
           sudo microk8s ctr images ls | grep -i grindsa
         env:
@@ -533,7 +593,7 @@ jobs:
 
       - name: "Import container to k8s"
         run: |
-          docker save grindsa/acme2certifier > a2c.tar
+          docker save acme2certifier/$DB_HANDLER > a2c.tar
           sudo microk8s ctr image import a2c.tar
           sudo microk8s ctr images ls | grep -i grindsa
         env:
