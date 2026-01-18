@@ -33,7 +33,7 @@ jobs:
 
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
+    if: github.repository == 'grindsa/acme2certifier' &&  (inputs.branch == 'devel' || inputs.branch == 'master' || inputs.branch == 'min-devel' || inputs.branch == 'min')
     steps:
       - uses: actions/checkout@v4
       - name: Bandit Scan
@@ -60,7 +60,7 @@ jobs:
     name: Codecov Analysis
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
+    if: github.repository == 'grindsa/acme2certifier' &&  (inputs.branch == 'devel' || inputs.branch == 'master' || inputs.branch == 'min-devel' || inputs.branch == 'min')
 
     steps:
       - uses: actions/checkout@v4
@@ -98,7 +98,7 @@ jobs:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
+    if: github.repository == 'grindsa/acme2certifier' &&  (inputs.branch == 'devel' || inputs.branch == 'master' || inputs.branch == 'min-devel' || inputs.branch == 'min')
     steps:
       - uses: actions/checkout@v4
         with:
@@ -139,7 +139,7 @@ jobs:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
+    if: github.repository == 'grindsa/acme2certifier' &&  (inputs.branch == 'devel' || inputs.branch == 'master' || inputs.branch == 'min-devel' || inputs.branch == 'min')
 
     steps:
     - name: Checkout repository
