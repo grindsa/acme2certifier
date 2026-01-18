@@ -27,7 +27,7 @@ case "${1}" in
     fi
 
     apt-get install -y python3-pip
-    pip install requests-pkcs12
+    pip install requests-pkcs12 --break-system-packages
    # pip install pyopenssl --upgrade
 
     systemctl enable rsyslog
