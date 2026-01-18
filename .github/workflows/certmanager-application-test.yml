@@ -87,7 +87,7 @@ jobs:
       - name: "Import container into microk8s"
         run: |
           docker image ls
-          docker save grindsa/acme2certifier > a2c.tar
+          docker save acme2certifier/$DB_HANDLER > a2c.tar
           sudo microk8s ctr image import a2c.tar
           sudo microk8s ctr images ls | grep -i grindsa
         env:
