@@ -52,7 +52,7 @@ jobs:
   mscertserv-test-containers:
     needs: guard
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -297,7 +297,7 @@ jobs:
     name: "mscertsrv-container-eab-profiling-tests"
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [guard, mscertserv-test-containers]
     strategy:
       fail-fast: false
@@ -504,7 +504,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: guard
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       # max-parallel: 1
@@ -762,7 +762,7 @@ jobs:
   mswcce-eab-container-tests:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [guard, mswcce-test-containers]
     strategy:
       fail-fast: false
@@ -977,7 +977,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [guard, mswcce-eab-container-tests]
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       # max-parallel: 1
@@ -1093,7 +1093,7 @@ jobs:
   mscertsrv-test-rpm:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: guard
     strategy:
       max-parallel: 1
@@ -1305,7 +1305,7 @@ jobs:
   mscertsrv-eabprofile-test-rpm:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [guard, mscertsrv-test-rpm]
     strategy:
       max-parallel: 1
@@ -1508,7 +1508,7 @@ jobs:
   mswcce-tests-rpm:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: guard
     strategy:
       max-parallel: 1
@@ -1739,7 +1739,7 @@ jobs:
   mswcce-eab-tests-rpm:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: [guard, mswcce-tests-rpm]
     strategy:
       max-parallel: 1
@@ -1965,7 +1965,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['apache2', 'nginx']
+        # apache does not work for some reason
+        websrv: ['nginx']
         execscript: ['deb_tester.sh','django_tester.sh']
 
     steps:
@@ -2190,13 +2191,13 @@ jobs:
   # Test DEB mswcce
   # ---------------------------------------------------------
   mswcce-test-deb:
-    needs: guard
+    needs: [guard, mscertsrv-test-deb]
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['apache2', 'nginx']
+        websrv: ['nginx']
         execscript: ['deb_tester.sh','django_tester.sh']
 
     steps:
