@@ -155,7 +155,7 @@ jobs:
         run: |
           docker save acme2certifier/$DB_HANDLER > a2c.tar
           sudo microk8s ctr image import a2c.tar
-          sudo microk8s ctr images
+          sudo microk8s ctr images ls
           sudo microk8s ctr images ls | grep -i grindsa
         env:
           WEB_SRV: ${{ matrix.websrv }}
