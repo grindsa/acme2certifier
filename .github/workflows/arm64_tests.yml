@@ -1,4 +1,4 @@
-name: Deyploymet Tests - arm64
+name: Deployment Tests - arm64
 on:
   workflow_dispatch:
     inputs:
