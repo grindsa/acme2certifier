@@ -758,6 +758,7 @@ jobs:
           sudo echo "endpoint_name: enroll" >> data/volume/acme_srv.cfg
           sudo echo "polling_timeout: 60" >> data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+
         env:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -778,9 +779,9 @@ jobs:
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
-          sudo echo "client_cert: volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
+          sudo echo "client_cert: /var/www/acme2certifier/volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
           sudo echo "cert_passphrase: Test1234" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
           sudo echo "cert_profile_name: tls-server" >> data/volume/acme_srv.cfg
           sudo echo "endpoint_name: enroll" >> data/volume/acme_srv.cfg
           sudo echo "polling_timeout: 60" >> data/volume/acme_srv.cfg
@@ -833,6 +834,8 @@ jobs:
           sudo sed -i "s/www.example.org/*.acme/g" data/volume/acme_ca/kid_profiles.json
           sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
           sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/examples\/ca_handler/\/var\/www\/acme2certifier\/examples\/ca_handler/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
         env:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
