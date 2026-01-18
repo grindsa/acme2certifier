@@ -2072,7 +2072,7 @@ jobs:
       - name: "NTLM - Setup a2c with mscertsrv_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
           sudo echo "password: $MSCA_PASSWORD" >> data/volume/acme_srv.cfg
@@ -2120,7 +2120,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
           sudo echo "password: $MSCA_PASSWORD" >> data/volume/acme_srv.cfg
@@ -2287,14 +2287,14 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "host: $RUNNER_IP" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
           sudo echo "password: $MSCA_PASSWORD" >> data/volume/acme_srv.cfg
           sudo echo "template: $MSCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo echo "ca_name: $MSCA_NAME" >> data/volume/acme_srv.cfg
           sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/volume/acme_srv.cfg
           sudo echo "timeout: 20" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
@@ -2319,7 +2319,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
           sudo echo "password: $MSCA_PASSWORD" >> data/volume/acme_srv.cfg
@@ -2327,7 +2327,7 @@ jobs:
           sudo echo "ca_name: $MSCA_NAME" >> data/volume/acme_srv.cfg
           sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> data/volume/acme_srv.cfg
           sudo echo "domain_controller: $RUNNER_IP" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/volume/acme_srv.cfg
           sudo echo "timeout: 20" >> data/volume/acme_srv.cfg
           sudo echo "use_kerberos: True" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
@@ -2363,7 +2363,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
           sudo echo "password: $MSCA_PASSWORD" >> data/volume/acme_srv.cfg
@@ -2371,7 +2371,7 @@ jobs:
           sudo echo "ca_name: $MSCA_NAME" >> data/volume/acme_srv.cfg
           sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> data/volume/acme_srv.cfg
           sudo echo "domain_controller: $RUNNER_IP" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_certs.pem" >> data/volume/acme_srv.cfg
           sudo echo "timeout: 20" >> data/volume/acme_srv.cfg
           sudo echo "use_kerberos: True" >> data/volume/acme_srv.cfg
           sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
