@@ -1,0 +1,436 @@
+name: CA-Handler Tests - OpenSSL
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+
+jobs:
+
+  # ---------------------------------------------------------
+  # Quick guard to validate incoming payload
+  # ---------------------------------------------------------
+  guard:
+    runs-on: ubuntu-latest
+    if: >
+      ${{
+        inputs.sha != '' &&
+        inputs.run_id != '' &&
+        inputs.branch != ''
+      }} && github.repository == 'grindsa/acme2certifier'
+    steps:
+      - run: |
+          echo "Triggered by SHA:    $SHA"
+          echo "From branch:         $BRANCH"
+          echo "Producer run_id:     $RUN_ID"
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+
+  # ---------------------------------------------------------
+  # Test container images (matrix from payload)
+  # ---------------------------------------------------------
+  test-containers:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
+
+      - name: "Get runner ip"
+        run: |
+          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+
+      - run: echo "runner IP is $RUNNER_IP"
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+
+      - name: "Download and import container"
+        uses: ./.github/actions/container_load
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+          DESTINATION_PATH: /tmp
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Prepare container environment"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          CONTAINER_BUILD: false
+          NAME_SPACE: acme
+
+      - name: "Setup a2c with openssl_ca_handler - default"
+        run: |
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+
+      - name: "Setup a2c with openssl_ca_handler - with template"
+        run: |
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo echo -e "\nopenssl_conf: volume/acme_ca/openssl.cnf" >> examples/Docker/data/acme_srv.cfg
+          sudo touch examples/Docker/data/acme_ca/openssl.cnf
+          sudo chmod 777 examples/Docker/data/acme_ca/openssl.cnf
+          sudo echo -e "[extensions]\nbasicConstraints = critical, CA:FALSE\nsubjectKeyIdentifier = hash, issuer:always\nauthorityKeyIdentifier = keyid:always, issuer:always" >> examples/Docker/data/acme_ca/openssl.cnf
+          sudo echo -e "keyUsage = critical, nonRepudiation, digitalSignature, keyEncipherment, keyAgreement\nextendedKeyUsage = critical, serverAuth, OCSPSigning\n" >> examples/Docker/data/acme_ca/openssl.cnf
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "With Tempßlate -  enrollment"
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_teamplate
+
+      - name: "Setup a2c with openssl_ca_handler - cn_enforce"
+        run: |
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo echo -e "\ncn_enforce: True" >> examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "With CN enforce - enrollment"
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_cn_enforce
+
+      - name: "Setup a2c with openssl_ca_handler - adjust cert_validity"
+        run: |
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/cert_validity_days: 30/cert_validity_days: 3650\ncert_validity_adjust: True/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "With cert_validity - enrollment"
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity
+
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
+          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+          cd examples/Docker
+          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
+
+      - name: "[ * ] uploading artificates"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Test RPMs (EL8 & EL9) downloaded from the producer run
+  # ---------------------------------------------------------
+  test-rpm:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        rhversion: [8, 9]
+        execscript: ['rpm_tester.sh', 'django_tester.sh']
+    steps:
+
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
+
+      - name: "Parse JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
+
+      - name: "Get runner ip"
+        run: |
+          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+
+      - run: echo "runner IP is $RUNNER_IP"
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: false
+
+      - name: "Download RPM artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Setup a2c with openssl_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+
+      - name: "Setup a2c with openssl_ca_handler - with template"
+        run: |
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo echo -e "\nopenssl_conf: volume/acme_ca/openssl.cnf" >> data/volume/acme_srv.cfg
+          sudo touch data/volume/acme_ca/openssl.cnf
+          sudo chmod 777 data/volume/acme_ca/openssl.cnf
+          sudo echo -e "[extensions]\nbasicConstraints = critical, CA:FALSE\nsubjectKeyIdentifier = critical, hash, issuer:always\nauthorityKeyIdentifier = keyid:always, issuer:always" >> data/volume/acme_ca/openssl.cnf
+          sudo echo -e "keyUsage = critical, nonRepudiation, digitalSignature, keyEncipherment, keyAgreement\nextendedKeyUsage = critical, serverAuth, OCSPSigning\n" >> data/volume/acme_ca/openssl.cnf
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "With Template -  enrollment"
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_teamplate
+
+      - name: "Setup a2c with openssl_ca_handler for django - cn_enforce"
+        run: |
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo echo -e "\ncn_enforce: True" >> data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "With CN enforce - enrollment"
+        if: matrix.execscript == 'rpm_tester.sh'
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_cn_enforce
+
+      - name: "Setup a2c with openssl_ca_handler for django - adjust cert_validity"
+        run: |
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo sed -i "s/cert_validity_days: 30/cert_validity_days: 3650\ncert_validity_adjust: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "With cert_validity - enrollment"
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity
+
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
+          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
+          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh certbot lego
+
+      - name: "[ * ] uploading artificates"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Test DEB downloaded from the producer run
+  # ---------------------------------------------------------
+  test-deb:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        execscript: ['deb_tester.sh','django_tester.sh']
+
+    steps:
+
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
+
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'deb_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'django_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+          DJANGO_DB: psql
+
+      - name: "Download DEB artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Get runner ip"
+        run: |
+          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+      - run: echo "runner IP is $RUNNER_IP"
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+
+      - name: "Setup a2c with openssl_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+
+      - name: "Setup a2c with openssl_ca_handler - with template"
+        run: |
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo echo -e "\nopenssl_conf: volume/acme_ca/openssl.cnf" >> data/volume/acme_srv.cfg
+          sudo touch data/volume/acme_ca/openssl.cnf
+          sudo chmod 777 data/volume/acme_ca/openssl.cnf
+          sudo echo -e "[extensions]\nbasicConstraints = critical, CA:FALSE\nsubjectKeyIdentifier = critical, hash, issuer:always\nauthorityKeyIdentifier = keyid:always, issuer:always" >> data/volume/acme_ca/openssl.cnf
+          sudo echo -e "keyUsage = critical, nonRepudiation, digitalSignature, keyEncipherment, keyAgreement\nextendedKeyUsage = critical, serverAuth, OCSPSigning\n" >> data/volume/acme_ca/openssl.cnf
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "With Template -  enrollment"
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_teamplate
+
+      - name: "Setup a2c with openssl_ca_handler for django - cn_enforce"
+        run: |
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo echo -e "\ncn_enforce: True" >> data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "With CN enforce - enrollment"
+        if: matrix.execscript == 'rpm_tester.sh'
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_cn_enforce
+
+      - name: "Setup a2c with openssl_ca_handler for django - adjust cert_validity"
+        run: |
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo sed -i "s/cert_validity_days: 30/cert_validity_days: 3650\ncert_validity_adjust: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "With cert_validity - enrollment"
+        uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity
+
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.deb
+          if [ ${{ matrix.websrv }} == "apache2" ]; then
+            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          else
+            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          fi
+          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
+
+      - name: "[ * ] uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
