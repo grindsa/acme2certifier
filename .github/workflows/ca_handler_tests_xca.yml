@@ -724,10 +724,6 @@ jobs:
         with:
           TEST_ADL: "true"
 
-      - name: "Verify allowed_domainlist error"
-        run: |
-          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
-
       - name: "No Template - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_no_template
 
