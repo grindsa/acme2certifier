@@ -705,7 +705,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
           sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
@@ -741,7 +741,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
           sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
@@ -767,7 +767,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
           sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
@@ -796,7 +796,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
           sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
@@ -841,7 +841,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
           sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
@@ -889,7 +889,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
           sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
@@ -916,7 +916,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
           sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
