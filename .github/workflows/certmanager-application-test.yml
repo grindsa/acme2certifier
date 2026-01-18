@@ -147,7 +147,7 @@ jobs:
           sudo microk8s.kubectl create namespace cert-manager
           sudo microk8s.helm3 repo add jetstack https://charts.jetstack.io
           sudo microk8s.helm3 repo update
-          sudo microk8s.helm3 install cert-manager jetstack/cert-manager --namespace cert-manager  --set installCRDs=true  --set podDnsPolicy="None",podDnsConfig.nameservers={${{ env.DNSMASQ_IP }}}
+          sudo microk8s.helm3 install cert-manager jetstack/cert-manager --namespace cert-manager  --set crds.enabled=true  --set podDnsPolicy="None",podDnsConfig.nameservers={${{ env.DNSMASQ_IP }}}
           echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
       - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
 
@@ -326,7 +326,7 @@ jobs:
           sudo microk8s.helm3 install \
             cert-manager jetstack/cert-manager \
             --namespace cert-manager \
-            --set installCRDs=true
+            --set crds.enabled=true
           echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
 
       - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
@@ -609,7 +609,7 @@ jobs:
           sudo microk8s.kubectl create namespace cert-manager
           sudo microk8s.helm3 repo add jetstack https://charts.jetstack.io
           sudo microk8s.helm3 repo update
-          sudo microk8s.helm3 install cert-manager jetstack/cert-manager --namespace cert-manager  --set installCRDs=true  --set podDnsPolicy="None",podDnsConfig.nameservers={${{ env.DNSMASQ_IP }}}
+          sudo microk8s.helm3 install cert-manager jetstack/cert-manager --namespace cert-manager  --set crds.enabled=true  --set podDnsPolicy="None",podDnsConfig.nameservers={${{ env.DNSMASQ_IP }}}
           echo CERTMGR_VERSION=$(sudo microk8s.helm3 show chart jetstack/cert-manager | grep version) >> $GITHUB_ENV
       - run: echo "cert-manager ${{ env.CERTMGR_VERSION }}"
 
