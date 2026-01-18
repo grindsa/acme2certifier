@@ -86,6 +86,7 @@ jobs:
 
       - name: "Import container into microk8s"
         run: |
+          docker ps -a
           docker save grindsa/acme2certifier > a2c.tar
           sudo microk8s ctr image import a2c.tar
           sudo microk8s ctr images ls | grep -i grindsa
@@ -192,6 +193,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # apache throws errors for some reason
         websrv: ['nginx']
         dbhandler: ['wsgi', 'django']
     steps:
@@ -435,7 +437,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['nginx']
+        websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
 
