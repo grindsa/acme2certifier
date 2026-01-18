@@ -2060,13 +2060,19 @@ jobs:
       - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
-          docker exec acme-srv apt-get install -y python3-gssapi
+          # docker exec acme-srv apt-get install -y python3-gssapi
           docker exec acme-srv rm -rf /etc/krb5.conf
           docker exec acme-srv ln -s /var/www/acme2certifier/volume/acme_ca/krb5.conf /etc/krb5.conf
-
         env:
           WEBSRV: ${{ matrix.websrv }}
           EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
 
       - name: "KRB - enrollment default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
