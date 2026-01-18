@@ -155,6 +155,7 @@ jobs:
         run: |
           docker save acme2certifier/$DB_HANDLER > a2c.tar
           sudo microk8s ctr image import a2c.tar
+          sudo microk8s ctr images
           sudo microk8s ctr images ls | grep -i grindsa
         env:
           WEB_SRV: ${{ matrix.websrv }}
@@ -255,7 +256,7 @@ jobs:
   dns01-test-containers:
     needs: guard
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier'
+    if: github.repository == 'grindsa/acme2certifier1'
     strategy:
       fail-fast: false
       matrix:
@@ -500,7 +501,7 @@ jobs:
   eab-test-containers:
     needs: guard
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier'
+    if: github.repository == 'grindsa/acme2certifier1'
     strategy:
       fail-fast: false
       matrix:
