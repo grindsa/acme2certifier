@@ -46,9 +46,9 @@ jobs:
           BRANCH: ${{ inputs.branch }}
           RUN_ID: ${{ inputs.run_id }}
 
-    # ---------------------------------------------------------
-    # Test RPMs (EL8 & EL9) downloaded from the producer run
-    # ---------------------------------------------------------
+  # ---------------------------------------------------------
+  # Test RPMs (EL8 & EL9) downloaded from the producer run
+  # ---------------------------------------------------------
   test-rpm:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
@@ -62,12 +62,12 @@ jobs:
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - name: "Download RPM artifact by name from build run"
+        uses: ./.github/actions/download_artifact
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
