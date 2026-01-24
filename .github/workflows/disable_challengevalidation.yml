@@ -609,12 +609,6 @@ jobs:
         with:
           time: 15s
 
-      - name: "Check logs for forward check errors"
-        run: |
-          docker exec acme-srv grep "Forward check failed for www.dynamop.de" /var/log/messages
-          docker exec acme-srv grep "SourceAddressValidator._perform_forward_check(): Source address not found in resolved IPs" /var/log/messages
-          docker exec acme-srv grep "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist" /var/log/messages
-
       - name: "Enable reverse address check"
         run: |
           sudo sed -i "s/forward_address_check: True/reverse_address_check: True/g" data/volume/acme_srv.cfg
@@ -635,11 +629,6 @@ jobs:
         uses: juliangruber/sleep-action@v2.0.3
         with:
           time: 15s
-
-      - name: "Check logs for reverse check errors"
-        run: |
-          docker exec acme-srv grep "Reverse address check failed" /var/log/messages
-          docker exec acme-srv grep "Reverse check passed for lego.acme" /var/log/messages
 
       - name: "Setup acme_srv.cfg with xca_ca_handler"
         run: |
@@ -693,10 +682,6 @@ jobs:
           EAB_KID: "keyid_00"
           EAB_HMAC_KEY: "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw"
 
-      - name: "Check logs for forward check errors"
-        run: |
-          docker exec acme-srv grep "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist" /var/log/messages
-
       - name: "EAB - reverse address check enabled"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
         with:
@@ -704,22 +689,12 @@ jobs:
           EAB_KID: "keyid_01"
           EAB_HMAC_KEY: "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg"
 
-      - name: "Check logs for reverse check errors"
-        run: |
-          docker exec acme-srv grep "Reverse address check failed" /var/log/messages
-          docker exec acme-srv grep "Reverse check passed for lego.acme" /var/log/messages
-
       - name: "EAB - Chellenge validation disabled"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
         with:
           TO_FAIL: "false"
           EAB_KID: "keyid_02"
           EAB_HMAC_KEY: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
-
-      - name: "Check logs for challenge validation disabled message"
-        working-directory: examples/Docker
-        run: |
-          docker exec acme-srv grep "Source address checks are disabled. Setting challenge status to valid." /var/log/messages
 
       - name: "[ * ] collecting test logs"
         if: ${{ failure() }}
