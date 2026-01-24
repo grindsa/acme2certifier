@@ -449,6 +449,8 @@ jobs:
           mkdir -p ${{ github.workspace }}/artifact/upload
           docker exec alma9-c1 tar cvfz /tmp/acme2certifier/alma9-c1-a2c.tgz /opt/acme2certifier
           docker exec alma9-c2 tar cvfz /tmp/acme2certifier/alma9-c2-a2c.tgz /opt/acme2certifier
+          docker exec alma9-c1 systemctl status nginx.service
+          docker exec alma9-c1 journalctl -xeu nginx.service
           sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
           docker exec alma9-c1 cat /var/log/messages > ${{ github.workspace }}/artifact/alma9-c1-messages.log
           docker exec alma9-c2 cat /var/log/messages > ${{ github.workspace }}/artifact/alma9-c2-messages.log
