@@ -289,7 +289,6 @@ jobs:
         run: |
           docker exec alma9-c1 yum install python3-mysqlclient python3-django3 python3-pyyaml -y
           docker exec alma9-c1 yum localinstall -y /tmp/acme2certifier/acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          # docker exec alma9-c1 yum localinstall -y /tmp/acme2certifier/acme2certifier-0.34-1.0.noarch.rpm
           docker exec alma9-c1 chown -R nginx /opt/acme2certifier/volume/
           docker exec alma9-c1 cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
           docker exec alma9-c1 cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
@@ -312,7 +311,6 @@ jobs:
 
           docker exec alma9-c2 yum install python3-mysqlclient python3-django3 python3-pyyaml -y
           docker exec alma9-c2 yum localinstall -y /tmp/acme2certifier/acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          # docker exec alma9-c2 yum localinstall -y /tmp/acme2certifier/acme2certifier-0.34-1.0.noarch.rpm
           docker exec alma9-c2 chown -R nginx /opt/acme2certifier/volume/
           docker exec alma9-c2 cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
           docker exec alma9-c2 cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
