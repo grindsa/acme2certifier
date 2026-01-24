@@ -309,7 +309,7 @@ jobs:
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
-      - name: "Django - Setup acme_srv.cfg with xca_ca_handler"
+      - name: "Setup acme_srv.cfg with xca_ca_handler"
         run: |
           mkdir -p data/volume/acme_ca/certs
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
@@ -402,7 +402,7 @@ jobs:
           docker exec acme-srv grep "Reverse address check failed" /var/log/messages
           docker exec acme-srv grep "Reverse check passed for lego.acme" /var/log/messages
 
-      - name: "Django - Setup acme_srv.cfg with xca_ca_handler"
+      - name: "Setup acme_srv.cfg with xca_ca_handler"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
@@ -544,7 +544,7 @@ jobs:
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
-      - name: "Django - Setup acme_srv.cfg with xca_ca_handler"
+      - name: "Setup acme_srv.cfg with xca_ca_handler"
         run: |
           mkdir -p data/volume/acme_ca/certs
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
@@ -641,7 +641,7 @@ jobs:
           docker exec acme-srv grep "Reverse address check failed" /var/log/messages
           docker exec acme-srv grep "Reverse check passed for lego.acme" /var/log/messages
 
-      - name: "Django - Setup acme_srv.cfg with xca_ca_handler"
+      - name: "Setup acme_srv.cfg with xca_ca_handler"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
