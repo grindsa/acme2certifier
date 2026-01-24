@@ -79,19 +79,13 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
           CONTAINER_BUILD: false
           NAME_SPACE: acme
+          DJANGO_DB: psql
 
       - name: "create folders"
         run: |
           mkdir lego
           mkdir acme-sh
           mkdir certbot
-
-      - name: "Build container"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          DJANGO_DB: psql
 
       - name: "Setup openssl ca_handler"
         run: |
