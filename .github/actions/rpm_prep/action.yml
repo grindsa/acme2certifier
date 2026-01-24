@@ -64,12 +64,12 @@ runs:
         if [ -z "$DJANGO_DB" ] || [ "$DJANGO_DB" == "sqlite3" ]; then
             sudo cp .github/django_settings.py data/acme2certifier/settings.py
         else
-            if [ "$RH_VERSION" == '8' ] && [ "$DJANGO_DB" == 'mariadb' ]; then
-              echo "Using psql as django database on RHEL8"
-              sudo cp .github/django_settings_psql.py data/acme2certifier/settings.py
-            else
-              sudo cp .github/django_settings_$DJANGO_DB.py data/acme2certifier/settings.py
-            fi
+            #if [ "$RH_VERSION" == '8' ] && [ "$DJANGO_DB" == 'mariadb' ]; then
+            #  echo "Using psql as django database on RHEL8"
+            #  sudo cp .github/django_settings_psql.py data/acme2certifier/settings.py
+            #else
+            sudo cp .github/django_settings_$DJANGO_DB.py data/acme2certifier/settings.py
+            #fi
 
         fi
         sudo sed -i "s/\/var\/www\//\/opt\//g" data/acme2certifier/settings.py
