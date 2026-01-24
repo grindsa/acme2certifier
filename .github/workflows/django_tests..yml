@@ -80,7 +80,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
           CONTAINER_BUILD: false
           NAME_SPACE: acme
-          DJANGO_DB: ${{ matrix.database }}"
+          DJANGO_DB: ${{ matrix.database }}
 
       - name: "Setup openssl ca_handler"
         run: |
@@ -140,7 +140,7 @@ jobs:
       matrix:
         rhversion: [8, 9]
         execscript: ['django_tester.sh']
-        database: ['mariadb', 'psql', 'sqlite']
+        database: ['mariadb', 'psql', 'sqlite3']
 
     steps:
       - name: "checkout GIT"
