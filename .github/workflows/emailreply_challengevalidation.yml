@@ -246,12 +246,6 @@ jobs:
           TO_FAIL: "true"
 
       - name: "Disable challenge validation"
-        if: matrix.execscript == 'rpm_tester.sh'
-        run: |
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
-
-      - name: "Disable challenge validation"
-        if: matrix.execscript == 'django_tester.sh'
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
 
@@ -261,7 +255,7 @@ jobs:
         env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
-      - name: "enroll via acme-email"
+      - name: "Enroll via acme-email"
         uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
         with:
           TO_FAIL: "false"
@@ -375,12 +369,6 @@ jobs:
           TO_FAIL: "true"
 
       - name: "Disable challenge validation"
-        if: matrix.execscript == 'rpm_tester.sh'
-        run: |
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/acme_srv.cfg
-
-      - name: "Disable challenge validation"
-        if: matrix.execscript == 'django_tester.sh'
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
 
@@ -391,7 +379,7 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           EXECSRIPT: ${{ matrix.execscript }}
 
-      - name: "enroll via acme-email"
+      - name: "Enroll via acme-email"
         uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
         with:
           TO_FAIL: "false"
