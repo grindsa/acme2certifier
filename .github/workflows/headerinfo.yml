@@ -212,7 +212,7 @@ jobs:
         run: |
           mkdir lego
 
-      - name: "Django - Setup acme_srv.cfg with xca_ca_handler"
+      - name: "Setup acme_srv.cfg with xca_ca_handler"
         run: |
           mkdir -p data/volume/acme_ca/certs
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
@@ -284,3 +284,133 @@ jobs:
         with:
           name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Test DEB downloaded from the producer run
+  # ---------------------------------------------------------
+  test-deb:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        execscript: ['deb_tester.sh','django_tester.sh']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
+
+      - name: "Parse XCA configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
+
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'deb_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'django_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+          DJANGO_DB: psql
+
+      - name: "Download DEB artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Download RPM artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Create lego folder"
+        run: |
+          mkdir lego
+
+      - name: "Setup acme_srv.cfg with xca_ca_handler"
+        run: |
+          mkdir -p data/volume/acme_ca/certs
+          sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+
+          sudo cp examples/ca_handler/xca_ca_handler.py data/volume/ca_handler.py
+          sudo chmod 777 data/volume/ca_handler.py
+          sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, \"template_name\")/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
+          sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" data/volume/ca_handler.py
+
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/volume/ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
+          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
+          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
+          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
+
+      - name: "Test http://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+      - name: "Test if https://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+      - name: "Enroll lego"
+        run: |
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --user-agent foo-bar-doo  -d lego.acme --http run
+          sudo cat lego/certificates/lego.acme.issuer.crt |  awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
+          sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+
+      - name: "Sleep for 15s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 15s
+
+      - name: "[ * ] collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.deb
+          if [ ${{ matrix.websrv }} == "apache2" ]; then
+            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          else
+            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          fi
+          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
+
+      - name: "[ * ] uploading artificates"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload//var/www/acme2certifier/
