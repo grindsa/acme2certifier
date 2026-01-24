@@ -263,27 +263,27 @@ jobs:
       - name: "Enroll acme.sh - single domain"
         run: |
           docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.single --standalone --debug 3 --output-insecure --force
-          openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.single_ecc/acme-sh.single.cer
+          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.single_ecc/acme-sh.single.cer
 
       - name: "Enroll acme.sh - two domains"
         run: |
           docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.first --dns dns_test -d acme-sh.second --standalone --debug 3 --output-insecure --force
-          openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.first_ecc/acme-sh.first.cer
+          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.first_ecc/acme-sh.first.cer
 
       - name: "Enroll acme.sh - single wildcard domain"
         run: |
           docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/*acme-sh.wildcard_ecc/*acme-sh.wildcard.cer
+          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/*acme-sh.wildcard_ecc/*acme-sh.wildcard.cer
 
       - name: "Enroll acme.sh - double wildcard domain"
         run: |
           docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.first-wildcard --dns dns_test -d *.acme-sh.second-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/*.acme-sh.first-wildcard_ecc/*.acme-sh.first-wildcard.cer
+          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/*.acme-sh.first-wildcard_ecc/*.acme-sh.first-wildcard.cer
 
       - name: "Enroll acme.sh - domain and wildcard domain"
         run: |
           docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.fqdn-wildcard --dns dns_test -d *.acme-sh.fqdn-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.fqdn-wildcard_ecc/acme-sh.fqdn-wildcard.cer
+          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.fqdn-wildcard_ecc/acme-sh.fqdn-wildcard.cer
 
       - name: "Check TXT record exists"
         if: ${{ failure() }}
@@ -400,27 +400,27 @@ jobs:
       - name: "Enroll acme.sh - single domain"
         run: |
           docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.single --standalone --debug 3 --output-insecure --force
-          openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.single_ecc/acme-sh.single.cer
+          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.single_ecc/acme-sh.single.cer
 
       - name: "Enroll acme.sh - two domains"
         run: |
           docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.first --dns dns_test -d acme-sh.second --standalone --debug 3 --output-insecure --force
-          openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.first_ecc/acme-sh.first.cer
+          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.first_ecc/acme-sh.first.cer
 
       - name: "Enroll acme.sh - single wildcard domain"
         run: |
           docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/*acme-sh.wildcard_ecc/*acme-sh.wildcard.cer
+          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/*acme-sh.wildcard_ecc/*acme-sh.wildcard.cer
 
       - name: "Enroll acme.sh - double wildcard domain"
         run: |
           docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.first-wildcard --dns dns_test -d *.acme-sh.second-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/*.acme-sh.first-wildcard_ecc/*.acme-sh.first-wildcard.cer
+          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/*.acme-sh.first-wildcard_ecc/*.acme-sh.first-wildcard.cer
 
       - name: "Enroll acme.sh - domain and wildcard domain"
         run: |
           docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.fqdn-wildcard --dns dns_test -d *.acme-sh.fqdn-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile data/acme_ca/root-ca-cert.pem -untrusted data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.fqdn-wildcard_ecc/acme-sh.fqdn-wildcard.cer
+          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.fqdn-wildcard_ecc/acme-sh.fqdn-wildcard.cer
 
       - name: "Check TXT record exists"
         if: ${{ failure() }}
