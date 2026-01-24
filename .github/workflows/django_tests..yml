@@ -92,7 +92,6 @@ jobs:
           sudo echo "" >> data/acme_srv.cfg
           sudo echo "[Directory]" >> data/acme_srv.cfg
           sudo echo "url_prefix: /foo" >> data/acme_srv.cfg
-          grep -i 'django.db.backends.mysql' data/settings.py
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
