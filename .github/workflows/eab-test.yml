@@ -365,7 +365,7 @@ jobs:
 
       - name: "Rename eab-kid"
         run: |
-          sudo sed -i "s/keyid_02/keyid_12/g" data/acme_ca/key_file.json
+          sudo sed -i "s/keyid_02/keyid_12/g" data/volume/acme_ca/key_file.json
 
       - name: "Execute install scipt"
         run: |
@@ -388,8 +388,12 @@ jobs:
       - name: "Disable eab-kid checking"
         run: |
           sudo echo "eabkid_check_disable: True" >> data/volume/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
+
+      - name: "Execute install scipt"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "Enroll acme.sh with unknown kid - should work"
         # id: acmekidfail
@@ -560,7 +564,7 @@ jobs:
 
       - name: "Rename eab-kid"
         run: |
-          sudo sed -i "s/keyid_02/keyid_12/g" data/acme_ca/key_file.json
+          sudo sed -i "s/keyid_02/keyid_12/g" data/volume/acme_ca/key_file.json
 
       - name: "Reconfigure a2c "
         run: |
@@ -584,8 +588,18 @@ jobs:
       - name: "Disable eab-kid checking"
         run: |
           sudo echo "eabkid_check_disable: True" >> data/volume/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
+
+      - name: "Rename eab-kid"
+        run: |
+          sudo sed -i "s/keyid_02/keyid_12/g" data/volume/acme_ca/key_file.json
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
 
       - name: "Enroll acme.sh with unknown kid - should work"
         # id: acmekidfail
