@@ -61,7 +61,7 @@ runs:
         else
           echo "RPM does not exist"
         fi
-        if [ -z "$DJANGO_DB" ]; then
+        if [ -z "$DJANGO_DB" ] || [ "$DJANGO_DB" == "sqlite" ]; then
             sudo cp .github/django_settings.py data/acme2certifier/settings.py
         else
             sudo cp .github/django_settings_$DJANGO_DB.py data/acme2certifier/settings.py

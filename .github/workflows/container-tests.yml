@@ -1,4 +1,4 @@
-name: Deployment Tests- Containers
+name: Deployment Tests - Containers
 on:
   workflow_dispatch:
     inputs:
