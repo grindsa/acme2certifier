@@ -297,7 +297,8 @@ jobs:
           docker exec alma9-c1 mkdir -p /var/www/acme2certifier/volume/
           docker exec alma9-c1 cp /tmp/acme2certifier/nginx/acme2certifier_cert.pem /var/www/acme2certifier/volume/
           docker exec alma9-c1 cp /tmp/acme2certifier/nginx/acme2certifier_key.pem /var/www/acme2certifier/volume/
-          docker exec alma9-c1 cp /tmp/acme2certifier/nginx/acme2certifier_*.pem /etc/nginx/
+          docker exec alma9-c1 cp /tmp/acme2certifier/nginx/acme2certifier_cert.pem /etc/nginx/
+          docker exec alma9-c1 cp /tmp/acme2certifier/nginx/acme2certifier_key.pem /etc/nginx/
 
           docker exec alma9-c1 sh -c "head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf"
           docker exec alma9-c1 sh -c "echo '}' >> /etc/nginx/nginx.conf"
@@ -320,7 +321,8 @@ jobs:
           docker exec alma9-c2 mkdir -p /var/www/acme2certifier/volume/
           docker exec alma9-c2 cp /tmp/acme2certifier/nginx/acme2certifier_cert.pem /var/www/acme2certifier/volume/
           docker exec alma9-c2 cp /tmp/acme2certifier/nginx/acme2certifier_key.pem /var/www/acme2certifier/volume/
-          docker exec alma9-c2 cp /tmp/acme2certifier/nginx/acme2certifier_*.pem /etc/nginx/
+          docker exec alma9-c2 cp /tmp/acme2certifier/nginx/acme2certifier_cert.pem /etc/nginx/
+          docker exec alma9-c2 cp /tmp/acme2certifier/nginx/acme2certifier_key.pem /etc/nginx/
 
           docker exec alma9-c2 sh -c "head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf"
           docker exec alma9-c2 sh -c "echo '}' >> /etc/nginx/nginx.conf"
