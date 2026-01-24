@@ -63,11 +63,6 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v4
 
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.XCA_CFG }}
-
       - name: "Download and import container"
         uses: ./.github/actions/container_load
         with:

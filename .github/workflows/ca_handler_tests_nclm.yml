@@ -46,7 +46,6 @@ jobs:
           BRANCH: ${{ inputs.branch }}
           RUN_ID: ${{ inputs.run_id }}
 
-
   # ---------------------------------------------------------
   # Test container images (matrix from payload)
   # ---------------------------------------------------------
