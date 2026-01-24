@@ -200,11 +200,6 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
       - name: "Prepare Alma environment"
         uses: ./.github/actions/rpm_prep
         with:
