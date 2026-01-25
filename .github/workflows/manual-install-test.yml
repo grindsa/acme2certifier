@@ -279,10 +279,10 @@ jobs:
 
       - name: "Prepare acme_srv.cfg with openssl_ca_handler"
         run: |
-          mkdir -p data/acme_ca
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/acme_srv.cfg
+          mkdir -p data/volume/acme_ca
+          sudo mkdir -p examples/Docker/data/volume/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -337,7 +337,7 @@ jobs:
         with:
           RUN_ID: ${{ inputs.run_id }}
           ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: data/
+          DESTINATION_PATH: /tmp/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
@@ -432,7 +432,7 @@ jobs:
         with:
           RUN_ID: ${{ inputs.run_id }}
           ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: /tmp
+          DESTINATION_PATH: /tmp/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
