@@ -246,10 +246,10 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v4
 
-      - name: "Parse XCA configuration from JSON secret"
+      - name: "Parse JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
-          json_secret: ${{ secrets.XCA_CFG }}
+          json_secret: ${{ secrets.GH_CFG }}
 
       - name: "Prepare Ubuntu environment"
         if: matrix.execscript == 'deb_tester.sh'
