@@ -300,6 +300,19 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v4
 
+      - name: "get runner information"
+        run: |
+          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+          echo RUNNER_HOSTNAME=$(hostname -f) >> $GITHUB_ENV
+
+      - run: echo "runner IP is $RUNNER_IP"
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+
+      - run: echo "runner hostname is ${{ env.RUNNER_HOSTNAME }}"
+        env:
+          RUNNER_HOSTNAME: ${{ env.RUNNER_HOSTNAME }}
+
       - name: "Prepare Ubuntu environment"
         if: matrix.execscript == 'deb_tester.sh'
         uses: ./.github/actions/deb_prep
