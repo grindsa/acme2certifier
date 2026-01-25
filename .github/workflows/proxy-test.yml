@@ -1,4 +1,4 @@
-name: Feature Tests - Proxy tests
+name: Feature Tests - Proxy Support
 on:
   workflow_dispatch:
     inputs:
@@ -478,6 +478,11 @@ jobs:
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
         env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
 
       - name: "Test if http://acme-srv/directory is accessible"
         run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
