@@ -260,7 +260,7 @@ jobs:
           sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" data/volume/acme_srv.cfg
           sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> data/volume/acme_srv.cfg
 
-      - name: "Execute install scipt"
+      - name: "Reconfigure a2c "
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
         env:
