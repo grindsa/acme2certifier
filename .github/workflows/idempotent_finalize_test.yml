@@ -339,4 +339,4 @@ jobs:
         if: ${{ failure() }}
         with:
           name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload//var/www/acme2certifier/
+          path: ${{ github.workspace }}/artifact/upload/
