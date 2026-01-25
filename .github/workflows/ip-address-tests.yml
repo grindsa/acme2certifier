@@ -243,6 +243,20 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v4
 
+      - name: "Parse JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
+
+      - name: "[ PREPARE ] get runner ip"
+        run: |
+          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+
+      - run: echo "runner IP is $RUNNER_IP"
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
