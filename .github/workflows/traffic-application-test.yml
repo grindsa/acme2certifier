@@ -166,6 +166,7 @@ jobs:
       matrix:
         rhversion: [8, 9]
         execscript: ['rpm_tester.sh', 'django_tester.sh']
+        challenge_type: [tlschallenge=true, httpchallenge.entrypoint=web]
 
     steps:
       - name: "checkout GIT"
@@ -285,6 +286,7 @@ jobs:
       matrix:
         websrv: ['apache2', 'nginx']
         execscript: ['deb_tester.sh','django_tester.sh']
+        challenge_type: [tlschallenge=true, httpchallenge.entrypoint=web]
 
     steps:
       - name: "checkout GIT"
