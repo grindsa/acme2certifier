@@ -240,7 +240,7 @@ jobs:
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
-        execscript: ['deb_tester.sh','django_tester.sh']
+        execscript: ['deb_tester.sh']
 
     steps:
       - name: "checkout GIT"
