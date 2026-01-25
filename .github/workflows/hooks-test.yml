@@ -513,7 +513,7 @@ jobs:
           sudo chmod -R 777 data/volume/acme_ca/hooks
           sudo echo -e "\n\n[Hooks]" >> data/volume/acme_srv.cfg
           sudo echo "hooks_file: /opt/acme2certifier/examples/hooks/cn_dump_hooks.py" >> data/volume/acme_srv.cfg
-          sudo echo "save_path: /tmp/acme2certifier/acme_ca/hooks" >> data/volume/acme_srv.cfg
+          sudo echo "save_path: /tmp/acme2certifier/volume/acme_ca/hooks" >> data/volume/acme_srv.cfg
           sudo echo "$HOOKS_CHECKSUM" > data/volume/acme_ca/hooks/checksums.sha256
         env:
           HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
@@ -663,7 +663,7 @@ jobs:
 
       - name: "Reconfigure hook handler to trigger pre hook exception "
         run: |
-          sudo sed -i "s/raise_pre_hook_exception: False/raise_pre_hook_exception: True/g" data/acme_srv.cfg
+          sudo sed -i "s/raise_pre_hook_exception: False/raise_pre_hook_exception: True/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c "
         run: |
@@ -685,7 +685,7 @@ jobs:
 
       - name: "Reconfigure a2c to ignore pre-hook failures "
         run: |
-          sudo echo "ignore_pre_hook_failure: True" >> data/acme_srv.cfg
+          sudo echo "ignore_pre_hook_failure: True" >> data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c "
         run: |
@@ -700,8 +700,8 @@ jobs:
 
       - name: "Reconfigure hook handler to trigger success hook exception "
         run: |
-          sudo sed -i "s/raise_pre_hook_exception: True/raise_pre_hook_exception: False/g" data/acme_srv.cfg
-          sudo sed -i "s/raise_success_hook_exception: False/raise_success_hook_exception: True/g" data/acme_srv.cfg
+          sudo sed -i "s/raise_pre_hook_exception: True/raise_pre_hook_exception: False/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/raise_success_hook_exception: False/raise_success_hook_exception: True/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c "
         run: |
@@ -723,7 +723,7 @@ jobs:
 
       - name: "Reconfigure a2c to ignore success-hook failures "
         run: |
-          sudo sed -i "s/ignore_pre_hook_failure: True/ignore_success_hook_failure: True/g" data/acme_srv.cfg
+          sudo sed -i "s/ignore_pre_hook_failure: True/ignore_success_hook_failure: True/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c "
         run: |
@@ -738,8 +738,8 @@ jobs:
 
       - name: "Reconfigure hook handler to trigger post hook exception "
         run: |
-          sudo sed -i "s/raise_success_hook_exception: True/raise_success_hook_exception: False/g" data/acme_srv.cfg
-          sudo sed -i "s/raise_post_hook_exception: False/raise_post_hook_exception: True/g" data/acme_srv.cfg
+          sudo sed -i "s/raise_success_hook_exception: True/raise_success_hook_exception: False/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/raise_post_hook_exception: False/raise_post_hook_exception: True/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c "
         run: |
@@ -754,7 +754,7 @@ jobs:
 
       - name: "Reconfigure a2c to detect success-hook failures "
         run: |
-          sudo sed -i "s/ignore_success_hook_failure: True/ignore_post_hook_failure: False/g" data/acme_srv.cfg
+          sudo sed -i "s/ignore_success_hook_failure: True/ignore_post_hook_failure: False/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c "
         run: |
