@@ -107,7 +107,7 @@ jobs:
           RUNNER_IP: ${{ env.RUNNER_IP }}
           WES_HOST: ${{ secrets.WES_HOST }}
 
-      - name: "test dns resulution"
+      - name: "test dns resolution"
         run: |
           host $WES_HOST 127.0.0.1
         env:
@@ -706,13 +706,13 @@ jobs:
           mkdir -p ${{ github.workspace }}/artifact/upload
           docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
           sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          # sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
           sudo rm ${{ github.workspace }}/artifact/data/*.rpm
           docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
           docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
           docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
           docker logs proxy > ${{ github.workspace }}/artifact/proxy.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data proxy.log acme-srv.log acme-sh
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data proxy.log acme-srv.log # acme-sh
 
       - name: "[ * ] uploading artificates"
         uses: actions/upload-artifact@v4
