@@ -1,0 +1,51 @@
+name: Code quality - Markdown Check
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+
+jobs:
+
+  markdown-link-check:
+    # runs-on: ubuntu-latest
+    runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
+    steps:
+    - uses: actions/checkout@master
+    - uses: umbrelladocs/action-linkspector@v1
+    - name: Lint changelog file root
+      uses: avto-dev/markdown-lint@v1
+      with:
+        args: '*.md'
+    - name: Lint changelog file root
+      uses: avto-dev/markdown-lint@v1
+      with:
+        args: '*.md'
+    - name: Lint changelog file docs
+      uses: avto-dev/markdown-lint@v1
+      with:
+        args: './docs/*.md'
+    - name: Lint changelog file docker
+      uses: avto-dev/markdown-lint@v1
+      with:
+        args: './examples/Docker/*.md'
