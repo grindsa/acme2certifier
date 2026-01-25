@@ -1,27 +1,29 @@
 name: Feature Tests - Proxy Support
 on:
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to run the workflow on'
-        required: true
-        default: 'main'
-      run_id:
-        description: 'Run ID of the producing workflow'
-        required: true
-        default: '0'
-      sha:
-        description: 'SHA of the commit to run the workflow on'
-        required: true
-        default: ''
-      called_by_workflow:
-        description: 'Name of the producing workflow'
-        required: true
-        default: 'manual-trigger'
-      full_ref:
-        description: 'Full git ref of the commit to run the workflow on'
-        required: false
-        default: ''
+  push:
+    branches: [ 'disabled']
+#  workflow_dispatch:
+#    inputs:
+#     branch:
+#        description: 'Branch to run the workflow on'
+#        required: true
+#        default: 'main'
+#      run_id:
+#        description: 'Run ID of the producing workflow'
+#        required: true
+#        default: '0'
+#      sha:
+#        description: 'SHA of the commit to run the workflow on'
+#        required: true
+#        default: ''
+#      called_by_workflow:
+#        description: 'Name of the producing workflow'
+#        required: true
+#        default: 'manual-trigger'
+#      full_ref:
+#        description: 'Full git ref of the commit to run the workflow on'
+#        required: false
+#        default: ''
 
 
 jobs:
@@ -718,5 +720,5 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
-          name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
+          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
