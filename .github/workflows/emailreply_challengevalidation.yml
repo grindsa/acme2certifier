@@ -1,4 +1,4 @@
-name: Application Tests - EmailReply Challenge
+name: Feature Tests - EmailReply Challenge
 on:
   workflow_dispatch:
     inputs:

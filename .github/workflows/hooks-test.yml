@@ -1,4 +1,4 @@
-name: Application Tests - Hooks
+name: Feature Tests - Hooks
 on:
   workflow_dispatch:
     inputs:

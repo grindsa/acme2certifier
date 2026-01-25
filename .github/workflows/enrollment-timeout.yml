@@ -1,4 +1,4 @@
-name: Application Tests - Asynchronous enrollment and certificate re-usage
+name: Feature Tests - Asynchronous enrollment and certificate re-usage
 on:
   workflow_dispatch:
     inputs:

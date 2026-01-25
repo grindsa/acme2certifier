@@ -1,4 +1,4 @@
-name: Application Tests - Django
+name: Deyployment Tests - Django
 on:
   workflow_dispatch:
     inputs:

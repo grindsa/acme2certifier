@@ -1,4 +1,4 @@
-name: Application Tests - Idempotent_finalize option tests
+name: Feature Tests - Idempotent_finalize option tests
 on:
   workflow_dispatch:
     inputs:
