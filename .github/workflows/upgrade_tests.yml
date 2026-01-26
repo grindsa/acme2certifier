@@ -381,7 +381,7 @@ jobs:
       - name: "Update acme2certifier"
         run: |
           docker cp /tmp/acme2certifier-${{ inputs.run_id }}.noarch.rpm acme-srv:/tmp
-          docker exec acme-srv yum -y localinstall acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ inputs.run_id }}.noarch.rpm
           docker exec -w /opt/acme2certifier acme-srv python3 tools/db_update.py
           docker restart acme-srv
 
@@ -641,7 +641,7 @@ jobs:
         with:
           RUN_ID: ${{ inputs.run_id }}
           ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
+          DESTINATION_PATH: /tmp/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
