@@ -137,6 +137,37 @@ jobs:
       - name : "Stop and remove a2c instance"
         run: docker stop acme-srv
 
+      - name: "Spin-up latest a2c instance"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Renew certificates"
+        uses: ./.github/actions/wf_specific/upgrade/renew
+        with:
+          CLEANUP: true
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Stop a2c instance"
+        uses: ./.github/actions/container_down
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Cleanup environment"
+        uses: ./.github/actions/wf_specific/upgrade/cleanup
+        with:
+          DJANGO_DB: ${{ matrix.django_db }}
+
       - name: "Spin-up a2c ${{ env.OLD_TAG_NAME }} instance"
         uses: ./.github/actions/container_run
         with:
