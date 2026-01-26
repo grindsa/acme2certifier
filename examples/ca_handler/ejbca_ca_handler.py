@@ -238,7 +238,7 @@ class CAhandler(object):
                     self.api_host,
                     Pkcs12Adapter(
                         pkcs12_filename=config_dic["CAhandler"]["cert_file"],
-                        pkcs12_password=config_dic["CAhandler"]["cert_passphrase"],
+                        pkcs12_password=self.cert_passphrase
                     ),
                 )
         else:
