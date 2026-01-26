@@ -1444,7 +1444,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
-    needs: deb_build
+    needs: guard
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v4
