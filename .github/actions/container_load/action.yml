@@ -19,6 +19,10 @@ inputs:
     description: "The repository in the format owner/repo. Defaults to the current repository."
     required: false
     default: ""
+  OS:
+    description: "Operating System"
+    required: true
+    default: "Linux"
 
 runs:
   using: "composite"
@@ -33,7 +37,8 @@ runs:
         TOKEN: ${{ inputs.TOKEN }}
         REPO: ${{ inputs.REPO }}
 
-    - name: "Import container"
+    - name: "Install Docker Compose"
+      if : ${{ inputs.OS == 'Linux' }}
       run: |
         cd $DESTINATION_PATH
         gunzip -f $ARTIFACT_NAME.gz
@@ -41,6 +46,15 @@ runs:
         echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
         sudo apt update
         sudo apt install -y docker-compose-plugin
+      shell: bash
+      env:
+        DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
+        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME }}
+
+    - name: "Import container"
+      run: |
+        cd $DESTINATION_PATH
+        gunzip -f $ARTIFACT_NAME.gz
         docker load -i $ARTIFACT_NAME
         docker images
       shell: bash
