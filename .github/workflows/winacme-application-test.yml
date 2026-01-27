@@ -94,6 +94,7 @@ jobs:
           DESTINATION_PATH: /tmp
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          OS: "Windows"
 
       - name: "Prepare container environment"
         uses: ./.github/actions/container_prep
