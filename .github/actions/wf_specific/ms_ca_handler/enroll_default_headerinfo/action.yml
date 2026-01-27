@@ -19,7 +19,7 @@ runs:
     env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-  - name: "Test if https://acme-srv/directory is accessible"
+  - name: "Test if https://acme-srv/directory is accessible "
     run: docker run -i --rm --network "$NAME_SPACE" curlimages/curl --insecure -f https://acme-srv/directory
     shell: bash
     env:
