@@ -97,7 +97,6 @@ jobs:
           cp examples/django/* .\ -Recurse -Force
           (Get-Content .github/django_settings.py) -replace '/var/www/acme2certifier/volume/db.sqlite3', 'volume/db.sqlite3' | Set-Content acme2certifier/settings.py
           (Get-Content acme2certifier/settings.py) -replace 'django.contrib.staticfiles', 'sslserver' | Set-Content acme2certifier/settings.py
-          cat acme2certifier/settings.py
           cp examples/ca_handler/openssl_ca_handler.py acme2certifier/ca_handler.py
           cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg acme_srv/acme_srv.cfg
           cp .github/acme2certifier_cert.pem acme2certifier/acme2certifier_cert.pem
