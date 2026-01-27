@@ -1,553 +1,800 @@
-name: CMPv2 CA handler tests
-
+name: CA-Handler Tests - CMPV2
 on:
-  push:
-  pull_request:
-    branches: [ devel ]
-  schedule:
-    # * is a special character in YAML so you have to quote this string
-    - cron:  '0 2 * * 6'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
 
 jobs:
-  cmp_handler_tests:
-    name: "cmp_handler_tests"
+
+  # ---------------------------------------------------------
+  # Quick guard to validate incoming payload
+  # ---------------------------------------------------------
+  guard:
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
+    if: >
+      ${{
+        inputs.sha != '' &&
+        inputs.run_id != '' &&
+        inputs.branch != ''
+      }} && github.repository == 'grindsa/acme2certifier'
+    steps:
+      - run: |
+          echo "Triggered by SHA:    $SHA"
+          echo "From branch:         $BRANCH"
+          echo "Producer run_id:     $RUN_ID"
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+
+  # ---------------------------------------------------------
+  # Test container images (matrix from payload)
+  # ---------------------------------------------------------
+  test-containers:
+    needs: guard
+    runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
-      max-parallel: 2
       fail-fast: false
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
 
-    - name: "Parse CMP configuration"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.CMP_CFG }}
-        uppercase: 'true'
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Parse SSH tunnel configuration"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
-        uppercase: 'true'
+      - name: "Parse CMP configuration"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.CMP_CFG }}
+          uppercase: 'true'
 
-    - name: "Get runner ip"
-      run: |
-        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+      - name: "Parse SSH tunnel configuration"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+          uppercase: 'true'
 
-    - run: echo "runner IP is $RUNNER_IP"
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
+      - name: "Get runner ip"
+        run: |
+          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
-    - name: "Build container"
-      uses: ./.github/actions/container_prep
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
+      - run: echo "runner IP is $RUNNER_IP"
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
 
-    - name: "Create ssh environment on ramdisk"
-      run: |
-        sudo mkdir -p /tmp/rd
-        sudo mount -t tmpfs -o size=5M none /tmp/rd
-        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
-        sudo chmod 600 /tmp/rd/ak.tmp
-        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
-      env:
-        SSH_KEY: ${{ env.SSH_KEY }}
-        KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+      - name: "Download and import container"
+        uses: ./.github/actions/container_load
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+          DESTINATION_PATH: /tmp
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Setup ssh forwarder"
-      run: |
-          docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
-      env:
-        SSH_USER: ${{ env.SSH_USER }}
-        SSH_HOST: ${{ env.SSH_HOST}}
-        SSH_PORT: ${{ env.SSH_PORT }}
-        CMP_HOST: ${{ env.CMP_HOST }}
+      - name: "Prepare container environment"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          CONTAINER_BUILD: false
 
-    - name: "Setup a2c with cmp_ca_handler with key-cert authentication"
-      run: |
-        sudo touch examples/Docker/data/ca_bundle.pem
-        sudo touch examples/Docker/data/ra_cert.pem
-        sudo touch examples/Docker/data/ra_key.pem
-        sudo chmod 777 examples/Docker/data/*.pem
-        sudo echo "$CMP_TRUSTED" > examples/Docker/data/ca_bundle.pem
-        sudo echo "$CMP_RA_CERT" > examples/Docker/data/ra_cert.pem
-        sudo echo "$CMP_RA_KEY" > examples/Docker/data/ra_key.pem
-        sudo touch examples/Docker/data/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-        sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_path: pkix/" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_ignore_keyusage: True" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_msg_timeout: 3" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_total_timeout: 5" >> examples/Docker/data/acme_srv.cfg
-        # sudo echo "cmp_server: $RUNNER_IP:8086" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_server: ssh-forwarder.acme:8086" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_cert: volume/ra_cert.pem" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_key: volume/ra_key.pem" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_trusted: volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_recipient: $CMP_RECIPIENT" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker compose restart
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
-        CMP_RA_KEY: ${{ env.CMP_RA_KEY }}
-        CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
-        CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
+      - name: "Create ssh environment on ramdisk"
+        run: |
+          sudo mkdir -p /tmp/rd
+          sudo mount -t tmpfs -o size=5M none /tmp/rd
+          sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
+          sudo chmod 600 /tmp/rd/ak.tmp
+          sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
+        env:
+          SSH_KEY: ${{ env.SSH_KEY }}
+          KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
+      - name: "Setup ssh forwarder"
+        run: |
+            docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
+        env:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ env.SSH_HOST}}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          CMP_HOST: ${{ env.CMP_HOST }}
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Setup a2c with cmp_ca_handler with key-cert authentication"
+        run: |
+          sudo touch examples/Docker/data/ca_bundle.pem
+          sudo touch examples/Docker/data/ra_cert.pem
+          sudo touch examples/Docker/data/ra_key.pem
+          sudo chmod 777 examples/Docker/data/*.pem
+          sudo echo "$CMP_TRUSTED" > examples/Docker/data/ca_bundle.pem
+          sudo echo "$CMP_RA_CERT" > examples/Docker/data/ra_cert.pem
+          sudo echo "$CMP_RA_KEY" > examples/Docker/data/ra_key.pem
+          sudo touch examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_path: pkix/" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_ignore_keyusage: True" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_msg_timeout: 3" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_total_timeout: 5" >> examples/Docker/data/acme_srv.cfg
+          # sudo echo "cmp_server: $RUNNER_IP:8086" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_server: ssh-forwarder.acme:8086" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_cert: volume/ra_cert.pem" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_key: volume/ra_key.pem" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_trusted: volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_recipient: $CMP_RECIPIENT" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+          CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
+          CMP_RA_KEY: ${{ env.CMP_RA_KEY }}
+          CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
+          CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
 
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
 
-    - name: "Enroll acme.sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-        sudo rm -rf acme-sh/*
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
 
-    - name: "Allowed domainlist feature - Enroll lego (fail)"
-      continue-on-error: true
-      id: legofail01
-      run: |
-        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
+      - name: "Test http://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Allowed domainlist feature - check  result "
-      if: ${{ steps.legofail01.outcome != 'failure' }}
-      run: |
-        echo "legofail outcome is ${{steps.legofail01.outcome }}"
-        exit 1
+      - name: "Test if https://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "Verify allowed_domainlist error"
-      run: |
-        cd examples/Docker
-        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+      - name: "Enroll acme.sh"
+        run: |
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+          awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
+          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+          sudo rm -rf acme-sh/*
 
-    - name: "Setup a2c with cmp_ca_handler with PSK refnum authentication"
-      run: |
-        sudo touch examples/Docker/data/ca_bundle.pem
-        sudo touch examples/Docker/data/ra_cert.pem
-        sudo chmod 777 examples/Docker/data/*.pem
-        sudo echo "$CMP_TRUSTED" > examples/Docker/data/ca_bundle.pem
-        sudo echo "$CMP_RA_CERT" > examples/Docker/data/ra_cert.pem
-        sudo touch examples/Docker/data/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-        sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_path: pkix/" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_ignore_keyusage: True" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_msg_timeout: 3" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_total_timeout: 5" >> examples/Docker/data/acme_srv.cfg
-        # sudo echo "cmp_server: $RUNNER_IP:8086" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_server: ssh-forwarder.acme:8086" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_cert: volume/ra_cert.pem" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_trusted: volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_recipient: $CMP_RECIPIENT" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_ref: $CMP_REF" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "cmp_secret: $CMP_SECRET" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker compose restart
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
-        CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
-        CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
-        CMP_REF: ${{ env.CMP_REF }}
-        CMP_SECRET: ${{ env.CMP_SECRET }}
+      - name: "Allowed domainlist feature - Enroll lego (fail)"
+        continue-on-error: true
+        id: legofail01
+        run: |
+          docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
+      - name: "Allowed domainlist feature - check  result "
+        if: ${{ steps.legofail01.outcome != 'failure' }}
+        run: |
+          echo "legofail outcome is ${{steps.legofail01.outcome }}"
+          exit 1
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
+      - name: "Verify allowed_domainlist error"
+        run: |
+          cd examples/Docker
+          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Setup a2c with cmp_ca_handler with PSK refnum authentication"
+        run: |
+          sudo touch examples/Docker/data/ca_bundle.pem
+          sudo touch examples/Docker/data/ra_cert.pem
+          sudo chmod 777 examples/Docker/data/*.pem
+          sudo echo "$CMP_TRUSTED" > examples/Docker/data/ca_bundle.pem
+          sudo echo "$CMP_RA_CERT" > examples/Docker/data/ra_cert.pem
+          sudo touch examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_path: pkix/" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_ignore_keyusage: True" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_msg_timeout: 3" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_total_timeout: 5" >> examples/Docker/data/acme_srv.cfg
+          # sudo echo "cmp_server: $RUNNER_IP:8086" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_server: ssh-forwarder.acme:8086" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_cert: volume/ra_cert.pem" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_trusted: volume/ca_bundle.pem" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_recipient: $CMP_RECIPIENT" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_ref: $CMP_REF" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "cmp_secret: $CMP_SECRET" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+          CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
+          CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
+          CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
+          CMP_REF: ${{ env.CMP_REF }}
+          CMP_SECRET: ${{ env.CMP_SECRET }}
 
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
 
-    - name: "Enroll acme.sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
 
-    - name: "Allowed domainlist feature - Enroll lego (fail)"
-      continue-on-error: true
-      id: legofail02
-      run: |
-        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
+      - name: "Test http://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Allowed domainlist feature - check  result "
-      if: ${{ steps.legofail02.outcome != 'failure' }}
-      run: |
-        echo "legofail outcome is ${{steps.legofail02.outcome }}"
-        exit 1
+      - name: "Test if https://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "Verify allowed_domainlist error"
-      run: |
-        cd examples/Docker
-        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+      - name: "Enroll acme.sh"
+        run: |
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+          awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
+          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "Check container configuration"
-      uses: ./.github/actions/container_check
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
+      - name: "Allowed domainlist feature - Enroll lego (fail)"
+        continue-on-error: true
+        id: legofail02
+        run: |
+          docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        cd examples/Docker
-        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+      - name: "Allowed domainlist feature - check  result "
+        if: ${{ steps.legofail02.outcome != 'failure' }}
+        run: |
+          echo "legofail outcome is ${{steps.legofail02.outcome }}"
+          exit 1
 
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: cmp_handler_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "Verify allowed_domainlist error"
+        run: |
+          cd examples/Docker
+          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
-  rpm_cmp_handler_tests_keycert:
-    name: "rpm_cmp_handler_tests_keycert"
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          cd examples/Docker
+          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Test RPMs (EL9) downloaded from the producer run
+  # ---------------------------------------------------------
+  test-rpm:
+    needs: guard
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        # not possible on RH8 due to OpenSSL 3 dependency
+        rhversion: [9]
+        execscript: ['rpm_tester.sh', 'django_tester.sh']
+
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
 
-    - name: "Parse JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.GH_CFG }}
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Parse CMP configuration"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.CMP_CFG }}
-        uppercase: 'true'
+      - name: "Parse JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
 
-    - name: "Parse SSH tunnel configuration"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
-        uppercase: 'true'
+      - name: "Parse JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
 
-    - name: "Prepare Alma environment"
-      uses: ./.github/actions/rpm_prep
-      with:
-        GH_USER: ${{ env.GH_USER }}
-        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-        RH_VERSION: 9
+      - name: "Parse CMP configuration"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.CMP_CFG }}
+          uppercase: 'true'
 
-    - name: "Get runner ip"
-      run: |
-        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+      - name: "Parse SSH tunnel configuration"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+          uppercase: 'true'
 
-    - run: echo "runner IP is $RUNNER_IP"
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
+      - name: "Get runner ip"
+        run: |
+          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
-    - name: "Create ssh environment on ramdisk"
-      run: |
-        sudo mkdir -p /tmp/rd
-        sudo mount -t tmpfs -o size=5M none /tmp/rd
-        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
-        sudo chmod 600 /tmp/rd/ak.tmp
-        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
-      env:
-        SSH_KEY: ${{ env.SSH_KEY }}
-        KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+      - run: echo "runner IP is $RUNNER_IP"
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
 
-    - name: "Setup ssh forwarder"
-      run: |
-          docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
-      env:
-        SSH_USER: ${{ env.SSH_USER }}
-        SSH_HOST: ${{ env.SSH_HOST}}
-        SSH_PORT: ${{ env.SSH_PORT }}
-        CMP_HOST: ${{ env.CMP_HOST }}
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: false
 
-    - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 5s
+      - name: "Download RPM artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Setup a2c with cmp_ca_handler"
-      run: |
-        sudo mkdir data/acme_ca
-        sudo cp test/ca/root-ca-cert.pem data/acme_ca
-        sudo cp test/ca/sub-ca-cert.pem data/acme_ca
-        sudo touch data/acme_ca/ca_bundle.pem
-        sudo touch data/acme_ca/ra_cert.pem
-        sudo touch data/acme_ca/ra_key.pem
-        sudo chmod 777 data/acme_ca/*.pem
-        sudo echo "$CMP_TRUSTED" > data/acme_ca/ca_bundle.pem
-        sudo echo "$CMP_RA_CERT" > data/acme_ca/ra_cert.pem
-        sudo echo "$CMP_RA_KEY" >  data/acme_ca/ra_key.pem
-        sudo touch data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "cmp_path: pkix/" >> data/acme_srv.cfg
-        sudo echo "cmp_ignore_keyusage: True" >> data/acme_srv.cfg
-        sudo echo "cmp_msg_timeout: 3" >> data/acme_srv.cfg
-        sudo echo "cmp_total_timeout: 5" >> data/acme_srv.cfg
-        sudo echo "cmp_server: ssh-forwarder.acme:8086" >> data/acme_srv.cfg
-        sudo echo "cmp_cert: /opt/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/acme_srv.cfg
-        sudo echo "cmp_key: /opt/acme2certifier/volume/acme_ca/ra_key.pem" >> data/acme_srv.cfg
-        sudo echo "cmp_trusted: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
-        sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
-        CMP_RA_KEY: ${{ env.CMP_RA_KEY }}
-        CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
-        CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
+      - name: "Create ssh environment on ramdisk"
+        run: |
+          sudo mkdir -p /tmp/rd
+          sudo mount -t tmpfs -o size=5M none /tmp/rd
+          sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
+          sudo chmod 600 /tmp/rd/ak.tmp
+          sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
+        env:
+          SSH_KEY: ${{ env.SSH_KEY }}
+          KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
 
-    - name: "Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+      - name: "Setup ssh forwarder"
+        run: |
+            docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
+        env:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ env.SSH_HOST}}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          CMP_HOST: ${{ env.CMP_HOST }}
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
+      - name: "Sleep for 5s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 5s
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Setup a2c with cmp_ca_handler"
+        run: |
+          sudo mkdir data/volume/acme_ca
+          sudo cp test/ca/root-ca-cert.pem data/volume/acme_ca
+          sudo cp test/ca/sub-ca-cert.pem data/volume/acme_ca
+          sudo touch data/volume/acme_ca/ca_bundle.pem
+          sudo touch data/volume/acme_ca/ra_cert.pem
+          sudo touch data/volume/acme_ca/ra_key.pem
+          sudo chmod 777 data/volume/acme_ca/*.pem
+          sudo echo "$CMP_TRUSTED" > data/volume/acme_ca/ca_bundle.pem
+          sudo echo "$CMP_RA_CERT" > data/volume/acme_ca/ra_cert.pem
+          sudo echo "$CMP_RA_KEY" >  data/volume/acme_ca/ra_key.pem
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_total_timeout: 5" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_server: ssh-forwarder.acme:8086" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_cert: /opt/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_key: /opt/acme2certifier/volume/acme_ca/ra_key.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_trusted: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+          CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
+          CMP_RA_KEY: ${{ env.CMP_RA_KEY }}
+          CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
+          CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
 
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-    - name: "Enroll acme.sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
 
-    - name: "Allowed domainlist feature - Enroll lego (fail)"
-      continue-on-error: true
-      id: legofail01
-      run: |
-        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
+      - name: "Test http://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Allowed domainlist feature - check  result "
-      if: ${{ steps.legofail01.outcome != 'failure' }}
-      run: |
-        echo "legofail outcome is ${{steps.legofail01.outcome }}"
-        exit 1
+      - name: "Test if https://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
+      - name: "Enroll acme.sh"
+        run: |
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+          awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
+          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "Verify allowed_domainlist error"
-      run: |
-        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
+      - name: "Allowed domainlist feature - Enroll lego (fail)"
+        continue-on-error: true
+        id: legofail01
+        run: |
+          docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+      - name: "Allowed domainlist feature - check  result "
+        if: ${{ steps.legofail01.outcome != 'failure' }}
+        run: |
+          echo "legofail outcome is ${{steps.legofail01.outcome }}"
+          exit 1
 
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: rpm_cmp_handler_tests_keycert.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
 
-  rpm_cmp_handler_tests_refpsk:
-    name: "rpm_cmp_handler_tests_refpsk"
+      - name: "Verify allowed_domainlist error"
+        run: |
+          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
+
+      - name: "Setup a2c with cmp_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca
+          sudo cp test/ca/root-ca-cert.pem data/volume/acme_ca
+          sudo cp test/ca/sub-ca-cert.pem data/volume/acme_ca
+          sudo touch data/volume/acme_ca/ca_bundle.pem
+          sudo touch data/volume/acme_ca/ra_cert.pem
+          sudo chmod 777 data/volume/acme_ca/*.pem
+          sudo echo "$CMP_TRUSTED" > data/volume/acme_ca/ca_bundle.pem
+          sudo echo "$CMP_RA_CERT" > data/volume/acme_ca/ra_cert.pem
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_total_timeout: 5" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_server: ssh-forwarder.acme:8086" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_cert: /opt/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_trusted: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_ref: $CMP_REF" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_secret: $CMP_SECRET" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+          CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
+          CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
+          CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
+          CMP_REF: ${{ env.CMP_REF }}
+          CMP_SECRET: ${{ env.CMP_SECRET }}
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
+
+      - name: "Test http://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+      - name: "Test if https://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+      - name: "Enroll acme.sh"
+        run: |
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+          awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
+          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
+      - name: "Allowed domainlist feature - Enroll lego (fail)"
+        continue-on-error: true
+        id: legofail02
+        run: |
+          docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
+
+      - name: "Allowed domainlist feature - check  result "
+        if: ${{ steps.legofail02.outcome != 'failure' }}
+        run: |
+          echo "legofail outcome is ${{steps.legofail02.outcome }}"
+          exit 1
+
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
+
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Test DEB downloaded from the producer run
+  # ---------------------------------------------------------
+  test-deb:
+    needs: guard
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['apache2', 'nginx']
+        execscript: ['deb_tester.sh', 'django_tester.sh']
+
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Parse JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.GH_CFG }}
+      - name: "Parse CMP configuration"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.CMP_CFG }}
+          uppercase: 'true'
 
-    - name: "Parse CMP configuration"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.CMP_CFG }}
-        uppercase: 'true'
+      - name: "Parse SSH tunnel configuration"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+          uppercase: 'true'
 
-    - name: "Parse SSH tunnel configuration"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
-        uppercase: 'true'
+      - name: "Get runner ip"
+        run: |
+          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
-    - name: "Prepare Alma environment"
-      uses: ./.github/actions/rpm_prep
-      with:
-        GH_USER: ${{ env.GH_USER }}
-        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-        RH_VERSION: 9
+      - run: echo "runner IP is $RUNNER_IP"
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
 
-    - name: "Get runner ip"
-      run: |
-        echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-        echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'deb_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
 
-    - run: echo "runner IP is $RUNNER_IP"
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'django_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+          DJANGO_DB: psql
 
-    - name: "Create ssh environment on ramdisk"
-      run: |
-        sudo mkdir -p /tmp/rd
-        sudo mount -t tmpfs -o size=5M none /tmp/rd
-        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
-        sudo chmod 600 /tmp/rd/ak.tmp
-        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
-      env:
-        SSH_KEY: ${{ env.SSH_KEY }}
-        KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+      - name: "Download DEB artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Setup ssh forwarder"
-      run: |
-          docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
-      env:
-        SSH_USER: ${{ env.SSH_USER }}
-        SSH_HOST: ${{ env.SSH_HOST}}
-        SSH_PORT: ${{ env.SSH_PORT }}
-        CMP_HOST: ${{ env.CMP_HOST }}
+      - name: "Create ssh environment on ramdisk"
+        run: |
+          sudo mkdir -p /tmp/rd
+          sudo mount -t tmpfs -o size=5M none /tmp/rd
+          sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
+          sudo chmod 600 /tmp/rd/ak.tmp
+          sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
+        env:
+          SSH_KEY: ${{ env.SSH_KEY }}
+          KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
 
-    - name: "[ PREPARE ] Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 5s
+      - name: "Setup ssh forwarder"
+        run: |
+            docker run -d --rm --network acme --name=ssh-forwarder.acme  -e "MAPPINGS=8086:$CMP_HOST:8086" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 443:443 -p 445:445 -p 88:88 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
+        env:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ env.SSH_HOST}}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          CMP_HOST: ${{ env.CMP_HOST }}
 
-    - name: "Setup a2c with cmp_ca_handler"
-      run: |
-        sudo mkdir data/acme_ca
-        sudo cp test/ca/root-ca-cert.pem data/acme_ca
-        sudo cp test/ca/sub-ca-cert.pem data/acme_ca
-        sudo touch data/acme_ca/ca_bundle.pem
-        sudo touch data/acme_ca/ra_cert.pem
-        sudo chmod 777 data/acme_ca/*.pem
-        sudo echo "$CMP_TRUSTED" > data/acme_ca/ca_bundle.pem
-        sudo echo "$CMP_RA_CERT" > data/acme_ca/ra_cert.pem
-        sudo touch data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "cmp_path: pkix/" >> data/acme_srv.cfg
-        sudo echo "cmp_ignore_keyusage: True" >> data/acme_srv.cfg
-        sudo echo "cmp_msg_timeout: 3" >> data/acme_srv.cfg
-        sudo echo "cmp_total_timeout: 5" >> data/acme_srv.cfg
-        sudo echo "cmp_server: ssh-forwarder.acme:8086" >> data/acme_srv.cfg
-        sudo echo "cmp_cert: /opt/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/acme_srv.cfg
-        sudo echo "cmp_trusted: /opt/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/acme_srv.cfg
-        sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/acme_srv.cfg
-        sudo echo "cmp_ref: $CMP_REF" >> data/acme_srv.cfg
-        sudo echo "cmp_secret: $CMP_SECRET" >> data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
-      env:
-        RUNNER_IP: ${{ env.RUNNER_IP }}
-        CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
-        CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
-        CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
-        CMP_REF: ${{ env.CMP_REF }}
-        CMP_SECRET: ${{ env.CMP_SECRET }}
+      - name: "Sleep for 5s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 5s
 
-    - name: "Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+      - name: "Setup a2c with cmp_ca_handler"
+        run: |
+          sudo mkdir data/volume/acme_ca
+          sudo cp test/ca/root-ca-cert.pem data/volume/acme_ca
+          sudo cp test/ca/sub-ca-cert.pem data/volume/acme_ca
+          sudo touch data/volume/acme_ca/ca_bundle.pem
+          sudo touch data/volume/acme_ca/ra_cert.pem
+          sudo touch data/volume/acme_ca/ra_key.pem
+          sudo chmod 777 data/volume/acme_ca/*.pem
+          sudo echo "$CMP_TRUSTED" > data/volume/acme_ca/ca_bundle.pem
+          sudo echo "$CMP_RA_CERT" > data/volume/acme_ca/ra_cert.pem
+          sudo echo "$CMP_RA_KEY" >  data/volume/acme_ca/ra_key.pem
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_total_timeout: 5" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_server: ssh-forwarder.acme:8086" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_cert: /var/www/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_key: /var/www/acme2certifier/volume/acme_ca/ra_key.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_trusted: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+          CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
+          CMP_RA_KEY: ${{ env.CMP_RA_KEY }}
+          CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
+          CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
 
-    - name: "Enroll acme.sh"
-      run: |
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+      - name: "Test http://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Allowed domainlist feature - Enroll lego (fail)"
-      continue-on-error: true
-      id: legofail01
-      run: |
-        docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
+      - name: "Test if https://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "Allowed domainlist feature - check  result "
-      if: ${{ steps.legofail01.outcome != 'failure' }}
-      run: |
-        echo "legofail outcome is ${{steps.legofail01.outcome }}"
-        exit 1
+      - name: "Enroll acme.sh"
+        run: |
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+          awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
+          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
+      - name: "Allowed domainlist feature - Enroll lego (fail)"
+        continue-on-error: true
+        id: legofail01
+        run: |
+          docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
 
-    - name: "Verify allowed_domainlist error"
-      run: |
-        docker exec acme-srv grep -i "Either CN or SANs are not allowed by configuration" /var/log/messages
+      - name: "Allowed domainlist feature - check  result "
+        if: ${{ steps.legofail01.outcome != 'failure' }}
+        run: |
+          echo "legofail outcome is ${{steps.legofail01.outcome }}"
+          exit 1
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
+      - name: "Setup a2c with cmp_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca
+          sudo cp test/ca/root-ca-cert.pem data/volume/acme_ca
+          sudo cp test/ca/sub-ca-cert.pem data/volume/acme_ca
+          sudo touch data/volume/acme_ca/ca_bundle.pem
+          sudo touch data/volume/acme_ca/ra_cert.pem
+          sudo chmod 777 data/volume/acme_ca/*.pem
+          sudo echo "$CMP_TRUSTED" > data/volume/acme_ca/ca_bundle.pem
+          sudo echo "$CMP_RA_CERT" > data/volume/acme_ca/ra_cert.pem
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_total_timeout: 5" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_server: ssh-forwarder.acme:8086" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_cert: /var/www/acme2certifier/volume/acme_ca/ra_cert.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_trusted: /var/www/acme2certifier/volume/acme_ca/ca_bundle.pem" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_recipient: $CMP_RECIPIENT" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_ref: $CMP_REF" >> data/volume/acme_srv.cfg
+          sudo echo "cmp_secret: $CMP_SECRET" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+          CMP_RECIPIENT: ${{ env.CMP_RECIPIENT }}
+          CMP_RA_CERT: ${{ env.CMP_RA_CERT }}
+          CMP_TRUSTED: ${{ env.CMP_TRUSTED }}
+          CMP_REF: ${{ env.CMP_REF }}
+          CMP_SECRET: ${{ env.CMP_SECRET }}
 
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: rpm_cmp_handler_tests_refpsk.tar_rpm.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
+
+      - name: "Test http://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+
+      - name: "Test if https://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+
+      - name: "Enroll acme.sh"
+        run: |
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
+          awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
+          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
+      - name: "Allowed domainlist feature - Enroll lego (fail)"
+        continue-on-error: true
+        id: legofail02
+        run: |
+          docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego -s  https://acme-srv --tls-skip-verify -a --email "lego@example.com" -d lego --tls run
+
+      - name: "Allowed domainlist feature - check  result "
+        if: ${{ steps.legofail02.outcome != 'failure' }}
+        run: |
+          echo "legofail outcome is ${{steps.legofail02.outcome }}"
+          exit 1
+
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.deb
+          if [ ${{ matrix.websrv }} == "apache2" ]; then
+            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          else
+            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          fi
+          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
+
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
