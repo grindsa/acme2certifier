@@ -99,6 +99,9 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
         with:
