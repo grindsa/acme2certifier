@@ -248,7 +248,7 @@ jobs:
         run: |
           docker compose logs 2>&1 | grep "Source address checks are disabled. Setting challenge status to valid."
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -258,7 +258,7 @@ jobs:
           docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
 
-      - name: "[ * ] uploading artifacts"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -481,7 +481,7 @@ jobs:
         run: |
           docker exec acme-srv grep "Source address checks are disabled. Setting challenge status to valid." /var/log/messages
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -493,7 +493,7 @@ jobs:
           docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -696,7 +696,7 @@ jobs:
           EAB_KID: "keyid_02"
           EAB_HMAC_KEY: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -711,7 +711,7 @@ jobs:
           docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:

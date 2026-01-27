@@ -138,7 +138,7 @@ jobs:
           sudo cat letsencrypt/acme.json | jq -r '.a2c | .Certificates | . [] | .certificate ' | base64 -d |  awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
           openssl verify -CAfile cert-3.pem -untrusted cert-2.pem cert-1.pem
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -149,7 +149,7 @@ jobs:
           docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data traefik
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -257,7 +257,7 @@ jobs:
           sudo cat letsencrypt/acme.json | jq -r '.a2c | .Certificates | . [] | .certificate ' | base64 -d |  awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
           openssl verify -CAfile cert-3.pem -untrusted cert-2.pem cert-1.pem
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         continue-on-error: true
         run: |
@@ -275,7 +275,7 @@ jobs:
           docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data clients acme-srv.log
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -386,7 +386,7 @@ jobs:
           sudo cat letsencrypt/acme.json | jq -r '.a2c | .Certificates | . [] | .certificate ' | base64 -d |  awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
           openssl verify -CAfile cert-3.pem -untrusted cert-2.pem cert-1.pem
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -401,7 +401,7 @@ jobs:
           docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
 
-      - name: "[ * ] uploading artifacts"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:

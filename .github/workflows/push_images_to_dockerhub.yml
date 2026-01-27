@@ -443,7 +443,7 @@ jobs:
           docker logs acme-srv > ${{ github.workspace }}/artifact/acme-srv.log 2>&1
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme-srv.log data # acme-sh
 
-      - name: "[ * ] uploading artifacts"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:

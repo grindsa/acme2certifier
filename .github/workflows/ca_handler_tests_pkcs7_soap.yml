@@ -149,7 +149,7 @@ jobs:
         with:
           REVOCATION: "false"
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -162,7 +162,7 @@ jobs:
           docker compose logs > ${{ github.workspace }}/artifact/a2c.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz a2c.log data soap-srv.log acme-sh certbot lego
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -273,7 +273,7 @@ jobs:
         with:
           REVOCATION: "false"
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -286,7 +286,7 @@ jobs:
           docker compose logs > ${{ github.workspace }}/artifact/a2c.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz a2c.log data soap-srv.log acme-sh certbot lego
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:

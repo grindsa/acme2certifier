@@ -139,7 +139,7 @@ jobs:
         with:
           TO_FAIL: "false"
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -260,7 +260,7 @@ jobs:
         with:
           TO_FAIL: "false"
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -275,7 +275,7 @@ jobs:
           docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log data acme_email mailserver
 
-      - name: "[ * ] uploading artificates"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -384,7 +384,7 @@ jobs:
         with:
           TO_FAIL: "false"
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -399,7 +399,7 @@ jobs:
           docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
 
-      - name: "[ * ] uploading artifacts"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:

@@ -151,7 +151,7 @@ jobs:
           sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
           sudo openssl x509 -in lego/certificates/lego.acme.crt -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -161,7 +161,7 @@ jobs:
           docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
 
-      - name: "[ * ] uploading artifacts"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -446,7 +446,7 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -458,7 +458,7 @@ jobs:
           docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
 
-      - name: "[ * ] uploading artifacts"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -763,7 +763,7 @@ jobs:
           ASA_CA_NAME2: ${{ env.ASA_CA_NAME2 }}
           ASA_PROFILE1: ${{ env.ASA_PROFILE1 }}
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -776,7 +776,7 @@ jobs:
           docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
-      - name: "[ * ] uploading artifacts"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
@@ -1087,7 +1087,7 @@ jobs:
           ASA_CA_NAME2: ${{ env.ASA_CA_NAME2 }}
           ASA_PROFILE1: ${{ env.ASA_PROFILE1 }}
 
-      - name: "[ * ] collecting test logs"
+      - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
@@ -1102,7 +1102,7 @@ jobs:
           docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
 
-      - name: "[ * ] uploading artifacts"
+      - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:

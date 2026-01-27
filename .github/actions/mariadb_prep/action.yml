@@ -9,18 +9,35 @@ inputs:
     description: "Instanciate mariadb"
     required: true
     default: "true"
+  RH_VERSION:
+    description: "Red Hat version"
+    required: false
+    default: "9"
 
 runs:
   using: "composite"
   steps:
     - name: "Instanciate Mariadb"
-      if: inputs.INSTANCIATE == 'true'
+      if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION != '8'
       run: |
+        echo "Instanciate mariadb for RH_VERSION $RH_VERSION"
         # sudo mkdir -p data/mysql
         docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
       shell: bash
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        RH_VERSION: ${{ inputs.RH_VERSION }}
+
+    - name: "Instanciate Mariadb for RHEL8"
+      if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION == '8'
+      run: |
+        # sudo mkdir -p data/mysql
+        echo "Instanciate mariadb 10 for RH_VERSION $RH_VERSION"
+        docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb:10.6-ubi9
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        RH_VERSION: ${{ inputs.RH_VERSION }}
 
     - name: "Sleep for 10s"
       if: inputs.INSTANCIATE == 'true'

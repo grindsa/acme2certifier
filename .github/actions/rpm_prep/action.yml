@@ -110,6 +110,7 @@ runs:
       uses: ./.github/actions/mariadb_prep
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        RH_VERSION: ${{ inputs.RH_VERSION }}
 
     - name: "Instanciate Postgres"
       if: inputs.DJANGO_DB == 'psql'
