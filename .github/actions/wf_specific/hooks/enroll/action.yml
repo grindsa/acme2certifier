@@ -94,9 +94,9 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "\[ACME\] acme2certifier failure"
+        docker compose logs | grep "urn:ietf:params:acme:error:rejectedIdentifier"
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "acme2certifier failure"
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "urn:ietf:params:acme:error:rejectedIdentifier"
       fi
     shell: bash
     env:
