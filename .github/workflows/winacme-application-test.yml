@@ -53,38 +53,62 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
 
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Parse JSON secret - CF_CFG"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.CF_CFG }}
+      - name: "Parse JSON secret - CF_CFG"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.CF_CFG }}
 
-    - name: "Get RunnerIP"
-      run: |
-        Get-NetIPAddress -AddressFamily IPv4
-        # $runner_ip=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet').IPAddress
-        $runner_ip=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'vEthernet (nat)').IPAddress
-        echo RUNNER_IP=$runner_ip >> $env:GITHUB_ENV
+      - name: "Get RunnerIP"
+        run: |
+          Get-NetIPAddress -AddressFamily IPv4
+          # $runner_ip=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet').IPAddress
+          $runner_ip=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'vEthernet (nat)').IPAddress
+          echo RUNNER_IP=$runner_ip >> $env:GITHUB_ENV
 
-    - name: "Echo RunnerIP"
-      run:  echo $env:RUNNER_IP
+      - name: "Echo RunnerIP"
+        run:  echo $env:RUNNER_IP
 
-    - name: "[ PREPARE ] Create DNS entries "
-      run: |
-        Invoke-RestMethod -ContentType "application/json" -Method PUT -Uri "${{ env.CF_DYNAMOP_URL }}" -Headers @{Authorization="Bearer ${{ env.CF_TOKEN }}" } -UseBasicParsing -Body '{"type":"A","name":"${{ env.CF_WINACME1_NAME }}","content":"${{ env.RUNNER_IP }}","ttl":120,"proxied":false}'
-      shell: pwsh
-      env:
-        CF_DYNAMOP_URL: ${{ env.CF_DYNAMOP_URL }}
-        CF_TOKEN: ${{ env.CF_TOKEN }}
-        CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
-        CF_WINACME2_NAME: ${{ env.CF_WINACME2_NAME }}
+      - name: "[ PREPARE ] Create DNS entries "
+        run: |
+          Invoke-RestMethod -ContentType "application/json" -Method PUT -Uri "${{ env.CF_DYNAMOP_URL }}" -Headers @{Authorization="Bearer ${{ env.CF_TOKEN }}" } -UseBasicParsing -Body '{"type":"A","name":"${{ env.CF_WINACME1_NAME }}","content":"${{ env.RUNNER_IP }}","ttl":120,"proxied":false}'
+        shell: pwsh
+        env:
+          CF_DYNAMOP_URL: ${{ env.CF_DYNAMOP_URL }}
+          CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
+          CF_WINACME2_NAME: ${{ env.CF_WINACME2_NAME }}
 
-    - name: "Generate keys and certificates"
-      uses: ./.github/actions/cert_gen
-      with:
-        OS: "Windows"
+      - name: "Generate keys and certificates"
+        uses: ./.github/actions/cert_gen
+        with:
+          OS: "Windows"
+
+      - name: "Prepare container environment"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          CONTAINER_BUILD: false
+
+      - name: "Setup openssl ca_handler"
+        run: |
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+
+
+
+
 
     - name: "Build local acme2certifier environment"
       run: |
