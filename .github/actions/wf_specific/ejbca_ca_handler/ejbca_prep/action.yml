@@ -91,6 +91,9 @@ runs:
       docker exec -i ejbca bin/ejbca.sh ra setclearpwd superadmin $SAEC
       docker exec -i ejbca bin/ejbca.sh batch
       docker cp ejbca:/opt/keyfactor/p12/superadmin.p12 data/acme_ca/
+      mkdir -p data/volume/acme_ca
+      cp data/acme_ca/superadmin.p12 data/volume/acme_ca/
+      cp data/acme_ca/ca_bundle.pem data/volume/acme_ca/
     env:
       SAEC: ${{ env.SAEC }}
     shell: bash

@@ -16,7 +16,8 @@ runs:
   - name: "Prepare Environment"
     working-directory: ${{ inputs.WORKING_DIR }}
     run: |
-      mkdir -p data/acme_ca
+      sudo mkdir -p data/acme_ca
+      sudo mkdir -p data/volume/acme_ca
       mkdir -p /tmp/openxpki
       sudo chmod -R 777 data
       sudo sh -c "echo '$OPENXPKI_IP openxpki' >> /etc/hosts"
@@ -34,11 +35,6 @@ runs:
   - name: "Instanciate OpenXPKI server"
     working-directory: /tmp/openxpki
     run: |
-      curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-      echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-      sudo apt update
-      sudo apt install -y docker-compose-plugin
-
       git clone https://github.com/openxpki/openxpki-docker.git
       cd openxpki-docker/
       git clone https://github.com/openxpki/openxpki-config.git  --single-branch --branch=community
@@ -114,6 +110,7 @@ runs:
       sudo openssl pkcs7 -print_certs -in /tmp/cacert.p7b -inform der -out data/acme_ca/ca_bundle.pem
       sudo chmod a+rw data/acme_ca/ca_bundle.pem
       sudo openssl s_client -connect $OPENXPKI_IP:8443 2>/dev/null </dev/null |  sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' >> data/acme_ca/ca_bundle.pem
+      sudo cp data/acme_ca/* data/volume/acme_ca/
     env:
       OPENXPKI_IP: ${{ inputs.RUNNER_IP }}
     shell: bash

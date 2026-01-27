@@ -1,0 +1,89 @@
+
+name: build
+on:
+  push:
+    branches: [ "**" ]       # build on any branch
+  workflow_dispatch: {}
+
+
+permissions:
+  pull-requests: write
+  contents: write
+
+jobs:
+  # ---------------------------------------------------------
+  # Job 1: Build four container images (matrix) and push to GHCR
+  # ---------------------------------------------------------
+  build-containers:
+    runs-on: ubuntu-latest
+    # Prevent workflows from running in forks
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi', 'django']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Build container"
+        uses: ./.github/actions/container_build_upload
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+  # ---------------------------------------------------------
+  # Job 2: Build RPM and upload artifacts
+  # ---------------------------------------------------------
+  build-rpm:
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Build rpm package"
+        id: rpm_build
+        uses: ./.github/actions/rpm_build_upload
+
+
+  # ---------------------------------------------------------
+  # Job 3: Build one DEB and upload artifact
+  # ---------------------------------------------------------
+  build-deb:
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "deb build and upload"
+        uses: ./.github/actions/deb_build_upload
+        with:
+          NO_VERSION: "true"
+
+  # ---------------------------------------------------------
+  # Dispatch tests with full payload (branch/ref-safe)
+  # ---------------------------------------------------------
+  dispatch:
+    runs-on: ubuntu-latest
+    needs: [ build-containers, build-rpm, build-deb ]
+    permissions:
+      contents: read
+      actions: read
+      deployments: write
+
+    steps:
+
+      - name: Dispatch repository event
+        uses: peter-evans/repository-dispatch@v4
+        with:
+          token: ${{ secrets.GH_WF_TOKEN }}
+          event-type: artifacts_ready
+          client-payload: >-
+            {
+              "sha":        "${{ github.sha }}",
+              "branch":     "${{ github.ref_name }}",
+              "full_ref":   "${{ github.ref }}",
+              "run_id":     "${{ github.run_id }}",
+              "called_by_workflow": "${{ github.workflow }}"
+            }
