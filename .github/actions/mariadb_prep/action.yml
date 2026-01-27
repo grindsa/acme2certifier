@@ -21,7 +21,6 @@ runs:
       if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION != '8'
       run: |
         echo "Instanciate mariadb for RH_VERSION $RH_VERSION"
-        # sudo mkdir -p data/mysql
         docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
       shell: bash
       env:
@@ -31,7 +30,6 @@ runs:
     - name: "Instanciate Mariadb for RHEL8"
       if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION == '8'
       run: |
-        # sudo mkdir -p data/mysql
         echo "Instanciate mariadb 10 for RH_VERSION $RH_VERSION"
         docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb:10.6-ubi9
       shell: bash
