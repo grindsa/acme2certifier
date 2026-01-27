@@ -90,7 +90,7 @@ jobs:
         uses: ./.github/actions/container_load
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.apace2.wsgi.tar
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.apache2.wsgi.tar
           DESTINATION_PATH: /tmp
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
