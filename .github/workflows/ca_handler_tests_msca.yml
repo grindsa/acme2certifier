@@ -55,6 +55,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
@@ -301,7 +302,7 @@ jobs:
     needs: [guard, mscertserv-test-containers]
     strategy:
       fail-fast: false
-      # max-parallel: 1
+      max-parallel: 2
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
@@ -502,12 +503,12 @@ jobs:
   # ---------------------------------------------------------
   mswcce-test-containers:
     runs-on: ubuntu-latest
-    needs: guard
+    needs: [guard, mscertsrv-eabprov-container-tests]
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
-      # max-parallel: 1
+      max-parallel: 2
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']

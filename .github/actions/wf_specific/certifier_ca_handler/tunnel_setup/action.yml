@@ -55,10 +55,10 @@ runs:
       NCM_API_HOST: ${{ inputs.NCM_API_HOST }}
     shell: bash
 
-  - name: "Sleep for 5s"
+  - name: "Sleep for 15s"
     uses: juliangruber/sleep-action@v2.0.3
     with:
-      time: 5s
+      time: 15s
 
   - name: "Test conection to mscertsrv via ssh tunnel"
     run: |
