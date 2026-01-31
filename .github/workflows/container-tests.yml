@@ -1,79 +1,133 @@
-name: Container Deployment Tests
-
+name: Deployment Tests - Containers
 on:
-  push:
-  pull_request:
-    branches: [ devel ]
-  schedule:
-    # * is a special character in YAML so you have to quote this string
-    - cron:  '0 2 * * 6'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
 
 jobs:
-  dockercompose:
-    name: "Docker compose - apache2 wsgi"
+
+  # ---------------------------------------------------------
+  # Quick guard to validate incoming payload
+  # ---------------------------------------------------------
+  guard:
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
+    if: >
+      ${{
+        inputs.sha != '' &&
+        inputs.run_id != '' &&
+        inputs.branch != ''
+      }} && github.repository == 'grindsa/acme2certifier'
+    steps:
+      - run: |
+          echo "Triggered by SHA:    $SHA"
+          echo "From branch:         $BRANCH"
+          echo "Producer run_id:     $RUN_ID"
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+
+  # ---------------------------------------------------------
+  # Test container images downloaded from the producer run
+  # ---------------------------------------------------------
+  test-containers:
+    needs: guard
+    runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
+
     steps:
 
-    - uses: actions/checkout@v4
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Build container"
-      uses: ./.github/actions/container_prep
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
+      - name: "Download and import container"
+        uses: ./.github/actions/container_load
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+          DESTINATION_PATH: /tmp
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Configure a2c"
-      run: |
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker compose restart
+      - name: "Prepare container environment"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          CONTAINER_BUILD: false
 
-    - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
+      - name: "Setup openssl ca_handler"
+        run: |
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
 
-    - name: "Delete acme-sh, letsencypt and lego folders"
-      run: |
-        sudo rm -rf  lego/*
-        sudo rm -rf  acme-sh/*
-        sudo rm -rf  certbot/*
-        sudo rm -rf  ./*.pem
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
 
-    - name: "Test ca_handler_migration"
-      run: |
-        sudo cp .github/openssl_ca_handler_v16.py examples/Docker/data/ca_handler.py
-        cd examples/Docker/
-        docker compose restart
-        head -n 13 data/ca_handler.py
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
 
-    - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
-      with:
-        VERIFY_CERT: false
-        REVOCATION: false
+      - name: "Delete acme-sh, letsencypt and lego folders"
+        run: |
+          sudo rm -rf  lego/*
+          sudo rm -rf  acme-sh/*
+          sudo rm -rf  certbot/*
+          sudo rm -rf  ./*.pem
 
-    - name: "[ * ] collecting test data"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        cd examples/Docker
-        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh
+      - name: "Test ca_handler_migration"
+        run: |
+          sudo cp .github/openssl_ca_handler_v16.py examples/Docker/data/ca_handler.py
+          cd examples/Docker/
+          docker compose restart
+          head -n 13 data/ca_handler.py
 
-    - name: "[ * ] uploading artifacts"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: a2c-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          VERIFY_CERT: false
+          REVOCATION: false
+
+      - name: "[ * ] collecting test data"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          cd examples/Docker
+          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh
+
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: a2c-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
