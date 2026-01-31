@@ -1,17 +1,16 @@
 # -*- coding: utf-8 -*-
 """Comprehensive unit tests for authorization module"""
 import sys
-from unittest.mock import MagicMock
+import os
+import unittest
+from unittest.mock import Mock, MagicMock, patch, call
+import json
 
 # Patch sys.modules to mock DBstore and db_handler import everywhere
 sys.modules["acme_srv.db_handler"] = MagicMock()
 sys.modules["acme_srv.authorization.DBstore"] = MagicMock()
 
-import sys
-import os
-import unittest
-from unittest.mock import Mock, MagicMock, patch, call
-import json
+
 
 # Add the parent directory to sys.path so we can import acme_srv
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
