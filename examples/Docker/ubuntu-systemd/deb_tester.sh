@@ -6,10 +6,14 @@ case "${1}" in
 
   "restart")
     echo "update configuration and restart service"
-    yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
-    yes | cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
-    systemctl restart acme2certifier.service
-    systemctl restart nginx.service
+    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv
+    yes | cp -R /tmp/acme2certifier/volume/acme_ca/* /var/www/acme2certifier/volume/acme_ca/
+    if [[ "${2}" = "apache2" ]]; then
+      systemctl restart apache2
+    elif [[ "${2}" = "nginx" ]]; then
+      systemctl restart nginx
+      systemctl restart acme2certifier
+    fi
     ;;
 
   *)
@@ -21,6 +25,10 @@ case "${1}" in
     elif [[ "${2}" = "nginx" ]]; then
       apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 rsyslog
     fi
+
+    apt-get install -y python3-pip
+    pip install requests-pkcs12 --break-system-packages
+   # pip install pyopenssl --upgrade
 
     systemctl enable rsyslog
     systemctl start syslog

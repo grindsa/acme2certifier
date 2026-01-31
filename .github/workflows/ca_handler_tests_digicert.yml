@@ -1,19 +1,56 @@
-name: CA handler Tests - Digicert CertCentral
-
+name: CA-Handler Tests - Digicert CertCentral
 on:
-  push:
-    branches: [ 'devel', 'master', 'wf_secret_optimization' , 'secret_optimization']
-  pull_request:
-    branches: [ devel ]
-  schedule:
-    # * is a special character in YAML so you have to quote this string
-    - cron:  '0 2 * * 6'
-
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
 jobs:
-  digicert_handler_tests:
-    name: "digicert_handler_tests"
+
+  # ---------------------------------------------------------
+  # Quick guard to validate incoming payload
+  # ---------------------------------------------------------
+  guard:
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
+    if: >
+      ${{
+        inputs.sha != '' &&
+        inputs.run_id != '' &&
+        inputs.branch != ''
+      }} && github.repository == 'grindsa/acme2certifier'
+    steps:
+      - run: |
+          echo "Triggered by SHA:    $SHA"
+          echo "From branch:         $BRANCH"
+          echo "Producer run_id:     $RUN_ID"
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+
+  # ---------------------------------------------------------
+  # Test container images (matrix from payload)
+  # ---------------------------------------------------------
+  test-containers:
+    needs: guard
+    runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       max-parallel: 1
@@ -22,506 +59,639 @@ jobs:
         websrv: ['apache2']
         dbhandler: ['wsgi', 'django']
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
 
-    - name: "Parse DIGICERT_CFG JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.DIGICERT_CFG }}
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "create folders"
-      run: |
-        mkdir lego
-        mkdir acme-sh
-        mkdir certbot
+      - name: "Parse DIGICERT_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.DIGICERT_CFG }}
 
-    - name: "Build container"
-      uses: ./.github/actions/container_prep
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
-        NAME_SPACE: acme.dynamop.de
+      - name: "Download and import container"
+        uses: ./.github/actions/container_load
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+          DESTINATION_PATH: /tmp
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Setup a2c with digicert_ca_handler"
-      run: |
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker compose restart
-      env:
-        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+      - name: "Prepare container environment"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          CONTAINER_BUILD: false
+          NAME_SPACE: acme.dynamop.de
 
-    - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
-      with:
-        NAME_SPACE: acme.dynamop.de
-        USE_CERTBOT: false
-        TEST_ADL: "true"
+      - name: "Setup a2c with digicert_ca_handler"
+        run: |
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+        env:
+          DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+          DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+          DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
-    - name: "Verify allowed_domainlist error"
-      run: |
-        cd examples/Docker
-        docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          NAME_SPACE: acme.dynamop.de
 
-    - name: "Check container configuration"
-      uses: ./.github/actions/container_check
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          NAME_SPACE: acme.dynamop.de
+          USE_CERTBOT: false
+          TEST_ADL: "true"
 
-    - name: "EAB - Setup a2c with digicert_ca_handler"
-      run: |
-        mkdir -p examples/Docker/data
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-        sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+      - name: "Verify allowed_domainlist error"
+        run: |
+          cd examples/Docker
+          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
-        sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-        sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-        sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-        sudo chmod 777 examples/eab_handler/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" examples/Docker/data/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" examples/Docker/data/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-        sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" examples/Docker/data/kid_profiles.json
-        sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-        sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
-        cd examples/Docker/
-        docker compose restart
-      env:
-        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
 
-    - name: "EAB - Test enrollment"
-      uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_eab
+      - name: "EAB - Setup a2c with digicert_ca_handler"
+        run: |
+          mkdir -p examples/Docker/data
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
+          sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
-    - name: "ACME Profile - Setup a2c with digicert_ca_handler"
-      run: |
-        mkdir -p examples/Docker/data
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-        sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
+          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
+          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
+          sudo chmod 777 examples/eab_handler/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
+          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+          cd examples/Docker/
+          docker compose restart
+        env:
+          DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+          DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+          DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
-        cd examples/Docker/
-        docker compose restart
-      env:
-        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+      - name: "EAB - Test enrollment"
+        uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_eab
 
-    - name: "ACME Profile - Test enrollment"
-      uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_acmeprofile
-      with:
-        DEPLOYMENT_TYPE: "container"
+      - name: "ACME Profile - Setup a2c with digicert_ca_handler"
+        run: |
+          mkdir -p examples/Docker/data
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+        env:
+          DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+          DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+          DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
-    - name: "EAB ACME Profile - Setup a2c with digicert_ca_handler"
-      run: |
-        mkdir -p examples/Docker/data
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-        sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
-        sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+      - name: "ACME Profile - Test enrollment"
+        uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: "container"
 
-        sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-        sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-        sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-        sudo chmod 777 examples/eab_handler/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" examples/Docker/data/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" examples/Docker/data/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-        sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" examples/Docker/data/kid_profiles.json
-        sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-        sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
-        cd examples/Docker/
-        docker compose restart
-      env:
-        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+      - name: "EAB ACME Profile - Setup a2c with digicert_ca_handler"
+        run: |
+          mkdir -p examples/Docker/data
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
+          sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
-    - name: "EAB ACME Profile - Test enrollment"
-      uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_eab_acmeprofile
-      with:
-        DEPLOYMENT_TYPE: "container"
+          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
+          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
+          sudo chmod 777 examples/eab_handler/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
+          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+          cd examples/Docker/
+          docker compose restart
+        env:
+          DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+          DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+          DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
-        cd examples/Docker
-        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
+      - name: "EAB ACME Profile - Test enrollment"
+        uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: "container"
 
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: digicert-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
+          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+          cd examples/Docker
+          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
 
-  digicert_ca_handler_tests_rpm:
-    name: "digicert_ca_handler_tests_rpm"
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Test RPMs (EL8 & EL9) downloaded from the producer run
+  # ---------------------------------------------------------
+  test-rpm:
+    needs: [guard, test-containers]
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       max-parallel: 1
       fail-fast: false
       matrix:
         rhversion: [8]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        execscript: ['rpm_tester.sh']
 
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Parse DIGICERT_CFG JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.DIGICERT_CFG }}
+      - name: "Parse DIGICERT_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.DIGICERT_CFG }}
 
-    - name: "Parse GH_CFG JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.GH_CFG }}
+      - name: "Parse GH_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
 
-    - name: "Prepare Alma environment"
-      uses: ./.github/actions/rpm_prep
-      with:
-        GH_USER: ${{ env.GH_USER }}
-        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-        RH_VERSION: ${{ matrix.rhversion }}
-        NAME_SPACE: acme.dynamop.de
+      - name: "Download RPM artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Setup a2c with digicert_ca_handler"
-      if: matrix.execscript == 'rpm_tester.sh'
-      run: |
-        sudo mkdir -p data/acme_ca/certs
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/digicert_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "api_key: $DIGICERT_API_KEY" >> data/acme_srv.cfg
-        sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
-      env:
-        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: false
+          NAME_SPACE: acme.dynamop.de
 
-    - name: "Setup a2c with digicert_ca_handler for django"
-      if: matrix.execscript == 'django_tester.sh'
-      run: |
-        sudo mkdir -p data/volume/acme_ca/certs
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
-        sudo chmod 777 data/volume/acme_srv.cfg
-        sudo cp test/ca/certsrv_ca_certs.pem data/volume/ca_certs.pem
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-        sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
-        sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
-        sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-      env:
-        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+      - name: "Setup a2c with digicert_ca_handler for django"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo cp test/ca/certsrv_ca_certs.pem data/volume/ca_certs.pem
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
+          sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+        env:
+          DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+          DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+          DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
-    - name: "Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
-      env:
-        EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-    - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
-      with:
-        NAME_SPACE: acme.dynamop.de
-        USE_CERTBOT: false
-        TEST_ADL: "true"
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          NAME_SPACE: acme.dynamop.de
+          USE_CERTBOT: false
+          TEST_ADL: "true"
 
-    - name: "Verify allowed_domainlist error"
-      run: |
-        docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
+      - name: "Verify allowed_domainlist error"
+        run: |
+          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
 
-    - name: "EAB - Setup a2c with digicert_ca_handler"
-      if: matrix.execscript == 'rpm_tester.sh'
-      run: |
-        sudo mkdir -p data/acme_ca/certs
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
-        sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "api_key: $DIGICERT_API_KEY" >> data/acme_srv.cfg
-        sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/acme_srv.cfg
-        sudo echo -e "\n\n[EABhandler]" >> data/acme_srv.cfg
-        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
-        sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
+      - name: "EAB - Setup a2c with digicert_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
+          sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-        sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
-        sudo sed -i '29,33d' data/acme_ca/kid_profiles.json
-        sudo sed -i '20,22d' data/acme_ca/kid_profiles.json
-        sudo chmod 777 data/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" data/acme_ca/kid_profiles.json
-        sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
-        sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
-      env:
-        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
+          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+        env:
+          DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+          DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+          DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
-    - name: "EAB - Setup a2c with digicert_ca_handler"
-      if: matrix.execscript == 'django_tester.sh'
-      run: |
-        sudo mkdir -p data/volume/acme_ca/certs
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
-        sudo chmod 777 data/volume/acme_srv.cfg
-        sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
-        sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
-        sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-        sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-        sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-        sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-        sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-        sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-        sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" data/volume/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" data/volume/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-        sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" data/volume/acme_ca/kid_profiles.json
-        sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-        sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
-      env:
-        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+      - name: "EAB - Test enrollment"
+        uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_eab
 
-    - name: "Reconfigure a2c"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
-      env:
-        EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "ACME Profile -  - Setup a2c with digicert_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
+          sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
+        env:
+          DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+          DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+          DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
-    - name: "EAB - Test enrollment"
-      uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_eab
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-    - name: "ACME Profile - Setup a2c with digicert_ca_handler"
-      if: matrix.execscript == 'rpm_tester.sh'
-      run: |
-        sudo mkdir -p data/acme_ca/certs
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
-        sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "api_key: $DIGICERT_API_KEY" >> data/acme_srv.cfg
-        sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
-        sudo echo "enrollment_config_log: True" >> data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/acme_srv.cfg
-      env:
-        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+      - name: "ACME Profile - Test enrollment"
+        uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: "rpm"
 
-    - name: "ACME Profile -  - Setup a2c with digicert_ca_handler"
-      if: matrix.execscript == 'django_tester.sh'
-      run: |
-        sudo mkdir -p data/volume/acme_ca/certs
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
-        sudo chmod 777 data/volume/acme_srv.cfg
-        sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
-        sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
-        sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-        sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-      env:
-        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+      - name: "EAB ACME Profile - Setup a2c with digicert_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
+          sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
+          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-    - name: "Reconfigure a2c"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
-      env:
-        EXEC_SCRIPT: ${{ matrix.execscript }}
+          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
+          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+        env:
+          DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+          DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+          DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
-    - name: "ACME Profile - Test enrollment"
-      uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_acmeprofile
-      with:
-        DEPLOYMENT_TYPE: "rpm"
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-    - name: "EAB ACME Profile - Setup a2c with digicert_ca_handler"
-      if: matrix.execscript == 'rpm_tester.sh'
-      run: |
-        sudo mkdir -p data/acme_ca/certs
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
-        sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "api_key: $DIGICERT_API_KEY" >> data/acme_srv.cfg
-        sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/acme_srv.cfg
-        sudo echo "enrollment_config_log: True" >> data/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/acme_srv.cfg
-        sudo echo -e "\n\n[EABhandler]" >> data/acme_srv.cfg
-        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/acme_srv.cfg
-        sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> data/acme_srv.cfg
+      - name: "EAB ACME Profile - Test enrollment"
+        uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: "rpm"
 
-        sudo cp examples/eab_handler/kid_profiles.json data/acme_ca/kid_profiles.json
-        sudo sed -i '29,33d' data/acme_ca/kid_profiles.json
-        sudo sed -i '20,22d' data/acme_ca/kid_profiles.json
-        sudo chmod 777 data/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/acme_ca/kid_profiles.json
-        sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" data/acme_ca/kid_profiles.json
-        sudo sed -i '18,19d' data/acme_ca/kid_profiles.json
-        sudo sed -i '8,9d' data/acme_ca/kid_profiles.json
-      env:
-        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
+          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
+          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
+          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
+          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh certbot lego
 
-    - name: "EAB ACME Profile - Setup a2c with digicert_ca_handler"
-      if: matrix.execscript == 'django_tester.sh'
-      run: |
-        sudo mkdir -p data/volume/acme_ca/certs
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
-        sudo chmod 777 data/volume/acme_srv.cfg
-        sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
-        sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
-        sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-        sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
-        sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-        sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-        sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-        sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-        sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
 
-        sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-        sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-        sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-        sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" data/volume/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" data/volume/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-        sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-        sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" data/volume/acme_ca/kid_profiles.json
-        sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-        sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
-      env:
-        DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
-        DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
-        DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+  # ---------------------------------------------------------
+  # Test DEB downloaded from the producer run
+  # ---------------------------------------------------------
+  test-deb:
+    needs: [guard, test-rpm]
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['nginx']
+        execscript: ['django_tester.sh']
 
-    - name: "Reconfigure a2c"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
-      env:
-        EXEC_SCRIPT: ${{ matrix.execscript }}
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "EAB ACME Profile - Test enrollment"
-      uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_eab_acmeprofile
-      with:
-        DEPLOYMENT_TYPE: "rpm"
+      - name: "Parse DIGICERT_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.DIGICERT_CFG }}
 
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'deb_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+          NAME_SPACE: acme.dynamop.de
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-        sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
-        docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-        docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh certbot lego
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'django_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+          DJANGO_DB: psql
+          NAME_SPACE: acme.dynamop.de
 
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: digicert_ca_handler_tests_rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "Download DEB artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Setup a2c with digicert_ca_handler for django"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo cp test/ca/certsrv_ca_certs.pem data/volume/ca_certs.pem
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
+          sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+        env:
+          DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+          DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+          DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          NAME_SPACE: acme.dynamop.de
+          USE_CERTBOT: false
+          TEST_ADL: "true"
+
+      - name: "EAB - Setup a2c with digicert_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
+          sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
+          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+
+          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
+          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+        env:
+          DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+          DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+          DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "EAB - Test enrollment"
+        uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_eab
+
+      - name: "ACME Profile -  - Setup a2c with digicert_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
+          sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
+        env:
+          DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+          DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+          DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "ACME Profile - Test enrollment"
+        uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: "deb"
+
+      - name: "EAB ACME Profile - Setup a2c with digicert_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
+          sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
+          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+
+          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
+          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+        env:
+          DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
+          DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
+          DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "EAB ACME Profile - Test enrollment"
+        uses: ./.github/actions/wf_specific/digicert_ca_handler/enroll_eab_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: "deb"
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier/
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.deb
+          if [ ${{ matrix.websrv }} == "apache2" ]; then
+            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          else
+            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          fi
+          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
+
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
