@@ -11,9 +11,13 @@ import json
 import os
 import sys
 
-# Inject a mock acme_srv.db_handler.DBstore into sys.modules if missing
-import types as _types
 
+# Inject a mock acme_srv.db_handler.DBstore into sys.modules if missing, ensuring acme_srv is a package (for Python <3.10 compatibility)
+import types as _types
+if "acme_srv" not in sys.modules:
+    acme_srv_mod = _types.ModuleType("acme_srv")
+    acme_srv_mod.__path__ = []  # Mark as package
+    sys.modules["acme_srv"] = acme_srv_mod
 mock_db_handler = _types.ModuleType("acme_srv.db_handler")
 mock_db_handler.DBstore = MagicMock(name="DBstore")
 sys.modules["acme_srv.db_handler"] = mock_db_handler
