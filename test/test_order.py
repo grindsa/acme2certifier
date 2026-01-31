@@ -1,3 +1,4 @@
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """Comprehensive unittests for order.py"""
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
@@ -10,21 +11,27 @@ import json
 import os
 import sys
 
-sys.path.insert(0, ".")
-sys.path.insert(1, "..")
+# Inject a mock acme_srv.db_handler.DBstore into sys.modules if missing
+import types as _types
+
+mock_db_handler = _types.ModuleType("acme_srv.db_handler")
+mock_db_handler.DBstore = MagicMock(name="DBstore")
+sys.modules["acme_srv.db_handler"] = mock_db_handler
 
 
-# Patch sys.modules to mock DBstore and db_handler import everywhere
-sys.modules["acme_srv.db_handler"] = MagicMock()
-sys.modules["acme_srv.authorization.DBstore"] = MagicMock()
+# Add the parent directory to sys.path so we can import acme_srv
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from acme_srv.order import (
-    Order,
-    OrderRepository,
-    OrderDatabaseError,
-    OrderValidationError,
-    OrderConfiguration,
-)
+
+# Patch DBstore globally for all tests in this module
+with patch("acme_srv.db_handler.DBstore", new=MagicMock()):
+    from acme_srv.order import (
+        Order,
+        OrderRepository,
+        OrderDatabaseError,
+        OrderValidationError,
+        OrderConfiguration,
+    )
 
 
 class TestOrderRepository(unittest.TestCase):
