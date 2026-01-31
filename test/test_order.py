@@ -19,16 +19,13 @@ sys.path.insert(1, "..")
 sys.modules["acme_srv.db_handler"] = MagicMock()
 sys.modules["acme_srv.authorization.DBstore"] = MagicMock()
 
-
-# Patch DBstore globally for all tests in this module
-with patch("acme_srv.db_handler.DBstore", new=MagicMock()):
-    from acme_srv.order import (
-        Order,
-        OrderRepository,
-        OrderDatabaseError,
-        OrderValidationError,
-        OrderConfiguration,
-    )
+from acme_srv.order import (
+    Order,
+    OrderRepository,
+    OrderDatabaseError,
+    OrderValidationError,
+    OrderConfiguration,
+)
 
 
 class TestOrderRepository(unittest.TestCase):
