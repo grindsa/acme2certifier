@@ -48,7 +48,7 @@ jobs:
   # ---------------------------------------------------------
   # Test container images downloaded from the producer run
   # ---------------------------------------------------------
-  test-containers:
+  test-test-containers:
     needs: guard
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
@@ -378,12 +378,11 @@ jobs:
   # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
   test-rpm:
-    needs: [guard, test-containers]
+    needs: guard
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         rhversion: [8, 9]
         execscript: ['rpm_tester.sh', 'django_tester.sh']

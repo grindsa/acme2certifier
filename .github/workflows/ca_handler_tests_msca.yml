@@ -503,7 +503,7 @@ jobs:
   # ---------------------------------------------------------
   mswcce-test-containers:
     runs-on: ubuntu-latest
-    needs: [guard, mscertsrv-eabprov-container-tests]
+    needs: guard
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     strategy:

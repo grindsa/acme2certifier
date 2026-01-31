@@ -34,7 +34,7 @@ jobs:
         inputs.sha != '' &&
         inputs.run_id != '' &&
         inputs.branch != ''
-      }} && github.repository == 'grindsa/acme2certifier'
+      }} && github.repository == 'grindsa/acme2certifier' && inputs.branch == 'master'
     steps:
       - run: |
           echo "Triggered by SHA:    $SHA"
