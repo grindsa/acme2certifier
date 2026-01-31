@@ -369,7 +369,7 @@ class TestOrderClass(unittest.TestCase):
             result,
             (
                 self.order.error_msg_dic["unsupportedidentifier"],
-                "identifier type foo not supported",
+                "Identifier type foo not supported",
             ),
         )
 
@@ -378,7 +378,7 @@ class TestOrderClass(unittest.TestCase):
         result = self.order.are_identifiers_allowed([{"value": "bar"}])
         self.assertEqual(
             result,
-            (self.order.error_msg_dic["malformed"], "identifier type is missing"),
+            (self.order.error_msg_dic["malformed"], "Identifier type is missing"),
         )
 
     def test_034_edge_case_invalid_profile_config(self):
@@ -1426,7 +1426,7 @@ class TestOrderClass(unittest.TestCase):
                 result,
                 (
                     order.error_msg_dic["unsupportedidentifier"],
-                    "identifier type foo not supported",
+                    "Identifier type foo not supported",
                 ),
             )
 
@@ -1461,7 +1461,7 @@ class TestOrderClass(unittest.TestCase):
             order = Order(debug=True, server_name="test", logger=self.logger)
             result = order.are_identifiers_allowed([{"value": "foo.com"}])
             self.assertEqual(
-                result, (order.error_msg_dic["malformed"], "identifier type is missing")
+                result, (order.error_msg_dic["malformed"], "Identifier type is missing")
             )
 
     def test_089_are_identifiers_allowed_tnauthlist_and_email(self):
@@ -2598,7 +2598,7 @@ class TestOrderClass(unittest.TestCase):
         self.handler.flush()
         log_contents = self.log_stream.getvalue()
         self.assertEqual(error, self.order.error_msg_dic["malformed"])
-        self.assertEqual(detail, "identifier type is missing")
+        self.assertEqual(detail, "Identifier type is missing")
         self.assertIn("ERROR:Identifier type is missing\n", log_contents)
 
     def test_141_check_single_identifier_wrong_type(self):
@@ -2614,7 +2614,7 @@ class TestOrderClass(unittest.TestCase):
         self.handler.flush()
         log_contents = self.log_stream.getvalue()
         self.assertEqual(error, self.order.error_msg_dic["unsupportedidentifier"])
-        self.assertEqual(detail, "identifier type unknown not supported")
+        self.assertEqual(detail, "Identifier type unknown not supported")
         self.assertIn("ERROR:Identifier type unknown not supported\n", log_contents)
 
     def test_142_check_single_identifier_invalid_value(self):
