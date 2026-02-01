@@ -204,6 +204,58 @@ class Account:
         # Add account to database
         return self._add_account_to_db(account_data)
 
+    def _parse_query(self, account_name: str) -> Dict[str, str]:
+        """update contacts"""
+        self.logger.debug("Account._parse_query(%s)", account_name)
+
+        # this is a query for account information
+        account_obj = self._lookup_account_by_name(account_name)
+        if account_obj:
+            data = self._build_account_info(account_obj)
+            data["status"] = "valid"
+        else:
+            data = {"status": "invalid"}
+
+        self.logger.debug("Account._parse_query() ended")
+        return data
+
+    def _onlyreturnexisting(
+        self, protected: Dict[str, str], payload: Dict[str, str]
+    ) -> Tuple[int, str, str]:
+        """check onlyreturnexisting"""
+        self.logger.debug("Account._onlyreturnexisting(}")
+
+        if "onlyreturnexisting" in payload:
+            if payload["onlyreturnexisting"]:
+
+                if "jwk" in protected:
+                    result = self._lookup_account_by_field(json.dumps(protected["jwk"]), "jwk")
+                    if result:
+                        code = 200
+                        message = result["name"]
+                        detail = self._parse_query(message)
+                    else:
+                        code = 400
+                        message = self.err_msg_dic["accountdoesnotexist"]
+                        detail = None
+                else:
+                    code = 400
+                    message = self.err_msg_dic["malformed"]
+                    detail = "jwk structure missing"
+
+            else:
+                code = 400
+                message = self.err_msg_dic["useractionrequired"]
+                detail = "onlyReturnExisting must be true"
+        else:
+            code = 500
+            message = self.err_msg_dic["serverinternal"]
+            detail = "onlyReturnExisting without payload"
+
+        self.logger.debug("Account.onlyreturnexisting() ended with: %s", code)
+        return (code, message, detail)
+
+
     def _handle_deactivation(self, account_name: str, payload: Dict[str, str]) -> Dict[str, str]:
         """Handle account deactivation."""
         self.logger.debug("Account._handle_deactivation(%s)", account_name)
@@ -239,7 +291,7 @@ class Account:
         self.logger.debug("Account._handle_contact_update(%s)", account_name)
         code, message, detail = self._update_account_contacts(account_name, payload)
         if code == 200:
-            account_obj = self._lookup_account(account_name)
+            account_obj = self._lookup_account_by_name(account_name)
             if account_obj:
                 data = self._build_account_info(account_obj)
                 return self._build_response(code, message, data)
@@ -326,17 +378,17 @@ class Account:
     def _handle_account_query(self, account_name: str) -> Dict[str, str]:
         """Handle account query."""
         self.logger.debug("Account._handle_account_query(%s)", account_name)
-        account_obj = self._lookup_account("name", account_name)
+        account_obj = self._lookup_account_by_name(account_name)
         if account_obj:
             data = self._build_account_info(account_obj)
             return self._build_response(200, None, data)
         return self._build_response(400, self.err_msg_dic["accountdoesnotexist"], "Account not found")
 
-    def _lookup_account(self, field: str, value: str) -> Optional[Dict[str, str]]:
+    def _lookup_account_by_name(self, value: str) -> Optional[Dict[str, str]]:
         """Lookup an account in the database."""
-        self.logger.debug("Account._lookup_account(%s: %s)", field, value)
+        self.logger.debug("Account._lookup_account_by_name(%s: %s)", field, value)
         try:
-            return self.repository.lookup_account(field, value)
+            return self.repository.lookup_account("name", value)
         except AccountDatabaseError as err:
             self.logger.critical("Database error during account lookup: %s", err)
             return None
@@ -353,13 +405,19 @@ class Account:
     def _build_account_info(self, account_obj: Dict[str, str]) -> Dict[str, str]:
         """Build account information for response."""
         self.logger.debug("Account._build_account_info()")
-        return {
+        account_info =  {
             "status": account_obj.get("status", "valid"),
             "key": json.loads(account_obj["jwk"]),
             "contact": json.loads(account_obj["contact"]),
             "createdAt": date_to_datestr(account_obj["created_at"]),
-            "eab_kid": account_obj.get("eab_kid"),
+
         }
+        if "eab_kid" in account_obj and account_obj['eab_kid']:
+            account_info["eab_kid"] = account_obj.get("eab_kid"),
+
+        self.logger.debug("Account._build_account_info() ended with: %s", bool(account_info))
+        return account_info
+
 
     def _build_response(self, code: int, message: str, detail: Optional[str], payload: Optional[Dict] = None) -> Dict[str, str]:
         """Build a response dictionary."""
@@ -398,6 +456,7 @@ class Account:
 
         return response_dic
 
+
     def create_account(self, content: Dict[str, str]) -> Dict[str, str]:
         """Public method to create a new account."""
         self.logger.debug("Account.create_account()")
@@ -405,7 +464,12 @@ class Account:
         if code != 200:
             return self._build_response(code, message, detail, payload)
 
-        code, message, detail = self._create_account(payload, protected)
+        # onlyReturnExisting check
+        if "onlyreturnexisting" in payload:
+            code, message, detail = self._onlyreturnexisting(protected, payload)
+        else:
+            code, message, detail = self._create_account(payload, protected)
+
         self.logger.debug("Account.create_account() ended with: %s, %s", code, message)
         return self._build_response(code, message, detail, payload)
 
