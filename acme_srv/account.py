@@ -104,7 +104,16 @@ class Account:
         self.message = Message(debug, self.server_name, self.logger)
         self.config = AccountConfiguration()
         self.err_msg_dic = error_dic_get(self.logger)
+
+    def __enter__(self) -> "Order":
+        """Enter the context manager, loading configuration."""
         self._load_configuration()
+        return self
+
+    def __exit__(self, *args) -> None:
+        """
+        Exit the context manager. (No-op, placeholder for cleanup.)
+        """
 
     def _load_configuration(self):
         """Load configuration into the AccountConfiguration dataclass."""
@@ -146,10 +155,18 @@ class Account:
         """Add a new account to the database."""
         self.logger.debug("Account._add_account_to_db(%s)", account_data.name)
         try:
+
+            # convert dict and list to string
+            account_data.jwk = json.dumps(account_data.jwk)
+            account_data.contact = json.dumps(account_data.contact)
+
             db_name, is_new = self.repository.add_account(account_data.__dict__)
             if is_new:
+                self.logger.debug("Account._add_account_to_db() ended with: 201, %s", db_name)
                 return 201, db_name, None
+            self.logger.debug("Account._add_account_to_db() ended with: 200, %s", db_name)
             return 200, db_name, None
+
         except AccountDatabaseError as err:
             self.logger.critical("Database error while adding account: %s", err)
             return 500, self.err_msg_dic["serverinternal"], "Database error"
@@ -309,7 +326,7 @@ class Account:
     def _handle_account_query(self, account_name: str) -> Dict[str, str]:
         """Handle account query."""
         self.logger.debug("Account._handle_account_query(%s)", account_name)
-        account_obj = self._lookup_account(account_name)
+        account_obj = self._lookup_account("name", account_name)
         if account_obj:
             data = self._build_account_info(account_obj)
             return self._build_response(200, None, data)
@@ -344,21 +361,53 @@ class Account:
             "eab_kid": account_obj.get("eab_kid"),
         }
 
-    def _build_response(self, code: int, message: str, detail: Optional[str]) -> Dict[str, str]:
+    def _build_response(self, code: int, message: str, detail: Optional[str], payload: Optional[Dict] = None) -> Dict[str, str]:
         """Build a response dictionary."""
         self.logger.debug("Account._build_response()")
-        response = {"status": code, "message": message, "detail": detail}
-        return response
+        response_dic = {}
+        if code in (200, 201):
+            response_dic["data"] = {}
+            if code == 201:
+                response_dic["data"] = {
+                    "status": "valid",
+                    "orders": f'{self.server_name}{self.config.path_dic["acct_path"]}{message}/orders',
+                }
+                if payload and "contact" in payload:
+                    response_dic["data"]["contact"] = payload["contact"]
+            elif code == 200 and detail and "status" in detail:
+                response_dic["data"] = detail
+
+            response_dic["header"] = {}
+            response_dic["header"][
+                "Location"
+            ] = f'{self.server_name}{self.config.path_dic["acct_path"]}{message}'
+
+            # add exernal account binding
+            if self.config.eab_check and "externalaccountbinding" in payload:
+                response_dic["data"]["externalaccountbinding"] = payload[
+                    "externalaccountbinding"
+                ]
+
+        else:
+            if detail == "tosfalse":
+                detail = "Terms of service must be accepted"
+
+        # prepare/enrich response
+        status_dic = {"code": code, "type": message, "detail": detail}
+        response_dic = self.message.prepare_response(response_dic, status_dic)
+
+        return response_dic
 
     def create_account(self, content: Dict[str, str]) -> Dict[str, str]:
         """Public method to create a new account."""
         self.logger.debug("Account.create_account()")
         code, message, detail, protected, payload, _ = self.message.check(content, True)
         if code != 200:
-            return self._build_response(code, message, detail)
+            return self._build_response(code, message, detail, payload)
 
         code, message, detail = self._create_account(payload, protected)
-        return self._build_response(code, message, detail)
+        self.logger.debug("Account.create_account() ended with: %s, %s", code, message)
+        return self._build_response(code, message, detail, payload)
 
     def parse_request(self, content: Dict[str, str]) -> Dict[str, str]:
         """Public method to parse an account-related request."""
