@@ -11,16 +11,18 @@ import json
 import os
 import sys
 
-
-# Inject a mock acme_srv.db_handler.DBstore into sys.modules if missing, ensuring acme_srv is a package (for Python <3.10 compatibility)
+# Inject a mock acme_srv.db_handler.DBstore into sys.modules if missing
 import types as _types
-if "acme_srv" not in sys.modules:
-    acme_srv_mod = _types.ModuleType("acme_srv")
-    acme_srv_mod.__path__ = []  # Mark as package
-    sys.modules["acme_srv"] = acme_srv_mod
+
 mock_db_handler = _types.ModuleType("acme_srv.db_handler")
 mock_db_handler.DBstore = MagicMock(name="DBstore")
 sys.modules["acme_srv.db_handler"] = mock_db_handler
+
+class FakeDBStore(object):
+    """face DBStore class needed for mocking"""
+
+    # pylint: disable=W0107, R0903
+    pass
 
 
 # Add the parent directory to sys.path so we can import acme_srv
@@ -183,7 +185,7 @@ class TestOrderClass(unittest.TestCase):
         self.handler.setFormatter(formatter)  # Set formatter for handler
         self.logger.handlers = []  # Clear existing handlers
         self.logger.addHandler(self.handler)  # Add new handler
-        self.mock_dbstore = MagicMock()
+        self.mock_dbstore = FakeDBStore()
         self.mock_message = MagicMock()
         self.mock_repo = MagicMock()
         patcher_dbstore = patch(
