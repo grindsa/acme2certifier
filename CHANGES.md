@@ -10,7 +10,7 @@ and pick the appropriate release branch.
 
 **Bug Fixes**:
 
-- \[[#299 Improved cert_passphrase_variable handling in EJBCA handler](https://github.com/grindsa/acme2certifier/issues/299)\]
+- [#299 Improved cert_passphrase_variable handling in EJBCA handler](https://github.com/grindsa/acme2certifier/issues/299)
 
 ## Changes in 0.41
 
