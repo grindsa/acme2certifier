@@ -6,7 +6,13 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
-## Change in 0.41
+## Changes in 0.41.1
+
+**Bug Fixes**:
+
+- [#299 Improved cert_passphrase_variable handling in EJBCA handler](https://github.com/grindsa/acme2certifier/issues/299)
+
+## Changes in 0.41
 
 - The database schema has been updated. Please ensure you run the appropriate update script after upgrading:
   - Use `tools/db_update.py` if you are using the `wsgi_handler`

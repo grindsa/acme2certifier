@@ -113,8 +113,7 @@ sudo systemctl start apache2.service
 - Generate a new Django secret key and note it down:
 
 ```bash
-python3 /var/www/acme2certifier/tools/django_secret_keygen.py
-+%*lei)yj9b841=2d5(u)a&7*uwi@l99$(*&ong@g*p1%q)g$e
+python3 -c "import secrets; print(secrets.token_urlsafe(50))"
 ```
 
 - Modify `/var/www/acme2certifier/acme2certifier/settings.py` and:
