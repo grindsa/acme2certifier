@@ -18,7 +18,113 @@ from acme_srv.helper import (
 )
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
+
 from acme_srv.signature import Signature
+
+# --- ExternalAccountBinding class integrated here ---
+import json
+from acme_srv.helper import b64decode_pad
+
+class ExternalAccountBinding:
+    """Encapsulates EAB validation and signature verification logic."""
+    def __init__(self, logger, eab_handler, server_name=None):
+        self.logger = logger
+        self.eab_handler = eab_handler
+        self.server_name = server_name
+
+    def get_kid(self, protected: str) -> str:
+        """Extract key identifier (kid) from protected header."""
+        self.logger.debug("ExternalAccountBinding.get_kid()")
+        protected_dic = json.loads(b64decode_pad(self.logger, protected))
+        if isinstance(protected_dic, dict):
+            eab_key_id = protected_dic.get("kid", None)
+        else:
+            eab_key_id = None
+        self.logger.debug("ExternalAccountBinding.get_kid() ended with: %s", eab_key_id)
+        return eab_key_id
+
+    def compare_jwk(self, protected: dict, payload: str) -> bool:
+        """Compare JWK from outer header with JWK in EAB payload."""
+        self.logger.debug("ExternalAccountBinding.compare_jwk()")
+        result = False
+        if "jwk" in protected:
+            jwk_outer = protected["jwk"]
+            jwk_inner = b64decode_pad(self.logger, payload)
+            jwk_inner = json.loads(jwk_inner)
+            if json.dumps(jwk_outer, sort_keys=True) == json.dumps(jwk_inner, sort_keys=True):
+                result = True
+            else:
+                self.logger.error("JWK from outer and inner JWS do not match")
+                self.logger.debug("outer: %s", jwk_outer)
+                self.logger.debug("inner: %s", jwk_inner)
+        else:
+            self.logger.error("No JWK in protected header")
+        self.logger.debug("ExternalAccountBinding.compare_jwk() ended with: %s", result)
+        return result
+
+    def verify_signature(self, content: dict, mac_key: str) -> tuple:
+        """Verify EAB signature."""
+        self.logger.debug("ExternalAccountBinding.verify_signature()")
+        if content and mac_key:
+            signature = Signature(None, self.server_name, self.logger)
+            jwk_ = json.dumps({"k": mac_key, "kty": "oct"})
+            (sig_check, error) = signature.eab_check(json.dumps(content), jwk_)
+        else:
+            sig_check = False
+            error = None
+        self.logger.debug("ExternalAccountBinding.verify_signature() ended with: %s: %s", sig_check, error)
+        return (sig_check, error)
+
+    def verify(self, payload: dict, err_msg_dic: dict) -> tuple:
+        """Check for external account binding and verify signature."""
+        self.logger.debug("ExternalAccountBinding.verify()")
+        eab_kid = self.get_kid(payload["externalaccountbinding"]["protected"])
+        if eab_kid:
+            with self.eab_handler(self.logger) as eab_handler:
+                eab_mac_key = eab_handler.mac_key_get(eab_kid)
+        else:
+            eab_mac_key = None
+        if eab_mac_key:
+            (result, error) = self.verify_signature(payload["externalaccountbinding"], eab_mac_key)
+            if result:
+                code = 200
+                message = None
+                detail = None
+            else:
+                code = 403
+                message = err_msg_dic["unauthorized"]
+                detail = "EAB signature verification failed"
+                self.logger.error("EAB verification returned an error: %s", error)
+        else:
+            code = 403
+            message = err_msg_dic["unauthorized"]
+            detail = "EAB kid lookup failed"
+        self.logger.debug("ExternalAccountBinding.verify() ended with: %s", code)
+        return (code, message, detail)
+
+    def check(self, protected: dict, payload: dict, err_msg_dic: dict) -> tuple:
+        """Check for external account binding, compare JWK, and verify signature."""
+        self.logger.debug("ExternalAccountBinding.check()")
+        if (
+            self.eab_handler
+            and protected
+            and payload
+            and "externalaccountbinding" in payload
+            and payload["externalaccountbinding"]
+        ):
+            jwk_compare = self.compare_jwk(protected, payload["externalaccountbinding"]["payload"])
+            if jwk_compare and "protected" in payload["externalaccountbinding"]:
+                return self.verify(payload, err_msg_dic)
+            else:
+                code = 403
+                message = err_msg_dic["malformed"]
+                detail = "Malformed request"
+        else:
+            code = 403
+            message = err_msg_dic["externalaccountrequired"]
+            detail = "External account binding required"
+        self.logger.debug("ExternalAccountBinding.check() ended with: %s", code)
+        return (code, message, detail)
 
 
 class AccountDatabaseError(Exception):
@@ -180,17 +286,59 @@ class Account:
             return 400, self.err_msg_dic["invalidcontact"], "Invalid contact information"
         return 200, None, None
 
+
+    def _check_tos(self, content: Dict[str, str]) -> Tuple[int, str, str]:
+        """check terms of service"""
+        self.logger.debug("Account._check_tos()")
+        if "termsofserviceagreed" in content:
+            self.logger.debug("tos:%s", content["termsofserviceagreed"])
+            if content["termsofserviceagreed"]:
+                code = 200
+                message = None
+                detail = None
+            else:
+                code = 403
+                message = self.err_msg_dic["useractionrequired"]
+                detail = "Terms of service must be agreed"
+        else:
+            self.logger.debug("no tos statement found.")
+            code = 403
+            message = self.err_msg_dic["useractionrequired"]
+            detail = "termsofserviceagreed flag missing"
+
+        self.logger.debug("Account._check_tos() ended with:%s", code)
+        return (code, message, detail)
+
+
     def _create_account(self, payload: Dict[str, str], protected: Dict[str, str]) -> Tuple[int, str, str]:
         """Create a new account."""
         self.logger.debug("Account._create_account()")
         account_name = generate_random_string(self.logger, 12)
         contact_list = payload.get("contact", [])
 
+        # tos check
+        if self.config.tos_url and not self.config.tos_check_disable:
+            (code, message, detail) = self._check_tos(payload)
+            if code != 200:
+                return code, message, detail
+
+        # EAB check
+        if self.config.eab_check and "externalaccountbinding" in payload:
+            eab_handler = ExternalAccountBinding(
+                self.logger,
+                self.config.eab_handler,
+                self.server_name
+            )
+            code, message, detail = eab_handler.check(protected, payload, self.err_msg_dic)
+            if code != 200:
+                return code, message, detail
+
         # Validate contact information
         if not self.config.contact_check_disable:
             code, message, detail = self._validate_contact(contact_list)
             if code != 200:
                 return code, message, detail
+
 
         # Prepare account data
         account_data = AccountData(
@@ -463,6 +611,7 @@ class Account:
         code, message, detail, protected, payload, _ = self.message.check(content, True)
         if code != 200:
             return self._build_response(code, message, detail, payload)
+
 
         # onlyReturnExisting check
         if "onlyreturnexisting" in payload:
