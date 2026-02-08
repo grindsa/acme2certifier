@@ -105,6 +105,7 @@ class ExternalAccountBinding:
     def check(self, protected: dict, payload: dict, err_msg_dic: dict) -> tuple:
         """Check for external account binding, compare JWK, and verify signature."""
         self.logger.debug("ExternalAccountBinding.check()")
+
         if (
             self.eab_handler
             and protected
@@ -323,7 +324,7 @@ class Account:
                 return code, message, detail
 
         # EAB check
-        if self.config.eab_check and "externalaccountbinding" in payload:
+        if self.config.eab_check:
             eab_handler = ExternalAccountBinding(
                 self.logger,
                 self.config.eab_handler,
@@ -348,6 +349,15 @@ class Account:
             contact=contact_list,
             created_at=date_to_datestr(uts_now())
         )
+        if self.config.eab_check:
+            eab_handler = ExternalAccountBinding(
+                self.logger,
+                self.config.eab_handler,
+                self.server_name
+            )
+            eab_kid = eab_handler.get_kid(payload["externalaccountbinding"]["protected"])
+            if eab_kid:
+                account_data.eab_kid = eab_kid
 
         # Add account to database
         return self._add_account_to_db(account_data)
