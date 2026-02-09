@@ -66,6 +66,35 @@ GRANT postgres TO acme2certifier;
 sudo apt-get install python3-django python3-psycopg2
 ```
 
+### When using SQL Server (Experimental)
+
+_SQL Server support is experimental, and is not tested in release regression like the other two databases._
+
+Note that this part of the guide is written for **Red Hat Enterprise Linux 9**.
+
+It is assumed that SQL Server is already installed and running.
+
+Open SQL Server Management Studio.
+
+- Create the acme2certifier database and database user:
+
+```SQL
+CREATE DATABASE acme2certifier;
+CREATE LOGIN acme2certifier WITH PASSWORD = 'a2c+passwd';
+CREATE USER acme2certifier FOR LOGIN acme2certifier;
+```
+
+- From Object Explorer, open acme2certifier, Security, Logins, acme2certifier Properties. Then, from User Mapping, map the user to the database and give necessary roles. From Server Roles, give public and sysadmin roles. In essence, grant all access to the database for the acme2certifier user.
+
+- Install missing python modules
+
+```bash
+pip install mssql-django pyodbc
+sudo dnf install unixODBC
+```
+
+- Follow [these instructions](https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server?view=sql-server-ver15&tabs=redhat18-install%2Credhat17-install%2Cdebian8-install%2Credhat7-13-install%2Crhel7-offline#17) to install Microsoft ODBC 17.
+
 ## Install and Configure acme2certifier
 
 - Download the [latest deb package](https://github.com/grindsa/acme2certifier/releases)
@@ -165,6 +194,28 @@ DATABASES = {
     }
 }
 ```
+
+### Connecting to SQL Server
+
+- Modify `/var/www/acme2certifier/acme2certifier/settings.py` and configure your database connection as below:
+
+```python
+DATABASES = {
+    "default": {
+        "ENGINE": "mssql",
+        "NAME": "acme2certifier",
+        "USER": "acme2certifier",
+        "PASSWORD": "a2c+passwd",
+        "HOST": "sqlserverdbsrv,1433",
+        "PORT": "",
+        "OPTIONS": {
+            "driver": "ODBC Driver 17 for SQL Server"
+        },
+    }
+}
+```
+
+- You may also need to disable some SELinux settings for Apache, depending on your server configuration.
 
 ## Finalize acme2cerifier configuration
 
