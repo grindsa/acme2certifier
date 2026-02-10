@@ -1,5 +1,10 @@
 name: "rpm_build_upload"
 description: "Build and Upload package"
+inputs:
+  NO_VERSION:
+    description: "If true, do not append version to package"
+    required: false
+    default: "false"
 outputs:
   deb_file_name:
     description: "Name of the RPM package file"
@@ -14,11 +19,26 @@ runs:
     uses: ./.github/actions/deb_build
 
   - name: "Rename deb package"
+    if: ${{ inputs.NO_VERSION != 'false' }}
+    run: |
+      sudo mv ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb ./acme2certifier-${{ github.run_id }}-1_all.deb
+    shell: bash
+
+  - name: "Upload deb package"
+    if: ${{ inputs.NO_VERSION != 'false' }}
+    uses: actions/upload-artifact@v4
+    with:
+      name: acme2certifier-${{ github.run_id }}-1_all.deb
+      path: acme2certifier-${{ github.run_id }}-1_all.deb
+
+  - name: "Rename deb package"
+    if: ${{ inputs.NO_VERSION == 'false' }}
     run: |
       sudo mv ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb ./acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
     shell: bash
 
   - name: "Upload deb package"
+    if: ${{ inputs.NO_VERSION == 'false' }}
     uses: actions/upload-artifact@v4
     with:
       name: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
