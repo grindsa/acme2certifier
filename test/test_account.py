@@ -1014,6 +1014,34 @@ class TestAccount(unittest.TestCase):
                     "EABHandler could not get loaded", " ".join(log_cm.output)
                 )
 
+    def test_041_load_configuration_without_accountsection(self):
+        from acme_srv.account import Account
+
+        config_mock = MagicMock()
+        config_mock.getboolean.side_effect = lambda section, key, fallback=False: {
+            ("CAhandler", "foo"): 'bar',
+        }.get((section, key), fallback)
+
+        # Patch eab_handler_load to return a module with EABhandler
+        eab_handler_module = MagicMock()
+        eab_handler_module.EABhandler = "EABhandlerClass"
+
+        with patch("acme_srv.account.load_config", return_value=config_mock), patch(
+            "acme_srv.account.eab_handler_load", return_value=eab_handler_module
+        ):
+            account = Account(False, "http://tester.local", self.logger)
+            account._load_configuration()
+            self.assertFalse(
+                account.config.tos_check_disable
+            )  # Default value should be used
+            self.assertFalse(
+                account.config.inner_header_nonce_allow
+            )  # Default value should be used
+            self.assertFalse(
+                account.config.eab_check
+            )  # Default value should be used
+
+
     def test_041__create_account_success(self):
         """test _create_account success (all checks pass, EAB off)"""
         self.account.config.tos_url = None
