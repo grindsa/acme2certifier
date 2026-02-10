@@ -45,8 +45,8 @@ cert_validity_adjust: True
 cert_save_path: acme_srv/ca/certs
 ca_cert_chain_list: []
 openssl_conf: acme_srv/ca/openssl.conf
-allowed_domainlist: ["foo.bar\$", "foo1.bar.local"]
-blocked_domainlist: ["google.com.foo.bar\$", "host.foo.bar$", "\*.foo.bar"]
+allowed_domainlist: ["*.foo.bar", "*.bar.local"]
+blocked_domainlist: ["*.google.com.foo.bar", "host.foo.bar", "www.foo.bar"]
 save_cert_as_hex: True
 cn_enforce: True
 ```
