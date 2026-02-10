@@ -1,13 +1,34 @@
-name: arm64_tests
+name: Deployment Tests - arm64
 on:
-  push:
-    branches: [ 'devel']
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+
 jobs:
   instance_start:
     name: instance_start
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
+    if: github.repository == 'grindsa/acme2certifier' && inputs.branch == 'devel'
     steps:
 
     - name: "checkout GIT"
@@ -68,7 +89,7 @@ jobs:
     name: build_test
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
+    if: github.repository == 'grindsa/acme2certifier' && inputs.branch == 'devel'
     needs: instance_start
     strategy:
       fail-fast: false
@@ -305,7 +326,7 @@ jobs:
     name: instance_stop
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
+    if: github.repository == 'grindsa/acme2certifier' && inputs.branch == 'devel'
     needs: build_test
     steps:
 

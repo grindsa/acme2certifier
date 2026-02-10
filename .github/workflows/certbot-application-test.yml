@@ -1,19 +1,58 @@
 name: Application Tests - Certbot
-
 on:
-  push:
-  pull_request:
-    branches: [ devel ]
-  schedule:
-    # * is a special character in YAML so you have to quote this string
-    - cron:  '0 2 * * 6'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
 
 jobs:
 
-  certbot_tests:
-    name: "certbot_tests"
+  # ---------------------------------------------------------
+  # Quick guard to validate incoming payload
+  # ---------------------------------------------------------
+  guard:
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
+    if: >
+      ${{
+        inputs.sha != '' &&
+        inputs.run_id != '' &&
+        inputs.branch != ''
+      }} && github.repository == 'grindsa/acme2certifier'
+    steps:
+      - run: |
+          echo "Triggered by SHA:    $SHA"
+          echo "From branch:         $BRANCH"
+          echo "Producer run_id:     $RUN_ID"
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+
+
+  # ---------------------------------------------------------
+  # Test container images (matrix from payload)
+  # ---------------------------------------------------------
+  test-containers:
+    needs: guard
+    runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -21,95 +60,107 @@ jobs:
         keylength: [2048, 4096]
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
+
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Build container"
-      uses: ./.github/actions/container_prep
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
+      - name: "Download and import container"
+        uses: ./.github/actions/container_load
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+          DESTINATION_PATH: /tmp
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Setup openssl ca_handler"
-      run: |
-        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-        sudo cp .github/django_settings.py examples/Docker/data/settings.py
-        sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker compose restart
+      - name: "Prepare container environment"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          CONTAINER_BUILD: false
+          NAME_SPACE: acme
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
+      - name: "Setup openssl ca_handler"
+        run: |
+          sudo cp examples/ca_handler/openssl_ca_handler.py examples/Docker/data/ca_handler.py
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
 
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
 
-    - name: "Create letsencrypt folder"
-      run: |
-        mkdir certbot
+      - name: "Test http://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Register certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
+      - name: "Test if https://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "Enroll HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+      - name: "Create letsencrypt folder"
+        run: |
+          mkdir certbot
 
-    - name: "Renew HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+      - name: "Register certbot"
+        run: |
+          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
 
-    - name: "Revoke HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
+      - name: "Enroll HTTP-01 single domain certbot"
+        run: |
+          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
+          sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
 
-    - name: "Enroll HTTP-01 2x domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme -d certbot. --cert-name certbot
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+      - name: "Renew HTTP-01 single domain certbot"
+        run: |
+          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal
+          sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
 
-    - name: "Renew HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme -d certbot. --cert-name certbot --force-renewal
-        sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
+      - name: "Revoke HTTP-01 single domain certbot"
+        run: |
+          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
 
-    - name: "Revoke HTTP-01 single domain certbot"
-      run: |
-        docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme -d certbot. --cert-name certbot
+      - name: "Enroll HTTP-01 2x domain certbot"
+        run: |
+          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme -d certbot. --cert-name certbot
+          sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
 
-    - name: "Check container configuration"
-      uses: ./.github/actions/container_check
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
+      - name: "Renew HTTP-01 single domain certbot"
+        run: |
+          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --rsa-key-size ${{ matrix.keylength }} --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme -d certbot. --cert-name certbot --force-renewal
+          sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem certbot/live/certbot/cert.pem
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-        cd examples/Docker
-        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data certbot
+      - name: "Revoke HTTP-01 single domain certbot"
+        run: |
+          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme -d certbot. --cert-name certbot
 
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: certbot_key-${{ matrix.keylength }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
+          cd examples/Docker
+          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data certbot
+
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-containers-${{ matrix.keylength }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/

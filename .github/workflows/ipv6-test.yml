@@ -1,15 +1,56 @@
-name: ipv6-test
-
+name: Feature Tests - IPv6
 on:
-  push:
-  pull_request:
-    branches: [ devel ]
-
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
 jobs:
-  ipv6_tests:
-    name: "ipv6_tests"
+
+  # ---------------------------------------------------------
+  # Quick guard to validate incoming payload
+  # ---------------------------------------------------------
+  guard:
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
+    if: >
+      ${{
+        inputs.sha != '' &&
+        inputs.run_id != '' &&
+        inputs.branch != ''
+      }} && github.repository == 'grindsa/acme2certifier'
+    steps:
+      - run: |
+          echo "Triggered by SHA:    $SHA"
+          echo "From branch:         $BRANCH"
+          echo "Producer run_id:     $RUN_ID"
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+
+  # ---------------------------------------------------------
+  # Test container images (matrix from payload)
+  # ---------------------------------------------------------
+  test-containers:
+    needs: guard
+    runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -18,74 +59,86 @@ jobs:
         dbhandler: ['wsgi', 'django']
 
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Parse JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.GH_CFG }}
+      - name: "Download and import container"
+        uses: ./.github/actions/container_load
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+          DESTINATION_PATH: /tmp
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Build container"
-      uses: ./.github/actions/container_prep
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
-        IPV6: true
+      - name: "Prepare container environment"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          CONTAINER_BUILD: false
+          NAME_SPACE: acme
+          IPV6: true
 
-    - name: "Setup openssl ca_handler"
-      run: |
-        sudo mkdir -p examples/Docker/data/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker compose restart
+      - name: "Setup openssl ca_handler"
+        run: |
+          sudo mkdir -p examples/Docker/data/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
 
-    - name: "Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
-      with:
-        time: 10s
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 10s
 
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Test http://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-    - name: "Prepare acme.sh container"
-      run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+      - name: "Test if https://acme-srv/directory is accessible"
+        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
 
-    - name: "Enroll acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --listen-v6 --debug 3 --output-insecure
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+      - name: "Prepare acme.sh container"
+        run: |
+          docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "Enroll acme.sh using ipv6 with ipv4 fallback"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --listen-v4 --debug 3 --output-insecure --force
-        openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+      - name: "Enroll acme.sh"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --listen-v6 --debug 3 --output-insecure
+          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        cd examples/Docker
-        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+      - name: "Enroll acme.sh using ipv6 with ipv4 fallback"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --listen-v4 --debug 3 --output-insecure --force
+          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
 
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: ipv6_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          cd examples/Docker
+          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
 
-  rpm_ipv6:
-    name: "rpm_ipv6"
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Test RPMs (EL8 & EL9) downloaded from the producer run
+  # ---------------------------------------------------------
+  test-rpm:
+    needs: guard
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -94,78 +147,181 @@ jobs:
         execscript: ['rpm_tester.sh', 'django_tester.sh']
 
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Parse JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.GH_CFG }}
+      - name: "Parse JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
 
-    - name: "Prepare Alma environment"
-      uses: ./.github/actions/rpm_prep
-      with:
-        GH_USER: ${{ env.GH_USER }}
-        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-        RH_VERSION: ${{ matrix.rhversion }}
-        IPV6: true
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: false
+          IPV6: true
 
-    - name: "[ PREPARE ] create lego and certbot folder"
-      run: |
-        mkdir lego
-        mkdir certbot
+      - name: "Download RPM artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Stup openssl ca_handler"
-      if: matrix.execscript == 'rpm_tester.sh'
-      run: |
-        mkdir -p data/acme_ca
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/acme_srv.cfg
+      - name: "Create lego and certbot folder"
+        run: |
+          mkdir lego
+          mkdir certbot
 
-    - name: "Setup openssl ca_handler"
-      if: matrix.execscript == 'django_tester.sh'
-      run: |
-        sudo mkdir -p data/volume/acme_ca/certs
-        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+      - name: "Setup openssl ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
 
-    - name: "Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
-      env:
-        EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-    - name: "Prepare acme.sh container"
-      run: |
-        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+      - name: "Prepare acme.sh container"
+        run: |
+          docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
 
-    - name: "Enroll acme.sh"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --listen-v6 --debug 3 --output-insecure
-        awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+      - name: "Enroll acme.sh"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --listen-v6 --debug 3 --output-insecure
+          awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
+          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
-    - name: "Enroll acme.sh using ipv6 with ipv4 fallback"
-      run: |
-        docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --listen-v4 --debug 3 --output-insecure --force
-        openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+      - name: "Enroll acme.sh using ipv6 with ipv4 fallback"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --listen-v4 --debug 3 --output-insecure --force
+          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-        docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-        docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
+          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
 
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: rpm_ipv6-rh${{ matrix.rhversion }}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/artifact.tar.gz
+
+  # ---------------------------------------------------------
+  # Test DEB downloaded from the producer run
+  # ---------------------------------------------------------
+  test-deb:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        execscript: ['deb_tester.sh','django_tester.sh']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
+
+      - name: "Parse XCA configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.XCA_CFG }}
+
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'deb_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'django_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+          DJANGO_DB: psql
+
+      - name: "Download DEB artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Create lego and certbot folder"
+        run: |
+          mkdir lego
+          mkdir certbot
+
+      - name: "Setup openssl ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_file: \/var\/www\/acme2certifier\/examples\/ca_handler\/openssl_ca_handler.py/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
+
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "Prepare acme.sh container"
+        run: |
+          docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+
+      - name: "Enroll acme.sh"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --listen-v6 --debug 3 --output-insecure
+          awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
+          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
+      - name: "Enroll acme.sh using ipv6 with ipv4 fallback"
+        run: |
+          docker exec -i acme-sh acme.sh --server http://acme-srv --keylength 2048 --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --listen-v4 --debug 3 --output-insecure --force
+          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.deb
+          if [ ${{ matrix.websrv }} == "apache2" ]; then
+            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          else
+            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          fi
+          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
+
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
