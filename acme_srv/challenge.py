@@ -584,13 +584,11 @@ class Challenge:
         )
         if self.config.validation_disabled:
             self.logger.info("Challenge validation is globally disabled.")
-        if "source_address_check" in config_dic["Challenge"]:
+        if config_dic.getboolean("Challenge", "source_address_check", fallback=False):
             self.logger.warning(
                 "source_address_check is deprecated, please use forward_address_check instead"
             )
-            self.config.forward_address_check = config_dic.getboolean(
-                "Challenge", "source_address_check", fallback=False
-            )
+            self.config.forward_address_check = True
         else:
             self.config.forward_address_check = config_dic.getboolean(
                 "Challenge", "forward_address_check", fallback=False
