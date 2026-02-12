@@ -1357,6 +1357,22 @@ class TestOrderClass(unittest.TestCase):
             log_contents,
         )
 
+    def test_081_load_configuration_without_ordersection(self):
+        # Test _load_configuration without oder section in config (should use defaults and log warnings for missing options)
+        import configparser
+
+        with patch("acme_srv.order.load_config") as mock_load_config:
+            config_dic = configparser.ConfigParser()
+            config_dic.add_section("CAhandler")
+            config_dic.set("CAhandler", "foo", "bar")
+            mock_load_config.return_value = config_dic
+            self.order._load_configuration()
+            # All Order config values should be at their defaults
+            self.assertEqual(self.order.config.retry_after, 600)
+            self.assertEqual(self.order.config.validity, 86400)
+            self.assertEqual(self.order.config.identifier_limit, 20)
+
+
     def test_082_name_get_logging(self):
         # Should log debug messages using central logger and log_stream
         self.log_stream.truncate(0)
