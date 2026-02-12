@@ -1206,7 +1206,7 @@ class TestOrderRepository(unittest.TestCase):
             log_contents,
         )
 
-    def test_082_load_configuration_without_ordersection(self):
+    def test_081_load_configuration_without_ordersection(self):
         # Test _load_configuration without oder section in config (should use defaults and log warnings for missing options)
         import configparser
 
@@ -1222,7 +1222,7 @@ class TestOrderRepository(unittest.TestCase):
             self.assertEqual(self.order.config.identifier_limit, 20)
 
 
-    def test_083_name_get_logging(self):
+    def test_082_name_get_logging(self):
         with patch(
             "acme_srv.db_handler.DBstore", return_value=self.mock_dbstore
         ), patch("acme_srv.message.Message", return_value=self.mock_message), patch(
