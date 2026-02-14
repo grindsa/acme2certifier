@@ -322,8 +322,8 @@ class CAhandler(object):
         if not error and self.openssl_conf and not os.path.exists(self.openssl_conf):
             error = f"openssl_conf {self.openssl_conf} does not exist"
 
-        if not error and not self.ca_cert_chain_list:
-            error = "ca_cert_chain_list must be specified in config file"
+        # if not error and not self.ca_cert_chain_list:
+        #    error = "ca_cert_chain_list must be specified in config file"
 
         self.logger.debug("CAhandler._config_parameters_check() ended with: %s", error)
         return error
@@ -351,28 +351,57 @@ class CAhandler(object):
             "CAhandler", "openssl_conf", fallback=self.openssl_conf
         )
         if "allowed_domainlist" in config_dic["CAhandler"]:
-            self.allowed_domainlist = json.loads(
-                config_dic.get("CAhandler", "allowed_domainlist")
-            )
+            try:
+                self.allowed_domainlist = json.loads(
+                    config_dic.get("CAhandler", "allowed_domainlist")
+                )
+            except Exception as err:
+                self.logger.error(
+                    "Unable to load allowed_domainlist parameter. Block all domains: %s",
+                    err,
+                )
+                self.allowed_domainlist = ["block.all"]
+
         if "blocked_domainlist" in config_dic["CAhandler"]:
-            self.blocked_domainlist = json.loads(
-                config_dic.get("CAhandler", "blocked_domainlist")
-            )
+            try:
+                self.blocked_domainlist = json.loads(
+                    config_dic.get("CAhandler", "blocked_domainlist")
+                )
+            except Exception as err:
+                self.logger.error(
+                    "Unable to load blocked_domainlist parameter. Block all domains: %s",
+                    err,
+                )
+                self.allowed_domainlist = ["block.all"]
 
         if "whitelist" in config_dic["CAhandler"]:
-            self.allowed_domainlist = json.loads(
-                config_dic.get("CAhandler", "whitelist")
-            )
             self.logger.error(
                 'Deprecated config: found "whitelist". Please rename to "allowed_domainlist".'
             )
+            try:
+                self.allowed_domainlist = json.loads(
+                    config_dic.get("CAhandler", "whitelist")
+                )
+            except Exception as err:
+                self.logger.error(
+                    "Unable to load whitelist parameter. Block all domains: %s", err
+                )
+                self.allowed_domainlist = ["block.all"]
+
         if "blacklist" in config_dic["CAhandler"]:
-            self.blocked_domainlist = json.loads(
-                config_dic.get("CAhandler", "blacklist")
-            )
             self.logger.error(
                 'Deprecated config: found "blacklist". Please rename to "blocked_domainlist".'
             )
+            try:
+                self.blocked_domainlist = json.loads(
+                    config_dic.get("CAhandler", "blacklist")
+                )
+
+            except Exception as err:
+                self.logger.error(
+                    "Unable to load blacklist parameter. Block all domains: %s", err
+                )
+                self.allowed_domainlist = ["block.all"]
 
         self.logger.debug("CAhandler._config_domainlists_load() ended")
 
@@ -424,9 +453,17 @@ class CAhandler(object):
         )
 
         if "ca_cert_chain_list" in config_dic["CAhandler"]:
-            self.ca_cert_chain_list = json.loads(
-                config_dic["CAhandler"]["ca_cert_chain_list"]
-            )
+            try:
+                self.ca_cert_chain_list = json.loads(
+                    config_dic["CAhandler"]["ca_cert_chain_list"]
+                )
+            except Exception as err:
+                self.logger.error(
+                    "Could not load ca_cert_chain_list parameter from config file: %s",
+                    err,
+                )
+                self.ca_cert_chain = []
+
         if "cert_validity_days" in config_dic["CAhandler"]:
             self.cert_validity_days = int(config_dic["CAhandler"]["cert_validity_days"])
         try:
@@ -591,6 +628,7 @@ class CAhandler(object):
             pem_chain = f"{ee_cert}{issuer_cert}"
         else:
             pem_chain = ee_cert
+
         for cert in self.ca_cert_chain_list:
             if os.path.exists(cert):
                 with open(cert, "r", encoding="utf8") as fso:
@@ -644,7 +682,10 @@ class CAhandler(object):
         self.logger.debug("CAhandler._cacert_expiry_get()")
 
         ca_list = self.ca_cert_chain_list
-        if self.issuer_dict["issuing_ca_cert"]:
+        if (
+            self.issuer_dict["issuing_ca_cert"]
+            and self.issuer_dict["issuing_ca_cert"] not in ca_list
+        ):
             ca_list.append(self.issuer_dict["issuing_ca_cert"])
 
         expiry_days = 0
