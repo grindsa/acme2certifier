@@ -25,28 +25,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.3
-    with:
-      time: 5s
-
-  - name: "Test if http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://$ACME_SERVER:$HTTP_PORT/directory
-    shell: bash
-    env:
-      ACME_SERVER: ${{ inputs.ACME_SERVER }}
-      HTTP_PORT: ${{ inputs.HTTP_PORT }}
-      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-  - name: "Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SERVER:$HTTPS_PORT/directory
-    shell: bash
-    env:
-      ACME_SERVER: ${{ inputs.ACME_SERVER }}
-      HTTP_PORT: ${{ inputs.HTTP_PORT }}
-      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
-      NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "acme.sh - Failed registration without credentials"
     continue-on-error: true
@@ -57,6 +35,7 @@ runs:
     env:
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
       HTTP_PORT: ${{ inputs.HTTP_PORT }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "check  result "
     if: ${{ steps.acmeshfail01.outcome != 'failure' }}
