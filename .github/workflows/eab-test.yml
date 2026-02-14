@@ -128,6 +128,12 @@ jobs:
           EAB_KEY_ID: "unknown_key_id"
           EAB_KEY_SECRET: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
 
+      - name: "Register with wrong eab-credentials - should fail"
+        uses: ./.github/actions/wf_specific/eab/enroll_wrong_credentials
+        with:
+          EAB_KEY_ID: "keyid_01"
+          EAB_KEY_SECRET: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+
       - name: "Enroll lego"
         run: |
           docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http run

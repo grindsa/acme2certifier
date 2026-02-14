@@ -1,5 +1,5 @@
-name: "eab_enroll_unknown_credentials"
-description: "EAB enroll with unknown credentials"
+name: "eab_enroll_wrong_credentials"
+description: "EAB enroll with wrong credentials"
 inputs:
   NAME_SPACE:
     description: "namespace"
@@ -33,7 +33,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "acme.sh - Failed registration with unknown credentials"
+  - name: "acme.sh - Failed registration with wrong credentials"
     continue-on-error: true
     id: acmeshfail01
     run: |
@@ -57,16 +57,16 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}}'"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}}'"
       fi
     shell: bash
     env:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
-  - name: "certbot - Failed registration with unknown credentials"
+  - name: "certbot - Failed registration with wrong credentials"
     continue-on-error: true
     id: certbotfail01
     run: |
@@ -90,16 +90,16 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}}'"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}}'"
       fi
     shell: bash
     env:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
-  - name: "lego - Failed registration with unknown credentials"
+  - name: "lego - Failed registration with wrong credentials"
     continue-on-error: true
     id: legofail01
     run: |
@@ -123,10 +123,10 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}}'"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB signature verification failed'}}'"
       fi
     shell: bash
     env:
