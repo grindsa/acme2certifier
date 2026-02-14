@@ -85,13 +85,12 @@ class DBstore(object):
         """add account in database"""
         self.logger.debug("DBStore.account_add(%s)", data_dic)
         account_list = self.account_lookup("jwk", data_dic["jwk"])
-        if "status" in data_dic:
-            data_dic["status"] = self._status_getinstance(data_dic["status"], "name")
-
         if account_list:
             created = False
             aname = account_list["name"]
         else:
+            if "status" in data_dic:
+                data_dic["status"] = self._status_getinstance(data_dic["status"], "name")
             obj, created = Account.objects.update_or_create(
                 name=data_dic["name"], defaults=data_dic
             )
