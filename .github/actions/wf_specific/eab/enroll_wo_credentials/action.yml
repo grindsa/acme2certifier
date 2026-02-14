@@ -1,0 +1,80 @@
+name: "eab_enroll_wo_credentials"
+description: "EAB enroll without credentials"
+inputs:
+  NAME_SPACE:
+    description: "namespace"
+    required: false
+    default: "acme"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: false
+    default: "container"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  HTTP_PORT:
+    description: "ACME server HTTP port"
+    required: false
+    default: "80"
+  HTTPS_PORT:
+    description: "ACME server HTTPS port"
+    required: false
+    default: "443"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Test if http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://$ACME_SERVER:$HTTP_PORT/directory
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTP_PORT: ${{ inputs.HTTP_PORT }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SERVER:$HTTPS_PORT/directory
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTP_PORT: ${{ inputs.HTTP_PORT }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "acme.sh - Failed registration without credentials"
+    continue-on-error: true
+    id: acmeshfail01
+    run: |
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server --server http://$ACME_SERVER:$HTTP_PORT --accountemail 'acme-sh@example.com' --debug 3
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTP_PORT: ${{ inputs.HTTP_PORT }}
+
+  - name: "check  result "
+    if: ${{ steps.acmeshfail01.outcome != 'failure' }}
+    run: |
+      echo "acmeshfail outcome is ${{steps.acmeshfail01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Check logs for registration failure"
+    working-directory: examples/Docker/
+    run: |
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:externalAccountRequired', 'detail': 'External account binding required'}"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:externalAccountRequired', 'detail': 'External account binding required'}"
+      fi
+    shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
