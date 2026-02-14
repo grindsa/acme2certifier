@@ -37,13 +37,13 @@ runs:
     continue-on-error: true
     id: acmeshfail01
     run: |
-      docker run --rm -i --network $NAME_SPACE --name=acme-sh neilpang/acme.sh:latest --register-account --server http://$ACME_SERVER:$HTTP_PORT --accountemail 'acme-sh@example.com' --eab-hmac-key $EAB_KEYID --eab-hmac-key $EAB_KEY_SECRET --debug 3
+      docker run --rm -i --network $NAME_SPACE --name=acme-sh neilpang/acme.sh:latest --register-account --server http://$ACME_SERVER:$HTTP_PORT --accountemail 'acme-sh@example.com' --eab-kid $EAB_KEY_ID --eab-hmac-key $EAB_KEY_SECRET --debug 3
     shell: bash
     env:
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
       HTTP_PORT: ${{ inputs.HTTP_PORT }}
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
-      EAB_KEYID: ${{ inputs.EAB_KEY_ID }}
+      EAB_KEY_ID: ${{ inputs.EAB_KEY_ID }}
       EAB_KEY_SECRET: ${{ inputs.EAB_KEY_SECRET }}
 
   - name: "check  result "
