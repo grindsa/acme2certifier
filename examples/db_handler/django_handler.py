@@ -90,7 +90,9 @@ class DBstore(object):
             aname = account_list["name"]
         else:
             if "status" in data_dic:
+                print("status in data_dic: %s" % data_dic["status"])
                 data_dic["status"] = self._status_getinstance(data_dic["status"], "name")
+                print("status instance: %s" % data_dic["status"])
             obj, created = Account.objects.update_or_create(
                 name=data_dic["name"], defaults=data_dic
             )
