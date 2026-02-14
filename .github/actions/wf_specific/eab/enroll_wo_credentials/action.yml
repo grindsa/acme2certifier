@@ -37,7 +37,7 @@ runs:
     continue-on-error: true
     id: acmeshfail01
     run: |
-      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE --name=acme-sh neilpang/acme.sh:latest --register-account --server http://$ACME_SERVER:$HTTP_PORT --accountemail 'acme-sh@example.com' --debug 3
+      docker run --rm -i --network $NAME_SPACE --name=acme-sh neilpang/acme.sh:latest --register-account --server http://$ACME_SERVER:$HTTP_PORT --accountemail 'acme-sh@example.com' --debug 3
     shell: bash
     env:
       ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -100,7 +100,7 @@ runs:
     continue-on-error: true
     id: legofail01
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --network $NAME_SPACE -p 443:443 --rm --name lego -e LEGO_DEBUG_CLIENT_VERBOSE_ERROR=true goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com"  -d lego-02.bar1.local --tls-skip-verify --tls run
+      docker run -i --network $NAME_SPACE -p 443:443 --rm --name lego -e LEGO_DEBUG_CLIENT_VERBOSE_ERROR=true goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com"  -d lego-02.bar1.local --tls-skip-verify --tls run
     shell: bash
     env:
       ACME_SERVER: ${{ inputs.ACME_SERVER }}

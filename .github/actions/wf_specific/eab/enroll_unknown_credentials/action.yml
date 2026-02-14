@@ -1,0 +1,133 @@
+name: "eab_enroll_wo_credentials"
+description: "EAB enroll without credentials"
+inputs:
+  NAME_SPACE:
+    description: "namespace"
+    required: false
+    default: "acme"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: false
+    default: "container"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  HTTP_PORT:
+    description: "ACME server HTTP port"
+    required: false
+    default: "80"
+  HTTPS_PORT:
+    description: "ACME server HTTPS port"
+    required: false
+    default: "443"
+  EAB_KEY_ID:
+    description: "EAB key ID"
+    required: false
+    default: "test-key-id"
+  EAB_KEY_SECRET:
+    description: "EAB key secret"
+    required: false
+    default: "test-key-secret"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "acme.sh - Failed registration with unknown credentials"
+    continue-on-error: true
+    id: acmeshfail01
+    run: |
+      docker run --rm -i --network $NAME_SPACE --name=acme-sh neilpang/acme.sh:latest --register-account --server http://$ACME_SERVER:$HTTP_PORT --accountemail 'acme-sh@example.com' --eab-hmac-key $EAB_KEYID --eab-hmac-key $EAB_KEY_SECRET --debug 3
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTP_PORT: ${{ inputs.HTTP_PORT }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      EAB_KEYID: ${{ inputs.EAB_KEY_ID }}
+      EAB_KEY_SECRET: ${{ inputs.EAB_KEY_SECRET }}
+
+  - name: "check  result "
+    if: ${{ steps.acmeshfail01.outcome != 'failure' }}
+    run: |
+      echo "acmeshfail outcome is ${{steps.acmeshfail01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Check logs for registration failure"
+    working-directory: examples/Docker/
+    run: |
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+      fi
+    shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+  - name: "certbot - Failed registration with unknown credentials"
+    continue-on-error: true
+    id: certbotfail01
+    run: |
+      docker run -i --rm --name certbot --network $NAME_SPACE certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://$ACME_SERVER:$HTTP_PORT --no-eff-email --eab-kid $EAB_KEY_ID --eab-hmac-key $EAB_KEY_SECRET
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTP_PORT: ${{ inputs.HTTP_PORT }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      EAB_KEY_ID: ${{ inputs.EAB_KEY_ID }}
+      EAB_KEY_SECRET: ${{ inputs.EAB_KEY_SECRET }}
+
+  - name: "check  result "
+    if: ${{ steps.certbotfail01.outcome != 'failure' }}
+    run: |
+      echo "certbotfail outcome is ${{steps.certbotfail01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Check logs for registration failure"
+    working-directory: examples/Docker/
+    run: |
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+      fi
+    shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+  - name: "lego - Failed registration with unknown credentials"
+    continue-on-error: true
+    id: legofail01
+    run: |
+      docker run -i -v $PWD/lego:/.lego/ --network $NAME_SPACE -p 443:443 --rm --name lego -e LEGO_DEBUG_CLIENT_VERBOSE_ERROR=true goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com"  -d lego-02.bar1.local --tls-skip-verify --eab --kid $EAB_KEY_ID --hmac $EAB_KEY_SECRET --tls run
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      EAB_KEY_ID: ${{ inputs.EAB_KEY_ID }}
+      EAB_KEY_SECRET: ${{ inputs.EAB_KEY_SECRET }}
+
+  - name: "check  result "
+    if: ${{ steps.legofail01.outcome != 'failure' }}
+    run: |
+      echo "legofail outcome is ${{steps.legofail01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Check logs for registration failure"
+    working-directory: examples/Docker/
+    run: |
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:unauthorized', 'detail': 'EAB kid lookup failed'}"
+      fi
+    shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
