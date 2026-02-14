@@ -114,15 +114,16 @@ runs:
       exit 1
     shell: bash
 
-  - name: "Check logs for registration failure"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:externalAccountRequired', 'detail': 'External account binding required'}"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:externalAccountRequired', 'detail': 'External account binding required'}"
-      fi
-    shell: bash
-    env:
-      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+  # check is done within lego logs, so no need to check again here
+  #- name: "Check logs for registration failure"
+  #  working-directory: examples/Docker/
+  #  run: |
+  #    if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+  #      docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:externalAccountRequired', 'detail': 'External account binding required'}"
+  #      sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+  #    elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+  #      docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:externalAccountRequired', 'detail': 'External account binding required'}"
+  #    fi
+  #  shell: bash
+  #  env:
+  #    DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
