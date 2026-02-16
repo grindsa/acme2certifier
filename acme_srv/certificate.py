@@ -196,7 +196,7 @@ class CertificateLogger:
 
         log_string = (
             log_string
-            + f'. Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}, Expires: {data_dic["expires"]}'
+            + f', Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}, Expires: {data_dic["expires"]}'
         )
 
         if data_dic.get("reused", ""):
