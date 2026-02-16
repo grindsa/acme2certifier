@@ -196,7 +196,7 @@ class CertificateLogger:
 
         log_string = (
             log_string
-            + f'. Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}, Expires: {data_dic["expires"]}'
+            + f', Serial: {data_dic["serial_number"]}, Common Name: {data_dic["common_name"]}, SANs: {data_dic["san_list"]}, Expires: {data_dic["expires"]}'
         )
 
         if data_dic.get("reused", ""):
@@ -597,6 +597,9 @@ class Certificate(object):
 
         # load certificate parameters
         self._load_certificate_parameters(config_dic)
+
+        # Update CertificateLogger with the loaded configuration
+        self.certificate_logger.cert_operations_log = self.config.cert_operations_log
 
         self.logger.debug("ca_handler: %s", ca_handler_module)
         self.logger.debug("Certificate._load_configuration() ended.")
