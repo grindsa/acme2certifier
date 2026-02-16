@@ -2718,6 +2718,38 @@ class TestCertificate(unittest.TestCase):
             cert._load_configuration()
             self.mock_logger.debug.assert_any_call("Certificate._load_configuration()")
 
+    def test_203_cert_operations_log_config_applied_to_logger(self):
+        """Test that cert_operations_log configuration is applied to CertificateLogger."""
+        import configparser
+
+        config = configparser.ConfigParser()
+        config.add_section("Certificate")
+        config.set("Certificate", "cert_operations_log", "JSON")
+        with patch("acme_srv.certificate.load_config", return_value=config):
+            cert = certificate.Certificate(
+                debug=True, srv_name=None, logger=self.mock_logger
+            )
+            # Before loading configuration, CertificateLogger should have None
+            self.assertIsNone(cert.certificate_logger.cert_operations_log)
+            # After loading configuration, CertificateLogger should have the config value
+            cert._load_configuration()
+            self.assertEqual(cert.certificate_logger.cert_operations_log, "json")
+
+    def test_204_cert_operations_log_with_context_manager(self):
+        """Test that cert_operations_log is properly applied when using context manager."""
+        import configparser
+
+        config = configparser.ConfigParser()
+        config.add_section("Certificate")
+        config.set("Certificate", "cert_operations_log", "TEXT")
+        with patch("acme_srv.certificate.load_config", return_value=config):
+            with certificate.Certificate(
+                debug=True, srv_name=None, logger=self.mock_logger
+            ) as cert:
+                # After entering context, config should be loaded and applied
+                self.assertEqual(cert.config.cert_operations_log, "text")
+                self.assertEqual(cert.certificate_logger.cert_operations_log, "text")
+
 
 if __name__ == "__main__":
     unittest.main()
