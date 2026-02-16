@@ -598,6 +598,9 @@ class Certificate(object):
         # load certificate parameters
         self._load_certificate_parameters(config_dic)
 
+        # Update CertificateLogger with the loaded configuration
+        self.certificate_logger.cert_operations_log = self.config.cert_operations_log
+
         self.logger.debug("ca_handler: %s", ca_handler_module)
         self.logger.debug("Certificate._load_configuration() ended.")
 
