@@ -88,6 +88,10 @@ class DBstore(object):
         if "status" in data_dic:
             data_dic["status"] = self._status_getinstance(data_dic["status"], "name")
 
+        if 'eab_kid' in data_dic:
+            if not data_dic['eab_kid']:
+                del(data_dic['eab_kid'])
+
         if account_list:
             created = False
             aname = account_list["name"]
