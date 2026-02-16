@@ -251,7 +251,9 @@ class CAhandler(object):
 
             # determine filename
             if self.save_cert_as_hex:
-                self.logger.info("Convert serial to hex: %s: %s", serial, f"{serial:X}")
+                self.logger.debug(
+                    "Convert serial to hex: %s: %s", serial, f"{serial:X}"
+                )
                 cert_file = f"{serial:X}"
             else:
                 cert_file = str(serial)

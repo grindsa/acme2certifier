@@ -779,9 +779,9 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.cert_save_path = "template"
         self.cahandler.save_cert_as_hex = True
         mock_dump.return_value = "foo"
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.cahandler._certificate_store(cert)
-        self.assertIn("INFO:test_a2c:Convert serial to hex: 42: 2A", lcm.output)
+        self.assertIn("DEBUG:test_a2c:Convert serial to hex: 42: 2A", lcm.output)
 
     @patch("examples.ca_handler.openssl_ca_handler.load_config")
     def test_075__config_load(self, mock_load_cfg):
