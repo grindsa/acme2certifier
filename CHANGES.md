@@ -11,7 +11,7 @@ and pick the appropriate release branch.
 **Bug Fixes**:
 
 - [#304 - correct parsing of config files with without Challenge section](https://github.com/grindsa/acme2certifier/issues/304)
-- [#302 - fix when loading allowed_domain_list parameter from config](https://github.com/grindsa/acme2certifier/issues/302)]
+- [#302 - fix when loading allowed_domain_list parameter from config](https://github.com/grindsa/acme2certifier/issues/302)\]
 
 ## Changes in 0.41.1
 
