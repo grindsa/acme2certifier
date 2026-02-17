@@ -1272,7 +1272,6 @@ class TestOrderClass(unittest.TestCase):
             self.assertEqual(self.order.config.validity, 86400)
             self.assertEqual(self.order.config.identifier_limit, 20)
 
-
     def test_083_name_get_logging(self):
         with patch(
             "acme_srv.order.parse_url", return_value={"path": "/acme/order/ord123"}

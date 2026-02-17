@@ -1283,6 +1283,11 @@ class Certificate(object):
                             issue_uts,
                             expire_uts,
                         )
+            else:
+                self.logger.debug(
+                    "Certificate._update_certificate_dates(): certificate %s already has issue and expiry dates - skipping update",
+                    cert["name"],
+                )
 
         self.logger.debug("Certificate._update_certificate_dates() ended")
 
