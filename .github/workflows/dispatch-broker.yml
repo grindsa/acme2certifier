@@ -1,0 +1,34 @@
+name: dispatch-broker
+on:
+  repository_dispatch:
+    types: [ artifacts_ready ]
+
+jobs:
+  # (Optional) quick guard to validate incoming payload
+  guard:
+    runs-on: ubuntu-latest
+    if: >
+      ${{
+        github.event.client_payload.sha != '' &&
+        github.event.client_payload.run_id != '' &&
+        github.event.client_payload.branch != ''
+      }}
+    steps:
+      - run: |
+          echo "Triggered by SHA:    ${{ github.event.client_payload.sha }}"
+          echo "From branch:         ${{ github.event.client_payload.branch }}"
+          echo "Producer run_id:     ${{ github.event.client_payload.run_id }}"
+          echo "Called by workflow:  ${{ github.event.client_payload.called_by_workflow }}"
+
+  dispatch-broker:
+    runs-on: ubuntu-latest
+    needs: guard
+    steps:
+      - name: dispatch-broker
+        uses: grindsa/dispatch-broker-action@v1
+        with:
+          token: ${{ secrets.GH_WF_TOKEN }}
+          repository: ${{ github.repository }}
+          ref: ${{ github.event.client_payload.branch }}
+          client_payload: ${{ toJson(github.event.client_payload) }}
+          exclude_workflows: "build.yaml, dispatch-broker.yaml"
