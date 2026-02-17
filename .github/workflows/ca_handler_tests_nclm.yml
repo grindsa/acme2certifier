@@ -1,260 +1,420 @@
-name: CA handler tests - NCLM
-
+name: CA-Handler Tests - NCLM
 on:
-  push:
-  pull_request:
-    branches: [ devel ]
-  schedule:
-    # * is a special character in YAML so you have to quote this string
-    - cron:  '0 2 * * 6'
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
 
 jobs:
-  nclm_handler_tests:
-    name: "nclm_handler_tests"
+
+  # ---------------------------------------------------------
+  # Quick guard to validate incoming payload
+  # ---------------------------------------------------------
+  guard:
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
+    if: >
+      ${{
+        inputs.sha != '' &&
+        inputs.run_id != '' &&
+        inputs.branch != ''
+      }} && github.repository == 'grindsa/acme2certifier'
+    steps:
+      - run: |
+          echo "Triggered by SHA:    $SHA"
+          echo "From branch:         $BRANCH"
+          echo "Producer run_id:     $RUN_ID"
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+
+  # ---------------------------------------------------------
+  # Test container images (matrix from payload)
+  # ---------------------------------------------------------
+  test-containers:
+    needs: guard
+    runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       max-parallel: 1
       fail-fast: false
-      # max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
+
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Parse NCLM configuration from JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.NCLM_CFG }}
+      - name: "Parse NCLM configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.NCLM_CFG }}
 
-    - name: "Generate UUID"
-      run: |
-        echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
-    - run: echo "UUID ${{ env.UUID }}"
+      - name: "Generate UUID"
+        run: |
+          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+      - run: echo "UUID ${{ env.UUID }}"
 
-    - name: "Build container"
-      uses: ./.github/actions/container_prep
-      with:
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        WEB_SRV: ${{ matrix.websrv }}
+      - name: "Download and import container"
+        uses: ./.github/actions/container_load
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+          DESTINATION_PATH: /tmp
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Setup a2c with nclm_ca_handler"
-      run: |
-        sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-        sudo touch examples/Docker/data/acme_srv.cfg
-        sudo chmod 777 examples/Docker/data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/nclm_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_host: $NCLM_API_HOST" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_user: $NCLM_API_USER" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "api_password: $NCLM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "tsg_name: $NCLM_TSG_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_name: $NCLM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "request_timeout: 40" >> examples/Docker/data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker compose restart
+      - name: "Prepare container environment"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          CONTAINER_BUILD: false
+          NAME_SPACE: acme
 
-    - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
-      with:
-        HOSTNAME_SUFFIX: -${{ env.UUID }}
-        VERIFY_CERT: false
-        TEST_ADL: "true"
+      - name: "Setup a2c with nclm_ca_handler"
+        run: |
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo touch examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/nclm_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "api_host: $NCLM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "api_user: $NCLM_API_USER" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "api_password: $NCLM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "tsg_name: $NCLM_TSG_NAME" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "ca_name: $NCLM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "request_timeout: 40" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
 
-    - name: "Verify allowed_domainlist error"
-      run: |
-        cd examples/Docker
-        docker compose logs | grep "allowed_domainlist" | grep -i "either CN or SANs are not allowed by configuration"
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
 
-    - name: "Generate UUID"
-      run: |
-        echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
-    - run: echo "UUID ${{ env.UUID }}"
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          HOSTNAME_SUFFIX: -${{ env.UUID }}
+          VERIFY_CERT: false
+          TEST_ADL: "true"
 
-    - name: "Reconfigure nclm handler to test enrollment from MSCA"
-      run: |
-        sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" examples/Docker/data/acme_srv.cfg
-        sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> examples/Docker/data/acme_srv.cfg
-        cd examples/Docker/
-        docker compose restart
+      - name: "Verify allowed_domainlist error"
+        run: |
+          cd examples/Docker
+          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
-    - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
-      with:
-        USE_RSA: true
-        HOSTNAME_SUFFIX: -${{ env.UUID }}
+      - name: "Generate UUID"
+        run: |
+          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+      - run: echo "UUID ${{ env.UUID }}"
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        mkdir -p ${{ github.workspace }}/artifact/clients
-        sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-        # sudo cp *.pem ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/acme-sh/
-        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/clients/certbot/
-        sudo cp -rp lego/ ${{ github.workspace }}/artifact/clients/lego/
-        cd examples/Docker
-        docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data clients
+      - name: "Reconfigure nclm handler to test enrollment from MSCA"
+        run: |
+          sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" examples/Docker/data/acme_srv.cfg
+          sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
 
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: nclm.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          USE_RSA: true
+          HOSTNAME_SUFFIX: -${{ env.UUID }}
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          mkdir -p ${{ github.workspace }}/artifact/clients
+          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          # sudo cp *.pem ${{ github.workspace }}/artifact/data/
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/acme-sh/
+          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/clients/certbot/
+          sudo cp -rp lego/ ${{ github.workspace }}/artifact/clients/lego/
+          cd examples/Docker
+          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data clients
+
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
 
 
-  nclm_handler_tests_rpm:
-    name: "nclm_handler_tests_rpm"
+  # ---------------------------------------------------------
+  # Test RPMs (EL8 & EL9) downloaded from the producer run
+  # ---------------------------------------------------------
+  test-rpm:
+    needs: guard
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
-      max-parallel: 1
       matrix:
         rhversion: [8, 9]
         execscript: ['rpm_tester.sh', 'django_tester.sh']
 
     steps:
-    - name: "checkout GIT"
-      uses: actions/checkout@v4
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
 
-    - name: "Parse JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.GH_CFG }}
+      - name: "Parse JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
 
-    - name: "Parse NCLM configuration from JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.NCLM_CFG }}
+      - name: "Parse NCLM configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.NCLM_CFG }}
 
-    - name: "Generate UUID"
-      run: |
-        echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
-    - run: echo "UUID ${{ env.UUID }}"
+      - name: "Generate UUID"
+        run: |
+          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+      - run: echo "UUID ${{ env.UUID }}"
 
-    - name: "Prepare Alma environment"
-      uses: ./.github/actions/rpm_prep
-      with:
-        GH_USER: ${{ env.GH_USER }}
-        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-        RH_VERSION: ${{ matrix.rhversion }}
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: false
 
-    - name: "Setup a2c with with nclm_ca_handler"
-      if: matrix.execscript == 'rpm_tester.sh'
-      run: |
-        mkdir -p data/acme_ca
-        sudo cp test/ca/certsrv_ca_certs.pem data/acme_ca/ca_certs.pem
-        sudo touch data/acme_srv.cfg
-        sudo chmod 777 data/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/nclm_ca_handler.py" >> data/acme_srv.cfg
-        sudo echo "api_host: $NCLM_API_HOST" >> data/acme_srv.cfg
-        sudo echo "api_user: $NCLM_API_USER" >> data/acme_srv.cfg
-        sudo echo "api_password: $NCLM_API_PASSWORD" >> data/acme_srv.cfg
-        sudo echo "tsg_name: $NCLM_TSG_NAME" >> data/acme_srv.cfg
-        sudo echo "ca_name: $NCLM_CA_NAME" >> data/acme_srv.cfg
-        sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> data/acme_srv.cfg
-        sudo echo "request_timeout: 40" >> data/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 60/g" data/acme_srv.cfg
+      - name: "Download RPM artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Setup a2c with with nclm_ca_handler for django"
-      if: matrix.execscript == 'django_tester.sh'
-      run: |
-        sudo mkdir -p data/volume/acme_ca/certs
-        sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-        sudo touch data/volume/acme_srv.cfg
-        sudo chmod 777 data/volume/acme_srv.cfg
-        sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-        sudo echo "handler_file: examples/ca_handler/nclm_ca_handler.py" >> data/volume/acme_srv.cfg
-        sudo echo "api_host: $NCLM_API_HOST" >> data/volume/acme_srv.cfg
-        sudo echo "api_user: $NCLM_API_USER" >> data/volume/acme_srv.cfg
-        sudo echo "api_password: $NCLM_API_PASSWORD" >> data/volume/acme_srv.cfg
-        sudo echo "tsg_name: $NCLM_TSG_NAME" >> data/volume/acme_srv.cfg
-        sudo echo "ca_name: $NCLM_CA_NAME" >> data/volume/acme_srv.cfg
-        sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> data/volume/acme_srv.cfg
-        sudo echo "request_timeout: 40" >> data/volume/acme_srv.cfg
-        sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
-        sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 60/g" data/volume/acme_srv.cfg
+      - name: "Setup a2c with with nclm_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/nclm_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "api_host: $NCLM_API_HOST" >> data/volume/acme_srv.cfg
+          sudo echo "api_user: $NCLM_API_USER" >> data/volume/acme_srv.cfg
+          sudo echo "api_password: $NCLM_API_PASSWORD" >> data/volume/acme_srv.cfg
+          sudo echo "tsg_name: $NCLM_TSG_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "ca_name: $NCLM_CA_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> data/volume/acme_srv.cfg
+          sudo echo "request_timeout: 40" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 60/g" data/volume/acme_srv.cfg
 
-    - name: "Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
-      env:
-        EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-    - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
-      with:
-        HOSTNAME_SUFFIX: -${{ env.UUID }}
-        VERIFY_CERT: false
-        TEST_ADL: "true"
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          HOSTNAME_SUFFIX: -${{ env.UUID }}
+          VERIFY_CERT: false
+          TEST_ADL: "true"
 
-    - name: "Verify allowed_domainlist error"
-      run: |
-        docker exec acme-srv grep -i "either CN or SANs are not allowed by configuration" /var/log/messages
+      - name: "Verify allowed_domainlist error"
+        run: |
+          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
 
-    - name: "Generate UUID"
-      run: |
-        echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
-    - run: echo "UUID ${{ env.UUID }}"
+      - name: "Generate UUID"
+        run: |
+          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+      - run: echo "UUID ${{ env.UUID }}"
 
-    - name: "Reconfigure nclm handler to test enrollment from MSCA"
-      if: matrix.execscript == 'rpm_tester.sh'
-      run: |
-        sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" data/acme_srv.cfg
-        sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> data/acme_srv.cfg
 
-    - name: "Reconfigure nclm handler to test enrollment from MSCA"
-      if: matrix.execscript == 'django_tester.sh'
-      run: |
-        sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" data/volume/acme_srv.cfg
-        sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> data/volume/acme_srv.cfg
+      - name: "Reconfigure nclm handler to test enrollment from MSCA"
+        run: |
+          sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" data/volume/acme_srv.cfg
+          sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> data/volume/acme_srv.cfg
 
-    - name: "Execute install scipt"
-      run: |
-        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-      env:
-        EXEC_SCRIPT: ${{ matrix.execscript }}
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-    - name: "Test enrollment"
-      uses: ./.github/actions/acme_clients
-      with:
-        USE_RSA: true
-        HOSTNAME_SUFFIX: -${{ env.UUID }}
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          USE_RSA: true
+          HOSTNAME_SUFFIX: -${{ env.UUID }}
 
-    - name: "[ * ] collecting test logs"
-      if: ${{ failure() }}
-      continue-on-error: true
-      run: |
-        mkdir -p ${{ github.workspace }}/artifact/upload
-        mkdir -p ${{ github.workspace }}/artifact/clients
-        docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-        sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-        # sudo cp *.pem ${{ github.workspace }}/artifact/data/
-        sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/acme-sh/
-        sudo cp -rp certbot/ ${{ github.workspace }}/artifact/clients/certbot/
-        sudo cp -rp lego/ ${{ github.workspace }}/artifact/clients/lego/
-        sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-        docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-        docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-        docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-        sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data clients acme-srv.log
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        continue-on-error: true
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          mkdir -p ${{ github.workspace }}/artifact/clients
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          # sudo cp *.pem ${{ github.workspace }}/artifact/data/
+          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/acme-sh/
+          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/clients/certbot/
+          sudo cp -rp lego/ ${{ github.workspace }}/artifact/clients/lego/
+          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
+          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
+          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data clients acme-srv.log
 
-    - name: "[ * ] uploading artificates"
-      uses: actions/upload-artifact@v4
-      if: ${{ failure() }}
-      with:
-        name: nclm_ca_handler_rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript}}.tar.gz
-        path: ${{ github.workspace }}/artifact/upload/
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-rpms-rh${{ matrix.rhversion }}-${{ matrix.execscript}}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  # ---------------------------------------------------------
+  # Test DEB downloaded from the producer run
+  # ---------------------------------------------------------
+  test-deb:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: ['apache2', 'nginx']
+        execscript: ['deb_tester.sh','django_tester.sh']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v4
+
+      - name: "Parse NCLM configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.NCLM_CFG }}
+
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'deb_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+
+      - name: "Prepare Ubuntu environment"
+        if: matrix.execscript == 'django_tester.sh'
+        uses: ./.github/actions/deb_prep
+        with:
+          DEB_BUILD: false
+          DJANGO_DB: psql
+
+      - name: "Download DEB artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Generate UUID"
+        run: |
+          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+      - run: echo "UUID ${{ env.UUID }}"
+
+      - name: "Setup a2c with with nclm_ca_handler"
+        run: |
+          sudo mkdir -p data/volume/acme_ca/certs
+          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/nclm_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "api_host: $NCLM_API_HOST" >> data/volume/acme_srv.cfg
+          sudo echo "api_user: $NCLM_API_USER" >> data/volume/acme_srv.cfg
+          sudo echo "api_password: $NCLM_API_PASSWORD" >> data/volume/acme_srv.cfg
+          sudo echo "tsg_name: $NCLM_TSG_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "ca_name: $NCLM_CA_NAME" >> data/volume/acme_srv.cfg
+          sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> data/volume/acme_srv.cfg
+          sudo echo "request_timeout: 40" >> data/volume/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 60/g" data/volume/acme_srv.cfg
+
+      - name: "Execute install script"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          HOSTNAME_SUFFIX: -${{ env.UUID }}
+          VERIFY_CERT: false
+          TEST_ADL: "true"
+
+      - name: "Reconfigure nclm handler to test enrollment from MSCA"
+        run: |
+          sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" data/volume/acme_srv.cfg
+          sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          USE_RSA: true
+          HOSTNAME_SUFFIX: -${{ env.UUID }}
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
+          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
+          sudo rm ${{ github.workspace }}/artifact/data/*.deb
+          if [ ${{ matrix.websrv }} == "apache2" ]; then
+            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          else
+            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          fi
+          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
+
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v4
+        if: ${{ failure() }}
+        with:
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/

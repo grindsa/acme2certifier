@@ -1,0 +1,45 @@
+name: "download artifact"
+description: "download an artifact from a workflow run"
+inputs:
+  RUN_ID:
+    description: "The run ID of the workflow run that produced the artifact"
+    required: true
+  ARTIFACT_NAME:
+    description: "The name of the artifact to download"
+    required: true
+  DESTINATION_PATH:
+    description: "The path to download the artifact to"
+    required: false
+    default: "./"
+  TOKEN:
+    description: "GitHub token with permissions to access the artifact"
+    required: false
+    default: ""
+  REPO:
+    description: "The repository in the format owner/repo. Defaults to the current repository."
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "Get artifact"
+      run: |
+        mkdir -p $DESTINATION_PATH && cd $DESTINATION_PATH
+        ART_ID=$(gh api repos/$REPO/actions/runs/$RUN_ID/artifacts --jq '.artifacts[] | select(.name=="'$ARTIFACT_NAME'") | .id')
+        if [ -z "$ART_ID" ]; then
+          echo "Artifact $ARTIFACT_NAME not found in run $RUN_ID" >&2
+        fi
+
+        gh api repos/$REPO/actions/artifacts/$ART_ID/zip > "$ARTIFACT_NAME.zip"
+        unzip -o "$ARTIFACT_NAME.zip"
+        rm -f "$ARTIFACT_NAME.zip"
+
+      shell: bash
+      env:
+        DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
+        GH_TOKEN: ${{ inputs.TOKEN }}
+        REPO: ${{ inputs.REPO }}
+        RUN_ID: ${{ inputs.RUN_ID }}
+        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME }}

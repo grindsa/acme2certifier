@@ -1,0 +1,57 @@
+name: "ari tests - enroll acme clients"
+description: "Test ARI feature - enroll acme clients against acme-srv using acme.sh"
+inputs:
+  ACME_SERVER:
+    description: "ACME server URL"
+    required: true
+    default: "acme-srv"
+  CA_PATH:
+    description: "Path to CA certificates"
+    required: false
+    default: "examples/Docker/data/acme_ca/"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Create lego folder"
+      run: |
+        mkdir lego
+      shell: bash
+
+    - name: "Test http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl -f http://$ACME_SERVER/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Test if https://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://$ACME_SERVER/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Enroll lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem lego/certificates/lego.acme.crt
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+
+    - name: "Renew lego"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme --http renew --no-random-sleep 2> ari.txt
+        grep "renewalInfo endpoint indicates that renewal is needed" ari.txt
+        cat ari.txt
+        sudo openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem lego/certificates/lego.acme.crt
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
