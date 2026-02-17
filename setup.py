@@ -13,7 +13,7 @@ def glob_files(pattern: str) -> t.List[str]:
     """
     return [
         file_
-        for file_ in pathlib.Path('.').glob(pattern)
+        for file_ in pathlib.Path(".").glob(pattern)
         if not file_.is_dir()
     ]
 
