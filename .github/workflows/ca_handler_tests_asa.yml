@@ -405,8 +405,8 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     needs: asa_handler_headerinfo_tests
     strategy:
-      fail-fast: false
       max-parallel: 1
+      fail-fast: false
       matrix:
         rhversion: [8, 9]
     steps:

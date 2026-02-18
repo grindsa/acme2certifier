@@ -478,7 +478,7 @@ class TestChallenge(unittest.TestCase):
         config_dic = {"DEFAULT": {"proxy_server_list": "badjson"}}
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             self.challenge._load_proxy_configuration(config_dic)
-        self.assertFalse(hasattr(self.challenge, "proxy_server_list"))
+        self.assertFalse(self.challenge.proxy_server_list)
         self.assertIn(
             "WARNING:test_a2c:Failed to load proxy_server_list from configuration: Expecting value: line 1 column 1 (char 0)",
             lcm.output,
@@ -1325,9 +1325,7 @@ class TestChallenge(unittest.TestCase):
                 "type": "malformed",
                 "detail": "could not get challenge",
             }
-            self.challenge.process_challenge_request(
-                "content_with_invalid_url"
-            )
+            self.challenge.process_challenge_request("content_with_invalid_url")
             mock_error_response.assert_called_once_with(
                 400, "malformed", "could not get challenge"
             )
@@ -2524,9 +2522,7 @@ class TestChallenge(unittest.TestCase):
         )
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             with patch("time.sleep") as mock_sleep:
-                self.challenge._perform_validation_with_retry(
-                    "dns-01", mock_context
-                )
+                self.challenge._perform_validation_with_retry("dns-01", mock_context)
         self.assertIn(
             "ERROR:test_a2c:No more retries left for challenge type dns-01. Invalidating challenge.",
             lcm.output,

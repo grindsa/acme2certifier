@@ -650,7 +650,7 @@ class TestChallengeFactory(unittest.TestCase):
 
     def test_042_create_single_challenge_http(self):
         """Test creating single HTTP challenge"""
-        challenge = self.factory._create_single_challenge(
+        challenge = self.factory.create_single_challenge(
             authorization_name="test-auth",
             challenge_type="http-01",
             token="test-token",
@@ -664,7 +664,7 @@ class TestChallengeFactory(unittest.TestCase):
 
     def test_043_create_single_challenge_sectigo_email(self):
         """Test creating sectigo-email challenge"""
-        challenge = self.factory._create_single_challenge(
+        challenge = self.factory.create_single_challenge(
             authorization_name="test-auth",
             challenge_type="sectigo-email-01",
             token="test-token",
@@ -705,7 +705,7 @@ class TestChallengeFactory(unittest.TestCase):
 
         sys.modules["acme_srv.email_handler"].EmailHandler = mock_email_handler_class
 
-        challenge = self.factory._create_single_challenge(
+        challenge = self.factory.create_single_challenge(
             authorization_name="test-auth",
             challenge_type="email-reply-00",
             token="test-token",
@@ -734,7 +734,7 @@ class TestChallengeFactory(unittest.TestCase):
         """Test single challenge creation when repository fails"""
         self.repository.create_challenge = Mock(return_value=None)
 
-        challenge = self.factory._create_single_challenge(
+        challenge = self.factory.create_single_challenge(
             authorization_name="test-auth", challenge_type="http-01", token="test-token"
         )
 
@@ -764,7 +764,7 @@ class TestChallengeFactory(unittest.TestCase):
 
     def test_048_email_challenge_creation_basic(self):
         """Test basic email challenge creation without triggering email handler"""
-        challenge = self.factory._create_single_challenge(
+        challenge = self.factory.create_single_challenge(
             authorization_name="test-auth",
             challenge_type="http-01",  # Use http instead of email to avoid import
             token="test-token",
@@ -778,7 +778,7 @@ class TestChallengeFactory(unittest.TestCase):
 
     def test_049_create_single_challenge_invalid_type(self):
         """Test creating challenge with unknown type"""
-        challenge = self.factory._create_single_challenge(
+        challenge = self.factory.create_single_challenge(
             authorization_name="test-auth",
             challenge_type="unknown-01",
             token="test-token",
@@ -792,8 +792,8 @@ class TestChallengeFactory(unittest.TestCase):
     def test_050_create_standard_challenge_set_empty_types(self):
         """Test challenge set creation when no types remain"""
         # Mock the factory to have no challenge types (edge case)
-        original_method = self.factory._create_single_challenge
-        self.factory._create_single_challenge = Mock(return_value=None)
+        original_method = self.factory.create_single_challenge
+        self.factory.create_single_challenge = Mock(return_value=None)
 
         challenges = self.factory.create_standard_challenge_set(
             authorization_name="test-auth",
@@ -803,7 +803,7 @@ class TestChallengeFactory(unittest.TestCase):
         )
 
         self.assertEqual(len(challenges), 0)
-        self.factory._create_single_challenge = original_method
+        self.factory.create_single_challenge = original_method
 
     def test_051_factory_email_challenge_without_email_address(self):
         """Test email challenge creation when factory has no email address"""
@@ -816,7 +816,7 @@ class TestChallengeFactory(unittest.TestCase):
             challenge_path="/acme/chall/",
         )
 
-        challenge = factory_no_email._create_single_challenge(
+        challenge = factory_no_email.create_single_challenge(
             authorization_name="test-auth",
             challenge_type="email-reply-00",
             token="test-token",
@@ -1004,7 +1004,7 @@ class TestChallengeService(unittest.TestCase):
     def test_058_get_challenge_set_sectigo_simulation(self):
         """Test creating challenge set with Sectigo simulation"""
         self.repository.find_challenges_by_authorization = Mock(return_value=[])
-        self.factory._create_single_challenge = Mock(
+        self.factory.create_single_challenge = Mock(
             return_value={"type": "sectigo-email-01", "status": "valid"}
         )
         self.factory.create_standard_challenge_set = Mock(
@@ -1161,7 +1161,7 @@ class TestChallengeService(unittest.TestCase):
     def test_065_sectigo_challenge_creation_failure(self):
         """Test sectigo challenge creation failure"""
         self.repository.find_challenges_by_authorization = Mock(return_value=[])
-        self.factory._create_single_challenge = Mock(return_value=None)
+        self.factory.create_single_challenge = Mock(return_value=None)
         self.factory.create_standard_challenge_set = Mock(return_value=[])
 
         config = MockConfig(sectigo_sim=True)
@@ -1478,7 +1478,7 @@ class TestChallengeService(unittest.TestCase):
         self.factory.create_tkauth_challenge = Mock(
             return_value={"type": "tkauth-01", "status": "pending"}
         )
-        self.factory._create_single_challenge = Mock(
+        self.factory.create_single_challenge = Mock(
             return_value={"type": "sectigo-email-01", "status": "valid"}
         )
         self.factory.create_standard_challenge_set = Mock(
@@ -1507,7 +1507,7 @@ class TestChallengeService(unittest.TestCase):
 
         # Standard and other challenges should not be called for email identifier
         self.factory.create_tkauth_challenge.assert_not_called()
-        self.factory._create_single_challenge.assert_not_called()
+        self.factory.create_single_challenge.assert_not_called()
         self.factory.create_standard_challenge_set.assert_not_called()
 
     def test_071_get_challenge_set_mixed_case_id_types(self):

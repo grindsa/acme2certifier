@@ -2891,6 +2891,85 @@ class TestACMEHandler(unittest.TestCase):
             "test_cert_name", "recoded_csr", "test_order"
         )
 
+    @patch("acme_srv.order.config_profile_load")
+    def test_200_config_profile_load_from_config(self, mock_config_profile_load):
+        """test _config_profile_load loads profiles from config (ConfigParser)"""
+        import configparser
+
+        mock_config_profile_load.return_value = {"foo": "bar"}
+        parser = configparser.ConfigParser()
+        parser.add_section("Order")
+        parser.set("Order", "profiles", '{"foo": "bar"}')
+        self.order.logger = MagicMock()
+        self.order.dbstore = MagicMock()
+        self.order._config_profile_load(parser)
+        self.assertEqual(self.order.profiles, {"foo": "bar"})
+        self.assertFalse(self.order.profiles_check_disable)
+
+    def test_201_config_profile_load_profiles_sync_db_success(self):
+        """test _config_profile_load loads profiles from db when profiles_sync is enabled (ConfigParser)"""
+        import configparser
+
+        profiles_json = '{"profiles": {"a": 1}}'
+        self.order.logger = MagicMock()
+        self.order.dbstore = MagicMock()
+        self.order.dbstore.hkparameter_get.return_value = profiles_json
+        parser = configparser.ConfigParser()
+        parser.add_section("CAhandler")
+        parser.set("CAhandler", "profiles_sync", "True")
+        parser.add_section("Order")
+        parser.getboolean = lambda section, key, fallback=False: True
+        self.order._config_profile_load(parser)
+        self.assertEqual(self.order.profiles, {"a": 1})
+        self.assertTrue(self.order.profiles_sync)
+
+    def test_202_config_profile_load_profiles_sync_db_error(self):
+        """test _config_profile_load handles db error when profiles_sync is enabled (ConfigParser)"""
+        import configparser
+
+        self.order.logger = MagicMock()
+        self.order.dbstore = MagicMock()
+        self.order.dbstore.hkparameter_get.side_effect = Exception("db error")
+        parser = configparser.ConfigParser()
+        parser.add_section("CAhandler")
+        parser.set("CAhandler", "profiles_sync", "True")
+        parser.add_section("Order")
+        parser.getboolean = lambda section, key, fallback=False: True
+        self.order._config_profile_load(parser)
+        self.assertTrue(self.order.logger.critical.called)
+
+    def test_203_config_profile_load_profiles_sync_db_malformed_json(self):
+        """test _config_profile_load handles malformed JSON from db (ConfigParser)"""
+        import configparser
+
+        self.order.logger = MagicMock()
+        self.order.dbstore = MagicMock()
+        self.order.dbstore.hkparameter_get.return_value = "notjson"
+        parser = configparser.ConfigParser()
+        parser.add_section("CAhandler")
+        parser.set("CAhandler", "profiles_sync", "True")
+        parser.add_section("Order")
+        parser.getboolean = lambda section, key, fallback=False: True
+        self.order._config_profile_load(parser)
+        self.assertTrue(self.order.logger.error.called)
+
+    @patch("acme_srv.order.config_profile_load")
+    def test_204_config_profile_load_profiles_check_disable(
+        self, mock_config_profile_load
+    ):
+        """test _config_profile_load sets profiles_check_disable from config (ConfigParser)"""
+        import configparser
+
+        mock_config_profile_load.return_value = {"foo": "bar"}
+        parser = configparser.ConfigParser()
+        parser.add_section("Order")
+        parser.set("Order", "profiles", '{"foo": "bar"}')
+        parser.getboolean = lambda section, key, fallback=False: True
+        self.order.logger = MagicMock()
+        self.order.dbstore = MagicMock()
+        self.order._config_profile_load(parser)
+        self.assertTrue(self.order.profiles_check_disable)
+
 
 if __name__ == "__main__":
     unittest.main()

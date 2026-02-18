@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=w0611
 """
 Backwards compatibility layer for acme2certifier helper functions.
 This file imports all functions from the modular helpers structure
