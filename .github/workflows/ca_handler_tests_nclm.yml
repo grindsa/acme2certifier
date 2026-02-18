@@ -15,7 +15,6 @@ jobs:
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
-      max-parallel: 1
       fail-fast: false
       # max-parallel: 1
       matrix:
@@ -108,7 +107,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: nclm.tar.gz
+        name: nclm_handler_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
 
@@ -119,7 +118,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
-      max-parallel: 1
+      # max-parallel: 1
       matrix:
         rhversion: [8, 9]
         execscript: ['rpm_tester.sh', 'django_tester.sh']

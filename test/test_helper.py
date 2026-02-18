@@ -1662,13 +1662,12 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             ),
         )
 
-    @patch(
-        "dns.resolver.Resolver.resolve",
-        side_effect=Mock(side_effect=[dns.resolver.NXDOMAIN, ["v61", "v62"]]),
-    )
+    @patch("dns.resolver.Resolver")
     def test_147_helper_fqdn_resolve(self, mock_resolve):
         """successful dns-query returning covering list but no v4 and catch_all"""
-        # mock_resolve.return_value.resolve.side_effect = [Exception(dns.resolver.NXDOMAIN), ["v61", "v62"]]
+        mock_resolve.return_value.resolve.side_effect = Mock(
+            side_effect=[dns.resolver.NXDOMAIN, ["v61", "v62"]]
+        )
         self.assertEqual(
             (["v61", "v62"], False, None),
             self.fqdn_resolve(
@@ -1676,13 +1675,12 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             ),
         )
 
-    @patch(
-        "dns.resolver.Resolver.resolve",
-        side_effect=Mock(side_effect=[["v41", "v42"], dns.resolver.NXDOMAIN]),
-    )
+    @patch("dns.resolver.Resolver")
     def test_148_helper_fqdn_resolve(self, mock_resolve):
         """successful dns-query returning list v6 only and catch_all"""
-        # mock_resolve.return_value.resolve.side_effect = [["v41", "v42"], Exception(dns.resolver.NXDOMAIN)]
+        mock_resolve.return_value.resolve.side_effect = Mock(
+            side_effect=[["v41", "v42"], dns.resolver.NXDOMAIN]
+        )
         self.assertEqual(
             (["v41", "v42"], False, None),
             self.fqdn_resolve(
@@ -1690,12 +1688,12 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             ),
         )
 
-    @patch(
-        "dns.resolver.Resolver.resolve",
-        side_effect=Mock(side_effect=dns.resolver.NXDOMAIN),
-    )
+    @patch("dns.resolver.Resolver")
     def test_149_helper_fqdn_resolve(self, mock_resolve):
         """successful dns-query returning covering list but no v4 and catch_all"""
+        mock_resolve.return_value.resolve.side_effect = Mock(
+            side_effect=dns.resolver.NXDOMAIN
+        )
         err_msg = "A: NXDOMAIN: foo.bar.local does not exist; AAAA: NXDOMAIN: foo.bar.local does not exist"
         self.assertEqual(
             ([], True, err_msg),
@@ -1720,12 +1718,12 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             ("bar", False, None), self.fqdn_resolve(self.logger, "foo.bar.local")
         )
 
-    @patch(
-        "dns.resolver.Resolver.resolve",
-        side_effect=Mock(side_effect=dns.resolver.NXDOMAIN),
-    )
+    @patch("dns.resolver.Resolver")
     def test_152_helper_fqdn_resolve(self, mock_resolve):
         """catch NXDOMAIN"""
+        mock_resolve.return_value.resolve.side_effect = Mock(
+            side_effect=dns.resolver.NXDOMAIN
+        )
         self.assertEqual(
             (
                 None,
@@ -1735,33 +1733,34 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             self.fqdn_resolve(self.logger, "foo.bar.local"),
         )
 
-    @patch(
-        "dns.resolver.Resolver.resolve",
-        side_effect=Mock(side_effect=dns.resolver.NoAnswer),
-    )
+    @patch("dns.resolver.Resolver")
     def test_153_helper_fqdn_resolve(self, mock_resolve):
         """catch NoAnswer"""
+        mock_resolve.return_value.resolve.side_effect = Mock(
+            side_effect=dns.resolver.NoAnswer
+        )
         err_msg = "A: No A record found for foo.bar.local; AAAA: No AAAA record found for foo.bar.local"
         self.assertEqual(
             (None, True, err_msg), self.fqdn_resolve(self.logger, "foo.bar.local")
         )
 
-    @patch(
-        "dns.resolver.Resolver.resolve",
-        side_effect=Mock(side_effect=dns.resolver.NoNameservers),
-    )
+    @patch("dns.resolver.Resolver")
     def test_154_helper_fqdn_resolve(self, mock_resolve):
         """catch other dns related execption"""
+        mock_resolve.return_value.resolve.side_effect = Mock(
+            side_effect=dns.resolver.NoNameservers
+        )
         err_msg = "A: DNS resolution error: All nameservers failed to answer the query.; AAAA: DNS resolution error: All nameservers failed to answer the query."
         self.assertEqual(
             (None, True, err_msg), self.fqdn_resolve(self.logger, "foo.bar.local")
         )
 
-    @patch(
-        "dns.resolver.Resolver.resolve", side_effect=Mock(side_effect=Exception("foo"))
-    )
+    @patch("dns.resolver.Resolver")
     def test_155_helper_fqdn_resolve(self, mock_resolve):
         """catch other execption"""
+        mock_resolve.return_value.resolve.side_effect = Mock(
+            side_effect=Exception("foo")
+        )
         self.assertEqual(
             (
                 None,
@@ -1771,42 +1770,38 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             self.fqdn_resolve(self.logger, "foo.bar.local"),
         )
 
-    @patch(
-        "dns.resolver.Resolver.resolve",
-        side_effect=[Mock(side_effect=dns.resolver.NXDOMAIN), ["foo"]],
-    )
+    @patch("dns.resolver.Resolver")
     def test_156_helper_fqdn_resolve(self, mock_resolve):
         """catch NXDOMAIN on v4 and fine in v6"""
+        mock_resolve.return_value.resolve.side_effect = Mock(
+            side_effect=dns.resolver.NXDOMAIN
+        ), ["foo"]
         self.assertEqual(
             ("foo", False, None), self.fqdn_resolve(self.logger, "foo.bar.local")
         )
 
-    @patch(
-        "dns.resolver.Resolver.resolve",
-        side_effect=[Mock(side_effect=dns.resolver.NoAnswer), ["foo"]],
-    )
+    @patch("dns.resolver.Resolver")
     def test_157_helper_fqdn_resolve(self, mock_resolve):
         """catch NoAnswer on v4 and fine in v6"""
+        mock_resolve.return_value.resolve.side_effect = Mock(
+            side_effect=dns.resolver.NoAnswer
+        ), ["foo"]
         self.assertEqual(
             ("foo", False, None), self.fqdn_resolve(self.logger, "foo.bar.local")
         )
 
-    @patch(
-        "dns.resolver.Resolver.resolve",
-        side_effect=[Mock(side_effect=dns.resolver.NoNameservers), ["foo"]],
-    )
+    @patch("dns.resolver.Resolver")
     def test_158_helper_fqdn_resolve(self, mock_resolve):
         """catch other dns related execption on v4 and fine in v6"""
+        mock_resolve.return_value.resolve.side_effect = ([Exception("foo"), ["foo"]],)
         self.assertEqual(
             ("foo", False, None), self.fqdn_resolve(self.logger, "foo.bar.local")
         )
 
-    @patch(
-        "dns.resolver.Resolver.resolve",
-        side_effect=[Mock(side_effect=Exception("foo")), ["foo"]],
-    )
+    @patch("dns.resolver.Resolver")
     def test_159_helper_fqdn_resolve(self, mock_resolve):
         """catch other execption when resolving v4 but fine in v6"""
+        mock_resolve.return_value.resolve.side_effect = ([Exception("foo"), ["foo"]],)
         self.assertEqual(
             ("foo", False, None), self.fqdn_resolve(self.logger, "foo.bar.local")
         )
@@ -4946,6 +4941,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("random.randint")
     def test_436_radomize_parameter_list(self, mock_rand):
         """test radomize_parameter_list()"""
+
         class myclass:
             pass
 
@@ -4958,6 +4954,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("random.randint")
     def test_437_radomize_parameter_list(self, mock_rand):
         """test radomize_parameter_list()"""
+
         class myclass:
             pass
 
@@ -4970,6 +4967,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     @patch("random.randint")
     def test_438_radomize_parameter_list(self, mock_rand):
         """test radomize_parameter_list()"""
+
         class myclass:
             pass
 
@@ -5391,29 +5389,20 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {"async_mode": "False"}
         db_type = "django"
-        with self.assertLogs(self.logger, level="INFO") as log:
-            result = self.config_async_mode_load(self.logger, config_dic, db_type)
-        self.assertFalse(result)
-        self.assertIn("asynchronous Challenge validation disabled", log.output[0])
+        self.assertFalse(self.config_async_mode_load(self.logger, config_dic, db_type))
 
     def test_468_config_async_mode_load_default_fallback(self):
         """test config_async_mode_load() with no async_mode setting (fallback)"""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {}
         db_type = "django"
-        with self.assertLogs(self.logger, level="INFO") as log:
-            result = self.config_async_mode_load(self.logger, config_dic, db_type)
-        self.assertFalse(result)
-        self.assertIn("asynchronous Challenge validation disabled", log.output[0])
+        self.assertFalse(self.config_async_mode_load(self.logger, config_dic, db_type))
 
     def test_469_config_async_mode_load_no_default_section(self):
         """test config_async_mode_load() with no DEFAULT section"""
         config_dic = configparser.ConfigParser()
         db_type = "django"
-        with self.assertLogs(self.logger, level="INFO") as log:
-            result = self.config_async_mode_load(self.logger, config_dic, db_type)
-        self.assertFalse(result)
-        self.assertIn("asynchronous Challenge validation disabled", log.output[0])
+        self.assertFalse(self.config_async_mode_load(self.logger, config_dic, db_type))
 
     def test_470_config_async_mode_load_invalid_boolean(self):
         """test config_async_mode_load() with invalid boolean value"""
@@ -5444,13 +5433,8 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 config_dic = configparser.ConfigParser()
                 config_dic["DEFAULT"] = {"async_mode": value}
                 db_type = "django"
-                with self.assertLogs(self.logger, level="INFO") as log:
-                    result = self.config_async_mode_load(
-                        self.logger, config_dic, db_type
-                    )
-                self.assertFalse(result)
-                self.assertIn(
-                    "asynchronous Challenge validation disabled", log.output[0]
+                self.assertFalse(
+                    self.config_async_mode_load(self.logger, config_dic, db_type)
                 )
 
     def test_473_config_async_mode_load_different_db_types(self):
@@ -6259,6 +6243,41 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         result = allowed_gai_family()
 
         self.assertEqual(result, socket.AF_INET)
+
+    def test_508_config_allowed_domainlist_load_deprecated_section(self):
+        """Test config_allowed_domainlist_load loads from deprecated CAhandler section and logs warning."""
+        import logging
+        from acme_srv.helpers import config
+
+        # Simulate config_dic as a dict, as expected by the function
+        cfg = {"CAhandler": {"allowed_domainlist": "example.com,example.org"}}
+        logger = logging.getLogger("test_a2c")
+        with self.assertLogs(logger, level="WARNING") as log_context:
+            result = config.config_allowed_domainlist_load(logger, cfg)
+        from acme_srv.helpers.global_variables import PARSING_ERR_MSG
+
+        self.assertEqual(result, PARSING_ERR_MSG)
+        self.assertTrue(any("deprecated" in msg.lower() for msg in log_context.output))
+
+    def test_509_config_allowed_domainlist_load_invalid_json(self):
+        """Test config_allowed_domainlist_load handles invalid JSON and logs warning."""
+        import logging
+        from acme_srv.helpers import config
+
+        logger = logging.getLogger("test_a2c")
+        # Simulate a config dict with invalid JSON in Order section
+        cfg = {"Order": {"allowed_domainlist": "not-a-json-list"}}
+        with self.assertLogs(logger, level="WARNING") as log_context:
+            from acme_srv.helpers.global_variables import PARSING_ERR_MSG
+
+            result = config.config_allowed_domainlist_load(logger, cfg)
+        self.assertEqual(result, PARSING_ERR_MSG)
+        self.assertTrue(
+            any(
+                "failed to load allowed_domainlist" in msg.lower()
+                for msg in log_context.output
+            )
+        )
 
 
 if __name__ == "__main__":

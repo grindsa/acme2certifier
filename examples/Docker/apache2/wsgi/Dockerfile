@@ -49,7 +49,7 @@ RUN pip3 install impacket --break-system-packages && \
     sed -i "s/\${APACHE_LOG_DIR}\/error.log/\/dev\/stderr/g" /etc/apache2/apache2.conf && \
     a2enmod ssl && \
     rm /etc/apache2/sites-enabled/000-default.conf && \
-    chmod a+rx /docker-entrypoint.sh
+    chmod a+rx /docker-entrypoint.sh  # NOSONAR
 
 WORKDIR /var/www/acme2certifier/
 

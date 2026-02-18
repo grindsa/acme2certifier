@@ -491,12 +491,6 @@ class CAhandler(object):
         # check for eab profiling and header_info
         error = eab_profile_header_info_check(self.logger, self, csr, "profile_name")
 
-        if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["api_password", "auth"])
-            enrollment_config_log(
-                self.logger, self, self.enrollment_config_log_skip_list
-            )
-
         if not error:
             # check for allowed domainlist
             error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
