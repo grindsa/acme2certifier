@@ -6,12 +6,54 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.41.3
+
+**Bug Fixes**:
+
+- [#307 - cert_operations_log option is not taken into account when logging certificate issuance](https://github.com/grindsa/acme2certifier/issues/306)
+
+## Changes in 0.41.2
+
+**Bug Fixes**:
+
+- [#304 - correct parsing of config files with without Challenge section](https://github.com/grindsa/acme2certifier/issues/304)
+- [#302 - fix when loading allowed_domain_list parameter from config](https://github.com/grindsa/acme2certifier/issues/302)\]
+
+## Changes in 0.41.1
+
+**Bug Fixes**:
+
+- [#299 Improved cert_passphrase_variable handling in EJBCA handler](https://github.com/grindsa/acme2certifier/issues/299)
+
+## Changes in 0.41
+
+- The database schema has been updated. Please ensure you run the appropriate update script after upgrading:
+  - Use `tools/db_update.py` if you are using the `wsgi_handler`
+  - Use `tools/django_update.py` if you are using the `django_handler`
+
+**Features and Improvements**:
+
+- **EAB Profiling**:
+
+  - Support of [domain prevalidation](docs/prevalidated_domainlist.md)
+  - challenge_validation_disable, forward_address_check and reverse_address_check parameters can be configured via[EAB-Profiling feature](docs/eab_profiling.md)
+  - eab_pofiling to be enabled in the `[EABhandler]` section of `acme_srv.cfg`
+- **Challenge Error Reporting**: Challange validation error status will be reported to ACME-client
+- **ACME CA Handla**:
+  - Option to enable periodic synchronization of profiles information from ACME server to be shown as meta-information in Directory ressource
+  - Option to configure renewalinfo endpoint lookup on ACME server to obtain renewal window
+  - Support pre-authorization of domain-names as done by [harica.gr](https://harica.gr)
+
+## Changes in 0.40.1
+
+**Bug Fixes**:
+
+- [#281 - CAhandler' object has no attribute 'profiles'](https://github.com/grindsa/acme2certifier/issues/281)
+
 ## Changes in 0.40
 
 **Features and Improvements**:
 
-- **CA Handler**: A CA handler to support [Hashicorp Vault CA](https://developer.hashicorp.com/vault/tutorials/pki/pki-engine)
-- **Order Processing**: [#269](https://github.com/grindsa/acme2certifier/issues/269) Added support of non-compliant order polling via finalize endpoint
 - **EAB (External Account Binding)**: Improved comparison function between inner and outer JWK structures
 - **EAB Profiling**: Added support for revocation operations
 - **DNS Validation**: Added option for DNS reverse zone checking when challenge validation is disabled
@@ -22,7 +64,6 @@ and pick the appropriate release branch.
 
 **Bug Fixes**:
 
-- [#269](https://github.com/grindsa/acme2certifier/issues/269)
 - Fixed LegacyKeyValueFormat warnings in Dockerfiles
 - **EAB**: Refactored comparison function between inner and outer JWK structures for better reliability
 - **Tools**: Fixed error handling in `tools/django_upgrade.py`

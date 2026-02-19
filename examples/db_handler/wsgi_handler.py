@@ -38,6 +38,7 @@ class DBstore(object):
         self.dbs = None
         self.cursor = None
         self.logger = logger
+        self.type = "wsgi"
 
         if not self.db_name:
             cfg = load_config()
@@ -162,7 +163,8 @@ class DBstore(object):
                             orders.name as order__name,
                             status.id as status_id,
                             status.name as status__name,
-                            account.name as order__account__name
+                            account.name as order__account__name,
+                            account.eab_kid as order__account__eab_kid
                         from authorization
                         LEFT JOIN orders on orders.id = authorization.order_id
                         LEFT JOIN status on status.id = authorization.status_id
@@ -309,7 +311,8 @@ class DBstore(object):
                             orders.status_id as order__status_id,
                             orders.profile as order__profile,
                             account.name as order__account__name,
-                            account.eab_kid as order__account__eab_kid
+                            account.eab_kid as order__account__eab_kid,
+                            account.contact as order__account__contact
                             from certificate
                             INNER JOIN orders on orders.id = certificate.order_id
                             INNER JOIN account on account.id = orders.account_id
@@ -447,7 +450,7 @@ class DBstore(object):
         self.logger.debug("create challenge")
         self.cursor.execute(
             """
-            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(15) NOT NULL, "keyauthorization" varchar(128), "source" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "validated" integer DEFAULT 0, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
+            CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(15) NOT NULL, "keyauthorization" varchar(128), "source" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "validated" integer DEFAULT 0, "validation_error" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
         """
         )
         self.logger.debug("create certificate")
@@ -610,6 +613,12 @@ class DBstore(object):
                 """ALTER TABLE challenge ADD COLUMN validated integer DEFAULT 0"""
             )
 
+        if "validation_error" not in challenges_column_list:
+            self.logger.info("alter challenge table - add validation_error")
+            self.cursor.execute(
+                """ALTER TABLE challenge ADD COLUMN validation_error text"""
+            )
+
         if "source" not in challenges_column_list:
             self.logger.info("alter challenge table - add source‚")
             self.cursor.execute(
@@ -740,7 +749,8 @@ class DBstore(object):
                         status.id as status__id,
                         account.name as account__name,
                         account.id as account_id,
-                        account.eab_kid as account__eab_kid
+                        account.eab_kid as account__eab_kid,
+                        account.contact as account__contact
                     from orders
                     INNER JOIN status on status.id = orders.status_id
                     INNER JOIN account on account.id = orders.account_id

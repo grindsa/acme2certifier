@@ -30,8 +30,12 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch.dict("os.environ", {"ACME_SRV_CONFIGFILE": "ACME_SRV_CONFIGFILE"})
     def setUp(self):
-        """setup unittest"""
+        """setup unittest with fresh wsgi module state"""
         import logging
+        import importlib
+        import examples.acme2certifier_wsgi
+
+        importlib.reload(examples.acme2certifier_wsgi)
         from examples.acme2certifier_wsgi import (
             create_header,
             get_request_body,
@@ -925,7 +929,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(response, [])
 
     @patch("examples.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
-    def test_057_application(self):
+    @patch(
+        "acme_srv.directory.DirectoryRepository.get_db_version",
+        return_value=("1.0", "script_name"),
+    )
+    def test_057_application(self, mock_get_db_version):
         """Test accessing the /acme/directory endpoint."""
         self.environ = {
             "REQUEST_METHOD": "GET",
@@ -933,10 +941,9 @@ class TestACMEHandler(unittest.TestCase):
             "REMOTE_ADDR": "127.0.0.1",
             "PATH_INFO": "/acme/directory",
         }
-        with patch("examples.acme2certifier_wsgi.directory", self.directory):
-            response = self.application(self.environ, self.start_response)
-            self.start_response.assert_called()
-            self.assertIsInstance(response, list)
+        response = self.application(self.environ, self.start_response)
+        self.start_response.assert_called()
+        self.assertIsInstance(response, list)
 
     @patch("examples.acme2certifier_wsgi.CONFIG", {"Directory": {"url_prefix": ""}})
     def test_058_application(self):

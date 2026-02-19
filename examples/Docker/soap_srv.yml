@@ -1,4 +1,3 @@
-version: '3.2'
 services:
   soap-srv:
     build:
@@ -16,5 +15,5 @@ services:
 
 networks:
   default:
-    external:
-      name: acme
+    external: true
+    name: acme

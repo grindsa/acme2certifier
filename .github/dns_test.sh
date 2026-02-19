@@ -8,6 +8,7 @@ dns_test_add() {
   killall -9 dnsmasq
   _sleep 1
   dnsmasq -C /dnsmasq.conf
+  return 0
 }
 
 #Usage: fulldomain txtvalue
@@ -21,4 +22,5 @@ dns_test_rm() {
 #  grep -v "txt-record=${fulldomain},\"${txtvalue}\"" /dnsmasq.conf > /dnsmasq.conf
 #  killall -9 dnsmasq
 #  dnsmasq -C /dnsmasq.conf
+return 0
 }

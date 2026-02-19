@@ -141,9 +141,10 @@ This handler can use the [eab profiling feature](eab_profiling.md) to allow indi
 [EABhandler]
 eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: <profile_file>
+eab_profiling: True
 
 [CAhandler]
-eab_profiling: True
+...
 ```
 
 Below is an example key file used during regression testing:

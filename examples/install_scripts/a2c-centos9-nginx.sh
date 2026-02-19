@@ -28,7 +28,7 @@ pip install -r requirements.txt
 
 # copy data
 echo "## Copy needed data to /opt/acme2certifier"
-cp -R * /opt/acme2certifier/
+cp -R ./* /opt/acme2certifier/
 
 # 5 copy acme-srv.cfg
 cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg /opt/acme2certifier/acme_srv/acme_srv.cfg

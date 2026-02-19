@@ -23,7 +23,6 @@ ca_bundle: <value>
 ca_name: <ca_name>
 profile_id: <value>
 polling_timeout: <seconds>
-eab_profiling: <True|False>
 ```
 
 - api_host - URL of the Certifier REST service
@@ -34,7 +33,6 @@ eab_profiling: <True|False>
 - ca_bundle - optional - certificate bundle needed to validate the server certificate - can be True/False or a filename (default: True)
 - ca_name - name of the CA used to enroll certificates
 - allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: \["bar.local$, bar.foo.local\] (default: \[\])
-- eab_profiling - optional - [activate eab profiling](eab_profiling.md) (default: False)
 - enrollment_config_log - optional - log enrollment parameters (default False)
 - enrollment_config_log_skip_list - optional - list enrollment parameters not to be logged in json format example: \[ "parameter1", "parameter2" \] (default: \[\])
 - profile_id - optional - profileId
@@ -126,9 +124,10 @@ This handler can use the [eab profiling feature](eab_profiling.md) to allow indi
 [EABhandler]
 eab_handler_file: examples/eab_handler/kid_profile_handler.py
 key_file: <profile_file>
+eab_profiling: True
 
 [CAhandler]
-eab_profiling: True
+...
 ```
 
 Below is an example key-file used during regression testing:
