@@ -97,6 +97,7 @@ class Challenge(models.Model):
     keyauthorization = models.CharField(max_length=128, blank=True)
     source = models.CharField(max_length=128, blank=True)
     validated = models.IntegerField(default=0)
+    validation_error = models.TextField(blank=True)
 
     def __unicode__(self):
         return self.name

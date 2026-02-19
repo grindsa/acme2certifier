@@ -49,6 +49,7 @@ class DBstore(object):
     def __init__(self, _debug: bool = False, logger: object = None):
         """init"""
         self.logger = logger
+        self.type = "django"
 
     def _account_getinstance(self, aname: str) -> QuerySet:
         """get account instance"""
@@ -125,10 +126,16 @@ class DBstore(object):
         result = Account.objects.filter(name=aname).delete()
         return result
 
-    def account_update(self, data_dic: Dict[str, str], active: bool = True) -> int:  # NOSONAR
-        """ update existing account """
-        self.logger.debug('DBStore.account_update(%s)', data_dic)
-        obj, _created = Account.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+    def account_update(
+        self,
+        data_dic: Dict[str, str],
+        active: bool = True,  # NOSONAR # pylint: disable=unused-argument
+    ) -> int:
+        """update existing account"""
+        self.logger.debug("DBStore.account_update(%s)", data_dic)
+        obj, _created = Account.objects.update_or_create(
+            name=data_dic["name"], defaults=data_dic
+        )
         obj.save()
         self.logger.debug("acct_id(%s)", obj.id)
         return obj.id

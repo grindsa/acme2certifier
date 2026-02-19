@@ -80,7 +80,6 @@ The handler must be configured via `acme_srv`.
 | dns_update_script               | Path to the script script to provision DNS records for DNS challenge validation. Setting the dns_update_script will force a2c to trigger dns-challenge validation.   | No  | None         |
 | dns_update_script_variables.    | Environment variables for the DNS update script in JSON format, e.g. `{"CF_Token": "your_cf_token", "CF_Zone_ID": "your_cf_zone-id"}`                          |    No     | None         |
 | dns_validation_timeout          | sleep timer after dns provisioning                                                                                                                             |    No     | 10           |
-| eab_profiling                   | Enable EAB profiling                                                                                                                                           |    No     | `False`      |
 | enrollment_config_log           | Log enrollment parameters                                                                                                                                      |    No     | `False`      |
 | enrollment_config_log_skip_list | List of enrollment parameters not to be logged in JSON format, e.g., `["parameter1", "parameter2"]`                                                            |    No     | `[]`         |
 | ssl_verify                      | Verify certificates on SSL connections                                                                                                                         |    No     | `True`       |
@@ -188,9 +187,10 @@ To enable EAB profiling:
 [EABhandler]
 eab_handler_file: examples/eab_handler/kid_profile_handler.py
 acme_key_path: <path>
+eab_profiling: True
 
 [CAhandler]
-eab_profiling: True
+...
 ```
 
 Example key-file:

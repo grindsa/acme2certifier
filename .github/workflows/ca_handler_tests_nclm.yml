@@ -15,7 +15,6 @@ jobs:
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
-      max-parallel: 1
       fail-fast: false
       # max-parallel: 1
       matrix:
@@ -24,6 +23,11 @@ jobs:
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
+
+    - name: "Parse NCLM configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.NCLM_CFG }}
 
     - name: "Generate UUID"
       run: |
@@ -54,13 +58,6 @@ jobs:
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        NCLM_API_HOST: ${{ secrets.NCLM_API_HOST }}
-        NCLM_API_USER: ${{ secrets.NCLM_API_USER }}
-        NCLM_API_PASSWORD: ${{ secrets.NCLM_API_PASSWORD }}
-        NCLM_TSG_NAME: ${{ secrets.NCLM_TSG_NAME }}
-        NCLM_CA_NAME: ${{ secrets.NCLM_CA_NAME }}
-        NCLM_CA_ID_LIST: ${{ secrets.NCLM_CA_ID_LIST }}
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -85,10 +82,6 @@ jobs:
         sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> examples/Docker/data/acme_srv.cfg
         cd examples/Docker/
         docker compose restart
-      env:
-        NCLM_MSCA_TEMPLATE_NAME: ${{ secrets.NCLM_MSCA_TEMPLATE_NAME }}
-        NCLM_MSCA_NAME: ${{ secrets.NCLM_MSCA_NAME }}
-        NCLM_CA_NAME: ${{ secrets.NCLM_CA_NAME }}
 
     - name: "Test enrollment"
       uses: ./.github/actions/acme_clients
@@ -114,7 +107,7 @@ jobs:
       uses: actions/upload-artifact@v4
       if: ${{ failure() }}
       with:
-        name: nclm.tar.gz
+        name: nclm_handler_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
 
 
@@ -125,7 +118,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
-      max-parallel: 1
+      # max-parallel: 1
       matrix:
         rhversion: [8, 9]
         execscript: ['rpm_tester.sh', 'django_tester.sh']
@@ -133,6 +126,16 @@ jobs:
     steps:
     - name: "checkout GIT"
       uses: actions/checkout@v4
+
+    - name: "Parse JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.GH_CFG }}
+
+    - name: "Parse NCLM configuration from JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.NCLM_CFG }}
 
     - name: "Generate UUID"
       run: |
@@ -142,8 +145,8 @@ jobs:
     - name: "Prepare Alma environment"
       uses: ./.github/actions/rpm_prep
       with:
-        GH_SBOM_USER: ${{ secrets.GH_SBOM_USER }}
-        GH_SBOM_TOKEN: ${{ secrets.GH_SBOM_TOKEN }}
+        GH_USER: ${{ env.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
         RH_VERSION: ${{ matrix.rhversion }}
 
     - name: "Setup a2c with with nclm_ca_handler"
@@ -164,13 +167,6 @@ jobs:
         sudo echo "request_timeout: 40" >> data/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 60/g" data/acme_srv.cfg
-      env:
-        NCLM_API_HOST: ${{ secrets.NCLM_API_HOST }}
-        NCLM_API_USER: ${{ secrets.NCLM_API_USER }}
-        NCLM_API_PASSWORD: ${{ secrets.NCLM_API_PASSWORD }}
-        NCLM_TSG_NAME: ${{ secrets.NCLM_TSG_NAME }}
-        NCLM_CA_NAME: ${{ secrets.NCLM_CA_NAME }}
-        NCLM_CA_ID_LIST: ${{ secrets.NCLM_CA_ID_LIST }}
 
     - name: "Setup a2c with with nclm_ca_handler for django"
       if: matrix.execscript == 'django_tester.sh'
@@ -190,13 +186,6 @@ jobs:
         sudo echo "request_timeout: 40" >> data/volume/acme_srv.cfg
         sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
         sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 60/g" data/volume/acme_srv.cfg
-      env:
-        NCLM_API_HOST: ${{ secrets.NCLM_API_HOST }}
-        NCLM_API_USER: ${{ secrets.NCLM_API_USER }}
-        NCLM_API_PASSWORD: ${{ secrets.NCLM_API_PASSWORD }}
-        NCLM_TSG_NAME: ${{ secrets.NCLM_TSG_NAME }}
-        NCLM_CA_NAME: ${{ secrets.NCLM_CA_NAME }}
-        NCLM_CA_ID_LIST: ${{ secrets.NCLM_CA_ID_LIST }}
 
     - name: "Execute install scipt"
       run: |
@@ -225,20 +214,12 @@ jobs:
       run: |
         sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" data/acme_srv.cfg
         sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> data/acme_srv.cfg
-      env:
-        NCLM_MSCA_TEMPLATE_NAME: ${{ secrets.NCLM_MSCA_TEMPLATE_NAME }}
-        NCLM_MSCA_NAME: ${{ secrets.NCLM_MSCA_NAME }}
-        NCLM_CA_NAME: ${{ secrets.NCLM_CA_NAME }}
 
     - name: "Reconfigure nclm handler to test enrollment from MSCA"
       if: matrix.execscript == 'django_tester.sh'
       run: |
         sudo sed -i "s/ca_name: $NCLM_CA_NAME/ca_name: $NCLM_MSCA_NAME/g" data/volume/acme_srv.cfg
         sudo echo "template_name: $NCLM_MSCA_TEMPLATE_NAME" >> data/volume/acme_srv.cfg
-      env:
-        NCLM_MSCA_TEMPLATE_NAME: ${{ secrets.NCLM_MSCA_TEMPLATE_NAME }}
-        NCLM_MSCA_NAME: ${{ secrets.NCLM_MSCA_NAME }}
-        NCLM_CA_NAME: ${{ secrets.NCLM_CA_NAME }}
 
     - name: "Execute install scipt"
       run: |
