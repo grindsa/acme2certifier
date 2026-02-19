@@ -108,7 +108,6 @@ jobs:
           sudo echo "ca_name: $NCM_CA_NAME" >> data/acme_srv.cfg
           sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/acme_srv.cfg
           sudo echo "profile_id: 101" >> data/acme_srv.cfg
-<
 
       - name: "[ PREPARE ] Almalinux instance"
         run: |
