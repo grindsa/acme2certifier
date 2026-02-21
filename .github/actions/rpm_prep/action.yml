@@ -117,3 +117,19 @@ runs:
       uses: ./.github/actions/psql_prep
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Prepare addditional environment for MSSQL"
+      if: inputs.DJANGO_DB == 'mssql'
+      run: |
+        echo "Download Microsoft repository configuration package"
+        curl https://packages.microsoft.com/config/rhel/$VERSION/packages-microsoft-prod.rpm --output data/packages-microsoft-prod.rpm
+      env:
+        DJANGO_DB: ${{ inputs.DJANGO_DB }}
+        VERSION: ${{ inputs.RH_VERSION }}
+      shell: bash
+
+    - name: "Instanciate MSSQL"
+      if: inputs.DJANGO_DB == 'mssql'
+      uses: ./.github/actions/mssql_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
