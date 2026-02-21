@@ -145,8 +145,9 @@ def dismiss_alert(owner, repo, token, alert_number, dismissed_reason, dismissed_
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         return True
     except subprocess.CalledProcessError as e:
+        # gh CLI failed, fall back to requests library
         print(f"  Error with gh CLI: {e.stderr}")
-        pass
+        print(f"  Attempting fallback to requests library...")
     
     # Fall back to requests
     try:
@@ -205,8 +206,9 @@ def main():
     # Filter alerts that are in the test/ directory
     test_alerts = []
     for alert in alerts:
-        if 'most_recent_instance' in alert and 'location' in alert['most_recent_instance']:
-            path = alert['most_recent_instance']['location'].get('path', '')
+        location = alert.get('most_recent_instance', {}).get('location')
+        if location:
+            path = location.get('path', '')
             if path.startswith('test/'):
                 test_alerts.append(alert)
     
