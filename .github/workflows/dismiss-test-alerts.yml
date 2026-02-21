@@ -1,0 +1,48 @@
+name: Dismiss Test-Related Security Alerts
+
+on:
+  workflow_dispatch:  # Allows manual triggering
+    inputs:
+      dry_run:
+        description: 'Dry run mode (preview only, no changes)'
+        required: false
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+jobs:
+  dismiss-test-alerts:
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write  # Required to dismiss alerts
+      contents: read          # Required to read repository
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+      
+      - name: Dismiss test-related alerts (dry-run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tools/dismiss_test_alerts.py --dry-run
+      
+      - name: Dismiss test-related alerts
+        if: ${{ github.event.inputs.dry_run == 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tools/dismiss_test_alerts.py --yes
