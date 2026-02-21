@@ -84,6 +84,10 @@ jobs:
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
           sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/identifier_limit: 2\nallowed_domainlist: [\"*.acme\", \"*.bar.local\"]/g" examples/Docker/data/acme_srv.cfg
+          echo "[Directory]" >> examples/Docker/data/acme_srv.cfg
+          echo "tos_url: https://letsencrypt.org/documents/LE-SA-v1.5-February-24-2025.pdf" >> examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -91,17 +95,15 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-
-      - name: "Install acmeshell and prepare shellfile"
+      - name: "Install acmeshell"
         uses: ./.github/actions/wf_specific/error_tests/acmeshell_install
 
-      - name: "Check container configuration"
-        uses: ./.github/actions/container_check
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
+      - name: "Test for Account Resource"
+        uses: ./.github/actions/wf_specific/error_tests/account_checks
+
+
+      - name: "Test for Order Resource"
+        uses: ./.github/actions/wf_specific/error_tests/order_checks
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
