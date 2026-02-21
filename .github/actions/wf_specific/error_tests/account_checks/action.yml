@@ -1,4 +1,4 @@
-name: "order_error_checking"
+name: "account_error_checking"
 description: "EAB enroll with unknown credentials"
 inputs:
   NAME_SPACE:

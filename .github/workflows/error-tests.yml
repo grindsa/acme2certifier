@@ -98,11 +98,11 @@ jobs:
       - name: "Install acmeshell"
         uses: ./.github/actions/wf_specific/error_tests/acmeshell_install
 
-      - name: "Test for Account Ressource"
+      - name: "Test for Account Resource"
         uses: ./.github/actions/wf_specific/error_tests/account_checks
 
 
-      - name: "Test for Order Ressource"
+      - name: "Test for Order Resource"
         uses: ./.github/actions/wf_specific/error_tests/order_checks
 
       - name: "[ * ] Collecting test logs"
