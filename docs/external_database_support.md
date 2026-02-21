@@ -66,9 +66,9 @@ GRANT postgres TO acme2certifier;
 sudo apt-get install python3-django python3-psycopg2
 ```
 
-### When using SQL Server (Experimental)
+### When using SQL Server
 
-_SQL Server support is experimental, and is not tested in release regression like the other two databases._
+_SQL Server support has not been tested in the [release regression](https://github.com/grindsa/acme2certifier/actions/workflows/django_tests..yml) to the same extent as the other two databases._
 
 Note that this part of the guide is written for **Red Hat Enterprise Linux 9**.
 
