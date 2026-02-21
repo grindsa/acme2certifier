@@ -57,7 +57,7 @@ jobs:
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['django']
-        database: ['mariadb', 'psql']
+        database: ['mariadb', 'psql', 'mssql']
 
     steps:
 
@@ -112,10 +112,8 @@ jobs:
         if: ${{ failure() }}
         continue-on-error: true
         run: |
-          docker exec mariadbsrv mariadb-dump -u root --password=foobar acme2certifier > /tmp/acme2certifer.sql
           mkdir -p ${{ github.workspace }}/artifact/upload
           sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp /tmp/acme2certifer.sql ${{ github.workspace }}/artifact/data/
           cd examples/Docker
           docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
@@ -139,7 +137,7 @@ jobs:
       matrix:
         rhversion: [8, 9]
         execscript: ['django_tester.sh']
-        database: ['mariadb', 'psql', 'sqlite3']
+        database: ['mariadb', 'psql', 'sqlite3', 'mssql']
 
     steps:
       - name: "checkout GIT"
@@ -219,9 +217,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['apache2', 'nginx']
+        # nginx is not working with sqlite3 and mariadb
+        # websrv: ['apache2', 'nginx']
+        websrv: ['apache2']
         execscript: ['django_tester.sh']
-        database: ['mariadb', 'psql', 'sqlite']
+        database: ['mariadb', 'psql', 'sqlite3', 'mssql']
+
 
     steps:
       - name: "checkout GIT"
@@ -233,17 +234,11 @@ jobs:
           json_secret: ${{ secrets.XCA_CFG }}
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
-        uses: ./.github/actions/deb_prep
-        with:
-          DEB_BUILD: false
-
-      - name: "Prepare Ubuntu environment"
         if: matrix.execscript == 'django_tester.sh'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
-          DJANGO_DB: psql
+          DJANGO_DB: ${{ matrix.database }}
 
       - name: "Download DEB artifact by name from build run"
         uses: ./.github/actions/download_artifact
@@ -291,5 +286,5 @@ jobs:
         uses: actions/upload-artifact@v4
         if: ${{ failure() }}
         with:
-          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.database }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/

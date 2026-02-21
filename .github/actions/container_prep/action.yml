@@ -100,3 +100,9 @@ runs:
       uses: ./.github/actions/psql_prep
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Instanciate MSSQL"
+      if: inputs.DJANGO_DB == 'mssql'
+      uses: ./.github/actions/mssql_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}

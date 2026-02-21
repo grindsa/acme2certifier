@@ -33,6 +33,14 @@ case "${1}" in
     systemctl enable rsyslog
     systemctl start syslog
 
+    if [[ -f /tmp/acme2certifier/packages-microsoft-prod.deb ]]
+      then
+      echo "install Microsoft repository configuration package"
+      dpkg -i /tmp/acme2certifier/packages-microsoft-prod.deb
+      apt-get update
+      ACCEPT_EULA=Y apt-get install -y msodbcsql18 python3-mssql-django
+    fi
+
     echo "install a2c"
     apt-get install -y /tmp/acme2certifier/acme2certifier*.deb
 

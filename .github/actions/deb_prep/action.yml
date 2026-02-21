@@ -53,7 +53,8 @@ runs:
         sudo cp .github/acme2certifier_key.pem data/volume/acme2certifier_key.pem
         sudo cp .github/acme2certifier.pem data/volume/acme2certifier.pem
 
-        if [ -z "$DJANGO_DB" ]; then
+        if [ -z "$DJANGO_DB" ] || [ "$DJANGO_DB" == "sqlite3" ]; then
+            echo "Using default django settings for sqlite3"
             sudo cp .github/django_settings.py data/volume/acme2certifier/settings.py
         else
             sudo cp .github/django_settings_$DJANGO_DB.py data/volume/acme2certifier/settings.py
@@ -78,12 +79,6 @@ runs:
         ISSUING_CA_PASSPHRASE: "Test1234"
         ROOT_CA_CERT: "test/ca/root-ca-cert.pem"
 
-    - name: "Instanciate Ubuntu 24.04"
-      run: |
-        docker run -d --name acme-srv --network $NAME_SPACE -p 22280:80 --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:24.04
-      shell: bash
-      env:
-        NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "Instanciate Mariadb"
       if: inputs.DJANGO_DB == 'mariadb'
@@ -95,4 +90,28 @@ runs:
       if: inputs.DJANGO_DB == 'psql'
       uses: ./.github/actions/psql_prep
       with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Prepare addditional environment for MSSQL"
+      if: inputs.DJANGO_DB == 'mssql'
+      run: |
+        echo "Download Microsoft repository configuration package"
+        curl https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb --output data/packages-microsoft-prod.deb
+        ls -la data/
+      env:
+        DJANGO_DB: ${{ inputs.DJANGO_DB }}
+        VERSION: ${{ inputs.RH_VERSION }}
+      shell: bash
+
+    - name: "Instanciate MSSQL"
+      if: inputs.DJANGO_DB == 'mssql'
+      uses: ./.github/actions/mssql_prep
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Instanciate Ubuntu 24.04"
+      run: |
+        docker run -d --name acme-srv --network $NAME_SPACE -p 22280:80 --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:24.04
+      shell: bash
+      env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}

@@ -1,0 +1,48 @@
+name: "mssql_prep"
+description: "bring up and configure mssql instance"
+inputs:
+  NAME_SPACE:
+    description: "Name space"
+    required: true
+    default: "acme"
+  INSTANCIATE:
+    description: "Instanciate mssql"
+    required: true
+    default: "true"
+  RH_VERSION:
+    description: "Red Hat version"
+    required: false
+    default: "9"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Instanciate MSSQL"
+      if: inputs.INSTANCIATE == 'true'
+      run: |
+        docker pull mcr.microsoft.com/mssql/server:2022-latest
+        docker run --rm -d --network ${NAME_SPACE} -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=Mssqlpassw0rd"   -p 1433:1433 --name ms-sql --hostname ms-sql mcr.microsoft.com/mssql/server:2022-latest
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        RH_VERSION: ${{ inputs.RH_VERSION }}
+
+    - name: "Sleep for 10s"
+      if: inputs.INSTANCIATE == 'true'
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Configure mssql"
+      working-directory: examples/Docker/
+      run: |
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P Mssqlpassw0rd -Q "IF EXISTS (SELECT name FROM sys.databases WHERE name = 'acme2certifier') DROP DATABASE acme2certifier;"
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P Mssqlpassw0rd -Q "CREATE DATABASE acme2certifier;"
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -S localhost -No -U SA -P Mssqlpassw0rd -Q "CREATE LOGIN acme2certifier_user WITH PASSWORD = 'Acme2certfier';"
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -S localhost -No -U SA -P Mssqlpassw0rd  -Q "USE acme2certifier; CREATE USER acme2certifier_user FOR LOGIN acme2certifier_user; ALTER ROLE db_owner ADD MEMBER acme2certifier_user;"
+      shell: bash
+
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 5s
