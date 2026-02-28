@@ -226,64 +226,62 @@ class EABhandler(object):
         """Load profiles from eab credentials database"""
         self.logger.debug("EABhandler.key_file_load()")
 
+        data_dic = {}
+
         if self.db_host and self.db_name and self.db_user and self.db_password:
-            data_dic = {}
-
-            # query all active (status = 1) profiles for configured eab account
             SQL_QUERY = "SELECT key_id, profile FROM credentials WHERE STATUS = 1;"
-
             if self.db_system == "mssql":
-                try:
-                    # create sql server connection string
-                    conn_str = (
-                        "Server="
-                        + self.db_host
-                        + ";Database="
-                        + self.db_name
-                        + ";Encrypt=yes;UID="
-                        + self.db_user
-                        + ";PWD="
-                        + self.db_password
-                        + ";TrustServerCertificate=yes"
-                    )
-                    conn = connect(conn_str)
-
-                    cursor = conn.cursor()
-                    cursor.execute(SQL_QUERY)
-
-                    # forms data_dic object with the same structure as in kid_profile_handler
-                    rows = cursor.fetchall()
-                    for row in rows:
-                        data_dic[row.key_id] = row.profile
-
-                    conn.close()
-
-                except Exception as err:
-                    self.logger.error("EABhandler.key_file_load() error: %s", err)
-
+                data_dic = self._load_mssql_profiles(SQL_QUERY)
             elif self.db_system == "postgres":
-                try:
-                    conn = psycopg2.connect(
-                        host=self.db_host,
-                        dbname=self.db_name,
-                        user=self.db_user,
-                        password=self.db_password,
-                    )
-
-                    cursor = conn.cursor()
-                    cursor.execute(SQL_QUERY)
-
-                    # forms data_dic object with the same structure as in kid_profile_handler
-                    rows = cursor.fetchall()
-                    for row in rows:
-                        data_dic[str(row[0])] = str(row[1])
-
-                    conn.close()
-
-                except Exception as err:
-                    self.logger.error("EABhandler.key_file_load() error: %s", err)
+                data_dic = self._load_postgres_profiles(SQL_QUERY)
 
         self.logger.debug("EABhandler.key_file.load() ended: {%s}", bool(data_dic))
+        return data_dic
+
+    def _load_mssql_profiles(self, sql_query: str) -> Dict[str, str]:
+        """Helper to load profiles from MSSQL"""
+        data_dic = {}
+        try:
+            conn_str = (
+                "Server="
+                + self.db_host
+                + ";Database="
+                + self.db_name
+                + ";Encrypt=yes;UID="
+                + self.db_user
+                + ";PWD="
+                + self.db_password
+                + ";TrustServerCertificate=yes"
+            )
+            conn = connect(conn_str)
+            cursor = conn.cursor()
+            cursor.execute(sql_query)
+            rows = cursor.fetchall()
+            for row in rows:
+                data_dic[row.key_id] = row.profile
+            conn.close()
+        except Exception as err:
+            self.logger.error("EABhandler._load_mssql_profiles() error: %s", err)
+        return data_dic
+
+    def _load_postgres_profiles(self, sql_query: str) -> Dict[str, str]:
+        """Helper to load profiles from Postgres"""
+        data_dic = {}
+        try:
+            conn = psycopg2.connect(
+                host=self.db_host,
+                dbname=self.db_name,
+                user=self.db_user,
+                password=self.db_password,
+            )
+            cursor = conn.cursor()
+            cursor.execute(sql_query)
+            rows = cursor.fetchall()
+            for row in rows:
+                data_dic[str(row[0])] = str(row[1])
+            conn.close()
+        except Exception as err:
+            self.logger.error("EABhandler._load_postgres_profiles() error: %s", err)
         return data_dic
 
     def mac_key_get(self, key_id: str) -> Optional[str]:
