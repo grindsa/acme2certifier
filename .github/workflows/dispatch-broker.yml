@@ -1,3 +1,4 @@
+
 name: dispatch-broker
 on:
   repository_dispatch:
@@ -23,6 +24,7 @@ jobs:
   dispatch-broker:
     runs-on: ubuntu-latest
     needs: guard
+    if: ${{ !startsWith(github.event.client_payload.branch, 'wf_') }}
     steps:
       - name: dispatch-broker
         uses: grindsa/dispatch-broker-action@v1
