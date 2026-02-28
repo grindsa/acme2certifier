@@ -38,7 +38,7 @@ runs:
       run: |
         docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P Mssqlpassw0rd -Q "IF EXISTS (SELECT name FROM sys.databases WHERE name = 'acme2certifier') DROP DATABASE acme2certifier;"
         docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P Mssqlpassw0rd -Q "CREATE DATABASE acme2certifier;"
-        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -S localhost -No -U SA -P Mssqlpassw0rd -Q "CREATE LOGIN acme2certifier_user WITH PASSWORD = 'Acme2certfier';"
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -S localhost -No -U SA -P Mssqlpassw0rd -Q "CREATE LOGIN acme2certifier_user WITH PASSWORD = '1mmSvDFl';"
         docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -S localhost -No -U SA -P Mssqlpassw0rd  -Q "USE acme2certifier; CREATE USER acme2certifier_user FOR LOGIN acme2certifier_user; ALTER ROLE db_owner ADD MEMBER acme2certifier_user;"
       shell: bash
 
