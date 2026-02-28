@@ -1,27 +1,11 @@
 name: Code quality - Code Scanner
 on:
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to run the workflow on'
-        required: true
-        default: 'main'
-      run_id:
-        description: 'Run ID of the producing workflow'
-        required: true
-        default: '0'
-      sha:
-        description: 'SHA of the commit to run the workflow on'
-        required: true
-        default: ''
-      called_by_workflow:
-        description: 'Name of the producing workflow'
-        required: true
-        default: 'manual-trigger'
-      full_ref:
-        description: 'Full git ref of the commit to run the workflow on'
-        required: false
-        default: ''
+  push:
+    branches:
+      - 'master'
+      - 'devel'
+      - 'min-devel'
+      - 'min'
 
 jobs:
 
@@ -33,7 +17,7 @@ jobs:
 
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier' &&  (inputs.branch == 'devel' || inputs.branch == 'master' || inputs.branch == 'min-devel' || inputs.branch == 'min')
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
       - uses: actions/checkout@v4
       - name: Bandit Scan
@@ -60,7 +44,7 @@ jobs:
     name: Codecov Analysis
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier' &&  (inputs.branch == 'devel' || inputs.branch == 'master' || inputs.branch == 'min-devel' || inputs.branch == 'min')
+    if: github.repository == 'grindsa/acme2certifier'
 
     steps:
       - uses: actions/checkout@v4
@@ -98,7 +82,7 @@ jobs:
     name: SonarCloud Analysis
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier' &&  (inputs.branch == 'devel' || inputs.branch == 'master' || inputs.branch == 'min-devel' || inputs.branch == 'min')
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -139,7 +123,7 @@ jobs:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier' &&  (inputs.branch == 'devel' || inputs.branch == 'master' || inputs.branch == 'min-devel' || inputs.branch == 'min')
+    if: github.repository == 'grindsa/acme2certifier'
 
     steps:
     - name: Checkout repository
