@@ -30,6 +30,7 @@ runs:
         ART_ID=$(gh api repos/$REPO/actions/runs/$RUN_ID/artifacts --jq '.artifacts[] | select(.name=="'$ARTIFACT_NAME'") | .id')
         if [ -z "$ART_ID" ]; then
           echo "Artifact $ARTIFACT_NAME not found in run $RUN_ID" >&2
+          exit 1
         fi
 
         gh api repos/$REPO/actions/artifacts/$ART_ID/zip > "$ARTIFACT_NAME.zip"

@@ -51,6 +51,7 @@ jobs:
   # ---------------------------------------------------------
   test-rpm:
     runs-on: ubuntu-latest
+    needs: guard
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     steps:
@@ -70,8 +71,6 @@ jobs:
           DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - run: echo "path is ${{ steps.rpm.outputs.rpm_dir_path }}"
 
       - name: "Generate keys and certificates"
         uses: ./.github/actions/cert_gen
