@@ -1,4 +1,4 @@
-name: "rpm_build_upload"
+name: "deb_build_upload"
 description: "Build and Upload package"
 inputs:
   NO_VERSION:
@@ -7,7 +7,7 @@ inputs:
     default: "false"
 outputs:
   deb_file_name:
-    description: "Name of the RPM package file"
+    description: "Name of the DEB package file"
     value: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
 
 runs:
