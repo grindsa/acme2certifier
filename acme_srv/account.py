@@ -26,6 +26,8 @@ import json
 from acme_srv.helper import b64decode_pad
 
 
+DB_ERROR_MSG = "Database error"
+
 class ExternalAccountBinding:
     """Encapsulates EAB validation and signature verification logic."""
 
@@ -310,7 +312,7 @@ class Account:
 
         except Exception as err:
             self.logger.critical("Database error while adding account: %s", err)
-            return 500, self.err_msg_dic["serverinternal"], "Database error"
+            return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
 
     def _validate_contact(self, contact: List[str]) -> Tuple[int, str, str]:
         """Validate contact information."""
@@ -488,7 +490,7 @@ class Account:
                 )
         except Exception as err:
             self.logger.critical("Database error while deactivating account: %s", err)
-            return 500, self.err_msg_dic["serverinternal"], "Database error"
+            return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
 
     def _handle_contact_update(
         self, account_name: str, payload: Dict[str, str]
@@ -523,7 +525,7 @@ class Account:
             self.logger.critical(
                 "Database error while updating account contacts: %s", err
             )
-            return 500, self.err_msg_dic["serverinternal"], "Database error"
+            return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
 
     def _handle_key_change(
         self, account_name: str, payload: Dict[str, str], protected: Dict[str, str]
@@ -533,8 +535,8 @@ class Account:
         if "url" in protected and "key-change" in protected["url"]:
             (
                 code,
-                message,
-                detail,
+                _message,
+                _detail,
                 inner_protected,
                 inner_payload,
                 _,
@@ -542,7 +544,7 @@ class Account:
                 json.dumps(payload), use_emb_key=True, skip_nonce_check=True
             )
             if code == 200:
-                code, message, detail = self._rollover_account_key(
+                code, message, _detail = self._rollover_account_key(
                     account_name, protected, inner_protected, inner_payload
                 )
                 if code == 200:
@@ -585,7 +587,7 @@ class Account:
                 self.logger.critical(
                     "Database error while updating account key: %s", err
                 )
-                return 500, self.err_msg_dic["serverinternal"], "Database error"
+                return 500, self.err_msg_dic["serverinternal"], DB_ERROR_MSG
         return code, message, detail
 
     def _validate_key_change(
@@ -649,11 +651,11 @@ class Account:
 
     def _lookup_account_by_name(self, value: str) -> Optional[Dict[str, str]]:
         """Lookup an account in the database."""
-        self.logger.debug("Account._lookup_account_by_name(%s: %s)", field, value)
+        self.logger.debug("Account._lookup_account_by_name(name: %s)", value)
         try:
             return self.repository.lookup_account("name", value)
         except Exception as err:
-            self.logger.critical("Database error during account lookup: %s", err)
+            self.logger.critical("Database error during account lookup by name: %s", err)
             return None
 
     def _lookup_account_by_field(
@@ -664,7 +666,7 @@ class Account:
         try:
             return self.repository.lookup_account(field, value)
         except Exception as err:
-            self.logger.critical("Database error during account lookup: %s", err)
+            self.logger.critical("Database error during account lookup by %s: %s", field, err)
             return None
 
     def _build_account_info(self, account_obj: Dict[str, str]) -> Dict[str, str]:
@@ -687,7 +689,7 @@ class Account:
     def _build_response(
         self,
         code: int,
-        message: str,
+        message: Optional[str],
         detail: Optional[str],
         payload: Optional[Dict] = None,
     ) -> Dict[str, str]:
