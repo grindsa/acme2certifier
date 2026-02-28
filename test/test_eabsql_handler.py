@@ -237,3 +237,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
+
+if __name__ == "__main__":
+
+    if os.path.exists("acme_test.db"):
+        os.remove("acme_test.db")
+    unittest.main()
