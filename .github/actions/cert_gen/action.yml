@@ -113,14 +113,17 @@ runs:
         echo "" >> .github/django_settings_mariadb.py
         echo "# SECURITY WARNING: keep the secret key used in production secret!" >> .github/django_settings_mariadb.py
         echo "SECRET_KEY = \"$DJANGO_SECRET\"" >> .github/django_settings_mariadb.py
+        sed -i "s/\"XXX\": \"XXX\"/\"PASSWORD\": \"1mmSvDFl\"/g" .github/django_settings_mariadb.py
 
         echo "" >> .github/django_settings_psql.py
         echo "# SECURITY WARNING: keep the secret key used in production secret!" >> .github/django_settings_psql.py
         echo "SECRET_KEY = \"$DJANGO_SECRET\"" >> .github/django_settings_psql.py
+        sed -i "s/\"XXX\": \"XXX\"/\"PASSWORD\": \"1mmSvDFl\"/g" .github/django_settings_psql.py
 
         echo "" >> .github/django_settings_mssql.py
         echo "# SECURITY WARNING: keep the secret key used in production secret!" >> .github/django_settings_mssql.py
         echo "SECRET_KEY = \"$DJANGO_SECRET\"" >> .github/django_settings_mssql.py
+        sed -i "s/\"XXX\": \"XXX\"/\"PASSWORD\": \"1mmSvDFl\"/g" .github/django_settings_mssql.py
 
         echo "Django secret key added to all settings files"
       shell: bash

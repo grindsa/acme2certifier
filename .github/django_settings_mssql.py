@@ -73,11 +73,11 @@ WSGI_APPLICATION = "acme2certifier.wsgi.application"
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
 DATABASES = {
-    "default": {
-        "ENGINE": "mssql",
-        "NAME": "acme2certifier",
-        "USER": "acme2certifier_user",
-        "PASSWORD": "Acme2certfier",
+    'default': {
+        'ENGINE': 'mssql',
+        'NAME': 'acme2certifier',
+        'USER': 'acme2certifier_user',
+        "XXX": "XXX", # --- IGNORE ---
         "HOST": "ms-sql.acme",
         "PORT": "1433",
         "OPTIONS": {
