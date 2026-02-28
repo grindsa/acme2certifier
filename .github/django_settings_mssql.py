@@ -77,7 +77,7 @@ DATABASES = {
         'ENGINE': 'mssql',
         'NAME': 'acme2certifier',
         'USER': 'acme2certifier_user',
-        'PASSWORD': 'Acme2certfier',
+        "XXX": "XXX", # --- IGNORE ---
         "HOST": "ms-sql.acme",
         'PORT': '1433',
         'OPTIONS': {
