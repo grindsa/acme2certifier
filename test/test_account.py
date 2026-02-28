@@ -1019,7 +1019,7 @@ class TestAccount(unittest.TestCase):
 
         config_mock = MagicMock()
         config_mock.getboolean.side_effect = lambda section, key, fallback=False: {
-            ("CAhandler", "foo"): 'bar',
+            ("CAhandler", "foo"): "bar",
         }.get((section, key), fallback)
 
         # Patch eab_handler_load to return a module with EABhandler
@@ -1037,10 +1037,7 @@ class TestAccount(unittest.TestCase):
             self.assertFalse(
                 account.config.inner_header_nonce_allow
             )  # Default value should be used
-            self.assertFalse(
-                account.config.eab_check
-            )  # Default value should be used
-
+            self.assertFalse(account.config.eab_check)  # Default value should be used
 
     def test_041__create_account_success(self):
         """test _create_account success (all checks pass, EAB off)"""

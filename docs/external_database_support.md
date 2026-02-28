@@ -207,9 +207,7 @@ DATABASES = {
         "PASSWORD": "a2c+passwd",
         "HOST": "sqlserverdbsrv,1433",
         "PORT": "",
-        "OPTIONS": {
-            "driver": "ODBC Driver 17 for SQL Server"
-        },
+        "OPTIONS": {"driver": "ODBC Driver 17 for SQL Server"},
     }
 }
 ```

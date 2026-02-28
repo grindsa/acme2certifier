@@ -25,7 +25,6 @@ class TestACMEHandler(unittest.TestCase):
 
         self.eabhandler = EABhandler(self.logger)
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
-    
 
     def test_001_default(self):
         """default test which always passes"""
@@ -98,7 +97,7 @@ class TestACMEHandler(unittest.TestCase):
             "db_host": "db_host",
             "db_name": "db_name",
             "db_user": "db_user",
-            "db_password": "db_password"
+            "db_password": "db_password",
         }
         mock_config_load.return_value = parser
         self.eabhandler._config_load()
@@ -228,4 +227,3 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:Database error while retrieving eab_kid: ex_db_lookup",
             lcm.output,
         )
-
