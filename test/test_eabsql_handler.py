@@ -17,6 +17,14 @@ class TestACMEHandler(unittest.TestCase):
 
     def setUp(self):
         """setup unit test"""
+        import sys
+        import types
+        sys.modules['psycopg2'] = types.ModuleType('psycopg2')
+        mssql_mock = types.ModuleType('mssql_python')
+        def dummy_connect(*args, **kwargs):
+            return None
+        mssql_mock.connect = dummy_connect
+        sys.modules['mssql_python'] = mssql_mock
         import logging
 
         logging.basicConfig(level=logging.CRITICAL)
