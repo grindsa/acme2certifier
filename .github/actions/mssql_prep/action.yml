@@ -13,6 +13,10 @@ inputs:
     description: "Red Hat version"
     required: false
     default: "9"
+  ROOT_PWD:
+    description: "MSSQL root password"
+    required: false
+    default: "Mssqlpassw0rd"
 
 runs:
   using: "composite"
@@ -21,11 +25,12 @@ runs:
       if: inputs.INSTANCIATE == 'true'
       run: |
         docker pull mcr.microsoft.com/mssql/server:2022-latest
-        docker run --rm -d --network ${NAME_SPACE} -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=Mssqlpassw0rd"   -p 1433:1433 --name ms-sql --hostname ms-sql mcr.microsoft.com/mssql/server:2022-latest
+        docker run --rm -d --network ${NAME_SPACE} -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=$ROOT_PWD"   -p 1433:1433 --name ms-sql --hostname ms-sql mcr.microsoft.com/mssql/server:2022-latest
       shell: bash
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         RH_VERSION: ${{ inputs.RH_VERSION }}
+        ROOT_PWD: ${{ inputs.ROOT_PWD }}
 
     - name: "Sleep for 10s"
       if: inputs.INSTANCIATE == 'true'
@@ -42,7 +47,7 @@ runs:
         docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -S localhost -No -U SA -P $ROOT_PWD  -Q "USE acme2certifier; CREATE USER acme2certifier_user FOR LOGIN acme2certifier_user; ALTER ROLE db_owner ADD MEMBER acme2certifier_user;"
       shell: bash
       env:
-        ROOT_PWD: Mssqlpassw0rd
+        ROOT_PWD: ${{ inputs.ROOT_PWD }}
         USER_PWD: 1mmSvDFl
         RH_VERSION: ${{ inputs.RH_VERSION }}
 
