@@ -36,11 +36,15 @@ runs:
     - name: "Configure mssql"
       working-directory: examples/Docker/
       run: |
-        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P Mssqlpassw0rd -Q "IF EXISTS (SELECT name FROM sys.databases WHERE name = 'acme2certifier') DROP DATABASE acme2certifier;"
-        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P Mssqlpassw0rd -Q "CREATE DATABASE acme2certifier;"
-        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -S localhost -No -U SA -P Mssqlpassw0rd -Q "CREATE LOGIN acme2certifier_user WITH PASSWORD = '1mmSvDFl';"
-        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -S localhost -No -U SA -P Mssqlpassw0rd  -Q "USE acme2certifier; CREATE USER acme2certifier_user FOR LOGIN acme2certifier_user; ALTER ROLE db_owner ADD MEMBER acme2certifier_user;"
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P $ROOT_PWD -Q "IF EXISTS (SELECT name FROM sys.databases WHERE name = 'acme2certifier') DROP DATABASE acme2certifier;"
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -No -S localhost -U SA -P $ROOT_PWD -Q "CREATE DATABASE acme2certifier;"
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -S localhost -No -U SA -P $ROOT_PWD -Q "CREATE LOGIN acme2certifier_user WITH PASSWORD = '$USER_PWD';"
+        docker exec ms-sql /opt/mssql-tools18/bin/sqlcmd -S localhost -No -U SA -P $ROOT_PWD  -Q "USE acme2certifier; CREATE USER acme2certifier_user FOR LOGIN acme2certifier_user; ALTER ROLE db_owner ADD MEMBER acme2certifier_user;"
       shell: bash
+      env:
+        ROOT_PWD: Mssqlpassw0rd
+        USER_PWD: 1mmSvDFl
+        RH_VERSION: ${{ inputs.RH_VERSION }}
 
     - name: "Sleep for 5s"
       uses: juliangruber/sleep-action@v2.0.3
