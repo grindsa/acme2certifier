@@ -1,5 +1,3 @@
-version: '3.3'
-
 services:
   traefik:
     image: traefik:latest
@@ -37,5 +35,5 @@ services:
 
 networks:
   default:
-    external:
-      name: acme
+    name: acme
+    external: true
