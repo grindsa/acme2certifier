@@ -238,3 +238,10 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:Database error while retrieving eab_kid: ex_db_lookup",
             lcm.output,
         )
+
+
+if __name__ == "__main__":
+
+    if os.path.exists("acme_test.db"):
+        os.remove("acme_test.db")
+    unittest.main()
