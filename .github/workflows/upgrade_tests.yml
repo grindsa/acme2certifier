@@ -122,6 +122,17 @@ jobs:
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
+      - name: "Build acme2certifier image at v0.19.3"
+        run: |
+          git clone https://github.com/grindsa/acme2certifier.git /tmp/acme2certifier
+          cd /tmp/acme2certifier
+          git checkout 0.19.3
+          docker build -f examples/Docker/$WEBSRV/$DB_HANDLER/Dockerfile -t grindsa/acme2certifier:$VERSION-$WEBSRV-$DB_HANDLER .
+        env:
+          VERSION: "0.19.3"
+          WEBSRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
+
       - name: "Spin-up a2c 0.19.3 instance"
         uses: ./.github/actions/container_run
         with:
