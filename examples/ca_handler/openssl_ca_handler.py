@@ -21,6 +21,8 @@ from cryptography.x509 import (
 )
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
+BLOCK_ALL_DOMAIN = "block.all"
+
 # pylint: disable=e0401
 from acme_srv.helper import (
     load_config,
@@ -324,9 +326,6 @@ class CAhandler(object):
         if not error and self.openssl_conf and not os.path.exists(self.openssl_conf):
             error = f"openssl_conf {self.openssl_conf} does not exist"
 
-        # if not error and not self.ca_cert_chain_list:
-        #    error = "ca_cert_chain_list must be specified in config file"
-
         self.logger.debug("CAhandler._config_parameters_check() ended with: %s", error)
         return error
 
@@ -362,7 +361,7 @@ class CAhandler(object):
                     "Unable to load allowed_domainlist parameter. Block all domains: %s",
                     err,
                 )
-                self.allowed_domainlist = ["block.all"]
+                self.allowed_domainlist = [BLOCK_ALL_DOMAIN]
 
         if "blocked_domainlist" in config_dic["CAhandler"]:
             try:
@@ -374,7 +373,7 @@ class CAhandler(object):
                     "Unable to load blocked_domainlist parameter. Block all domains: %s",
                     err,
                 )
-                self.allowed_domainlist = ["block.all"]
+                self.allowed_domainlist = [BLOCK_ALL_DOMAIN]
 
         if "whitelist" in config_dic["CAhandler"]:
             self.logger.error(
@@ -388,7 +387,7 @@ class CAhandler(object):
                 self.logger.error(
                     "Unable to load whitelist parameter. Block all domains: %s", err
                 )
-                self.allowed_domainlist = ["block.all"]
+                self.allowed_domainlist = [BLOCK_ALL_DOMAIN]
 
         if "blacklist" in config_dic["CAhandler"]:
             self.logger.error(
@@ -403,7 +402,7 @@ class CAhandler(object):
                 self.logger.error(
                     "Unable to load blacklist parameter. Block all domains: %s", err
                 )
-                self.allowed_domainlist = ["block.all"]
+                self.allowed_domainlist = [BLOCK_ALL_DOMAIN]
 
         self.logger.debug("CAhandler._config_domainlists_load() ended")
 

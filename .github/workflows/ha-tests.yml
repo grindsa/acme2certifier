@@ -80,13 +80,15 @@ jobs:
           docker network create acme
           sudo mkdir -p data/nginx
           sudo chmod -R 777 data
-          # sudo cp acme2certifier-${{ inputs.run_id }}.noarch.rpm data
+          # sudo cp acme2certifier-$RUN_ID.noarch.rpm data
           sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
           # sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
           sudo mkdir -p $PWD/lego
           sudo mkdir -p $PWD/certbot
           sudo mkdir -p $PWD/acme-sh
+        env:
+          RUN_ID: ${{ inputs.run_id }}
 
       - name: "Bring up Almalinux instance"
         run: |
@@ -287,7 +289,7 @@ jobs:
       - name: "Install acme2certifier"
         run: |
           docker exec alma9-c1 yum install python3-mysqlclient python3-django3 python3-pyyaml -y
-          docker exec alma9-c1 yum localinstall -y /tmp/acme2certifier/acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          docker exec alma9-c1 yum localinstall -y /tmp/acme2certifier/acme2certifier-$RUN_ID.noarch.rpm
           docker exec alma9-c1 chown -R nginx /opt/acme2certifier/volume/
           docker exec alma9-c1 cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
           docker exec alma9-c1 cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
@@ -311,7 +313,7 @@ jobs:
           docker exec alma9-c1 systemctl start nginx
 
           docker exec alma9-c2 yum install python3-mysqlclient python3-django3 python3-pyyaml -y
-          docker exec alma9-c2 yum localinstall -y /tmp/acme2certifier/acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          docker exec alma9-c2 yum localinstall -y /tmp/acme2certifier/acme2certifier-$RUN_ID.noarch.rpm
           docker exec alma9-c2 chown -R nginx /opt/acme2certifier/volume/
           docker exec alma9-c2 cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
           docker exec alma9-c2 cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
@@ -333,6 +335,9 @@ jobs:
           docker exec alma9-c2 systemctl start acme2certifier
           docker exec alma9-c2 systemctl enable nginx
           docker exec alma9-c2 systemctl start nginx
+        env:
+          RUN_ID: ${{ inputs.run_id }}
+
 
       - name: "Prepare handler configuration"
         run: |

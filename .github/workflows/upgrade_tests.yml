@@ -391,10 +391,12 @@ jobs:
 
       - name: "Update acme2certifier"
         run: |
-          docker cp /tmp/acme2certifier-${{ inputs.run_id }}.noarch.rpm acme-srv:/tmp
-          docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          docker cp /tmp/acme2certifier-$RUN_ID.noarch.rpm acme-srv:/tmp
+          docker exec acme-srv yum -y localinstall /tmp/acme2certifier-$RUN_ID.noarch.rpm
           docker exec -w /opt/acme2certifier acme-srv python3 tools/db_update.py
           docker restart acme-srv
+        env:
+          RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 10s"
         uses: juliangruber/sleep-action@v2.0.3
@@ -556,10 +558,12 @@ jobs:
 
       - name: "Update acme2certifier"
         run: |
-          docker cp /tmp/acme2certifier-${{ inputs.run_id }}.noarch.rpm acme-srv:/tmp
-          docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          docker cp /tmp/acme2certifier-$RUN_ID.noarch.rpm acme-srv:/tmp
+          docker exec acme-srv yum -y localinstall /tmp/acme2certifier-$RUN_ID.noarch.rpm
           docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
           docker restart acme-srv
+        env:
+          RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 10s"
         uses: juliangruber/sleep-action@v2.0.3
@@ -718,10 +722,12 @@ jobs:
 
       - name: "Update acme2certifier"
         run: |
-          docker cp /tmp/acme2certifier-${{ inputs.run_id }}.noarch.rpm acme-srv:/tmp
-          docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          docker cp /tmp/acme2certifier-$RUN_ID.noarch.rpm acme-srv:/tmp
+          docker exec acme-srv yum -y localinstall /tmp/acme2certifier-$RUN_ID.noarch.rpm
           docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
           docker restart acme-srv
+        env:
+          RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 10s"
         uses: juliangruber/sleep-action@v2.0.3
@@ -884,10 +890,12 @@ jobs:
 
       - name: "Update acme2certifier"
         run: |
-          docker cp /tmp/acme2certifier-${{ inputs.run_id }}.noarch.rpm acme-srv:/tmp
-          docker exec acme-srv yum -y localinstall /tmp/acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          docker cp /tmp/acme2certifier-$RUN_ID.noarch.rpm acme-srv:/tmp
+          docker exec acme-srv yum -y localinstall /tmp/acme2certifier-$RUN_ID.noarch.rpm
           docker exec -w /opt/acme2certifier acme-srv python3 tools/django_update.py
           docker restart acme-srv
+        env:
+          RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 10s"
         uses: juliangruber/sleep-action@v2.0.3
@@ -1048,9 +1056,11 @@ jobs:
 
       - name: "Upgrade a2c"
         run: |
-          docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-${{ inputs.run_id }}-1_all.deb
+          docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-$RUN_ID-1_all.deb
           docker exec -w /var/www/acme2certifier acme-srv python3 tools/db_update.py
           docker exec acme-srv systemctl restart apache2
+        env:
+          RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 5s"
         uses: juliangruber/sleep-action@v2.0.3
@@ -1215,9 +1225,11 @@ jobs:
 
       - name: "Upgrade a2c"
         run: |
-          docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-${{ inputs.run_id }}-1_all.deb
+          docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-$RUN_ID-1_all.deb
           docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
           docker exec acme-srv systemctl restart apache2
+        env:
+          RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 5s"
         uses: juliangruber/sleep-action@v2.0.3
@@ -1396,9 +1408,11 @@ jobs:
 
       - name: "Upgrade a2c"
         run: |
-          docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-${{ inputs.run_id }}-1_all.deb
+          docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-$RUN_ID-1_all.deb
           docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
           docker exec acme-srv systemctl restart apache2
+        env:
+          RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 5s"
         uses: juliangruber/sleep-action@v2.0.3
@@ -1588,9 +1602,11 @@ jobs:
 
       - name: "Upgrade a2c"
         run: |
-          docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-${{ inputs.run_id }}-1_all.deb
+          docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-$RUN_ID-1_all.deb
           docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
           docker exec acme-srv systemctl restart apache2
+        env:
+          RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 5s"
         uses: juliangruber/sleep-action@v2.0.3
