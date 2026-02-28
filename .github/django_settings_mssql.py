@@ -73,20 +73,19 @@ WSGI_APPLICATION = "acme2certifier.wsgi.application"
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'mssql',
-        'NAME': 'acme2certifier',
-        'USER': 'acme2certifier_user',
-        'PASSWORD': 'Acme2certfier',
+    "default": {
+        "ENGINE": "mssql",
+        "NAME": "acme2certifier",
+        "USER": "acme2certifier_user",
+        "PASSWORD": "Acme2certfier",
         "HOST": "ms-sql.acme",
-        'PORT': '1433',
-        'OPTIONS': {
-            'driver': 'ODBC Driver 18 for SQL Server',
-            'extra_params': "Encrypt=no;TrustServerCertificate=yes"
-    },
+        "PORT": "1433",
+        "OPTIONS": {
+            "driver": "ODBC Driver 18 for SQL Server",
+            "extra_params": "Encrypt=no;TrustServerCertificate=yes",
+        },
+    }
 }
-}
-
 
 
 # Password validation
