@@ -350,7 +350,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3
-          sudo apt-get install -y /tmp/acme2certifier-${{ inputs.run_id }}-1_all.deb
+          sudo apt-get install -y /tmp/acme2certifier-$RUN_ID-1_all.deb
+        env:
+          RUN_ID: ${{ inputs.run_id }}
 
       - name: "configure a2c"
         run: |
@@ -444,7 +446,9 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3
-          sudo apt-get install -y /tmp/acme2certifier-${{ inputs.run_id }}-1_all.deb
+          sudo apt-get install -y /tmp/acme2certifier-$RUN_ID-1_all.deb
+        env:
+          RUN_ID: ${{ inputs.run_id }}
 
       - name: "Generate keys and certificates"
         uses: ./.github/actions/cert_gen
