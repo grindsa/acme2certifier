@@ -177,6 +177,7 @@ jobs:
         uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
+          REVOCATION: "false"
 
       - name: "Verify allowed_domainlist error"
         run: |
@@ -213,6 +214,7 @@ jobs:
         uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
+          REVOCATION: "false"
 
       - name: "Verify allowed_domainlist error"
         run: |
@@ -287,6 +289,7 @@ jobs:
         uses: ./.github/actions/wf_specific/openxpki_ca_handler/enroll_eab_acmeprofile
         with:
           DEPLOYMENT_TYPE: "container"
+          REVOCATION: "false"
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -454,7 +457,7 @@ jobs:
         uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
-
+          REVOCATION: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
@@ -488,6 +491,7 @@ jobs:
         uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
+          REVOCATION: "false"
 
       - name: "ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
@@ -561,6 +565,7 @@ jobs:
         uses: ./.github/actions/wf_specific/openxpki_ca_handler/enroll_eab_acmeprofile
         with:
           DEPLOYMENT_TYPE: "rpm"
+          REVOCATION: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
@@ -737,7 +742,7 @@ jobs:
         uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
-
+          REVOCATION: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
@@ -773,6 +778,7 @@ jobs:
         uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
+          REVOCATION: "false"
 
       - name: "ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
@@ -848,6 +854,7 @@ jobs:
         uses: ./.github/actions/wf_specific/openxpki_ca_handler/enroll_eab_acmeprofile
         with:
           DEPLOYMENT_TYPE: "deb"
+          REVOCATION: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |

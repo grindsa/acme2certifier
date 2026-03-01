@@ -5,6 +5,10 @@ inputs:
     description: "Deployment type"
     required: true
     default: "rpm"
+  REVOCATION:
+    description: "Whether to test revocation as well"
+    required: true
+    default: "true"
 
 runs:
   using: "composite"
@@ -38,6 +42,11 @@ runs:
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme --http run
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+    shell: bash
+
+  - name: "Revoke certificate"
+    if: ${{ inputs.REVOCATION == 'true' }}
+    run: |
       sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme revoke
     shell: bash
 
@@ -99,6 +108,11 @@ runs:
       sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout
       sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer --noout
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
+    shell: bash
+
+  - name: "Revoke certificate"
+    if: ${{ inputs.REVOCATION == 'true' }}
+    run: |
       sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme revoke
     shell: bash
 
@@ -125,6 +139,11 @@ runs:
       sudo rm -rf lego/*
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d lego.acme --http run
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
+    shell: bash
+
+  - name: "Revoke certificate"
+    if: ${{ inputs.REVOCATION == 'true' }}
+    run: |
       sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme revoke
     shell: bash
 
@@ -166,5 +185,10 @@ runs:
       sudo rm -rf lego/*
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr -d lego.acme --http run
       sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  lego/certificates/lego.acme.crt
-      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme revoke
+    shell: bash
+
+  - name: "Revoke certificate"
+    if: ${{ inputs.REVOCATION == 'true' }}
+    run: |
+     sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme revoke
     shell: bash
