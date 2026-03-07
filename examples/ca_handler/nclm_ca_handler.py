@@ -298,7 +298,13 @@ class CAhandler(object):
                     cert_id = response["entities"][0]["url"].replace(
                         "/v2/certificates/", ""
                     )
-                break
+                    break
+
+            self.logger.debug(
+                "CAhandler._cert_id_get() waiting for job to complete. Attempt: %s status: %s", cnt, response.get("status", None)
+            )
+            cnt += 1
+            print(response)
             time.sleep(self.wait_interval)
 
         self.logger.debug("CAhandler._cert_id_get() ended with: %s", cert_id)
@@ -648,7 +654,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._login()")
         # check first if API is reachable
         api_response = requests.get(
-            self.api_host + "/v1", proxies=self.proxy, timeout=self.request_timeout
+            self.api_host + "/v1", proxies=self.proxy, timeout=self.request_timeout, verify=self.ca_bundle
         )
         self.logger.debug("api response code:%s", api_response.status_code)
 
@@ -674,6 +680,7 @@ class CAhandler(object):
                 json=data,
                 proxies=self.proxy,
                 timeout=self.request_timeout,
+                verify=self.ca_bundle,
             )
 
             if api_response.ok:
