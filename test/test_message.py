@@ -1,6 +1,5 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
-"""unittests for account.py"""
+"""unittests for message.py"""
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 import sys
@@ -757,6 +756,27 @@ class TestACMEHandler(unittest.TestCase):
             self.message.cli_check(message),
         )
 
+    @patch("acme_srv.signature.Signature.cli_check")
+    @patch("acme_srv.message.Message._extract_account_name_from_content")
+    @patch("acme_srv.message.decode_message")
+    def test_044_message_check(self, mock_decode, mock_name_get, mock_check):
+        """message check failed bcs sig.cli_check() successful"""
+        mock_decode.return_value = (True, None, "protected", "payload", "signature")
+        mock_check.return_value = ("True", "error", "detail")
+        self.message.repo = MagicMock()
+        self.message.repo.cli_permissions_get.side_effect = Exception("db error")
+        mock_name_get.return_value = "name"
+        message = '{"foo" : "bar"}'
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                (200, None, None, "protected", "payload", "name", {}),
+                self.message.cli_check(message),
+            )
+        self.assertIn(
+            "ERROR:test_a2c:cli_permissions_get failed: db error",
+            lcm.output,
+        )
+
     def test_044_invalid_eab_check(self):
         """test _invalid_eab_check - ok"""
         self.message.repo = MagicMock()
@@ -852,6 +872,86 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn(
             "ERROR:test_a2c:Account lookup for account_name failed.", lcm.output
         )
+
+    def test_049__safe_account_lookup_db_error(self):
+        """test _safe_account_lookup - dbstore.account_lookup raises an exception"""
+        self.message.repo = MagicMock()
+        self.message.repo.account_lookup.side_effect = Exception(
+            "exc_safe_account_lookup"
+        )
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(None, self.message._safe_account_lookup("account_name"))
+        self.assertIn(
+            "ERROR:test_a2c:Account lookup for account_name failed: exc_safe_account_lookup",
+            lcm.output,
+        )
+
+    def test_050_eab_mac_key_exists_exception(self):
+        """Test _eab_mac_key_exists handles exception and returns False"""
+        self.message.config.eab_handler = MagicMock()
+        # Simulate eab_handler raising an exception when called
+        self.message.config.eab_handler.side_effect = Exception("handler error")
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            result = self.message._eab_mac_key_exists("dummy_kid")
+        self.assertFalse(result)
+        self.assertIn("ERROR:test_a2c:EAB handler error: handler error", lcm.output)
+
+    def test_051_handle_missing_eab_credentials_db_error(self):
+        """Test _handle_missing_eab_credentials handles db error gracefully"""
+        self.message.repo = MagicMock()
+        self.message.repo.account_update.side_effect = Exception("db error")
+        self.message.config.invalid_eabkid_deactivate = True
+        with self.assertLogs("test_a2c", level="ERROR") as lcm:
+            self.message._handle_missing_eab_credentials("dummy_account", "eab_kid")
+        self.assertIn(
+            "ERROR:test_a2c:EAB credentials: eab_kid could not be found in eab-credential store.",
+            lcm.output,
+        )
+        self.assertIn(
+            "ERROR:test_a2c:Account dummy_account will be deactivated due to missing eab credentials",
+            lcm.output,
+        )
+        self.assertIn(
+            "ERROR:test_a2c:Account update failed: db error",
+            lcm.output,
+        )
+
+    @patch("acme_srv.message.Message._extract_account_name_from_content")
+    def test_052_extract_account_name_from_content(self, mock_name_get):
+        """Test _extract_account_name_from_content handles unexpected exceptions gracefully"""
+        mock_name_get.return_value = "account_name"
+        protected = {"jwk": {"n": "n"}, "url": "http://tester.local/acme/revokecert"}
+        self.assertEqual(
+            "account_name", self.message.extract_account_name_from_content(protected)
+        )
+
+
+class TestAccountRepository(unittest.TestCase):
+    """Unit tests for AccountRepository class"""
+
+    def setUp(self):
+        self.mock_dbstore = MagicMock()
+        self.repo = importlib.import_module("acme_srv.message").AccountRepository(
+            self.mock_dbstore
+        )
+
+    def test_account_lookup_calls_dbstore(self):
+        self.mock_dbstore.account_lookup.return_value = "result"
+        result = self.repo.account_lookup("key", "value")
+        self.mock_dbstore.account_lookup.assert_called_once_with("key", "value")
+        self.assertEqual(result, "result")
+
+    def test_account_update_calls_dbstore(self):
+        self.mock_dbstore.account_update.return_value = "updated"
+        result = self.repo.account_update({"foo": "bar"}, True)
+        self.mock_dbstore.account_update.assert_called_once_with({"foo": "bar"}, True)
+        self.assertEqual(result, "updated")
+
+    def test_cli_permissions_get_calls_dbstore(self):
+        self.mock_dbstore.cli_permissions_get.return_value = {"perm": True}
+        result = self.repo.cli_permissions_get("account_name")
+        self.mock_dbstore.cli_permissions_get.assert_called_once_with("account_name")
+        self.assertEqual(result, {"perm": True})
 
 
 if __name__ == "__main__":
