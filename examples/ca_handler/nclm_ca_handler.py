@@ -299,6 +299,12 @@ class CAhandler(object):
                         "/v2/certificates/", ""
                     )
                     break
+                else:
+                    self.logger.error(
+                        "Job completed but certificate reference is missing or malformed: %s",
+                        response,
+                    )
+                    break
 
             self.logger.debug(
                 "CAhandler._cert_id_get() waiting for job to complete. Attempt: %s status: %s",
