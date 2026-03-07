@@ -312,7 +312,6 @@ class CAhandler(object):
                 response.get("status", None),
             )
             cnt += 1
-            print(response)
             time.sleep(self.wait_interval)
 
         self.logger.debug("CAhandler._cert_id_get() ended with: %s", cert_id)

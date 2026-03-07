@@ -34,7 +34,7 @@ class TestCertificateLogger(unittest.TestCase):
     @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
     @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
-    def test_001_log_issuance_success(self, mock_san, mock_cn, mock_serial):
+    def test_001_log_issuance_success_json(self, mock_san, mock_cn, mock_serial):
         self.mock_repository.order_lookup.return_value = {
             "account__name": "acc",
             "account__contact": "contact",
@@ -54,7 +54,28 @@ class TestCertificateLogger(unittest.TestCase):
     @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
     @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
-    def test_002_log_revocation_success(self, mock_san, mock_cn, mock_serial):
+    def test_001_log_issuance_success_text(self, mock_san, mock_cn, mock_serial):
+        self.mock_repository.order_lookup.return_value = {
+            "account__name": "acc",
+            "account__contact": "contact",
+            "account__eab_kid": "kid",
+            "profile": "profile",
+            "expires": 1234567890,
+        }
+        self.certlogger.cert_operations_log = "xx"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.certlogger.log_certificate_issuance(
+                "cert_name", "cert_pem", "order_name"
+            )
+        self.assertIn(
+            "INFO:test_a2c:Certificate cert_name issued for account acc contact with EAB KID kid with Profile profile, Serial: serial, Common Name: CN, SANs: ['SAN'], Expires: 2009-02-13T23:31:30Z",
+            lcm.output,
+        )
+
+    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    def test_002_log_revocation_success_json(self, mock_san, mock_cn, mock_serial):
         self.mock_repository.certificate_lookup.return_value = {
             "name": "cert_name",
             "order__account__name": "acc",
@@ -66,6 +87,25 @@ class TestCertificateLogger(unittest.TestCase):
             self.certlogger.log_certificate_revocation("cert_pem", 200)
         self.assertIn(
             'INFO:test_a2c:Certificate revoked: {"account_contact": "contact", "account_name": "acc", "certificate_name": "cert_name", "common_name": "CN", "eab_kid": "kid", "profile": "profile", "san_list": ["SAN"], "serial_number": "serial", "status": "successful"}',
+            lcm.output,
+        )
+
+    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    def test_002_log_revocation_success_text(self, mock_san, mock_cn, mock_serial):
+        self.mock_repository.certificate_lookup.return_value = {
+            "name": "cert_name",
+            "order__account__name": "acc",
+            "order__account__contact": "contact",
+            "order__account__eab_kid": "kid",
+            "order__profile": "profile",
+        }
+        self.certlogger.cert_operations_log = "xx"
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.certlogger.log_certificate_revocation("cert_pem", 200)
+        self.assertIn(
+            "INFO:test_a2c:Certificate cert_name revocation successful for account acc contact with EAB KID kid with Profile profile. Serial: serial, Common Name: CN, SANs: ['SAN']",
             lcm.output,
         )
 

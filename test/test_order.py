@@ -1,4 +1,3 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """Comprehensive unittests for order.py"""
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
@@ -2228,6 +2227,141 @@ class TestOrderClass(unittest.TestCase):
                 "ERROR:test_a2c:Identifier value foo not allowed for type dns",
                 log_cm.output,
             )
+
+    def test_143_add_authorizations_to_db_success(self):
+        # Test normal case: authorizations added successfully
+        self.order.repository.add_authorization.return_value = None
+        self.order.config.authz_validity = 1000
+        oid = "order123"
+        payload = {"identifiers": [{"type": "dns", "value": "example.com"}]}
+        auth_dic = {}
+        with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
+            error = self.order._add_authorizations_to_db(oid, payload, auth_dic)
+            self.assertIsNone(error)
+        self.assertIn(
+            "DEBUG:test_a2c:Order._add_authorizations_to_db(order123)", log_cm.output
+        )
+        self.assertIn(
+            "DEBUG:test_a2c:Order._add_authorizations_to_db() ended with None",
+            log_cm.output,
+        )
+        self.assertIn("order", payload["identifiers"][0])
+        self.assertEqual(payload["identifiers"][0]["status"], "pending")
+        self.assertIn(list(auth_dic.keys())[0], auth_dic)
+
+    def test_144_add_authorizations_to_db_malformed(self):
+        # Test malformed case: oid is None
+        oid = None
+        payload = {"identifiers": [{"type": "dns", "value": "example.com"}]}
+        auth_dic = {}
+        with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
+            error = self.order._add_authorizations_to_db(oid, payload, auth_dic)
+            self.assertEqual(error, self.order.error_msg_dic["malformed"])
+        self.assertIn(
+            "DEBUG:test_a2c:Order._add_authorizations_to_db(None)", log_cm.output
+        )
+        self.assertIn(
+            f"DEBUG:test_a2c:Order._add_authorizations_to_db() ended with {self.order.error_msg_dic['malformed']}",
+            log_cm.output,
+        )
+
+    def test_145_add_authorizations_to_db_db_error(self):
+        # Test DB error: add_authorization raises exception
+        self.order.repository.add_authorization.side_effect = Exception("fail")
+        oid = "order123"
+        payload = {"identifiers": [{"type": "dns", "value": "example.com"}]}
+        auth_dic = {}
+        with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
+            error = self.order._add_authorizations_to_db(oid, payload, auth_dic)
+            self.assertIsNone(error)  # error is not set in DB error, just logged
+        self.assertIn(
+            "CRITICAL:test_a2c:Database error: failed to add authorization: fail",
+            log_cm.output,
+        )
+
+    def test_146_add_authorizations_to_db_sectigo_sim(self):
+        # Covers sectigo_sim branch: status set to valid and update_authorization called
+        self.order.config.sectigo_sim = True
+        self.order.repository.add_authorization.return_value = None
+        self.order.repository.update_authorization.return_value = None
+        oid = "order123"
+        payload = {"identifiers": [{"type": "dns", "value": "example.com"}]}
+        auth_dic = {}
+        with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
+            error = self.order._add_authorizations_to_db(oid, payload, auth_dic)
+            self.assertIsNone(error)
+        self.assertEqual(payload["identifiers"][0]["status"], "valid")
+        self.order.repository.update_authorization.assert_called_once_with(
+            payload["identifiers"][0]
+        )
+        self.assertIn(
+            "DEBUG:test_a2c:Order._add_authorizations_to_db(order123)", log_cm.output
+        )
+        self.assertIn(
+            "DEBUG:test_a2c:Order._add_authorizations_to_db() ended with None",
+            log_cm.output,
+        )
+
+    def test_147_create_from_content_malformed_identifier(self):
+        # Covers the branch where error == self.order.error_msg_dic["malformed"] and detail is None
+        malformed_error = self.order.error_msg_dic["malformed"]
+        with patch.object(
+            self.order,
+            "create_order",
+            return_value=(
+                malformed_error,
+                None,
+                "ordername",
+                {},
+                "2026-01-01T00:00:00Z",
+            ),
+        ), patch.object(
+            self.order.message,
+            "check",
+            return_value=(200, None, None, None, {}, "acct"),
+        ), patch.object(
+            self.order.message,
+            "prepare_response",
+            side_effect=lambda resp, status: {**resp, **status},
+        ):
+            response = self.order.create_from_content("dummycontent")
+            self.assertEqual(response["code"], 400)
+            self.assertEqual(response["type"], malformed_error)
+            self.assertEqual(
+                response["detail"], "One of the requested identifiers is not supported"
+            )
+
+    def test_148_load_configuration_directory_url_prefix(self):
+        # Covers the Directory/url_prefix branch in _load_configuration (line 513)
+        import configparser
+
+        config_dic = configparser.ConfigParser()
+        config_dic.add_section("Directory")
+        config_dic.set("Directory", "url_prefix", "/prefix/")
+        config_dic.add_section("Order")
+        config_dic.add_section("Authorization")
+        with patch("acme_srv.order.load_config", return_value=config_dic):
+            self.order.path_dic = {
+                "authz_path": "/acme/authz/",
+                "order_path": "/acme/order/",
+                "cert_path": "/acme/cert/",
+            }
+            self.order._load_configuration()
+            self.assertTrue(
+                all(v.startswith("/prefix/") for v in self.order.path_dic.values())
+            )
+
+    def test_149_check_single_identifier_missing_value(self):
+        # Covers lines 578-579: missing 'value' in identifier
+        identifier = {"type": "dns"}
+        allowed_identifiers = ["dns", "ip"]
+        with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+            error, detail = self.order._check_single_identifier(
+                identifier, allowed_identifiers
+            )
+        self.assertEqual(error, self.order.error_msg_dic["malformed"])
+        self.assertEqual(detail, "Identifier value is missing")
+        self.assertIn("ERROR:test_a2c:Identifier value is missing", log_cm.output)
 
 
 if __name__ == "__main__":
