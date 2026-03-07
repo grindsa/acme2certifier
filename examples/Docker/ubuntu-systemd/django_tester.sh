@@ -65,6 +65,10 @@ case "${1}" in
       systemctl enable acme2certifier
     fi
 
+    echo "update openssl configuration"
+    sed -i "s/default = default_sect/default = default_sect\nlegacy = legacy_sect\n\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf
+    sed -i "s/# activate = 1/activate = 1/g" /etc/ssl/openssl.cnf
+
     echo "configure django"
     cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/
     cp -r /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
