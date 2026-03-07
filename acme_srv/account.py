@@ -28,6 +28,7 @@ from acme_srv.helper import b64decode_pad
 
 DB_ERROR_MSG = "Database error"
 
+
 class ExternalAccountBinding:
     """Encapsulates EAB validation and signature verification logic."""
 
@@ -655,7 +656,9 @@ class Account:
         try:
             return self.repository.lookup_account("name", value)
         except Exception as err:
-            self.logger.critical("Database error during account lookup by name: %s", err)
+            self.logger.critical(
+                "Database error during account lookup by name: %s", err
+            )
             return None
 
     def _lookup_account_by_field(
@@ -666,7 +669,9 @@ class Account:
         try:
             return self.repository.lookup_account(field, value)
         except Exception as err:
-            self.logger.critical("Database error during account lookup by %s: %s", field, err)
+            self.logger.critical(
+                "Database error during account lookup by %s: %s", field, err
+            )
             return None
 
     def _build_account_info(self, account_obj: Dict[str, str]) -> Dict[str, str]:
