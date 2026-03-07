@@ -301,7 +301,9 @@ class CAhandler(object):
                     break
 
             self.logger.debug(
-                "CAhandler._cert_id_get() waiting for job to complete. Attempt: %s status: %s", cnt, response.get("status", None)
+                "CAhandler._cert_id_get() waiting for job to complete. Attempt: %s status: %s",
+                cnt,
+                response.get("status", None),
             )
             cnt += 1
             print(response)
@@ -654,7 +656,10 @@ class CAhandler(object):
         self.logger.debug("CAhandler._login()")
         # check first if API is reachable
         api_response = requests.get(
-            self.api_host + "/v1", proxies=self.proxy, timeout=self.request_timeout, verify=self.ca_bundle
+            self.api_host + "/v1",
+            proxies=self.proxy,
+            timeout=self.request_timeout,
+            verify=self.ca_bundle,
         )
         self.logger.debug("api response code:%s", api_response.status_code)
 

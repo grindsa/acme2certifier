@@ -77,7 +77,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
         "NAME": "acme2certifier",
         "USER": "acme2certifier",
-        "XXX": "XXX", # --- IGNORE ---
+        "XXX": "XXX",  # --- IGNORE ---
         "HOST": "postgresdbsrv",
         "PORT": "",
     }
