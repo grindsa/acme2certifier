@@ -75,7 +75,6 @@ jobs:
           docker network create acme
           sudo mkdir -p data/nginx
           sudo chmod -R 777 data
-          # sudo cp acme2certifier-$RUN_ID.noarch.rpm data
           sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
           # sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
