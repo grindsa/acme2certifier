@@ -29,12 +29,7 @@ jobs:
   # ---------------------------------------------------------
   guard:
     runs-on: ubuntu-latest
-    if: >
-      ${{
-        inputs.sha != '' &&
-        inputs.run_id != '' &&
-        inputs.branch != ''
-      }} && github.repository == 'grindsa/acme2certifier' && inputs.branch == 'master'
+    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' && inputs.branch == 'master' }}
     steps:
       - run: |
           echo "Triggered by SHA:    $SHA"
