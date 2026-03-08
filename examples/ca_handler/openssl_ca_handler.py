@@ -21,8 +21,6 @@ from cryptography.x509 import (
 )
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
-BLOCK_ALL_DOMAIN = "block.all"
-
 # pylint: disable=e0401
 from acme_srv.helper import (
     load_config,
