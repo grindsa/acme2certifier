@@ -172,6 +172,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
@@ -469,6 +470,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         rhversion: [8, 9]
         execscript: ['rpm_tester.sh', 'django_tester.sh']
@@ -787,6 +789,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
+      max-parallel: 2
       matrix:
         websrv: ['apache2', 'nginx']
         execscript: ['deb_tester.sh', 'django_tester.sh']
