@@ -28,6 +28,7 @@ from acme_srv.helper import b64decode_pad
 
 DB_ERROR_MSG = "Database error"
 
+
 class ExternalAccountBinding:
     """Encapsulates EAB validation and signature verification logic."""
 
