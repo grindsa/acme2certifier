@@ -75,6 +75,7 @@ jobs:
           docker network create acme
           sudo mkdir -p data/nginx
           sudo chmod -R 777 data
+          # sudo cp acme2certifier-$RUN_ID.noarch.rpm data
           sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
           # sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
@@ -390,6 +391,14 @@ jobs:
       - name: "Setup and test load-balancer"
         run: |
           docker run -d --rm --name acme-srv --network acme  grindsa/pen:latest -r 443 alma9-c1.acme:443 alma9-c2.acme:443
+
+      - name: "Sleep for 5s"
+        uses: juliangruber/sleep-action@v2.0.3
+        with:
+          time: 5s
+
+      - name: "Test acme2certifier on load-balancer"
+        run: |
           docker run -i --rm --network acme curlimages/curl -f https://acme-srv.acme/directory --insecure
 
       - name: "Create script for mass-testing"
