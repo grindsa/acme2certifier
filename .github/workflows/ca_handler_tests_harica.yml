@@ -158,7 +158,7 @@ jobs:
   # Test RPMs (EL8 & EL9) downloaded from the producer run
   # ---------------------------------------------------------
   test-rpm:
-    needs: guard
+    needs: [guard, acme-test-containers]
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
@@ -269,7 +269,7 @@ jobs:
   # Test DEB downloaded from the producer run
   # ---------------------------------------------------------
   test-deb:
-    needs: guard
+    needs: [guard, acme-test-containers, test-rpm]
     runs-on: ubuntu-latest
     # if: github.repository == 'grindsa/acme2certifier'
     if: github.repository == 'grindsa/disabled'
