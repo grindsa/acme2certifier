@@ -1005,7 +1005,7 @@ jobs:
           sed -i '/rm \/usr\/local\/bin\/\*.py && \\/d' Dockerfile
           sed -i '/rm -rf \/usr\/local\/lib\/python3.12\/dist-packages\/impacket\/examples\/\* && \\/d' Dockerfile
           sed -i "s/    pip3 install -r/RUN pip3 install -r/g" Dockerfile
-          sed '1d' Dockerfile
+          sed -i "s/    rm -rf \/usr\/local\//\#    rm -rf \/usr\/local\//g" Dockerfile
         env:
           WEBSRV: ${{ matrix.websrv }}
           DBHANDLER: ${{ matrix.dbhandler }}

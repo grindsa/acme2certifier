@@ -35,10 +35,10 @@ RUN apt-get update  && \
 COPY ./ /var/www/acme2certifier/
 
 # configure acme2certifier
-RUN pip3 install impacket --no-cache-dir --break-system-packages && \
+RUN pip3 install impacket --break-system-packages && \
     rm -rf /usr/local/bin/* && \
     rm -rf /usr/local/lib/python3.12/dist-packages/impacket/examples/* && \
-    pip3 install --no-cache-dir -r /var/www/acme2certifier/requirements.txt --break-system-packages && \
+    pip3 install -r /var/www/acme2certifier/requirements.txt --break-system-packages && \
     pip3 install --no-cache-dir mssql-django pyodbc --break-system-packages --break-system-packages && \
     cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-enabled/acme2certifier.conf && \
     cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/  && \
