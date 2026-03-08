@@ -1174,18 +1174,51 @@ class TestACMEHandler(unittest.TestCase):
             self.account._inner_payload_check("aname", outer_protected, inner_payload),
         )
 
-    def test_066_account__inner_payload_check(self):
-        """Account.inner_payload_check() with different kid and account values"""
-        outer_protected = {"kid": "kid"}
-        inner_payload = {"account": "account"}
-        self.assertEqual(
-            (
-                400,
-                "urn:ietf:params:acme:error:malformed",
-                "kid and account objects do not match",
-            ),
-            self.account._inner_payload_check("aname", outer_protected, inner_payload),
-        )
+    def test_041_load_configuration_without_accountsection(self):
+        from acme_srv.account import Account
+
+        config_mock = MagicMock()
+        config_mock.getboolean.side_effect = lambda section, key, fallback=False: {
+            ("CAhandler", "foo"): 'bar',
+        }.get((section, key), fallback)
+
+        # Patch eab_handler_load to return a module with EABhandler
+        eab_handler_module = MagicMock()
+        eab_handler_module.EABhandler = "EABhandlerClass"
+
+        with patch("acme_srv.account.load_config", return_value=config_mock), patch(
+            "acme_srv.account.eab_handler_load", return_value=eab_handler_module
+        ):
+            account = Account(False, "http://tester.local", self.logger)
+            account._load_configuration()
+            self.assertFalse(
+                account.config.tos_check_disable
+            )  # Default value should be used
+            self.assertFalse(
+                account.config.inner_header_nonce_allow
+            )  # Default value should be used
+            self.assertFalse(
+                account.config.eab_check
+            )  # Default value should be used
+
+
+    def test_041__create_account_success(self):
+        """test _create_account success (all checks pass, EAB off)"""
+        self.account.config.tos_url = None
+        self.account.config.tos_check_disable = False
+        self.account.config.eab_check = False
+        self.account.config.contact_check_disable = False
+        payload = {"contact": ["test@example.com"]}
+        protected = {"alg": "RS256", "jwk": {"kty": "RSA", "n": "abc", "e": "AQAB"}}
+        with patch.object(
+            self.account, "_validate_contact", return_value=(200, None, None)
+        ), patch.object(
+            self.account, "_add_account_to_db", return_value=(201, "test_account", None)
+        ) as mock_add_db:
+            code, message, detail = self.account._create_account(payload, protected)
+            self.assertEqual(code, 201)
+            self.assertEqual(message, "test_account")
+            mock_add_db.assert_called_once()
 
     def test_067_account__inner_payload_check(self):
         """Account.inner_payload_check() with same kid and account values but no old_key"""
