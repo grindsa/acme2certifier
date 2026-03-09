@@ -1,23 +1,37 @@
 """build script for acme2certifier"""
 
 import pathlib
-
+import typing as t
 from setuptools import setup
+import shutil
 from glob import glob
 from acme_srv.version import __version__
 
 def glob_files(pattern: str) -> t.List[str]:
-    """
-    like :func:`glob.glob()` but retrieve
-    only non-directories.
-    """
     return [
-        file_
+        str(file_)
         for file_ in pathlib.Path(".").glob(pattern)
         if not file_.is_dir()
     ]
 
+# Update nginx config files and copy them to /var/lib/acme2certifier/examples/nginx
+def update_and_copy_nginx_configs():
+    src_dir = pathlib.Path("examples/nginx")
+    dst_dir = pathlib.Path("/var/lib/acme2certifier/examples/nginx")
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    configs = ["nginx_acme_srv.conf", "nginx_acme_srv_ssl.conf"]
+    for conf in configs:
+        src_file = src_dir / conf
+        dst_file = dst_dir / conf
+        if src_file.exists():
+            content = src_file.read_text()
+            content = content.replace("/var/www/acme2certifier", "/var/lib/acme2certifier")
+            dst_file.write_text(content)
+        else:
+            print(f"Warning: {src_file} not found.")
 
+
+update_and_copy_nginx_configs()
 setup(
     name="acme2certifier",
     version=__version__,
@@ -31,6 +45,7 @@ setup(
         ("/usr/share/doc/acme2certifier/", glob_files("docs/*")),
         ("/usr/share/doc/acme2certifier/architecture", glob_files("docs/architecture/*")),
         ("/var/lib/acme2certifier/acme_srv/", glob_files("acme_srv/*.py")),
+        ("/var/lib/acme2certifier/acme_srv/helpers", glob_files("acme_srv/helpers/*.py")),
         ("/var/lib/acme2certifier/examples", glob_files("examples/*.*")),
         (
             "/var/lib/acme2certifier/examples/ca_handler",
