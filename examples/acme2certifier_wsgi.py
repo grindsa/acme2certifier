@@ -562,7 +562,7 @@ def application(environ, start_response):
     prefix = "/"
     if "Directory" in CONFIG and "url_prefix" in CONFIG["Directory"]:
         prefix = CONFIG["Directory"]["url_prefix"] + "/"
-    path = environ.get("PATH_INFO", "").lstrip(prefix)
+    path = environ.get("PATH_INFO", "").removeprefix(prefix)
 
     for regex, callback in URLS:
         match = re.search(regex, path)
