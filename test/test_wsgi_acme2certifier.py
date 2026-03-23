@@ -933,7 +933,6 @@ class TestACMEHandler(unittest.TestCase):
         "acme_srv.directory.DirectoryRepository.get_db_version",
         return_value=("1.0", "script_name"),
     )
-
     @patch("acme_srv.directory.Directory.directory_get")
     def test_057_application(self, mock_directory_get, mock_get_db_version):
         """Test accessing the /acme/directory endpoint."""
