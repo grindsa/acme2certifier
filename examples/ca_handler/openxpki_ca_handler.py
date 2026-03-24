@@ -9,12 +9,10 @@ from requests_pkcs12 import Pkcs12Adapter
 
 # pylint: disable=e0401
 from acme_srv.helper import (
-    allowed_domainlist_check,
     b64_encode,
     b64_url_recode,
     build_pem_file,
     cert_pem2der,
-    config_allowed_domainlist_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
@@ -47,7 +45,6 @@ class CAhandler(object):
         self.rpc_path = "/rpc/"
         self.err_msg_dic = error_dic_get(self.logger)
         self.dbstore = DBstore(False, self.logger)
-        self.allowed_domainlist = []
         self.profiles = {}
         self.header_info_field = False
         self.eab_handler = None
@@ -260,11 +257,6 @@ class CAhandler(object):
         # load header info
         # self.header_info_field = config_headerinfo_load(self.logger, config_dic)
 
-        # load allowed domainlist
-        self.allowed_domainlist = config_allowed_domainlist_load(
-            self.logger, config_dic
-        )
-
         if (
             "CAhandler" in config_dic
             and "client_cert" in config_dic["CAhandler"]
@@ -423,12 +415,6 @@ class CAhandler(object):
             error = eab_profile_header_info_check(
                 self.logger, self, csr, "cert_profile_name"
             )
-
-            if not error:
-                # check for allowed domainlist
-                error = allowed_domainlist_check(
-                    self.logger, csr, self.allowed_domainlist
-                )
 
             if not error:
                 # prepare the CSR to be signed

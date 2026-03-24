@@ -704,38 +704,21 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(("Error", None, None, None), self.cahandler.enroll("csr"))
         self.assertIn("ERROR:test_a2c:Simpleenroll error: Error", lcm.output)
 
-    @patch("examples.ca_handler.est_ca_handler.allowed_domainlist_check")
     @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")
     @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
-    def test_050_enroll(self, mock_ca, mock_enroll, mock_adl):
+    def test_050_enroll(self, mock_ca, mock_enroll):
         """test certificate enrollment _simpleenroll returns certificate"""
         mock_ca.return_value = (None, "ca_pem")
         mock_enroll.return_value = (None, "cert")
-        mock_adl.return_value = None
         self.cahandler.est_host = "foo"
         self.cahandler.est_user = "est_usr"
         self.assertEqual(
             (None, "certca_pem", "cert", None), self.cahandler.enroll("csr")
         )
-        self.assertTrue(mock_adl.called)
-
-    @patch("examples.ca_handler.est_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
-    def test_051_enroll(self, mock_ca, mock_enroll, mock_adl):
-        """test certificate enrollment _simpleenroll returns certificate"""
-        mock_ca.return_value = (None, "ca_pem")
-        mock_enroll.return_value = (None, "cert")
-        mock_adl.return_value = "adl_error"
-        self.cahandler.est_host = "foo"
-        self.cahandler.est_user = "est_usr"
-        self.assertEqual(("adl_error", None, None, None), self.cahandler.enroll("csr"))
-        self.assertTrue(mock_adl.called)
-        self.assertFalse(mock_enroll.called)
 
     @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")
     @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
-    def test_052_enroll(self, mock_ca, mock_enroll):
+    def test_051_enroll(self, mock_ca, mock_enroll):
         """test certificate enrollment replace CERT BEGIN"""
         mock_ca.return_value = (None, "ca_pem")
         mock_enroll.return_value = (None, "-----BEGIN CERTIFICATE-----\ncert")
@@ -748,7 +731,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")
     @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
-    def test_053_enroll(self, mock_ca, mock_enroll):
+    def test_052_enroll(self, mock_ca, mock_enroll):
         """test certificate enrollment replace CERT END"""
         mock_ca.return_value = (None, "ca_pem")
         mock_enroll.return_value = (None, "cert-----END CERTIFICATE-----\n")
@@ -761,7 +744,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")
     @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
-    def test_054_enroll(self, mock_ca, mock_enroll):
+    def test_053_enroll(self, mock_ca, mock_enroll):
         """test certificate enrollment replace CERT BEGIN AND END"""
         mock_ca.return_value = (None, "ca_pem")
         mock_enroll.return_value = (
@@ -782,7 +765,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")
     @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
-    def test_055_enroll(self, mock_ca, mock_enroll):
+    def test_054_enroll(self, mock_ca, mock_enroll):
         """test certificate enrollment replace CERT BEGIN AND END and \n"""
         mock_ca.return_value = (None, "ca_pem")
         mock_enroll.return_value = (
@@ -802,21 +785,21 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("examples.ca_handler.est_ca_handler.CAhandler._config_load")
-    def test_056__enter__(self, mock_cfg):
+    def test_055__enter__(self, mock_cfg):
         """test enter  called"""
         mock_cfg.return_value = True
         self.cahandler.__enter__()
         self.assertTrue(mock_cfg.called)
 
     @patch("examples.ca_handler.est_ca_handler.CAhandler._config_load")
-    def test_057__enter__(self, mock_cfg):
+    def test_056__enter__(self, mock_cfg):
         """test enter api hosts defined"""
         mock_cfg.return_value = True
         self.cahandler.est_host = "api_host"
         self.cahandler.__enter__()
         self.assertFalse(mock_cfg.called)
 
-    def test_058__pkcs7_to_pem(self):
+    def test_057__pkcs7_to_pem(self):
         """test pkcs7 to pem default output"""
         with open(self.dir_path + "/ca/certs.p7b", "r") as fso:
             file_content = fso.read()
@@ -824,7 +807,7 @@ class TestACMEHandler(unittest.TestCase):
             result = fso.read()
         self.assertEqual(result, self.cahandler._pkcs7_to_pem(file_content))
 
-    def test_059__pkcs7_to_pem(self):
+    def test_058__pkcs7_to_pem(self):
         """test pkcs7 to pem output string"""
         with open(self.dir_path + "/ca/certs.p7b", "r") as fso:
             file_content = fso.read()
@@ -832,7 +815,7 @@ class TestACMEHandler(unittest.TestCase):
             result = fso.read()
         self.assertEqual(result, self.cahandler._pkcs7_to_pem(file_content, "string"))
 
-    def test_060__pkcs7_to_pem(self):
+    def test_059__pkcs7_to_pem(self):
         """test pkcs7 to pem output list"""
         with open(self.dir_path + "/ca/certs.p7b", "r") as fso:
             file_content = fso.read()
@@ -842,14 +825,14 @@ class TestACMEHandler(unittest.TestCase):
         ]
         self.assertEqual(result, self.cahandler._pkcs7_to_pem(file_content, "list"))
 
-    def test_061__pkcs7_to_pem(self):
+    def test_060__pkcs7_to_pem(self):
         """test pkcs7 to pem output list"""
         with open(self.dir_path + "/ca/certs.p7b", "r") as fso:
             file_content = fso.read()
         result = None
         self.assertEqual(result, self.cahandler._pkcs7_to_pem(file_content, "unknown"))
 
-    def test_062__pkcs7_to_pem(self):
+    def test_061__pkcs7_to_pem(self):
         """test pkcs7 to pem output list"""
 
         file_content = base64.b64decode(
@@ -862,7 +845,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(result, self.cahandler._pkcs7_to_pem(file_content, "list"))
 
     @patch("examples.ca_handler.est_ca_handler.handler_config_check")
-    def test_063_handler_check(self, mock_handler_check):
+    def test_062_handler_check(self, mock_handler_check):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
