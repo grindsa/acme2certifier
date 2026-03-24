@@ -259,7 +259,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -284,7 +283,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -311,7 +309,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -338,7 +335,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -365,7 +361,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -392,7 +387,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -424,7 +418,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -451,7 +444,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(20, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -478,7 +470,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(30, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -510,7 +501,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -537,7 +527,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertEqual("organization_name", self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -564,7 +553,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertEqual("organization_id", self.cahandler.organization_id)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -591,7 +579,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertEqual(["foo", "bar"], self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -618,7 +605,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertEqual(["foo"], self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -645,7 +631,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(10, self.cahandler.request_timeout)
         self.assertFalse(self.cahandler.organization_name)
         self.assertFalse(self.cahandler.organization_id)
-        self.assertEqual("failed to parse", self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.eab_profiling)
         self.assertEqual("eab", self.cahandler.eab_handler)
         self.assertEqual("hdl", self.cahandler.header_info_field)
@@ -866,27 +851,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("id2", self.cahandler._organiation_id_get())
 
     @patch("examples.ca_handler.digicert_ca_handler.eab_profile_header_info_check")
-    @patch("examples.ca_handler.digicert_ca_handler.allowed_domainlist_check")
-    def test_050_csr_check(self, mock_dlchk, mock_ehichk):
+    def test_050_csr_check(self, mock_ehichk):
         """test _csr_check()"""
-        mock_dlchk.return_value = "mock_dlchk"
-        mock_ehichk.return_value = "mock_hichk"
-
-        self.assertEqual("mock_dlchk", self.cahandler._csr_check("csr"))
-
-    @patch("examples.ca_handler.digicert_ca_handler.eab_profile_header_info_check")
-    @patch("examples.ca_handler.digicert_ca_handler.allowed_domainlist_check")
-    def test_051_csr_check(self, mock_dlchk, mock_ehichk):
-        """test _csr_check()"""
-        mock_dlchk.return_value = False
         mock_ehichk.return_value = "mock_hichk"
         self.assertEqual("mock_hichk", self.cahandler._csr_check("csr"))
 
     @patch("examples.ca_handler.digicert_ca_handler.eab_profile_header_info_check")
-    @patch("examples.ca_handler.digicert_ca_handler.allowed_domainlist_check")
-    def test_052_csr_check(self, mock_dlchk, mock_ehichk):
+    def test_051_csr_check(self, mock_ehichk):
         """test _csr_check()"""
-        mock_dlchk.return_value = False
         mock_ehichk.return_value = False
         self.assertFalse(self.cahandler._csr_check("csr"))
 
@@ -895,7 +867,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.digicert_ca_handler.csr_cn_lookup")
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._csr_check")
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._config_check")
-    def test_053_enroll(
+    def test_052_enroll(
         self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse
     ):
         """test enroll()"""
@@ -918,7 +890,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.digicert_ca_handler.csr_cn_lookup")
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._csr_check")
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._config_check")
-    def test_054_enroll(
+    def test_053_enroll(
         self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse
     ):
         """test enroll()"""
@@ -941,7 +913,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.digicert_ca_handler.csr_cn_lookup")
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._csr_check")
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._config_check")
-    def test_055_enroll(
+    def test_054_enroll(
         self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse
     ):
         """test enroll()"""
@@ -965,7 +937,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.digicert_ca_handler.csr_cn_lookup")
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._csr_check")
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._config_check")
-    def test_056_enroll(
+    def test_055_enroll(
         self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse
     ):
         """test enroll()"""
@@ -997,7 +969,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.digicert_ca_handler.csr_cn_lookup")
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._csr_check")
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._config_check")
-    def test_057_enroll(
+    def test_056_enroll(
         self, mock_cfgchk, mock_csrchk, mock_cnget, mock_ordersend, mock_orderparse
     ):
         """test enroll()"""
@@ -1016,7 +988,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._config_check")
     @patch("examples.ca_handler.digicert_ca_handler.CAhandler._api_put")
     @patch("examples.ca_handler.digicert_ca_handler.cert_serial_get")
-    def test_058_revoke(self, mock_serial, mock_put, mock_cfgchk):
+    def test_057_revoke(self, mock_serial, mock_put, mock_cfgchk):
         """test revoke()"""
         mock_serial.return_value = "serial"
         mock_put.return_value = ("code", "content")

@@ -20,9 +20,7 @@ from acme_srv.helper import (
     load_config,
     uts_now,
     uts_to_date_utc,
-    allowed_domainlist_check,
     csr_cn_lookup,
-    config_allowed_domainlist_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
@@ -50,7 +48,6 @@ class CAhandler(object):
         self.request_timeout = 20
         self.ca_bundle = True
 
-        self.allowed_domainlist = []
         self.header_info_field = False
         self.eab_handler = None
         self.eab_profiling = False
@@ -175,10 +172,6 @@ class CAhandler(object):
                     "CAhandler", "ca_bundle", fallback=self.ca_bundle
                 )
 
-        # load allowed domainlist
-        self.allowed_domainlist = config_allowed_domainlist_load(
-            self.logger, config_dic
-        )
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
@@ -204,12 +197,7 @@ class CAhandler(object):
         """check csr"""
         self.logger.debug("CAhandler._csr_check()")
 
-        # check for allowed domainlist
-        error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-
-        # check for eab profiling and header_info
-        if not error:
-            error = eab_profile_header_info_check(self.logger, self, csr, "vault_role")
+        error = eab_profile_header_info_check(self.logger, self, csr, "vault_role")
 
         self.logger.debug("CAhandler._csr_check() ended with: %s", error)
         return error
