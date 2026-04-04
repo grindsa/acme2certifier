@@ -214,10 +214,6 @@ class TestCAhandler(unittest.TestCase):
 
     @patch("examples.ca_handler.vault_ca_handler.load_config")
     @patch(
-        "examples.ca_handler.vault_ca_handler.config_allowed_domainlist_load",
-        return_value=["example.com"],
-    )
-    @patch(
         "examples.ca_handler.vault_ca_handler.config_eab_profile_load",
         return_value=(True, "handler"),
     )
@@ -243,7 +239,6 @@ class TestCAhandler(unittest.TestCase):
         mock_profile,
         mock_proxy,
         mock_eab,
-        mock_domain,
         mock_load_config,
     ):
         # Simulate config_dic with needed structure
@@ -269,7 +264,6 @@ class TestCAhandler(unittest.TestCase):
         self.assertEqual(self.cahandler.request_timeout, 30)
         self.assertEqual(self.cahandler.cert_validity_days, 400)
         self.assertTrue(self.cahandler.ca_bundle)
-        self.assertEqual(self.cahandler.allowed_domainlist, ["example.com"])
         self.assertEqual(self.cahandler.eab_profiling, True)
         self.assertEqual(self.cahandler.eab_handler, "handler")
         self.assertEqual(self.cahandler.proxy, {"http": "proxy"})
@@ -281,10 +275,6 @@ class TestCAhandler(unittest.TestCase):
         )
 
     @patch("examples.ca_handler.vault_ca_handler.load_config")
-    @patch(
-        "examples.ca_handler.vault_ca_handler.config_allowed_domainlist_load",
-        return_value=["example.com"],
-    )
     @patch(
         "examples.ca_handler.vault_ca_handler.config_eab_profile_load",
         return_value=(True, "handler"),
@@ -311,7 +301,6 @@ class TestCAhandler(unittest.TestCase):
         mock_profile,
         mock_proxy,
         mock_eab,
-        mock_domain,
         mock_load_config,
     ):
         # Simulate config_dic with needed structure
@@ -665,21 +654,9 @@ class TestCAhandler(unittest.TestCase):
         self.assertEqual("foo", self.cahandler.handler_check())
 
     @patch("examples.ca_handler.vault_ca_handler.eab_profile_header_info_check")
-    @patch("examples.ca_handler.vault_ca_handler.allowed_domainlist_check")
-    def test_033_csr_check(self, mock_adl, mock_hic):
-        mock_adl.return_value = "mock_adl"
-        mock_hic.return_value = "mock_hlc"
-        self.assertEqual("mock_adl", self.cahandler._csr_check("dummy-csr"))
-        self.assertTrue(mock_adl.called)
-        self.assertFalse(mock_hic.called)
-
-    @patch("examples.ca_handler.vault_ca_handler.eab_profile_header_info_check")
-    @patch("examples.ca_handler.vault_ca_handler.allowed_domainlist_check")
-    def test_034_csr_check(self, mock_adl, mock_hic):
-        mock_adl.return_value = None
+    def test_033_csr_check(self, mock_hic):
         mock_hic.return_value = "mock_hlc"
         self.assertEqual("mock_hlc", self.cahandler._csr_check("dummy-csr"))
-        self.assertTrue(mock_adl.called)
         self.assertTrue(mock_hic.called)
 
 

@@ -65,7 +65,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertEqual(5, self.cahandler.timeout)
 
     @patch.dict("os.environ", {"host_var": "host_var"})
@@ -86,7 +85,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch.dict("os.environ", {"host_var": "host_var"})
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -111,7 +109,6 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertEqual(5, self.cahandler.timeout)
 
     @patch.dict("os.environ", {"host_var": "host_var"})
@@ -134,7 +131,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn("INFO:test_a2c:Overwrite host", lcm.output)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_007_config_load(self, mock_load_cfg):
@@ -153,7 +149,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch.dict("os.environ", {"user_var": "user_var"})
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -173,7 +168,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch.dict("os.environ", {"user_var": "user_var"})
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -198,7 +192,6 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch.dict("os.environ", {"user_var": "user_var"})
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -220,7 +213,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn("INFO:test_a2c:Overwrite user", lcm.output)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_011_config_load(self, mock_load_cfg):
@@ -239,7 +231,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch.dict("os.environ", {"password_var": "password_var"})
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -259,7 +250,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch.dict("os.environ", {"password_var": "password_var"})
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -284,7 +274,6 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch.dict("os.environ", {"password_var": "password_var"})
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -309,7 +298,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertIn("INFO:test_a2c:Overwrite password", lcm.output)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_015_config_load(self, mock_load_cfg):
@@ -328,7 +316,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertEqual(5, self.cahandler.timeout)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -348,7 +335,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertEqual(5, self.cahandler.timeout)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -368,7 +354,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_018_config_load(self, mock_load_cfg):
@@ -387,7 +372,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_019_config_load(self, mock_load_cfg):
@@ -406,7 +390,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertEqual(5, self.cahandler.timeout)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -426,7 +409,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertEqual(5, self.cahandler.timeout)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -446,7 +428,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.proxy_check")
     @patch("json.loads")
@@ -472,7 +453,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.proxy_check")
     @patch("json.loads")
@@ -500,7 +480,6 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_024_config_load(self, mock_load_cfg):
@@ -519,7 +498,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertTrue(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_025_config_load(self, mock_load_cfg):
@@ -538,7 +516,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertTrue(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_026_config_load(self, mock_load_cfg):
@@ -557,7 +534,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_027_config_load(self, mock_load_cfg):
@@ -576,7 +552,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_028_config_load(self, mock_load_cfg):
@@ -600,7 +575,6 @@ class TestACMEHandler(unittest.TestCase):
             "WARNING:test_a2c:Failed to parse 'use_kerberos' from configuration. Using default value False. Error: Not a boolean: aaaa",
             lcm.output,
         )
-        self.assertFalse(self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_029_config_load(self, mock_load_cfg):
@@ -619,7 +593,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertEqual(["allowed_domainlist"], self.cahandler.allowed_domainlist)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_030_config_load(self, mock_load_cfg):
@@ -627,8 +600,7 @@ class TestACMEHandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"allowed_domainlist": "wrongstring"}
         mock_load_cfg.return_value = parser
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.cahandler._config_load()
+        self.cahandler._config_load()
         self.assertFalse(self.cahandler.host)
         self.assertFalse(self.cahandler.user)
         self.assertFalse(self.cahandler.password)
@@ -639,11 +611,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertEqual("failed to parse", self.cahandler.allowed_domainlist)
-        self.assertIn(
-            "WARNING:test_a2c:Failed to load allowed_domainlist from configuration: Expecting value: line 1 column 1 (char 0)",
-            lcm.output,
-        )
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_031_config_load(self, mock_load_cfg):
@@ -662,7 +629,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertEqual(20, self.cahandler.timeout)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -682,7 +648,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertEqual(20, self.cahandler.timeout)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -707,7 +672,6 @@ class TestACMEHandler(unittest.TestCase):
             "WARNING:test_a2c:Failed to parse 'timeout' from configuration. Using default value 5. Error: invalid literal for int() with base 10: 'aaaa'",
             lcm.output,
         )
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertEqual(5, self.cahandler.timeout)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -727,7 +691,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertTrue(self.cahandler.enrollment_config_log)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -747,7 +710,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertFalse(self.cahandler.enrollment_config_log)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -767,7 +729,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.domain_controller)
         self.assertFalse(self.cahandler.ca_name)
         self.assertFalse(self.cahandler.use_kerberos)
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertFalse(self.cahandler.enrollment_config_log)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
@@ -792,7 +753,6 @@ class TestACMEHandler(unittest.TestCase):
             "WARNING:test_a2c:Failed to load enrollment_config_log from configuration: Not a boolean: aaaa",
             lcm.output,
         )
-        self.assertFalse(self.cahandler.allowed_domainlist)
         self.assertFalse(self.cahandler.enrollment_config_log)
 
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
@@ -984,21 +944,17 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_rcr.called)
 
-    @patch("examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check")
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler.request_create")
     @patch("examples.ca_handler.mswcce_ca_handler.convert_string_to_byte")
     @patch("examples.ca_handler.mswcce_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._file_load")
     @patch("examples.ca_handler.mswcce_ca_handler.build_pem_file")
-    def test_050_enroll(
-        self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_dlchk
-    ):
+    def test_050_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr):
         """test enrollment - certificate and bundling successful"""
         self.cahandler.host = "host"
         self.cahandler.user = "user"
         self.cahandler.password = "password"
         self.cahandler.template = "template"
-        mock_dlchk.return_value = False
         mock_rcr.return_value = Mock(return_value="raw_data")
         mock_file.return_value = "file_load"
         mock_s2b.return_value = "s2b"
@@ -1007,24 +963,18 @@ class TestACMEHandler(unittest.TestCase):
             (None, "b2sfile_load", "b2s", None), self.cahandler.enroll("csr")
         )
         self.assertTrue(mock_rcr.called)
-        self.assertTrue(mock_dlchk.called)
 
-    @patch("examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check")
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler.request_create")
     @patch("examples.ca_handler.mswcce_ca_handler.convert_string_to_byte")
     @patch("examples.ca_handler.mswcce_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._file_load")
     @patch("examples.ca_handler.mswcce_ca_handler.build_pem_file")
-    def test_051_enroll(
-        self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_dlchk
-    ):
+    def test_051_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr):
         """test enrollment - certificate and bundling successful"""
         self.cahandler.host = "host"
         self.cahandler.user = "user"
         self.cahandler.password = "password"
         self.cahandler.template = "template"
-        self.cahandler.allowed_domainlist = ["allowed_domainlist"]
-        mock_dlchk.return_value = False
         mock_rcr.return_value = Mock(return_value="raw_data")
         mock_file.return_value = "file_load"
         mock_s2b.return_value = "s2b"
@@ -1033,62 +983,13 @@ class TestACMEHandler(unittest.TestCase):
             (None, "b2sfile_load", "b2s", None), self.cahandler.enroll("csr")
         )
         self.assertTrue(mock_rcr.called)
-        self.assertTrue(mock_dlchk.called)
-
-    @patch("examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.mswcce_ca_handler.CAhandler.request_create")
-    @patch("examples.ca_handler.mswcce_ca_handler.convert_string_to_byte")
-    @patch("examples.ca_handler.mswcce_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._file_load")
-    @patch("examples.ca_handler.mswcce_ca_handler.build_pem_file")
-    def test_052_enroll(
-        self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_dlchk
-    ):
-        """test enrollment - certificate and bundling successful"""
-        self.cahandler.host = "host"
-        self.cahandler.user = "user"
-        self.cahandler.password = "password"
-        self.cahandler.template = "template"
-        self.cahandler.allowed_domainlist = ["allowed_domainlist"]
-        mock_dlchk.return_value = "error"
-        mock_rcr.return_value = Mock(return_value="raw_data")
-        mock_file.return_value = "file_load"
-        mock_s2b.return_value = "s2b"
-        mock_b2s.return_value = "b2s"
-        self.assertEqual(("error", None, None, None), self.cahandler.enroll("csr"))
-        self.assertFalse(mock_rcr.called)
-        self.assertTrue(mock_dlchk.called)
-
-    @patch("examples.ca_handler.mswcce_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.mswcce_ca_handler.CAhandler.request_create")
-    @patch("examples.ca_handler.mswcce_ca_handler.convert_string_to_byte")
-    @patch("examples.ca_handler.mswcce_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._file_load")
-    @patch("examples.ca_handler.mswcce_ca_handler.build_pem_file")
-    def test_053_enroll(
-        self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_dlchk
-    ):
-        """test enrollment - certificate and bundling successful"""
-        self.cahandler.host = "host"
-        self.cahandler.user = "user"
-        self.cahandler.password = "password"
-        self.cahandler.template = "template"
-        self.cahandler.allowed_domainlist = "ADLFAILURE"
-        mock_dlchk.return_value = "error"
-        mock_rcr.return_value = Mock(return_value="raw_data")
-        mock_file.return_value = "file_load"
-        mock_s2b.return_value = "s2b"
-        mock_b2s.return_value = "b2s"
-        self.assertEqual(("error", None, None, None), self.cahandler.enroll("csr"))
-        self.assertFalse(mock_rcr.called)
-        self.assertTrue(mock_dlchk.called)
 
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler.request_create")
     @patch("examples.ca_handler.mswcce_ca_handler.convert_string_to_byte")
     @patch("examples.ca_handler.mswcce_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._file_load")
     @patch("examples.ca_handler.mswcce_ca_handler.build_pem_file")
-    def test_054_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr):
+    def test_052_enroll(self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr):
         """test enrollment - certificate and bundling successful replacement test"""
         self.cahandler.host = "host"
         self.cahandler.user = "user"
@@ -1117,7 +1018,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.mswcce_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._file_load")
     @patch("examples.ca_handler.mswcce_ca_handler.build_pem_file")
-    def test_055_enroll(
+    def test_053_enroll(
         self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_eab
     ):
         """test enrollment - certificate and bundling successful replacement test"""
@@ -1150,7 +1051,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.mswcce_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._file_load")
     @patch("examples.ca_handler.mswcce_ca_handler.build_pem_file")
-    def test_056_enroll(
+    def test_054_enroll(
         self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_eab
     ):
         """test enrollment - certificate and bundling successful replacement test"""
@@ -1176,7 +1077,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.mswcce_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._file_load")
     @patch("examples.ca_handler.mswcce_ca_handler.build_pem_file")
-    def test_057_enroll(
+    def test_055_enroll(
         self, mock_pem, mock_file, mock_b2s, mock_s2b, mock_rcr, mock_eab
     ):
         """test enrollment - certificate and bundling successful replacement test"""
@@ -1207,7 +1108,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.mswcce_ca_handler.enrollment_config_log")
     @patch("examples.ca_handler.mswcce_ca_handler.Request")
     @patch("examples.ca_handler.mswcce_ca_handler.Target")
-    def test_058_request_create(self, mock_target, mock_request, mock_ecl):
+    def test_056_request_create(self, mock_target, mock_request, mock_ecl):
         """test request create"""
         mock_target.return_value = True
         mock_request.return_value = "foo"
@@ -1217,7 +1118,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.mswcce_ca_handler.enrollment_config_log")
     @patch("examples.ca_handler.mswcce_ca_handler.Request")
     @patch("examples.ca_handler.mswcce_ca_handler.Target")
-    def test_059_request_create(self, mock_target, mock_request, mock_ecl):
+    def test_057_request_create(self, mock_target, mock_request, mock_ecl):
         """test request create"""
         mock_target.return_value = True
         mock_request.return_value = "foo"
@@ -1226,21 +1127,21 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ecl.called)
 
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._config_load")
-    def test_060__enter(self, mock_cfgload):
+    def test_058__enter(self, mock_cfgload):
         """CAhandler._enter() with config load"""
         self.cahandler.host = "host"
         self.cahandler.__enter__()
         self.assertFalse(mock_cfgload.called)
 
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._config_load")
-    def test_061__enter(self, mock_cfgload):
+    def test_059__enter(self, mock_cfgload):
         """CAhandler._enter() with config load"""
         self.cahandler.host = None
         self.cahandler.__enter__()
         self.assertTrue(mock_cfgload.called)
 
     @patch("examples.ca_handler.mswcce_ca_handler.header_info_get")
-    def test_062_template_name_get(self, mock_header):
+    def test_060_template_name_get(self, mock_header):
         """test _template_name_get()"""
         mock_header.return_value = [
             {
@@ -1251,7 +1152,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("foo", self.cahandler._template_name_get("csr"))
 
     @patch("examples.ca_handler.mswcce_ca_handler.header_info_get")
-    def test_063_template_name_get(self, mock_header):
+    def test_061_template_name_get(self, mock_header):
         """test _template_name_get()"""
         mock_header.return_value = [
             {
@@ -1262,7 +1163,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("foo", self.cahandler._template_name_get("csr"))
 
     @patch("examples.ca_handler.mswcce_ca_handler.header_info_get")
-    def test_064_template_name_get(self, mock_header):
+    def test_062_template_name_get(self, mock_header):
         """test _template_name_get()"""
         mock_header.return_value = [{"header_info": "header_info"}]
         self.cahandler.header_info_field = "header_field"
@@ -1273,19 +1174,19 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    def test_065_config_headerinfo_load(self):
+    def test_063_config_headerinfo_load(self):
         """test config_headerinfo_load()"""
         config_dic = {"Order": {"header_info_list": '["foo", "bar", "foobar"]'}}
         self.cahandler._config_headerinfo_load(config_dic)
         self.assertEqual("foo", self.cahandler.header_info_field)
 
-    def test_066_config_headerinfo_load(self):
+    def test_064_config_headerinfo_load(self):
         """test config_headerinfo_load()"""
         config_dic = {"Order": {"header_info_list": '["foo"]'}}
         self.cahandler._config_headerinfo_load(config_dic)
         self.assertEqual("foo", self.cahandler.header_info_field)
 
-    def test_067_config_headerinfo_load(self):
+    def test_065_config_headerinfo_load(self):
         """test config_headerinfo_load()"""
         config_dic = {"Order": {"header_info_list": "foo"}}
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -1297,7 +1198,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("examples.ca_handler.mswcce_ca_handler.handler_config_check")
-    def test_068_handler_check(self, mock_handler_check):
+    def test_066_handler_check(self, mock_handler_check):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())

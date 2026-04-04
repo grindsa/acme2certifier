@@ -13,8 +13,6 @@ from acme_srv.helper import (
     build_pem_file,
     b64_url_recode,
     config_profile_load,
-    config_allowed_domainlist_load,
-    allowed_domainlist_check,
 )
 
 
@@ -31,7 +29,6 @@ class CAhandler(object):
         self.secret = None
         self.ca_pubs_file = None
         self.cert_file = None
-        self.allowed_domainlist = []
         self.profiles = {}
 
     def __enter__(self):
@@ -182,10 +179,7 @@ class CAhandler(object):
         self._config_refsecret_load(config_dic)
         # load file and directory names
         self._config_paramters_load()
-        # load allowed domainlist
-        self.allowed_domainlist = config_allowed_domainlist_load(
-            self.logger, config_dic
-        )
+
         # load profiles
         self.profiles = config_profile_load(self.logger, config_dic)
         self.logger.debug("CAhandler._config_load() ended")
@@ -252,28 +246,25 @@ class CAhandler(object):
 
         if self.openssl_bin:
 
-            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
+            # prepare the CSR to be signed
+            csr = build_pem_file(
+                self.logger, None, b64_url_recode(self.logger, csr), None, True
+            )
+            # dump csr key
+            self._file_save(f"{self.tmp_dir}/csr.pem", csr)
 
-            if not error:
-                # prepare the CSR to be signed
-                csr = build_pem_file(
-                    self.logger, None, b64_url_recode(self.logger, csr), None, True
-                )
-                # dump csr key
-                self._file_save(f"{self.tmp_dir}/csr.pem", csr)
+            # build openssl command and run it
+            openssl_cmd = self._opensslcmd_build()
+            rcode = subprocess.call(openssl_cmd)
+            if rcode:
+                self.logger.error(f"Enrollment failed with rcode: {rcode}")
+                error = "rc from enrollment not 0"
 
-                # build openssl command and run it
-                openssl_cmd = self._opensslcmd_build()
-                rcode = subprocess.call(openssl_cmd)
-                if rcode:
-                    self.logger.error(f"Enrollment failed with rcode: {rcode}")
-                    error = "rc from enrollment not 0"
-
-                # generate certificates we need to return
-                if os.path.isfile(f"{self.tmp_dir}/cert.pem"):
-                    (cert_bundle, cert_raw) = self._certs_bundle()
-                else:
-                    error = "Enrollment failed"
+            # generate certificates we need to return
+            if os.path.isfile(f"{self.tmp_dir}/cert.pem"):
+                (cert_bundle, cert_raw) = self._certs_bundle()
+            else:
+                error = "Enrollment failed"
 
             # delete temporary files
             self._tmp_dir_delete()

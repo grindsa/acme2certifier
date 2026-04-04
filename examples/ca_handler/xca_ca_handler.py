@@ -22,13 +22,11 @@ from cryptography.x509 import (
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from OpenSSL import crypto as pyossslcrypto
 from acme_srv.helper import (
-    allowed_domainlist_check,
     b64_decode,
     b64_encode,
     b64_url_recode,
     build_pem_file,
     cert_serial_get,
-    config_allowed_domainlist_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
@@ -76,7 +74,6 @@ class CAhandler(object):
         self.eab_profiling = False
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
-        self.allowed_domainlist = []
         self.profiles = {}
 
     def __enter__(self):
@@ -516,10 +513,6 @@ class CAhandler(object):
             except Exception:
                 self.logger.error('Parameter "ca_cert_chain_list" cannot be loaded')
 
-        # load allowed domainlist
-        self.allowed_domainlist = config_allowed_domainlist_load(
-            self.logger, config_dic
-        )
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
@@ -1422,10 +1415,6 @@ class CAhandler(object):
         if not error:
             error = eab_profile_header_info_check(self.logger, self, csr, "template_name")
         # fmt: on
-
-        if not error:
-            # check for allowed domainlist
-            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
 
         if not error:
             request_name = self._requestname_get(csr)

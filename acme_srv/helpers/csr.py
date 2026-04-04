@@ -155,12 +155,19 @@ def csr_subject_get(logger: logging.Logger, csr: str) -> Dict[str, str]:
     logger.debug("Helper.csr_subject_get()")
     # pylint: disable=w0212
 
+    # extend OID library from cryptography module
+    OID_NAME_MAP = {
+        "2.5.4.97": "organizationIdentifier",
+    }
+
     csr_obj = csr_load(logger, csr)
     subject_dic = {}
     # get subject and look for common name
     subject = csr_obj.subject
     for attr in subject:
-        subject_dic[attr.oid._name] = attr.value
+        # use mapping table as primiary source, otherwise oid names from library
+        name = OID_NAME_MAP.get(attr.oid.dotted_string, attr.oid._name)
+        subject_dic[name] = attr.value
 
     logger.debug("Helper.csr_subject_get() ended")
     return subject_dic

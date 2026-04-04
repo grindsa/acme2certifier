@@ -1009,7 +1009,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_b2s.called)
         self.assertTrue(mock_ecl.called)
 
-    @patch("examples.ca_handler.ejbca_ca_handler.allowed_domainlist_check")
     @patch("examples.ca_handler.ejbca_ca_handler.eab_profile_header_info_check")
     @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
@@ -1024,7 +1023,6 @@ class TestACMEHandler(unittest.TestCase):
         mock_d2p,
         mock_b2s,
         profile_header_info_check,
-        mock_adl,
     ):
         """test enrollment one ca-cert"""
         mock_status.return_value = {"status": "ok"}
@@ -1037,7 +1035,6 @@ class TestACMEHandler(unittest.TestCase):
             "foo2",
         ]
         profile_header_info_check.return_value = False
-        mock_adl.return_value = None
         self.assertEqual(
             (None, "foo1foo2", "certificate", None), self.cahandler.enroll("csr")
         )
@@ -1045,43 +1042,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_decode.called)
         self.assertTrue(mock_d2p.called)
         self.assertTrue(mock_b2s.called)
-        self.assertTrue(mock_adl.called)
-
-    @patch("examples.ca_handler.ejbca_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.ejbca_ca_handler.eab_profile_header_info_check")
-    @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
-    @patch("examples.ca_handler.ejbca_ca_handler.cert_der2pem")
-    @patch("examples.ca_handler.ejbca_ca_handler.build_pem_file")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
-    @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_070_enroll(
-        self,
-        mock_status,
-        mock_sign,
-        mock_decode,
-        mock_d2p,
-        mock_b2s,
-        profile_header_info_check,
-        mock_adl,
-    ):
-        """test enrollment one ca-cert"""
-        mock_status.return_value = {"status": "ok"}
-        mock_sign.return_value = {
-            "certificate": "certificate",
-            "certificate_chain": ["certificate_chain"],
-        }
-        mock_b2s.side_effect = [
-            "foo1",
-            "foo2",
-        ]
-        profile_header_info_check.return_value = False
-        mock_adl.return_value = "mock_adl"
-        self.assertEqual(("mock_adl", None, None, None), self.cahandler.enroll("csr"))
-        self.assertFalse(mock_sign.called)
-        self.assertFalse(mock_decode.called)
-        self.assertFalse(mock_d2p.called)
-        self.assertFalse(mock_b2s.called)
-        self.assertTrue(mock_adl.called)
 
     @patch("examples.ca_handler.ejbca_ca_handler.eab_profile_header_info_check")
     @patch("examples.ca_handler.ejbca_ca_handler.convert_byte_to_string")
@@ -1089,7 +1049,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_071_enroll(
+    def test_070_enroll(
         self,
         mock_status,
         mock_sign,
@@ -1120,7 +1080,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.b64_decode")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._sign")
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._status_get")
-    def test_072_enroll(
+    def test_071_enroll(
         self,
         mock_status,
         mock_sign,
@@ -1148,7 +1108,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
-    def test_073_revoke(
+    def test_072_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
         """test revoke operation malformed api response"""
@@ -1165,7 +1125,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
-    def test_074_revoke(
+    def test_073_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
         """test revoke operation cert already revoked"""
@@ -1186,7 +1146,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
-    def test_075_revoke(
+    def test_074_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
         """test revoke operation - revocation response malformed"""
@@ -1207,7 +1167,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
-    def test_076_revoke(
+    def test_075_revoke(
         self, mock_serial, mock_issuer, mock_status, mock_encode, mock_put
     ):
         """test revoke operation - revocation unsuccessful"""
@@ -1229,7 +1189,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
-    def test_077_revoke(
+    def test_076_revoke(
         self,
         mock_serial,
         mock_issuer,
@@ -1255,7 +1215,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.ejbca_ca_handler.CAhandler._cert_status_check")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_issuer_get")
     @patch("examples.ca_handler.ejbca_ca_handler.cert_serial_get")
-    def test_078_revoke(
+    def test_077_revoke(
         self,
         mock_serial,
         mock_issuer,

@@ -19,9 +19,11 @@ class TestEABHandler(unittest.TestCase):
         """setup unit test"""
         import sys
         import types
-        sys.modules['psycopg2'] = types.ModuleType('psycopg2')
-        sys.modules['psycopg2'].connect = MagicMock()
-        mssql_mock = types.ModuleType('mssql_python')
+
+        sys.modules["psycopg2"] = types.ModuleType("psycopg2")
+        sys.modules["psycopg2"].connect = MagicMock()
+        mssql_mock = types.ModuleType("mssql_python")
+
         def dummy_connect(*args, **kwargs):
             return None
 
@@ -246,19 +248,24 @@ class TestEABHandler(unittest.TestCase):
     @patch("examples.eab_handler.sql_handler.csr_san_get")
     def test_018_chk_san_lists_get_value(self, mock_csr_san_get):
         # Should return empty lists for empty input
-        mock_csr_san_get.return_value = ['dns:example.com', 'dns:example.org']
-        result = self.eabhandler._chk_san_lists_get('csr')
-        self.assertEqual(result, (['example.com', 'example.org'], []))
+        mock_csr_san_get.return_value = ["dns:example.com", "dns:example.org"]
+        result = self.eabhandler._chk_san_lists_get("csr")
+        self.assertEqual(result, (["example.com", "example.org"], []))
 
     @patch("examples.eab_handler.sql_handler.csr_san_get")
     def test_019_chk_san_lists_get_value(self, mock_csr_san_get):
         # Should return empty lists for empty input
-        mock_csr_san_get.return_value = ['example.com', 'example.org']#
+        mock_csr_san_get.return_value = ["example.com", "example.org"]  #
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual([False, False], self.eabhandler._chk_san_lists_get('csr')[1])
-        self.assertIn('INFO:test_a2c:SAN list parsing failed at entry: example.com', lcm.output)
-        self.assertIn('INFO:test_a2c:SAN list parsing failed at entry: example.org', lcm.output)
-
+            self.assertEqual(
+                [False, False], self.eabhandler._chk_san_lists_get("csr")[1]
+            )
+        self.assertIn(
+            "INFO:test_a2c:SAN list parsing failed at entry: example.com", lcm.output
+        )
+        self.assertIn(
+            "INFO:test_a2c:SAN list parsing failed at entry: example.org", lcm.output
+        )
 
     @patch("examples.eab_handler.sql_handler.csr_cn_get")
     def test_021_cn_add_cn_not_in_sans(self, mock_csr_cn_get):
@@ -297,7 +304,9 @@ class TestEABHandler(unittest.TestCase):
 
     def test_026_list_regex_check_wildcard(self):
         """Entry matches wildcard regex: should return True"""
-        result = self.eabhandler._list_regex_check("sub.example.com", ["*.example\\.com"])
+        result = self.eabhandler._list_regex_check(
+            "sub.example.com", ["*.example\\.com"]
+        )
         self.assertTrue(result)
 
     def test_027_wllist_check_match(self):
@@ -312,7 +321,9 @@ class TestEABHandler(unittest.TestCase):
 
     def test_029_wllist_check_toggle(self):
         """Toggle: should invert result"""
-        result = self.eabhandler._wllist_check("example.com", ["example\\.com"], toggle=True)
+        result = self.eabhandler._wllist_check(
+            "example.com", ["example\\.com"], toggle=True
+        )
         self.assertFalse(result)
 
     def test_030_wllist_check_no_match(self):
@@ -380,7 +391,10 @@ class TestEABHandler(unittest.TestCase):
         mock_conn = MagicMock()
         mock_cursor = MagicMock()
         mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.fetchall.return_value = [MagicMock(key_id="id1", profile="profile1"), MagicMock(key_id="id2", profile="profile2")]
+        mock_cursor.fetchall.return_value = [
+            MagicMock(key_id="id1", profile="profile1"),
+            MagicMock(key_id="id2", profile="profile2"),
+        ]
         mock_connect.return_value = mock_conn
         result = self.eabhandler._load_mssql_profiles("SELECT ...")
         self.assertEqual(result, {"id1": "profile1", "id2": "profile2"})
@@ -499,11 +513,13 @@ class TestEABHandler(unittest.TestCase):
         self.eabhandler.db_password = "pass"
         dbstore_mock = MagicMock()
         dbstore_mock.side_effect = Exception("db error")
-        sys.modules['acme_srv.db_handler'] = MagicMock(DBstore=dbstore_mock)
+        sys.modules["acme_srv.db_handler"] = MagicMock(DBstore=dbstore_mock)
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             result = self.eabhandler.eab_kid_get("csr")
         self.assertIsNone(result)
-        self.assertTrue(any("Database error while retrieving eab_kid" in msg for msg in lcm.output))
+        self.assertTrue(
+            any("Database error while retrieving eab_kid" in msg for msg in lcm.output)
+        )
 
 
 if __name__ == "__main__":

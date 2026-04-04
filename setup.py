@@ -19,13 +19,19 @@ def update_and_copy_nginx_configs():
     src_dir = pathlib.Path("examples/nginx")
     dst_dir = pathlib.Path("/var/lib/acme2certifier/examples/nginx")
     dst_dir.mkdir(parents=True, exist_ok=True)
-    configs = ["nginx_acme_srv.conf", "nginx_acme_srv_ssl.conf"]
+    configs = ["nginx_acme_srv.conf", "nginx_acme_srv_ssl.conf", 'supervisord.conf', 'uwsgi.service', 'acme2certifier.ini']
     for conf in configs:
         src_file = src_dir / conf
         dst_file = dst_dir / conf
         if src_file.exists():
             content = src_file.read_text()
+            content = content.replace("/var/www/acme2certifier/volume/acme2certifier_cert.pem", "/etc/ssl/certs/acme2certifier_cert.pem")
+            content = content.replace("/var/www/acme2certifier/volume/acme2certifier_key.pem", "/etc/ssl/private/acme2certifier_key.pem")
             content = content.replace("/var/www/acme2certifier", "/var/lib/acme2certifier")
+            content = content.replace("/opt/acme2certifier", "/var/lib/acme2certifier")
+            content = content.replace("/run/uwsgi/acme.sock", "/var/lib/acme2certifier/acme.sock")
+            content = content.replace("uid = nginx", "uid = www-data\nplugins = python3")
+            content = content.replace("chown-socket = nginx", "chown-socket = www-data")
             dst_file.write_text(content)
         else:
             print(f"Warning: {src_file} not found.")
@@ -46,6 +52,7 @@ setup(
         ("/usr/share/doc/acme2certifier/architecture", glob_files("docs/architecture/*")),
         ("/var/lib/acme2certifier/acme_srv/", glob_files("acme_srv/*.py")),
         ("/var/lib/acme2certifier/acme_srv/helpers", glob_files("acme_srv/helpers/*.py")),
+        ("/var/lib/acme2certifier/acme_srv/challenge_validators", glob_files("acme_srv/challenge_validators/*.py")),
         ("/var/lib/acme2certifier/examples", glob_files("examples/*.*")),
         (
             "/var/lib/acme2certifier/examples/ca_handler",
@@ -55,22 +62,30 @@ setup(
             "/var/lib/acme2certifier/examples/db_handler",
             glob_files("examples/db_handler/*.py"),
         ),
+        (
+            "/var/lib/acme2certifier/examples/eab_handler",
+            glob_files("examples/eab_handler/*.py"),
+        ),
+        (
+            "/var/lib/acme2certifier/examples/hooks",
+            glob_files("examples/hooks/*.py"),
+        ),
         ("/var/lib/acme2certifier/examples/django", glob_files("examples/django/*.py")),
         (
             "/var/lib/acme2certifier/examples/django/acme2certifier",
             glob_files("examples/django/acme2certifier/*.py"),
         ),
         (
-            "/var/lib/acme2certifier/examples/django/acme",
-            glob_files("examples/django/acme/*.py"),
+            "/var/lib/acme2certifier/examples/django/acme_srv",
+            glob_files("examples/django/acme_srv/*.py"),
         ),
         (
-            "/var/lib/acme2certifier/examples/django/acme/fixture",
-            glob_files("examples/django/acme/fixture/*"),
+            "/var/lib/acme2certifier/examples/django/acme_srv/fixture",
+            glob_files("examples/django/acme_srv/fixture/*"),
         ),
         (
-            "/var/lib/acme2certifier/examples/django/acme/migrations",
-            glob_files("examples/django/acme/migrations/*.py"),
+            "/var/lib/acme2certifier/examples/django/acme_srv/migrations",
+            glob_files("examples/django/acme_srv/migrations/*.py"),
         ),
         ("/var/lib/acme2certifier/examples/nginx", glob_files("examples/nginx/*")),
         ("/var/lib/acme2certifier/examples/trigger", glob_files("examples/trigger/*")),
@@ -94,6 +109,27 @@ setup(
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Operating System :: OS Independent",
         "Topic :: Software Development :: Libraries :: Python Modules",
+    ],
+    install_requires=[
+        "setuptools",
+        "jwcrypto",
+        "cryptography",
+        "pyOpenssl",
+        "dnspython",
+        "pytz",
+        "configparser",
+        "python-dateutil",
+        "requests",
+        "pysocks",
+        "josepy",
+        "acme",
+        "xmltodict",
+        "pyasn1",
+        "pyasn1_modules",
+        "requests_pkcs12",
+        "pyyaml",
+        "idna",
+        "werkzeug>=3.0.6",  # not directly required, pinned by Snyk to avoid a vulnerability
     ],
     zip_safe=False,
     test_suite="test",
