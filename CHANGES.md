@@ -13,7 +13,7 @@ and pick the appropriate release branch.
 - [Experimental support of MSSQl](https://github.com/grindsa/acme2certifier/blob/devel/docs/external_database_support.md#when-using-sql-server) via django-handler
 - [EAB SQL Handler](https://github.com/grindsa/acme2certifier/blob/devel/docs/eab.md#sql-handler)
 - run allowed_domainlist check as part of order processing
-- refactoring of Core components completed
+- Refactoring of Core components completed
 
 ## Changes in 0.41.3
 

@@ -6,7 +6,9 @@
 
 This guide provides step-by-step instructions for manually installing and configuring **acme2certifier** from source. These steps assume you have downloaded and extracted the source code to `/tmp/acme2certifier`.
 
----
+> **Note:** These instructions are based on an installation on Ubuntu 24.04. Adapting them to other Linux distributions should be straightforward, though package names and service management commands may vary slightly.
+
+______________________________________________________________________
 
 ## 1. System Preparation
 
@@ -17,7 +19,7 @@ apt-get update  # && apt-get upgrade
 apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 curl krb5-user libkrb5-3 python3-gssapi
 ```
 
----
+______________________________________________________________________
 
 ## 2. Install acme2certifier
 
@@ -47,12 +49,37 @@ ln -s /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme
 cp /var/lib/acme2certifier/examples/nginx/acme2certifier.ini /var/lib/acme2certifier
 
 chown -R www-data:www-data /var/lib/acme2certifier/
-# chmod a+x /var/lib/acme2certifier/acme_srv
 ```
 
----
+______________________________________________________________________
 
-## 4. Create systemd Service
+## 4. Copy and configure the database handler
+
+Link your preferred database-handler into `/var/lib/acme2certifier/acme_srv`
+
+```sh
+ln -s /var/lib/acme2certifier/examples/db_handler/[wsgi|django]_handler.py /var/lib/acme2certifier/acme_srv/db_handler.py
+```
+
+When using the django handler configure install and configure the django environment.
+
+```sh
+apt-get install -y python3-django python3-mysqldb python3-pymysql python3-yaml
+cp -R /var/lib/acme2certifier/examples/django/* /var/lib/acme2certifier/
+sed -i "s/acme2certifier_wsgi/acme2certifier.wsgi/g" /var/lib/acme2certifier/acme2certifier.ini
+```
+
+Modify the `settings.py` according to your needs, create the database tables and load the fixtures.
+
+```sh
+cd /var/lib/acme2certifier
+python3 manage.py makemigrations
+python3 manage.py migrate
+python3 manage.py loaddata acme_srv/fixture/status.yaml
+chown -R www-data:www-data /var/lib/acme2certifier/
+```
+
+## 5. Create systemd Service
 
 Create the following systemd service file at `/etc/systemd/system/acme2certifier.service`:
 
@@ -72,9 +99,9 @@ ExecStart=uwsgi --ini acme2certifier.ini
 WantedBy=multi-user.target
 ```
 
----
+______________________________________________________________________
 
-## 5. Start and Enable Services
+## 6. Start and Enable Services
 
 Start and enable the acme2certifier service and restart nginx:
 
@@ -97,9 +124,9 @@ systemctl start acme2certifier
 systemctl start nginx
 ```
 
----
+______________________________________________________________________
 
-## 6. Test with lego Client
+## 7. Test with lego Client
 
 You can test your ACME server using the lego client:
 
@@ -109,6 +136,6 @@ docker run -i -v /home/joern/data/lego:/.lego/ --network acme --rm --name lego g
   -d lego.acme --key-type rsa2048 --tls-skip-verify --http run
 ```
 
----
+______________________________________________________________________
 
 **acme2certifier** should now be installed and running. For further configuration, refer to the project documentation.
