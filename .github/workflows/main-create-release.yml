@@ -22,7 +22,7 @@ jobs:
         id: acme2certifier_ver  # The step ID to refer to later.
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Retrieve Version from version.py
         run: |

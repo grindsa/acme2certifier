@@ -31,7 +31,7 @@ runs:
       WEB_SRV: ${{ inputs.WEB_SRV }}
 
   - name: "Upload container package"
-    uses: actions/upload-artifact@master
+    uses: actions/upload-artifact@v7
     with:
       name: a2c-${{ github.run_id }}.${{ inputs.WEB_SRV }}.${{ inputs.DB_HANDLER }}.tar.gz
       path: /tmp/a2c
