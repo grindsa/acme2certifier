@@ -586,4 +586,3 @@ jobs:
       with:
         name: test-python-install-${{ matrix.db_handler }}.tar.gz
         path: ${{ github.workspace }}/artifact/upload/
-
