@@ -1,0 +1,125 @@
+name: "acme_email_enroll"
+description: "acme_email_enroll"
+inputs:
+  NAME_SPACE:
+    description: "namespace"
+    required: false
+    default: "acme"
+  DB_HANDLER:
+    description: "Database handler type"
+    required: false
+    default: "wsgi"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  HTTP_PORT:
+    description: "ACME server HTTP port"
+    required: false
+    default: "80"
+  HTTPS_PORT:
+    description: "ACME server HTTPS port"
+    required: false
+    default: "443"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Generate keys and certificates"
+    uses: ./.github/actions/cert_gen
+    with:
+      DESTINATION_PATH: ".github"
+      EE_KEY: "acme2certifier_key.pem"
+      EE_CERT: "acme2certifier_cert.pem"
+      EE_CSR: "acme2certifier_csr.pem"
+      EE_BUNDLE: "acme2certifier.pem"
+      CA_BUNDLE: "acme2certifier_cabundle.pem"
+      ISSUING_CA_KEY: "test/ca/sub-ca-key.pem"
+      ISSUING_CA_CERT: "test/ca/sub-ca-cert.pem"
+      ISSUING_CA_PASSPHRASE: "Test1234"
+      ROOT_CA_CERT: "test/ca/root-ca-cert.pem"
+
+  - name: "Instanciate Mariadb"
+    if: inputs.DB_HANDLER == 'django'
+    uses: ./.github/actions/mariadb_prep
+    with:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Setup environment for ubuntu 24.04"
+    run: |
+      docker run -d --rm --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v $PWD:/tmp/acme2certifier jrei/systemd-ubuntu:24.04
+      docker exec acme-srv apt-get update  # && apt-get upgrade
+      docker exec acme-srv apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 curl krb5-user libkrb5-3 python3-gssapi rsyslog
+      docker exec acme-srv systemctl enable rsyslog
+      docker exec acme-srv systemctl start rsyslog
+    shell: bash
+
+  - name: "Setup environment for ubuntu 24.04"
+    run: |
+      docker exec acme-srv bash -c 'cd /tmp/acme2certifier && pip3 install Cython --break-system-packages && python3 setup.py install'
+      docker exec acme-srv cp /var/lib/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
+      docker exec acme-srv cp /var/lib/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme_srv_ssl.conf
+      docker exec acme-srv rm /etc/nginx/sites-enabled/default
+      docker exec acme-srv ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf
+      docker exec acme-srv ln -s /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme_srv_ssl.conf
+      docker exec acme-srv cp /tmp/acme2certifier/.github/acme2certifier_cert.pem /etc/ssl/certs/acme2certifier_cert.pem
+      docker exec acme-srv cp /tmp/acme2certifier/.github/acme2certifier_key.pem /etc/ssl/private/acme2certifier_key.pem
+      docker exec acme-srv cp /var/lib/acme2certifier/examples/nginx/acme2certifier.ini /var/lib/acme2certifier
+      # configure cahandler
+      docker exec acme-srv cp /var/lib/acme2certifier/examples/acme2certifier_wsgi.py  /var/lib/acme2certifier
+      docker exec acme-srv mkdir -p /var/lib/acme2certifier/volume/acme_ca/certs
+      docker exec acme-srv cp /tmp/acme2certifier/test/ca/sub-ca-key.pem /tmp/acme2certifier/test/ca/sub-ca-crl.pem /tmp/acme2certifier/test/ca/sub-ca-cert.pem /tmp/acme2certifier/test/ca/root-ca-cert.pem /var/lib/acme2certifier/volume/acme_ca/
+      docker exec acme-srv cp /tmp/acme2certifier/.github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg /var/lib/acme2certifier/volume/acme_srv.cfg
+      docker exec acme-srv ln -s /var/lib/acme2certifier/volume/acme_srv.cfg /var/lib/acme2certifier/acme_srv/
+
+      # copy db handler
+      docker exec acme-srv cp /var/lib/acme2certifier/examples/db_handler/${DB_HANDLER}_handler.py /var/lib/acme2certifier/acme_srv/db_handler.py
+    shell: bash
+    env:
+      DB_HANDLER: ${{ inputs.DB_HANDLER }}
+      # DB_HANDLER: 'wsgi' # Force wsgi for now, as django handler is not working yet
+
+  - name: "Configure django"
+    if: inputs.DB_HANDLER == 'django'
+    run: |
+      # delete wsgi handler as it is not needed and cause confusion with django handler
+      docker exec acme-srv rm /var/lib/acme2certifier/acme2certifier_wsgi.py
+      docker exec acme-srv apt-get install -y python3-django python3-mysqldb python3-pymysql python3-yaml
+      docker exec acme-srv bash -c 'cp -R /var/lib/acme2certifier/examples/django/* /var/lib/acme2certifier/'
+      docker exec acme-srv bash -c 'sed -i "s/acme2certifier_wsgi/acme2certifier.wsgi/g" /var/lib/acme2certifier/acme2certifier.ini'
+      docker exec acme-srv cp /tmp/acme2certifier/.github/django_settings_mariadb.py /var/lib/acme2certifier/acme2certifier/settings.py
+      docker exec acme-srv bash -c 'cd /var/lib/acme2certifier && python3 manage.py makemigrations'
+      docker exec acme-srv bash -c 'cd /var/lib/acme2certifier && python3 manage.py migrate && python3 manage.py loaddata acme_srv/fixture/status.yaml'
+      docker exec acme-srv chown -R www-data:www-data /var/lib/acme2certifier/
+    shell: bash
+
+  - name: "Configure and start services"
+    run: |
+
+      docker exec acme-srv bash -c "cat <<EOT > /etc/systemd/system/acme2certifier.service
+      [Unit]
+      Description=uWSGI instance to serve acme2certifier
+      After=network.target
+
+      [Service]
+      User=www-data
+      Group=www-data
+      WorkingDirectory=/var/lib/acme2certifier
+      Environment=\"PATH=/var/lib/acme2certifier\"
+      ExecStart=uwsgi --ini acme2certifier.ini
+
+      [Install]
+      WantedBy=multi-user.target
+      EOT"
+
+      docker exec acme-srv chown -R www-data:www-data /var/lib/acme2certifier/
+      # docker exec acme-srv chmod a+x /var/lib/acme2certifier/acme_srv
+      docker exec acme-srv systemctl start acme2certifier
+      docker exec acme-srv systemctl enable acme2certifier
+      docker exec acme-srv systemctl restart nginx
+    shell: bash
