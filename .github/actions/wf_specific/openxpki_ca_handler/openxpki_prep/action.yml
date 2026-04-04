@@ -67,6 +67,10 @@ runs:
         sed 's/^/            /' config/client.pub;
         echo "        role: RA Operator"
       } > openxpki-config/config.d/system/cli.yaml
+
+      # disable healthcheck for now, as it is not working in our setup and we have to wait for the server to be up before we can do any configuration changes
+      sed -i "s/test\: wget -q http:\/\/localhost\/healthcheck\/ping/test: echo \"foo\"/g" docker-compose.yml
+
       docker compose up -d web --wait
     shell: bash
     env:
