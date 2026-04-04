@@ -5,11 +5,9 @@ from typing import Tuple, Dict
 
 # pylint: disable=e0401
 from acme_srv.helper import (
-    allowed_domainlist_check,
     b64_encode,
     cert_pem2der,
     cert_serial_get,
-    config_allowed_domainlist_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
@@ -43,7 +41,6 @@ class CAhandler(object):
         self.request_timeout = 10
         self.organization_id = None
         self.organization_name = None
-        self.allowed_domainlist = []
         self.header_info_field = False
         self.eab_handler = None
         self.eab_profiling = False
@@ -165,10 +162,6 @@ class CAhandler(object):
                 "CAhandler", "organization_name", fallback=self.organization_name
             )
 
-        # load allowed domainlist
-        self.allowed_domainlist = config_allowed_domainlist_load(
-            self.logger, config_dic
-        )
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
@@ -293,12 +286,8 @@ class CAhandler(object):
         """check csr"""
         self.logger.debug("CAhandler._csr_check()")
 
-        # check for allowed domainlist
-        error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-
         # check for eab profiling and header_info
-        if not error:
-            error = eab_profile_header_info_check(self.logger, self, csr, "cert_type")
+        error = eab_profile_header_info_check(self.logger, self, csr, "cert_type")
 
         self.logger.debug("CAhandler._csr_check() ended with: %s", error)
         return error

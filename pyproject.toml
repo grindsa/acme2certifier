@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "acme2certifier"
+version = "0.41.3"
+description = "ACMEv2 server"
+readme = "README.md"
+authors = [
+    { name = "grindsa", email = "grindelsack@gmail.com" }
+]
+license = { file = "LICENSE" }
+requires-python = ">=3.7"
+dependencies = [
+    "setuptools",
+    "jwcrypto",
+    "cryptography",
+    "pyOpenssl",
+    "dnspython",
+    "pytz",
+    "configparser",
+    "python-dateutil",
+    "requests",
+    "pysocks",
+    "josepy",
+    "acme",
+    "xmltodict",
+    "pyasn1",
+    "pyasn1_modules",
+    "requests_pkcs12",
+    "requests_gssapi",
+    "gssapi",
+    "pyyaml",
+    "idna",
+    "werkzeug>=3.0.6",
+]
+classifiers = [
+    "Programming Language :: Python",
+    "Development Status :: 4 - Beta",
+    "Natural Language :: German",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.urls]
+Homepage = "https://github.com/grindsa/acme2certifier"
+
+[tool.setuptools]
+include-package-data = true

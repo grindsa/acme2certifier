@@ -11,9 +11,7 @@ from examples.ca_handler.ms_wcce.request import Request
 
 # pylint: disable=E0401
 from acme_srv.helper import (
-    allowed_domainlist_check,
     build_pem_file,
-    config_allowed_domainlist_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_profile_load,
@@ -44,7 +42,6 @@ class CAhandler(object):
         self.ca_name = None
         self.ca_bundle = False
         self.use_kerberos = False
-        self.allowed_domainlist = []
         self.header_info_field = None
         self.timeout = 5
         self.eab_handler = None
@@ -152,10 +149,6 @@ class CAhandler(object):
             self.enrollment_config_log,
             self.enrollment_config_log_skip_list,
         ) = config_enroll_config_log_load(self.logger, config_dic)
-        # load allowed domainlist
-        self.allowed_domainlist = config_allowed_domainlist_load(
-            self.logger, config_dic
-        )
 
         try:
             self.timeout = config_dic.getint("CAhandler", "timeout", fallback=5)
@@ -342,22 +335,15 @@ class CAhandler(object):
                 None,
             )
 
-        # check for allowed domainlist
-        error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
+        # check for eab profiling and header_info
+        error = eab_profile_header_info_check(self.logger, self, csr, "template")
 
         if not error:
+            # enroll certificate
+            (error, cert_raw, cert_bundle) = self._enroll(csr)
 
-            # check for eab profiling and header_info
-            error = eab_profile_header_info_check(self.logger, self, csr, "template")
-
-            if not error:
-                # enroll certificate
-                (error, cert_raw, cert_bundle) = self._enroll(csr)
-
-            else:
-                self.logger.error("EAB profile check failed: %s", error)
         else:
-            self.logger.error("Domain not allowed for enrollment: %s", error)
+            self.logger.error("EAB profile check failed: %s", error)
 
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, None)

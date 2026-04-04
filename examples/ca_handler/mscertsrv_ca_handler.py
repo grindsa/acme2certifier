@@ -14,9 +14,7 @@ from cryptography.hazmat.primitives.serialization.pkcs7 import (
 # pylint: disable=e0401, e0611
 from examples.ca_handler.certsrv import Certsrv
 from acme_srv.helper import (
-    allowed_domainlist_check,
     b64_url_recode,
-    config_allowed_domainlist_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_profile_load,
@@ -45,7 +43,6 @@ class CAhandler(object):
         self.template = None
         self.krb5_config = None
         self.proxy = None
-        self.allowed_domainlist = []
         self.header_info_field = False
         self.verify = True
         self.eab_handler = None
@@ -206,10 +203,6 @@ class CAhandler(object):
             self.enrollment_config_log,
             self.enrollment_config_log_skip_list,
         ) = config_enroll_config_log_load(self.logger, config_dic)
-        # load allowed domainlist
-        self.allowed_domainlist = config_allowed_domainlist_load(
-            self.logger, config_dic
-        )
 
         self.logger.debug("CAhandler._config_parameters_load() ended")
 
@@ -426,21 +419,13 @@ class CAhandler(object):
 
         if (self.host or self.url) and self.user and self.password and self.template:
 
-            # check for allowed domainlist
-            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-
+            # check for eab profiling and header_info
+            error = eab_profile_header_info_check(self.logger, self, csr, "template")
             if not error:
-                # check for eab profiling and header_info
-                error = eab_profile_header_info_check(
-                    self.logger, self, csr, "template"
-                )
-                if not error:
-                    # enroll certificate
-                    (error, cert_bundle, cert_raw) = self._enroll(csr)
-                else:
-                    self.logger.error("EAB profile check failed: %s", error)
+                # enroll certificate
+                (error, cert_bundle, cert_raw) = self._enroll(csr)
             else:
-                self.logger.error(error)
+                self.logger.error("EAB profile check failed: %s", error)
 
         else:
             self.logger.error("Configuration incomplete")
