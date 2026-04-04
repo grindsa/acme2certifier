@@ -23,7 +23,7 @@ jobs:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: "Build container"
         uses: ./.github/actions/container_build_upload
         with:
@@ -40,7 +40,7 @@ jobs:
       contents: write
     if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: "Build rpm package"
         id: rpm_build
         uses: ./.github/actions/rpm_build_upload
@@ -56,7 +56,7 @@ jobs:
       contents: write
     if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: "deb build and upload"
         uses: ./.github/actions/deb_build_upload
         with:

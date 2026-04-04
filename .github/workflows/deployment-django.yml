@@ -57,7 +57,7 @@ jobs:
     steps:
 
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Download and import container"
         uses: ./.github/actions/container_load
@@ -114,7 +114,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-container-${{ matrix.websrv }}-${{ matrix.database }}.db.tar.gz
@@ -136,7 +136,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -195,7 +195,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
@@ -221,7 +221,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse XCA configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -278,7 +278,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-deb-${{ matrix.websrv }}-${{ matrix.database }}.tar.gz

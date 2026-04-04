@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Get runner ip"
         run: |
@@ -148,7 +148,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data docker-compose.log
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: acme-test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
@@ -170,7 +170,7 @@ jobs:
     steps:
 
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -259,7 +259,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: acme-test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
@@ -282,7 +282,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Parse HARICA config
         uses: ./.github/actions/parse-json-secret
@@ -373,7 +373,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: acme-test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz

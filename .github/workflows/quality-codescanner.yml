@@ -19,7 +19,7 @@ jobs:
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Bandit Scan
         uses: shundor/python-bandit-scan@ab1d87dfccc5a0ffab88be3aaac6ffe35c10d6cd
         with:
@@ -48,7 +48,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Set up Python
         uses: actions/setup-python@master
         with:
@@ -85,7 +85,7 @@ jobs:
     # Prevent workflows from running in forks
     if: github.repository == 'grindsa/acme2certifier'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
 
@@ -128,7 +128,7 @@ jobs:
 
     steps:
     - name: Checkout repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
       with:
         # We must fetch at least the immediate parents so that if this is
         # a pull request then we can checkout the head.

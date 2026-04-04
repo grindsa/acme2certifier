@@ -26,7 +26,7 @@ runs:
 
   - name: "Upload deb package"
     if: ${{ inputs.NO_VERSION != 'false' }}
-    uses: actions/upload-artifact@v4
+    uses: actions/upload-artifact@v7
     with:
       name: acme2certifier-${{ github.run_id }}-1_all.deb
       path: acme2certifier-${{ github.run_id }}-1_all.deb
@@ -39,7 +39,7 @@ runs:
 
   - name: "Upload deb package"
     if: ${{ inputs.NO_VERSION == 'false' }}
-    uses: actions/upload-artifact@v4
+    uses: actions/upload-artifact@v7
     with:
       name: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb
       path: acme2certifier_${{ env.TAG_NAME }}-${{ github.run_id }}-1_all.deb

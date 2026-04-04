@@ -48,7 +48,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'  && inputs.branch == 'master'
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Parse AWS secrets from JSON
       uses: ./.github/actions/parse-json-secret
@@ -121,7 +121,7 @@ jobs:
         id: acme2certifier_ver  # The step ID to refer to later.
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Parse software repository secrets from JSON
         uses: ./.github/actions/parse-json-secret
@@ -165,7 +165,7 @@ jobs:
           BUILD_NAME: ${{ env.BUILD_NAME }}
 
       - name: Checkout code for 2nd last release
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.OLD_TAG_NAME }}
 
@@ -217,7 +217,7 @@ jobs:
       #    docker rmi $(docker images grindsa/acme2certifier -q) --force
 
       - name: Checkout code for latest release
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -284,7 +284,7 @@ jobs:
         id: acme2certifier_ver  # The step ID to refer to later.
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Parse software repository secrets from JSON
         uses: ./.github/actions/parse-json-secret
@@ -439,7 +439,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme-srv.log data # acme-sh
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: amd64_pull_and_test-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
@@ -465,7 +465,7 @@ jobs:
         id: acme2certifier_ver  # The step ID to refer to later.
 
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Parse AWS secrets from JSON
         uses: ./.github/actions/parse-json-secret
@@ -636,7 +636,7 @@ jobs:
     needs: arm64_pull_and_test
     steps:
     - name: Checkout code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Parse AWS secrets from JSON
       uses: ./.github/actions/parse-json-secret

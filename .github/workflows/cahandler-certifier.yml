@@ -56,7 +56,7 @@ jobs:
     steps:
 
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse NCM configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -363,7 +363,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data acme-sh certbot lego
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
@@ -386,7 +386,7 @@ jobs:
     steps:
 
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Parse GitHub secrets from JSON
         uses: ./.github/actions/parse-json-secret
@@ -716,7 +716,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz

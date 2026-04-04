@@ -51,7 +51,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Retrieve Version from version.py
         run: |
@@ -470,7 +470,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data alma9-c1-messages.log alma9-c2-messages.log alma9-c1-lsyncd.log alma9-c2-lsyncd.log
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-rpm.tar.gz

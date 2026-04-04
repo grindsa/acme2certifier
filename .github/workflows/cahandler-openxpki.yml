@@ -56,7 +56,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Get runner ip"
         run: |
@@ -303,7 +303,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz openxpki_server.log openxpki_client_est.log openxpki_client_rpc.log a2c.log data # acme-sh certbot lego
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz.tar.gz
@@ -324,7 +324,7 @@ jobs:
     steps:
 
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -585,7 +585,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data openxpki_server.log openxpki_client.log acme-srv.log acme-sh
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
@@ -607,7 +607,7 @@ jobs:
     steps:
 
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Prepare Ubuntu environment"
         if: matrix.execscript == 'deb_tester.sh'
@@ -873,7 +873,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz

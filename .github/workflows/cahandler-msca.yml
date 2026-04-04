@@ -57,7 +57,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -279,7 +279,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data dnsmasq
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: mscertsrv-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
@@ -303,7 +303,7 @@ jobs:
     steps:
 
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -486,7 +486,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data dnsmasq
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: mscertsrv-eabp-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
@@ -508,7 +508,7 @@ jobs:
         dbhandler: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -745,7 +745,7 @@ jobs:
           docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data dnsmasq
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: mswcce-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
@@ -768,7 +768,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -958,7 +958,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data dnsmasq
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: mswcce-eabp-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
@@ -981,7 +981,7 @@ jobs:
         dbhandler: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -1077,7 +1077,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: mscertsrv_wo_impacket_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
@@ -1100,7 +1100,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -1289,7 +1289,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: mscertsrv_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
@@ -1312,7 +1312,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -1492,7 +1492,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: mscertsrv-eabprofile-test-rpm-rh${{ matrix.rhversion }}.tar.gz
@@ -1515,7 +1515,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -1723,7 +1723,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh dnsmasq
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: mswcce-test-rpm-rh${{ matrix.rhversion }}.tar.gz
@@ -1746,7 +1746,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -1945,7 +1945,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh dnsmasq
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: mswcce_eabprofiling-tests-rpm-rh${{ matrix.rhversion }}.tar.gz
@@ -1967,7 +1967,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -2177,7 +2177,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: mscertsrv-test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
@@ -2198,7 +2198,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -2413,7 +2413,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: mswcce-test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz

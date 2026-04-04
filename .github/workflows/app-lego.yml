@@ -56,7 +56,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Download and import container"
         uses: ./.github/actions/container_load
@@ -147,7 +147,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data lego
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: tests-containers-${{ matrix.keylength }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
@@ -170,7 +170,7 @@ jobs:
     steps:
 
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -248,7 +248,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log # acme-sh
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
@@ -270,7 +270,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Prepare Ubuntu environment"
         if: matrix.execscript == 'deb_tester.sh'
@@ -354,7 +354,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
