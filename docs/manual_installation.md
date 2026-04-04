@@ -1,3 +1,7 @@
+<!-- markdownlint-disable MD013 MD014 MD029 -->
+
+<!-- wiki-title Manual Installation Guide for acme2certifier -->
+
 # Manual Installation Guide for acme2certifier
 
 This guide provides step-by-step instructions for manually installing and configuring **acme2certifier** from source. These steps assume you have downloaded and extracted the source code to `/tmp/acme2certifier`.
