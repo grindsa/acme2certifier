@@ -588,14 +588,14 @@ class TestChallenge(unittest.TestCase):
         self.challenge.config.forward_address_check = False
         self.challenge.config.reverse_address_check = False
         result = self.challenge._perform_source_address_validation("c1")
-        self.assertEqual(result, (True, False))
+        self.assertEqual(result, (True, False, None))
 
     def test_041_perform_source_address_validation_not_found(self):
         self.challenge.config.forward_address_check = True
         self.challenge.repository.get_challenge_by_name.return_value = None
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             result = self.challenge._perform_source_address_validation("c1")
-        self.assertEqual(result, (False, True))
+        self.assertEqual(result, (False, True, 'Challenge not found'))
         self.assertIn("ERROR:test_a2c:Challenge not found: c1", lcm.output)
 
     def test_042_perform_source_address_validation_success(self):

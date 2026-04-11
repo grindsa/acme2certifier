@@ -221,7 +221,7 @@ def proxy_check(
                 )
                 break
 
-    if "*" in proxy_server_list_new.keys() and not proxy:
+    if "*" in proxy_server_list_new and not proxy:
         logger.debug("Helper.proxy_check() wildcard match found: fqdn: %s", fqdn)
         proxy = proxy_server_list_new["*"]
 
