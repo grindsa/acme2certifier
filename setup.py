@@ -27,8 +27,10 @@ def update_and_copy_nginx_configs():
         "acme2certifier.ini",
     ]
     for conf in configs:
-        src_file = src_dir / conf
-        dst_file = dst_dir / conf
+        # Ensure only filename is used, preventing path traversal attacks
+        safe_filename = pathlib.Path(conf).name
+        src_file = src_dir / safe_filename
+        dst_file = dst_dir / safe_filename
         if src_file.exists():
             content = src_file.read_text()
             content = content.replace(
