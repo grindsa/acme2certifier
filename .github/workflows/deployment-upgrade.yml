@@ -221,6 +221,7 @@ jobs:
           DJANGO_DB: ${{ matrix.django_db }}
 
       - name: "Spin-up a2c ${{ env.TAG_NAME }} instance"
+        if: github.ref != 'refs/heads/master'
         uses: ./.github/actions/container_run
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
@@ -228,11 +229,13 @@ jobs:
           VERSION: ${{ env.TAG_NAME }}
 
       - name: "Enroll and renew certificates"
+        if: github.ref != 'refs/heads/master'
         uses: ./.github/actions/wf_specific/upgrade/enroll
         with:
           RENEWAL: true
 
       - name : "Stop and remove a2c instance"
+        if: github.ref != 'refs/heads/master'
         run: docker stop acme-srv
 
       - name: "Spin-up latest a2c instance"
