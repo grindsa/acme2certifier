@@ -26,11 +26,23 @@ def update_and_copy_nginx_configs():
         "uwsgi.service",
         "acme2certifier.ini",
     ]
+    # Define allowed configurations to prevent path injection
+    allowed_configs = {
+        "nginx_acme_srv.conf",
+        "nginx_acme_srv_ssl.conf",
+        "supervisord.conf",
+        "uwsgi.service",
+        "acme2certifier.ini",
+    }
+
     for conf in configs:
-        # Ensure only filename is used, preventing path traversal attacks
-        safe_filename = pathlib.Path(conf).name
-        src_file = src_dir / safe_filename
-        dst_file = dst_dir / safe_filename
+        # Validate filename is in allowed list and contains no path separators
+        if conf not in allowed_configs or "/" in conf or "\\" in conf or ".." in conf:
+            print(f"Warning: Skipping invalid config file: {conf}")
+            continue
+
+        src_file = src_dir / conf
+        dst_file = dst_dir / conf
         if src_file.exists():
             content = src_file.read_text()
             content = content.replace(
