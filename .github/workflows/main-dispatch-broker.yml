@@ -5,7 +5,6 @@ on:
     types: [ artifacts_ready ]
 
 jobs:
-  # (Optional) quick guard to validate incoming payload
   guard:
     runs-on: ubuntu-latest
     if: >
