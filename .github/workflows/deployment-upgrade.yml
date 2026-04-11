@@ -245,6 +245,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Renew certificates"
+        if: github.ref != 'refs/heads/master'
         uses: ./.github/actions/wf_specific/upgrade/renew
         with:
           CLEANUP: true
