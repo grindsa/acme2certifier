@@ -595,7 +595,7 @@ class TestChallenge(unittest.TestCase):
         self.challenge.repository.get_challenge_by_name.return_value = None
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
             result = self.challenge._perform_source_address_validation("c1")
-        self.assertEqual(result, (False, True, 'Challenge not found'))
+        self.assertEqual(result, (False, True, "Challenge not found"))
         self.assertIn("ERROR:test_a2c:Challenge not found: c1", lcm.output)
 
     def test_042_perform_source_address_validation_success(self):
