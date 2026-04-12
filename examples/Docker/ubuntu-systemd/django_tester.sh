@@ -33,6 +33,14 @@ case "${1}" in
     systemctl enable rsyslog
     systemctl start syslog
 
+    if [[ -f /tmp/acme2certifier/packages-microsoft-prod.deb ]]
+      then
+      echo "install Microsoft repository configuration package"
+      dpkg -i /tmp/acme2certifier/packages-microsoft-prod.deb
+      apt-get update
+      ACCEPT_EULA=Y apt-get install -y msodbcsql18 python3-mssql-django
+    fi
+
     echo "install a2c"
     apt-get install -y /tmp/acme2certifier/acme2certifier*.deb
 
@@ -56,6 +64,10 @@ case "${1}" in
       systemctl start acme2certifier
       systemctl enable acme2certifier
     fi
+
+    echo "update openssl configuration"
+    sed -i "s/default = default_sect/default = default_sect\nlegacy = legacy_sect\n\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf
+    sed -i "s/# activate = 1/activate = 1/g" /etc/ssl/openssl.cnf
 
     echo "configure django"
     cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/

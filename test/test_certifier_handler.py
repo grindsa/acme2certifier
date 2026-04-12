@@ -1561,43 +1561,24 @@ class TestACMEHandler(unittest.TestCase):
         result = (None, "bundle", "certificateBase64", "url", False)
         self.assertEqual(result, self.cahandler._request_poll("url"))
 
-    @patch("examples.ca_handler.certifier_ca_handler.allowed_domainlist_check")
     @patch("examples.ca_handler.certifier_ca_handler.eab_profile_header_info_check")
-    def test_106_csr_check(self, mock_eab, mock_dlc):
+    def test_106_csr_check(self, mock_eab):
         """test csr_check"""
         csr = "csr"
         mock_eab.return_value = None
-        mock_dlc.return_value = None
         self.assertEqual(None, self.cahandler._csr_check(csr))
         self.assertTrue(mock_eab.called)
-        self.assertFalse(mock_dlc.called)
 
-    @patch("examples.ca_handler.certifier_ca_handler.allowed_domainlist_check")
     @patch("examples.ca_handler.certifier_ca_handler.eab_profile_header_info_check")
-    def test_107_csr_check(self, mock_eab, mock_dlc):
-        """test csr_check"""
-        csr = "csr"
-        mock_eab.return_value = None
-        mock_dlc.return_value = "mock_dlc"
-        self.cahandler.allowed_domainlist = "allowed_domainlist"
-        self.assertEqual("mock_dlc", self.cahandler._csr_check(csr))
-        self.assertTrue(mock_eab.called)
-        self.assertTrue(mock_dlc.called)
-
-    @patch("examples.ca_handler.certifier_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.certifier_ca_handler.eab_profile_header_info_check")
-    def test_108_csr_check(self, mock_eab, mock_dlc):
+    def test_107_csr_check(self, mock_eab):
         """test csr_check"""
         csr = "csr"
         mock_eab.return_value = "mock_eab"
-        mock_dlc.return_value = "mock_dlc"
-        self.cahandler.allowed_domainlist = "allowed_domainlist"
         self.assertEqual("mock_eab", self.cahandler._csr_check(csr))
         self.assertTrue(mock_eab.called)
-        self.assertFalse(mock_dlc.called)
 
     @patch("examples.ca_handler.certifier_ca_handler.handler_config_check")
-    def test_109_handler_check(self, mock_handler_check):
+    def test_108_handler_check(self, mock_handler_check):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())

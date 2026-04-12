@@ -208,6 +208,15 @@ class TestACMEHandler(unittest.TestCase):
         self.signature.__init__(False, "http://tester.local", self.logger)
         self.assertEqual("/acme/revokecert", self.signature.revocation_path)
 
+    @patch("acme_srv.signature.load_config")
+    def test_016__init_empty(self, mock_load_cfg):
+        """test _config_load account with url prefix without tailing slash configured"""
+        parser = configparser.ConfigParser()
+        parser["CAHandler"] = {"foo": "bar"}
+        mock_load_cfg.return_value = parser
+        self.signature.__init__(False, "http://tester.local", self.logger)
+        self.assertEqual("/acme/revokecert", self.signature.revocation_path)
+
     def test_018_signature_check(self):
         """test Signature.cli_check() without having aname"""
         self.assertEqual(

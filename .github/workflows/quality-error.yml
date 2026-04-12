@@ -30,12 +30,7 @@ jobs:
   # ---------------------------------------------------------
   guard:
     runs-on: ubuntu-latest
-    if: >
-      ${{
-        inputs.sha != '' &&
-        inputs.run_id != '' &&
-        inputs.branch != ''
-      }} && github.repository == 'grindsa/acme2certifier'
+    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
     steps:
       - run: |
           echo "Triggered by SHA:    $SHA"
@@ -57,11 +52,11 @@ jobs:
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
-        dbhandler: ['wsgi']
+        dbhandler: ['wsgi', 'django']
     steps:
 
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Download and import container"
         uses: ./.github/actions/container_load
@@ -98,11 +93,11 @@ jobs:
       - name: "Install acmeshell"
         uses: ./.github/actions/wf_specific/error_tests/acmeshell_install
 
-      - name: "Test for Account Ressource"
+      - name: "Test for Account Resource"
         uses: ./.github/actions/wf_specific/error_tests/account_checks
 
 
-      - name: "Test for Order Ressource"
+      - name: "Test for Order Resource"
         uses: ./.github/actions/wf_specific/error_tests/order_checks
 
       - name: "[ * ] Collecting test logs"
@@ -112,10 +107,11 @@ jobs:
           sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
           cd examples/Docker
           docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+          # sudo cp -rp acmeshell/ ${{ github.workspace }}/artifact/acmeshell/
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz

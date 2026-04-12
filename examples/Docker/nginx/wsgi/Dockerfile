@@ -11,8 +11,8 @@ RUN apt-get update  && \
     python3-gssapi \
     python3-pip \
     uwsgi \
-    uwsgi-plugin-python3 \
-    && rm -rf /var/lib/apt/lists/* &&\
+    uwsgi-plugin-python3 && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
     mkdir -p /run/uwsgi
@@ -21,7 +21,7 @@ COPY ./ /var/www/acme2certifier/
 
 # configure acme2certifier
 RUN pip3 install impacket --break-system-packages && \
-    rm /usr/local/bin/*.py && \
+    rm -rf /usr/local/bin/* && \
     rm -rf /usr/local/lib/python3.12/dist-packages/impacket/examples/* && \
     pip3 install -r /var/www/acme2certifier/requirements.txt --break-system-packages && \
     pip3 install supervisor --break-system-packages && \
@@ -39,9 +39,6 @@ RUN pip3 install impacket --break-system-packages && \
     sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
     sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf && \
     rm /etc/nginx/sites-enabled/default && \
-    rm /var/www/acme2certifier/CHANGES.md && \
-    rm /var/www/acme2certifier/README.md && \
-    rm /var/www/acme2certifier/SECURITY.md && \
     rm /var/www/acme2certifier/setup.py && \
     rm /var/www/acme2certifier/requirements.txt && \
 	rm -rf /var/www/acme2certifier/examples/Docker && \

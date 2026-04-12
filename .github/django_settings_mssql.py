@@ -73,22 +73,18 @@ WSGI_APPLICATION = "acme2certifier.wsgi.application"
 # https://docs.djangoproject.com/en/1.11/ref/settings/#databases
 
 DATABASES = {
-    #'default': {
-    #    'ENGINE': 'django.db.backends.sqlite3',
-    #    'NAME': os.path.join(BASE_DIR, '/var/www/acme2certifier/volume/db.sqlite3'),
-    # }
     "default": {
-        "ENGINE": "django.db.backends.mysql",
+        "ENGINE": "mssql",
         "NAME": "acme2certifier",
-        "USER": "acme2certifier",
+        "USER": "acme2certifier_user",
         "XXX": "XXX",  # --- IGNORE ---
-        "HOST": "mariadbsrv.acme",
+        "HOST": "ms-sql.acme",
+        "PORT": "1433",
         "OPTIONS": {
-            "init_command": "SET sql_mode='STRICT_TRANS_TABLES', innodb_strict_mode=1",
-            "charset": "utf8mb4",
-            "use_unicode": True,
+            "driver": "ODBC Driver 18 for SQL Server",
+            "extra_params": "Encrypt=no;TrustServerCertificate=yes",
         },
-    },
+    }
 }
 
 

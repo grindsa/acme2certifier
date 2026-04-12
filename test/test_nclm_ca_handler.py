@@ -1113,6 +1113,23 @@ class TestACMEHandler(unittest.TestCase):
     @patch("requests.get")
     def test_080__cert_id_get(self, mock_req, mock_sleep):
         """test _cert_id_get()"""
+        mockresponse = Mock()
+        mockresponse.json = lambda: {
+            "status": "done",
+            "entities": [{"foo": "certificate", "url": "foo/v2/certificates/"}],
+        }
+        mock_req.return_value = mockresponse
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertFalse(self.cahandler._cert_id_get(10))
+        self.assertIn(
+            "ERROR:test_a2c:Job completed but certificate reference is missing or malformed: {'status': 'done', 'entities': [{'foo': 'certificate', 'url': 'foo/v2/certificates/'}]}",
+            lcm.output,
+        )
+
+    @patch("time.sleep")
+    @patch("requests.get")
+    def test_081__cert_id_get(self, mock_req, mock_sleep):
+        """test _cert_id_get()"""
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {
             "status": "note",
@@ -1124,11 +1141,16 @@ class TestACMEHandler(unittest.TestCase):
             "entities": [{"ref": "certificate", "url": "foo2/v2/certificates/"}],
         }
         mock_req.side_effect = [mockresponse1, mockresponse2]
-        self.assertEqual("foo2", self.cahandler._cert_id_get(10))
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.assertEqual("foo2", self.cahandler._cert_id_get(10))
+        self.assertIn(
+            "DEBUG:test_a2c:CAhandler._cert_id_get() waiting for job to complete. Attempt: 0 status: note",
+            lcm.output,
+        )
 
     @patch("requests.get")
     @patch("examples.ca_handler.nclm_ca_handler.cert_serial_get")
-    def test_081__certid_get_from_serial(self, mock_serial, mock_req):
+    def test_082__certid_get_from_serial(self, mock_serial, mock_req):
         """_certid_get_from_serial()"""
         mock_serial.return_value = "mock_serial"
         mockresponse = Mock()
@@ -1138,7 +1160,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("requests.get")
     @patch("examples.ca_handler.nclm_ca_handler.cert_serial_get")
-    def test_082__certid_get_from_serial(self, mock_serial, mock_req):
+    def test_083__certid_get_from_serial(self, mock_serial, mock_req):
         """_certid_get_from_serial()"""
         mock_serial.return_value = "mock_serial"
         mockresponse = Mock()
@@ -1153,7 +1175,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("requests.get")
     @patch("examples.ca_handler.nclm_ca_handler.cert_serial_get")
-    def test_083__certid_get_from_serial(self, mock_serial, mock_req):
+    def test_084__certid_get_from_serial(self, mock_serial, mock_req):
         """_certid_get_from_serial()"""
         mock_serial.return_value = "mock_serial"
         mock_req.side_effect = Exception("mock_req")
@@ -1171,7 +1193,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._certid_get_from_serial")
     @patch("examples.ca_handler.nclm_ca_handler.header_info_get")
     @patch("examples.ca_handler.nclm_ca_handler.b64_url_recode")
-    def test_084__cert_id_lookup(self, mock_enc, mock_info, mock_serial):
+    def test_085__cert_id_lookup(self, mock_enc, mock_info, mock_serial):
         """test _cert_id_lookup()"""
         mock_enc.return_value = "mock_enc"
         mock_info.return_value = [{"poll_identifier": "poll_identifier"}]
@@ -1182,7 +1204,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._certid_get_from_serial")
     @patch("examples.ca_handler.nclm_ca_handler.header_info_get")
     @patch("examples.ca_handler.nclm_ca_handler.b64_url_recode")
-    def test_085__cert_id_lookup(self, mock_enc, mock_info, mock_serial):
+    def test_086__cert_id_lookup(self, mock_enc, mock_info, mock_serial):
         """test _cert_id_lookup()"""
         mock_enc.return_value = "mock_enc"
         mock_info.return_value = [{"poll_identifier": None}]
@@ -1193,7 +1215,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._certid_get_from_serial")
     @patch("examples.ca_handler.nclm_ca_handler.header_info_get")
     @patch("examples.ca_handler.nclm_ca_handler.b64_url_recode")
-    def test_086__cert_id_lookup(self, mock_enc, mock_info, mock_serial):
+    def test_087__cert_id_lookup(self, mock_enc, mock_info, mock_serial):
         """test _cert_id_lookup()"""
         mock_enc.return_value = "mock_enc"
         mock_info.return_value = [{"foo": "bar"}]
@@ -1203,7 +1225,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("time.sleep")
     @patch("requests.get")
-    def test_087__revocation_status_poll(self, mock_req, mock_sleep):
+    def test_088__revocation_status_poll(self, mock_req, mock_sleep):
         """test _revocation_status_poll()"""
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "done"}
@@ -1216,7 +1238,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("time.sleep")
     @patch("requests.get")
-    def test_088__revocation_status_poll(self, mock_req, mock_sleep):
+    def test_089__revocation_status_poll(self, mock_req, mock_sleep):
         """test _revocation_status_poll()"""
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "failed"}
@@ -1229,7 +1251,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("time.sleep")
     @patch("requests.get")
-    def test_089__revocation_status_poll(self, mock_req, mock_sleep):
+    def test_090__revocation_status_poll(self, mock_req, mock_sleep):
         """test _revocation_status_poll()"""
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"status": "pending"}
@@ -1244,7 +1266,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("time.sleep")
     @patch("requests.get")
-    def test_090__revocation_status_poll(self, mock_req, mock_sleep):
+    def test_091__revocation_status_poll(self, mock_req, mock_sleep):
         """test _revocation_status_poll()"""
         mockresponse1 = Mock()
         mockresponse1.json = lambda: {"status": "pending"}
@@ -1259,7 +1281,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("time.sleep")
     @patch("requests.get")
-    def test_091__revocation_status_poll(self, mock_req, mock_sleep):
+    def test_092__revocation_status_poll(self, mock_req, mock_sleep):
         """test _revocation_status_poll()"""
         mockresponse = Mock()
         mockresponse.json = lambda: {"status": "pending"}
@@ -1275,7 +1297,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._template_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._ca_policylink_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.b64_url_recode")
-    def test_092_enroll(
+    def test_093_enroll(
         self, mock_recode, mock_policy, mock_template, mock_enroll, mock_ecl
     ):
         """test enroll"""
@@ -1299,7 +1321,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._template_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._ca_policylink_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.b64_url_recode")
-    def test_093_enroll(
+    def test_094_enroll(
         self, mock_recode, mock_policy, mock_template, mock_enroll, mock_ecl
     ):
         """test enroll"""
@@ -1323,7 +1345,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._template_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._ca_policylink_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.b64_url_recode")
-    def test_094_enroll(self, mock_recode, mock_policy, mock_template, mock_enroll):
+    def test_095_enroll(self, mock_recode, mock_policy, mock_template, mock_enroll):
         """test enroll"""
         mock_recode.return_value = "csr"
         mock_policy.return_value = "policylink_id"
@@ -1349,7 +1371,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._template_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._ca_policylink_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.b64_url_recode")
-    def test_095_enroll(self, mock_recode, mock_policy, mock_template, mock_enroll):
+    def test_096_enroll(self, mock_recode, mock_policy, mock_template, mock_enroll):
         """test enroll"""
         mock_recode.return_value = "csr"
         mock_policy.return_value = None
@@ -1370,7 +1392,7 @@ class TestACMEHandler(unittest.TestCase):
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._template_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._ca_policylink_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.b64_url_recode")
-    def test_096_enroll(self, mock_recode, mock_policy, mock_template, mock_enroll):
+    def test_097_enroll(self, mock_recode, mock_policy, mock_template, mock_enroll):
         """test enroll"""
         mock_recode.return_value = "csr"
         mock_policy.return_value = None
@@ -1385,20 +1407,18 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_template.called)
         self.assertFalse(mock_enroll.called)
 
-    @patch("examples.ca_handler.nclm_ca_handler.allowed_domainlist_check")
     @patch("examples.ca_handler.nclm_ca_handler.eab_profile_header_info_check")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._cert_enroll")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._template_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._ca_policylink_id_lookup")
     @patch("examples.ca_handler.nclm_ca_handler.b64_url_recode")
-    def test_097_enroll(
-        self, mock_recode, mock_policy, mock_template, mock_enroll, mock_eab, mock_adl
+    def test_098_enroll(
+        self, mock_recode, mock_policy, mock_template, mock_enroll, mock_eab
     ):
         """test enroll"""
         mock_recode.return_value = "csr"
         mock_policy.return_value = "policylink_id"
         mock_template.return_value = "template_id"
-        mock_adl.return_value = None
         mock_enroll.return_value = ("error", "bundle", "raw", "cert_id")
         mock_eab.return_value = "eab"
         self.cahandler.template_info_dic = {"name": "name", "id": None}
@@ -1408,32 +1428,6 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_policy.called)
         self.assertTrue(mock_template.called)
         self.assertFalse(mock_enroll.called)
-        self.assertFalse(mock_adl.called)
-
-    @patch("examples.ca_handler.nclm_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.nclm_ca_handler.eab_profile_header_info_check")
-    @patch("examples.ca_handler.nclm_ca_handler.CAhandler._cert_enroll")
-    @patch("examples.ca_handler.nclm_ca_handler.CAhandler._template_id_lookup")
-    @patch("examples.ca_handler.nclm_ca_handler.CAhandler._ca_policylink_id_lookup")
-    @patch("examples.ca_handler.nclm_ca_handler.b64_url_recode")
-    def test_098_enroll(
-        self, mock_recode, mock_policy, mock_template, mock_enroll, mock_eab, mock_adl
-    ):
-        """test enroll"""
-        mock_recode.return_value = "csr"
-        mock_policy.return_value = "policylink_id"
-        mock_template.return_value = "template_id"
-        mock_adl.return_value = "mock_adl"
-        mock_enroll.return_value = ("error", "bundle", "raw", "cert_id")
-        mock_eab.return_value = False
-        self.cahandler.template_info_dic = {"name": "name", "id": None}
-        self.cahandler.container_info_dic = {"name": "name", "id": "id"}
-        self.assertEqual(("mock_adl", None, None, None), self.cahandler.enroll("csr"))
-        self.assertTrue(mock_recode.called)
-        self.assertTrue(mock_policy.called)
-        self.assertTrue(mock_template.called)
-        self.assertFalse(mock_enroll.called)
-        self.assertTrue(mock_adl.called)
 
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._revocation_status_poll")
     @patch("examples.ca_handler.nclm_ca_handler.CAhandler._api_post")

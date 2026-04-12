@@ -26,8 +26,6 @@ from acme_srv.helper import (
     config_enroll_config_log_load,
     config_profile_load,
     enrollment_config_log,
-    config_allowed_domainlist_load,
-    allowed_domainlist_check,
     handler_config_check,
 )
 
@@ -53,7 +51,6 @@ class CAhandler(object):
         self.eab_profiling = False
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
-        self.allowed_domainlist = []
         self.profiles = {}
 
     def __enter__(self):
@@ -282,6 +279,7 @@ class CAhandler(object):
         )
 
         self._auth_set()
+        # load enrollment config log
         (
             self.enrollment_config_log,
             self.enrollment_config_log_skip_list,
@@ -290,11 +288,7 @@ class CAhandler(object):
         self.profiles = config_profile_load(self.logger, config_dic)
         # load header info
         self.header_info_field = config_headerinfo_load(self.logger, config_dic)
-        # load enrollment config log
-        # load allowed domainlist
-        self.allowed_domainlist = config_allowed_domainlist_load(
-            self.logger, config_dic
-        )
+
         self.logger.debug("CAhandler._config_load() ended")
 
     def _csr_cn_get(self, csr: str) -> str:
@@ -490,16 +484,6 @@ class CAhandler(object):
 
         # check for eab profiling and header_info
         error = eab_profile_header_info_check(self.logger, self, csr, "profile_name")
-
-        if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["api_password", "auth"])
-            enrollment_config_log(
-                self.logger, self, self.enrollment_config_log_skip_list
-            )
-
-        if not error:
-            # check for allowed domainlist
-            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
 
         if self.enrollment_config_log:
             self.enrollment_config_log_skip_list.extend(["api_password", "auth"])

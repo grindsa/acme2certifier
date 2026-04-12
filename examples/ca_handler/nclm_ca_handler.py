@@ -9,12 +9,10 @@ import requests
 
 # pylint: disable=e0401, r0913
 from acme_srv.helper import (
-    allowed_domainlist_check,
     b64_encode,
     b64_url_recode,
     build_pem_file,
     cert_serial_get,
-    config_allowed_domainlist_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
@@ -56,7 +54,6 @@ class CAhandler(object):
         self.eab_profiling = False
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
-        self.allowed_domainlist = []
         self.profiles = {}
 
     def __enter__(self):
@@ -298,7 +295,20 @@ class CAhandler(object):
                     cert_id = response["entities"][0]["url"].replace(
                         "/v2/certificates/", ""
                     )
-                break
+                    break
+                else:
+                    self.logger.error(
+                        "Job completed but certificate reference is missing or malformed: %s",
+                        response,
+                    )
+                    break
+
+            self.logger.debug(
+                "CAhandler._cert_id_get() waiting for job to complete. Attempt: %s status: %s",
+                cnt,
+                response.get("status", None),
+            )
+            cnt += 1
             time.sleep(self.wait_interval)
 
         self.logger.debug("CAhandler._cert_id_get() ended with: %s", cert_id)
@@ -541,10 +551,6 @@ class CAhandler(object):
             self._config_timer_load(config_dic)
 
         self._config_proxy_load(config_dic)
-        # load allowed domainlist
-        self.allowed_domainlist = config_allowed_domainlist_load(
-            self.logger, config_dic
-        )
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
@@ -607,10 +613,6 @@ class CAhandler(object):
         # check for eab profiling and header_info
         error = eab_profile_header_info_check(self.logger, self, csr, "template_name")
 
-        if not error:
-            # check for allowed domainlist
-            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-
         self.logger.debug("CAhandler._csr_check() ended with: %s", error)
         return error
 
@@ -648,7 +650,10 @@ class CAhandler(object):
         self.logger.debug("CAhandler._login()")
         # check first if API is reachable
         api_response = requests.get(
-            self.api_host + "/v1", proxies=self.proxy, timeout=self.request_timeout
+            self.api_host + "/v1",
+            proxies=self.proxy,
+            timeout=self.request_timeout,
+            verify=self.ca_bundle,
         )
         self.logger.debug("api response code:%s", api_response.status_code)
 
@@ -674,6 +679,7 @@ class CAhandler(object):
                 json=data,
                 proxies=self.proxy,
                 timeout=self.request_timeout,
+                verify=self.ca_bundle,
             )
 
             if api_response.ok:

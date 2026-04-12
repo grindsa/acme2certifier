@@ -30,12 +30,7 @@ jobs:
   # ---------------------------------------------------------
   guard:
     runs-on: ubuntu-latest
-    if: >
-      ${{
-        inputs.sha != '' &&
-        inputs.run_id != '' &&
-        inputs.branch != ''
-      }} && github.repository == 'grindsa/acme2certifier'
+    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
     steps:
       - run: |
           echo "Triggered by SHA:    $SHA"
@@ -54,7 +49,6 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
-      max-parallel: 1
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
@@ -62,12 +56,18 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse NCLM configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.NCLM_CFG }}
+
+      - name: "Parse SSH tunnel configuration"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+          uppercase: 'true'
 
       - name: "Generate UUID"
         run: |
@@ -91,6 +91,19 @@ jobs:
           CONTAINER_BUILD: false
           NAME_SPACE: acme
 
+      - name: "Setup tunnel"
+        uses: ./.github/actions/wf_specific/nclm_ca_handler/tunnel_setup
+        with:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.SSH_KEY }}
+          NCLM_API_HOST: ${{ env.NCLM_API_HOST }}
+          NCLM_API_USER: ${{ env.NCLM_API_USER }}
+          NCLM_API_PASSWORD: ${{ env.NCLM_API_PASSWORD }}
+
+
       - name: "Setup a2c with nclm_ca_handler"
         run: |
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
@@ -98,12 +111,13 @@ jobs:
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_file: examples/ca_handler/nclm_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: $NCLM_API_HOST" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "api_host: https://forwarder.acme:4000" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_user: $NCLM_API_USER" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_password: $NCLM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
           sudo echo "tsg_name: $NCLM_TSG_NAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_name: $NCLM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
           sudo echo "request_timeout: 40" >> examples/Docker/data/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
@@ -159,7 +173,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data clients
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
@@ -181,7 +195,7 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -192,6 +206,12 @@ jobs:
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.NCLM_CFG }}
+
+      - name: "Parse SSH tunnel configuration"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+          uppercase: 'true'
 
       - name: "Generate UUID"
         run: |
@@ -215,6 +235,18 @@ jobs:
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
+      - name: "Setup tunnel"
+        uses: ./.github/actions/wf_specific/nclm_ca_handler/tunnel_setup
+        with:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.SSH_KEY }}
+          NCLM_API_HOST: ${{ env.NCLM_API_HOST }}
+          NCLM_API_USER: ${{ env.NCLM_API_USER }}
+          NCLM_API_PASSWORD: ${{ env.NCLM_API_PASSWORD }}
+
       - name: "Setup a2c with with nclm_ca_handler"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
@@ -229,6 +261,7 @@ jobs:
           sudo echo "tsg_name: $NCLM_TSG_NAME" >> data/volume/acme_srv.cfg
           sudo echo "ca_name: $NCLM_CA_NAME" >> data/volume/acme_srv.cfg
           sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
           sudo echo "request_timeout: 40" >> data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 60/g" data/volume/acme_srv.cfg
@@ -292,7 +325,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data clients acme-srv.log
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-rpms-rh${{ matrix.rhversion }}-${{ matrix.execscript}}.tar.gz
@@ -313,12 +346,18 @@ jobs:
 
     steps:
       - name: "checkout GIT"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: "Parse NCLM configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.NCLM_CFG }}
+
+      - name: "Parse SSH tunnel configuration"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
+          uppercase: 'true'
 
       - name: "Prepare Ubuntu environment"
         if: matrix.execscript == 'deb_tester.sh'
@@ -347,6 +386,18 @@ jobs:
           echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
       - run: echo "UUID ${{ env.UUID }}"
 
+      - name: "Setup tunnel"
+        uses: ./.github/actions/wf_specific/nclm_ca_handler/tunnel_setup
+        with:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.SSH_KEY }}
+          NCLM_API_HOST: ${{ env.NCLM_API_HOST }}
+          NCLM_API_USER: ${{ env.NCLM_API_USER }}
+          NCLM_API_PASSWORD: ${{ env.NCLM_API_PASSWORD }}
+
       - name: "Setup a2c with with nclm_ca_handler"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
@@ -355,12 +406,14 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/nclm_ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $NCLM_API_HOST" >> data/volume/acme_srv.cfg
+          # sudo echo "api_host: $NCLM_API_HOST" >> data/volume/acme_srv.cfg
+          sudo echo "api_host: https://forwarder.acme:4000" >> data/volume/acme_srv.cfg
           sudo echo "api_user: $NCLM_API_USER" >> data/volume/acme_srv.cfg
           sudo echo "api_password: $NCLM_API_PASSWORD" >> data/volume/acme_srv.cfg
           sudo echo "tsg_name: $NCLM_TSG_NAME" >> data/volume/acme_srv.cfg
           sudo echo "ca_name: $NCLM_CA_NAME" >> data/volume/acme_srv.cfg
           sudo echo "ca_id_list: [$NCLM_CA_ID_LIST]" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
           sudo echo "request_timeout: 40" >> data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 60/g" data/volume/acme_srv.cfg
@@ -413,7 +466,7 @@ jobs:
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
 
       - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
           name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz

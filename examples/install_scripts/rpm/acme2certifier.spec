@@ -35,6 +35,7 @@ Requires:       python3-requests
 Requires:       python3-requests-pkcs12
 Requires:       python3-pysocks
 Requires:       python3-josepy
+Requires:       python3-acme
 Requires:       python3-xmltodict
 Requires:       python3-pyasn1
 Requires:       python3-pyasn1-modules

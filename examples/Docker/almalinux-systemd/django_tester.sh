@@ -31,7 +31,26 @@ case "${1}" in
     systemctl start syslog-ng.service
 
     yum -y localinstall /tmp/acme2certifier/*.rpm
-    yum -y install python3-PyMySQL python3-sqlparse python3-psycopg2 python3-pyyaml python3-mysqlclient
+
+
+    if [[ -f /tmp/acme2certifier/packages-microsoft-prod.rpm ]]
+      then
+      echo "install Microsoft repository configuration package"
+      yum -y localinstall /tmp/acme2certifier/packages-microsoft-prod.rpm
+      ACCEPT_EULA=Y yum install -y msodbcsql18 python3-pip python3-pyodbc
+      if [[ -f /usr/bin/pip3 ]]
+        then
+        echo "installing MSSQL Django dependencies with pip3 and pinning mssql-django to 1.3"
+        yum -y install gcc gcc-c++ python3-devel unixODBC-devel
+        pip3 install mssql-django==1.3 # pyodbc
+        else
+        echo "installing MSSQL Django dependencies with pip"
+        pip install mssql-django # pyodbc
+      fi
+      # yum install -y unixODBC
+      else
+      yum -y install python3-PyMySQL python3-sqlparse python3-psycopg2 python3-pyyaml python3-mysqlclient
+    fi
 
     yes | cp /opt/acme2certifier/examples/db_handler/django_handler.py /opt/acme2certifier/acme_srv/db_handler.py
     yes | cp -R /opt/acme2certifier/examples/django/* /opt/acme2certifier/

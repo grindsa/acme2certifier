@@ -16,8 +16,8 @@ RUN apt-get update  && \
     libgssapi-krb5-2 \
     libkrb5-3 \
     python3-gssapi \
-    python3-pip \
-    && rm -rf /var/lib/apt/lists/* &&\
+    python3-pip && \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/
 
@@ -25,15 +25,12 @@ COPY ./ /var/www/acme2certifier/
 
 # configure acme2certifier
 RUN pip3 install impacket --break-system-packages && \
-    rm /usr/local/bin/*.py && \
+    rm -rf /usr/local/bin/* && \
     rm -rf /usr/local/lib/python3.12/dist-packages/impacket/examples/* && \
     pip3 install -r /var/www/acme2certifier/requirements.txt --break-system-packages && \
     cp /var/www/acme2certifier/examples/apache2/apache_wsgi.conf /etc/apache2/sites-enabled/acme2certifier.conf  && \
     cp /var/www/acme2certifier/examples/acme2certifier_wsgi.py /var/www/acme2certifier/acme2certifier_wsgi.py  && \
     cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py  && \
-    rm /var/www/acme2certifier/CHANGES.md && \
-    rm /var/www/acme2certifier/README.md && \
-    rm /var/www/acme2certifier/SECURITY.md && \
     rm /var/www/acme2certifier/setup.py && \
     rm /var/www/acme2certifier/requirements.txt && \
     cp /var/www/acme2certifier/examples/Docker/apache2/wsgi/docker-entrypoint.sh /docker-entrypoint.sh && \
