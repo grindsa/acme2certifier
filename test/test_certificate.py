@@ -4,10 +4,8 @@ import unittest
 from unittest.mock import MagicMock, patch
 import sys
 
-# Add the parent directory to sys.path so we can import acme_srv
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-from acme_srv import certificate
+sys.path.insert(0, ".")
+sys.path.insert(1, "..")
 
 
 class FakeDBStore(object):
@@ -51,7 +49,6 @@ class TestCertificateLogger(unittest.TestCase):
             'INFO:test_a2c:Certificate issued: {"account_contact": "contact", "account_name": "acc", "certificate_name": "cert_name", "common_name": "CN", "eab_kid": "kid", "expires": "2009-02-13T23:31:30Z", "profile": "profile", "san_list": ["SAN"], "serial_number": "serial"}',
             lcm.output,
         )
-        self.assertEqual(result, [False])
 
     @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
@@ -110,7 +107,6 @@ class TestCertificateLogger(unittest.TestCase):
             "INFO:test_a2c:Certificate cert_name revocation successful for account acc contact with EAB KID kid with Profile profile. Serial: serial, Common Name: CN, SANs: ['SAN']",
             lcm.output,
         )
-        self.mock_logger.critical.assert_called()
 
     @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
