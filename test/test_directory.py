@@ -6,11 +6,16 @@ import sys
 # Add the parent directory to sys.path so we can import acme_srv
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+mock_db_handler = MagicMock()
+mock_dbstore_class = MagicMock()
+mock_db_handler.DBstore = mock_dbstore_class
+sys.modules["acme_srv.db_handler"] = mock_db_handler
 from acme_srv.directory import Directory, DirectoryConfig, DirectoryRepository
 
 
 class TestDirectory(unittest.TestCase):
     def setUp(self):
+        """Set up module-level mocks before any tests run"""
         self.mock_logger = MagicMock()
         self.mock_dbstore = MagicMock()
         self.mock_repository = DirectoryRepository(self.mock_dbstore, self.mock_logger)
@@ -63,6 +68,19 @@ class TestDirectory(unittest.TestCase):
                     mock_load_ca.assert_called()
                     mock_parse_cahandler_section.assert_called()
                     mock_async_mode_load.assert_called()
+
+    def test_003_parse_directory_empty(self):
+        # Mock config_dic to behave like configparser.ConfigParser
+        mock_config = MagicMock()
+        mock_config.get.side_effect = lambda section, key, fallback=None: {
+            ("CAhandler", "foo"): "bar"
+        }.get((section, key), fallback)
+        self.directory._parse_directory_section(mock_config)
+        self.assertFalse(self.directory.config.tos_url)
+        self.assertEqual(self.directory.config.url_prefix, "")
+        self.assertEqual(
+            self.directory.config.home, "https://github.com/grindsa/acme2certifier"
+        )
 
     def test_003_parse_directory_section_sets_config(self):
         # Mock config_dic to behave like configparser.ConfigParser

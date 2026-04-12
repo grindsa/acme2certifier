@@ -1,0 +1,53 @@
+name: "container_load"
+description: "Download and import container image"
+inputs:
+  RUN_ID:
+    description: "The run ID of the workflow run that produced the artifact"
+    required: true
+  ARTIFACT_NAME:
+    description: "The name of the artifact to download"
+    required: true
+  DESTINATION_PATH:
+    description: "The path to download the artifact to"
+    required: false
+    default: "./"
+  TOKEN:
+    description: "GitHub token with permissions to access the artifact"
+    required: false
+    default: ""
+  REPO:
+    description: "The repository in the format owner/repo. Defaults to the current repository."
+    required: false
+    default: ""
+  OS:
+    description: "Operating System"
+    required: true
+    default: "Linux"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "Download container"
+      uses: ./.github/actions/download_artifact
+      with:
+        RUN_ID: ${{ inputs.RUN_ID }}
+        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME }}.gz
+        DESTINATION_PATH: /tmp
+        TOKEN: ${{ inputs.TOKEN }}
+        REPO: ${{ inputs.REPO }}
+
+    - name: "Import container"
+      run: |
+        cd $DESTINATION_PATH
+        gunzip -f $ARTIFACT_NAME.gz
+        curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
+        echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+        sudo apt update
+        sudo apt install -y docker-compose-plugin
+        docker load -i $ARTIFACT_NAME
+        docker images
+      shell: bash
+      env:
+        DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
+        ARTIFACT_NAME: ${{ inputs.ARTIFACT_NAME }}

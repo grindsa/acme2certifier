@@ -913,7 +913,7 @@ class Challenge:
 
     def _perform_source_address_validation(
         self, challenge_name: str
-    ) -> Tuple[bool, bool]:
+    ) -> Tuple[bool, bool, Optional[str]]:
         """Perform source address validation checks using the validator registry."""
         self.logger.debug(
             "Challenge._perform_source_address_validation(%s)", challenge_name
@@ -922,7 +922,7 @@ class Challenge:
         # If no address checking is configured, skip validation
         if not (self.config.forward_address_check or self.config.reverse_address_check):
             self.logger.debug("Source address validation disabled")
-            return True, False
+            return True, False, None
 
         challenge_info = self.repository.get_challenge_by_name(challenge_name)
         self.logger.debug(
@@ -931,7 +931,7 @@ class Challenge:
 
         if not challenge_info:
             self.logger.error("Challenge not found: %s", challenge_name)
-            return False, True
+            return False, True, "Challenge not found"
 
         # Create challenge context for source address validation
         try:

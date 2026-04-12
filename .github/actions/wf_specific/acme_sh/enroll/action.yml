@@ -1,0 +1,138 @@
+name: "acme_clients - enroll, renew and revoke certificates"
+description: "Test if acme.sh, certbot and lego can enroll, renew and certificates"
+inputs:
+  ACME_SERVER:
+    description: "ACME server URL"
+    required: true
+    default: "acme-srv"
+  KEYLENGTH:
+    description: "Key length to use for the certificate"
+    required: true
+    default: "2048"
+  ACCOUNTKEYLENGTH:
+    description: "Account key length to use for the certificate"
+    required: true
+    default: "2048"
+  CA_PATH:
+    description: "Path to CA certificates"
+    required: false
+    default: "examples/Docker/data/acme_ca/"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Create folders"
+      run: |
+        mkdir acme-sh
+      shell: bash
+
+    - name: "Test http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl -f http://$ACME_SERVER/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Test if https://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://$ACME_SERVER/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Prepare acme.sh container"
+      run: |
+        docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+      shell: bash
+
+    - name: "Enroll HTTP-01 single domain acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --keylength $KEYLENGTH --accountkeylength $ACCOUNTKEYLENGTH --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
+        if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
+          ECC="_ecc"
+        fi
+        openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        KEYLENGTH: ${{ inputs.KEYLENGTH }}
+        ACCOUNTKEYLENGTH: ${{ inputs.ACCOUNTKEYLENGTH }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+
+    - name: "Renew HTTP-01 single domain acme.sh"
+      run: |
+        if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
+          ECC="--ecc"
+        fi
+        docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --keylength $KEYLENGTH --renew --force ${ECC} -d acme-sh.acme --standalone --debug 3 --output-insecure
+        if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
+          ECC="_ecc"
+        fi
+        openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        KEYLENGTH: ${{ inputs.KEYLENGTH }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+
+    - name: "Revoke HTTP-01 single domain acme.sh"
+      run: |
+        if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
+          ECC="--ecc"
+        fi
+        docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --revoke ${ECC} -d acme-sh.acme --standalone --debug 2 --output-insecure
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        KEYLENGTH: ${{ inputs.KEYLENGTH }}
+
+    - name: "Enroll HTTP-01 2x domain acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --keylength $KEYLENGTH --issue -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
+        if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
+          ECC="_ecc"
+        fi
+        openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        KEYLENGTH: ${{ inputs.KEYLENGTH }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+
+    - name: "Renew HTTP-01 2x domain acme.sh"
+      run: |
+        if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
+          ECC="--ecc"
+        fi
+        docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --keylength $KEYLENGTH --renew --force ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
+        if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
+          ECC="_ecc"
+        fi
+        openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/acme-sh.acme${ECC}/acme-sh.acme.cer
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        KEYLENGTH: ${{ inputs.KEYLENGTH }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+
+    - name: "Revoke HTTP-01 2x domain acme.sh"
+      run: |
+        if ([ "$KEYLENGTH" == "ec-256" ] || [ "$KEYLENGTH" == "ec-384" ] || [ "$KEYLENGTH" == "ec-521" ]) ; then
+          ECC="--ecc"
+        fi
+        docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --revoke ${ECC} -d acme-sh.acme -d acme-sh. --standalone --debug 3 --output-insecure
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        KEYLENGTH: ${{ inputs.KEYLENGTH }}
+
+    - name: "Deactivate acme.sh"
+      run: |
+        docker exec -i acme-sh acme.sh --server http://$ACME_SERVER --deactivate-account --debug 2 --output-insecure
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}

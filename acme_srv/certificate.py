@@ -558,12 +558,13 @@ class Certificate(object):
             )
 
         # CAhandler section
-        if (
-            "CAhandler" in config_dic
-            and config_dic.get("CAhandler", "handler_file", fallback=None)
-            == "examples/ca_handler/asa_ca_handler.py"
-        ):
-            self.config.cn2san_add = True
+        if "CAhandler" in config_dic:
+            handler_file = config_dic.get("CAhandler", "handler_file", fallback=None)
+            if handler_file is not None and handler_file.endswith("asa_ca_handler.py"):
+                self.logger.debug(
+                    "Certificate._load_certificate_parameters(): enabling cn2san_add for asa_ca_handler"
+                )
+                self.config.cn2san_add = True
 
         # Directory section
         if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
@@ -1283,6 +1284,11 @@ class Certificate(object):
                             issue_uts,
                             expire_uts,
                         )
+            else:
+                self.logger.debug(
+                    "Certificate._update_certificate_dates(): certificate %s already has issue and expiry dates - skipping update",
+                    cert["name"],
+                )
 
         self.logger.debug("Certificate._update_certificate_dates() ended")
 
