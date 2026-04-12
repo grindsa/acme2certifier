@@ -88,8 +88,8 @@ class DBstore(object):
         if "status" in data_dic:
             data_dic["status"] = self._status_getinstance(data_dic["status"], "name")
 
-        if 'eab_kid' in data_dic and not data_dic['eab_kid']:
-            del (data_dic['eab_kid'])
+        if "eab_kid" in data_dic and not data_dic["eab_kid"]:
+            del data_dic["eab_kid"]
 
         if account_list:
             created = False
@@ -132,10 +132,16 @@ class DBstore(object):
         result = Account.objects.filter(name=aname).delete()
         return result
 
-    def account_update(self, data_dic: Dict[str, str], active: bool = True) -> int:  # NOSONAR
-        """ update existing account """
-        self.logger.debug('DBStore.account_update(%s)', data_dic)
-        obj, _created = Account.objects.update_or_create(name=data_dic['name'], defaults=data_dic)
+    def account_update(
+        self,
+        data_dic: Dict[str, str],
+        active: bool = True,  # NOSONAR # pylint: disable=unused-argument
+    ) -> int:
+        """update existing account"""
+        self.logger.debug("DBStore.account_update(%s)", data_dic)
+        obj, _created = Account.objects.update_or_create(
+            name=data_dic["name"], defaults=data_dic
+        )
         obj.save()
         self.logger.debug("acct_id(%s)", obj.id)
         return obj.id

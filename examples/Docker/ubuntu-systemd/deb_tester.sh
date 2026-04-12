@@ -57,6 +57,10 @@ case "${1}" in
       systemctl enable acme2certifier
     fi
 
+    echo "update openssl configuration"
+    sed -i "s/default = default_sect/default = default_sect\nlegacy = legacy_sect\n\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf
+    sed -i "s/# activate = 1/activate = 1/g" /etc/ssl/openssl.cnf
+
     echo "copy data"
     mkdir -p /var/www/acme2certifier/volume/
     cp -R /tmp/acme2certifier/volume/* /var/www/acme2certifier/volume/

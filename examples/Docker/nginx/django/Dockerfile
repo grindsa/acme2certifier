@@ -17,8 +17,14 @@ RUN apt-get update  && \
     python3-pymysql \
     python3-yaml \
     uwsgi \
-    uwsgi-plugin-python3 \
-    && rm -rf /var/lib/apt/lists/* &&\
+    uwsgi-plugin-python3 && \
+    curl https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb --output /tmp/packages-microsoft-prod.deb && \
+    dpkg -i /tmp/packages-microsoft-prod.deb && \
+    rm /tmp/packages-microsoft-prod.deb && \
+    apt-get update && \
+    ACCEPT_EULA=Y apt-get install -y msodbcsql18 && \
+    apt-get clean &&  \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
     mkdir -p /run/uwsgi
@@ -26,10 +32,11 @@ RUN apt-get update  && \
 COPY ./ /var/www/acme2certifier/
 
 RUN pip3 install impacket --break-system-packages && \
-    rm /usr/local/bin/*.py && \
+    rm -rf /usr/local/bin/* && \
     rm -rf /usr/local/lib/python3.12/dist-packages/impacket/examples/* && \
     pip3 install -r /var/www/acme2certifier/requirements.txt --break-system-packages && \
     pip3 install supervisor --break-system-packages && \
+    pip3 install --no-cache-dir mssql-django pyodbc --break-system-packages --break-system-packages && \
     cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/  && \
     cp /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py  && \
 	cp /var/www/acme2certifier/examples/nginx/acme2certifier.ini /var/www/acme2certifier && \
@@ -44,9 +51,6 @@ RUN pip3 install impacket --break-system-packages && \
     sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
     sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf && \
     rm /etc/nginx/sites-enabled/default && \
-    rm /var/www/acme2certifier/CHANGES.md && \
-    rm /var/www/acme2certifier/README.md && \
-    rm /var/www/acme2certifier/SECURITY.md && \
     rm /var/www/acme2certifier/setup.py && \
     rm /var/www/acme2certifier/requirements.txt && \
 	rm -rf /var/www/acme2certifier/examples/Docker && \

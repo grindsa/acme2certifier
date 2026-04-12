@@ -90,10 +90,10 @@ CREATE TABLE account (
 
 CREATE TABLE credentials (
     id SERIAL PRIMARY KEY,
-	account_id INT NOT NULL REFERENCES account (id),
-	key_id VARCHAR(63) NOT NULL,
-	profile JSONB,
-	description VARCHAR(255),
+    account_id INT NOT NULL REFERENCES account (id),
+    key_id VARCHAR(63) NOT NULL,
+    profile JSONB,
+    description VARCHAR(255),
     status SMALLINT NOT NULL
 );
 ```
@@ -110,16 +110,14 @@ CREATE TABLE account (
 );
 
 CREATE TABLE credentials (
-	id INT IDENTITY(1,1) PRIMARY KEY,
-	account_id INT NOT NULL REFERENCES account (id),
-	key_id NVARCHAR(63) NOT NULL,
-	profile NVARCHAR(MAX),
-	description NVARCHAR(255),
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    account_id INT NOT NULL REFERENCES account (id),
+    key_id NVARCHAR(63) NOT NULL,
+    profile NVARCHAR(MAX),
+    description NVARCHAR(255),
     status TINYINT NOT NULL
 );
 ```
-
-<a id="Usage"></a>
 
 ### Usage
 
@@ -138,19 +136,17 @@ Example:
 INSERT INTO credentials (account_id, key_id, description, profile, status)
   VALUES (
     (SELECT id FROM account WHERE account.name = 'myaccount'),
-	'keyid_03',
-	'mykey',
-	'{
-    	"hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr",
-    	"authorization": {
-      		"prevalidated_domainlist": ["www.example.com"]
-    	}
-  	}',
+    'keyid_03',
+    'mykey',
+    '{
+        "hmac": "YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr",
+        "authorization": {
+            "prevalidated_domainlist": ["www.example.com"]
+        }
+    }',
     1
   );
 ```
-
-<a id="Activate"></a>
 
 ### Activate Handler
 

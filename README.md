@@ -3,17 +3,17 @@
 # acme2certifier
 
 ![GitHub release](https://img.shields.io/github/release/grindsa/acme2certifier.svg)
-![GitHub last commit (branch)](https://img.shields.io/github/last-commit/grindsa/acme2certifier/master.svg?label=last%20commit%20into%20min)
-![GitHub last commit (branch)](https://img.shields.io/github/last-commit/grindsa/acme2certifier/devel.svg?label=last%20commit%20into%20min-devel)
+![GitHub last commit (branch)](https://img.shields.io/github/last-commit/grindsa/acme2certifier/master.svg?label=last%20commit%20into%20master)
+![GitHub last commit (branch)](https://img.shields.io/github/last-commit/grindsa/acme2certifier/devel.svg?label=last%20commit%20into%20devel)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/2581/badge)](https://bestpractices.coreinfrastructure.org/projects/2581)
 
 [![Codecov main](https://img.shields.io/codecov/c/github/grindsa/acme2certifier/master?label=test%20coverage%20master)](https://app.codecov.io/gh/grindsa/acme2certifier/tree/master)
 [![Codecov devel](https://img.shields.io/codecov/c/github/grindsa/acme2certifier/devel?label=test%20coverage%20devel)](https://app.codecov.io/gh/grindsa/acme2certifier/tree/devel)
 
-[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=security_rating)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier&branch=min)
-[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=grindsa_acme2certifier&branch=min)
-[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=reliability_rating)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier&branch=min)
-[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=alert_status)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier&branch=min)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=security_rating)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=grindsa_acme2certifier)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=reliability_rating)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier)
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=grindsa_acme2certifier&metric=alert_status)](https://sonarcloud.io/summary/overall?id=grindsa_acme2certifier)
 
 **acme2certifier** is a development project aimed at creating an **ACME protocol proxy**. Its primary goal is to enable **ACME services** for **CA servers** that do not natively support this protocol.
 

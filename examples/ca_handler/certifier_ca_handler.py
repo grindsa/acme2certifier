@@ -12,12 +12,10 @@ from requests.auth import HTTPBasicAuth
 
 # pylint: disable=e0401
 from acme_srv.helper import (
-    allowed_domainlist_check,
     b64_decode,
     b64_encode,
     cert_pem2der,
     cert_serial_get,
-    config_allowed_domainlist_load,
     config_eab_profile_load,
     config_enroll_config_log_load,
     config_headerinfo_load,
@@ -56,7 +54,6 @@ class CAhandler(object):
         self.eab_profiling = False
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
-        self.allowed_domainlist = []
         self.profiles = {}
 
     def __enter__(self):
@@ -443,10 +440,6 @@ class CAhandler(object):
             self._config_password_load(config_dic)
             # load parameters from config
             self._config_parameter_load(config_dic)
-            # load allowed domainlist
-            self.allowed_domainlist = config_allowed_domainlist_load(
-                self.logger, config_dic
-            )
             # load profiling
             self.eab_profiling, self.eab_handler = config_eab_profile_load(
                 self.logger, config_dic
@@ -468,10 +461,6 @@ class CAhandler(object):
 
         # check for eab profiling and header_info
         error = eab_profile_header_info_check(self.logger, self, csr, "profile_id")
-
-        if not error and self.allowed_domainlist:
-            # check for allowed domainlist
-            error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
 
         self.logger.debug("CAhandler._csr_check() ended with: %s", error)
         return error

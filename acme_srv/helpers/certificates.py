@@ -206,7 +206,8 @@ def cert_san_get(
             sans.append(f"IP:{san}")
     except Exception as err:
         logger.error("Error while getting SANs from certificate: %s", err)
-        # we may add the routing to get the sanes via pyopenssl here if needed (sans = cert_san_pyopenssl_get(logger, certificate, recode=recode))
+        # fallback to pyopenssl method if there is an error (e.g. SAN extension not found)
+        # sans = cert_san_pyopenssl_get(logger, certificate, recode=recode)
 
     logger.debug("Helper.cert_san_get() ended")
     return sans

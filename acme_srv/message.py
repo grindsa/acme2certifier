@@ -110,6 +110,8 @@ class Message(object):
         self.logger.debug("Message._load_configuration() ended")
         return msg_config
 
+    _CHECK_EAB_CREDENTIALS_LOG_MSG = "Message._check_and_handle_invalid_eab_credentials() ended with account_name: %s"
+
     def _check_and_handle_invalid_eab_credentials(self, account_name: str):
         """Check for accounts with invalid eab credentials."""
         self.logger.debug("Message._check_and_handle_invalid_eab_credentials()")
@@ -118,7 +120,7 @@ class Message(object):
         if not account_dic:
             self.logger.error("Account lookup for %s failed.", account_name)
             self.logger.debug(
-                "Message._check_and_handle_invalid_eab_credentials() ended with account_name: %s",
+                self._CHECK_EAB_CREDENTIALS_LOG_MSG,
                 None,
             )
             return None
@@ -127,7 +129,7 @@ class Message(object):
         if not eab_kid:
             self.logger.error("Account %s has no eab credentials", account_name)
             self.logger.debug(
-                "Message._check_and_handle_invalid_eab_credentials() ended with account_name: %s",
+                self._CHECK_EAB_CREDENTIALS_LOG_MSG,
                 None,
             )
             return None
@@ -135,12 +137,12 @@ class Message(object):
         if self.config.eab_handler and not self._eab_mac_key_exists(eab_kid):
             self._handle_missing_eab_credentials(account_name, eab_kid)
             self.logger.debug(
-                "Message._check_and_handle_invalid_eab_credentials() ended with account_name: %s",
+                self._CHECK_EAB_CREDENTIALS_LOG_MSG,
                 None,
             )
             return None
         self.logger.debug(
-            "Message._check_and_handle_invalid_eab_credentials() ended with account_name: %s",
+            self._CHECK_EAB_CREDENTIALS_LOG_MSG,
             account_name,
         )
         return account_name

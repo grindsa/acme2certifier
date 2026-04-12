@@ -1,4 +1,3 @@
-
 name: build
 on:
   push:
@@ -6,9 +5,7 @@ on:
   workflow_dispatch: {}
 
 
-permissions:
-  pull-requests: write
-  contents: write
+
 
 jobs:
   # ---------------------------------------------------------
@@ -16,17 +13,17 @@ jobs:
   # ---------------------------------------------------------
   build-containers:
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
+    permissions:
+      pull-requests: write
+      contents: write
+    if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     strategy:
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
-
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v6
       - name: "Build container"
         uses: ./.github/actions/container_build_upload
         with:
@@ -38,10 +35,12 @@ jobs:
   # ---------------------------------------------------------
   build-rpm:
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier'
+    permissions:
+      pull-requests: write
+      contents: write
+    if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v6
       - name: "Build rpm package"
         id: rpm_build
         uses: ./.github/actions/rpm_build_upload
@@ -52,10 +51,12 @@ jobs:
   # ---------------------------------------------------------
   build-deb:
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier'
+    permissions:
+      pull-requests: write
+      contents: write
+    if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v6
       - name: "deb build and upload"
         uses: ./.github/actions/deb_build_upload
         with:
@@ -71,9 +72,8 @@ jobs:
       contents: read
       actions: read
       deployments: write
-
+    if: github.repository == 'grindsa/acme2certifier' && !startsWith(github.ref_name, 'wf_')
     steps:
-
       - name: Dispatch repository event
         uses: peter-evans/repository-dispatch@v4
         with:

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """EAB (External Account Binding) utilities for acme2certifier"""
 import logging
+from typing import Optional
 from .csr import csr_subject_get
 from .encoding import b64_url_recode
 from .config import client_parameter_validate, profile_lookup, header_info_lookup
@@ -8,59 +9,86 @@ from .validation import cn_validate
 from .domain_utils import allowed_domainlist_check
 
 
+def _handle_eab_profiling(
+    logger: logging.Logger, cahandler, csr: str, handler_hifield: str
+) -> Optional[str]:
+    """Handle EAB profiling logic"""
+    logger.debug("Helper._handle_eab_profiling()")
+
+    if not (hasattr(cahandler, "eab_handler") and cahandler.eab_handler):
+        logger.error("EAB profiling enabled but no handler defined")
+        return "Eab_profiling enabled but no handler defined"
+
+    # profiling enabled - check profile
+    return eab_profile_check(logger, cahandler, csr, handler_hifield)
+
+
+def _handle_acme_profiling(
+    logger: logging.Logger, cahandler, csr: str, handler_hifield: str
+) -> None:
+    """Handle ACME profiling logic"""
+    logger.debug("Helper._handle_acme_profiling()")
+
+    profile = profile_lookup(logger, csr)
+    if profile:
+        logger.debug(
+            "Helper.profile_lookup(): setting %s to %s",
+            handler_hifield,
+            profile,
+        )
+        setattr(cahandler, handler_hifield, profile)
+
+
+def _handle_header_info_profiling(
+    logger: logging.Logger, cahandler, csr: str, handler_hifield: str
+) -> None:
+    """Handle header info profiling logic"""
+    logger.debug("Helper._handle_header_info_profiling()")
+
+    hil_value = header_info_lookup(
+        logger, csr, cahandler.header_info_field, handler_hifield
+    )
+    if hil_value:
+        logger.debug(
+            "Helper.eab_profile_header_info_check(): setting %s to %s",
+            handler_hifield,
+            hil_value,
+        )
+        logger.info(
+            "Received enrollment parameter: %s value: %s via headerinfo field",
+            handler_hifield,
+            hil_value,
+        )
+        setattr(cahandler, handler_hifield, hil_value)
+    else:
+        logger.debug("eab_profile_header_info_check(): no header_info field found")
+
+
 def eab_profile_header_info_check(
     logger: logging.Logger,
     cahandler,
     csr: str,
     handler_hifield: str = "profile_name",
-) -> str:
+) -> Optional[str]:
     """check profile"""
     logger.debug("Helper.eab_profile_header_info_check()")
 
-    if cahandler.eab_profiling:
-        # eab profiling - check if we have a handler
-        if cahandler.eab_handler:
-            # profiling enabled - check profile
-            error = eab_profile_check(logger, cahandler, csr, handler_hifield)
-        else:
-            logger.error("EAB profiling enabled but no handler defined")
-            error = "Eab_profiling enabled but no handler defined"
+    # Priority 1: EAB profiling - returns error string or None
+    if hasattr(cahandler, "eab_profiling") and cahandler.eab_profiling:
+        error = _handle_eab_profiling(logger, cahandler, csr, handler_hifield)
 
-    elif cahandler.profiles:
-        # acme profiling - acme profiling will always be preferred
-        profile = profile_lookup(logger, csr)
-        if profile:
-            logger.debug(
-                "Helper.profile_lookup(): setting %s to %s",
-                handler_hifield,
-                profile,
-            )
-            setattr(cahandler, handler_hifield, profile)
+    # Priority 2: ACME profiling (preferred over header info) - no errors
+    elif hasattr(cahandler, "profiles") and cahandler.profiles:
+        _handle_acme_profiling(logger, cahandler, csr, handler_hifield)
         error = None
 
-    elif cahandler.header_info_field:
-        # no profiling - parse profileid from http_header
-        hil_value = header_info_lookup(
-            logger, csr, cahandler.header_info_field, handler_hifield
-        )
-        if hil_value:
-            logger.debug(
-                "Helper.eab_profile_header_info_check(): setting %s to %s",
-                handler_hifield,
-                hil_value,
-            )
-            logger.info(
-                "Received enrollment parameter: %s value: %s via headerinfo field",
-                handler_hifield,
-                hil_value,
-            )
-            setattr(cahandler, handler_hifield, hil_value)
-            error = None
-        else:
-            logger.debug("eab_profile_header_info_check(): no header_info field found")
-            error = None
+    # Priority 3: Header info profiling - no errors
+    elif hasattr(cahandler, "header_info_field") and cahandler.header_info_field:
+        _handle_header_info_profiling(logger, cahandler, csr, handler_hifield)
+        error = None
+
+    # Priority 4: No profiling
     else:
-        # no profiling - no header_info_field
         error = None
 
     logger.debug("Helper.eab_profile_header_info_check() ended with %s", error)
