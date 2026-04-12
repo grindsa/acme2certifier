@@ -75,6 +75,8 @@ The handler must be configured via `acme_srv`.
 | acme_account_email              | Email address used to register a new account                                                                                                                   |    No     | None         |
 | acme_sh_script                  | path to the acme_sh.sh script to be used for DNS challenge provisioning                                                                                        |    No     | None         |
 | acme_sh_shell                   | shell to be used to execute acme_sh                                                                                                                            |    No     | /bin/bash    |
+| profiles_sync                   | Enable periodic synchronization of profiles information from ACME server to be shown as meta-information in Directory ressource                                |    No     | False        |
+| profiles_sync_interval          | Interval in seconds for profile synchronization when enabled.                                                                                                  |    No     | 604800       |
 | allowed_domainlist              | List of domain names allowed for enrollment in JSON format, e.g., `["bar.local", "bar.foo.local"]`                                                             |    No     | `[]`         |
 | directory_path                  | Path to directory resource on CA server                                                                                                                        |    No     | `/directory` |
 | dns_update_script               | Path to the script script to provision DNS records for DNS challenge validation. Setting the dns_update_script will force a2c to trigger dns-challenge validation.   | No  | None         |
@@ -83,6 +85,7 @@ The handler must be configured via `acme_srv`.
 | enrollment_config_log           | Log enrollment parameters                                                                                                                                      |    No     | `False`      |
 | enrollment_config_log_skip_list | List of enrollment parameters not to be logged in JSON format, e.g., `["parameter1", "parameter2"]`                                                            |    No     | `[]`         |
 | ssl_verify                      | Verify certificates on SSL connections                                                                                                                         |    No     | `True`       |
+| renewalinfo_lookup              | Enable or disable renewalinfo endpoint lookup on ACME server to obtain renewal window                                                                          |    No     | False        |
 
 Modify the server configuration (`acme_srv/acme_srv.cfg`) and add at least the following parameters:
 

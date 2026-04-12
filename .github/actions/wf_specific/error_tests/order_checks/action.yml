@@ -1,0 +1,290 @@
+name: "order_error_checking"
+description: "EAB enroll with unknown credentials"
+inputs:
+  NAME_SPACE:
+    description: "namespace"
+    required: false
+    default: "acme"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: false
+    default: "container"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  HTTP_PORT:
+    description: "ACME server HTTP port"
+    required: false
+    default: "80"
+  HTTPS_PORT:
+    description: "ACME server HTTPS port"
+    required: false
+    default: "443"
+  ALMA_START:
+    description: "Start alma container"
+    required: true
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Test identifier limit"
+      working-directory: acmeshell
+      run: |
+        cat <<EOT > commands.shell
+        newAccount -contacts=foo@bar.local,
+        newOrder -identifiers=foo-01.bar.local,foo-02.bar.local,foo-03.bar.local
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell NewOrder command to trigger error message"
+      working-directory: acmeshell
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -contact=grindsa@foo.bar -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for rejectedIdentifier error"
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:rejectedIdentifier" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for rejectedIdentifier error"
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'identifier limit exceeded'}"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'identifier limit exceeded'}"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Test wrong identifier format for type DNS"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        newOrder -identifiers=foo@bar.local
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell NewOrder command to trigger error message"
+      working-directory: acmeshell
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -contact=grindsa@foo.bar -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for rejectedIdentifier error"
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:rejectedIdentifier" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for rejectedIdentifier error"
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'identifier value foo@bar.local not allowed'}"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'identifier value foo@bar.local not allowed'}"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Test wrong identifier format for type IP"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        post -body='{"identifiers":[{"type":"ip", "value":"unknown.bar.local"}]}' newOrder
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell NewOrder command to trigger error message"
+      working-directory: acmeshell
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -contact=grindsa@foo.bar -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for rejectedIdentifier error"
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:rejectedIdentifier" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for rejectedIdentifier error"
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'identifier value unknown.bar.local not allowed'}"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'identifier value unknown.bar.local not allowed'}"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Test unknown identifier type"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        post -body='{"identifiers":[{"type":"unknown", "value":"unknown.bar.local"}]}' newOrder
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell NewOrder command to trigger error message"
+      working-directory: acmeshell
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -contact=grindsa@foo.bar -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for rejectedIdentifier error"
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:unsupportedIdentifier" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for unsupportedIdentifier error"
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          docker compose logs | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:unsupportedIdentifier', 'detail': 'Could not process order'}"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:unsupportedIdentifier', 'detail': 'Could not process order'}"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Test missing identifier type"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        post -body='{"identifiers":[{"foo":"unknown", "value":"unknown.bar.local"}]}' newOrder
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell NewOrder command to trigger error message"
+      working-directory: acmeshell
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -contact=grindsa@foo.bar -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for malformedIdentifier error"
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:malformed" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for malformedIdentifier error"
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          docker compose logs | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Identifier type is missing'}"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Identifier type is missing'}"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Test missing identifier value"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        post -body='{"identifiers":[{"type":"dns", "foo":"unknown.bar.local"}]}' newOrder
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell NewOrder command to trigger error message"
+      working-directory: acmeshell
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -contact=grindsa@foo.bar -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for malformedIdentifier error"
+      working-directory: acmeshell
+      run: |
+        grep "urn:ietf:params:acme:error:malformed" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for malformedIdentifier error"
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          docker compose logs | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Identifier value is missing'}"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Identifier value is missing'}"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Test ADL feature"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        newOrder -identifiers=foo-01.bar1.local
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell NewOrder command to trigger error message"
+      working-directory: acmeshell
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -contact=grindsa@foo.bar -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check acmeshell log for rejectedIdentifier error"
+      working-directory: acmeshell
+      run: |
+        cat acmeshell.enroll.log
+        grep "urn:ietf:params:acme:error:rejectedIdentifier" acmeshell.enroll.log
+      shell: bash
+
+    - name: "Check a2c logs for rejectedIdentifier error"
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'FQDN/SAN foo-01.bar1.local not allowed by configuration'}"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'FQDN/SAN foo-01.bar1.local not allowed by configuration'}"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}

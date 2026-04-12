@@ -221,7 +221,7 @@ def proxy_check(
                 )
                 break
 
-    if "*" in proxy_server_list_new.keys() and not proxy:
+    if "*" in proxy_server_list_new and not proxy:
         logger.debug("Helper.proxy_check() wildcard match found: fqdn: %s", fqdn)
         proxy = proxy_server_list_new["*"]
 
@@ -381,6 +381,7 @@ def txt_get(logger: logging.Logger, fqdn: str, dns_srv: List[str] = None) -> Lis
 
     # rewrite dns resolver if configured
     if dns_srv:
+        logger.debug("Helper.txt_get(): use custom dns servers: %s", dns_srv)
         dns.resolver.default_resolver = dns.resolver.Resolver(configure=False)
         dns.resolver.default_resolver.nameservers = dns_srv
     txt_record_list = []

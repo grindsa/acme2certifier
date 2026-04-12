@@ -106,4 +106,4 @@ Below is an example key file used during regression testing:
 ## Notes
 
 - Ensure your Vault token has permissions for PKI operations.
-- the [Build your own certificate authority (CA) tutorial](https://developer.hashicorp.com/vault/tutorials/pki/pki-engine) has been used to setup a vault test system. The respective configuration can be found in the [test-workflow](../.github/actions/wf_specific/vault_ca_handler/vault_prep/action.ymlL108)
+- the [Build your own certificate authority (CA) tutorial](https://developer.hashicorp.com/vault/tutorials/pki/pki-engine) has been used to setup a vault test system. The respective configuration can be found in the [test-workflow](https://github.com/grindsa/acme2certifier/blob/master/.github/actions/wf_specific/vault_ca_handler/vault_prep/action.yml#L109)

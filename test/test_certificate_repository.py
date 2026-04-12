@@ -3,16 +3,22 @@
 
 import os
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import sys
 
 # Add the parent directory to sys.path so we can import acme_srv
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from acme_srv.certificate_repository import DatabaseCertificateRepository
+sys.path.insert(0, ".")
+sys.path.insert(1, "..")
 
 
 class TestCertificateRepository(unittest.TestCase):
     def setUp(self):
+        models_mock = MagicMock()
+        models_mock.acme_srv.db_handler.DBstore.return_value = MagicMock()
+        modules = {"acme_srv.db_handler": models_mock}
+        patch.dict("sys.modules", modules).start()
+        from acme_srv.certificate_repository import DatabaseCertificateRepository
+
         self.logger = MagicMock()
         self.db = MagicMock()
         self.repo = DatabaseCertificateRepository(self.db, self.logger)

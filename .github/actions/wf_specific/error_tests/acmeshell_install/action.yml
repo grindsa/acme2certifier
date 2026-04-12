@@ -1,0 +1,76 @@
+name: "Install acmeshell"
+description: "Install acmeshell"
+inputs:
+  ACME_SERVER:
+    description: "ACME server URL"
+    required: true
+    default: "acme-srv"
+  ALMA_START:
+    description: "Start alma container"
+    required: true
+    default: "true"
+  RENEWAL:
+    description: "Renewal method"
+    required: true
+    default: "true"
+  HOSTNAME_SUFFIX:
+    description: "Hostname suffix"
+    required: true
+  NAME_SPACE:
+    description: "Namespace"
+    required: true
+    default: "acme"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Create directories"
+      run: |
+        mkdir -p acmeshell/
+      shell: bash
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Test if http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://$ACME_SERVER:$HTTP_PORT/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Install acmeshell"
+      if: ${{ inputs.ALMA_START == 'true' }}
+      run: |
+        wget -c https://github.com/cpu/acmeshell/releases/download/v0.0.2-rc4/acmeshell_0.0.2-rc4_Linux_x86_64.tar.gz -O - | tar -xz
+        mv acmeshell_0.0.2-rc4_Linux_x86_64/acmeshell acmeshell/
+        chmod +x acmeshell/acmeshell
+        # ls -la acmeshell/
+      shell: bash
+      env:
+        VERIFY_CERT: ${{ inputs.VERIFY_CERT }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        USE_RSA: ${{ inputs.USE_RSA }}
+        HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Run alma container"
+      if: ${{ inputs.ALMA_START == 'true' }}
+      run: |
+        docker run -id --name alma --network $NAME_SPACE -v $(pwd)/acmeshell:/acmeshell almalinux/9-minimal
+        sleep 5
+        docker ps
+        # install acme.sh for additional tests
+        docker exec alma bash -c 'microdnf install -y tar gzip openssl'
+        docker exec alma bash -c 'curl https://get.acme.sh | sh -s email=grindsa@github.com --force'
+        docker exec alma bash -c 'cp /root/.acme.sh/acme.sh /root/.acme.sh/acme.sh.bup'
+        docker exec alma bash -c 'curl -f http://acme-srv/directory'
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}

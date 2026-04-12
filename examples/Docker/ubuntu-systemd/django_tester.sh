@@ -6,10 +6,14 @@ case "${1}" in
 
   "restart")
     echo "update configuration and restart service"
-    yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
-    yes | cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
-    systemctl restart acme2certifier.service
-    systemctl restart nginx.service
+    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv
+    yes | cp -R /tmp/acme2certifier/volume/acme_ca/* /var/www/acme2certifier/volume/acme_ca/
+    if [[ "${2}" = "apache2" ]]; then
+      systemctl restart apache2
+    elif [[ "${2}" = "nginx" ]]; then
+      systemctl restart nginx
+      systemctl restart acme2certifier
+    fi
     ;;
 
   *)
@@ -22,8 +26,20 @@ case "${1}" in
       apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 rsyslog
     fi
 
+    apt-get install -y python3-pip
+    pip install requests-pkcs12 --break-system-packages
+    # pip install pyopenssl --upgrade
+
     systemctl enable rsyslog
     systemctl start syslog
+
+    if [[ -f /tmp/acme2certifier/packages-microsoft-prod.deb ]]
+      then
+      echo "install Microsoft repository configuration package"
+      dpkg -i /tmp/acme2certifier/packages-microsoft-prod.deb
+      apt-get update
+      ACCEPT_EULA=Y apt-get install -y msodbcsql18 python3-mssql-django
+    fi
 
     echo "install a2c"
     apt-get install -y /tmp/acme2certifier/acme2certifier*.deb
@@ -48,6 +64,10 @@ case "${1}" in
       systemctl start acme2certifier
       systemctl enable acme2certifier
     fi
+
+    echo "update openssl configuration"
+    sed -i "s/default = default_sect/default = default_sect\nlegacy = legacy_sect\n\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf
+    sed -i "s/# activate = 1/activate = 1/g" /etc/ssl/openssl.cnf
 
     echo "configure django"
     cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/
