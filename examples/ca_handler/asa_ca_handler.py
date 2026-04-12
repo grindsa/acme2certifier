@@ -485,6 +485,12 @@ class CAhandler(object):
         # check for eab profiling and header_info
         error = eab_profile_header_info_check(self.logger, self, csr, "profile_name")
 
+        if self.enrollment_config_log:
+            self.enrollment_config_log_skip_list.extend(["api_password", "auth"])
+            enrollment_config_log(
+                self.logger, self, self.enrollment_config_log_skip_list
+            )
+
         if not error:
             # verify issuer
             error = self._issuer_verify()
