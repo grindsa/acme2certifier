@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  freeipa:
+    image: freeipa/freeipa-server:fedora-rawhide-4.13.1
+    container_name: freeipa
+    hostname: freeipa.server.acme
+    networks:
+      - server.acme
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8443:8443"
+    environment:
+      - PASSWORD=Secret123
+      - IPA_SERVER_INSTALL_OPTS=--unattended --no-ntp --realm=SERVER.ACME --domain=server.acme --hostname=freeipa.server.acme --ds-password=Secret123 --admin-password=Secret123 --no-host-dns --no-dns-sshfp
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      - "./freeipa:/data"
+    cgroup: host
+    command:
+      ["--skip-mem-check", "--no-ntp"]
+    restart: unless-stopped
+    stdin_open: true
+    tty: true
+    # Remove container on stop (simulate --rm)
+    labels:
+      - "auto-remove=true"
+
+networks:
+  server.acme:
+    external: true
