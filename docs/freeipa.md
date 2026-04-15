@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- A running FreeIPA server with RPC-XML API access enabled.
+- A running [FreeIPA](https://www.freeipa.org/) server with RPC-XML API access enabled.
 - A user account with sufficient privileges to add hosts and manage certificates.
 - The `acme2certifier` application installed and configured.
 - Python 3.7+ and required dependencies (see `requirements.txt`).
