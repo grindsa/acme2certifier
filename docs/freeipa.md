@@ -7,6 +7,10 @@
 - The `acme2certifier` application installed and configured.
 - Python 3.7+ and required dependencies (see `requirements.txt`).
 
+## FreeIPA limitation
+
+It seems that FreeIPA requires the presence of a Common Name (CN) in the CSR and I did not find a way around it. This will exclude the usage of ACME clients not setting a common-name, like certbot.
+
 ## FreeIPA User Permissions and Setup
 
 A dedicated user with sufficient privileges is required for the handler to manage hosts and certificates in FreeIPA. See [the below section](#freeipa-user-permissions-and-setup) for details on how to create and configure the user.
