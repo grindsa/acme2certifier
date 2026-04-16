@@ -427,7 +427,7 @@ class CAhandler(object):
         cert_raw = None
         cert_bundle = None
         if "error" in content and content["error"] is not None:
-            error = content["error"]
+            error = str(content["error"])
             self.logger.error("Certificate enrollment failed for host %s: %s", hostname, error)
             return error, None, None
         if "result" in content:
@@ -474,9 +474,9 @@ class CAhandler(object):
         content = self._rpc_post(rpc_payload)
         if "error" in content and content["error"] is not None:
             self.logger.error("Certificate revocation failed for serial %s: %s", serial, content["error"])
-            return 1, content["error"], None
+            return 500, str(content["error"]), None
         self.logger.debug("Certificate revocation successful for serial %s", serial)
-        return 0, "Certificate revoked successfully", None
+        return 200, "Certificate revoked successfully", None
 
     def enroll(self, csr: str) -> Tuple[str, str, str, str]:
         """
