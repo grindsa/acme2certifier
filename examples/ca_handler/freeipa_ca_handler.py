@@ -7,7 +7,22 @@ import json
 import re
 
 # pylint: disable=e0401
-from acme_srv.helper import load_config, csr_cn_get, csr_san_get, build_pem_file, b64_decode, cert_der2pem, cert_serial_get, handler_config_check, eab_profile_header_info_check
+from acme_srv.helper import (
+    load_config,
+    csr_cn_get,
+    csr_san_get,
+    build_pem_file,
+    b64_decode,
+    cert_der2pem,
+    cert_serial_get,
+    handler_config_check,
+    eab_profile_header_info_check,
+    config_enroll_config_log_load,
+    config_profile_load,
+    config_eab_profile_load,
+    config_headerinfo_load,
+    enrollment_config_log,
+)
 
 
 class CAhandler(object):
@@ -42,6 +57,12 @@ class CAhandler(object):
         self.request_timeout = self.DEFAULT_REQUEST_TIMEOUT
         self.realm = None
         self.profile_id = None
+        self.header_info_field = False
+        self.eab_handler = None
+        self.eab_profiling = False
+        self.enrollment_config_log = False
+        self.enrollment_config_log_skip_list = []
+        self.profiles = {}
 
     def __enter__(self):
         """
@@ -80,24 +101,37 @@ class CAhandler(object):
         )
         if not self.fqdn:
             self.logger.debug("FQDN not configured in DEFAULT section")
-            self.fqdn = config_dic.get(
-                self.CONFIG_SECTION, "fqdn", fallback=self.fqdn
-            )
+            self.fqdn = config_dic.get(self.CONFIG_SECTION, "fqdn", fallback=self.fqdn)
         self.api_user = config_dic.get(
             self.CONFIG_SECTION, "api_user", fallback=self.api_user
         )
         self.api_password = config_dic.get(
             self.CONFIG_SECTION, "api_password", fallback=self.api_password
         )
-        self.realm = config_dic.get(
-            self.CONFIG_SECTION, "realm", fallback=self.realm)
+        self.realm = config_dic.get(self.CONFIG_SECTION, "realm", fallback=self.realm)
 
         self.profile_id = config_dic.get(
-            self.CONFIG_SECTION, "profile_id", fallback=self.profile_id)
+            self.CONFIG_SECTION, "profile_id", fallback=self.profile_id
+        )
 
         self.ca_bundle = config_dic.getboolean(
             self.CONFIG_SECTION, "ca_bundle", fallback=self.ca_bundle
         )
+
+        # load profiling
+        self.eab_profiling, self.eab_handler = config_eab_profile_load(
+            self.logger, config_dic
+        )
+        # load profiles
+        self.profiles = config_profile_load(self.logger, config_dic)
+        # load header info
+        self.header_info_field = config_headerinfo_load(self.logger, config_dic)
+        # load enrollment config log
+        (
+            self.enrollment_config_log,
+            self.enrollment_config_log_skip_list,
+        ) = config_enroll_config_log_load(self.logger, config_dic)
+
         self.logger.debug("CAhandler._config_load() ended")
 
     def _ensure_host_and_principals(self, hostname: str, alias_list: list) -> str:
@@ -122,11 +156,14 @@ class CAhandler(object):
             for fqdn in alias_list:
                 self._host_add_principal(hostname, fqdn)
         else:
-            self.logger.error("Host search failed: %s", content.get("error", "Unknown error"))
-            error = 'Malformed host search response'
-        self.logger.debug("CAhandler._ensure_host_and_principals() ended with error: %s", error)
+            self.logger.error(
+                "Host search failed: %s", content.get("error", "Unknown error")
+            )
+            error = "Malformed host search response"
+        self.logger.debug(
+            "CAhandler._ensure_host_and_principals() ended with error: %s", error
+        )
         return error
-
 
     def _login(self):
         """
@@ -140,23 +177,19 @@ class CAhandler(object):
             self.session = requests.Session()
 
         # client auth via pem files
-        self.session.headers.update({
-            "Referer": f'{self.api_host}/ipa',
-            "Accept": "application/json"
-        })
+        self.session.headers.update(
+            {"Referer": f"{self.api_host}/ipa", "Accept": "application/json"}
+        )
 
         login_url = self.LOGIN_URL
-        payload = {
-            "user": self.api_user,
-            "password": self.api_password
-        }
+        payload = {"user": self.api_user, "password": self.api_password}
 
         try:
             # FreeIPA login expects form-encoded data
             response = self.session.post(
                 self.api_host + self.prefix + login_url,
                 data=payload,
-                verify=self.ca_bundle
+                verify=self.ca_bundle,
             )
             response.raise_for_status()
         except requests.exceptions.HTTPError as e:
@@ -182,8 +215,8 @@ class CAhandler(object):
         self.logger.debug("CAhandler._ipa_ping()")
         payload = {
             "id": 0,
-            "method": 'ping',
-            "params": [None or [], {"version": "2.0"}]
+            "method": "ping",
+            "params": [None or [], {"version": "2.0"}],
         }
         content = self._rpc_post(payload)
         return content
@@ -199,22 +232,17 @@ class CAhandler(object):
             "id": 0,
             "method": "host_add_managedby/1",
             "params": [
-                [
-                    f"{hostname}"
-                ],
-                {
-                    "host": [
-                        f"{self.fqdn}"
-                    ],
-                    "version": f"{self.api_version}"
-                }
-            ]
+                [f"{hostname}"],
+                {"host": [f"{self.fqdn}"], "version": f"{self.api_version}"},
+            ],
         }
         content = self._rpc_post(rpc_payload)
         if "error" in content and content["error"] is not None:
             self.logger.error("Failed to add host %s: %s", hostname, content["error"])
         else:
-            self.logger.debug("Host %s added managed by %s successfully", hostname, self.fqdn)
+            self.logger.debug(
+                "Host %s added managed by %s successfully", hostname, self.fqdn
+            )
 
     def _host_add(self, hostname: str = None):
         """
@@ -230,13 +258,7 @@ class CAhandler(object):
         rpc_payload = {
             "id": 0,
             "method": "host_add/1",
-            "params": [
-                [hostname],
-                {
-                    "force": True,
-                    "version": f"{self.api_version}"
-                }
-            ]
+            "params": [[hostname], {"force": True, "version": f"{self.api_version}"}],
         }
 
         content = self._rpc_post(rpc_payload)
@@ -254,7 +276,9 @@ class CAhandler(object):
         """
         self.logger.debug("CAhandler._host_add_principal()")
         if not hostname or not isinstance(hostname, str):
-            self.logger.error("Invalid hostname provided to _host_add_principal: %s", hostname)
+            self.logger.error(
+                "Invalid hostname provided to _host_add_principal: %s", hostname
+            )
             return
         if not fqdn or not isinstance(fqdn, str):
             self.logger.error("Invalid fqdn provided to _host_add_principal: %s", fqdn)
@@ -264,18 +288,23 @@ class CAhandler(object):
             "id": 0,
             "method": "host_add_principal/1",
             "params": [
-                [hostname, [f'host/{fqdn}@{self.realm}']],
-                {
-                    "version": f"{self.api_version}"
-                }
-            ]
+                [hostname, [f"host/{fqdn}@{self.realm}"]],
+                {"version": f"{self.api_version}"},
+            ],
         }
 
         content = self._rpc_post(rpc_payload)
         if "error" in content and content["error"] is not None:
-            self.logger.error("Failed to add host principal %s for host %s: %s", fqdn, hostname, content["error"])
+            self.logger.error(
+                "Failed to add host principal %s for host %s: %s",
+                fqdn,
+                hostname,
+                content["error"],
+            )
         else:
-            self.logger.debug("Host principal %s added to host %s successfully", fqdn, hostname)
+            self.logger.debug(
+                "Host principal %s added to host %s successfully", fqdn, hostname
+            )
 
     def _host_search(self, hostname: str) -> dict:
         """
@@ -292,12 +321,9 @@ class CAhandler(object):
         rpc_payload = {
             "id": 0,
             "method": "host_show",
-            "params": [
-                [hostname],
-                {"version": f"{self.api_version}"}
-            ]
+            "params": [[hostname], {"version": f"{self.api_version}"}],
         }
-        content =  self._rpc_post(rpc_payload)
+        content = self._rpc_post(rpc_payload)
         return content
 
     def _parse_csr(self, csr: str) -> Tuple[str, list]:
@@ -323,9 +349,10 @@ class CAhandler(object):
             self.logger.debug("Failed to extract CN from CSR")
             cn = san_list.pop(0) if san_list else None
 
-        self.logger.debug("CAhandler._parse_csr() extracted CN: %s, SANs: %s", cn, san_list)
+        self.logger.debug(
+            "CAhandler._parse_csr() extracted CN: %s, SANs: %s", cn, san_list
+        )
         return cn, san_list
-
 
     def _rpc_post(self, data_dic: Dict[str, str]) -> Dict[str, str]:
         """
@@ -375,7 +402,10 @@ class CAhandler(object):
         summary = content.get("result", {}).get("summary", "")
         match = re.search(r"API version ([\d.]+)", summary)
         if match:
-            self.logger.debug("CAhandler._extract_api_version() returned API version: %s", match.group(1))
+            self.logger.debug(
+                "CAhandler._extract_api_version() returned API version: %s",
+                match.group(1),
+            )
             self.api_version = match.group(1)
 
     def _cert_chain_to_pem(self, certifcate_chain):
@@ -389,15 +419,18 @@ class CAhandler(object):
         self.logger.debug("CAhandler._cert_chain_to_pem()")
         pem_chain = []
         for cert in certifcate_chain:
-            b64_cert = cert.get('__base64__')
+            b64_cert = cert.get("__base64__")
             if not b64_cert:
                 continue
 
             der_bytes = b64_decode(self.logger, b64_cert)
-            pem = cert_der2pem(der_bytes).decode('utf-8')
+            pem = cert_der2pem(der_bytes).decode("utf-8")
             pem_chain.append(pem.strip())
-        self.logger.debug("CAhandler._cert_chain_to_pem() ended with %d certificates in the chain", len(pem_chain))
-        return '\n'.join(pem_chain)
+        self.logger.debug(
+            "CAhandler._cert_chain_to_pem() ended with %d certificates in the chain",
+            len(pem_chain),
+        )
+        return "\n".join(pem_chain)
 
     def _enroll(self, hostname: str, csr: str):
         """
@@ -410,16 +443,30 @@ class CAhandler(object):
         """
         self.logger.debug("CAhandler._enroll()")
 
+        if self.enrollment_config_log:
+            enrollment_config_log(
+                self.logger, self, self.enrollment_config_log_skip_list
+            )
+
         rpc_payload = {
             "id": 0,
             "method": "cert_request/1",
             "params": [
                 [csr],
-                {"principal": f'host/{hostname}@{self.realm}', "add": True, "chain": True, "version": f"{self.api_version}"}
-            ]
+                {
+                    "principal": f"host/{hostname}@{self.realm}",
+                    "add": True,
+                    "chain": True,
+                    "version": f"{self.api_version}",
+                },
+            ],
         }
 
         if self.profile_id:
+            self.logger.debug(
+                "CAhandler._enroll(): Adding profile_id %s to RPC payload for enrollment",
+                self.profile_id,
+            )
             rpc_payload["params"][1]["profile_id"] = self.profile_id
 
         content = self._rpc_post(rpc_payload)
@@ -428,7 +475,9 @@ class CAhandler(object):
         cert_bundle = None
         if "error" in content and content["error"] is not None:
             error = str(content["error"])
-            self.logger.error("Certificate enrollment failed for host %s: %s", hostname, error)
+            self.logger.error(
+                "Certificate enrollment failed for host %s: %s", hostname, error
+            )
             return error, None, None
         if "result" in content:
             try:
@@ -437,7 +486,9 @@ class CAhandler(object):
                     cert_raw = result.get("certificate", None)
                     cert_chain = result.get("certificate_chain", [])
                     cert_bundle = self._cert_chain_to_pem(cert_chain)
-                    self.logger.debug("Certificate chain converted to PEM format successfully")
+                    self.logger.debug(
+                        "Certificate chain converted to PEM format successfully"
+                    )
                 else:
                     error = f"Unexpected structure for 'result': {type(result)}"
                     self.logger.error(error)
@@ -447,10 +498,12 @@ class CAhandler(object):
                 self.logger.error(error)
                 return error, None, None
         else:
-            error = 'Certificate chain not found in response'
+            error = "Certificate chain not found in response"
             self.logger.error(error)
             return error, None, None
-        self.logger.debug("CAhandler._enroll() ended successfully for host %s", hostname)
+        self.logger.debug(
+            "CAhandler._enroll() ended successfully for host %s", hostname
+        )
         return error, cert_bundle, cert_raw
 
     def _revoke(self, serial: str):
@@ -466,14 +519,15 @@ class CAhandler(object):
         rpc_payload = {
             "id": 0,
             "method": "cert_revoke/1",
-            "params": [
-                [serial],
-                {"version": f"{self.api_version}"}
-            ]
+            "params": [[serial], {"version": f"{self.api_version}"}],
         }
         content = self._rpc_post(rpc_payload)
         if "error" in content and content["error"] is not None:
-            self.logger.error("Certificate revocation failed for serial %s: %s", serial, content["error"])
+            self.logger.error(
+                "Certificate revocation failed for serial %s: %s",
+                serial,
+                content["error"],
+            )
             return 500, str(content["error"]), None
         self.logger.debug("Certificate revocation successful for serial %s", serial)
         return 200, "Certificate revoked successfully", None
@@ -502,7 +556,9 @@ class CAhandler(object):
 
         if not error:
             # reformat csr
-            csr_reformatted = build_pem_file(self.logger, None, csr, wrap=True, csr=True)
+            csr_reformatted = build_pem_file(
+                self.logger, None, csr, wrap=True, csr=True
+            )
             error, cert_bundle, cert_raw = self._enroll(hostname, csr_reformatted)
 
         self.logger.debug("Certificate.enroll() ended()")
@@ -562,7 +618,9 @@ class CAhandler(object):
             if serial:
                 code, message, detail = self._revoke(serial)
             else:
-                self.logger.error("Failed to extract serial number from certificate for revocation")
+                self.logger.error(
+                    "Failed to extract serial number from certificate for revocation"
+                )
                 code = 400
                 message = "urn:ietf:params:acme:error:malformed"
                 detail = "Invalid certificate format or missing serial number"
@@ -588,7 +646,6 @@ class CAhandler(object):
         error = None
         cert_bundle = None
         cert_raw = None
-
 
         self.logger.debug("CAhandler.trigger() ended with error: %s", error)
         return (error, cert_bundle, cert_raw)
