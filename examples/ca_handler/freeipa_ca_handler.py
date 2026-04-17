@@ -114,9 +114,14 @@ class CAhandler(object):
             self.CONFIG_SECTION, "profile_id", fallback=self.profile_id
         )
 
-        self.ca_bundle = config_dic.getboolean(
+        self.ca_bundle = config_dic.get(
             self.CONFIG_SECTION, "ca_bundle", fallback=self.ca_bundle
         )
+
+        if str(self.ca_bundle).lower() in ["true", "false"]:
+            self.ca_bundle = config_dic.getboolean(
+                self.CONFIG_SECTION, "ca_bundle", fallback=self.ca_bundle
+            )
 
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(

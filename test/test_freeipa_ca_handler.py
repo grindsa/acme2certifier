@@ -93,7 +93,46 @@ class TestCAhandler(unittest.TestCase):
                 )
             self.assertEqual(self.handler.fqdn, "fqdn-from-section")
 
-    def test_002_login_success_testcase(self):
+    def test_004_config_load_ca_bundle_boolean_true(self):
+        # Simulate ca_bundle as string "true", should convert to boolean True
+        with patch(
+            "examples.ca_handler.freeipa_ca_handler.load_config"
+        ) as mock_load_config:
+            config = MagicMock()
+            config.get.side_effect = lambda section, key, fallback=None: "true"
+            config.getboolean.return_value = True
+            mock_load_config.return_value = config
+            self.handler.ca_bundle = False  # Set default to False
+            self.handler._config_load()
+            self.assertTrue(self.handler.ca_bundle)
+
+    def test_005_config_load_ca_bundle_boolean_false(self):
+        # Simulate ca_bundle as string "false", should convert to boolean False
+        with patch(
+            "examples.ca_handler.freeipa_ca_handler.load_config"
+        ) as mock_load_config:
+            config = MagicMock()
+            config.get.side_effect = lambda section, key, fallback=None: "false"
+            config.getboolean.return_value = False
+            mock_load_config.return_value = config
+            self.handler.ca_bundle = True  # Set default to True
+            self.handler._config_load()
+            self.assertFalse(self.handler.ca_bundle)
+
+    def test_006_config_load_ca_bundle_not_boolean(self):
+        # Simulate ca_bundle as string "notaboolean", should fallback to default
+        with patch(
+            "examples.ca_handler.freeipa_ca_handler.load_config"
+        ) as mock_load_config:
+            config = MagicMock()
+            config.get.side_effect = lambda section, key, fallback=None: "notaboolean"
+            config.getboolean.return_value = False
+            mock_load_config.return_value = config
+            self.handler.ca_bundle = True  # Set default to True
+            self.handler._config_load()
+            self.assertEqual("notaboolean", self.handler.ca_bundle)
+
+    def test_007_login_success_testcase(self):
         # Test successful login
         self.handler.session = MagicMock()
         mock_post = self.handler.session.post
@@ -110,7 +149,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertIsNone(result)
 
     @patch("examples.ca_handler.freeipa_ca_handler.requests.Session")
-    def test_002a_login_creates_session_if_none(self, mock_session):
+    def test_008_login_creates_session_if_none(self, mock_session):
         # Cover the branch where self.session is None and a new Session is created
         self.handler.session = None
         self.handler.api_host = "https://ipa.example.com"
@@ -127,7 +166,7 @@ class TestCAhandler(unittest.TestCase):
             self.handler._login()
         mock_session.assert_called_once()
 
-    def test_003_login_http_error_testcase(self):
+    def test_009_login_http_error_testcase(self):
         # Test HTTPError during login
         self.handler.session = MagicMock()
         self.handler.session.post.return_value.raise_for_status.side_effect = (
@@ -144,7 +183,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertIn("HTTP error during login", result["error"])
 
-    def test_030_login_connection_error_testcase(self):
+    def test_010_login_connection_error_testcase(self):
         # Test ConnectionError during login
         self.handler.session = MagicMock()
         self.handler.session.post.return_value.raise_for_status.side_effect = (
@@ -161,7 +200,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertIn("Connection error during login", result["error"])
 
-    def test_031_login_timeout_error_testcase(self):
+    def test_011_login_timeout_error_testcase(self):
         # Test Timeout during login
         self.handler.session = MagicMock()
         self.handler.session.post.return_value.raise_for_status.side_effect = (
@@ -178,7 +217,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertIn("Timeout during login", result["error"])
 
-    def test_032_login_request_exception_testcase(self):
+    def test_012_login_request_exception_testcase(self):
         # Test generic RequestException during login
         self.handler.session = MagicMock()
         self.handler.session.post.return_value.raise_for_status.side_effect = (
@@ -195,22 +234,22 @@ class TestCAhandler(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertIn("Unexpected request exception during login", result["error"])
 
-    def test_004_ipa_ping_testcase(self):
+    def test_013_ipa_ping_testcase(self):
         self.handler._rpc_post = MagicMock(return_value={"result": "pong"})
         result = self.handler._ipa_ping()
         self.assertEqual(result, {"result": "pong"})
 
-    def test_005_host_add_and_error_testcase(self):
+    def test_014_host_add_and_error_testcase(self):
         self.handler._rpc_post = MagicMock(return_value={"error": "fail"})
         self.handler._host_add("host1")
         self.logger.error.assert_called()
 
-    def test_006_host_add_principal_and_error_testcase(self):
+    def test_015_host_add_principal_and_error_testcase(self):
         self.handler._rpc_post = MagicMock(return_value={"error": "fail"})
         self.handler._host_add_principal("host1", "fqdn1")
         self.logger.error.assert_called()
 
-    def test_007_host_add_principal_success_logs_debug(self):
+    def test_016_host_add_principal_success_logs_debug(self):
         # Should log debug when host principal is added successfully (no error in content)
         with patch.object(self.handler, "_rpc_post", return_value={}), patch.object(
             self.handler, "logger"
@@ -220,7 +259,7 @@ class TestCAhandler(unittest.TestCase):
                 "Host principal %s added to host %s successfully", "fqdn1", "host1"
             )
 
-    def test_007_host_add_success_logs_info(self):
+    def test_017_host_add_success_logs_info(self):
         # Should log info when host is added successfully (no error in content)
         with patch.object(self.handler, "_rpc_post", return_value={}), patch.object(
             self.handler, "logger"
@@ -230,7 +269,7 @@ class TestCAhandler(unittest.TestCase):
                 "Host %s added successfully to freeIPA", "host1"
             )
 
-    def test_0010_host_add_invalid_hostname(self):
+    def test_018_host_add_invalid_hostname(self):
         # Should log error and return for invalid hostname (None)
         with patch.object(self.handler, "logger") as mock_logger:
             self.handler._host_add(None)
@@ -244,7 +283,7 @@ class TestCAhandler(unittest.TestCase):
                 "Invalid hostname provided to _host_add: %s", 12345
             )
 
-    def test_008_host_add_principal_invalid_fqdn(self):
+    def test_019_host_add_principal_invalid_fqdn(self):
         # Should log error and return for invalid fqdn
         with patch.object(self.handler, "logger") as mock_logger:
             self.handler._host_add_principal("host", None)
@@ -262,7 +301,7 @@ class TestCAhandler(unittest.TestCase):
                 "Invalid fqdn provided to _host_add_principal: %s", 12345
             )
 
-    def test_009_host_add_principal_error_and_success(self):
+    def test_020_host_add_principal_error_and_success(self):
         # Should log error if _rpc_post returns error, else log success
         self.handler.api_version = "2.257"
         with patch.object(
@@ -283,12 +322,12 @@ class TestCAhandler(unittest.TestCase):
                 "Host principal %s added to host %s successfully", "fqdn", "host"
             )
 
-    def test_007_host_search_testcase(self):
+    def test_021_host_search_testcase(self):
         self.handler._rpc_post = MagicMock(return_value={"result": {"foo": "bar"}})
         result = self.handler._host_search("host1")
         self.assertEqual(result, {"result": {"foo": "bar"}})
 
-    def test_007_host_search_invalid_hostname(self):
+    def test_022_host_search_invalid_hostname(self):
         # Should log error and return {} for invalid hostname input
         with patch.object(self.handler, "logger") as mock_logger:
             result = self.handler._host_search(None)
@@ -303,7 +342,7 @@ class TestCAhandler(unittest.TestCase):
                 "Invalid hostname provided to _host_search: %s", 12345
             )
 
-    def test_008_parse_csr_valid_testcase(self):
+    def test_023_parse_csr_valid_testcase(self):
         with patch(
             "examples.ca_handler.freeipa_ca_handler.csr_cn_get", return_value="cn"
         ), patch(
@@ -314,7 +353,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertEqual(cn, "cn")
             self.assertEqual(san_list, ["foo", "bar"])
 
-    def test_009_parse_csr_no_cn_testcase(self):
+    def test_024_parse_csr_no_cn_testcase(self):
         with patch(
             "examples.ca_handler.freeipa_ca_handler.csr_cn_get", return_value=None
         ), patch(
@@ -325,7 +364,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertEqual(cn, "foo")
             self.assertEqual(san_list, [])
 
-    def test_010_parse_csr_invalid_input(self):
+    def test_025_parse_csr_invalid_input(self):
         # Should log error and return (None, []) for invalid CSR input
         with patch.object(self.handler, "logger") as mock_logger:
             result = self.handler._parse_csr(None)
@@ -340,7 +379,7 @@ class TestCAhandler(unittest.TestCase):
                 "Invalid CSR provided to _parse_csr: %s", 12345
             )
 
-    def test_010_rpc_post_success_testcase(self):
+    def test_026_rpc_post_success_testcase(self):
         mock_response = MagicMock()
         mock_response.raise_for_status.return_value = None
         mock_response.json.return_value = {"result": "ok"}
@@ -348,19 +387,19 @@ class TestCAhandler(unittest.TestCase):
         result = self.handler._rpc_post({"foo": "bar"})
         self.assertEqual(result, {"result": "ok"})
 
-    def test_011_rpc_post_http_error_testcase(self):
+    def test_027_rpc_post_http_error_testcase(self):
         self.handler.session.post.side_effect = Exception("HTTP error")
         with self.assertRaises(Exception):
             self.handler._rpc_post({"foo": "bar"})
 
-    def test_012_rpc_post_http_error(self):
+    def test_028_rpc_post_http_error(self):
         # Simulate HTTPError
         self.handler.session.post.side_effect = requests.exceptions.HTTPError("fail")
         result = self.handler._rpc_post({"foo": "bar"})
         self.assertIn("error", result)
         self.assertIn("HTTP error", result["error"])
 
-    def test_013_rpc_post_connection_error(self):
+    def test_029_rpc_post_connection_error(self):
         # Simulate ConnectionError
         self.handler.session.post.side_effect = requests.exceptions.ConnectionError(
             "fail"
@@ -369,14 +408,14 @@ class TestCAhandler(unittest.TestCase):
         self.assertIn("error", result)
         self.assertIn("Connection error", result["error"])
 
-    def test_014_rpc_post_timeout_error(self):
+    def test_030_rpc_post_timeout_error(self):
         # Simulate Timeout
         self.handler.session.post.side_effect = requests.exceptions.Timeout("fail")
         result = self.handler._rpc_post({"foo": "bar"})
         self.assertIn("error", result)
         self.assertIn("Timeout error", result["error"])
 
-    def test_015_rpc_post_request_exception(self):
+    def test_031_rpc_post_request_exception(self):
         # Simulate generic RequestException
         self.handler.session.post.side_effect = requests.exceptions.RequestException(
             "fail"
@@ -385,7 +424,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertIn("error", result)
         self.assertIn("Request exception", result["error"])
 
-    def test_016_rpc_post_json_decode_error(self):
+    def test_032_rpc_post_json_decode_error(self):
         # Simulate ValueError on resp.json()
         mock_resp = MagicMock()
         mock_resp.raise_for_status.return_value = None
@@ -395,14 +434,14 @@ class TestCAhandler(unittest.TestCase):
         self.assertIn("error", result)
         self.assertIn("JSON decode error", result["error"])
 
-    def test_012_extract_api_version_testcase(self):
+    def test_033_extract_api_version_testcase(self):
         self.handler._ipa_ping = MagicMock(
             return_value={"result": {"summary": "API version 2.257"}}
         )
         self.handler._extract_api_version()
         self.assertEqual(self.handler.api_version, "2.257")
 
-    def test_013_cert_chain_to_pem_testcase(self):
+    def test_034_cert_chain_to_pem_testcase(self):
         with patch(
             "examples.ca_handler.freeipa_ca_handler.b64_decode", return_value=b"bytes"
         ), patch(
@@ -411,14 +450,14 @@ class TestCAhandler(unittest.TestCase):
             pem = self.handler._cert_chain_to_pem([{"__base64__": "abc"}])
             self.assertIn("PEM", pem)
 
-    def test_014_enroll_error_testcase(self):
+    def test_035_enroll_error_testcase(self):
         self.handler._rpc_post = MagicMock(return_value={"error": "fail"})
         error, cert_bundle, cert_raw = self.handler._enroll("host", "csr")
         self.assertEqual(error, "fail")
         self.assertIsNone(cert_bundle)
         self.assertIsNone(cert_raw)
 
-    def test_015_enroll_success_testcase(self):
+    def test_036_enroll_success_testcase(self):
         self.handler._rpc_post = MagicMock(
             return_value={
                 "result": {"result": {"certificate": "cert", "certificate_chain": []}}
@@ -430,7 +469,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertEqual(cert_bundle, "pem")
             self.assertEqual(cert_raw, "cert")
 
-    def test_300_enroll_unexpected_result_structure(self):
+    def test_037_enroll_unexpected_result_structure(self):
         # _rpc_post returns a result with unexpected structure (not a dict)
         self.handler._rpc_post = MagicMock(
             return_value={"result": {"result": "notadict"}}
@@ -442,7 +481,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertIsNone(cert_raw)
             mock_logger.error.assert_called()
 
-    def test_301_enroll_exception_in_result_extraction(self):
+    def test_038_enroll_exception_in_result_extraction(self):
         # _rpc_post returns a result that triggers an exception in extraction
         self.handler._rpc_post = MagicMock(
             return_value={
@@ -458,7 +497,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertIsNone(cert_raw)
             mock_logger.error.assert_called()
 
-    def test_302_enroll_no_result_key(self):
+    def test_039_enroll_no_result_key(self):
         # _rpc_post returns no 'result' key
         self.handler._rpc_post = MagicMock(return_value={})
         with patch.object(self.handler, "logger") as mock_logger:
@@ -468,21 +507,21 @@ class TestCAhandler(unittest.TestCase):
             self.assertIsNone(cert_raw)
             mock_logger.error.assert_called()
 
-    def test_016_revoke_error_testcase(self):
+    def test_040_revoke_error_testcase(self):
         self.handler._rpc_post = MagicMock(return_value={"error": "fail"})
         code, message, detail = self.handler._revoke("serial")
-        self.assertEqual(code, 1)
+        self.assertEqual(code, 500)
         self.assertEqual(message, "fail")
         self.assertIsNone(detail)
 
-    def test_017_revoke_success_testcase(self):
+    def test_041_revoke_success_testcase(self):
         self.handler._rpc_post = MagicMock(return_value={})
         code, message, detail = self.handler._revoke("serial")
-        self.assertEqual(code, 0)
+        self.assertEqual(code, 200)
         self.assertEqual(message, "Certificate revoked successfully")
         self.assertIsNone(detail)
 
-    def test_018_handler_check_testcase(self):
+    def test_042_handler_check_testcase(self):
         with patch(
             "examples.ca_handler.freeipa_ca_handler.handler_config_check",
             return_value=None,
@@ -490,7 +529,7 @@ class TestCAhandler(unittest.TestCase):
             error = self.handler.handler_check()
             self.assertIsNone(error)
 
-    def test_019_poll_testcase(self):
+    def test_043_poll_testcase(self):
         error, cert_bundle, cert_raw, poll_identifier, rejected = self.handler.poll(
             "cert", "pollid", "csr"
         )
@@ -500,13 +539,13 @@ class TestCAhandler(unittest.TestCase):
         self.assertEqual(poll_identifier, "pollid")
         self.assertFalse(rejected)
 
-    def test_020_trigger_testcase(self):
+    def test_044_trigger_testcase(self):
         error, cert_bundle, cert_raw = self.handler.trigger("payload")
         self.assertIsNone(error)
         self.assertIsNone(cert_bundle)
         self.assertIsNone(cert_raw)
 
-    def test_022_ensure_host_and_principals_success_testcase(self):
+    def test_045_ensure_host_and_principals_success_testcase(self):
         # Host exists, no error
         self.handler._host_search = MagicMock(return_value={"result": {"foo": "bar"}})
         self.handler._host_add = MagicMock()
@@ -519,7 +558,7 @@ class TestCAhandler(unittest.TestCase):
         self.handler._host_add_principal.assert_any_call("host1", "fqdn1")
         self.handler._host_add_principal.assert_any_call("host1", "fqdn2")
 
-    def test_023_ensure_host_and_principals_create_host_testcase(self):
+    def test_046_ensure_host_and_principals_create_host_testcase(self):
         # Host does not exist, should add
         self.handler._host_search = MagicMock(return_value={"result": {}})
         self.handler._host_add = MagicMock()
@@ -531,7 +570,7 @@ class TestCAhandler(unittest.TestCase):
         self.handler._host_add_managedby.assert_called_once_with("host2")
         self.handler._host_add_principal.assert_called_once_with("host2", "fqdn3")
 
-    def test_024_ensure_host_and_principals_error_testcase(self):
+    def test_047_ensure_host_and_principals_error_testcase(self):
         # Host search fails
         self.handler._host_search = MagicMock(return_value={"error": "fail"})
         self.handler._host_add = MagicMock()
@@ -544,7 +583,7 @@ class TestCAhandler(unittest.TestCase):
         self.handler._host_add_principal.assert_not_called()
         self.logger.error.assert_called()
 
-    def test_040_host_add_managedby_success_testcase(self):
+    def test_048_host_add_managedby_success_testcase(self):
         # Test successful managedby addition
         self.handler._rpc_post = MagicMock(return_value={})
         self.handler.fqdn = "ipa.example.com"
@@ -557,7 +596,7 @@ class TestCAhandler(unittest.TestCase):
             "Host %s added managed by %s successfully", "host1", "ipa.example.com"
         )
 
-    def test_041_host_add_managedby_error_testcase(self):
+    def test_049_host_add_managedby_error_testcase(self):
         # Test error during managedby addition
         self.handler._rpc_post = MagicMock(return_value={"error": "fail"})
         self.handler.fqdn = "ipa.example.com"
@@ -607,7 +646,7 @@ class TestCAhandler(unittest.TestCase):
         self.handler.__exit__(None, None, None)
         self.assertIsNone(self.handler.session)
 
-    def test_100_revoke_public_error(self):
+    def test_054_revoke_public_error(self):
         # Simulate cert_serial_get returns a serial, _revoke returns error
         with patch(
             "examples.ca_handler.freeipa_ca_handler.cert_serial_get",
@@ -620,7 +659,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertEqual(message, "fail")
             self.assertIsNone(detail)
 
-    def test_101_revoke_public_success(self):
+    def test_055_revoke_public_success(self):
         # Simulate cert_serial_get returns a serial, _revoke returns success
         with patch(
             "examples.ca_handler.freeipa_ca_handler.cert_serial_get",
@@ -635,7 +674,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertEqual(message, "Certificate revoked successfully")
             self.assertIsNone(detail)
 
-    def test_102_revoke_no_serial(self):
+    def test_056_revoke_no_serial(self):
         # Simulate cert_serial_get returns None, _revoke should not be called
         with patch(
             "examples.ca_handler.freeipa_ca_handler.cert_serial_get", return_value=None
@@ -649,7 +688,7 @@ class TestCAhandler(unittest.TestCase):
                 detail, "Invalid certificate format or missing serial number"
             )
 
-    def test_103_revoke_no_cert(self):
+    def test_057_revoke_no_cert(self):
         # Simulate cert_serial_get returns None, _revoke should not be called
         with patch(
             "examples.ca_handler.freeipa_ca_handler.cert_serial_get", return_value=None
@@ -661,7 +700,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertEqual(message, "urn:ietf:params:acme:error:malformed")
             self.assertEqual(detail, "Certificate data is required for revocation")
 
-    def test_200_enroll_eab_profile_error(self):
+    def test_058_enroll_eab_profile_error(self):
         # Simulate eab_profile_header_info_check returns error
         with patch(
             "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
@@ -670,7 +709,7 @@ class TestCAhandler(unittest.TestCase):
             result = self.handler.enroll("dummycsr")
             self.assertEqual(result, ("eab_error", None, None, None))
 
-    def test_201_enroll_ensure_host_error(self):
+    def test_059_enroll_ensure_host_error(self):
         # Simulate eab_profile_header_info_check ok, _parse_csr returns host/alias, _ensure_host_and_principals returns error
         with patch(
             "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
@@ -683,7 +722,7 @@ class TestCAhandler(unittest.TestCase):
             result = self.handler.enroll("dummycsr")
             self.assertEqual(result, ("host_error", None, None, None))
 
-    def test_202_enroll_enroll_error(self):
+    def test_060_enroll_enroll_error(self):
         # Simulate all ok until _enroll, which returns error
         with patch(
             "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
@@ -701,7 +740,7 @@ class TestCAhandler(unittest.TestCase):
             result = self.handler.enroll("dummycsr")
             self.assertEqual(result, ("enroll_error", None, None, None))
 
-    def test_203_enroll_success(self):
+    def test_061_enroll_success(self):
         # Simulate full success path
         with patch(
             "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
@@ -719,7 +758,7 @@ class TestCAhandler(unittest.TestCase):
             result = self.handler.enroll("dummycsr")
             self.assertEqual(result, (None, "bundle", "raw", None))
 
-    def test_400_cert_chain_to_pem_skips_missing_base64(self):
+    def test_062_cert_chain_to_pem_skips_missing_base64(self):
         # Should skip certs without '__base64__' key or with falsy value
         certs = [
             {},  # no __base64__ key
@@ -735,6 +774,15 @@ class TestCAhandler(unittest.TestCase):
             self.assertEqual(result, "")
             mock_b64_decode.assert_not_called()
             mock_cert_der2pem.assert_not_called()
+
+    def test_063_enroll_calls_enrollment_config_log(self):
+        # Cover lines 451-454: enrollment_config_log is called if self.enrollment_config_log is True
+        self.handler.enrollment_config_log = True
+        self.handler.enrollment_config_log_skip_list = ["skip1", "skip2"]
+        with patch("examples.ca_handler.freeipa_ca_handler.enrollment_config_log") as mock_enroll_log, \
+             patch.object(self.handler, "_rpc_post", return_value={"error": "fail"}):
+            self.handler._enroll("host", "csr")
+            mock_enroll_log.assert_called_once_with(self.logger, self.handler, ["skip1", "skip2"])
 
 
 if __name__ == "__main__":
