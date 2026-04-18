@@ -1,3 +1,7 @@
+<!-- markdownlint-disable  MD013 -->
+
+<!-- wiki-title FreeIPA CA Handler User Documentation -->
+
 # FreeIPA CA Handler User Documentation
 
 ## Prerequisites
