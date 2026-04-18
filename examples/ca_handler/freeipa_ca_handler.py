@@ -2,9 +2,9 @@
 """skeleton for customized CA handler"""
 from __future__ import print_function
 from typing import Tuple, Dict
-import requests
-import json
 import re
+import requests
+
 
 # pylint: disable=e0401
 from acme_srv.helper import (
@@ -584,7 +584,7 @@ class CAhandler(object):
         return error
 
     def poll(
-        self, cert_name: str, poll_identifier: str, _csr: str
+        self, _cert_name: str, poll_identifier: str, _csr: str
     ) -> Tuple[str, str, str, str, bool]:
         """
         Poll status of pending CSR and download certificates.
@@ -638,7 +638,7 @@ class CAhandler(object):
         self.logger.debug("Certificate.revoke() ended")
         return (code, message, detail)
 
-    def trigger(self, payload: str) -> Tuple[str, str, str]:
+    def trigger(self, _payload: str) -> Tuple[str, str, str]:
         """
         Process trigger message and return certificate.
         Args:

@@ -148,10 +148,10 @@ Below is an example key-file used during regression testing:
 ## Example Workflow
 
 1. Client sends a CSR and (optionally) a `profile_id` (via HTTP header or EAB payload).
-2. Handler extracts and sets `profile_id`.
-3. Handler ensures host and principals exist in FreeIPA.
-4. Handler submits certificate request using the selected `profile_id`.
-5. Certificate is issued and returned to the client.
+1. Handler extracts and sets `profile_id`.
+1. Handler ensures host and principals exist in FreeIPA.
+1. Handler submits certificate request using the selected `profile_id`.
+1. Certificate is issued and returned to the client.
 
 ## Troubleshooting
 
@@ -160,6 +160,6 @@ Below is an example key-file used during regression testing:
 - If using a custom CA bundle, verify the path and file permissions.
 - For EAB/profile_id issues, ensure the client sends the correct data and the handler extracts it properly.
 
----
+______________________________________________________________________
 
 For more details, see the handler source code in `examples/ca_handler/freeipa_ca_handler.py` and the main documentation in `docs`.
