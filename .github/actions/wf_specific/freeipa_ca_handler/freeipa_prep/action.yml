@@ -1,0 +1,94 @@
+name: "ejbca_prep"
+description: "ejbca_prep"
+inputs:
+  RUNNER_IP:
+    description: "Runner IP"
+    required: true
+  WORKING_DIR:
+    description: "Working directory"
+    required: true
+    default: ${{ github.workspace }}
+  NAME_SPACE:
+    description: "Namespace for the test"
+    required: true
+    default: "server.acme"
+  ADMIN_USER:
+    description: "Admin user for freeipa"
+    required: true
+    default: "admin"
+  ADMIN_PASSWORD:
+    description: "Admin password for freeipa"
+    required: true
+    default: "xxx"
+  A2C_USER:
+    description: "User for a2c in freeipa"
+    required: true
+    default: "a2c"
+  A2C_PASSWORD:
+    description: "Password for a2c user in freeipa"
+    required: true
+    default: "Test1234"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Prepare Environment"
+    working-directory: ${{ inputs.WORKING_DIR }}
+    run: |
+      mkdir -p freeipa
+      sudo chmod -R 777 freeipa
+      cp .github/freeipa.yml freeipa/docker-compose.yml
+    env:
+      EJBCA_IP: ${{ inputs.RUNNER_IP }}
+    shell: bash
+
+  - name: "Instanciate freeipa server"
+    run: |
+      cd freeipa
+      docker compose up -d
+    shell: bash
+
+  - name: "Sleep for 300s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 300s
+
+  - name: "Get randmonly generated Superadmin password for ejbca instance"
+    run: |
+      cd freeipa
+      # docker compose logs
+      docker compose logs  | grep "FreeIPA server configured."
+    shell: bash
+
+  - name: "Configure freeipa"
+    run: |
+      docker exec freeipa bash -c "echo '${ADMIN_PASSWORD}' | kinit ${ADMIN_USER}"
+      # docker exec freeipa ipa host-add acme-srv.server.acme --force
+      docker exec freeipa bash -c "echo -e '${A2C_PASSWORD}' | ipa user-add ${A2C_USER} --first=ACME --last=Certifier --password"
+      docker exec freeipa ipa user-mod ${A2C_USER} --setattr=krbPasswordExpiration=20991231235959Z
+
+      docker exec freeipa ipa privilege-add "Host-Cert API Management" --desc "Privilege to manage hosts and enroll certificates via JSON API"
+      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="System: Add Hosts"
+      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="System: Modify Hosts"
+      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="System: Manage Host Keytab"
+      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="Request Certificate"
+      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="System: Manage Host Certificates"
+      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="Revoke Certificate"
+      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="Retrieve Certificates from the CA"
+
+      docker exec freeipa ipa permission-add "Manage Host Kerberos Principals" \
+          --right=write \
+          --type=host \
+          --attrs=krbprincipalname
+
+      docker exec freeipa ipa privilege-add-permission "Host-Cert API Management" --permissions="Manage Host Kerberos Principals"
+
+      docker exec freeipa ipa role-add "API Provisioning Role" --desc "Role for automated host provisioning and certificate management"
+      docker exec freeipa ipa role-add-privilege "API Provisioning Role" --privileges="Host-Cert API Management"
+      docker exec freeipa ipa role-add-member "API Provisioning Role" --users=${A2C_USER}
+    shell: bash
+    env:
+      ADMIN_USER: ${{ inputs.ADMIN_USER }}
+      ADMIN_PASSWORD: ${{ inputs.ADMIN_PASSWORD }}
+      A2C_USER: ${{ inputs.A2C_USER }}
+      A2C_PASSWORD: ${{ inputs.A2C_PASSWORD }}
