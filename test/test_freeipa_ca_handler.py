@@ -779,10 +779,15 @@ class TestCAhandler(unittest.TestCase):
         # Cover lines 451-454: enrollment_config_log is called if self.enrollment_config_log is True
         self.handler.enrollment_config_log = True
         self.handler.enrollment_config_log_skip_list = ["skip1", "skip2"]
-        with patch("examples.ca_handler.freeipa_ca_handler.enrollment_config_log") as mock_enroll_log, \
-             patch.object(self.handler, "_rpc_post", return_value={"error": "fail"}):
+        with patch(
+            "examples.ca_handler.freeipa_ca_handler.enrollment_config_log"
+        ) as mock_enroll_log, patch.object(
+            self.handler, "_rpc_post", return_value={"error": "fail"}
+        ):
             self.handler._enroll("host", "csr")
-            mock_enroll_log.assert_called_once_with(self.logger, self.handler, ["skip1", "skip2"])
+            mock_enroll_log.assert_called_once_with(
+                self.logger, self.handler, ["skip1", "skip2"]
+            )
 
 
 if __name__ == "__main__":
