@@ -1,0 +1,94 @@
+name: "enroll_acmeprofile"
+description: "enroll_acmeprofile"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 10s
+
+  - name: "ACME Profile - Test http://acme-srv.server.acme/directory is accessible"
+    run: docker run -i --rm --network server.acme curlimages/curl -f http://acme-srv.server.acme/directory
+    shell: bash
+
+  - name: "ACME Profile - Test if https://acme-srv.server.acme/directory is accessible"
+    run: docker run -i --rm --network server.acme curlimages/curl --insecure -f https://acme-srv.server.acme/directory
+    shell: bash
+
+  - name: "Generate UUID"
+    run: |
+      echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+    shell: bash
+
+  - name: "ACME Profile - 01 - enrollment with profile caIPAserviceCert"
+    run: |
+      sudo rm -rf lego/*
+      sudo openssl req -new -newkey rsa:2048 -nodes -keyout /tmp/lego-${{ env.UUID }}.key.pem -out /tmp/lego-${{ env.UUID }}.csr -subj "/CN=lego-${{ env.UUID }}.server.acme" -addext "subjectAltName = DNS:lego-san-${{ env.UUID }}.server.acme"
+      # docker run -i -v $PWD/lego:/.lego/ --rm --name lego-${{ env.UUID }} --network server.acme goacme/lego --tls-skip-verify -s https://acme-srv.server.acme -a --email "lego@example.com" --key-type=rsa2048 -d lego-${{ env.UUID }}.server.acme -d san-${{ env.UUID }}.server.acme --http run
+      docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --network server.acme --rm --name lego-${{ env.UUID }} goacme/lego --tls-skip-verify -s https://acme-srv.server.acme -a --email "lego@example.com"  --csr "/lego-${{ env.UUID }}.csr" --http run --profile caIPAserviceCert
+      sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.server.acme.crt -text -noout
+      sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.server.acme.crt -text -noout -ext subjectAltName | grep "DNS:lego-${{ env.UUID }}.server.acme"
+    shell: bash
+    env:
+      UUID: ${{ env.UUID }}
+
+  - name: "Check logs for profile usage"
+    working-directory: examples/Docker/
+    run: |
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "CAhandler._enroll(): Adding profile_id caIPAserviceCert to RPC payload for enrollment"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec acme-srv grep "CAhandler._enroll(): Adding profile_id caIPAserviceCert to RPC payload for enrollment" /var/log/messages
+      fi
+    shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+  - name: "Generate UUID"
+    run: |
+      echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
+    shell: bash
+
+  - name: "ACME Profile - 02 - enrollment with allowed profile IECUserRoles"
+    run: |
+      sudo rm -rf lego/*
+      sudo openssl req -new -newkey rsa:2048 -nodes -keyout /tmp/lego-${{ env.UUID }}.key.pem -out /tmp/lego-${{ env.UUID }}.csr -subj "/CN=lego-${{ env.UUID }}.server.acme" -addext "subjectAltName = DNS:lego-san-${{ env.UUID }}.server.acme"
+      # docker run -i -v $PWD/lego:/.lego/ --rm --name lego-${{ env.UUID }} --network server.acme goacme/lego --tls-skip-verify -s https://acme-srv.server.acme -a --email "lego@example.com" --key-type=rsa2048 -d lego-${{ env.UUID }}.server.acme -d san-${{ env.UUID }}.server.acme --http run --profile IECUserRoles
+      docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --network server.acme --rm --name lego-${{ env.UUID }} goacme/lego --tls-skip-verify -s https://acme-srv.server.acme -a --email "lego@example.com"  --csr "/lego-${{ env.UUID }}.csr" --http run --profile IECUserRoles
+      sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.server.acme.crt -text -noout
+      sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.server.acme.crt -text -noout -ext subjectAltName | grep -v "DNS:lego-${{ env.UUID }}.server.acme"
+    shell: bash
+    env:
+      UUID: ${{ env.UUID }}
+
+  - name: "Check logs for profile usage"
+    working-directory: examples/Docker/
+    run: |
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        docker compose logs | grep "CAhandler._enroll(): Adding profile_id IECUserRoles to RPC payload for enrollment"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec acme-srv grep "CAhandler._enroll(): Adding profile_id IECUserRoles to RPC payload for enrollment" /var/log/messages
+      fi
+    shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+
+  - name: "ACME Profile - 03 - enrollment with unknown profile (to fail)"
+    id: legofail02
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego-unknown --network server.acme goacme/lego --tls-skip-verify -s https://acme-srv.server.acme -a --email "lego@example.com" --key-type=rsa2048 -d lego-unknown.server.acme --http run --profile unknown
+    shell: bash
+
+  - name: ACME Profile 03 - check  result "
+    if: steps.legofail02.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail02.outcome }}"
+      exit 1
+    shell: bash
