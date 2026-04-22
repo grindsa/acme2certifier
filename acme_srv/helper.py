@@ -42,6 +42,7 @@ from .helpers.certificates import (
     certid_asn1_get,
     certid_hex_get,
     certid_check,
+    pkcs7_to_pem,
 )
 
 # CSR operations

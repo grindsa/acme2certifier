@@ -6,6 +6,10 @@ from typing import List, Tuple
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.serialization.pkcs7 import (
+    load_pem_pkcs7_certificates,
+    load_der_pkcs7_certificates,
+)
 from cryptography.x509 import load_pem_x509_certificate, ocsp
 from OpenSSL import crypto
 from .encoding import (
@@ -393,4 +397,58 @@ def certid_check(
     result = certid_renewal == certid_database
 
     logger.debug("Helper.certid_check() ended with: %s", result)
+    return result
+
+
+def pkcs7_to_pem(logger, pkcs7_content: str, outform: str = "string") -> List[str]:
+    """convert pkcs7 to pem"""
+    logger.debug("CAhandler._pkcs7_to_pem()")
+
+    # Define loading strategies in order of preference
+    loading_strategies = [
+        # Strategy 1: Load as PEM directly
+        lambda content: load_pem_pkcs7_certificates(convert_string_to_byte(content)),
+        # Strategy 2: Replace CERTIFICATE with PKCS7 tag and load as PEM
+        lambda content: load_pem_pkcs7_certificates(
+            convert_string_to_byte(content.replace("CERTIFICATE", "PKCS7"))
+        ),
+        # Strategy 3: Load as DER
+        lambda content: load_der_pkcs7_certificates(content),
+    ]
+
+    pkcs7_obj = None
+    last_error = None
+
+    for i, strategy in enumerate(loading_strategies):
+        try:
+            pkcs7_obj = strategy(pkcs7_content)
+            if i == 1:  # Log only for the tag replacement strategy
+                logger.error("PKCS7-TAG not found, updated content successfully")
+            break
+        except Exception as err:
+            last_error = err
+            if i == 0:
+                logger.error("PKCS7-TAG not found updating content...")
+            elif i == 1:
+                logger.debug("CAhandler._pkcs7_to_pem(): load pem failed. Try der...")
+
+    if pkcs7_obj is None:
+        logger.error("All PKCS7 loading strategies failed. Last error: %s", last_error)
+        raise last_error
+
+    # Convert certificates to PEM format
+    cert_pem_list = [
+        convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM))
+        for cert in pkcs7_obj
+    ]
+
+    # Define output format
+    output_formats = {
+        "string": lambda certs: "".join(certs),
+        "list": lambda certs: certs,
+    }
+
+    result = output_formats.get(outform, lambda _: None)(cert_pem_list)
+
+    logger.debug("Certificate._pkcs7_to_pem() ended")
     return result
