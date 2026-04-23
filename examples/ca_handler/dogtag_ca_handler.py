@@ -458,6 +458,13 @@ class CAhandler(object):
             f"{self.REST_AGENT_CERTREQUESTS}{request_id}/approve", data
         )
 
+        if code >= 400:
+            return self._approve_error(
+                "Failed to approve certificate request.",
+                code,
+                response,
+            )
+
         # Get new status and certificate data
         code, response = self._api_get(f"{self.REST_CERTREQUESTS}/{request_id}")
         if "requestStatus" not in response:
@@ -664,6 +671,7 @@ class CAhandler(object):
             request_id,
             request_status,
         )
+
         return request_id, request_status
 
     def _config_passphrase_load(self, config_dic) -> None:
@@ -945,6 +953,30 @@ class CAhandler(object):
                     error, cert_bundle, cert_raw = self._certrequest_approve(request_id)
                 else:
                     poll_identifier = request_id
+            elif request_status == "complete":
+                # Get new status and certificate data
+                code, response = self._api_get(f"{self.REST_CERTREQUESTS}/{request_id}")
+                if code == 200 and isinstance(response, dict) and "certId" in response:
+                    error, cert_bundle, cert_raw = self._fetch_cert_and_bundle(
+                        response["certId"]
+                    )
+                else:
+                    self.logger.error(
+                        "Failed to retrieve certificate data for completed request. Status code: %s, Response: %s",
+                        code,
+                        response,
+                    )
+                    error = "Failed to retrieve certificate data for completed request."
+            elif request_status == "rejected":
+                self.logger.error("Certificate request was rejected by CA")
+                error = "Certificate request was rejected by CA."
+            else:
+                self.logger.error(
+                    "Certificate request failed. Unknown request-status: %s",
+                    request_status,
+                )
+                error = "Certificate request failed."
+
 
         self.logger.debug("Certificate.enroll() ended()")
         # Always return a consistent tuple
