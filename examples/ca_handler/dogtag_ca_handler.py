@@ -934,7 +934,7 @@ class CAhandler(object):
         poll_identifier = None
 
         error: Optional[str] = eab_profile_header_info_check(
-            self.logger, self, csr, "profile_id"
+            self.logger, self, csr, "profile"
         )
 
         if not error:
