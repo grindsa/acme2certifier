@@ -1,0 +1,161 @@
+name: "dogtag_prep"
+description: "dogtag_prep"
+inputs:
+  RUNNER_IP:
+    description: "Runner IP"
+    required: true
+  WORKING_DIR:
+    description: "Working directory"
+    required: true
+    default: ${{ github.workspace }}
+  NAME_SPACE:
+    description: "Namespace for the test"
+    required: true
+    default: "server.acme"
+  ADMIN_USER:
+    description: "PKI Administrator for acme"
+    required: true
+    default: "admin"
+  ADMIN_PASSWORD:
+    description: "Admin password for dogtag"
+    required: true
+    default: "Secret123"
+  A2C_USER:
+    description: "User for a2c in dogtag"
+    required: true
+    default: "a2c"
+  A2C_PASSWORD:
+    description: "Password for a2c user in dogtag"
+    required: true
+    default: "Test1234"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Prepare Environment"
+    working-directory: ${{ inputs.WORKING_DIR }}
+    run: |
+      mkdir -p dogtag
+      sudo chmod -R 777 dogtag
+    shell: bash
+
+  - name: "Instanciate dogtag server"
+    run: |
+      docker run -d -id --rm --privileged --network $NAME_SPACE --name=dogtag -v "$(pwd)/dogtag":/tmp/data -h dogtag.$NAME_SPACE almalinux/9-init
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Sleep for 5s"
+    uses: juliangruber/sleep-action@v2.0.3
+    with:
+      time: 5s
+
+  - name: "Prepare almalinux for dogtag server"
+    run: |
+      docker exec -it dogtag yum -y install epel-release
+      docker exec -it dogtag yum install -y procps syslog-ng
+      docker exec -it dogtag systemctl start syslog-ng.service
+    shell: bash
+
+  - name: "Install dogtag server"
+    run: |
+      docker exec -it dogtag dnf install -y 389-ds-base pki-server pki-ca pki-tools
+    shell: bash
+    env:
+      ADMIN_USER: ${{ inputs.ADMIN_USER }}
+      ADMIN_PASSWORD: ${{ inputs.ADMIN_PASSWORD }}
+      A2C_USER: ${{ inputs.A2C_USER }}
+      A2C_PASSWORD: ${{ inputs.A2C_PASSWORD }}
+
+  - name: "Configure dogtag server"
+    run: |
+      docker exec -it dogtag bash -c 'cat <<EOF > /tmp/ds_instance.inf
+      [general]
+      full_machine_name = $(hostname)
+      strict_host_checking = False
+      [slapd]
+      instance_name = pki-ds
+      root_password = Secret123
+      port = 389
+      [backend-userroot]
+      suffix = dc=example,dc=com
+      EOF'
+      docker exec -it dogtag dscreate from-file /tmp/ds_instance.inf
+
+      docker exec -it dogtag bash -c 'cat <<EOF > /tmp/root_ca.cfg
+      [DEFAULT]
+      pki_server_database_password=Secret123
+      [CA]
+      pki_instance_name=pki-tomcat
+      pki_https_port=8443
+      pki_admin_password=Secret123
+      pki_client_pkcs12_password=Secret123
+      pki_ds_ldap_port=389
+      pki_ds_password=Secret123
+      pki_security_domain_name=Test-Domain
+      EOF'
+      docker exec -it dogtag pkispawn -s CA -f /tmp/root_ca.cfg
+
+      docker exec -it dogtag mkdir -p ~/.dogtag/nssdb
+      docker exec -it dogtag pki -c Secret123 client-init --force
+
+      docker exec -it dogtag sh -c "pki -c Secret123 client-cert-import \
+          --pkcs12 ~/.dogtag/pki-tomcat/ca_admin_cert.p12 \
+          --pkcs12-password Secret123"
+
+    shell: bash
+    env:
+      ADMIN_USER: ${{ inputs.ADMIN_USER }}
+      ADMIN_PASSWORD: ${{ inputs.ADMIN_PASSWORD }}
+      A2C_USER: ${{ inputs.A2C_USER }}
+      A2C_PASSWORD: ${{ inputs.A2C_PASSWORD }}
+
+  - name: "Create a2c user"
+    run: |
+      docker exec -it dogtag bash -c 'pki -c Secret123 -n "PKI Administrator for acme" ca-user-add api-user --fullName "REST API Service Account" <<< "y"'
+      docker exec -it dogtag bash -c 'pki -c Secret123 -n "PKI Administrator for acme" ca-user-mod api-user --password "NewPassword123"'
+      docker exec -it dogtag bash -c 'pki -c Secret123 -n "PKI Administrator for acme" ca-profile-enable caDirUserCert'
+      docker exec -it dogtag bash -c 'openssl genrsa -out /tmp/data/api-user.key 2048'
+      docker exec -it dogtag bash -c 'openssl req -new -key /tmp/data/api-user.key -out /tmp/data/api-user.csr -subj "/CN=api-user"'
+
+      docker exec -it dogtag bash -c 'pki -c Secret123 -n "PKI Administrator for acme" ca-cert-request-submit --profile caServerCert --csr-file /tmp/data/api-user.csr > /tmp/data/req_response.txt'
+      docker exec -it dogtag bash -c 'REQ_ID=$(grep "Request ID" /tmp/data/req_response.txt | awk "{print \$3}"); pki -c Secret123 -n "PKI Administrator for acme" ca-cert-request-review $REQ_ID --action approve > /tmp/data/cert_response.txt'
+      docker exec -it dogtag bash -c 'CERT_ID=$(grep "Certificate ID" /tmp/data/cert_response.txt | awk "{print \$3}"); pki -c Secret123 -n "PKI Administrator for acme" ca-cert-export $CERT_ID --output-file /tmp/data/api-user.crt'
+
+      docker exec -it dogtag bash -c 'pki -c Secret123 -n "PKI Administrator for acme" ca-user-cert-add api-user --input /tmp/data/api-user.crt'
+      docker exec -it dogtag bash -c 'pki -c Secret123 -n "PKI Administrator for acme" ca-user-cert-find api-user'
+
+      docker exec -it dogtag bash -c 'pki -c Secret123 -n "PKI Administrator for acme" ca-group-member-add "Registration Manager Agents" api-user'
+      docker exec -it dogtag bash -c 'pki -c Secret123 -n "PKI Administrator for acme" ca-group-member-add "Certificate Manager Agents" api-user'
+    shell: bash
+    env:
+      ADMIN_USER: ${{ inputs.ADMIN_USER }}
+      ADMIN_PASSWORD: ${{ inputs.ADMIN_PASSWORD }}
+      A2C_USER: ${{ inputs.A2C_USER }}
+      A2C_PASSWORD: ${{ inputs.A2C_PASSWORD }}
+
+  - name: "Create profile"
+    run: |
+      docker exec -it dogtag bash -c 'pki -c Secret123 -n "PKI Administrator for acme" ca-profile-show caServerCert --output /tmp/data/caServerCert.cfg'
+      docker exec -it dogtag bash -c 'cp /tmp/data/caServerCert.cfg /tmp/data/Webserver.cfg'
+      docker exec -it dogtag bash -c 'sed -i 's/caServerCert/Webserver/g' /tmp/data/Webserver.cfg'
+      docker exec -it dogtag bash -c "sed -i 's/TLS Web Client Authentication,//g' /tmp/data/Webserver.cfg"
+      docker exec -it dogtag bash -c "sed -i 's/,TLS Web Client Authentication//g' /tmp/data/Webserver.cfg"
+      docker exec -it dogtag bash -c "sed -i 's/1.3.6.1.5.5.7.3.2,//g' /tmp/data/Webserver.cfg"
+      docker exec -it dogtag bash -c "sed -i 's/,1.3.6.1.5.5.7.3.2//g' /tmp/data/Webserver.cfg"
+      docker exec -it dogtag bash -c "sed -i 's/extendedKeyUsageExtDefaultImpl/noConstraintImpl/g' /tmp/data/Webserver.cfg"
+      docker exec -it dogtag bash -c "sed -i 's/Extended Key Usage Extension Default/No Extended Key Usage Extension Constraint/g' /tmp/data/Webserver.cfg"
+      docker exec -it dogtag bash -c 'grep -i extended /tmp/data/Webserver.cfg'
+
+      docker exec -it dogtag bash -c 'pki -c Secret123 -n "PKI Administrator for acme" ca-profile-add /tmp/data/Webserver.cfg'
+      docker exec -it dogtag bash -c 'pki -c Secret123 -n "PKI Administrator for acme" ca-profile-enable Webserver'
+
+      docker exec -it dogtag bash -c 'pki -c Secret123 -n "PKI Administrator for acme" ca-profile-show Webserver'
+
+    shell: bash
+    env:
+      ADMIN_USER: ${{ inputs.ADMIN_USER }}
+      ADMIN_PASSWORD: ${{ inputs.ADMIN_PASSWORD }}
+      A2C_USER: ${{ inputs.A2C_USER }}
+      A2C_PASSWORD: ${{ inputs.A2C_PASSWORD }}
