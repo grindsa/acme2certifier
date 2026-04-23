@@ -1,0 +1,147 @@
+name: CA handler tests - DogTag
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to run the workflow on'
+        required: true
+        default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
+      sha:
+        description: 'SHA of the commit to run the workflow on'
+        required: true
+        default: ''
+      called_by_workflow:
+        description: 'Name of the producing workflow'
+        required: true
+        default: 'manual-trigger'
+      full_ref:
+        description: 'Full git ref of the commit to run the workflow on'
+        required: false
+        default: ''
+
+jobs:
+
+  # ---------------------------------------------------------
+  # Quick guard to validate incoming payload
+  # ---------------------------------------------------------
+  guard:
+    runs-on: ubuntu-latest
+    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel') }}
+    steps:
+      - run: |
+          echo "Triggered by SHA:    $SHA"
+          echo "From branch:         $BRANCH"
+          echo "Producer run_id:     $RUN_ID"
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+
+  # ---------------------------------------------------------
+  # Test container images (matrix from payload)
+  # ---------------------------------------------------------
+  acme-test-containers:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        websrv: ['apache2', 'nginx']
+        dbhandler: ['wsgi']
+
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Get runner ip"
+        run: |
+          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
+
+      - run: echo "runner IP is $RUNNER_IP"
+        env:
+          RUNNER_IP: ${{ env.RUNNER_IP }}
+
+
+      - name: "Download and import container"
+        uses: ./.github/actions/container_load
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
+          DESTINATION_PATH: /tmp
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Prepare container environment"
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          CONTAINER_BUILD: false
+          NAME_SPACE: server.acme
+
+
+      - name: "Setup acme_ca_handler"
+        run: |
+          sudo mkdir -p examples/Docker/data/acme
+          sudo chmod -R 777 examples/Docker/data/acme
+          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "acme_keyfile: volume/acme/harica_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "acme_url: $ACME_URL" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "account_path: /acct/" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "acme_account_email: $ACME_ACCOUNT_EMAIL" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_kid: $EAB_KID" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_hmac_key: $EAB_HMAC_KEY" >> examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
+          sudo echo "allowed_domainlist: [\"*.$DOMAIN\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
+        env:
+          ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
+
+      - name: "Bring up a2c container"
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/wf_specific/harica/acme_enroll
+        with:
+          DEPLOYMENT_TYPE: "container"
+          HOSTNAME_SUFFIX: -${{ env.UUID }}
+
+      - name: "Check acme account found in keyfile"
+        run: |
+          cd examples/Docker
+          docker compose logs | grep -i "found in keyfile"
+
+      - name: "Check container configuration"
+        uses: ./.github/actions/container_check
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "[ * ] collecting test data"
+        if: ${{ failure() }}
+        run: |
+          mkdir -p ${{ github.workspace }}/artifact/upload
+          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
+          cd examples/Docker
+          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data docker-compose.log
+
+      - name: "[ * ] Uploading artifacts"
+        uses: actions/upload-artifact@v7
+        if: ${{ failure() }}
+        with:
+          name: acme-test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
