@@ -977,7 +977,6 @@ class CAhandler(object):
                 )
                 error = "Certificate request failed."
 
-
         self.logger.debug("Certificate.enroll() ended()")
         # Always return a consistent tuple
         return (error, cert_bundle, cert_raw, poll_identifier)
