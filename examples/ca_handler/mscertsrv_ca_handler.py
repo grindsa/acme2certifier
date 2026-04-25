@@ -26,6 +26,7 @@ from acme_srv.helper import (
     header_info_get,
     load_config,
     proxy_check,
+    pkcs7_to_pem,
 )  # pylint: disable=e0401
 
 
@@ -252,59 +253,7 @@ class CAhandler(object):
         """convert pkcs7 to pem"""
         self.logger.debug("CAhandler._pkcs7_to_pem()")
 
-        # Define loading strategies in order of preference
-        loading_strategies = [
-            # Strategy 1: Load as PEM directly
-            lambda content: load_pem_pkcs7_certificates(
-                convert_string_to_byte(content)
-            ),
-            # Strategy 2: Replace CERTIFICATE with PKCS7 tag and load as PEM
-            lambda content: load_pem_pkcs7_certificates(
-                convert_string_to_byte(content.replace("CERTIFICATE", "PKCS7"))
-            ),
-            # Strategy 3: Load as DER
-            lambda content: load_der_pkcs7_certificates(content),
-        ]
-
-        pkcs7_obj = None
-        last_error = None
-
-        for i, strategy in enumerate(loading_strategies):
-            try:
-                pkcs7_obj = strategy(pkcs7_content)
-                if i == 1:  # Log only for the tag replacement strategy
-                    self.logger.error(
-                        "PKCS7-TAG not found, updated content successfully"
-                    )
-                break
-            except Exception as err:
-                last_error = err
-                if i == 0:
-                    self.logger.error("PKCS7-TAG not found updating content...")
-                elif i == 1:
-                    self.logger.debug(
-                        "CAhandler._pkcs7_to_pem(): load pem failed. Try der..."
-                    )
-
-        if pkcs7_obj is None:
-            self.logger.error(
-                "All PKCS7 loading strategies failed. Last error: %s", last_error
-            )
-            raise last_error
-
-        # Convert certificates to PEM format
-        cert_pem_list = [
-            convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM))
-            for cert in pkcs7_obj
-        ]
-
-        # Define output format
-        output_formats = {
-            "string": lambda certs: "".join(certs),
-            "list": lambda certs: certs,
-        }
-
-        result = output_formats.get(outform, lambda _: None)(cert_pem_list)
+        result = pkcs7_to_pem(self.logger, pkcs7_content, outform)
 
         self.logger.debug("Certificate._pkcs7_to_pem() ended")
         return result
