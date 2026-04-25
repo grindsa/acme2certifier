@@ -24,6 +24,7 @@ from acme_srv.helper import (
     parse_url,
     proxy_check,
     handler_config_check,
+    pkcs7_to_pem,
 )
 
 
@@ -317,27 +318,7 @@ class CAhandler(object):
         """convert pkcs7 to pem"""
         self.logger.debug("CAhandler._pkcs7_to_pem()")
 
-        try:
-            pkcs7_obj = load_pem_pkcs7_certificates(
-                convert_string_to_byte(pkcs7_content)
-            )
-        except Exception:
-            self.logger.debug("CAhandler._pkcs7_to_pem(): load pem failed. Try der...")
-            pkcs7_obj = load_der_pkcs7_certificates(pkcs7_content)
-
-        cert_pem_list = []
-        for cert in pkcs7_obj:
-            cert_pem_list.append(
-                convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM))
-            )
-
-        # define output format
-        if outform == "string":
-            result = "".join(cert_pem_list)
-        elif outform == "list":
-            result = cert_pem_list
-        else:
-            result = None
+        result = pkcs7_to_pem(self.logger, pkcs7_content, outform)
 
         self.logger.debug("Certificate._pkcs7_to_pem() ended")
         return result
