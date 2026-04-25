@@ -62,7 +62,7 @@ case "${1}" in
     sed -i "s/# activate = 1/activate = 1/g" /etc/ssl/openssl.cnf
 
     echo "copy data"
-    mkdir -p /var/www/acme2certifier/volume/
+    mkdir -p /var/www/acme2certifier/volume/acme_ca
     cp -R /tmp/acme2certifier/volume/* /var/www/acme2certifier/volume/
 
     if [[ -f /var/www/acme2certifier/acme_srv/acme_srv.cfg ]]; then
