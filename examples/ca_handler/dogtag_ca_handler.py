@@ -1,9 +1,12 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=C0302
 """Dogtag CA handler"""
 from __future__ import print_function
 from typing import Tuple, Dict, Optional
+import os
 import requests
 from requests_pkcs12 import Pkcs12Adapter
+from cryptography import x509
 
 # pylint: disable=e0401
 from acme_srv.helper import (
@@ -557,10 +560,6 @@ class CAhandler(object):
         Returns:
             None
         """
-
-        from cryptography import x509
-        from cryptography.hazmat.primitives import serialization
-
         cert = x509.load_pem_x509_certificate(pem_data.encode())
 
         try:
@@ -585,6 +584,7 @@ class CAhandler(object):
             eku_ext = cert.extensions.get_extension_for_class(x509.ExtendedKeyUsage)
             print("Extended Key Usage (OIDs):")
             for oid in eku_ext.value:
+                # pylint: disable=protected-access
                 print(f"  - {oid._name} ({oid.dotted_string})")
         except x509.ExtensionNotFound:
             print("No Extended Key Usage extension found.")
@@ -710,8 +710,6 @@ class CAhandler(object):
         Returns:
             None
         """
-        import os
-
         try:
             self.cert_passphrase = os.environ[var_name]
         except Exception as err:
@@ -920,13 +918,6 @@ class CAhandler(object):
         Returns:
             Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]: Error, PEM bundle, raw certificate, poll identifier.
         """
-        """
-        Enroll a certificate.
-        Args:
-            csr (str): CSR string.
-        Returns:
-            Tuple[str, str, str, str]: Error, PEM bundle, raw certificate, poll identifier.
-        """
         self.logger.debug("CAhandler.enroll()")
 
         cert_bundle = None
@@ -975,7 +966,8 @@ class CAhandler(object):
                     "Certificate request failed. Unknown request-status: %s",
                     request_status,
                 )
-                error = "Certificate request failed."
+                # For unknown status
+                error = "Certificate request failed"
 
         self.logger.debug("Certificate.enroll() ended()")
         # Always return a consistent tuple

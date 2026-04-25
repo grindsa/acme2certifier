@@ -1034,7 +1034,7 @@ class TestCAhandler(unittest.TestCase):
             self.cahandler, "_certrequest_send", return_value=("reqid", "issued")
         ):
             error, cert_bundle, cert_raw, poll_identifier = self.cahandler.enroll("csr")
-            self.assertIsNone(error)
+            self.assertEqual(error, "Certificate request failed")
             self.assertIsNone(cert_bundle)
             self.assertIsNone(cert_raw)
             self.assertIsNone(poll_identifier)
