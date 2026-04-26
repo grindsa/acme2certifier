@@ -2786,6 +2786,82 @@ class TestCertificate(unittest.TestCase):
                 "DEBUG:test_a2c:Certificate._load_configuration()", log.output
             )
 
+    # Move the new tests after setUp to fix indentation
+    def test_204_validate_csr_against_order_profile_logging_and_dryrun(self):
+        # Setup: profile present, matches dryrun_profilename
+        self.cert.config.dryrun_profilename = "dryrun-profile"
+        self.cert.config.dryrun = False
+        identifier_dic = {"identifiers": "[]", "profile": "dryrun-profile"}
+        with patch.object(
+            self.cert, "_get_certificate_info", return_value={"order": "order"}
+        ), patch.object(
+            self.cert.repository, "order_lookup", return_value=identifier_dic
+        ), patch.object(
+            self.cert, "_load_and_validate_identifiers", return_value=[True]
+        ), self.assertLogs(
+            self.logger, level="DEBUG"
+        ) as log:
+            self.cert._validate_csr_against_order("cert", "csr")
+        # Check both debug log messages
+        debug_msgs = [
+            m
+            for m in log.output
+            if "additional profile checks can be implemented here based on profile" in m
+        ]
+        self.assertTrue(any(debug_msgs))
+        dryrun_msgs = [m for m in log.output if "enabling dryrun mode for profile" in m]
+        self.assertTrue(any(dryrun_msgs))
+        # Check that dryrun was set
+        self.assertTrue(self.cert.config.dryrun)
+
+    def test_205_validate_csr_against_order_profile_logging_no_dryrun(self):
+        # Setup: profile present, does NOT match dryrun_profilename
+        self.cert.config.dryrun_profilename = "dryrun-profile"
+        self.cert.config.dryrun = False
+        identifier_dic = {"identifiers": "[]", "profile": "other-profile"}
+        with patch.object(
+            self.cert, "_get_certificate_info", return_value={"order": "order"}
+        ), patch.object(
+            self.cert.repository, "order_lookup", return_value=identifier_dic
+        ), patch.object(
+            self.cert, "_load_and_validate_identifiers", return_value=[True]
+        ), self.assertLogs(
+            self.logger, level="DEBUG"
+        ) as log:
+            self.cert._validate_csr_against_order("cert", "csr")
+        # Check debug log for profile check
+        debug_msgs = [
+            m
+            for m in log.output
+            if "additional profile checks can be implemented here based on profile" in m
+        ]
+        self.assertTrue(any(debug_msgs))
+        # Should NOT enable dryrun
+        dryrun_msgs = [m for m in log.output if "enabling dryrun mode for profile" in m]
+        self.assertFalse(any(dryrun_msgs))
+        self.assertFalse(self.cert.config.dryrun)
+
+    def test_206_process_certificate_enrollment_request_dryrun(self):
+        # Setup: dryrun enabled
+        self.cert.config.dryrun = True
+        self.cert.err_msg_dic["unauthorized"] = "unauthorized"
+        # Patch dependencies so validation passes
+        with patch.object(
+            self.cert, "_validate_input_parameters", return_value=None
+        ), patch.object(
+            self.cert, "_validate_csr_against_order", return_value=True
+        ), self.assertLogs(
+            self.logger, level="INFO"
+        ) as log:
+            result = self.cert.process_certificate_enrollment_request(
+                "cert", "csr", "order"
+            )
+        self.assertIn(
+            "Dry run mode enabled - skipping enrollment and database storage",
+            " ".join(log.output),
+        )
+        self.assertEqual(result, ("unauthorized", "Dry run mode - enrollment skipped"))
+
 
 if __name__ == "__main__":
     unittest.main()
