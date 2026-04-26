@@ -351,3 +351,27 @@ def client_parameter_validate(
         error,
     )
     return value_to_set, error
+
+
+def config_dryrun_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """load dryrun configuration"""
+    logger.debug("Helper.config_dryrun_load()")
+
+    dryrun = False
+    dryrun_profilename = None
+
+    if "DEFAULT" in config_dic and "dryrun" in config_dic["DEFAULT"]:
+        if config_dic["DEFAULT"]["dryrun"].lower() in ["true", "false"]:
+            dryrun = config_dic.getboolean("DEFAULT", "dryrun", fallback=False)
+        elif config_dic["DEFAULT"]["dryrun"].lower() == "profile":
+            if config_dic.get("DEFAULT", "dryrun_profile", fallback=None):
+                dryrun_profilename = config_dic["DEFAULT"]["dryrun_profile"]
+            else:
+                logger.warning(
+                    "Dryrun profile name not set in configuration, please set dryrun_profile parameter"
+                )
+
+    logger.debug(
+        "Helper.config_dryrun_load() ended with: %s/%s", dryrun, dryrun_profilename
+    )
+    return dryrun, dryrun_profilename
