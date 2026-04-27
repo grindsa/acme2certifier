@@ -1,4 +1,4 @@
-name: Feature Tests - ARI
+name: Feature Tests - Dry Run Mode
 on:
   workflow_dispatch:
     inputs:
