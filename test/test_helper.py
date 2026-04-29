@@ -6291,7 +6291,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             )
         )
 
-    def test_002_pkcs7_to_pem(self):
+    def test_515_pkcs7_to_pem(self):
         """test pkcs7 to pem default output"""
         with open(self.dir_path + "/ca/certs.p7b", "r") as fso:
             file_content = fso.read()
@@ -6299,7 +6299,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             result = fso.read()
         self.assertEqual(result, self.pkcs7_to_pem(self.logger, file_content))
 
-    def test_003_pkcs7_to_pem(self):
+    def test_516_pkcs7_to_pem(self):
         """test pkcs7 to pem output string"""
         with open(self.dir_path + "/ca/certs.p7b", "r") as fso:
             file_content = fso.read()
@@ -6307,7 +6307,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             result = fso.read()
         self.assertEqual(result, self.pkcs7_to_pem(self.logger, file_content, "string"))
 
-    def test_004_pkcs7_to_pem(self):
+    def test_517_pkcs7_to_pem(self):
         """test pkcs7 to pem output list"""
         with open(self.dir_path + "/ca/certs.p7b", "r") as fso:
             file_content = fso.read()
@@ -6317,7 +6317,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         ]
         self.assertEqual(result, self.pkcs7_to_pem(self.logger, file_content, "list"))
 
-    def test_005_pkcs7_to_pem(self):
+    def test_518_pkcs7_to_pem(self):
         """test pkcs7 to pem output list"""
         with open(self.dir_path + "/ca/certs.p7b", "r") as fso:
             file_content = fso.read()
@@ -6326,7 +6326,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             result, self.pkcs7_to_pem(self.logger, file_content, "unknown")
         )
 
-    def test_006_pkcs7_to_pem(self):
+    def test_519_pkcs7_to_pem(self):
         """test pkcs7 to pem output list"""
 
         file_content = base64.b64decode(
@@ -6338,7 +6338,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         ]
         self.assertEqual(result, self.pkcs7_to_pem(self.logger, file_content, "list"))
 
-    def test_007_pkcs7_to_pem_tag_replacement_logs_error(self):
+    def test_520_pkcs7_to_pem_tag_replacement_logs_error(self):
         """Test pkcs7_to_pem logs error on tag replacement strategy (line 426)"""
         from acme_srv.helpers.certificates import pkcs7_to_pem
 
@@ -6359,7 +6359,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         )
         self.assertIsInstance(result, list)
 
-    def test_008_pkcs7_to_pem_all_strategies_fail(self):
+    def test_521_pkcs7_to_pem_all_strategies_fail(self):
         """Test pkcs7_to_pem logs error and raises if all strategies fail (lines 436-437)"""
         from acme_srv.helpers.certificates import pkcs7_to_pem
 
@@ -6380,7 +6380,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         logger.error.assert_any_call(
             "All PKCS7 loading strategies failed. Last error: %s", cm.exception
         )
-    def test_515_config_dryrun_load_not_set(self):
+    def test_522_config_dryrun_load_not_set(self):
         """Test config_dryrun_load with valid 'true' value."""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {"foo": "bar"}
@@ -6388,7 +6388,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             (False, None), self.config_dryrun_load(self.logger, config_dic)
         )
 
-    def test_516_config_dryrun_load_true(self):
+    def test_523_config_dryrun_load_true(self):
         """Test config_dryrun_load with valid 'true' value."""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {"dryrun": "True"}
@@ -6399,7 +6399,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 (True, None), self.config_dryrun_load(self.logger, config_dic)
             )
 
-    def test_517_config_dryrun_load_false(self):
+    def test_524_config_dryrun_load_false(self):
         """Test config_dryrun_load with valid 'false' value."""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"] = {"dryrun": "False"}
@@ -6410,7 +6410,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 (False, None), self.config_dryrun_load(self.logger, config_dic)
             )
 
-    def test_518_config_dryrun_load_profile(self):
+    def test_525_config_dryrun_load_profile(self):
         """Test config_dryrun_load with invalid value."""
         config_dic = configparser.ConfigParser()
         profile_list = ["profile", "Profile", "PROFILE"]
@@ -6422,7 +6422,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 self.config_dryrun_load(self.logger, config_dic),
             )
 
-    def test_519_config_dryrun_load_profile_no_profilename(self):
+    def test_526_config_dryrun_load_profile_no_profilename(self):
         """Test config_dryrun_load with invalid value and no dryrun_profile set."""
         config_dic = configparser.ConfigParser()
         config_dic["DEFAULT"]["dryrun"] = "profile"
