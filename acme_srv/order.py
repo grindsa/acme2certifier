@@ -18,6 +18,7 @@ from acme_srv.helper import (
     validate_identifier,
     is_domain_whitelisted,
     config_eab_profile_load,
+    config_dryrun_load,
 )
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
@@ -159,6 +160,7 @@ class OrderConfiguration:
     allowed_domainlist: List[str] = field(default_factory=list)
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
+    dryrun_profilename: Optional[str] = None
 
 
 class Order(object):
@@ -229,6 +231,14 @@ class Order(object):
         if self.config.profiles_check_disable:
             self.logger.debug("Order.is_profile_valid(): profile check disabled")
             error = None
+        elif (
+            self.config.dryrun_profilename and profile == self.config.dryrun_profilename
+        ):
+            self.logger.info(
+                "Order.is_profile_valid(): dryrun profile '%s' submitted",
+                profile,
+            )
+            error = None
         else:
             if profile in self.config.profiles:
                 error = None
@@ -269,6 +279,14 @@ class Order(object):
         error = self.is_profile_valid(payload["profile"])
         if not error:
             if self.config.profiles:
+                data_dic["profile"] = payload["profile"]
+            elif (
+                self.config.dryrun_profilename
+                and self.config.dryrun_profilename == payload["profile"]
+            ):
+                self.logger.debug(
+                    "Order.add_profile_to_order(): adding dryrun profile to order"
+                )
                 data_dic["profile"] = payload["profile"]
             else:
                 self.logger.warning(
@@ -436,6 +454,10 @@ class Order(object):
                     "Failed to parse identifier_limit from configuration: %s",
                     config_dic["Order"].get("identifier_limit", None),
                 )
+            _not_used, self.config.dryrun_profilename = config_dryrun_load(
+                self.logger, config_dic
+            )
+
         self.logger.debug("Order._load_order_config() ended")
 
     def _load_profile_config(self, config_dic: Dict[str, str]):
@@ -757,6 +779,8 @@ class Order(object):
         elif certificate_name == "urn:ietf:params:acme:error:rejectedIdentifier":
             code = 401
             message = certificate_name
+        elif detail in ["Dry run mode - enrollment skipped"]:
+            message = "urn:ietf:params:acme:error:unauthorized"
         else:
             message = certificate_name
             detail = "enrollment failed"
@@ -877,7 +901,11 @@ class Order(object):
                     (error, detail) = certificate.enroll_and_store(
                         certificate_name, csr, order_name
                     )
-                    if not error:
+                    if detail in ["Dry run mode - enrollment skipped"]:
+                        code = 401
+                        message = error
+                        detail = detail
+                    elif not error:
                         code = 200
                         message = certificate_name
                     elif error == "urn:ietf:params:acme:error:rejectedIdentifier":

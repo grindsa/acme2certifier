@@ -246,6 +246,31 @@ class TestOrderRepository(unittest.TestCase):
 
 
 class TestOrderClass(unittest.TestCase):
+    def test_100_process_csr_dryrun_skipped(self):
+        # Covers: enroll_and_store returns dryrun skipped, triggers code=401, message=error, detail preserved
+        with patch("acme_srv.helper.b64_url_recode", return_value="csrval"):
+            self.order._get_order_info = MagicMock(return_value={"name": "order1"})
+            cert_mock = MagicMock()
+            cert_mock.store_csr.return_value = "cert1"
+            cert_mock.enroll_and_store.return_value = (
+                "some_error",
+                "Dry run mode - enrollment skipped",
+            )
+            with patch("acme_srv.order.Certificate") as cert_class:
+                cert_class.return_value.__enter__.return_value = cert_mock
+                with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
+                    result = self.order._process_csr("order1", "csr", "header")
+                    self.assertEqual(
+                        result, (401, "some_error", "Dry run mode - enrollment skipped")
+                    )
+                self.assertIn(
+                    "DEBUG:test_a2c:Order._process_csr(order1)", log_cm.output
+                )
+                self.assertIn(
+                    "DEBUG:test_a2c:Order._process_csr() ended with order:order1 401:{some_error:Dry run mode - enrollment skipped",
+                    log_cm.output,
+                )
+
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
@@ -2362,6 +2387,55 @@ class TestOrderClass(unittest.TestCase):
         self.assertEqual(error, self.order.error_msg_dic["malformed"])
         self.assertEqual(detail, "Identifier value is missing")
         self.assertIn("ERROR:test_a2c:Identifier value is missing", log_cm.output)
+
+    def test_150_is_profile_valid_dryrun_profile_logging(self):
+        # Set up dryrun profile
+        self.order.config.dryrun_profilename = "dryrun-profile"
+        self.order.config.profiles_check_disable = False
+        self.order.config.profiles = []
+        self.order.error_msg_dic = {"invalidprofile": "invalidprofile"}
+        with self.assertLogs(self.logger, level="INFO") as log_cm:
+            result = self.order.is_profile_valid("dryrun-profile")
+        self.assertIn(
+            "Order.is_profile_valid(): dryrun profile 'dryrun-profile' submitted",
+            " ".join(log_cm.output),
+        )
+        self.assertIsNone(result)
+
+    def test_151_add_profile_to_order_dryrun_profile_logging(self):
+        # Set up dryrun profile and no profiles configured
+        self.order.config.profiles = {}
+        self.order.config.dryrun_profilename = "dryrun-profile"
+        self.order.config.profiles_check_disable = False
+        data_dic = {}
+        payload = {"profile": "dryrun-profile"}
+        # Patch is_profile_valid to return None (simulate valid profile)
+        with patch.object(self.order, "is_profile_valid", return_value=None):
+            with self.assertLogs(self.logger, level="DEBUG") as log_cm:
+                error, updated_dic = self.order.add_profile_to_order(data_dic, payload)
+        self.assertIn(
+            "Order.add_profile_to_order(): adding dryrun profile to order",
+            " ".join(log_cm.output),
+        )
+        self.assertIsNone(error)
+        self.assertEqual(updated_dic["profile"], "dryrun-profile")
+
+    def test_105_finalize_csr_handles_dryrun_skipped(self):
+        # When detail is 'Dry run mode - enrollment skipped', message should be unauthorized error
+        self.order._header_info_lookup = MagicMock(return_value={})
+        self.order._process_csr = MagicMock(
+            return_value=(400, "certX", "Dry run mode - enrollment skipped")
+        )
+        result = self.order._finalize_csr("order1", {"csr": "csrval"})
+        self.assertEqual(
+            result,
+            (
+                400,
+                "urn:ietf:params:acme:error:unauthorized",
+                "Dry run mode - enrollment skipped",
+                "certX",
+            ),
+        )
 
 
 if __name__ == "__main__":
