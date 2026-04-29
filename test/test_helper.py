@@ -148,6 +148,7 @@ class TestACMEHandler(unittest.TestCase):
             profile_lookup,
             eab_profile_revocation_check,
             handler_config_check,
+            config_dryrun_load,
         )
 
         self.logger = logging.getLogger("test_a2c")
@@ -263,6 +264,7 @@ class TestACMEHandler(unittest.TestCase):
         self.b64_url_decode = b64_url_decode
         self.eab_profile_revocation_check = eab_profile_revocation_check
         self.handler_config_check = handler_config_check
+        self.config_dryrun_load = config_dryrun_load
 
     def test_001_helper_b64decode_pad(self):
         """test b64decode_pad() method with a regular base64 encoded string"""
@@ -6289,6 +6291,61 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 for msg in log_context.output
             )
         )
+
+    def test_515_config_dryrun_load_not_set(self):
+        """Test config_dryrun_load with valid 'true' value."""
+        config_dic = configparser.ConfigParser()
+        config_dic["DEFAULT"] = {"foo": "bar"}
+        self.assertEqual(
+            (False, None), self.config_dryrun_load(self.logger, config_dic)
+        )
+
+    def test_516_config_dryrun_load_true(self):
+        """Test config_dryrun_load with valid 'true' value."""
+        config_dic = configparser.ConfigParser()
+        config_dic["DEFAULT"] = {"dryrun": "True"}
+        true_list = ["true", "True", "TRUE"]
+        for val in true_list:
+            config_dic["DEFAULT"]["dryrun"] = val
+            self.assertEqual(
+                (True, None), self.config_dryrun_load(self.logger, config_dic)
+            )
+
+    def test_517_config_dryrun_load_false(self):
+        """Test config_dryrun_load with valid 'false' value."""
+        config_dic = configparser.ConfigParser()
+        config_dic["DEFAULT"] = {"dryrun": "False"}
+        false_list = ["false", "False", "FALSE"]
+        for val in false_list:
+            config_dic["DEFAULT"]["dryrun"] = val
+            self.assertEqual(
+                (False, None), self.config_dryrun_load(self.logger, config_dic)
+            )
+
+    def test_518_config_dryrun_load_profile(self):
+        """Test config_dryrun_load with invalid value."""
+        config_dic = configparser.ConfigParser()
+        profile_list = ["profile", "Profile", "PROFILE"]
+        for val in profile_list:
+            config_dic["DEFAULT"]["dryrun"] = val
+            config_dic["DEFAULT"]["dryrun_profile"] = "custom_dryrun_profile"
+            self.assertEqual(
+                (False, "custom_dryrun_profile"),
+                self.config_dryrun_load(self.logger, config_dic),
+            )
+
+    def test_519_config_dryrun_load_profile_no_profilename(self):
+        """Test config_dryrun_load with invalid value and no dryrun_profile set."""
+        config_dic = configparser.ConfigParser()
+        config_dic["DEFAULT"]["dryrun"] = "profile"
+        with self.assertLogs(self.logger, level="WARNING") as lcm:
+            self.assertEqual(
+                (False, None), self.config_dryrun_load(self.logger, config_dic)
+            )
+            self.assertIn(
+                "WARNING:test_a2c:Dryrun profile name not set in configuration, please set dryrun_profile parameter",
+                lcm.output[0],
+            )
 
 
 if __name__ == "__main__":
