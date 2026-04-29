@@ -1,3 +1,7 @@
+<!-- markdownlint-disable  MD013 -->
+
+<!-- wiki-title Dry Run Mode -->
+
 # Dry Run Mode
 
 ## Overview
@@ -24,9 +28,9 @@ When an ACME client submits a certificate order and the dry run mode is enabled 
 3. The CSR is submitted and validated (domain names, SANs, profile, etc.) normally.
 4. **Instead of forwarding the CSR to the CA**, acme2certifier returns an `unauthorized` error with the detail message:
 
-   ```
-   Dry run mode - enrollment skipped
-   ```
+```log
+Dry run mode - enrollment skipped
+```
 
 5. No certificate is stored in the database and nothing is sent to the CA backend.
 
@@ -75,7 +79,7 @@ With this configuration:
 
 > **Note:** If `dryrun = profile` is set but `dryrun_profile` is missing or empty, acme2certifier will log a warning:
 >
-> ```
+> ```log
 > Dryrun profile name not set in configuration, please set dryrun_profile parameter
 > ```
 >
@@ -139,11 +143,3 @@ The following log entries can help confirm that dry run mode is working as expec
 | `Certificate._validate_csr_against_order(): enabling dryrun mode for profile: <name>` | Profile-based dry run has been triggered for this request. |
 | `Dry run mode enabled - skipping enrollment and database storage` | The enrollment step has been skipped for this request. |
 | `Dryrun profile name not set in configuration, please set dryrun_profile parameter` | `dryrun = profile` is configured but `dryrun_profile` is missing. |
-
----
-
-## Interaction with Other Features
-
-- **Profile support:** Profile-based dry run requires that the ACME client submits a profile attribute in the order. If no profiles are configured in the `[Order]` section, the dry run profile is still accepted and stored on the order without enforcing normal profile validation.
-- **Async mode:** Dry run mode is compatible with [asynchronous mode](async_mode.md). The enrollment step is still skipped and the dry run error is returned at finalization time.
-- **CSR validation:** All CSR checks (domain names, SANs, allowed domain lists, etc.) are performed before the dry run intercept. A malformed or policy-violating CSR will be rejected before reaching the dry run check.
