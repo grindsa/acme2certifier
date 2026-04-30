@@ -531,7 +531,6 @@ def redirect(environ, start_response):
     return []
 
 
-
 # map urls to functions
 URLS = [
     (r"^$", redirect),
@@ -566,7 +565,7 @@ def get_path_with_prefix(environ, config):
         path_ = path.lstrip("/")
         if path_.startswith(prefix):
             # Remove the prefix and any leading slashes after
-            return path_[len(prefix):].lstrip("/")
+            return path_[len(prefix) :].lstrip("/")
         return path_
     return path.lstrip("/")
 
