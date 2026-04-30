@@ -1144,6 +1144,78 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
+    def test_068_get_path_with_prefix(self):
+        from examples.acme2certifier_wsgi import get_path_with_prefix
+
+        # No Directory/url_prefix in config
+        environ = {"PATH_INFO": "/foo/bar"}
+        config = {}
+        self.assertEqual(get_path_with_prefix(environ, config), "foo/bar")
+
+        # Directory/url_prefix present, prefix matches
+        environ = {"PATH_INFO": "/api/v1/resource"}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "resource")
+
+        # Directory/url_prefix present, prefix does not match
+        environ = {"PATH_INFO": "/other/resource"}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "other/resource")
+
+        # Directory/url_prefix is empty string
+        environ = {"PATH_INFO": "/foo/bar"}
+        config = {"Directory": {"url_prefix": ""}}
+        self.assertEqual(get_path_with_prefix(environ, config), "foo/bar")
+
+        # PATH_INFO is empty
+        environ = {"PATH_INFO": ""}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "")
+
+        # PATH_INFO does not start with slash
+        environ = {"PATH_INFO": "foo/bar"}
+        config = {"Directory": {"url_prefix": "foo"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "bar")
+
+        # PATH_INFO is just the prefix
+        environ = {"PATH_INFO": "/api/v1/"}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "")
+
+        # PATH_INFO is None
+        environ = {}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "")
+
+        # Directory key missing
+        environ = {"PATH_INFO": "/foo/bar"}
+        config = {}
+        self.assertEqual(get_path_with_prefix(environ, config), "foo/bar")
+
+        # url_prefix key missing
+        environ = {"PATH_INFO": "/foo/bar"}
+        config = {"Directory": {}}
+        self.assertEqual(get_path_with_prefix(environ, config), "foo/bar")
+
+        # url_prefix with trailing slash
+        environ = {"PATH_INFO": "/api/v1/resource"}
+        config = {"Directory": {"url_prefix": "api/v1/"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "resource")
+
+        # PATH_INFO with multiple leading slashes
+        environ = {"PATH_INFO": "///api/v1/resource"}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "resource")
+
+        # PATH_INFO with only slash
+        environ = {"PATH_INFO": "/"}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "")
+
+        # PATH_INFO to check fix for #313
+        environ = {"PATH_INFO": "/directory"}
+        config = {"Directory": {"url_prefix": "/dfoo"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "directory")
 
 if __name__ == "__main__":
 
