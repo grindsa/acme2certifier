@@ -17,26 +17,26 @@ Typical use cases include:
 - Verifying end-to-end connectivity and protocol compliance in a staging environment
 - Allowing ACME clients to self-test without requesting a real certificate
 
----
+______________________________________________________________________
 
 ## How It Works
 
 When an ACME client submits a certificate order and the dry run mode is enabled (globally or via profile), the following happens:
 
-1. The order is created and authorizations are issued normally.
-2. The client completes the ACME challenges normally.
-3. The CSR is submitted and validated (domain names, SANs, profile, etc.) normally.
-4. **Instead of forwarding the CSR to the CA**, acme2certifier returns an `unauthorized` error with the detail message:
+- The order is created and authorizations are issued normally.
+- The client completes the ACME challenges normally.
+- The CSR is submitted and validated (domain names, SANs, profile, etc.) normally.
+- **Instead of forwarding the CSR to the CA**, acme2certifier returns an `unauthorized` error with the detail message:
 
 ```log
 Dry run mode - enrollment skipped
 ```
 
-5. No certificate is stored in the database and nothing is sent to the CA backend.
+- No certificate is stored in the database and nothing is sent to the CA backend.
 
 The full ACME protocol exchange succeeds up to the finalization step, so any errors detected before that point (e.g. invalid CSR, unknown profile, domain not allowed) are reported as usual.
 
----
+______________________________________________________________________
 
 ## Configuration
 
@@ -85,7 +85,7 @@ With this configuration:
 >
 > Dry run mode will not be activated for any request in this case.
 
----
+______________________________________________________________________
 
 ## Configuration Reference
 
@@ -96,7 +96,7 @@ The following parameters are available in the `[DEFAULT]` section of `acme_srv.c
 | `dryrun`         | Enables dry run mode. `True` activates it globally. `profile` activates it only when the ACME client submits the profile name defined by `dryrun_profile`. `False` disables it. | `True`/`False`/`profile` | `False` |
 | `dryrun_profile` | The ACME profile name that triggers dry run mode. Only evaluated when `dryrun = profile`.                                                                                        | string              | (none)  |
 
----
+______________________________________________________________________
 
 ## Example Configurations
 
@@ -131,9 +131,7 @@ lego --server https://acme-srv --email user@example.com \
      -d example.com --http run
 ```
 
----
-
-## Log Messages
+______________________________________________________________________
 
 The following log entries can help confirm that dry run mode is working as expected:
 
