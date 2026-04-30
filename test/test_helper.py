@@ -6380,6 +6380,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         logger.error.assert_any_call(
             "All PKCS7 loading strategies failed. Last error: %s", cm.exception
         )
+
     def test_522_config_dryrun_load_not_set(self):
         """Test config_dryrun_load with valid 'true' value."""
         config_dic = configparser.ConfigParser()
