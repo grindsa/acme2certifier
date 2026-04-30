@@ -1144,6 +1144,188 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_header.called)
         self.assertTrue(mock_body.called)
 
+    def test_068_get_path_with_prefix(self):
+        from examples.acme2certifier_wsgi import get_path_with_prefix
+
+        # No Directory/url_prefix in config
+        environ = {"PATH_INFO": "/foo/bar"}
+        config = {}
+        self.assertEqual(get_path_with_prefix(environ, config), "foo/bar")
+
+        # Directory/url_prefix present, prefix matches
+        environ = {"PATH_INFO": "/api/v1/resource"}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "resource")
+
+        # Directory/url_prefix present, prefix does not match
+        environ = {"PATH_INFO": "/other/resource"}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "other/resource")
+
+        # Directory/url_prefix is empty string
+        environ = {"PATH_INFO": "/foo/bar"}
+        config = {"Directory": {"url_prefix": ""}}
+        self.assertEqual(get_path_with_prefix(environ, config), "foo/bar")
+
+        # PATH_INFO is empty
+        environ = {"PATH_INFO": ""}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "")
+
+        # PATH_INFO does not start with slash
+        environ = {"PATH_INFO": "foo/bar"}
+        config = {"Directory": {"url_prefix": "foo"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "bar")
+
+        # PATH_INFO is just the prefix
+        environ = {"PATH_INFO": "/api/v1/"}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "")
+
+        # PATH_INFO is None
+        environ = {}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "")
+
+        # Directory key missing
+        environ = {"PATH_INFO": "/foo/bar"}
+        config = {}
+        self.assertEqual(get_path_with_prefix(environ, config), "foo/bar")
+
+        # url_prefix key missing
+        environ = {"PATH_INFO": "/foo/bar"}
+        config = {"Directory": {}}
+        self.assertEqual(get_path_with_prefix(environ, config), "foo/bar")
+
+        # url_prefix with trailing slash
+        environ = {"PATH_INFO": "/api/v1/resource"}
+        config = {"Directory": {"url_prefix": "api/v1/"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "resource")
+
+        # PATH_INFO with multiple leading slashes
+        environ = {"PATH_INFO": "///api/v1/resource"}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "resource")
+
+        # PATH_INFO with only slash
+        environ = {"PATH_INFO": "/"}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "")
+
+        # PATH_INFO to check fix for #313
+        environ = {"PATH_INFO": "/directory"}
+        config = {"Directory": {"url_prefix": "/dfoo"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "directory")
+
+    def test_069_application_url_match(self):
+        """Test application() returns correct callback for matching URL pattern."""
+        # Patch URLS and callback
+        import examples.acme2certifier_wsgi as wsgi_mod
+
+        called = {}
+
+        def fake_callback(environ, start_response):
+            called["called"] = True
+            return ["matched"]
+
+        # Save and patch URLS
+        orig_URLS = wsgi_mod.URLS[:]
+        wsgi_mod.URLS.clear()
+        wsgi_mod.URLS.append((r"^foo", fake_callback))
+        environ = {"PATH_INFO": "foo"}
+        start_response = lambda *a, **kw: None
+        result = wsgi_mod.application(environ, start_response)
+        self.assertEqual(result, ["matched"])
+        self.assertTrue(called.get("called"))
+        wsgi_mod.URLS[:] = orig_URLS
+
+    def test_070_application_url_no_match(self):
+        """Test application() calls not_found if no URL matches."""
+        import examples.acme2certifier_wsgi as wsgi_mod
+
+        # Patch URLS to empty and patch not_found
+        orig_URLS = wsgi_mod.URLS[:]
+        wsgi_mod.URLS.clear()
+        called = {}
+
+        def fake_not_found(environ, start_response):
+            called["not_found"] = True
+            return ["notfound"]
+
+        orig_not_found = wsgi_mod.not_found
+        wsgi_mod.not_found = fake_not_found
+        environ = {"PATH_INFO": "doesnotmatch"}
+        start_response = lambda *a, **kw: None
+        result = wsgi_mod.application(environ, start_response)
+        self.assertEqual(result, ["notfound"])
+        self.assertTrue(called.get("not_found"))
+        wsgi_mod.not_found = orig_not_found
+        wsgi_mod.URLS[:] = orig_URLS
+
+    def test_071_application_dynamic_challenge_url(self):
+        """Test application() dynamically adds challenge URL pattern if config present."""
+        import examples.acme2certifier_wsgi as wsgi_mod
+
+        # Patch CONFIG and URLS
+        orig_CONFIG = dict(wsgi_mod.CONFIG)
+        orig_URLS = wsgi_mod.URLS[:]
+        wsgi_mod.CONFIG["CAhandler"] = {"acme_url": "something"}
+        wsgi_mod.URLS.clear()
+        called = {}
+
+        def fake_callback(environ, start_response):
+            called["challenge"] = True
+            return ["challenge"]
+
+        # Patch acmechallenge_serve
+        orig_acmechallenge_serve = wsgi_mod.acmechallenge_serve
+        wsgi_mod.acmechallenge_serve = fake_callback
+        environ = {"PATH_INFO": ".well-known/acme-challenge/abc"}
+        start_response = lambda *a, **kw: None
+        result = wsgi_mod.application(environ, start_response)
+        self.assertEqual(result, ["challenge"])
+        self.assertTrue(called.get("challenge"))
+        # Cleanup
+        wsgi_mod.acmechallenge_serve = orig_acmechallenge_serve
+        wsgi_mod.URLS[:] = orig_URLS
+        wsgi_mod.CONFIG.clear()
+        wsgi_mod.CONFIG.update(orig_CONFIG)
+
+    def test_072_redirect_with_url_prefix(self):
+        """Test redirect() covers the 'if URL_PREFIX:' branch (line 527)."""
+        import examples.acme2certifier_wsgi as wsgi_mod
+
+        # Save and patch URL_PREFIX
+        orig_url_prefix = wsgi_mod.URL_PREFIX
+        wsgi_mod.URL_PREFIX = "/my-prefix"
+        called = {}
+
+        def fake_start_response(status, headers):
+            called["status"] = status
+            called["headers"] = headers
+
+        result = wsgi_mod.redirect({}, fake_start_response)
+        self.assertEqual(result, [])
+        self.assertEqual(called["status"], "302 Found")
+        self.assertIn(("Location", "/my-prefix/directory"), called["headers"])
+        wsgi_mod.URL_PREFIX = orig_url_prefix
+
+    def test_073_get_handler_cls_address_string(self):
+        """Test get_handler_cls() returns handler with correct address_string()."""
+        handler_cls = self.get_handler_cls()
+        # Create a dummy instance with client_address attribute
+        class DummyRequest:
+            pass
+
+        dummy = DummyRequest()
+        dummy.client_address = ("1.2.3.4", 12345)
+        # The handler expects self.client_address, so we set it
+        # The handler may expect more, but for address_string() only client_address is needed
+        handler = handler_cls.__new__(handler_cls)
+        handler.client_address = dummy.client_address
+        result = handler.address_string()
+        self.assertEqual(result, "1.2.3.4")
+
 
 if __name__ == "__main__":
 
