@@ -42,6 +42,7 @@ from .helpers.certificates import (
     certid_asn1_get,
     certid_hex_get,
     certid_check,
+    pkcs7_to_pem,
 )
 
 # CSR operations
@@ -125,6 +126,7 @@ from .helpers.config import (
     config_allowed_domainlist_load,
     config_async_mode_load,
     config_proxy_load,
+    config_dryrun_load,
     load_config,
     header_info_jsonify,
     header_info_lookup,
