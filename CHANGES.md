@@ -6,6 +6,18 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.43
+
+**Features and Improvements**:
+
+- [FreeIPA CA Handler](docs/freeipa.md)
+- [Dogtag CA Handler](docs/dogtag_ca_handler.md)
+- [Dryrun Mode](docs/dryrun.md)
+
+**Bug Fixes**:
+
+-[313](https://github.com/grindsa/acme2certifier/pull/313) - Replace lstrip in WSGI path lookup.
+
 ## Changes in 0.42
 
 **Features and Improvements**:

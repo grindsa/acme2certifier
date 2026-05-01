@@ -928,50 +928,85 @@ class CAhandler(object):
             self.logger, self, csr, "profile"
         )
 
-        if not error:
+        if error:
+            self.logger.debug(
+                "Certificate.enroll() ended() with error from profile header info check"
+            )
+            return (error, cert_bundle, cert_raw, poll_identifier)
 
-            self._api_version_get()
+        self._api_version_get()
 
-            if self.enrollment_config_log:
-                enrollment_config_log(
-                    self.logger, self, self.enrollment_config_log_skip_list
-                )
+        if self.enrollment_config_log:
+            enrollment_config_log(
+                self.logger, self, self.enrollment_config_log_skip_list
+            )
 
-            request_id, request_status = self._certrequest_send(csr)
-            if request_status == "pending":
-                if self.certrequest_approve:
-                    # try to approve the request
-                    error, cert_bundle, cert_raw = self._certrequest_approve(request_id)
-                else:
-                    poll_identifier = request_id
-            elif request_status == "complete":
-                # Get new status and certificate data
-                code, response = self._api_get(f"{self.REST_CERTREQUESTS}/{request_id}")
-                if code == 200 and isinstance(response, dict) and "certId" in response:
-                    error, cert_bundle, cert_raw = self._fetch_cert_and_bundle(
-                        response["certId"]
-                    )
-                else:
-                    self.logger.error(
-                        "Failed to retrieve certificate data for completed request. Status code: %s, Response: %s",
-                        code,
-                        response,
-                    )
-                    error = "Failed to retrieve certificate data for completed request."
-            elif request_status == "rejected":
-                self.logger.error("Certificate request was rejected by CA")
-                error = "Certificate request was rejected by CA."
-            else:
-                self.logger.error(
-                    "Certificate request failed. Unknown request-status: %s",
-                    request_status,
-                )
-                # For unknown status
-                error = "Certificate request failed"
+        request_id, request_status = self._certrequest_send(csr)
+        error, cert_bundle, cert_raw, poll_identifier = self._handle_enroll_status(
+            request_id, request_status
+        )
 
         self.logger.debug("Certificate.enroll() ended()")
-        # Always return a consistent tuple
         return (error, cert_bundle, cert_raw, poll_identifier)
+
+    def _handle_enroll_status(
+        self, request_id: Optional[str], request_status: Optional[str]
+    ) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+        """
+        Handle the status of the enrollment request.
+
+        Args:
+            request_id (Optional[str]): The request ID returned from the CA.
+            request_status (Optional[str]): The status of the request.
+        Returns:
+            Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]: Error, PEM bundle, raw certificate, poll identifier.
+        """
+        cert_bundle = None
+        cert_raw = None
+        poll_identifier = None
+        error = None
+
+        if request_status == "pending":
+            if self.certrequest_approve:
+                error, cert_bundle, cert_raw = self._certrequest_approve(request_id)
+            else:
+                poll_identifier = request_id
+        elif request_status == "complete":
+            error, cert_bundle, cert_raw = self._handle_enroll_complete(request_id)
+        elif request_status == "rejected":
+            self.logger.error("Certificate request was rejected by CA")
+            error = "Certificate request was rejected by CA."
+        else:
+            self.logger.error(
+                "Certificate request failed. Unknown request-status: %s",
+                request_status,
+            )
+            error = "Certificate request failed"
+
+        return (error, cert_bundle, cert_raw, poll_identifier)
+
+    def _handle_enroll_complete(
+        self, request_id: Optional[str]
+    ) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+        """
+        Handle the 'complete' status for enrollment.
+
+        Args:
+            request_id (Optional[str]): The request ID returned from the CA.
+        Returns:
+            Tuple[Optional[str], Optional[str], Optional[str]]: Error, PEM bundle, raw certificate.
+        """
+        code, response = self._api_get(f"{self.REST_CERTREQUESTS}/{request_id}")
+        if code == 200 and isinstance(response, dict) and "certId" in response:
+            return self._fetch_cert_and_bundle(response["certId"])
+        else:
+            self.logger.error(
+                "Failed to retrieve certificate data for completed request. Status code: %s, Response: %s",
+                code,
+                response,
+            )
+            error = "Failed to retrieve certificate data for completed request."
+            return error, None, None
 
     def handler_check(self) -> Optional[str]:
         """
