@@ -49,7 +49,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 300s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 300s
 

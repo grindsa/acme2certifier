@@ -37,7 +37,7 @@ runs:
       WORKING_DIR: ${{ inputs.WORKING_DIR }}
 
   - name: "Sleep for 180s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 180s
 
@@ -80,7 +80,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 10s
 

@@ -398,7 +398,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -565,7 +565,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -729,7 +729,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -897,7 +897,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -999,7 +999,7 @@ jobs:
           docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:22.04
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 
@@ -1062,7 +1062,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 
@@ -1160,7 +1160,7 @@ jobs:
           docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:22.04
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 
@@ -1208,7 +1208,7 @@ jobs:
           docker exec acme-srv systemctl restart apache2
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 
@@ -1231,7 +1231,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 
@@ -1307,7 +1307,7 @@ jobs:
           docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -1347,7 +1347,7 @@ jobs:
           docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:22.04
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 
@@ -1414,7 +1414,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 
@@ -1498,7 +1498,7 @@ jobs:
           docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -1508,7 +1508,7 @@ jobs:
           docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -1541,7 +1541,7 @@ jobs:
           docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:22.04
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 
@@ -1608,7 +1608,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 

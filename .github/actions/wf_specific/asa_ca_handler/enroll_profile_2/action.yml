@@ -5,7 +5,7 @@ runs:
   using: "composite"
   steps:
   - name: "Profile 2 - Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 10s
 

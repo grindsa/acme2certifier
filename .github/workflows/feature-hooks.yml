@@ -99,7 +99,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -222,7 +222,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
