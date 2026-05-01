@@ -564,7 +564,7 @@ def get_path_with_prefix(environ, config):
     if prefix:
         path_ = path.lstrip("/")
         if path_ == prefix:
-             return ""
+            return ""
         if path_.startswith(prefix + "/"):
             # Remove the prefix and any leading slashes after
             return path_[len(prefix) :].lstrip("/")
