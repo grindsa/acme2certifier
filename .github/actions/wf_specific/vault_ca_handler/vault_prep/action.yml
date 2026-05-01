@@ -67,6 +67,7 @@ runs:
       cat $ISSUING_CA_CERT >> $WORKING_DIR/vault/certs/server.csr
       cat $ROOT_CA_CERT >> $WORKING_DIR/vault/certs/server.csr
       sudo chmod 777 $WORKING_DIR/vault/*
+      sudo chmod a+r $WORKING_DIR/vault/certs/server.key
     shell: bash
     env:
       WORKING_DIR: ${{ inputs.WORKING_DIR }}
