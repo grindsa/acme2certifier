@@ -1227,7 +1227,6 @@ class TestACMEHandler(unittest.TestCase):
         config = {"Directory": {"url_prefix": "api/v1"}}
         self.assertEqual(get_path_with_prefix(environ, config), "")
 
-
     def test_069_application_url_match(self):
         """Test application() returns correct callback for matching URL pattern."""
         # Patch URLS and callback
@@ -1243,12 +1242,14 @@ class TestACMEHandler(unittest.TestCase):
         orig_URLS = wsgi_mod.URLS[:]
         wsgi_mod.URLS.clear()
         wsgi_mod.URLS.append((r"^foo", fake_callback))
-        environ = {"PATH_INFO": "foo"}
-        start_response = lambda *a, **kw: None
-        result = wsgi_mod.application(environ, start_response)
-        self.assertEqual(result, ["matched"])
-        self.assertTrue(called.get("called"))
-        wsgi_mod.URLS[:] = orig_URLS
+        try:
+            environ = {"PATH_INFO": "foo"}
+            start_response = lambda *a, **kw: None
+            result = wsgi_mod.application(environ, start_response)
+            self.assertEqual(result, ["matched"])
+            self.assertTrue(called.get("called"))
+        finally:
+            wsgi_mod.URLS[:] = orig_URLS
 
     def test_070_application_url_no_match(self):
         """Test application() calls not_found if no URL matches."""
@@ -1256,6 +1257,7 @@ class TestACMEHandler(unittest.TestCase):
 
         # Patch URLS to empty and patch not_found
         orig_URLS = wsgi_mod.URLS[:]
+        orig_not_found = wsgi_mod.not_found
         wsgi_mod.URLS.clear()
         called = {}
 
@@ -1263,15 +1265,16 @@ class TestACMEHandler(unittest.TestCase):
             called["not_found"] = True
             return ["notfound"]
 
-        orig_not_found = wsgi_mod.not_found
         wsgi_mod.not_found = fake_not_found
-        environ = {"PATH_INFO": "doesnotmatch"}
-        start_response = lambda *a, **kw: None
-        result = wsgi_mod.application(environ, start_response)
-        self.assertEqual(result, ["notfound"])
-        self.assertTrue(called.get("not_found"))
-        wsgi_mod.not_found = orig_not_found
-        wsgi_mod.URLS[:] = orig_URLS
+        try:
+            environ = {"PATH_INFO": "doesnotmatch"}
+            start_response = lambda *a, **kw: None
+            result = wsgi_mod.application(environ, start_response)
+            self.assertEqual(result, ["notfound"])
+            self.assertTrue(called.get("not_found"))
+        finally:
+            wsgi_mod.not_found = orig_not_found
+            wsgi_mod.URLS[:] = orig_URLS
 
     def test_071_application_dynamic_challenge_url(self):
         """Test application() dynamically adds challenge URL pattern if config present."""
@@ -1280,6 +1283,7 @@ class TestACMEHandler(unittest.TestCase):
         # Patch CONFIG and URLS
         orig_CONFIG = dict(wsgi_mod.CONFIG)
         orig_URLS = wsgi_mod.URLS[:]
+        orig_acmechallenge_serve = wsgi_mod.acmechallenge_serve
         wsgi_mod.CONFIG["CAhandler"] = {"acme_url": "something"}
         wsgi_mod.URLS.clear()
         called = {}
@@ -1288,19 +1292,18 @@ class TestACMEHandler(unittest.TestCase):
             called["challenge"] = True
             return ["challenge"]
 
-        # Patch acmechallenge_serve
-        orig_acmechallenge_serve = wsgi_mod.acmechallenge_serve
         wsgi_mod.acmechallenge_serve = fake_callback
-        environ = {"PATH_INFO": ".well-known/acme-challenge/abc"}
-        start_response = lambda *a, **kw: None
-        result = wsgi_mod.application(environ, start_response)
-        self.assertEqual(result, ["challenge"])
-        self.assertTrue(called.get("challenge"))
-        # Cleanup
-        wsgi_mod.acmechallenge_serve = orig_acmechallenge_serve
-        wsgi_mod.URLS[:] = orig_URLS
-        wsgi_mod.CONFIG.clear()
-        wsgi_mod.CONFIG.update(orig_CONFIG)
+        try:
+            environ = {"PATH_INFO": ".well-known/acme-challenge/abc"}
+            start_response = lambda *a, **kw: None
+            result = wsgi_mod.application(environ, start_response)
+            self.assertEqual(result, ["challenge"])
+            self.assertTrue(called.get("challenge"))
+        finally:
+            wsgi_mod.acmechallenge_serve = orig_acmechallenge_serve
+            wsgi_mod.URLS[:] = orig_URLS
+            wsgi_mod.CONFIG.clear()
+            wsgi_mod.CONFIG.update(orig_CONFIG)
 
     def test_072_redirect_with_url_prefix(self):
         """Test redirect() covers the 'if URL_PREFIX:' branch (line 527)."""
@@ -1315,11 +1318,13 @@ class TestACMEHandler(unittest.TestCase):
             called["status"] = status
             called["headers"] = headers
 
-        result = wsgi_mod.redirect({}, fake_start_response)
-        self.assertEqual(result, [])
-        self.assertEqual(called["status"], "302 Found")
-        self.assertIn(("Location", "/my-prefix/directory"), called["headers"])
-        wsgi_mod.URL_PREFIX = orig_url_prefix
+        try:
+            result = wsgi_mod.redirect({}, fake_start_response)
+            self.assertEqual(result, [])
+            self.assertEqual(called["status"], "302 Found")
+            self.assertIn(("Location", "/my-prefix/directory"), called["headers"])
+        finally:
+            wsgi_mod.URL_PREFIX = orig_url_prefix
 
     def test_073_get_handler_cls_address_string(self):
         """Test get_handler_cls() returns handler with correct address_string()."""
