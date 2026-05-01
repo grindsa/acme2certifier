@@ -237,7 +237,7 @@ class CertificateConfiguration:
     cert_reusage_timeframe: int = 0
     cn2san_add: bool = False
     dryrun: bool = False
-    dryrun_profilename: str = None
+    dryrun_profilename: Optional[str] = None
     enrollment_timeout: int = 5
     retry_after: int = 600
     tnauthlist_support: bool = False
@@ -1408,11 +1408,11 @@ class Certificate(object):
 
             if self.config.dryrun:
                 self.logger.info(
-                    "Dry run mode enabled - skipping enrollment and database storage"
+                    "Dry run mode enabled - skipping enrollment and certificate issuance"
                 )
                 return (
                     self.err_msg_dic["unauthorized"],
-                    "Dry run mode - enrollment skipped",
+                    "Dry run mode - enrollment and certificate issuance skipped",
                 )
 
             # Process enrollment

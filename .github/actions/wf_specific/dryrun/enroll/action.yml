@@ -121,12 +121,12 @@ runs:
     - name: "Check  result "
       if: ${{ (inputs.FAIL == 'profile') && steps.legofail02.outcome != 'failure' }}
       run: |
-        echo "legofail outcome is ${{steps.legofail01.outcome }}"
+        echo "legofail outcome is ${{steps.legofail02.outcome }}"
         exit 1
       shell: bash
 
     - name: "Sleep for 10s"
-      if : ${{ inputs.FAIL == 'profile' }}
+      if: ${{ inputs.FAIL == 'profile' }}
       uses: juliangruber/sleep-action@v2.0.3
       with:
         time: 10s

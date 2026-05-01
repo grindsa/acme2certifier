@@ -2857,10 +2857,16 @@ class TestCertificate(unittest.TestCase):
                 "cert", "csr", "order"
             )
         self.assertIn(
-            "Dry run mode enabled - skipping enrollment and database storage",
+            "Dry run mode enabled - skipping enrollment and certificate issuance",
             " ".join(log.output),
         )
-        self.assertEqual(result, ("unauthorized", "Dry run mode - enrollment skipped"))
+        self.assertEqual(
+            result,
+            (
+                "unauthorized",
+                "Dry run mode - enrollment and certificate issuance skipped",
+            ),
+        )
 
 
 if __name__ == "__main__":
