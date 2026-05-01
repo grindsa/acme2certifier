@@ -104,7 +104,7 @@ jobs:
           docker run -d --rm  ${{ matrix.ports }} --network acme -v $PWD/caddy/Caddyfile:/etc/caddy/Caddyfile -v$PWD/caddy/acme2certifier_cabundle.pem:/tmp/acme2certifier_cabundle.pem -v $(pwd)/caddy/config:/config -v $(pwd)/caddy/data:/data --name=caddy caddy:2
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 

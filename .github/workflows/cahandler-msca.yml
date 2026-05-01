@@ -148,7 +148,7 @@ jobs:
           NAME_SPACE: local
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -194,7 +194,7 @@ jobs:
           docker compose restart
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -678,7 +678,7 @@ jobs:
           docker compose restart
 
       - name: "KRB Headerinfo - Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -726,7 +726,7 @@ jobs:
           docker compose restart
 
       - name: "KRB ACME Profile - Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 

@@ -90,7 +90,7 @@ jobs:
         AWS_INSTANCE_ID: ${{ env.AWS_INSTANCE_ID }}
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
+      uses: grindsa/sleep-action@master
       with:
         time: 10s
 
@@ -338,7 +338,7 @@ jobs:
           TAG_NAME: ${{ env.TAG_NAME }}
 
       - name: "[ WAIT ] Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 
@@ -544,7 +544,7 @@ jobs:
           UUID: ${{ env.UUID }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 

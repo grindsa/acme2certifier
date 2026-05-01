@@ -34,7 +34,7 @@ runs:
 
     - name: "Sleep for 10s"
       if: inputs.INSTANCIATE == 'true'
-      uses: juliangruber/sleep-action@v2.0.3
+      uses: grindsa/sleep-action@master
       with:
         time: 10s
 
@@ -52,6 +52,6 @@ runs:
         RH_VERSION: ${{ inputs.RH_VERSION }}
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.3
+      uses: grindsa/sleep-action@master
       with:
         time: 5s

@@ -39,7 +39,7 @@ runs:
       SECTIGO_SIM: ${{ inputs.SECTIGO_SIM }}
 
   - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 10s
 

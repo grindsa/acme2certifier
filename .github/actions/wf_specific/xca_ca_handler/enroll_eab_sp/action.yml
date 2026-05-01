@@ -11,7 +11,7 @@ runs:
   using: "composite"
   steps:
   - name: "EAB - Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 10s
 
@@ -89,7 +89,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 2s
 
@@ -127,7 +127,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 2s
 
@@ -166,7 +166,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 2s
 
@@ -204,7 +204,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 2s
 
@@ -243,7 +243,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 2s
 
@@ -281,7 +281,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 2s
 
@@ -320,7 +320,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 2s
 
@@ -358,7 +358,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 2s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 2s
 

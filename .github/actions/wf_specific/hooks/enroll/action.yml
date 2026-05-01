@@ -26,7 +26,7 @@ runs:
   using: "composite"
   steps:
   - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 5s
 
@@ -54,7 +54,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 15s to allow email to be sent"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 15s
 
@@ -86,7 +86,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 5s
 

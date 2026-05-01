@@ -18,7 +18,7 @@ runs:
   using: "composite"
   steps:
   - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 10s
 
@@ -86,7 +86,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 5s
 

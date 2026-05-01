@@ -14,7 +14,7 @@ runs:
   using: "composite"
   steps:
   - name: "EAB with ACME Profile - Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 10s
 
@@ -36,7 +36,7 @@ runs:
     shell: bash
 
   - name: "EAB with ACME Profile - Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 10s
 
@@ -58,7 +58,7 @@ runs:
     shell: bash
 
   - name: "EAB with ACME Profile - Sleep for 20s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 20s
 
