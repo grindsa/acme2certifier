@@ -58,15 +58,7 @@ runs:
     continue-on-error: true
     run: |
       cd freeipa
-      # docker compose logs
       docker compose logs  | grep "FreeIPA server configured."
-    shell: bash
-
-  - name: "check logs if freeipa_status is not success"
-    if: steps.freeipa_check_status_01.outcome != 'success'
-    run: |
-      cd freeipa
-      docker compose logs
     shell: bash
 
   - name: "Sleep for 180s"
@@ -81,15 +73,7 @@ runs:
     continue-on-error: true
     run: |
       cd freeipa
-      # docker compose logs
       docker compose logs  | grep "FreeIPA server configured."
-    shell: bash
-
-  - name: "check logs if freeipa_status is not success"
-    if: steps.freeipa_check_status_02.outcome != 'success'
-    run: |
-      cd freeipa
-      docker compose logs
     shell: bash
 
   - name: "Sleep for 180s"
@@ -104,7 +88,6 @@ runs:
     continue-on-error: true
     run: |
       cd freeipa
-      # docker compose logs
       docker compose logs  | grep "FreeIPA server configured."
     shell: bash
 
@@ -113,7 +96,7 @@ runs:
     run: |
       cd freeipa
       docker compose logs
-      ext 1
+      exit 1
     shell: bash
 
   - name: "Configure freeipa"
