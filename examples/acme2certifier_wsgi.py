@@ -554,7 +554,7 @@ URLS = [
 
 # Helper to extract path with prefix
 def get_path_with_prefix(environ, config):
-    path = environ.get("PATH_INFO", "")
+    path = environ.get("PATH_INFO") or ""
     # Collapse multiple leading slashes to one
     while path.startswith("//"):
         path = path[1:]
@@ -563,7 +563,9 @@ def get_path_with_prefix(environ, config):
         prefix = str(config["Directory"]["url_prefix"]).strip("/")
     if prefix:
         path_ = path.lstrip("/")
-        if path_.startswith(prefix):
+        if path_ == prefix:
+             return ""
+        if path_.startswith(prefix + "/"):
             # Remove the prefix and any leading slashes after
             return path_[len(prefix) :].lstrip("/")
         return path_

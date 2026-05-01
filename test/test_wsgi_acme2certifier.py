@@ -1217,6 +1217,17 @@ class TestACMEHandler(unittest.TestCase):
         config = {"Directory": {"url_prefix": "/dfoo"}}
         self.assertEqual(get_path_with_prefix(environ, config), "directory")
 
+        # test for cornercase where PATH_INFO starts with url_prefix but is not actually a match
+        environ = {"PATH_INFO": "api/v10/resource"}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "api/v10/resource")
+
+        # test for cornercase where PATH_INFO is None and url_prefix is present
+        environ = {"PATH_INFO": None}
+        config = {"Directory": {"url_prefix": "api/v1"}}
+        self.assertEqual(get_path_with_prefix(environ, config), "")
+
+
     def test_069_application_url_match(self):
         """Test application() returns correct callback for matching URL pattern."""
         # Patch URLS and callback
