@@ -104,7 +104,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindelsack/sleep-action@master
         with:
           time: 10s
 
@@ -362,7 +362,7 @@ jobs:
           TO_FAIL: "true"
 
       - name: "Sleep for 15s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindelsack/sleep-action@master
         with:
           time: 15s
 
@@ -388,7 +388,7 @@ jobs:
           TO_FAIL: "true"
 
       - name: "Sleep for 15s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindelsack/sleep-action@master
         with:
           time: 15s
 
@@ -600,7 +600,7 @@ jobs:
           TO_FAIL: "true"
 
       - name: "Sleep for 15s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindelsack/sleep-action@master
         with:
           time: 15s
 
@@ -621,7 +621,7 @@ jobs:
           TO_FAIL: "true"
 
       - name: "Sleep for 15s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindelsack/sleep-action@master
         with:
           time: 15s
 
