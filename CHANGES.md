@@ -16,7 +16,7 @@ and pick the appropriate release branch.
 
 **Bug Fixes**:
 
--[313](https://github.com/grindsa/acme2certifier/pull/313) - Replace lstrip in WSGI path lookup.
+-[313](https://github.com/grindsa/acme2certifier/pull/313) - Replace lstrip in WSGI path lookup
 
 ## Changes in 0.42
 
