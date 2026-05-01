@@ -53,11 +53,21 @@ runs:
     with:
       time: 300s
 
-  - name: "Get randmonly generated Superadmin password for ejbca instance"
+  - name: "check status of freeipa server"
+    id: freeipa_check_status
+    continue-on-error: true
     run: |
       cd freeipa
       # docker compose logs
       docker compose logs  | grep "FreeIPA server configured."
+    shell: bash
+
+  - name: "check logs if freeipa_status is not success"
+    if: steps.freeipa_check_status.outcome != 'success'
+    run: |
+      cd freeipa
+      docker compose logs
+      exit 1
     shell: bash
 
   - name: "Configure freeipa"
