@@ -221,7 +221,7 @@ class CAhandler(object):
         payload = {
             "id": 0,
             "method": "ping",
-            "params": [None or [], {"version": "2.0"}],
+            "params": [[], {"version": "2.0"}],
         }
         content = self._rpc_post(payload)
         return content

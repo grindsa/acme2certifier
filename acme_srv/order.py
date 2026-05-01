@@ -901,16 +901,15 @@ class Order(object):
                     (error, detail) = certificate.enroll_and_store(
                         certificate_name, csr, order_name
                     )
-                    if detail in ["Dry run mode - enrollment skipped"]:
+                    if (
+                        error == "urn:ietf:params:acme:error:rejectedIdentifier"
+                        or detail in ["Dry run mode - enrollment skipped"]
+                    ):
                         code = 401
                         message = error
-                        detail = detail
                     elif not error:
                         code = 200
                         message = certificate_name
-                    elif error == "urn:ietf:params:acme:error:rejectedIdentifier":
-                        code = 401
-                        message = error
                     else:
                         code = 400
                         message = error
