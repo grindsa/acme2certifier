@@ -49,6 +49,8 @@ runs:
       sudo apt install -y docker-compose-plugin
       # docker network create acme
       mkdir -p vault/config
+      mkdir -p vault/certs
+      mkdir -p vault/data/data
       sudo chmod -R 777 vault
       sudo sh -c "echo '$VAULT_IP vault' >> /etc/hosts"
       cp vault/config.hcl vault/config/
