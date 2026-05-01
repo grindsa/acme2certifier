@@ -48,13 +48,13 @@ runs:
       docker compose up -d
     shell: bash
 
-  - name: "Sleep for 360s"
+  - name: "Sleep for 300s"
     uses: grindsa/sleep-action@master
     with:
-      time: 360s
+      time: 300s
 
   - name: "check status of freeipa server"
-    id: freeipa_check_status
+    id: freeipa_check_status_01
     continue-on-error: true
     run: |
       cd freeipa
@@ -63,11 +63,57 @@ runs:
     shell: bash
 
   - name: "check logs if freeipa_status is not success"
-    if: steps.freeipa_check_status.outcome != 'success'
+    if: steps.freeipa_check_status_01.outcome != 'success'
     run: |
       cd freeipa
       docker compose logs
-      exit 1
+    shell: bash
+
+  - name: "Sleep for 180s"
+    if: steps.freeipa_check_status_01.outcome != 'success'
+    uses: grindsa/sleep-action@master
+    with:
+      time: 180s
+
+  - name: "check status of freeipa server"
+    if: steps.freeipa_check_status_01.outcome != 'success'
+    id: freeipa_check_status_02
+    continue-on-error: true
+    run: |
+      cd freeipa
+      # docker compose logs
+      docker compose logs  | grep "FreeIPA server configured."
+    shell: bash
+
+  - name: "check logs if freeipa_status is not success"
+    if: steps.freeipa_check_status_02.outcome != 'success'
+    run: |
+      cd freeipa
+      docker compose logs
+    shell: bash
+
+  - name: "Sleep for 180s"
+    if: steps.freeipa_check_status_02.outcome != 'success'
+    uses: grindsa/sleep-action@master
+    with:
+      time: 180s
+
+  - name: "check status of freeipa server"
+    if: steps.freeipa_check_status_02.outcome != 'success'
+    id: freeipa_check_status_03
+    continue-on-error: true
+    run: |
+      cd freeipa
+      # docker compose logs
+      docker compose logs  | grep "FreeIPA server configured."
+    shell: bash
+
+  - name: "check logs if freeipa_status is not success"
+    if: steps.freeipa_check_status_03.outcome != 'success'
+    run: |
+      cd freeipa
+      docker compose logs
+      ext 1
     shell: bash
 
   - name: "Configure freeipa"
