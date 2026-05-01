@@ -1,7 +1,7 @@
-#!/usr/bin/python
 # -*- coding: utf-8 -*-
 """unittests for account.py"""
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
+import os
 import unittest
 import configparser
 import sys
@@ -148,6 +148,8 @@ class TestACMEHandler(unittest.TestCase):
             profile_lookup,
             eab_profile_revocation_check,
             handler_config_check,
+            pkcs7_to_pem,
+            config_dryrun_load,
         )
 
         self.logger = logging.getLogger("test_a2c")
@@ -263,6 +265,9 @@ class TestACMEHandler(unittest.TestCase):
         self.b64_url_decode = b64_url_decode
         self.eab_profile_revocation_check = eab_profile_revocation_check
         self.handler_config_check = handler_config_check
+        self.pkcs7_to_pem = pkcs7_to_pem
+        self.dir_path = os.path.dirname(os.path.realpath(__file__))
+        self.config_dryrun_load = config_dryrun_load
 
     def test_001_helper_b64decode_pad(self):
         """test b64decode_pad() method with a regular base64 encoded string"""
@@ -6257,14 +6262,12 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     def test_513_config_allowed_domainlist_load_deprecated_section(self):
         """Test config_allowed_domainlist_load loads from deprecated CAhandler section and logs warning."""
-        import logging
         from acme_srv.helpers import config
 
         # Simulate config_dic as a dict, as expected by the function
         cfg = {"CAhandler": {"allowed_domainlist": "example.com,example.org"}}
-        logger = logging.getLogger("test_a2c")
-        with self.assertLogs(logger, level="WARNING") as log_context:
-            result = config.config_allowed_domainlist_load(logger, cfg)
+        with self.assertLogs(self.logger, level="WARNING") as log_context:
+            result = config.config_allowed_domainlist_load(self.logger, cfg)
         from acme_srv.helpers.global_variables import PARSING_ERR_MSG
 
         self.assertEqual(result, PARSING_ERR_MSG)
@@ -6272,16 +6275,14 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
     def test_514_config_allowed_domainlist_load_invalid_json(self):
         """Test config_allowed_domainlist_load handles invalid JSON and logs warning."""
-        import logging
         from acme_srv.helpers import config
 
-        logger = logging.getLogger("test_a2c")
         # Simulate a config dict with invalid JSON in Order section
         cfg = {"Order": {"allowed_domainlist": "not-a-json-list"}}
-        with self.assertLogs(logger, level="WARNING") as log_context:
+        with self.assertLogs(self.logger, level="WARNING") as log_context:
             from acme_srv.helpers.global_variables import PARSING_ERR_MSG
 
-            result = config.config_allowed_domainlist_load(logger, cfg)
+            result = config.config_allowed_domainlist_load(self.logger, cfg)
         self.assertEqual(result, PARSING_ERR_MSG)
         self.assertTrue(
             any(
