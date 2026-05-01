@@ -48,10 +48,10 @@ runs:
       docker compose up -d
     shell: bash
 
-  - name: "Sleep for 300s"
+  - name: "Sleep for 360s"
     uses: grindsa/sleep-action@master
     with:
-      time: 300s
+      time: 360s
 
   - name: "check status of freeipa server"
     id: freeipa_check_status
