@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   freeipa:
     image: freeipa/freeipa-server:fedora-rawhide-4.13.1
