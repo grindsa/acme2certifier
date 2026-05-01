@@ -83,11 +83,11 @@ runs:
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           echo "container deployment"
-          docker compose logs | grep "Dry run mode - enrollment skipped"
+          docker compose logs | grep "Dry run mode enabled - skipping enrollment and certificate issuance"
           docker compose logs | grep "Helper.config_dryrun_load() ended with: True/None"
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "Dry run mode - enrollment skipped"
+          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "Dry run mode enabled - skipping enrollment and certificate issuance"
         fi
       shell: bash
       env:
