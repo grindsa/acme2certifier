@@ -1,0 +1,147 @@
+name: "dryrun tests"
+description: "Test dryrun feature"
+inputs:
+  FAIL:
+    description: "Fail "
+    required: true
+    default: "false"
+  ACME_SERVER:
+    description: "ACME server address"
+    required: true
+    default: "acme-srv"
+  CA_PATH:
+    description: "Path to CA certificates"
+    required: false
+    default: "examples/Docker/data/acme_ca/"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: true
+    default: "rpm"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Create lego folder"
+      run: |
+        mkdir -p lego
+        sudo rm -rf lego/*
+      shell: bash
+
+    - name: "Test http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl -f http://$ACME_SERVER/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Test if https://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://$ACME_SERVER/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Enroll lego"
+      if: ${{ inputs.FAIL == 'false' || inputs.FAIL == 'missing_profile' || inputs.FAIL == 'profile'}}
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme --http run
+        sudo openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem lego/certificates/lego.acme.crt
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+
+    - name: "Enroll lego"
+      if: ${{ inputs.FAIL == 'true' }}
+      continue-on-error: true
+      id: legofail01
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme --http run # 2>&1 | grep -q "Dry run mode - enrollment skipped"
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Check  result "
+      if: ${{ (inputs.FAIL == 'true') && steps.legofail01.outcome != 'failure' }}
+      run: |
+        echo "legofail outcome is ${{steps.legofail01.outcome }}"
+        exit 1
+      shell: bash
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Check logs"
+      if: ${{ inputs.FAIL == 'true' }}
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          echo "container deployment"
+          docker compose logs | grep "Dry run mode - enrollment skipped"
+          docker compose logs | grep "Helper.config_dryrun_load() ended with: True/None"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "Dry run mode - enrollment skipped"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Check logs missing profile"
+      if: ${{ inputs.FAIL == 'missing_profile' }}
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          echo "container deployment"
+          docker compose logs | grep "Dryrun profile name not set in configuration, please set dryrun_profile parameter"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "Dryrun profile name not set in configuration, please set dryrun_profile parameter"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Enroll lego"
+      if: ${{ inputs.FAIL == 'profile' }}
+      continue-on-error: true
+      id: legofail02
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme --http run --profile dry-run
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Check  result "
+      if: ${{ (inputs.FAIL == 'profile') && steps.legofail02.outcome != 'failure' }}
+      run: |
+        echo "legofail outcome is ${{steps.legofail01.outcome }}"
+        exit 1
+      shell: bash
+
+    - name: "Sleep for 10s"
+      if : ${{ inputs.FAIL == 'profile' }}
+      uses: juliangruber/sleep-action@v2.0.3
+      with:
+        time: 10s
+
+    - name: "Check logs missing profile"
+      if: ${{ inputs.FAIL == 'profile' }}
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          echo "container deployment"
+          docker compose logs | grep "enabling dryrun mode for profile: dry-run"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "enabling dryrun mode for profile: dry-run"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
