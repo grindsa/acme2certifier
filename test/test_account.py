@@ -1222,6 +1222,26 @@ class TestAccount(unittest.TestCase):
             self.assertIn("data", result)
             mock_build_response.assert_called_once()
 
+    def test_051__handle_account_query_valid(self):
+        """test _handle_account_query with valid account"""
+        account_name = "test_account"
+        account_obj = {
+            "status": "valid",
+            "jwk": "{}",
+            "contact": "[]",
+            "created_at": "2026-02-08",
+        }
+        with patch.object(
+            self.account, "_lookup_account_by_name", return_value=account_obj
+        ), patch.object(
+            self.account, "_build_account_info", return_value={"status": "valid"}
+        ):
+            result = self.account._handle_account_query(account_name)
+            self.assertEqual(
+                "http://tester.local/acme/acct/test_account",
+                result["header"]["Location"],
+            )
+
     def test_051__handle_account_query_invalid(self):
         """test _handle_account_query with invalid account (not found)"""
         account_name = "test_account"
