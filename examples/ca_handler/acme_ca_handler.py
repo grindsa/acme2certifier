@@ -307,35 +307,39 @@ class CAhandler(object):
         """delete dns challenge"""
         self.logger.debug("CAhandler._dns_challenge_deprovision()")
         if self.dns_update_script and self.acme_sh_script and self.dns_record_dic:
-
             # get scriptname
-            basename_w_ext = os.path.splitext(os.path.basename(self.dns_update_script))[
-                0
-            ]
+            basename_w_ext = os.path.splitext(os.path.basename(self.dns_update_script))[0]
 
             # set environment variables for dns update script
             self._environment_variables_handle(unset=False)
 
+            wrapper_script = os.path.join(
+                os.path.dirname(__file__), "dns_deprovision_wrapper.sh"
+            )
+
             for fqdn, txt_record_value in self.dns_record_dic.items():
-                # remove txt record from dns server - to be moved to a later place in the code
-                cmd_list = (
-                    f"source {shlex.quote(self.acme_sh_script)} &>/dev/null; "
-                    f"source {shlex.quote(self.dns_update_script)}; "
-                    f"{shlex.quote(basename_w_ext)}_rm "
-                    f"{shlex.quote(fqdn)} "
-                    f"{shlex.quote(txt_record_value.decode('utf-8') if isinstance(txt_record_value, bytes) else str(txt_record_value))}"
-                )
+                txt_record_value_str = txt_record_value.decode("utf-8") if isinstance(txt_record_value, bytes) else str(txt_record_value)
+                args = [
+                    wrapper_script,
+                    self.acme_sh_script,
+                    self.dns_update_script,
+                    basename_w_ext,
+                    fqdn,
+                    txt_record_value_str,
+                ]
                 if self.acme_sh_shell:
+                    args.append(self.acme_sh_shell)
                     self.logger.debug(
-                        "CAhandler._dns_challenge_provision(): using shell: %s",
+                        "CAhandler._dns_challenge_deprovision(): using shell: %s",
                         self.acme_sh_shell,
                     )
-                    rcode = subprocess.call(
-                        cmd_list, shell=True, executable=self.acme_sh_shell
+                try:
+                    rcode = subprocess.run(args, check=False).returncode
+                except Exception as err:
+                    self.logger.error(
+                        "_dns_challenge_deprovision(): Exception while running wrapper: %s", err
                     )
-                else:
-                    rcode = subprocess.call(cmd_list, shell=True)
-
+                    rcode = -1
                 self.logger.debug(
                     "_dns_challenge_deprovision(): %s rcode: %s", fqdn, rcode
                 )
