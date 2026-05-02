@@ -57,6 +57,7 @@ runs:
     id: freeipa_check_status_01
     continue-on-error: true
     run: |
+      echo "1st check if FreeIPA server is configured..."
       cd freeipa
       docker compose logs  | grep "FreeIPA server configured."
     shell: bash
@@ -72,6 +73,7 @@ runs:
     id: freeipa_check_status_02
     continue-on-error: true
     run: |
+      echo "2nd check if FreeIPA server is configured..."
       cd freeipa
       docker compose logs  | grep "FreeIPA server configured."
     shell: bash
@@ -87,6 +89,7 @@ runs:
     id: freeipa_check_status_03
     continue-on-error: true
     run: |
+      echo "3rd check if FreeIPA server is configured..."
       cd freeipa
       docker compose logs  | grep "FreeIPA server configured."
     shell: bash
