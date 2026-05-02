@@ -825,8 +825,8 @@ jobs:
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
-          docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
           mkdir -p ${{ github.workspace }}/artifact/upload
+          docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
           docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
           sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
           sudo rm ${{ github.workspace }}/artifact/data/*.rpm
@@ -915,8 +915,8 @@ jobs:
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
-          docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
           mkdir -p ${{ github.workspace }}/artifact/upload
+          docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
           docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
           sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
           sudo rm ${{ github.workspace }}/artifact/data/*.rpm
@@ -1121,6 +1121,8 @@ jobs:
         if: ${{ failure() }}
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
+          docker logs acme-le-sim-1 > ${{ github.workspace }}/artifact/acme-le-sim-1.log
+          docker logs acme-le-sim-2 > ${{ github.workspace }}/artifact/acme-le-sim-2.log
           docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
           sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
           sudo rm ${{ github.workspace }}/artifact/data/*.rpm
