@@ -6,6 +6,34 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.42.1
+
+**Bug Fixes**:
+
+- return valid "Location" header - element in case of account queries
+
+## Changes in 0.42
+
+**Features and Improvements**:
+
+- [Experimental support of MSSQl](https://github.com/grindsa/acme2certifier/blob/devel/docs/external_database_support.md#when-using-sql-server) via django-handler
+- [EAB SQL Handler](https://github.com/grindsa/acme2certifier/blob/devel/docs/eab.md#sql-handler)
+- run allowed_domainlist check as part of order processing
+- Refactoring of Core components completed
+
+## Changes in 0.41.3
+
+**Bug Fixes**:
+
+- [#307 - cert_operations_log option is not taken into account when logging certificate issuance](https://github.com/grindsa/acme2certifier/issues/306)
+
+## Changes in 0.41.2
+
+**Bug Fixes**:
+
+- [#304 - correct parsing of config files with without Challenge section](https://github.com/grindsa/acme2certifier/issues/304)
+- [#302 - fix when loading allowed_domain_list parameter from config](https://github.com/grindsa/acme2certifier/issues/302)\]
+
 ## Changes in 0.41.1
 
 **Bug Fixes**:
