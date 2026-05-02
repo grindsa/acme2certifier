@@ -74,6 +74,7 @@ runs:
     continue-on-error: true
     run: |
       echo "2nd check if FreeIPA server is configured..."
+      echo "step output is ${{ steps.freeipa_check_status_01.outcome }}"
       cd freeipa
       docker compose logs  | grep "FreeIPA server configured."
     shell: bash
@@ -90,6 +91,7 @@ runs:
     continue-on-error: true
     run: |
       echo "3rd check if FreeIPA server is configured..."
+      echo "step output is ${{ steps.freeipa_check_status_02.outcome }}"
       cd freeipa
       docker compose logs  | grep "FreeIPA server configured."
     shell: bash
@@ -97,6 +99,8 @@ runs:
   - name: "check logs if freeipa_status is not success"
     if: steps.freeipa_check_status_03.outcome != 'success'
     run: |
+      echo "FreeIPA server is not configured after 3 checks, printing logs for debugging..."
+      echo "step output is ${{ steps.freeipa_check_status_03.outcome }}"
       cd freeipa
       docker compose logs
       exit 1
