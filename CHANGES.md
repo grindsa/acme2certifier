@@ -8,6 +8,12 @@ and pick the appropriate release branch.
 
 ## Changes in 0.42
 
+## Changes in 0.42.1
+
+**Bug Fixes**:
+
+- return valid "Location" header - element in case of account queries
+
 **Features and Improvements**:
 
 - [Experimental support of MSSQl](https://github.com/grindsa/acme2certifier/blob/devel/docs/external_database_support.md#when-using-sql-server) via django-handler
