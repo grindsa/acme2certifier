@@ -52,7 +52,8 @@ runs:
 
   - name: "Setup environment for ubuntu 24.04"
     run: |
-      docker run -d --rm --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v $PWD:/tmp/acme2certifier jrei/systemd-ubuntu:24.04
+      # docker run -d --rm --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v $PWD:/tmp/acme2certifier jrei/systemd-ubuntu:24.04
+      docker run -d --rm --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v $PWD:/tmp/acme2certifier grindsa/systemd-ubuntu:24.04
       docker exec acme-srv apt-get update  # && apt-get upgrade
       docker exec acme-srv apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 curl krb5-user libkrb5-3 python3-gssapi rsyslog
       docker exec acme-srv systemctl enable rsyslog
