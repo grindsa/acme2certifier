@@ -49,15 +49,71 @@ runs:
     shell: bash
 
   - name: "Sleep for 300s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: grindsa/sleep-action@master
     with:
       time: 300s
 
-  - name: "Get randmonly generated Superadmin password for ejbca instance"
+  - name: "check status of freeipa server"
+    id: freeipa_check_status_01
+    continue-on-error: true
     run: |
+      echo "1st check if FreeIPA server is configured..."
       cd freeipa
-      # docker compose logs
       docker compose logs  | grep "FreeIPA server configured."
+    shell: bash
+
+  - name: Print step-01 output
+    run: echo "step-01 output is ${{ steps.freeipa_check_status_01.outcome }}"
+    shell: bash
+
+  - name: "Sleep for 300s"
+    if: steps.freeipa_check_status_01.outcome != 'success'
+    uses: grindsa/sleep-action@master
+    with:
+      time: 300s
+
+  - name: "check status of freeipa server"
+    if: steps.freeipa_check_status_01.outcome != 'success'
+    id: freeipa_check_status_02
+    continue-on-error: true
+    run: |
+      echo "2nd check if FreeIPA server is configured..."
+      cd freeipa
+      docker compose logs  | grep "FreeIPA server configured."
+    shell: bash
+
+  - name: Print step-02 output
+    if: steps.freeipa_check_status_02.outcome != 'success' && steps.freeipa_check_status_02.outcome != 'skipped'
+    run: echo "step-02 output is ${{ steps.freeipa_check_status_02.outcome }}"
+    shell: bash
+
+  - name: "Sleep for 180s"
+    if: steps.freeipa_check_status_02.outcome != 'success' && steps.freeipa_check_status_02.outcome != 'skipped'
+    uses: grindsa/sleep-action@master
+    with:
+      time: 180s
+
+  - name: "check status of freeipa server"
+    if: steps.freeipa_check_status_02.outcome != 'success' && steps.freeipa_check_status_02.outcome != 'skipped'
+    id: freeipa_check_status_03
+    continue-on-error: true
+    run: |
+      echo "3rd check if FreeIPA server is configured..."
+      cd freeipa
+      docker compose logs  | grep "FreeIPA server configured."
+    shell: bash
+
+  - name: Print step-03 output
+    run: echo "step-03 output is ${{ steps.freeipa_check_status_03.outcome }}"
+    shell: bash
+
+  - name: "check logs if freeipa_status is not success"
+    if: steps.freeipa_check_status_03.outcome != 'success' && steps.freeipa_check_status_03.outcome != 'skipped'
+    run: |
+      echo "FreeIPA server is not configured after 3 checks, printing logs for debugging..."
+      cd freeipa
+      docker compose logs
+      exit 99
     shell: bash
 
   - name: "Configure freeipa"
