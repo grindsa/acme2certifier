@@ -79,11 +79,11 @@ runs:
       docker compose logs  | grep "FreeIPA server configured."
     shell: bash
 
-  - name: "Sleep for 180s"
+  - name: "Sleep for 300s"
     if: steps.freeipa_check_status_02.outcome != 'success'
     uses: grindsa/sleep-action@master
     with:
-      time: 180s
+      time: 300s
 
   - name: "check status of freeipa server"
     if: steps.freeipa_check_status_02.outcome != 'success'
