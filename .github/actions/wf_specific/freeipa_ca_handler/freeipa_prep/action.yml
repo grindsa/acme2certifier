@@ -62,11 +62,15 @@ runs:
       docker compose logs  | grep "FreeIPA server configured."
     shell: bash
 
-  - name: "Sleep for 180s"
+  - name: Print step-01 output
+    run: echo "step-01 output is ${{ steps.freeipa_check_status_01.outcome }}"
+    shell: bash
+
+  - name: "Sleep for 300s"
     if: steps.freeipa_check_status_01.outcome != 'success'
     uses: grindsa/sleep-action@master
     with:
-      time: 180s
+      time: 300s
 
   - name: "check status of freeipa server"
     if: steps.freeipa_check_status_01.outcome != 'success'
@@ -74,16 +78,19 @@ runs:
     continue-on-error: true
     run: |
       echo "2nd check if FreeIPA server is configured..."
-      echo "step output is ${{ steps.freeipa_check_status_01.outcome }}"
       cd freeipa
       docker compose logs  | grep "FreeIPA server configured."
     shell: bash
 
-  - name: "Sleep for 300s"
+  - name: Print step-02 output
+    run: echo "step-02 output is ${{ steps.freeipa_check_status_02.outcome }}"
+    shell: bash
+
+  - name: "Sleep for 180s"
     if: steps.freeipa_check_status_02.outcome != 'success'
     uses: grindsa/sleep-action@master
     with:
-      time: 300s
+      time: 180s
 
   - name: "check status of freeipa server"
     if: steps.freeipa_check_status_02.outcome != 'success'
@@ -91,19 +98,21 @@ runs:
     continue-on-error: true
     run: |
       echo "3rd check if FreeIPA server is configured..."
-      echo "step output is ${{ steps.freeipa_check_status_02.outcome }}"
       cd freeipa
       docker compose logs  | grep "FreeIPA server configured."
+    shell: bash
+
+  - name: Print step-03 output
+    run: echo "step-03 output is ${{ steps.freeipa_check_status_03.outcome }}"
     shell: bash
 
   - name: "check logs if freeipa_status is not success"
     if: steps.freeipa_check_status_03.outcome != 'success'
     run: |
       echo "FreeIPA server is not configured after 3 checks, printing logs for debugging..."
-      echo "step output is ${{ steps.freeipa_check_status_03.outcome }}"
       cd freeipa
       docker compose logs
-      exit 1
+      exit 99
     shell: bash
 
   - name: "Configure freeipa"
