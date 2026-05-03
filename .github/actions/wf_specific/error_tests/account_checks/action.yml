@@ -405,7 +405,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c "/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log"
+        docker exec alma bash -c "/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account=\"\" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log"
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
