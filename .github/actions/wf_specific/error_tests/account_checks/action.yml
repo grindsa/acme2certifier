@@ -41,7 +41,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -58,13 +58,14 @@ runs:
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           docker compose logs | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Contact information is missing'}"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Contact information is missing'}"
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Contact information is missing'}"
         fi
       shell: bash
       env:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
     - name: "Test Registration with wrong email format"
       working-directory: acmeshell
@@ -78,7 +79,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -95,13 +96,14 @@ runs:
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           docker compose logs | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:invalidContact', 'detail': 'The provided contact URI was invalid: Invalid contact information'}"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:invalidContact', 'detail': 'The provided contact URI was invalid: Invalid contact information'}"
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:invalidContact', 'detail': 'The provided contact URI was invalid: Invalid contact information'}"
         fi
       shell: bash
       env:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
     - name: "Test Registration with correct email format"
       working-directory: acmeshell
@@ -118,7 +120,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -138,14 +140,15 @@ runs:
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           docker compose logs | grep "Account.onlyreturnexisting() ended with: 200"
           docker compose logs | grep "Account._deactivate_account("
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "Account.onlyreturnexisting() ended with: 200"
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "Account._deactivate_account("
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "Account.onlyreturnexisting() ended with: 200"
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "Account._deactivate_account("
         fi
       shell: bash
       env:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
     - name: "Test registration without TOC agreement using a modifed acme.sh"
       continue-on-error: true
@@ -154,7 +157,7 @@ runs:
         docker exec alma bash -c 'grep regjson /root/.acme.sh/acme.sh'
         docker exec alma sed -i 's/termsOfServiceAgreed/foo/g' /root/.acme.sh/acme.sh
         docker exec alma bash -c 'grep regjson /root/.acme.sh/acme.sh'
-        docker exec alma bash -c '/root/.acme.sh/acme.sh --register-account --server http://acme-srv --accountemail acme-sh@example.com'
+        docker exec alma bash -c '/root/.acme.sh/acme.sh --register-account --server http://$ACME_SERVER --accountemail acme-sh@example.com'
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -172,14 +175,15 @@ runs:
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           docker compose logs | grep "no tos statement found."
           docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:userActionRequired', 'detail': 'termsofserviceagreed flag missing'}"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "no tos statement found."
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:userActionRequired', 'detail': 'termsofserviceagreed flag missing'}"
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "no tos statement found."
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:userActionRequired', 'detail': 'termsofserviceagreed flag missing'}"
         fi
       shell: bash
       env:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
     - name: "Test registration with TOC agreement false using a modifed acme.sh"
       id: acmeshfail02
@@ -189,7 +193,7 @@ runs:
         docker exec alma bash -c 'grep regjson /root/.acme.sh/acme.sh'
         docker exec alma sed -i 's/\\"termsOfServiceAgreed\\": true/\\"termsOfServiceAgreed\\": false/g' /root/.acme.sh/acme.sh
         docker exec alma bash -c 'grep regjson /root/.acme.sh/acme.sh'
-        docker exec alma bash -c '/root/.acme.sh/acme.sh --register-account --server http://acme-srv --accountemail acme-sh@example.com'
+        docker exec alma bash -c '/root/.acme.sh/acme.sh --register-account --server http://$ACME_SERVER --accountemail acme-sh@example.com'
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -207,14 +211,15 @@ runs:
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           docker compose logs | grep "tos:False"
           docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:userActionRequired', 'detail': 'Terms of service must be agreed'}"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "tos:False"
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:userActionRequired', 'detail': 'Terms of service must be agreed'}"
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "tos:False"
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:userActionRequired', 'detail': 'Terms of service must be agreed'}"
         fi
       shell: bash
       env:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
 
     - name: "Update account information"
@@ -231,7 +236,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -251,14 +256,15 @@ runs:
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           docker compose logs | grep "validate: new@example.com result: True"
           docker compose logs | grep "DBStore.account_update("
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "validate: new@example.com result: True"
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "DBStore.account_update("
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "validate: new@example.com result: True"
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "DBStore.account_update("
         fi
       shell: bash
       env:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
     - name: "Unknown account request"
       working-directory: acmeshell
@@ -274,7 +280,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -291,9 +297,9 @@ runs:
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           docker compose logs | grep "Error.acme_errormessage(urn:ietf:params:acme:error:malformed)"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "Error.acme_errormessage(urn:ietf:params:acme:error:malformed)"
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "Error.acme_errormessage(urn:ietf:params:acme:error:malformed)"
         fi
       shell: bash
       env:
@@ -313,7 +319,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -330,13 +336,14 @@ runs:
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           docker compose logs | grep "Error.acme_errormessage(urn:ietf:params:acme:error:malformed)"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "Error.acme_errormessage(urn:ietf:params:acme:error:malformed)"
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "Error.acme_errormessage(urn:ietf:params:acme:error:malformed)"
         fi
       shell: bash
       env:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
     - name: "Key Rollover"
       working-directory: acmeshell
@@ -353,7 +360,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://acme-srv -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -372,11 +379,40 @@ runs:
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           docker compose logs | grep "Account._rollover_account_key("
           docker compose logs | grep "Account._validate_key_change("
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "Account._rollover_account_key("
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "Account._validate_key_change("
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "Account._rollover_account_key("
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "Account._validate_key_change("
         fi
       shell: bash
       env:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Account query"
+      working-directory: acmeshell
+      run: |
+        rm -f acmeshell.enroll.log
+        cat <<EOT > commands.shell
+        newAccount -contacts=foo@bar.local,
+        post -body='{}' {{ account }}
+        EOT
+      shell: bash
+
+    - name: "Run acmeshell newAccount command"
+      working-directory: acmeshell
+      continue-on-error: true
+      run: |
+        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Check acmeshell log"
+      working-directory: acmeshell
+      run: |
+        ACCOUNT_ID=$(grep -oP 'Created account with ID "http://[^/]+/acme/acct/\K[^"]+' acmeshell.enroll.log | uniq)
+        grep "Location: http://$ACME_SERVER/acme/acct/$ACCOUNT_ID" acmeshell.enroll.log
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
