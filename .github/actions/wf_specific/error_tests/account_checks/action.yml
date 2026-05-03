@@ -41,7 +41,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c "/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log"
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -50,6 +50,7 @@ runs:
     - name: "Check acmeshell log for invalidContact error"
       working-directory: acmeshell
       run: |
+        cat acmeshell.enroll.log
         grep "urn:ietf:params:acme:error:malformed" acmeshell.enroll.log
       shell: bash
 
@@ -79,7 +80,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c "/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account=\"\" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log"
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -120,7 +121,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c "/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account=\"\" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log"
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -154,10 +155,10 @@ runs:
       continue-on-error: true
       id: acmeshfail01
       run: |
-        docker exec alma bash -c 'grep regjson /root/.acme.sh/acme.sh'
+        docker exec alma bash -c "grep regjson /root/.acme.sh/acme.sh"
         docker exec alma sed -i 's/termsOfServiceAgreed/foo/g' /root/.acme.sh/acme.sh
-        docker exec alma bash -c 'grep regjson /root/.acme.sh/acme.sh'
-        docker exec alma bash -c '/root/.acme.sh/acme.sh --register-account --server http://$ACME_SERVER --accountemail acme-sh@example.com'
+        docker exec alma bash -c "grep regjson /root/.acme.sh/acme.sh"
+        docker exec alma bash -c "/root/.acme.sh/acme.sh --register-account --server http://$ACME_SERVER --accountemail acme-sh@example.com"
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -189,11 +190,11 @@ runs:
       id: acmeshfail02
       continue-on-error: true
       run: |
-        docker exec alma bash -c 'cp /root/.acme.sh/acme.sh.bup /root/.acme.sh/acme.sh'
-        docker exec alma bash -c 'grep regjson /root/.acme.sh/acme.sh'
+        docker exec alma bash -c "cp /root/.acme.sh/acme.sh.bup /root/.acme.sh/acme.sh"
+        docker exec alma bash -c "grep regjson /root/.acme.sh/acme.sh"
         docker exec alma sed -i 's/\\"termsOfServiceAgreed\\": true/\\"termsOfServiceAgreed\\": false/g' /root/.acme.sh/acme.sh
-        docker exec alma bash -c 'grep regjson /root/.acme.sh/acme.sh'
-        docker exec alma bash -c '/root/.acme.sh/acme.sh --register-account --server http://$ACME_SERVER --accountemail acme-sh@example.com'
+        docker exec alma bash -c "grep regjson /root/.acme.sh/acme.sh"
+        docker exec alma bash -c "/root/.acme.sh/acme.sh --register-account --server http://$ACME_SERVER --accountemail acme-sh@example.com"
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -236,7 +237,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c "/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account=\"\" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log"
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -280,7 +281,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c "/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account=\"\" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log"
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -304,6 +305,7 @@ runs:
       shell: bash
       env:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
     - name: "wrong status update"
       working-directory: acmeshell
@@ -319,7 +321,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c "/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account=\"\" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log"
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -360,7 +362,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c "/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account=\"\" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log"
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -403,7 +405,7 @@ runs:
       working-directory: acmeshell
       continue-on-error: true
       run: |
-        docker exec alma bash -c '/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log'
+        docker exec alma bash -c "/acmeshell/acmeshell -directory http://$ACME_SERVER -postAsGet=true -printResponses -printRequests -autoregister=false --account="" -in /acmeshell/commands.shell &> /acmeshell/acmeshell.enroll.log"
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
