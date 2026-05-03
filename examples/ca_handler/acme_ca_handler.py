@@ -27,7 +27,6 @@ from acme_srv.helper import (
     b64_url_decode,
     cert_pem2der,
     client_parameter_validate,
-    config_allowed_domainlist_load,
     config_eab_profile_load,
     config_headerinfo_load,
     config_enroll_config_log_load,
@@ -58,7 +57,6 @@ class CAhandler(object):
         self.acme_sh_shell = None
         self.acme_url = None
         self.acme_url_dic = {}
-        self.allowed_domainlist = []
         self.dbstore = DBstore(None, self.logger)
         self.dns_update_script = None
         self.dns_update_script_variables = None
@@ -233,10 +231,6 @@ class CAhandler(object):
                 'Configuration incomplete: "CAhandler" section is missing in config file'
             )
 
-        # load allowed domainlist
-        self.allowed_domainlist = config_allowed_domainlist_load(
-            self.logger, config_dic
-        )
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
@@ -1100,19 +1094,15 @@ class CAhandler(object):
         poll_indentifier = None
         user_key = None
 
-        error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-
         # check for eab profiling and header_info
+        error = eab_profile_header_info_check(self.logger, self, csr, "profile")
         if not error:
-            error = eab_profile_header_info_check(self.logger, self, csr, "profile")
+            if self.enrollment_config_log:
+                self.enrollment_config_log_skip_list.extend(["dbstore", "eab_mac_key"])
+                enrollment_config_log(
+                    self.logger, self, self.enrollment_config_log_skip_list
+                )
 
-        if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["dbstore", "eab_mac_key"])
-            enrollment_config_log(
-                self.logger, self, self.enrollment_config_log_skip_list
-            )
-
-        if not error:
             try:
                 user_key = self._user_key_load()
                 net = client.ClientNetwork(user_key, verify_ssl=self.ssl_verify)
