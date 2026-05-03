@@ -16,7 +16,6 @@ Recommends: python3-requests-gssapi
 Description: Library implementing ACME server functionality
  acme2certifier is development project to create an ACME protocol proxy. Main intention is to provide ACME services on CA servers which do not support this protocol yet.
  As of today the following handlers are available:
-
  - DigiCert® CertCentral
  - Dogtag Certificate System
  - Entrust ECS Enterprise
@@ -37,5 +36,4 @@ Description: Library implementing ACME server functionality
  - OpenSSL
  - OpenXPKI
  - XCA
-
  After installation remember to install either NGINX or apache2!
