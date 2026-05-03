@@ -12,7 +12,7 @@ and pick the appropriate release branch.
 
 **Bug Fixes**:
 
-- return valid "Location" header - element in case of account queries
+- Return a valid "Location" header for account queries
 
 **Features and Improvements**:
 
