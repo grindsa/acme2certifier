@@ -396,6 +396,11 @@ jobs:
           CONTAINER_BUILD: false
           NAME_SPACE: acme
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: "Install mailserver"
         uses: ./.github/actions/mailserver_install
         with:
@@ -415,9 +420,9 @@ jobs:
           sudo echo "report_failures: True" >> examples/Docker/data/acme_srv.cfg
           sudo echo "report_successes: True" >> examples/Docker/data/acme_srv.cfg
           sudo echo "subject_prefix: [ACME]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "rcpt: jum@mailserver.acme" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "rcpt: $JUM_ADDR" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/debug: True/debug: True\nappname: acme2certifier\nsmtp_server: mailserver.acme\nsmtp_port: 465\nsmtp_use_tls: True\nconnection_timeout: 30\nusername: jum@mailserver.acme\npassword: jumstarter\nemail_address: a2c@mailserver.acme\n/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/debug: True/debug: True\nappname: acme2certifier\nsmtp_server: mailserver.acme\nsmtp_port: 465\nsmtp_use_tls: True\nconnection_timeout: 30\nusername: $JUM_ADDR\npassword: $JUM_PASSWORD\nemail_address: $A2C_ADDR\n/g" examples/Docker/data/acme_srv.cfg
         env:
           HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
 
@@ -848,9 +853,9 @@ jobs:
           sudo echo "report_failures: True" >> data/volume/acme_srv.cfg
           sudo echo "report_successes: True" >> data/volume/acme_srv.cfg
           sudo echo "subject_prefix: [ACME]" >> data/volume/acme_srv.cfg
-          sudo echo "rcpt: jum@mailserver.acme" >> data/volume/acme_srv.cfg
+          sudo echo "rcpt: $JUM_ADDR" >> data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/debug: True/debug: True\nappname: acme2certifier\nsmtp_server: mailserver.acme\nsmtp_port: 465\nsmtp_use_tls: True\nconnection_timeout: 30\nusername: jum@mailserver.acme\npassword: jumstarter\nemail_address: a2c@mailserver.acme\n/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/debug: True/debug: True\nappname: acme2certifier\nsmtp_server: mailserver.acme\nsmtp_port: 465\nsmtp_use_tls: True\nconnection_timeout: 30\nusername: $JUM_ADDR\npassword: $JUM_PASSWORD\nemail_address: $A2C_ADDR\n/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |

@@ -466,6 +466,11 @@ jobs:
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: Retrieve Version from version.py
         run: |
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
@@ -478,7 +483,7 @@ jobs:
         run: |
           sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
-          git config --global user.email "grindelsack@gmail.com"
+          git config --global user.email "$EMAIL"
           git config --global user.name "rpm update"
           git add examples/nginx
           git commit -a -m "rpm update"
@@ -633,6 +638,11 @@ jobs:
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: Retrieve Version from version.py
         run: |
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
@@ -645,7 +655,7 @@ jobs:
         run: |
           sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
-          git config --global user.email "grindelsack@gmail.com"
+          git config --global user.email "$EMAIL"
           git config --global user.name "rpm update"
           git add examples/nginx
           git commit -a -m "rpm update"
@@ -797,6 +807,11 @@ jobs:
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: Retrieve Version from version.py
         run: |
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
@@ -809,7 +824,7 @@ jobs:
         run: |
           sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
-          git config --global user.email "grindelsack@gmail.com"
+          git config --global user.email "$EMAIL"
           git config --global user.name "rpm update"
           git add examples/nginx
           git commit -a -m "rpm update"

@@ -394,6 +394,11 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: Parse software repository secrets from JSON
         uses: ./.github/actions/parse-json-secret
         with:
@@ -417,7 +422,7 @@ jobs:
         continue-on-error: true
         run: |
           cd /tmp/sbom
-          git config --global user.email "grindelsack@gmail.com"
+          git config --global user.email "$EMAIL"
           git config --global user.name "SBOM Generator"
           git add sbom/acme2certifier/
           git commit -a -m "SBOM update"
