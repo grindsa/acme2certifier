@@ -38,7 +38,7 @@ runs:
       echo "### Enroll certificate"
       cd acme_email
       source venv/bin/activate
-      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e $JUM_ADDR --contact joern.mewes@gmx.net --imap --login $JUM_ADDR --password $JUM_PASSWORD --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
+      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e $JUM_ADDR --contact $EMAIL --imap --login $JUM_ADDR --password $JUM_PASSWORD --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
     shell: bash
 
   - name: "Enroll certificate with wrong email (to fail)"
@@ -50,7 +50,7 @@ runs:
       cd acme_email
       sudo rm -rf ./live/*
       source venv/bin/activate
-      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e $ULME_ADDR --contact joern.mewes@gmx.net --imap --login $JUM_ADDR --password $JUM_PASSWORD --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
+      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e $ULME_ADDR --contact $EMAIL --imap --login $JUM_ADDR --password $JUM_PASSWORD --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
     shell: bash
 
   - name: "Check  result "
@@ -67,5 +67,5 @@ runs:
       cd acme_email
       sudo rm -rf ./live/*
       source venv/bin/activate
-      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e $ULME_ADDR --contact joern.mewes@gmx.net --imap --login $JUM_ADDR --password $JUM_PASSWORD --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
+      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e $ULME_ADDR --contact $EMAIL --imap --login $JUM_ADDR --password $JUM_PASSWORD --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
     shell: bash
