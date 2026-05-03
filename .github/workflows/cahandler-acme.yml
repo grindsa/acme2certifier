@@ -571,6 +571,11 @@ jobs:
         with:
           json_secret: ${{ secrets.CF_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: "Download and import container"
         uses: ./.github/actions/container_load
         with:
@@ -601,7 +606,7 @@ jobs:
           sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
           sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "acme_url: https://acme-staging-v02.api.letsencrypt.org" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_account_email: grindelsack@gmail.com" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "acme_account_email: $EMAIL" >> examples/Docker/data/acme_srv.cfg
           sudo echo "acme_sh_script: volume/acme/acme.sh" >> examples/Docker/data/acme_srv.cfg
           sudo echo "dns_update_script: volume/acme/dns_cf.sh" >> examples/Docker/data/acme_srv.cfg
           sudo echo "dns_update_script_variables: {\"CF_Token\": \"$CF_TOKEN\", \"CF_Zone_ID\": \"$CF_ZONE_ID\"}" >> examples/Docker/data/acme_srv.cfg
@@ -667,7 +672,7 @@ jobs:
           sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
           sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "acme_url: https://acme-staging-v02.api.letsencrypt.org" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_account_email: grindelsack@gmail.com" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "acme_account_email: $EMAIL" >> examples/Docker/data/acme_srv.cfg
           sudo echo "acme_sh_script: volume/acme/acme.sh" >> examples/Docker/data/acme_srv.cfg
           sudo echo "dns_update_script: volume/acme/dns_acmedns.sh" >> examples/Docker/data/acme_srv.cfg
           sudo echo "dns_update_script_variables: {\"ACMEDNS_USERNAME\": \"$ACMEDNS_USERNAME\", \"ACMEDNS_PASSWORD\": \"$ACMEDNS_PASSWORD\", \"ACMEDNS_BASE_URL\": \"https://auth.acme-dns.io\", \"ACMEDNS_SUBDOMAIN\": \"$ACMEDNS_SUBDOMAIN\"}" >> examples/Docker/data/acme_srv.cfg
@@ -1301,7 +1306,7 @@ jobs:
           sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/volume/acme_srv.cfg
           sudo echo "acme_url: https://acme-staging-v02.api.letsencrypt.org" >> data/volume/acme_srv.cfg
-          sudo echo "acme_account_email: grindelsack@gmail.com" >> data/volume/acme_srv.cfg
+          sudo echo "acme_account_email: $EMAIL" >> data/volume/acme_srv.cfg
           sudo echo "acme_sh_script: /opt/acme2certifier/volume/acme_ca/acme.sh" >> data/volume/acme_srv.cfg
           sudo echo "dns_update_script: /opt/acme2certifier/volume/acme_ca/dns_cf.sh" >> data/volume/acme_srv.cfg
           sudo echo "dns_update_script_variables: {\"CF_Token\": \"$CF_TOKEN\", \"CF_Zone_ID\": \"$CF_ZONE_ID\"}" >> data/volume/acme_srv.cfg

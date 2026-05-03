@@ -57,7 +57,7 @@ runs:
       docker exec mailserver sh -c "sed -i 's/mydestination\s=\s\$myhostname,\slocalhost\.\$mydomain,\slocalhost/mydestination=localhost.\$mydomain,localhost/g' /etc/postfix/main.cf"
       docker exec mailserver grep mydestination /etc/postfix/main.cf
       docker exec mailserver setup email add postmaster@mailserver.acme pOstmAster
-      docker exec mailserver setup email add a2c@mailserver.acme a2cstarter
-      docker exec mailserver setup email add jum@mailserver.acme jumstarter
-      docker exec mailserver setup email add ulme@mailserver.acme ulmestarter
+      docker exec mailserver setup email add $A2C_ADDR $A2C_PASSWORD
+      docker exec mailserver setup email add $JUM_ADDR $JUM_PASSWORD
+      docker exec mailserver setup email add $ULME_ADDR $ULME_PASSWORD
     shell: bash

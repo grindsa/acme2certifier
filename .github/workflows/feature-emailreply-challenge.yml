@@ -80,6 +80,11 @@ jobs:
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: "Install mailserver"
         uses: ./.github/actions/mailserver_install
         with:
@@ -104,7 +109,7 @@ jobs:
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: a2c@mailserver.acme\npassword: a2cstarter\nemail_address: a2c@mailserver.acme/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -181,6 +186,11 @@ jobs:
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: "Download RPM artifact by name from build run"
         uses: ./.github/actions/download_artifact
         with:
@@ -220,7 +230,7 @@ jobs:
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: a2c@mailserver.acme\npassword: a2cstarter\nemail_address: a2c@mailserver.acme/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" data/volume/acme_srv.cfg
 
       - name: "Execute install scipt"
         run: |
@@ -299,6 +309,11 @@ jobs:
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: "Prepare Ubuntu environment"
         if: matrix.execscript == 'deb_tester.sh'
         uses: ./.github/actions/deb_prep
@@ -343,7 +358,7 @@ jobs:
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: a2c@mailserver.acme\npassword: a2cstarter\nemail_address: a2c@mailserver.acme/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
