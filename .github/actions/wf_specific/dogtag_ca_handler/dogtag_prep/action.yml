@@ -89,7 +89,7 @@ runs:
       pki_https_port=8443
       pki_admin_password=$ADMIN_PASSWORD
       pki_client_pkcs12_password=$ADMIN_PASSWORD
-      pki_ds_ldap_port=389
+      pki_ds_url=ldap://localhost:389
       pki_ds_password=$ADMIN_PASSWORD
       pki_security_domain_name=Test-Domain
       EOF"
