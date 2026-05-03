@@ -109,7 +109,7 @@ jobs:
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
