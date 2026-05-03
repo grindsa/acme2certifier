@@ -1,5 +1,10 @@
 name: "rpm_build"
 description: "Build RPM package"
+inputs:
+  EMAIL:
+    description: "Email address to use for git commit"
+    required: true
+    default: "grindelsack@gmail.com"
 outputs:
   rpm_dir_path:
     description: "Path to the directory containing the RPM package"
@@ -17,11 +22,6 @@ runs:
         echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       shell: bash
 
-    - name: "Parse EMAIL configuration from JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
-
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
       shell: bash
 
@@ -34,6 +34,8 @@ runs:
         git add examples/nginx
         git commit -a -m "rpm update"
       shell: bash
+      env:
+        EMAIL: ${{ inputs.EMAIL }}
 
     - name: "Build RPM package"
       id: rpm
