@@ -57,16 +57,26 @@ acme2certifier is development project to create an ACME protocol proxy. Main int
   modular that an adaption to other CA servers should be straight forward. As of
   today the following handlers are available:
 
-  - Openssl
-  - NetGuard Certificate Manager/Insta Certifier
-  - NetGuard Certificate Lifecycle Manager
+  - DigiCert® CertCentral
+  - Dogtag Certificate System
+  - Entrust ECS Enterprise
+  - Keyfactor EJBCA
+  - Generic ACME protocol handler supporting Letsencrypt, BuyPass.com and ZeroSSL and others
   - Generic EST protocol handler
   - Generic CMPv2 protocol handler
+  - FreeIPA
+  - Hashicorp Vault
+  - Insta ActiveCMS
+  - Insta Certifier
+  - Microsoft Certificate Enrollment Web Services
+  - Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)
+  - NetGuard Certificate Manager
+  - NetGuard Certificate Lifecycle Manager
   - Microsoft Certificate Enrollment Web Services
   - Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM
-  - Generic ACME protocol handler supporting Letsencrypt, BuyPass.com and ZeroSSL
+  - OpenSSL
+  - OpenXPKI
   - XCA
-  - acme2dfn (external; ACME proxy for the German research network's SOAP API)
 
 For more up-to-date information and further documentation, please visit the project's
 home page at: https://github.com/grindsa/acme2certifier

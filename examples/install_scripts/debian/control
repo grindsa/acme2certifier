@@ -15,4 +15,27 @@ Depends: ${misc:Depends}, tzdata, python3-setuptools, python3-jwcrypto, python3-
 Recommends: python3-requests-gssapi
 Description: Library implementing ACME server functionality
  acme2certifier is development project to create an ACME protocol proxy. Main intention is to provide ACME services on CA servers which do not support this protocol yet.
+ As of today the following handlers are available:
+
+ - DigiCert® CertCentral
+ - Dogtag Certificate System
+ - Entrust ECS Enterprise
+ - Keyfactor EJBCA
+ - Generic ACME protocol handler supporting Letsencrypt, BuyPass.com and ZeroSSL and others
+ - Generic EST protocol handler
+ - Generic CMPv2 protocol handler
+ - FreeIPA
+ - Hashicorp Vault
+ - Insta ActiveCMS
+ - Insta Certifier
+ - Microsoft Certificate Enrollment Web Services
+ - Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)
+ - NetGuard Certificate Manager
+ - NetGuard Certificate Lifecycle Manager
+ - Microsoft Certificate Enrollment Web Services
+ - Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE) via RPC/DCOM
+ - OpenSSL
+ - OpenXPKI
+ - XCA
+
  After installation remember to install either NGINX or apache2!
