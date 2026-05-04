@@ -645,7 +645,7 @@ class Account:
         account_obj = self._lookup_account_by_name(account_name)
         if account_obj:
             data = self._build_account_info(account_obj)
-            return self._build_response(200, None, data)
+            return self._build_response(200, account_name, data)
         return self._build_response(
             400, self.err_msg_dic["accountdoesnotexist"], "Account not found"
         )
