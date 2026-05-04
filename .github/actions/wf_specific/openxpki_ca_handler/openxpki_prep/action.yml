@@ -37,8 +37,10 @@ runs:
     run: |
       git clone https://github.com/openxpki/openxpki-docker.git
       cd openxpki-docker/
-      git clone https://github.com/openxpki/openxpki-config.git  --single-branch --branch=community
-
+      git clone https://github.com/openxpki/openxpki-config.git  --single-branch --branch v3.32.9 --branch=community
+      cd openxpki-config/
+      git checkout 0eaad6f198b30b2b2ed84685914aa0442f34771e
+      cd ..
       # modify configuration according to our needs
       sed -i "s/value: 0/value: 1/g" openxpki-config/config.d/realm/democa/est/default.yaml
       sed -i "s/approval_points: 1/approval_points: 0/g" openxpki-config/config.d/realm/democa/est/default.yaml
