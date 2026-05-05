@@ -1,27 +1,11 @@
 name: Deployment Tests - Update images on dockerhub and ghcr.io
 on:
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to run the workflow on'
-        required: true
-        default: 'main'
-      run_id:
-        description: 'Run ID of the producing workflow'
-        required: true
-        default: '0'
-      sha:
-        description: 'SHA of the commit to run the workflow on'
-        required: true
-        default: ''
-      called_by_workflow:
-        description: 'Name of the producing workflow'
-        required: true
-        default: 'manual-trigger'
-      full_ref:
-        description: 'Full git ref of the commit to run the workflow on'
-        required: false
-        default: ''
+  push:
+    branches: [ "master" ]       # Execute on master only
+  workflow_dispatch: {}
+  schedule:
+    - cron: '0 01 * * 6'  # Every Saturday morning
+
 jobs:
 
   # ---------------------------------------------------------
