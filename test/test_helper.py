@@ -150,6 +150,8 @@ class TestACMEHandler(unittest.TestCase):
             handler_config_check,
             pkcs7_to_pem,
             config_dryrun_load,
+            is_ip_whitelisted,
+            config_allowed_iplist_load,
         )
 
         self.logger = logging.getLogger("test_a2c")
@@ -268,6 +270,8 @@ class TestACMEHandler(unittest.TestCase):
         self.pkcs7_to_pem = pkcs7_to_pem
         self.dir_path = os.path.dirname(os.path.realpath(__file__))
         self.config_dryrun_load = config_dryrun_load
+        self.is_ip_whitelisted = is_ip_whitelisted
+        self.config_allowed_iplist_load = config_allowed_iplist_load
 
     def test_001_helper_b64decode_pad(self):
         """test b64decode_pad() method with a regular base64 encoded string"""
@@ -6438,6 +6442,121 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
                 "WARNING:test_a2c:Dryrun profile name not set in configuration, please set dryrun_profile parameter",
                 lcm.output[0],
             )
+
+    def test_527_is_ip_whitelisted_empty(self):
+        """Test is_ip_whitelisted with empty IP list."""
+        self.assertFalse(self.is_ip_whitelisted(self.logger, "1.2.3.4", []))
+
+    def test_528_is_ip_whitelisted_noip(self):
+        """Test is_ip_whitelisted with no IP provided."""
+        self.assertFalse(
+            self.is_ip_whitelisted(
+                self.logger, "", ["10.0.0.1/8", "172.16.0.1/32", "192.168.123.1"]
+            )
+        )
+
+    def test_529_is_ip_whitelisted_invalid(self):
+        """Test is_ip_whitelisted with invalid IP list."""
+        self.assertFalse(
+            self.is_ip_whitelisted(
+                self.logger,
+                "10.0.aa.0",
+                ["10.0.0.1/8", "172.16.0.1/32", "192.168.123.1"],
+            )
+        )
+
+    def test_530_is_ip_whitelisted_invalid(self):
+        """Test is_ip_whitelisted with invalid IP list."""
+        self.assertFalse(
+            self.is_ip_whitelisted(
+                self.logger,
+                "10.0.0.300",
+                ["10.0.0.1/8", "172.16.0.1/32", "192.168.123.1"],
+            )
+        )
+
+    def test_531_is_ip_whitelisted_no_match(self):
+        """Test is_ip_whitelisted with no matching IP."""
+        self.assertFalse(
+            self.is_ip_whitelisted(
+                self.logger,
+                "10.1.0.1",
+                ["10.0.0.1/16", "172.16.0.1/32", "192.168.123.1"],
+            )
+        )
+
+    def test_532_is_ip_whitelisted_exact_match(self):
+        """Test is_ip_whitelisted with exact matching IP."""
+        self.assertTrue(
+            self.is_ip_whitelisted(
+                self.logger,
+                "192.168.123.1",
+                ["10.0.0.1/8", "172.16.0.1/32", "192.168.123.1"],
+            )
+        )
+
+    def test_533_is_ip_whitelisted_cidr_match(self):
+        """Test is_ip_whitelisted with CIDR matching IP."""
+        self.assertTrue(
+            self.is_ip_whitelisted(
+                self.logger,
+                "10.0.20.1",
+                ["10.0.0.1/8", "172.16.0.1/32", "192.168.123.1"],
+            )
+        )
+
+    def test_534_is_ip_whitelisted_cidr_32match(self):
+        """Test is_ip_whitelisted with CIDR /32 matching IP."""
+        self.assertTrue(
+            self.is_ip_whitelisted(
+                self.logger,
+                "172.16.0.1",
+                ["10.0.0.1/8", "172.16.0.1/32", "192.168.123.1"],
+            )
+        )
+
+    def test_535_is_ip_whitelisted_invalid_network(self):
+        """Test is_ip_whitelisted with invalid network."""
+        with self.assertLogs(self.logger, level="ERROR") as lcm:
+            self.assertTrue(
+                self.is_ip_whitelisted(
+                    self.logger,
+                    "172.16.0.1",
+                    ["10.300.0.0/8", "172.16.0.1/32", "192.168.123.1"],
+                )
+            )
+        self.assertIn(
+            "ERROR:test_a2c:Invalid network entry in allowed_iplist: 10.300.0.0/8",
+            lcm.output[0],
+        )
+
+    def test_535_config_allowed_iplist_load(self):
+        """test config_allowed_iplist_load()"""
+        config_dic = {"Order": {"allowed_iplist": '["foo", "bar", "foobar"]'}}
+        self.assertEqual(
+            ["foo", "bar", "foobar"],
+            self.config_allowed_iplist_load(self.logger, config_dic),
+        )
+
+    def test_536_config_allowed_iplist_load(self):
+        """test config_allowed_iplist_load()"""
+        config_dic = {"Order": {"allowed_iplist": '["foo"]'}}
+        self.assertEqual(
+            ["foo"], self.config_allowed_iplist_load(self.logger, config_dic)
+        )
+
+    def test_537_config_allowed_iplist_load(self):
+        """test config_allowed_iplist_load()"""
+        config_dic = {"Order": {"allowed_iplist": "foo"}}
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.assertEqual(
+                "failed to parse",
+                self.config_allowed_iplist_load(self.logger, config_dic),
+            )
+        self.assertIn(
+            "WARNING:test_a2c:Failed to load allowed_iplist from configuration: Expecting value: line 1 column 1 (char 0)",
+            lcm.output,
+        )
 
 
 if __name__ == "__main__":
