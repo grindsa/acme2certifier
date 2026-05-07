@@ -4,6 +4,7 @@ import logging
 from typing import List, Tuple
 import idna
 from .csr import csr_san_get, csr_cn_get
+from .validation import validate_ip, validate_network
 
 
 def encode_domain(logger, domain: str) -> bytes:
@@ -65,6 +66,26 @@ def pattern_check(logger, domain, pattern):
 
     logger.debug("Helper.pattern_check() ended with %s", result)
     return result
+
+
+def is_ip_whitelisted(logger, ip_address, ip_network_list):
+    """check if an ip address is in a list of ip networks"""
+    logger.debug("Helper.is_ip_whitelisted(%s, %s)", ip_address, ip_network_list)
+    try:
+        ip = validate_ip(logger, ip_address, raw=True)
+    except ValueError:
+        return False
+
+    for net_str in ip_network_list:
+        try:
+            network = validate_network(logger, net_str)
+        except ValueError:
+            logger.error(f"Invalid network entry in allowed_iplist: {net_str}")
+            continue  # Ignore invalid network entries
+        if ip in network:
+            return True
+
+    return False
 
 
 def is_domain_whitelisted(
