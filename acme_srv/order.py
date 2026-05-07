@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from acme_srv.helper import (
     b64_url_recode,
     config_allowed_domainlist_load,
+    config_allowed_iplist_load,
     config_profile_load,
     error_dic_get,
     generate_random_string,
@@ -19,6 +20,7 @@ from acme_srv.helper import (
     is_domain_whitelisted,
     config_eab_profile_load,
     config_dryrun_load,
+    is_ip_whitelisted,
 )
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
@@ -158,6 +160,7 @@ class OrderConfiguration:
     profiles_check_disable: bool = True
     idempotent_finalize: bool = False
     allowed_domainlist: List[str] = field(default_factory=list)
+    allowed_iplist: List[str] = field(default_factory=list)
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
     dryrun_profilename: Optional[str] = None
@@ -542,6 +545,8 @@ class Order(object):
         self.config.allowed_domainlist = config_allowed_domainlist_load(
             self.logger, config_dic
         )
+        # load allowed iplist
+        self.config.allowed_iplist = config_allowed_iplist_load(self.logger, config_dic)
         # load profiling
         (
             self.config.eab_profiling,
@@ -643,6 +648,23 @@ class Order(object):
             return (
                 self.error_msg_dic["rejectedidentifier"],
                 f'FQDN/SAN {identifier["value"]} not allowed by configuration',
+            )
+        elif (
+            id_type == "ip"
+            and self.config.allowed_iplist
+            and not is_ip_whitelisted(
+                self.logger,
+                identifier["value"],
+                self.config.allowed_iplist,
+            )
+        ):
+            self.logger.error(
+                "IP address %s not allowed by configuration",
+                identifier["value"],
+            )
+            return (
+                self.error_msg_dic["rejectedidentifier"],
+                f'IP address {identifier["value"]} not allowed by configuration',
             )
         return None, None
 
