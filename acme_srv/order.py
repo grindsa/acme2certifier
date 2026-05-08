@@ -325,26 +325,16 @@ class Order(object):
         try:
             with self.config.eab_handler(self.logger) as eab_handler:
                 profile_dic = eab_handler.key_file_load()
-                allowed_domainlist = (
-                    profile_dic.get(eab_kid, {})
-                    .get("order", {})
-                    .get("allowed_domainlist")
+                # load allowed_iplist and allowed_domainlist from eab profile if specified
+                self.config.allowed_iplist = self._load_eab_profile_param(
+                    profile_dic, eab_kid, "allowed_iplist", self.config.allowed_iplist
                 )
-                if not allowed_domainlist:
-                    allowed_domainlist = (
-                        profile_dic.get(eab_kid, {})
-                        .get("cahandler", {})
-                        .get("allowed_domainlist")
-                    )
-                    if allowed_domainlist:
-                        self.logger.warning(
-                            "allowed_domainlist parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section"
-                        )
-                if allowed_domainlist:
-                    self.logger.debug(
-                        "Order._apply_eab_profile() - apply allowed_domainlist from eab profile."
-                    )
-                    self.config.allowed_domainlist = allowed_domainlist
+                self.config.allowed_domainlist = self._load_eab_profile_param(
+                    profile_dic,
+                    eab_kid,
+                    "allowed_domainlist",
+                    self.config.allowed_domainlist,
+                )
         except Exception as err:
             self.logger.error(
                 "Failed to process EAB profile for Account %s (kid: %s): %s",
@@ -389,6 +379,28 @@ class Order(object):
 
         self.logger.debug("Order.create_order() ended")
         return (error, detail, order_name, auth_dic, uts_to_date_utc(expires))
+
+    def _load_eab_profile_param(self, profile_dic, eab_kid, param_name, default=None):
+        """Helper to load allowed_iplist or allowed_domainlist from EAB profile."""
+        # Try order section first
+        value = profile_dic.get(eab_kid, {}).get("order", {}).get(param_name, default)
+        if not value:
+            # Try cahandler section for backward compatibility
+            value = (
+                profile_dic.get(eab_kid, {})
+                .get("cahandler", {})
+                .get(param_name, default)
+            )
+            if value:
+                self.logger.warning(
+                    "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
+                    param_name,
+                )
+        if value:
+            self.logger.debug(
+                "Order._apply_eab_profile() - apply %s from eab profile.", param_name
+            )
+        return value
 
     def _load_header_info_config(self, config_dic: Dict[str, str]):
         """Load header info list from config file."""
