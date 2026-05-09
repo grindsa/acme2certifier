@@ -203,7 +203,7 @@ jobs:
       - name: "Reconfigure allowed_iplist"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nallowed_iplist: \[\"10.0.0.0\/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"\]\n/g" data/volume/acme_srv.cfg
+          sudo sed -i "s#tnauthlist_support: False#tnauthlist_support: False\nallowed_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]\n#g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c"
         run: |
