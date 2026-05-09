@@ -47,7 +47,7 @@ jobs:
   test-containers:
     needs: guard
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier'
+    if: github.repository == 'grindsa/acme2certifier1'
     strategy:
       fail-fast: false
       matrix:
@@ -200,6 +200,23 @@ jobs:
         env:
           RUNNER_IP: ${{ env.RUNNER_IP }}
 
+      - name: "Reconfigure allowed_iplist"
+        run: |
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nallowed_iplist: \[\"10.0.0.0\/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]\n/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      # - name: "Test enrollment"
+      #   uses: ./.github/actions/acme_clients
+
+      - name: "Enroll HTTP-01 single domain and ip address with new allowed_iplist"
+        uses: ./.github/actions/wf_specific/ipaddress/enroll
+
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
@@ -227,7 +244,7 @@ jobs:
   test-deb:
     needs: guard
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier'
+    if: github.repository == 'grindsa/acme2certifier1'
     strategy:
       fail-fast: false
       matrix:
