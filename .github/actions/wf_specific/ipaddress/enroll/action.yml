@@ -69,9 +69,11 @@ runs:
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           echo "container deployment"
-          docker compose logs | grep "'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'IP address 172.16.0.1 not allowed by configuration'"
+          docker compose logs | grep "urn:ietf:params:acme:error:rejectedIdentifier"
+          docker compose logs | grep "IP address 172.16.0.1 not allowed by configuration"
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'IP address 172.16.0.1 not allowed by configuration'"
+          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "urn:ietf:params:acme:error:rejectedIdentifier"
+          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "IP address 172.16.0.1 not allowed by configuration"
         fi
       shell: bash
       env:
