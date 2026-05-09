@@ -21,7 +21,8 @@ runs:
 
     - name: "Create lego folder"
       run: |
-        mkdir lego
+        sudo rm -rf lego
+        mkdir -p lego
       shell: bash
 
     - name: "Test http://acme-srv/directory is accessible"
