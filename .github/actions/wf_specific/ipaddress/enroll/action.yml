@@ -9,6 +9,10 @@ inputs:
     description: "Path to CA certificates"
     required: false
     default: "examples/Docker/data/acme_ca/"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: true
+    default: "container"
 
 runs:
   using: "composite"
@@ -59,3 +63,16 @@ runs:
         echo "enroll_fail01 outcome is ${{steps.enroll_fail01.outcome }}"
         exit 1
       shell: bash
+
+    - name: "Check logs missing profile"
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          echo "container deployment"
+          docker compose logs | grep "urn:ietf:params:acme:error:rejectedIdentifier :: IP address 172.16.0.1 not allowed by configuration"
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "urn:ietf:params:acme:error:rejectedIdentifier :: IP address 172.16.0.1 not allowed by configuration"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
