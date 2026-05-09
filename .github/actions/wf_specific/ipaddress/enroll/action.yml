@@ -1,0 +1,85 @@
+name: "ipaddress - enroll clients"
+description: "Test ipaddress feature - enroll certificates for IP addresses"
+inputs:
+  ACME_SERVER:
+    description: "ACME server URL"
+    required: true
+    default: "acme-srv"
+  CA_PATH:
+    description: "Path to CA certificates"
+    required: false
+    default: "examples/Docker/data/acme_ca/"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: true
+    default: "container"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "Sleep for 10s"
+      uses: grindsa/sleep-action@master
+      with:
+        time: 10s
+
+    - name: "Create lego folder"
+      run: |
+        sudo rm -rf lego
+        mkdir -p lego
+      shell: bash
+
+    - name: "Test http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl -f http://$ACME_SERVER/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Test if https://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://$ACME_SERVER/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Enroll lego works for IP addresses"
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme -d 10.0.0.1 -d 172.0.0.1 --http run
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Enroll lego fails for IP addresses not allowed"
+      id: enroll_fail01
+      continue-on-error: true
+      run: |
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme -d 10.0.0.1 -d 172.16.0.1 --http run
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Check result"
+      if: steps.enroll_fail01.outcome != 'failure'
+      run: |
+        echo "enroll_fail01 outcome is ${{steps.enroll_fail01.outcome }}"
+        exit 1
+      shell: bash
+
+    - name: "Sleep for 10s"
+      uses: grindsa/sleep-action@master
+      with:
+        time: 10s
+
+    - name: "Check logs missing profile"
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          echo "container deployment"
+          docker compose logs | grep "urn:ietf:params:acme:error:rejectedIdentifier"
+          docker compose logs | grep "IP address 172.16.0.1 not allowed by configuration"
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "urn:ietf:params:acme:error:rejectedIdentifier"
+          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "IP address 172.16.0.1 not allowed by configuration"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
