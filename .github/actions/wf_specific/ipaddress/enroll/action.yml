@@ -64,6 +64,11 @@ runs:
         exit 1
       shell: bash
 
+    - name: "Sleep for 10s"
+      uses: grindsa/sleep-action@master
+      with:
+        time: 10s
+
     - name: "Check logs missing profile"
       working-directory: examples/Docker/
       run: |
