@@ -355,7 +355,7 @@ jobs:
       - name: "Enroll HTTP-01 single domain and ip address with new allowed_iplist"
         uses: ./.github/actions/wf_specific/ipaddress/enroll
         with:
-          DEPLOYMENT_TYPE: "rpm"
+          DEPLOYMENT_TYPE: "deb"
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
