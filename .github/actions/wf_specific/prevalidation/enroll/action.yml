@@ -77,7 +77,7 @@ runs:
       env:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
-    - name: "Enroll lego with only domain prevalidation"
+    - name: "Enroll lego with domain prevalidation and resolvable domain"
       if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
       run: |
         sudo rm -rf lego/*
@@ -98,6 +98,32 @@ runs:
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
           docker exec -i acme-srv tail -n 700 /var/log/messages | grep "Domain lego-02.foo.local is preauthorized, setting authorization status to 'valid'"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Enroll lego with only domain prevalidation"
+      if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego-03.foo.local --http run
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check logs "
+      if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          echo "container deployment"
+          docker compose logs | grep "Domain lego-03.foo.local is preauthorized, setting authorization status to 'valid'"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "Domain lego-03.foo.local is preauthorized, setting authorization status to 'valid'"
         fi
       shell: bash
       env:
