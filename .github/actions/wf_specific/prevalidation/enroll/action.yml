@@ -29,7 +29,8 @@ runs:
 
     - name: "Create lego folder"
       run: |
-        mkdir lego
+        rm -rf lego/*
+        mkdir -p lego
       shell: bash
 
     - name: "Test http://acme-srv/directory is accessible"
@@ -52,5 +53,5 @@ runs:
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         CA_PATH: ${{ inputs.CA_PATH }}
-        NAME_SPACE: ${{ inputs.NAMESPACE }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
