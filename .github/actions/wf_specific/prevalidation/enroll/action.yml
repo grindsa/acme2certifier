@@ -66,10 +66,12 @@ runs:
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           echo "container deployment"
-          docker compose logs | grep "xxx"
-          # sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+          docker compose logs | grep "Domain lego.foo.local is preauthorized, setting authorization status to 'valid'"
+          docker compose logs | grep "IP 10.0.0.1 is preauthorized, setting authorization status to 'valid'"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "enabling dryrun mode for profile: dry-run"
+          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "Domain lego.foo.local is preauthorized, setting authorization status to 'valid'"
+          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "IP 10.0.0.1 is preauthorized, setting authorization status to 'valid'"
         fi
       shell: bash
       env:
