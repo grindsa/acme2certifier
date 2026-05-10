@@ -33,7 +33,6 @@ runs:
 
     - name: "Create lego folder"
       run: |
-        rm -rf lego/*
         mkdir -p lego
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       shell: bash
@@ -50,10 +49,11 @@ runs:
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
-    - name: "Enroll lego"
+    - name: "Enroll lego with both ip and domain prevalidation"
       if: ${{ inputs.PREVALIDATED == 'both' }}
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme -d lego.foo.local -d 172.0.0.1 -d 10.0.0.1 --http run
+        rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme -d lego-01.foo.local -d 172.0.0.1 -d 10.0.0.1 --http run
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -66,12 +66,38 @@ runs:
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           echo "container deployment"
-          docker compose logs | grep "Domain lego.foo.local is preauthorized, setting authorization status to 'valid'"
+          docker compose logs | grep "Domain lego-01.foo.local is preauthorized, setting authorization status to 'valid'"
           docker compose logs | grep "IP 10.0.0.1 is preauthorized, setting authorization status to 'valid'"
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
           docker exec -i acme-srv tail -n 700 /var/log/messages | grep "Domain lego.foo.local is preauthorized, setting authorization status to 'valid'"
           docker exec -i acme-srv tail -n 700 /var/log/messages | grep "IP 10.0.0.1 is preauthorized, setting authorization status to 'valid'"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Enroll lego with only domain prevalidation"
+      if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
+      run: |
+        rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme -d lego-02.foo.local --http run
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check logs "
+      if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          echo "container deployment"
+          docker compose logs | grep "Domain lego-02.foo.local is preauthorized, setting authorization status to 'valid'"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 700 /var/log/messages | grep "Domain lego-02.foo.local is preauthorized, setting authorization status to 'valid'"
         fi
       shell: bash
       env:
