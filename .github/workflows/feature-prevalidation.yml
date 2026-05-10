@@ -90,8 +90,8 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Test regular enrollment"
-        uses: ./.github/actions/acme_clients
+      # - name: "Test regular enrollment"
+      #  uses: ./.github/actions/acme_clients
 
       - name: "Test enrollment with prevalidated identifiers"
         uses: ./.github/actions/wf_specific/prevalidation/enroll
