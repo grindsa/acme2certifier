@@ -97,7 +97,7 @@ jobs:
         uses: ./.github/actions/wf_specific/prevalidation/enroll
         with:
           PREVALIDATED: "both"
-
+          DEPLOYMENT_TYPE: "container"
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}

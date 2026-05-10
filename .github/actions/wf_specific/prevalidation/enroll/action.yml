@@ -17,6 +17,10 @@ inputs:
     description: "Whether to use prevalidation or not"
     required: false
     default: "both"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: true
+    default: "container"
 
 runs:
   using: "composite"
@@ -62,8 +66,8 @@ runs:
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
           echo "container deployment"
-          docker compose logs | grep "enabling dryrun mode for profile: dry-run"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+          docker compose logs | grep "xxx"
+          # sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
           docker exec -i acme-srv tail -n 700 /var/log/messages | grep "enabling dryrun mode for profile: dry-run"
         fi
