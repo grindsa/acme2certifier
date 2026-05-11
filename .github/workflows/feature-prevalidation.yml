@@ -142,7 +142,7 @@ jobs:
           sudo sed -i 's#"prevalidated_domainlist": *\["www.example.com", "www.example.org"\]#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"]\n    }#g' examples/Docker/data/kid_profiles.json
           sudo sed -i "s/example.net/acme.local/g" examples/Docker/data/kid_profiles.json
           sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' examples/Docker/data/kid_profiles.json
-          sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' examples/Docker/data/kid_profiles.json
+          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' examples/Docker/data/kid_profiles.json
           sudo sed -i '30,35d' examples/Docker/data/kid_profiles.json
           sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
           sudo sed -i '17,18d' examples/Docker/data/kid_profiles.json
