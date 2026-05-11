@@ -124,6 +124,36 @@ jobs:
           PREVALIDATED: "ip"
           DEPLOYMENT_TYPE: "container"
 
+      - name: "Setup openssl ca_handler with eab-profiling support"
+        run: |
+          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+
+          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+          sudo chmod 777 examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/cahandler/authorization/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_iplist\": [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]#g" examples/Docker/data/kid_profiles.json
+          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"],#g' examples/Docker/data/kid_profiles.json
+          sudo sed -i 's#"prevalidated_domainlist": *\["www.example.com", "www.example.org"\]#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"]\n    }#g' examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/example.net/acme.local/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' examples/Docker/data/kid_profiles.json
+          sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' examples/Docker/data/kid_profiles.json
+          sudo sed -i '30,35d' examples/Docker/data/kid_profiles.json
+          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
+          sudo sed -i '17,18d' examples/Docker/data/kid_profiles.json
+          sudo sed -i '15,15d' examples/Docker/data/kid_profiles.json
+          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+          cat examples/Docker/data/kid_profiles.json
+
+          cd examples/Docker/
+          docker compose restart
+
+
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
