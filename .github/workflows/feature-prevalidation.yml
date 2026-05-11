@@ -93,7 +93,7 @@ jobs:
       # - name: "Test regular enrollment"
       #  uses: ./.github/actions/acme_clients
 
-      - name: "Test enrollment with prevalidated identifiers"
+      - name: "Test enrollment with prevalidated identifiers (both domain and ip)"
         uses: ./.github/actions/wf_specific/prevalidation/enroll
         with:
           PREVALIDATED: "both"
@@ -105,10 +105,23 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
-      - name: "Test enrollment with prevalidated identifiers"
+      - name: "Test enrollment with prevalidated identifiers (domain only)"
         uses: ./.github/actions/wf_specific/prevalidation/enroll
         with:
           PREVALIDATED: "domain"
+          DEPLOYMENT_TYPE: "container"
+
+      - name: "Setup openssl ca_handler with ip prevalidation support"
+        run: |
+          sudo sed -i "s/# prevalidated_iplist/prevalidated_iplist/g" examples/Docker/data/ca_handler.py
+          sudo sed -i "s/prevalidated_domainlist/# prevalidated_domainlist/g" examples/Docker/data/ca_handler.py
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Test enrollment with prevalidated identifiers (ip only)"
+        uses: ./.github/actions/wf_specific/prevalidation/enroll
+        with:
+          PREVALIDATED: "ip"
           DEPLOYMENT_TYPE: "container"
 
       - name: "[ * ] Collecting test logs"
