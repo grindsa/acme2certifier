@@ -74,7 +74,7 @@ jobs:
           CONTAINER_BUILD: false
           NAME_SPACE: acme
 
-      - name: "Setup openssl ca_handler"
+      - name: "Setup openssl ca_handler with domain and ip prevalidation support"
         run: |
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
@@ -97,6 +97,18 @@ jobs:
         uses: ./.github/actions/wf_specific/prevalidation/enroll
         with:
           PREVALIDATED: "both"
+          DEPLOYMENT_TYPE: "container"
+
+      - name: "Setup openssl ca_handler with domain prevalidation support"
+        run: |
+          sudo sed -i "s/prevalidated_iplist/# prevalidated_iplist/g" examples/Docker/data/ca_handler.py
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Test enrollment with prevalidated identifiers"
+        uses: ./.github/actions/wf_specific/prevalidation/enroll
+        with:
+          PREVALIDATED: "domain"
           DEPLOYMENT_TYPE: "container"
 
       - name: "[ * ] Collecting test logs"
