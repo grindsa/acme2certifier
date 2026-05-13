@@ -62,4 +62,4 @@ runs:
 #    run: |
 #      echo "legofail outcome is ${{steps.legofail01.outcome }}"
 #      exit 1
-    shell: bash
+#    shell: bash
