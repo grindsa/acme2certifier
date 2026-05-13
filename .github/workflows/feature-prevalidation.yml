@@ -237,7 +237,7 @@ jobs:
 
       - name: "Setup openssl ca_handler with domain prevalidation support"
         run: |
-          sudo sed -i "s/prevalidated_iplist/# prevalidated_iplist/g" ddata/volume/acme_srv.cfg
+          sudo sed -i "s/prevalidated_iplist/# prevalidated_iplist/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c"
         run: |
