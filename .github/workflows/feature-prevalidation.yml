@@ -149,7 +149,6 @@ jobs:
           sudo sed -i '15,15d' examples/Docker/data/kid_profiles.json
           sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
-          cat examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
 

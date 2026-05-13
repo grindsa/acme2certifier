@@ -55,7 +55,7 @@ runs:
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego:v4.35.2 --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme1 -d lego01.acme.local -d 10.0.0.1 --http run
     shell: bash
 
-  - name: "EAB - 00f - check  result "
+  - name: "EAB - 00f - check  result"
     if: steps.legofail00-01.outcome != 'failure'
     run: |
       echo "legofail outcome is ${{steps.legofail00-01.outcome }}"
@@ -70,9 +70,29 @@ runs:
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego:v4.35.2 --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d 172.16.0.2 -d lego01.acme.local -d 10.0.0.1 --http run
     shell: bash
 
-  - name: "EAB - 00g - check  result "
+  - name: "EAB - 00g - check  result"
     if: steps.legofail00-02.outcome != 'failure'
     run: |
       echo "legofail outcome is ${{steps.legofail00-02.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 01a - Enroll lego with prevalidated domain and valid domain (to succeed)"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego:v4.35.2 --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d lego.acme -d lego01.acme.local --http run
+    shell: bash
+
+  - name: "EAB - 01b - Enroll lego with prevalidated domain and invalid domain (to succeed)"
+    id: legofail01-01
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego:v4.35.2 --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d lego.acme1 -d lego01.acme.local --http run
+    shell: bash
+
+  - name: "EAB - 01b - check  result"
+    if: steps.legofail01-01.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail01-01.outcome }}"
       exit 1
     shell: bash
