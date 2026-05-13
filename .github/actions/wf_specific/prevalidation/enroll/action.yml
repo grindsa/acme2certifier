@@ -64,6 +64,11 @@ runs:
         CA_PATH: ${{ inputs.CA_PATH }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
+    - name: "Sleep for 5s"
+      uses: grindsa/sleep-action@master
+      with:
+        time: 5s
+
     - name: "Check logs "
       if: ${{ inputs.PREVALIDATED == 'both' }}
       working-directory: examples/Docker/
@@ -94,6 +99,11 @@ runs:
         CA_PATH: ${{ inputs.CA_PATH }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
+    - name: "Sleep for 5s"
+      uses: grindsa/sleep-action@master
+      with:
+        time: 5s
+
     - name: "Check  result "
       if: ${{ (inputs.PREVALIDATED == 'both') && steps.lego-both-fail01.outcome != 'failure' }}
       run: |
@@ -111,6 +121,11 @@ runs:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         CA_PATH: ${{ inputs.CA_PATH }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Sleep for 5s"
+      uses: grindsa/sleep-action@master
+      with:
+        time: 5s
 
     - name: "Check logs "
       if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
@@ -137,6 +152,11 @@ runs:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         CA_PATH: ${{ inputs.CA_PATH }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Sleep for 5s"
+      uses: grindsa/sleep-action@master
+      with:
+        time: 5s
 
     - name: "Check logs "
       if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
@@ -183,6 +203,11 @@ runs:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         CA_PATH: ${{ inputs.CA_PATH }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Sleep for 5s"
+      uses: grindsa/sleep-action@master
+      with:
+        time: 5s
 
     - name: "Check logs "
       if: ${{ inputs.PREVALIDATED == 'both'  || inputs.PREVALIDATED == 'ip' }}
