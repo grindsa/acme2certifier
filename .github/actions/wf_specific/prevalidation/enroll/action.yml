@@ -64,10 +64,10 @@ runs:
         CA_PATH: ${{ inputs.CA_PATH }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Sleep for 5s"
+    - name: "Sleep for 10s"
       uses: grindsa/sleep-action@master
       with:
-        time: 5s
+        time: 10s
 
     - name: "Check logs "
       if: ${{ inputs.PREVALIDATED == 'both' }}
@@ -99,10 +99,10 @@ runs:
         CA_PATH: ${{ inputs.CA_PATH }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Sleep for 5s"
+    - name: "Sleep for 10s"
       uses: grindsa/sleep-action@master
       with:
-        time: 5s
+        time: 10s
 
     - name: "Check  result "
       if: ${{ (inputs.PREVALIDATED == 'both') && steps.lego-both-fail01.outcome != 'failure' }}
@@ -122,10 +122,10 @@ runs:
         CA_PATH: ${{ inputs.CA_PATH }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Sleep for 5s"
+    - name: "Sleep for 10s"
       uses: grindsa/sleep-action@master
       with:
-        time: 5s
+        time: 10s
 
     - name: "Check logs "
       if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
@@ -153,10 +153,10 @@ runs:
         CA_PATH: ${{ inputs.CA_PATH }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Sleep for 5s"
+    - name: "Sleep for 10s"
       uses: grindsa/sleep-action@master
       with:
-        time: 5s
+        time: 10s
 
     - name: "Check logs "
       if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
@@ -204,10 +204,10 @@ runs:
         CA_PATH: ${{ inputs.CA_PATH }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Sleep for 5s"
+    - name: "Sleep for 10s"
       uses: grindsa/sleep-action@master
       with:
-        time: 5s
+        time: 10s
 
     - name: "Check logs "
       if: ${{ inputs.PREVALIDATED == 'both'  || inputs.PREVALIDATED == 'ip' }}
