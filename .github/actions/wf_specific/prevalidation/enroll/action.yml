@@ -34,8 +34,12 @@ runs:
     - name: "Create lego folder"
       run: |
         mkdir -p lego
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        fi
       shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://$ACME_SERVER/directory
