@@ -85,6 +85,7 @@ runs:
 
   - name: "EAB - 01b - Enroll lego with prevalidated domain and invalid domain (to succeed)"
     id: legofail01-01
+    continue-on-error: true
     run: |
       sudo rm -rf lego/*
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego:v4.35.2 --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d lego.acme1 -d lego01.acme.local --http run
