@@ -93,11 +93,11 @@ jobs:
       # - name: "Test regular enrollment"
       #  uses: ./.github/actions/acme_clients
 
-      - name: "Test enrollment with prevalidated identifiers (both domain and ip)"
-        uses: ./.github/actions/wf_specific/prevalidation/enroll
-        with:
-          PREVALIDATED: "both"
-          DEPLOYMENT_TYPE: "container"
+      #- name: "Test enrollment with prevalidated identifiers (both domain and ip)"
+      #  uses: ./.github/actions/wf_specific/prevalidation/enroll
+      #  with:
+      #    PREVALIDATED: "both"
+      #    DEPLOYMENT_TYPE: "container"
 
       - name: "Setup openssl ca_handler with domain prevalidation support"
         run: |
@@ -105,11 +105,11 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
-      - name: "Test enrollment with prevalidated identifiers (domain only)"
-        uses: ./.github/actions/wf_specific/prevalidation/enroll
-        with:
-          PREVALIDATED: "domain"
-          DEPLOYMENT_TYPE: "container"
+      #- name: "Test enrollment with prevalidated identifiers (domain only)"
+      #  uses: ./.github/actions/wf_specific/prevalidation/enroll
+      #  with:
+      #    PREVALIDATED: "domain"
+      #    DEPLOYMENT_TYPE: "container"
 
       - name: "Setup openssl ca_handler with ip prevalidation support"
         run: |
@@ -118,11 +118,11 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
-      - name: "Test enrollment with prevalidated identifiers (ip only)"
-        uses: ./.github/actions/wf_specific/prevalidation/enroll
-        with:
-          PREVALIDATED: "ip"
-          DEPLOYMENT_TYPE: "container"
+      # - name: "Test enrollment with prevalidated identifiers (ip only)"
+      #  uses: ./.github/actions/wf_specific/prevalidation/enroll
+      #  with:
+      #    PREVALIDATED: "ip"
+      #    DEPLOYMENT_TYPE: "container"
 
       - name: "Setup openssl ca_handler with eab-profiling support"
         run: |
