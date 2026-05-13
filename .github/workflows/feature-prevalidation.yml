@@ -435,7 +435,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
           sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
           sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_file: \/var\/www\/acme2certifier\/examples\/ca_handler\/openssl_ca_handler.py/g" data/volume/acme_srv.cfg
           sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
