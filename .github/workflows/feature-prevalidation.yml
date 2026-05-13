@@ -151,6 +151,9 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
+      - name: "EAB Profiling - Test enrollment"
+        uses: ./.github/actions/wf_specific/prevalidation/enroll_eabprofile
+
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
