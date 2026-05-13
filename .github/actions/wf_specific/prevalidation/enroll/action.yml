@@ -103,6 +103,7 @@ runs:
 
     - name: "Sleep for 10s"
       uses: grindsa/sleep-action@master
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'rpm' }}
       with:
         time: 10s
 
@@ -126,6 +127,7 @@ runs:
 
     - name: "Sleep for 10s"
       uses: grindsa/sleep-action@master
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'rpm' }}
       with:
         time: 10s
 
@@ -157,6 +159,7 @@ runs:
 
     - name: "Sleep for 10s"
       uses: grindsa/sleep-action@master
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'rpm' }}
       with:
         time: 10s
 
