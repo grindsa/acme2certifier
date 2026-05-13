@@ -79,8 +79,8 @@ runs:
           docker compose logs | grep "IP 10.0.0.1 is preauthorized, setting authorization status to 'valid'"
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 1700 /var/log/messages | grep "Domain lego.foo.local is preauthorized, setting authorization status to 'valid'"
-          docker exec -i acme-srv tail -n 1700 /var/log/messages | grep "IP 10.0.0.1 is preauthorized, setting authorization status to 'valid'"
+          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "Domain lego.foo.local is preauthorized, setting authorization status to 'valid'"
+          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "IP 10.0.0.1 is preauthorized, setting authorization status to 'valid'"
         fi
       shell: bash
       env:
@@ -136,7 +136,7 @@ runs:
           docker compose logs | grep "Domain lego-02.foo.local is preauthorized, setting authorization status to 'valid'"
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 1700 /var/log/messages | grep "Domain lego-02.foo.local is preauthorized, setting authorization status to 'valid'"
+          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "Domain lego-02.foo.local is preauthorized, setting authorization status to 'valid'"
         fi
       shell: bash
       env:
@@ -167,7 +167,7 @@ runs:
           docker compose logs | grep "Domain lego-03.foo.local is preauthorized, setting authorization status to 'valid'"
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 1700 /var/log/messages | grep "Domain lego-03.foo.local is preauthorized, setting authorization status to 'valid'"
+          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "Domain lego-03.foo.local is preauthorized, setting authorization status to 'valid'"
         fi
       shell: bash
       env:
@@ -218,7 +218,7 @@ runs:
           docker compose logs | grep "IP 10.0.0.2 is preauthorized, setting authorization status to 'valid'"
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 1700 /var/log/messages | grep "IP 10.0.0.2 is preauthorized, setting authorization status to 'valid'"
+          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "IP 10.0.0.2 is preauthorized, setting authorization status to 'valid'"
         fi
       shell: bash
       env:
