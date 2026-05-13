@@ -67,7 +67,7 @@ runs:
     continue-on-error: true
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego:v4.35.2 --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d 192.168.1.1 -d lego01.acme.local -d 10.0.0.1 --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego:v4.35.2 --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d 172.16.0.2 -d lego01.acme.local -d 10.0.0.1 --http run
     shell: bash
 
   - name: "EAB - 00g - check  result "
