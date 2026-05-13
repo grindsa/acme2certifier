@@ -97,3 +97,84 @@ runs:
       echo "legofail outcome is ${{steps.legofail01-01.outcome }}"
       exit 1
     shell: bash
+
+  - name: "EAB - 01c - Enroll lego with prevalidated domain and invalid domain (to to fail)"
+    id: legofail01-02
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego:v4.35.2 --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d lego01.acme1 --http run
+    shell: bash
+
+  - name: "EAB - 01c - check  result"
+    if: steps.legofail01-02.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail01-02.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 01d - Enroll lego with prevalidated domain and invalid IP (to to fail)"
+    id: legofail01-03
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego:v4.35.2 --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d 172.0.0.1 --http run
+    shell: bash
+
+  - name: "EAB - 01d - check  result"
+    if: steps.legofail01-03.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail01-03.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 02a - Enroll lego with prevalidated domain and valid domain (to succeed)"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego:v4.35.2 --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme -d 192.168.1.1 --http run
+    shell: bash
+
+  - name: "EAB - 02b - Enroll lego with prevalidated domain and invalid domain (to fail)"
+    id: legofail02-01
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego:v4.35.2 --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme1 -d 192.168.1.1 --http run
+    shell: bash
+
+  - name: "EAB - 02b - check  result"
+    if: steps.legofail02-01.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail02-01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 02c - Enroll lego with prevalidated domain and invalid domain (to to fail)"
+    id: legofail02-02
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego:v4.35.2 --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d 172.0.0.2 --http run
+    shell: bash
+
+  - name: "EAB - 02c - check  result"
+    if: steps.legofail02-02.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail02-02.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 02d - Enroll lego with prevalidated domain and invalid IP (to to fail)"
+    id: legofail02-03
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego:v4.35.2 --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego-01.acme.local --http run
+    shell: bash
+
+  - name: "EAB - 02d - check  result"
+    if: steps.legofail02-03.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail02-03.outcome }}"
+      exit 1
+    shell: bash
