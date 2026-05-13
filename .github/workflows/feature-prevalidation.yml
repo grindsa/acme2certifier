@@ -392,7 +392,7 @@ jobs:
         uses: ./.github/actions/wf_specific/prevalidation/enroll
         with:
           PREVALIDATED: "both"
-          DEPLOYMENT_TYPE: "rpm"
+          DEPLOYMENT_TYPE: "deb"
 
       - name: "Setup openssl ca_handler with domain prevalidation support"
         run: |
@@ -409,7 +409,7 @@ jobs:
         uses: ./.github/actions/wf_specific/prevalidation/enroll
         with:
           PREVALIDATED: "domain"
-          DEPLOYMENT_TYPE: "rpm"
+          DEPLOYMENT_TYPE: "deb"
 
       - name: "Setup openssl ca_handler with ip prevalidation support"
         run: |
@@ -427,7 +427,7 @@ jobs:
         uses: ./.github/actions/wf_specific/prevalidation/enroll
         with:
           PREVALIDATED: "ip"
-          DEPLOYMENT_TYPE: "rpm"
+          DEPLOYMENT_TYPE: "deb"
 
       - name: "Setup openssl ca_handler with eab-profiling support"
         run: |
