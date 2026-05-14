@@ -410,7 +410,7 @@ runs:
       if: ${{ inputs.REVOCATION == 'true' }}
       run: |
         echo "##### HTTPS - Revoke lego #####"
-        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego certificates revoke --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT --email "lego@example.com"--cert.name lego$HOSTNAME_SUFFIX.$NAME_SPACE
+        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego certificates revoke --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT --email "lego@example.com" --cert.name lego$HOSTNAME_SUFFIX.$NAME_SPACE
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
