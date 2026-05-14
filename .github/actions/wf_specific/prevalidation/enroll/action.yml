@@ -57,7 +57,7 @@ runs:
       if: ${{ inputs.PREVALIDATED == 'both' }}
       run: |
         sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego:v4.35.2 --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme -d lego-01.foo.local -d 172.0.0.1 -d 10.0.0.1 --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme -d lego-01.foo.local -d 172.0.0.1 -d 10.0.0.1 --http
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -94,7 +94,7 @@ runs:
       continue-on-error: true
       run: |
         sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego:v4.35.2 --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego-01.acme -d lego-01.foo.local -d 172.0.0.2 -d 10.0.0.1 --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego-01.acme -d lego-01.foo.local -d 172.0.0.2 -d 10.0.0.1 --http
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -118,7 +118,7 @@ runs:
       if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
       run: |
         sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego:v4.35.2 --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme -d lego-02.foo.local --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme -d lego-02.foo.local --http
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -150,7 +150,7 @@ runs:
       if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
       run: |
         sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego:v4.35.2 --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego-03.foo.local --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego-03.foo.local --http
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -184,7 +184,7 @@ runs:
       continue-on-error: true
       run: |
         sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego:v4.35.2 --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego-04.acme -d lego-04.foo.local --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego-04.acme -d lego-04.foo.local --http
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -202,7 +202,7 @@ runs:
       if: ${{ inputs.PREVALIDATED == 'both' || inputs.PREVALIDATED == 'ip' }}
       run: |
         sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego:v4.35.2 --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d 10.0.0.2 --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d 10.0.0.2 --http
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -235,7 +235,7 @@ runs:
       continue-on-error: true
       run: |
         sudo rm -rf lego/*
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego:v4.35.2 --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d 172.0.0.2 -d 10.0.0.1 --http run
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d 172.0.0.2 -d 10.0.0.1 --http
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
