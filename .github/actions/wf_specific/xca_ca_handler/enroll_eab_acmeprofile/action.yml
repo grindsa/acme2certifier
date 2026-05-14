@@ -73,7 +73,7 @@ runs:
 
   - name: "EAB - 03 - Revoke lego with a profiled ca_name taken from kid.json"
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego revoke --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_01 --eab.hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d lego.acme
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_01 --eab.hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d lego.acme
     shell: bash
 
   - name: "EAB - 04 - Enroll lego with a not allowed fqdn in kid.json (to fail)"
