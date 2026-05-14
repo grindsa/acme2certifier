@@ -131,9 +131,9 @@ ______________________________________________________________________
 You can test your ACME server using the lego client:
 
 ```sh
-docker run -i -v /home/joern/data/lego:/.lego/ --network acme --rm --name lego goacme/lego \
+docker run -i -v /home/joern/data/lego:/.lego/ --network acme --rm --name lego goacme/lego run \
   -s http://acme-srv.acme -a --email "lego@example.com" \
-  -d lego.acme --key-type rsa2048 --tls-skip-verify --http run
+  -d lego.acme --key-type rsa2048 --tls-skip-verify --http
 ```
 
 ______________________________________________________________________
