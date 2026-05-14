@@ -50,7 +50,7 @@ profiles: {"vault-role1": "http://foo.bar/vault-role1", "vault-role2": "http://f
 Once enabled, a client can specify the cert_profile_name to be used as part of an order request. Below an example for lego:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile vault-role1
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http --profile vault-role1
 ```
 
 ## eab profiling
