@@ -380,12 +380,12 @@ jobs:
 
       - name: "Test enrollment"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
 
       - name: "Test renewal"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
       - name: "Update acme2certifier"
@@ -420,7 +420,7 @@ jobs:
 
       - name: "Test renewal again"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
           sudo rm -rf $(pwd)/lego
           sudo rm -rf $(pwd)/certbot
@@ -547,12 +547,12 @@ jobs:
 
       - name: "Test enrollment"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
 
       - name: "Test renewal"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
       - name: "Update acme2certifier"
@@ -587,7 +587,7 @@ jobs:
 
       - name: "Test renewal again"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
           sudo rm -rf $(pwd)/lego
           sudo rm -rf $(pwd)/certbot
@@ -711,12 +711,12 @@ jobs:
 
       - name: "Test enrollment"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
 
       - name: "Test renewal"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
       - name: "Update acme2certifier"
@@ -751,7 +751,7 @@ jobs:
 
       - name: "Test renewal again"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
           sudo rm -rf $(pwd)/lego
           sudo rm -rf $(pwd)/certbot
@@ -878,12 +878,12 @@ jobs:
 
       - name: "Test enrollment"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
 
       - name: "Test renewal"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
 
@@ -919,7 +919,7 @@ jobs:
 
       - name: "Test renewal again"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
           sudo rm -rf $(pwd)/lego
           sudo rm -rf $(pwd)/certbot
@@ -1045,12 +1045,12 @@ jobs:
 
       - name: "Test enrollment"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
 
       - name: "Test renewal"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
       - name: "Upgrade a2c"
@@ -1084,7 +1084,7 @@ jobs:
 
       - name: "Test renewal again"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
           sudo rm -rf $(pwd)/lego
           sudo rm -rf $(pwd)/certbot
@@ -1214,12 +1214,12 @@ jobs:
 
       - name: "Test enrollment"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
 
       - name: "Test renewal"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
       - name: "Upgrade a2c"
@@ -1253,7 +1253,7 @@ jobs:
 
       - name: "Test renewal again"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
           sudo rm -rf $(pwd)/lego
           sudo rm -rf $(pwd)/certbot
@@ -1397,12 +1397,12 @@ jobs:
 
       - name: "Test enrollment"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
 
       - name: "Test renewal"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
       - name: "Upgrade a2c"
@@ -1436,7 +1436,7 @@ jobs:
 
       - name: "Test renewal again"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
           sudo rm -rf $(pwd)/lego
           sudo rm -rf $(pwd)/certbot
@@ -1591,12 +1591,12 @@ jobs:
 
       - name: "Test enrollment"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http run
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot
 
       - name: "Test renewal"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
 
       - name: "Upgrade a2c"
@@ -1630,7 +1630,7 @@ jobs:
 
       - name: "Test renewal again"
         run: |
-          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http renew --days 364 --no-random-sleep
+          docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
           sudo rm -rf $(pwd)/lego
           sudo rm -rf $(pwd)/certbot
