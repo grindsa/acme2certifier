@@ -159,6 +159,7 @@ acme_srv/acme_srv.db.old.*
 *.key
 settings.json
 coverage.lcov
-
+.github/acme2certifier_cert.pem
+.github/acme2certifier_key.pem
 # apple stuff
 .DS_Store
