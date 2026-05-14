@@ -57,5 +57,5 @@ runs:
 
   - name: "Profile 102 - Revoke HTTP-01 single domain lego"
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme revoke
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego revoke --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme
     shell: bash

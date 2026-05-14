@@ -114,7 +114,7 @@ jobs:
 
       - name: "Revoke HTTP-01 single domain lego"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme revoke
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego revoke --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme
 
       - name: "Enroll HTTP-01 2x domain lego"
         run: |
@@ -128,7 +128,7 @@ jobs:
 
       - name: "Revoke HTTP-01 2x domain lego"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme revoke
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego revoke --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
@@ -218,7 +218,7 @@ jobs:
 
       - name: "Revoke HTTP-01 single domain lego"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme revoke
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego revoke --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme
 
       - name: "Enroll HTTP-01 2x domain lego"
         run: |
@@ -232,7 +232,7 @@ jobs:
 
       - name: "Revoke HTTP-01 2x domain lego"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme revoke
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego revoke --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -322,7 +322,7 @@ jobs:
 
       - name: "Revoke HTTP-01 single domain lego"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme revoke
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego revoke --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme
 
       - name: "Enroll HTTP-01 2x domain lego"
         run: |
@@ -336,7 +336,7 @@ jobs:
 
       - name: "Revoke HTTP-01 2x domain lego"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme revoke
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego revoke --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
