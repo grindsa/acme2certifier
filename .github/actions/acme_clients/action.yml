@@ -188,7 +188,7 @@ runs:
       if: ${{ inputs.REVOCATION == 'true' }}
       run: |
         echo "##### HTTPS - Revoke HTTP-01 single domain acme.sh #####"
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name acme-sh$HOSTNAME_SUFFIX --network $NAME_SPACE neilpang/acme.sh:latest --server https://$ACME_SERVER:$HTTPS_PORT --revoke -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --standalone --debug 2 --output-insecure  --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name acme-sh$HOSTNAME_SUFFIX --network $NAME_SPACE neilpang/acme.sh:latest --revoke --server https://$ACME_SERVER:$HTTPS_PORT -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --standalone --debug 2 --output-insecure  --insecure
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -274,7 +274,7 @@ runs:
       if: ${{ inputs.REVOCATION == 'true' }}
       run: |
         echo "##### HTTP - Revoke HTTP-01 single domain acme.sh #####"
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name acme-sh$HOSTNAME_SUFFIX --network $NAME_SPACE neilpang/acme.sh:latest --server http://$ACME_SERVER:$HTTP_PORT --revoke -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --standalone --debug 2 --output-insecure  --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name acme-sh$HOSTNAME_SUFFIX --network $NAME_SPACE neilpang/acme.sh:latest --revoke --server http://$ACME_SERVER:$HTTP_PORT -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --standalone --debug 2 --output-insecure  --insecure
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
