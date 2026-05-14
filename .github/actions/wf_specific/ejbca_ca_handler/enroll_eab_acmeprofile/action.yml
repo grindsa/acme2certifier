@@ -77,7 +77,7 @@ runs:
 
   - name: "EAB ACME Profile - 02 -  revoke profiled ca"
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --eab --eab.kid keyid_01 --eab.hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg revoke
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv --email "lego@example.com" --cert.name lego.acme --eab --eab.kid keyid_01 --eab.hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg
     shell: bash
 
   - name: "EAB ACME Profile - 03 - domainlist validation fails (to fail)"
