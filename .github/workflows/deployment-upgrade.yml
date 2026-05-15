@@ -122,6 +122,7 @@ jobs:
           git clone https://github.com/grindsa/acme2certifier.git /tmp/acme2certifier
           cd /tmp/acme2certifier
           git checkout 0.19.3
+          sudo sed -i "s/pyOpenssl/pyOpenssl==26.1.0/g" requirements.txt
           docker build -f examples/Docker/$WEBSRV/$DB_HANDLER/Dockerfile -t grindsa/acme2certifier:$VERSION-$WEBSRV-$DB_HANDLER .
         env:
           VERSION: "0.19.3"
