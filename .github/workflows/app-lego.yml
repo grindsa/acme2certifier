@@ -109,7 +109,7 @@ jobs:
 
       - name: "Renew HTTP-01 single domain lego"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http--no-random-sleep
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http --no-random-sleep
           sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
       - name: "Revoke HTTP-01 single domain lego"
@@ -123,7 +123,7 @@ jobs:
 
       - name: "Renew HTTP-01 2x domain lego"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http--no-random-sleep
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http --no-random-sleep
           sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
       - name: "Revoke HTTP-01 2x domain lego"
@@ -213,7 +213,7 @@ jobs:
 
       - name: "Renew HTTP-01 single domain lego"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http--no-random-sleep
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http --no-random-sleep
           sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
       - name: "Revoke HTTP-01 single domain lego"
@@ -227,7 +227,7 @@ jobs:
 
       - name: "Renew HTTP-01 2x domain lego"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http--no-random-sleep
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http --no-random-sleep
           sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
       - name: "Revoke HTTP-01 2x domain lego"
@@ -317,7 +317,7 @@ jobs:
 
       - name: "Renew HTTP-01 single domain lego"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http--no-random-sleep
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme --http --no-random-sleep
           sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
       - name: "Revoke HTTP-01 single domain lego"
@@ -331,7 +331,7 @@ jobs:
 
       - name: "Renew HTTP-01 2x domain lego"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http--no-random-sleep
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http --no-random-sleep
           sudo openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 
       - name: "Revoke HTTP-01 2x domain lego"
