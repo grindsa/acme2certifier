@@ -48,6 +48,7 @@ runs:
       sed -i "s/approval_points: 1/approval_points: 0/g"                   openxpki-config/config.d/realm/democa/rpc/generic.yaml
       sed -i "s/export_certificate: chain/export_certificate: fullchain/g" openxpki-config/config.d/realm/democa/rpc/generic.yaml
       sed -i "s/dn: CN=\[\% CN.0 \%\],DC=Test Deployment,DC=OpenXPKI,DC=org/dn: CN=\[\% SAN_DNS.0 \%\]/g" openxpki-config/config.d/realm.tpl/profile/tls_server.yaml
+
       sudo cp openxpki-config/config.d/realm/democa/rpc/generic.yaml openxpki-config/config.d/realm/democa/rpc/enroll.yaml
       sudo cp openxpki-config/client.d/service/rpc/generic.yaml openxpki-config/client.d/service/rpc/enroll.yaml
 
