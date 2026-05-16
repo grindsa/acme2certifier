@@ -103,7 +103,7 @@ runs:
     continue-on-error: true
     id: legofail01
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --network $NAME_SPACE -p 443:443 --rm --name lego -e LEGO_DEBUG_CLIENT_VERBOSE_ERROR=true goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com"  -d lego-02.bar1.local --tls-skip-verify --eab --kid $EAB_KEY_ID --hmac $EAB_KEY_SECRET --tls run
+      docker run -i -v $PWD/lego:/.lego/ --network $NAME_SPACE -p 443:443 --rm --name lego -e LEGO_DEBUG_CLIENT_VERBOSE_ERROR=true goacme/lego run -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com"  -d lego-02.bar1.local --tls-skip-verify --eab --eab.kid $EAB_KEY_ID --eab.hmac $EAB_KEY_SECRET --tls
     shell: bash
     env:
       ACME_SERVER: ${{ inputs.ACME_SERVER }}

@@ -50,7 +50,7 @@ runs:
 
   - name: "Successful Enrollment triggering email success hook"
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http
     shell: bash
 
   - name: "Sleep for 15s to allow email to be sent"
@@ -75,7 +75,7 @@ runs:
     continue-on-error: true
     id: legofail01
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.unknown --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.unknown --http
     shell: bash
 
   - name: "check  result "
