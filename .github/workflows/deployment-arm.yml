@@ -302,7 +302,7 @@ jobs:
 
     - name: "lego certificates revoke"
       run: |
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID  --network $UUID goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv-$UUID -a --email "lego@example.com" -d lego-$UUID"
+        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID  --network $UUID goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv-$UUID --email "lego@example.com" --cert.name lego-$UUID"
       env:
         SSH_USER: ${{ env.AWS_SSH_USER }}
         SSH_HOST: ${{ env.AWS_SSH_HOST }}

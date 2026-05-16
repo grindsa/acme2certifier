@@ -44,7 +44,7 @@ runs:
 
   #- name: "Profile 1 - Revoke HTTP-01 single domain certbot"
   #  run: |
-  #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
+  #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  --cert.name certbot.acme --cert-name certbot
   #  shell: bash
 
   - name: "Profile 1 - Enroll lego"
@@ -57,7 +57,7 @@ runs:
 
   - name: "Profile 1 - revoke HTTP-01 single domain lego"
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv --email "lego@example.com" --cert.name lego.acme
     shell: bash
 
   - name: "Allowed domainlist feature - Enroll lego (fail)"
