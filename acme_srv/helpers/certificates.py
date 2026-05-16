@@ -206,14 +206,12 @@ def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool =
     cert = cert_load(logger, certificate, recode=recode)
     extension_list = []
     for extension in cert.extensions:
-        try:
+        try
             extension_list.append(
-                convert_byte_to_string(extension.value.public_bytes())
+                convert_byte_to_string(base64.b64encode(extension.value.public_bytes()))
             )
-        except Exception:
-            logger.error(
-                "Error while getting the extensions from the certificate: %s", extension
-            )
+        except Exception as err:
+            logger.error("Error while getting certificate extensions: %s", err)
 
     logger.debug("Helper.cert_extensions_get() ended with: %s", extension_list)
     return extension_list
