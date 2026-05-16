@@ -28,7 +28,6 @@ runs:
       echo "### Install acme-email"
       git clone https://github.com/grindsa/acme_email.git
       cd acme_email
-      sed -i "s/'cryptography>=3.3',/'cryptography>=3.3',\n    'pyOpenSSL==26.1.0',/g" setup.py
       python3 -m venv venv
       source venv/bin/activate
       pip3 install .
