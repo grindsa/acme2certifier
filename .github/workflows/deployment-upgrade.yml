@@ -995,9 +995,9 @@ jobs:
       - name: List files
         run: ls -la data/
 
-      - name: "Instanciate Ubuntu 22.04"
+      - name: "Instanciate Ubuntu 24.04"
         run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:22.04
+          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:24.04
 
       - name: "Sleep for 5s"
         uses: juliangruber/sleep-action@v2.0.3
@@ -1156,9 +1156,9 @@ jobs:
       - name: List files
         run: ls -la data/
 
-      - name: "Instanciate Ubuntu 22.04"
+      - name: "Instanciate Ubuntu 24.04"
         run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:22.04
+          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:24.04
 
       - name: "Sleep for 5s"
         uses: juliangruber/sleep-action@v2.0.3
@@ -1343,9 +1343,9 @@ jobs:
       - name: List files
         run: ls -la data/
 
-      - name: "Instanciate Ubuntu 22.04"
+      - name: "Instanciate Ubuntu 24.04"
         run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:22.04
+          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:24.04
 
       - name: "Sleep for 5s"
         uses: juliangruber/sleep-action@v2.0.3
@@ -1537,9 +1537,9 @@ jobs:
       - name: List files
         run: ls -la data/
 
-      - name: "Instanciate Ubuntu 22.04"
+      - name: "Instanciate Ubuntu 24.04"
         run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:22.04
+          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:24.04
 
       - name: "Sleep for 5s"
         uses: juliangruber/sleep-action@v2.0.3
