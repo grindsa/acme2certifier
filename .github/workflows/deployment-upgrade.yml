@@ -971,9 +971,9 @@ jobs:
           mkdir certbot
           mkdir -p data/volume
 
-      - name: "Download a2c 0.23 deb package"
+      - name: "Download a2c 0.36 deb package"
         run: |
-          wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.23.2/acme2certifier_0.23.2-1_all.deb
+          wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.36.0/acme2certifier_0.36.0-1_all.deb
 
       - name: Retrieve Version from version.py
         run: |
@@ -1010,7 +1010,7 @@ jobs:
           docker exec acme-srv apt-get -y upgrade
           docker exec acme-srv apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3
           docker exec acme-srv ls -la /tmp/acme2certifier/
-          docker exec acme-srv apt-get install -y /tmp/acme2certifier/acme2certifier_0.23.2-1_all.deb
+          docker exec acme-srv apt-get install -y /tmp/acme2certifier/acme2certifier_0.36.0-1_all.deb
 
       - name: "Configure a2c"
         run: |
