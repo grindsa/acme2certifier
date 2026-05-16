@@ -3122,30 +3122,12 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.cert_aki_get(self.logger, cert),
         )
 
-    @patch("acme_srv.helpers.certificates.x509.Certificate.extensions")
-    def test_309_cert_aki_get_error_handling(self, mock_ext):
+    def test_309_cert_aki_get_error_handling(self):
         """test cert_aki_get() error handling when AKI is missing"""
         # Use a valid PEM certificate without AKI extension (from other tests)
-        cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
-    ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
-    FgYDVQQDEw9mb28uZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
-    ggEKAoIBAQCqUeNzDyBVugUKZq597ishYAdMPgus5Nw5pWE/Jw7PP0koeFE2wODq
-    HVb+XNFFEX4IOyiE2Pi4ilzfXYGKchhP3wHgnkxGNIwt/cDNZgyTiUpITV/ciFaC
-    7avkvQS6ScCYUYrhby7QnvcU02mAyhNcSVGI5TW7HhFdtWrEAK3N8H6yhxHLSi2y
-    dpQ3kCJyJylqt/Rv3uKNjCvTv867K6A1QSsXoAxtPK9P0UOTRvgHkFf8T32Bn/Er
-    1bjkX9Ms8rqDQmicCWJk260lUHzN6vxaeiEg7Kz3TA8Ik3DMIcvwJrE168G1APo+
-    FyOIKyx+t78HWOlNINIqZMj5e2DpulV7AgMBAAGjXjBcMB8GA1UdIwQYMBaAFK1Z
-    zuGt0Pe+NLerCXqQBYmVV7suMB0GA1UdDgQWBBStWc7hrdD3vjS3qwl6kAWJlVe7
-    LjAaBgNVHREEEzARgg9mb28uZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEB
-    AANW0DD4Xp7LH/Rzf2jVLwiFlbtR6iazyn9S/pH2Gwqjkscv/27/dqJb7CfPdD02
-    5ItQcYkZPJhDOsj63kvUaD89QU31RnYQrXrbXFqYOIAq6kxfZUoQmpfEBxbB4Wxm
-    TW0OWS+FMqNw/SuGs6EQjTRA+gBOeGzj4H9yOFOg0PpadBayZ7UT4lm1LOiFHh8h
-    bta75ocePrurdNxsxKJhLlXbnKD6lurCb4khRhrmLmpK8JxhuaevEVklSQX0gqlR
-    fxAH4XQsaqcaedPNI+W5OUITMz40ezDCbUqxS9KEMCGPoOTXNRAjbr72sc4Vkw7H
-    t+eRUDECE+0UnjyeCjTn3EU="""
-        mock_ext.get_extension_for_oid.side_effect = Exception("No AKI")
+        cert = """MIIEHDCCAgSgAwIBAgIPAZ4wdJfqm1tO+Fh4RIFBMA0GCSqGSIb3DQEBDQUAMBkxFzAVBgNVBAMTDk5ldyBSU0EgU3ViIENBMB4XDTI2MDUxNjEwMzMyN1oXDTI3MDUxNjExMDMyN1owFzEVMBMGA1UEAxMMYWNtZS1zaC5hY21lMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqgZcTr/0DMZILNilvYPCDKMd7IGA6jpFuXvjQiF/tSkk+rR2ulkMee7SBI6dBfGqulthwSVPBYIaOOCCBwoFUotvOqp2VWFeeq/M7hrE/2Ld0oydvN0Bnngtrq0IjM+cZOaupg3vJhsUL/BZqQ4XkEzPf9ydo4fuhkD4rFkaaz6ZTCTjJX4YvD2zsIydfiNVp6+hr6iPdJdYfHJebtIh1tg6fEkZH5heoZTKWm2b2W3ZVeMSzDr/gI0SQA6On1WY56/cXetbcLnGR3UFFUhw6RAT6/tL1lt8NbLjVrpl0ibAgPdealMVuwYE54+DUzIto0PWKJpfz9ThVlashppuUwIDAQABo2MwYTAfBgNVHSMEGDAWgBSryf/9VmQhFktiIG28gA+6hGdlmjAdBgNVHQ4EFgQUzCvWZddDuFyxFbPbv6AzgFu2eYUwDgYDVR0PAQH/BAQDAgQwMA8GA1UdEwEB/wQFMAMBAQAwDQYJKoZIhvcNAQENBQADggIBALUZcRH4Cnz4VxvnINV1Homb9HbtaOp4Iq6ehLf281e8AL9jchRoraMOXWOwxrCjvgYf59GPlYpRh4j9EoiQdJkSdJrHME2h5XdG/y05TgNcYB0IefdccDQTlkbibb5MdbM14oGBjP1EgDa6+UHdybXEIHLTxmxqR3hAPjXzbiijibrIhpUOOdL8cLrxYI87IuQWm3OYWuBqMFVCsH8aSHAfwfcVWFtEPL2f9goyvTlzy2k+lGF1PHokHBRucFeg1qfEhbXU4qI8k6MdOAmgxFk7At+Ah6r8V6eVPu+MR+uQUTd7t0Gkp15A48Iezj09WaCEayKg1gzV5X1Jdgv7q/98TvzrEe9gCFdV2z/UmBaXDfkPqd2x4Fl/Bqsb+Ajprt+5XEcBzlpGjhHGVGvk3kjy/PHbnviwjQrTApA7XJDUF055/HPOfFO7WPnFsOgE2Oi5i7u911IAU1ZVy8WdAgkmGZFWL/cECZaidkDaoSWVfjdavr6UkmEuQOv4FjB+QrFn0ESMuaRJdolsI0UYN+3kxXphBYxTcnzWyzUEaylkMt3a7pGsBcyrGldpMQ4TKok1braRQiL0M6MtpEVRkXJC/nMFeQAub++9GTzLh7Deu9iX0GRZBLLlhwfKpcHuJ8TYbpew3ZRDe6GVNmEZ/n5Bq8118hjzHr1N5FOv2XqU"""
         aki = self.cert_aki_get(self.logger, cert)
-        self.assertEqual(aki, "")
+        self.assertEqual(aki, "abc9fffd566421164b62206dbc800fba8467659a")
 
     @patch("acme_srv.helpers.certificates.x509.Certificate.extensions")
     def test_310_cert_ski_get_error_handling(self, mock_ext):

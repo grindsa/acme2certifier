@@ -27,11 +27,37 @@ def cert_aki_get(logger: logging.Logger, certificate: str) -> str:
         aki = cert.extensions.get_extension_for_oid(x509.OID_AUTHORITY_KEY_IDENTIFIER)
         aki_value = aki.value.key_identifier.hex()
     except Exception as _err:
-        logger.error("Error while getting AKI from certificate: %s", _err)
-        aki_value = ""
+        logger.error("Error while getting AKI from certificate: %s. Fallback to pyOpenSSL method", _err)
+        aki_value = _cert_aki_pyopenssl_get(logger, certificate)
 
     logger.debug("cert_aki_get() ended with: %s", aki_value)
     return aki_value
+
+def _cert_aki_pyopenssl_get(logger, certificate: str) -> str:
+    """Get Authority Key Identifier from a certificate as a hex string."""
+    logger.debug("Helper.cert_aki_pyopenssl_cert()")
+
+    pem_data = convert_string_to_byte(
+        build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+    )
+    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_data)
+    # Get the AKI extension
+    aki = ""
+    for i in range(cert.get_extension_count()):
+        try:
+            ext = cert.get_extension(i)
+            if "authorityKeyIdentifier" in str(ext.get_short_name()):
+                aki = ext
+        except Exception as _err:
+            logger.error("Error while getting AKI from certificate extension: %s", _err)
+    if aki:
+        # Get the SKI value and convert it to hex
+        aki_hex = aki.get_data()[4:].hex()
+    else:
+        logger.warning("No AKI found in certificate")
+        aki_hex = None
+    logger.debug("Helper.cert_ski_pyopenssl_cert() ended with: %s", aki_hex)
+    return aki_hex
 
 
 def cert_load(
