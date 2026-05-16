@@ -26,7 +26,6 @@ class FakeDBStore(object):
 
 
 class TestACMEHandler(unittest.TestCase):
-
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
@@ -3519,7 +3518,6 @@ class TestACMEHandler(unittest.TestCase):
         code, dic = cah.lookup_renewalinfo("http://acme", "abc123")
         self.assertEqual(code, 400)
         self.assertEqual(dic, {})
-
 
 
 if __name__ == "__main__":
