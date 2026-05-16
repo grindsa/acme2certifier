@@ -22,7 +22,6 @@ from .helpers.encoding import (
 # Certificate operations
 from .helpers.certificates import (
     cert_aki_get,
-    cert_aki_pyopenssl_get,
     cert_load,
     cert_dates_get,
     cert_cn_get,
@@ -30,13 +29,10 @@ from .helpers.certificates import (
     cert_issuer_get,
     cert_pem2der,
     cert_pubkey_get,
-    cert_san_pyopenssl_get,
     cert_san_get,
-    cert_ski_pyopenssl_get,
     cert_ski_get,
     cryptography_version_get,
     cert_extensions_get,
-    cert_extensions_py_openssl_get,
     cert_serial_get,
     pembundle_to_list,
     certid_asn1_get,

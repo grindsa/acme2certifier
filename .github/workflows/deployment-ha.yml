@@ -380,13 +380,13 @@ jobs:
         run: |
           docker run -i --rm --network acme curlimages/curl -f https://alma9-c1.acme/directory --insecure
           sudo rm -rf lego/
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://alma9-c1.acme -a --email "lego@example.com" -d lego.local --http run
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://alma9-c1.acme -a --email "lego@example.com" -d lego.local --http
 
       - name: "Test acme2certifier on alma9-c2"
         run: |
           docker run -i --rm --network acme curlimages/curl -f https://alma9-c2.acme/directory --insecure
           sudo rm -rf lego/
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://alma9-c2.acme -a --email "lego@example.com" -d lego.local --http run
+          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://alma9-c2.acme -a --email "lego@example.com" -d lego.local --http
 
       - name: "Setup and test load-balancer"
         run: |
@@ -415,13 +415,13 @@ jobs:
               sudo rm -rf \$PWD/acme-sh/*
               sudo rm -rf \$PWD/lego/*
               sudo rm -rf \$PWD/certbot/*
-              docker run -i -p 80:80 --rm --network acme --name=lego -v \$PWD/lego:/.lego/ goacme/lego --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" -d lego01.acme --http run  > /dev/null
+              docker run -i -p 80:80 --rm --network acme --name=lego -v \$PWD/lego:/.lego/ goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" -d lego01.acme --http  > /dev/null
               if [[ $? != 0 ]]; then break; fi
               docker run -i -p 80:80 --rm --network acme --name=acme-sh -v \$PWD/acme-sh:/acme.sh neilpang/acme.sh:latest --issue --server https://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --insecure --force > /dev/null
               if [[ $? != 0 ]]; then break; fi
               docker run -i -p 80:80 --rm --network acme --name=certbot -v \$PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme  --no-verify-ssl --agree-tos -m 'certbot@example.com' --no-eff-email --standalone --preferred-challenges http -d certbot.acme --cert-name certbot --force-renewal > /dev/null
               if [[ $? != 0 ]]; then break; fi
-              docker run -i -p 80:80 --rm --network acme --name=lego -v \$PWD/lego:/.lego/ goacme/lego --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" -d lego01.acme --http run > /dev/null
+              docker run -i -p 80:80 --rm --network acme --name=lego -v \$PWD/lego:/.lego/ goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" -d lego01.acme --http > /dev/null
               if [[ $? != 0 ]]; then break; fi
               docker run -i -p 80:80 --rm --network acme --name=acme-sh -v \$PWD/acme-sh:/acme.sh neilpang/acme.sh:latest --issue --server https://acme-srv  --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --output-insecure --insecure --force > /dev/null
               if [[ $? != 0 ]]; then break; fi
