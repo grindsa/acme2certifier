@@ -27,7 +27,7 @@ runs:
   - name: "ACME Profile - 01a - enrollment without profile"
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i "ACME Intermediate Authority"
       sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "IPSec Tunnel"
@@ -36,7 +36,7 @@ runs:
   - name: "ACME Profile - 02 - Allowed profile"
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run --profile clientauth
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http --profile clientauth
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego.acme.crt -issuer -noout | grep -i "ACME Intermediate Authority"
       sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage -noout | grep "IPSec User"
@@ -47,7 +47,7 @@ runs:
     continue-on-error: true
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http run --profile unknown
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http --profile unknown
     shell: bash
 
   - name: ACME Profile 03 - check  result "

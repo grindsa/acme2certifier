@@ -21,6 +21,10 @@ inputs:
     description: "Use certbot"
     required: true
     default: "true"
+  USE_LEGO:
+    description: "Use lego"
+    required: true
+    default: "true"
   USE_RSA:
     description: "Use RSA"
     required: true
@@ -90,14 +94,15 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "HTTPS - Enroll lego"
+      if: ${{ inputs.USE_LEGO == 'true' }}
       run: |
         echo "##### HTTP - Enroll lego #####"
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls
         else
           echo "use RSA"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls
         fi
       shell: bash
       env:
@@ -109,10 +114,10 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "HTTPS - Revoke lego"
-      if: ${{ inputs.REVOCATION == 'true' }}
+      if: ${{ (inputs.USE_LEGO == 'true') && (inputs.REVOCATION == 'true') }}
       run: |
         echo "#### HTTP - Revoke lego"
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE revoke
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego certificates revoke  --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT --email "lego@example.com" --cert.name lego$HOSTNAME_SUFFIX.$NAME_SPACE
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -188,7 +193,7 @@ runs:
       if: ${{ inputs.REVOCATION == 'true' }}
       run: |
         echo "##### HTTPS - Revoke HTTP-01 single domain acme.sh #####"
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name acme-sh$HOSTNAME_SUFFIX --network $NAME_SPACE neilpang/acme.sh:latest --revoke --server https://$ACME_SERVER:$HTTPS_PORT --revoke -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --standalone --debug 2 --output-insecure  --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name acme-sh$HOSTNAME_SUFFIX --network $NAME_SPACE neilpang/acme.sh:latest --revoke --server https://$ACME_SERVER:$HTTPS_PORT -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --standalone --debug 2 --output-insecure  --insecure
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -274,7 +279,7 @@ runs:
       if: ${{ inputs.REVOCATION == 'true' }}
       run: |
         echo "##### HTTP - Revoke HTTP-01 single domain acme.sh #####"
-        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name acme-sh$HOSTNAME_SUFFIX --network $NAME_SPACE neilpang/acme.sh:latest --revoke --server http://$ACME_SERVER:$HTTP_PORT --revoke -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --standalone --debug 2 --output-insecure  --insecure
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --name acme-sh$HOSTNAME_SUFFIX --network $NAME_SPACE neilpang/acme.sh:latest --revoke --server http://$ACME_SERVER:$HTTP_PORT -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --standalone --debug 2 --output-insecure  --insecure
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -378,14 +383,15 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "HTTPS - Enroll lego"
+      if: ${{ inputs.USE_LEGO == 'true' }}
       run: |
         echo "##### HTTPS - Enroll lego #####"
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls
          else
           echo "use RSA"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls run
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls
         fi
 
         if [ "$VERIFY_CERT" == "true" ]; then
@@ -407,10 +413,10 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "HTTPS - Revoke lego"
-      if: ${{ inputs.REVOCATION == 'true' }}
+      if: ${{ (inputs.USE_LEGO == 'true') && (inputs.REVOCATION == 'true') }}
       run: |
         echo "##### HTTPS - Revoke lego #####"
-        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego -s https://$ACME_SERVER:$HTTPS_PORT --tls-skip-verify  -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE revoke
+        docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego certificates revoke --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT --email "lego@example.com" --cert.name lego$HOSTNAME_SUFFIX.$NAME_SPACE
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -422,15 +428,15 @@ runs:
     - name: "Allowed domainlist feature - Enroll lego (fail)"
       continue-on-error: true
       id: legofail01
-      if: ${{ inputs.TEST_ADL == 'true' }}
+      if: ${{ inputs.TEST_ADL == 'true' && inputs.USE_LEGO == 'true' }}
       run: |
         echo "##### HTTP - Enroll lego to test allowed domainlist feature #####"
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run -i --rm -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER --tls-skip-verify  -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX --tls run
+          docker run -i --rm -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER --tls-skip-verify  -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX --tls
         else
           echo "use RSA"
-          docker run -i --rm -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego --tls-skip-verify -s https://$ACME_SERVER --tls-skip-verify  -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX --tls run
+          docker run -i --rm -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER --tls-skip-verify  -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX --tls
         fi
       shell: bash
       env:
@@ -442,7 +448,7 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "Allowed domainlist feature - check  result "
-      if: ${{ (inputs.TEST_ADL == 'true') && steps.legofail01.outcome != 'failure' }}
+      if: ${{ (inputs.TEST_ADL == 'true') && steps.legofail01.outcome != 'failure' && inputs.USE_LEGO == 'true' }}
       run: |
         echo "legofail outcome is ${{steps.legofail01.outcome }}"
         exit 1
