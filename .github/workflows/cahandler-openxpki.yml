@@ -144,6 +144,7 @@ jobs:
         with:
           REVOCATION: "false"
           USE_CERTBOT: "false"
+          USE_LEGO: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
@@ -389,6 +390,7 @@ jobs:
         with:
           REVOCATION: "false"
           USE_CERTBOT: "false"
+          USE_LEGO: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
@@ -420,6 +422,7 @@ jobs:
         with:
           REVOCATION: "false"
           USE_CERTBOT: "false"
+          USE_LEGO: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
@@ -672,6 +675,7 @@ jobs:
         with:
           REVOCATION: "false"
           USE_CERTBOT: "false"
+          USE_LEGO: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
@@ -704,6 +708,7 @@ jobs:
         with:
           REVOCATION: "false"
           USE_CERTBOT: "false"
+          USE_LEGO: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
