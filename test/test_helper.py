@@ -55,7 +55,6 @@ class TestACMEHandler(unittest.TestCase):
             load_config,
             cert_serial_get,
             cert_san_get,
-            cert_san_pyopenssl_get,
             cert_dates_get,
             build_pem_file,
             date_to_datestr,
@@ -113,9 +112,7 @@ class TestACMEHandler(unittest.TestCase):
             encode_url,
             uts_now,
             cert_ski_get,
-            cert_ski_pyopenssl_get,
             cert_aki_get,
-            cert_aki_pyopenssl_get,
             validate_fqdn,
             validate_ip,
             validate_identifier,
@@ -130,7 +127,6 @@ class TestACMEHandler(unittest.TestCase):
             eab_profile_list_check,
             eab_profile_check,
             eab_profile_header_info_check,
-            cert_extensions_py_openssl_get,
             cryptography_version_get,
             cn_validate,
             csr_subject_get,
@@ -161,17 +157,13 @@ class TestACMEHandler(unittest.TestCase):
         self.ca_handler_load = ca_handler_load
         self.cert_dates_get = cert_dates_get
         self.cert_extensions_get = cert_extensions_get
-        self.cert_extensions_py_openssl_get = cert_extensions_py_openssl_get
         self.certid_asn1_get = certid_asn1_get
         self.certid_check = certid_check
         self.cert_pubkey_get = cert_pubkey_get
         self.cert_san_get = cert_san_get
-        self.cert_san_pyopenssl_get = cert_san_pyopenssl_get
         self.cert_serial_get = cert_serial_get
         self.cert_aki_get = cert_aki_get
-        self.cert_aki_pyopenssl_get = cert_aki_pyopenssl_get
         self.cert_ski_get = cert_ski_get
-        self.cert_ski_pyopenssl_get = cert_ski_pyopenssl_get
         self.cert_issuer_get = cert_issuer_get
         self.cert_pem2der = cert_pem2der
         self.cert_der2pem = cert_der2pem
@@ -683,70 +675,15 @@ class TestACMEHandler(unittest.TestCase):
             self.cert_san_get(self.logger, cert),
         )
 
-    def test_049_helper_cert_san_pyopenssl_get(self):
-        """test cert_san_get for a single SAN"""
-        cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
-                ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
-                FgYDVQQDEw9mb28uZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
-                ggEKAoIBAQCqUeNzDyBVugUKZq597ishYAdMPgus5Nw5pWE/Jw7PP0koeFE2wODq
-                HVb+XNFFEX4IOyiE2Pi4ilzfXYGKchhP3wHgnkxGNIwt/cDNZgyTiUpITV/ciFaC
-                7avkvQS6ScCYUYrhby7QnvcU02mAyhNcSVGI5TW7HhFdtWrEAK3N8H6yhxHLSi2y
-                dpQ3kCJyJylqt/Rv3uKNjCvTv867K6A1QSsXoAxtPK9P0UOTRvgHkFf8T32Bn/Er
-                1bjkX9Ms8rqDQmicCWJk260lUHzN6vxaeiEg7Kz3TA8Ik3DMIcvwJrE168G1APo+
-                FyOIKyx+t78HWOlNINIqZMj5e2DpulV7AgMBAAGjXjBcMB8GA1UdIwQYMBaAFK1Z
-                zuGt0Pe+NLerCXqQBYmVV7suMB0GA1UdDgQWBBStWc7hrdD3vjS3qwl6kAWJlVe7
-                LjAaBgNVHREEEzARgg9mb28uZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEB
-                AANW0DD4Xp7LH/Rzf2jVLwiFlbtR6iazyn9S/pH2Gwqjkscv/27/dqJb7CfPdD02
-                5ItQcYkZPJhDOsj63kvUaD89QU31RnYQrXrbXFqYOIAq6kxfZUoQmpfEBxbB4Wxm
-                TW0OWS+FMqNw/SuGs6EQjTRA+gBOeGzj4H9yOFOg0PpadBayZ7UT4lm1LOiFHh8h
-                bta75ocePrurdNxsxKJhLlXbnKD6lurCb4khRhrmLmpK8JxhuaevEVklSQX0gqlR
-                fxAH4XQsaqcaedPNI+W5OUITMz40ezDCbUqxS9KEMCGPoOTXNRAjbr72sc4Vkw7H
-                t+eRUDECE+0UnjyeCjTn3EU="""
-        self.assertEqual(
-            ["DNS:foo.example.com"], self.cert_san_pyopenssl_get(self.logger, cert)
-        )
-
-    def test_050_cert_san_pyopenssl_get(self):
-        """test cert_san_get for a multiple SAN of type DNS"""
-        cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
-                LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
-                MBYGA1UEAxMPZm9vLmV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
-                MIIBCgKCAQEA+EM+gzAyjegQSRbJI+qZJhuAGM9i48xvIfuOQHleXoJPjV+8VZRV
-                KDljZNXdNT5Zi7K6HY9C622NOV7QefB6zTtm6mSY08ypNsaeorhIvJdnpaJ9gAGH
-                YeQqJ04fL099kiRXJAv8gT8wdpiekg2KEU4wlXMIRfSHiiB37yjcqUzXl6XYYKGe
-                2USMpDfliXL3o8TW2KByGUdCzXUdNbMgzRXwYxkX2+xV2f0vn8NyXHiHg9yJRof2
-                HTjyvAcXN5Nr987slq/Ex5lXLtpB861Ov3ZbwxyzREjmreZBlze7KTfP5IY66XuN
-                Mvhi7AAs0cLTd3SNjpppE/yvUi5q5gfhXQIDAQABo3MwcTAfBgNVHSMEGDAWgBSl
-                YnpKQw12MmEMpvsTEeQi17UsnDAdBgNVHQ4EFgQUpWJ6SkMNdjJhDKb7ExHkIte1
-                LJwwLwYDVR0RBCgwJoIRZm9vLTIuZXhhbXBsZS5jb22CEWZvby0xLmV4YW1wbGUu
-                Y29tMA0GCSqGSIb3DQEBCwUAA4IBAQASA20TtMPXIHH10dikLhFuI14EOtZzXvCx
-                kGlJw9/5JuvVKLsL1wd8BC9o/lg8apDqsrDZ/+0Nc8g3Z9HRN99vcLsVDdT27DkM
-                BslfXdN/qBhKAp3m7jw29uijX5fss+Wz9iHfHciUjVyMJ4DoFxHYPbMWQG8XEUKR
-                TP6Gp79DzCiPKFt52Y8yVikIET4fnyRzU8kGKLuPoIt+EQQzpG26qWAjeNHAASEM
-                keiA+tedMWzydX52B+tGg+l2svxg34apIBDjK8pF+8ZxTt5yjVUa10GbpffJuiEh
-                NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
-        self.assertEqual(
-            ["DNS:foo-2.example.com", "DNS:foo-1.example.com"],
-            self.cert_san_pyopenssl_get(self.logger, cert),
-        )
-
-    def test_051_helper_cert_san_pyopenssl_get(self):
-        """test cert_san_get for a multiple SAN of type DNS"""
-        cert = """MIIDaDCCAVCgAwIBAgIICwL0UBNcUakwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMzA3MTkxODU5NDRaFw0yNDA3MTgxODU5NDRaMBkxFzAVBgNVBAMTDjE5Mi4xNjguMTQuMTMxMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEN626lPpwBt4SEvdf5Tb0BpP1tl9KiFE/9xCIyYPsi9VXVDq/EcwO3CRp4fy+3bhZj6i43DdnluETcx8ZR2XyE6NuMGwwHQYDVR0OBBYEFBp+ZupvT2BB92sDkxy2GffHXDRLMB8GA1UdIwQYMBaAFL/ejo4GIiKrrUPI3dRPqKtIQT7VMAsGA1UdDwQEAwID6DAMBgNVHRMBAf8EAjAAMA8GA1UdEQQIMAaHBMCoDoMwDQYJKoZIhvcNAQELBQADggIBAFpq5RWGP4kDRnRjq8pte87bGS9LEmSlGOA8HlQZ+kjAoTunNN7/gvDch4F/CIl1N8cbQ/Ty1vx9CznTpQ39c2LNMILnjNHqQpYRIgLSBvCm26pAdlmicy6zdGlRKaePoMXINw4csDZ4REERg/c21ANhFclYyWWUM987bHZuBZJM8zBfR98ZnOzuQMRb5xztRlXSvddW4qEyKihl+5wPduaF8hDui4wbDFW6pUE9DWO/S1m37Tshh1O3NLlAlaMMwLsYaGkW7yzM4OrzmghJCRtdF9lbYYqHoKxLVWyCRF/pXqqQ/y+k4sN0MeZ7Wk4dI18aGHTGEzu6GSynNptyCQNsoTYexDA/rx57ukX7TqrU5JU/VyrKYD+M/rsLMj3vY4YmmH4W12IhAxa6+UmGG9ixHKpTgLVLRJDdzPMLY+IdI9WHdo7nHDOsaKvrFWqmvsCxT214jN0fVkOTMazG4ILg4DZhMWh8QxGULR7ul2oYnlyGUXiag7qLjNu1/RltJg9sp+ZxVC7RWaoCwxp6CIT95wrUAFTt9NBkccafsQKsF2ZtrUNZ8Z7B3y6hzr9d6rWlZCKlcr/ZNSOnrRTwuCz5HL3Gd2/DfyZUmy5U1+URbktMIdddlV5jaeSpwFZI8Xga4cYJAE7xjVq8HN3jbZ6m4PyylfaQfXisozKRECs4"""
-        self.assertEqual(
-            ["IP Address:192.168.14.131"],
-            self.cert_san_pyopenssl_get(self.logger, cert),
-        )
-
-    def test_052_helper_cert_san_pyopenssl_get(self):
+    def test_052_helper_cert_san_get(self):
         """test cert_san_get for a multiple SAN of type DNS"""
         cert = """MIIDezCCAWOgAwIBAgIIIAuZLppuFT4wDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMzA3MjAwNDIxMTlaFw0yNDA3MTkwNDIxMTlaMBkxFzAVBgNVBAMTDjE5Mi4xNjguMTQuMTMxMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQTs6Bra1zfVSiReD4AYj8HCKdcaMO5WsgB0zhpVu3HuSQSIQHC8CMe8haCywjYisbbWeDzT654tc674/MjScraOBgDB+MB0GA1UdDgQWBBQQa+M+3oTsdKTSB/Rt3Dk7/Vy0YzAfBgNVHSMEGDAWgBS/3o6OBiIiq61DyN3UT6irSEE+1TALBgNVHQ8EBAMCA+gwDAYDVR0TAQH/BAIwADAhBgNVHREEGjAYghBmb29iYXIuYmFyLmxvY2FshwTAqA6DMA0GCSqGSIb3DQEBCwUAA4ICAQCcevAczULbl5Le/xI1LSQ/PSsROjOZHUjlWf5bRs53aTM6wMqDBsFGdLzTN5vzWqVjie1Nzu8XGSEEuF0L/2bltGgYiYQqD4HKJedEEbYxQbg77o9JLp52MltvXGRH5gYGSGPZbuQ8QANvDn6FqBZjskOtED8SZGGt5spgxK7eguoJoQken68TgdZptL6l6eryTgouPbG0j5vTPPxuZpqxM9vQa4ADyqyvOKRMkZC98IbruChlCtFztILJPkvNx8Gbmlzv201uW9/9mNzcV8vVtlcB+Ftb/+sCfYuU/ShwUuOxOLE7+OKjLlalfniNwqx2l6f30nvvsa11vQc/Rwy1Z+vv96EzyF+GthMx2qLIG4eLLbISATwUfpR0UcLMtr83LRzB578rxrtwcgB5s+AWSDsYEKnzXabQdX1cEuiM3iEdlZ7McFzRvwElObhoDDOqOjGALWmdboox6dDskpQEhe6JALsj3mH07017h5T3W3PvqWD2IAsqH+WTuxCTmfjbqqoAz/Zt2ipIAFtSk79WvWwth/K+xtYhmuoe2+ygocqa9tF9AyoihImSEk1EjXvqKqRLPZwg41C3WKvLlg57fpRFZYR1W28ZqAqqVNf8MMHcsHdZ7koMBhIKKnSe/HdLWm7ghVjAEdYVYvOcOZHzxXBmnV/6ZLRQXu2XQnATJw=="""
         self.assertEqual(
-            ["DNS:foobar.bar.local", "IP Address:192.168.14.131"],
-            self.cert_san_pyopenssl_get(self.logger, cert),
+            ["DNS:foobar.bar.local", "IP:192.168.14.131"],
+            self.cert_san_get(self.logger, cert),
         )
 
-    def test_053_helper_cert_san_pyopenssl_get(self):
+    def test_053_helper_cert_san_get(self):
         """test cert_san_get for a single SAN"""
         cert = """
 -----BEGIN CERTIFICATE-----
@@ -771,7 +708,7 @@ t+eRUDECE+0UnjyeCjTn3EU=
                 """
         self.assertEqual(
             ["DNS:foo.example.com"],
-            self.cert_san_pyopenssl_get(self.logger, cert, recode=False),
+            self.cert_san_get(self.logger, cert, recode=False),
         )
 
     def test_054_helper_cert_san_get(self):
@@ -1987,9 +1924,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         result = "MIIEZDCCAkygAwIBAgIIe941mx0FQtAwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMTA0MDkxNTUyMDBaFw0yNjA0MDkxNTUyMDBaMBgxFjAUBgNVBAMTDWVzdGNsaWVudC5lc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDAn6IqwTE1RvZUm3gelpu4tmrdFj8Ub98J1YeQz7qrew5iA81NeH9tR484edjcY0ieOt3e1MfxJoziWtaeqxpsfytmVB/i+850kVZmvRCR1jhW/4AzidkVBMQiCR5erPmmheeCxbKkto0rHb7ziRA+F8/fZLKfLNsahEQPxDuMItyQFCOQFHh8Hfuend2NgsQKeZ1r5Czf3n5Q6NFff7HG+MDeNDNdPB3ShgcvvNCFUS1z615/GIItfSqcWTAVaJ7436cA7yy5y4+0SvjfXYtHYfythBj/5UqlUmjni8Irj5K8uEtb1YUujmvlTTbzPkhYqIkSoyr7t21Dz+gcYn49AgMBAAGjgZ8wgZwwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUN3Z0iLv1FE17DCDBfpxW2P+5+kIwCwYDVR0PBAQDAgO4MBMGA1UdJQQMMAoGCCsGAQUFBwMCMBgGA1UdEQQRMA+CDWVzdGNsaWVudC5lc3QwEQYJYIZIAYb4QgEBBAQDAgWgMB4GCWCGSAGG+EIBDQQRFg94Y2EgY2VydGlmaWNhdGUwDQYJKoZIhvcNAQELBQADggIBACMAHHH4/0eAXbS/uKsIjLN1QPnnzgjxC0xoUon8UVM0PUMH+FMg6rs21Xyl5tn5iItmvKI9c3akAZ00RUQKVdmJVFRUKywmfF7n5epBpXtWJrSH817NT9GOp+PO5VUTDV5VkvpVLoy7WzThrheLKz1nC1dWowRz86tcBLAsC1zT17fsNZXQDuv4LiQQXs7QKhUU75r1IxrdBPeBQSP5skGpWxm8sapQSfOALoXu1pSoGIr6tqvNGuEoZGvUuWeQHG/G8c2ufL+6lEzZBBCd6e2tErkqD/vqfCRzbLcGgSPX0HVWdkjH09nHWXI5UhNr2YgGF7YvSTKWJfbDVlTql1BuSn2yTQtDk4E8k9BLr8WfqFSZvYrivT9Ax1n3BD9jvQL5+QRdioH1kqNGMme0Pb43pHciX4hu9L5rGenZRmxeGXZ78uSOR+n2bGxAMw1OY7Rx/lsNSKWDSN+7xIrwjjXO5Uthev1ecrLAK2+EpjITa6Y85ms39V4ypCEdujkKEBeVxuN8DdMJ2GaFGluSRZeYZ0LAPfYr5sp6G6904WF+PcT0WjGenH4PJLXrAttbhhvQxXU0Q8s2CUwUHy5OT/DW3POq7WETc+zmFGwZqiP3W9gmN0hHXsKqkNmz2RYgoH57lPS1PJb0klGUNHG98CtsmlhrivhSTJWqSIOfyKGF"
         self.assertEqual(result, self.b64_encode(self.logger, self.cert_pem2der(cert)))
 
-    @patch("acme_srv.helpers.certificates.cert_extensions_py_openssl_get")
-    @patch("acme_srv.helpers.certificates.cryptography_version_get")
-    def test_186_helper_cert_extensions_get(self, mock_version, mock_py):
+    def test_186_helper_cert_extensions_get(self):
         """test cert_san_get for a single SAN and recode = False"""
         cert = """-----BEGIN CERTIFICATE-----
 MIIEZDCCAkygAwIBAgIIe941mx0FQtAwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UE
@@ -2017,7 +1952,6 @@ SN+7xIrwjjXO5Uthev1ecrLAK2+EpjITa6Y85ms39V4ypCEdujkKEBeVxuN8DdMJ
 CUwUHy5OT/DW3POq7WETc+zmFGwZqiP3W9gmN0hHXsKqkNmz2RYgoH57lPS1PJb0
 klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
 -----END CERTIFICATE-----"""
-        mock_version.return_value = 36
         self.assertEqual(
             [
                 "MAA=",
@@ -2030,14 +1964,10 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             ],
             self.cert_extensions_get(self.logger, cert, recode=False),
         )
-        self.assertFalse(mock_py.called)
 
-    @patch("acme_srv.helpers.certificates.cert_extensions_py_openssl_get")
-    @patch("acme_srv.helpers.certificates.cryptography_version_get")
-    def test_187_helper_cert_extensions_get(self, mock_version, mock_py):
+    def test_187_helper_cert_extensions_get(self):
         """test cert_san_get for a single SAN and recode = True"""
         cert = "MIIEZDCCAkygAwIBAgIIe941mx0FQtAwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMTA0MDkxNTUyMDBaFw0yNjA0MDkxNTUyMDBaMBgxFjAUBgNVBAMTDWVzdGNsaWVudC5lc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDAn6IqwTE1RvZUm3gelpu4tmrdFj8Ub98J1YeQz7qrew5iA81NeH9tR484edjcY0ieOt3e1MfxJoziWtaeqxpsfytmVB/i+850kVZmvRCR1jhW/4AzidkVBMQiCR5erPmmheeCxbKkto0rHb7ziRA+F8/fZLKfLNsahEQPxDuMItyQFCOQFHh8Hfuend2NgsQKeZ1r5Czf3n5Q6NFff7HG+MDeNDNdPB3ShgcvvNCFUS1z615/GIItfSqcWTAVaJ7436cA7yy5y4+0SvjfXYtHYfythBj/5UqlUmjni8Irj5K8uEtb1YUujmvlTTbzPkhYqIkSoyr7t21Dz+gcYn49AgMBAAGjgZ8wgZwwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUN3Z0iLv1FE17DCDBfpxW2P+5+kIwCwYDVR0PBAQDAgO4MBMGA1UdJQQMMAoGCCsGAQUFBwMCMBgGA1UdEQQRMA+CDWVzdGNsaWVudC5lc3QwEQYJYIZIAYb4QgEBBAQDAgWgMB4GCWCGSAGG+EIBDQQRFg94Y2EgY2VydGlmaWNhdGUwDQYJKoZIhvcNAQELBQADggIBACMAHHH4/0eAXbS/uKsIjLN1QPnnzgjxC0xoUon8UVM0PUMH+FMg6rs21Xyl5tn5iItmvKI9c3akAZ00RUQKVdmJVFRUKywmfF7n5epBpXtWJrSH817NT9GOp+PO5VUTDV5VkvpVLoy7WzThrheLKz1nC1dWowRz86tcBLAsC1zT17fsNZXQDuv4LiQQXs7QKhUU75r1IxrdBPeBQSP5skGpWxm8sapQSfOALoXu1pSoGIr6tqvNGuEoZGvUuWeQHG/G8c2ufL+6lEzZBBCd6e2tErkqD/vqfCRzbLcGgSPX0HVWdkjH09nHWXI5UhNr2YgGF7YvSTKWJfbDVlTql1BuSn2yTQtDk4E8k9BLr8WfqFSZvYrivT9Ax1n3BD9jvQL5+QRdioH1kqNGMme0Pb43pHciX4hu9L5rGenZRmxeGXZ78uSOR+n2bGxAMw1OY7Rx/lsNSKWDSN+7xIrwjjXO5Uthev1ecrLAK2+EpjITa6Y85ms39V4ypCEdujkKEBeVxuN8DdMJ2GaFGluSRZeYZ0LAPfYr5sp6G6904WF+PcT0WjGenH4PJLXrAttbhhvQxXU0Q8s2CUwUHy5OT/DW3POq7WETc+zmFGwZqiP3W9gmN0hHXsKqkNmz2RYgoH57lPS1PJb0klGUNHG98CtsmlhrivhSTJWqSIOfyKGF"
-        mock_version.return_value = 36
         self.assertEqual(
             [
                 "MAA=",
@@ -2049,76 +1979,6 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 "Fg94Y2EgY2VydGlmaWNhdGU=",
             ],
             self.cert_extensions_get(self.logger, cert, recode=True),
-        )
-        self.assertFalse(mock_py.called)
-
-    @patch("acme_srv.helpers.certificates.cert_extensions_py_openssl_get")
-    @patch("acme_srv.helpers.certificates.cryptography_version_get")
-    def test_188_helper_cert_extensions_get(self, mock_version, mock_py):
-        """test cert_san_get for a single SAN and recode = True"""
-        cert = "MIIEZDCCAkygAwIBAgIIe941mx0FQtAwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMTA0MDkxNTUyMDBaFw0yNjA0MDkxNTUyMDBaMBgxFjAUBgNVBAMTDWVzdGNsaWVudC5lc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDAn6IqwTE1RvZUm3gelpu4tmrdFj8Ub98J1YeQz7qrew5iA81NeH9tR484edjcY0ieOt3e1MfxJoziWtaeqxpsfytmVB/i+850kVZmvRCR1jhW/4AzidkVBMQiCR5erPmmheeCxbKkto0rHb7ziRA+F8/fZLKfLNsahEQPxDuMItyQFCOQFHh8Hfuend2NgsQKeZ1r5Czf3n5Q6NFff7HG+MDeNDNdPB3ShgcvvNCFUS1z615/GIItfSqcWTAVaJ7436cA7yy5y4+0SvjfXYtHYfythBj/5UqlUmjni8Irj5K8uEtb1YUujmvlTTbzPkhYqIkSoyr7t21Dz+gcYn49AgMBAAGjgZ8wgZwwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUN3Z0iLv1FE17DCDBfpxW2P+5+kIwCwYDVR0PBAQDAgO4MBMGA1UdJQQMMAoGCCsGAQUFBwMCMBgGA1UdEQQRMA+CDWVzdGNsaWVudC5lc3QwEQYJYIZIAYb4QgEBBAQDAgWgMB4GCWCGSAGG+EIBDQQRFg94Y2EgY2VydGlmaWNhdGUwDQYJKoZIhvcNAQELBQADggIBACMAHHH4/0eAXbS/uKsIjLN1QPnnzgjxC0xoUon8UVM0PUMH+FMg6rs21Xyl5tn5iItmvKI9c3akAZ00RUQKVdmJVFRUKywmfF7n5epBpXtWJrSH817NT9GOp+PO5VUTDV5VkvpVLoy7WzThrheLKz1nC1dWowRz86tcBLAsC1zT17fsNZXQDuv4LiQQXs7QKhUU75r1IxrdBPeBQSP5skGpWxm8sapQSfOALoXu1pSoGIr6tqvNGuEoZGvUuWeQHG/G8c2ufL+6lEzZBBCd6e2tErkqD/vqfCRzbLcGgSPX0HVWdkjH09nHWXI5UhNr2YgGF7YvSTKWJfbDVlTql1BuSn2yTQtDk4E8k9BLr8WfqFSZvYrivT9Ax1n3BD9jvQL5+QRdioH1kqNGMme0Pb43pHciX4hu9L5rGenZRmxeGXZ78uSOR+n2bGxAMw1OY7Rx/lsNSKWDSN+7xIrwjjXO5Uthev1ecrLAK2+EpjITa6Y85ms39V4ypCEdujkKEBeVxuN8DdMJ2GaFGluSRZeYZ0LAPfYr5sp6G6904WF+PcT0WjGenH4PJLXrAttbhhvQxXU0Q8s2CUwUHy5OT/DW3POq7WETc+zmFGwZqiP3W9gmN0hHXsKqkNmz2RYgoH57lPS1PJb0klGUNHG98CtsmlhrivhSTJWqSIOfyKGF"
-        mock_version.return_value = 34
-        mock_py.return_value = ["foo", "bar"]
-        self.assertEqual(
-            ["foo", "bar"], self.cert_extensions_get(self.logger, cert, recode=True)
-        )
-        self.assertTrue(mock_py.called)
-
-    def test_189_helper_cert_extensions_py_openssl_get(self):
-        """test cert_san_get for a single SAN and recode = False"""
-        cert = """-----BEGIN CERTIFICATE-----
-MIIEZDCCAkygAwIBAgIIe941mx0FQtAwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UE
-CxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMTA0MDkxNTUy
-MDBaFw0yNjA0MDkxNTUyMDBaMBgxFjAUBgNVBAMTDWVzdGNsaWVudC5lc3QwggEi
-MA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDAn6IqwTE1RvZUm3gelpu4tmrd
-Fj8Ub98J1YeQz7qrew5iA81NeH9tR484edjcY0ieOt3e1MfxJoziWtaeqxpsfytm
-VB/i+850kVZmvRCR1jhW/4AzidkVBMQiCR5erPmmheeCxbKkto0rHb7ziRA+F8/f
-ZLKfLNsahEQPxDuMItyQFCOQFHh8Hfuend2NgsQKeZ1r5Czf3n5Q6NFff7HG+MDe
-NDNdPB3ShgcvvNCFUS1z615/GIItfSqcWTAVaJ7436cA7yy5y4+0SvjfXYtHYfyt
-hBj/5UqlUmjni8Irj5K8uEtb1YUujmvlTTbzPkhYqIkSoyr7t21Dz+gcYn49AgMB
-AAGjgZ8wgZwwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUN3Z0iLv1FE17DCDBfpxW
-2P+5+kIwCwYDVR0PBAQDAgO4MBMGA1UdJQQMMAoGCCsGAQUFBwMCMBgGA1UdEQQR
-MA+CDWVzdGNsaWVudC5lc3QwEQYJYIZIAYb4QgEBBAQDAgWgMB4GCWCGSAGG+EIB
-DQQRFg94Y2EgY2VydGlmaWNhdGUwDQYJKoZIhvcNAQELBQADggIBACMAHHH4/0eA
-XbS/uKsIjLN1QPnnzgjxC0xoUon8UVM0PUMH+FMg6rs21Xyl5tn5iItmvKI9c3ak
-AZ00RUQKVdmJVFRUKywmfF7n5epBpXtWJrSH817NT9GOp+PO5VUTDV5VkvpVLoy7
-WzThrheLKz1nC1dWowRz86tcBLAsC1zT17fsNZXQDuv4LiQQXs7QKhUU75r1Ixrd
-BPeBQSP5skGpWxm8sapQSfOALoXu1pSoGIr6tqvNGuEoZGvUuWeQHG/G8c2ufL+6
-lEzZBBCd6e2tErkqD/vqfCRzbLcGgSPX0HVWdkjH09nHWXI5UhNr2YgGF7YvSTKW
-JfbDVlTql1BuSn2yTQtDk4E8k9BLr8WfqFSZvYrivT9Ax1n3BD9jvQL5+QRdioH1
-kqNGMme0Pb43pHciX4hu9L5rGenZRmxeGXZ78uSOR+n2bGxAMw1OY7Rx/lsNSKWD
-SN+7xIrwjjXO5Uthev1ecrLAK2+EpjITa6Y85ms39V4ypCEdujkKEBeVxuN8DdMJ
-2GaFGluSRZeYZ0LAPfYr5sp6G6904WF+PcT0WjGenH4PJLXrAttbhhvQxXU0Q8s2
-CUwUHy5OT/DW3POq7WETc+zmFGwZqiP3W9gmN0hHXsKqkNmz2RYgoH57lPS1PJb0
-klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
------END CERTIFICATE-----"""
-        self.assertEqual(
-            [
-                "MAA=",
-                "BBQ3dnSIu/UUTXsMIMF+nFbY/7n6Qg==",
-                "AwIDuA==",
-                "MAoGCCsGAQUFBwMC",
-                "MA+CDWVzdGNsaWVudC5lc3Q=",
-                "AwIFoA==",
-                "Fg94Y2EgY2VydGlmaWNhdGU=",
-            ],
-            self.cert_extensions_py_openssl_get(self.logger, cert, recode=False),
-        )
-
-    def test_190_cert_extensions_py_openssl_get(self):
-        """test cert_san_get for a single SAN and recode = True"""
-        cert = "MIIEZDCCAkygAwIBAgIIe941mx0FQtAwDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yMTA0MDkxNTUyMDBaFw0yNjA0MDkxNTUyMDBaMBgxFjAUBgNVBAMTDWVzdGNsaWVudC5lc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDAn6IqwTE1RvZUm3gelpu4tmrdFj8Ub98J1YeQz7qrew5iA81NeH9tR484edjcY0ieOt3e1MfxJoziWtaeqxpsfytmVB/i+850kVZmvRCR1jhW/4AzidkVBMQiCR5erPmmheeCxbKkto0rHb7ziRA+F8/fZLKfLNsahEQPxDuMItyQFCOQFHh8Hfuend2NgsQKeZ1r5Czf3n5Q6NFff7HG+MDeNDNdPB3ShgcvvNCFUS1z615/GIItfSqcWTAVaJ7436cA7yy5y4+0SvjfXYtHYfythBj/5UqlUmjni8Irj5K8uEtb1YUujmvlTTbzPkhYqIkSoyr7t21Dz+gcYn49AgMBAAGjgZ8wgZwwDAYDVR0TAQH/BAIwADAdBgNVHQ4EFgQUN3Z0iLv1FE17DCDBfpxW2P+5+kIwCwYDVR0PBAQDAgO4MBMGA1UdJQQMMAoGCCsGAQUFBwMCMBgGA1UdEQQRMA+CDWVzdGNsaWVudC5lc3QwEQYJYIZIAYb4QgEBBAQDAgWgMB4GCWCGSAGG+EIBDQQRFg94Y2EgY2VydGlmaWNhdGUwDQYJKoZIhvcNAQELBQADggIBACMAHHH4/0eAXbS/uKsIjLN1QPnnzgjxC0xoUon8UVM0PUMH+FMg6rs21Xyl5tn5iItmvKI9c3akAZ00RUQKVdmJVFRUKywmfF7n5epBpXtWJrSH817NT9GOp+PO5VUTDV5VkvpVLoy7WzThrheLKz1nC1dWowRz86tcBLAsC1zT17fsNZXQDuv4LiQQXs7QKhUU75r1IxrdBPeBQSP5skGpWxm8sapQSfOALoXu1pSoGIr6tqvNGuEoZGvUuWeQHG/G8c2ufL+6lEzZBBCd6e2tErkqD/vqfCRzbLcGgSPX0HVWdkjH09nHWXI5UhNr2YgGF7YvSTKWJfbDVlTql1BuSn2yTQtDk4E8k9BLr8WfqFSZvYrivT9Ax1n3BD9jvQL5+QRdioH1kqNGMme0Pb43pHciX4hu9L5rGenZRmxeGXZ78uSOR+n2bGxAMw1OY7Rx/lsNSKWDSN+7xIrwjjXO5Uthev1ecrLAK2+EpjITa6Y85ms39V4ypCEdujkKEBeVxuN8DdMJ2GaFGluSRZeYZ0LAPfYr5sp6G6904WF+PcT0WjGenH4PJLXrAttbhhvQxXU0Q8s2CUwUHy5OT/DW3POq7WETc+zmFGwZqiP3W9gmN0hHXsKqkNmz2RYgoH57lPS1PJb0klGUNHG98CtsmlhrivhSTJWqSIOfyKGF"
-        self.assertEqual(
-            [
-                "MAA=",
-                "BBQ3dnSIu/UUTXsMIMF+nFbY/7n6Qg==",
-                "AwIDuA==",
-                "MAoGCCsGAQUFBwMC",
-                "MA+CDWVzdGNsaWVudC5lc3Q=",
-                "AwIFoA==",
-                "Fg94Y2EgY2VydGlmaWNhdGU=",
-            ],
-            self.cert_extensions_py_openssl_get(self.logger, cert, recode=True),
         )
 
     def test_191_csr_dn_get(self):
@@ -3254,52 +3114,6 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.cert_ski_get(self.logger, cert),
         )
 
-    def test_305_cert_ski_pyopenssl_get(self):
-        """test cert_san_get for a multiple SAN of type DNS"""
-        cert = """MIIDIzCCAgugAwIBAgICBZgwDQYJKoZIhvcNAQELBQAwGjEYMBYGA1UEAxMPZm9v
-                LmV4YW1wbGUuY29tMB4XDTE5MDEyMDE3MDkxMVoXDTE5MDIxOTE3MDkxMVowGjEY
-                MBYGA1UEAxMPZm9vLmV4YW1wbGUuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
-                MIIBCgKCAQEA+EM+gzAyjegQSRbJI+qZJhuAGM9i48xvIfuOQHleXoJPjV+8VZRV
-                KDljZNXdNT5Zi7K6HY9C622NOV7QefB6zTtm6mSY08ypNsaeorhIvJdnpaJ9gAGH
-                YeQqJ04fL099kiRXJAv8gT8wdpiekg2KEU4wlXMIRfSHiiB37yjcqUzXl6XYYKGe
-                2USMpDfliXL3o8TW2KByGUdCzXUdNbMgzRXwYxkX2+xV2f0vn8NyXHiHg9yJRof2
-                HTjyvAcXN5Nr987slq/Ex5lXLtpB861Ov3ZbwxyzREjmreZBlze7KTfP5IY66XuN
-                Mvhi7AAs0cLTd3SNjpppE/yvUi5q5gfhXQIDAQABo3MwcTAfBgNVHSMEGDAWgBSl
-                YnpKQw12MmEMpvsTEeQi17UsnDAdBgNVHQ4EFgQUpWJ6SkMNdjJhDKb7ExHkIte1
-                LJwwLwYDVR0RBCgwJoIRZm9vLTIuZXhhbXBsZS5jb22CEWZvby0xLmV4YW1wbGUu
-                Y29tMA0GCSqGSIb3DQEBCwUAA4IBAQASA20TtMPXIHH10dikLhFuI14EOtZzXvCx
-                kGlJw9/5JuvVKLsL1wd8BC9o/lg8apDqsrDZ/+0Nc8g3Z9HRN99vcLsVDdT27DkM
-                BslfXdN/qBhKAp3m7jw29uijX5fss+Wz9iHfHciUjVyMJ4DoFxHYPbMWQG8XEUKR
-                TP6Gp79DzCiPKFt52Y8yVikIET4fnyRzU8kGKLuPoIt+EQQzpG26qWAjeNHAASEM
-                keiA+tedMWzydX52B+tGg+l2svxg34apIBDjK8pF+8ZxTt5yjVUa10GbpffJuiEh
-                NWQddOR8IHg+v6lWc9BtuuKK5ubsg6XOiEjhhr42AKViKalX1i4+"""
-        self.assertEqual(
-            "a5627a4a430d7632610ca6fb1311e422d7b52c9c",
-            self.cert_ski_pyopenssl_get(self.logger, cert),
-        )
-
-    @patch("acme_srv.helpers.certificates.cert_ski_pyopenssl_get")
-    @patch("acme_srv.helpers.certificates.cert_load")
-    def test_306_ski_get(self, mock_load, mock_ski):
-        """test cert_ski_get()"""
-        cert = "cert"
-        mock_ski.return_value = "mock_ski"
-        mock_load.return_value = "mock_load"
-        self.assertEqual("mock_ski", self.cert_ski_get(self.logger, cert))
-        self.assertTrue(mock_ski.called)
-
-    @patch("OpenSSL.crypto.load_certificate")
-    def test_307_ski_get(self, mock_load):
-        """test cert_ski_get()"""
-        cert = "cert"
-        mock_load.get_extension_count.return_value = 2
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.cert_ski_pyopenssl_get(self.logger, cert))
-        self.assertIn(
-            "WARNING:test_a2c:No SKI found in certificate",
-            lcm.output,
-        )
-
     def test_308_cert_aki_get(self):
         """test cert_san_get aki"""
         cert = "MIIEOzCCAiOgAwIBAgIIKndYX0qdb04wDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yNDAxMjkyMDA0NTZaFw0yNTAxMjgyMDA0NTZaMD8xFzAVBgNVBAMTDmxlZ28uYmFyLmxvY2FsMRcwFQYDVQQKDA5hY21lMmNlcnRpZmllcjELMAkGA1UEBhMCREUwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQKIqEIxeS0JIN+iqsJ+08IJFFmuvfpjFnH4wFD2OLlmeTvfpDsnD00uw/orLvecDvjt48JvgYR8Wv+9C4ajIDfo4IBGTCCARUwHQYDVR0OBBYEFCka80MPgj45/quHJ9oF8Cc1YlsXMB8GA1UdIwQYMBaAFL/ejo4GIiKrrUPI3dRPqKtIQT7VMAsGA1UdDwQEAwID6DBRBgNVHSUBAf8ERzBFBggrBgEFBQcDAQYIKwYBBQUHAwIGCCsGAQUFBwMDBggrBgEFBQcDBAYIKwYBBQUHAwgGCCsGAQUFBwMJBgcrBgEFAgMFMEoGA1UdHwRDMEEwHqAcoBqGGFVSSTpodHRwOi8vZm9vLmJhci5sb2NhbDAfoB2gG4YZVVJJOmh0dHA6Ly9mb28xLmJhci5sb2NhbDAMBgNVHRMBAf8EAjAAMBkGA1UdEQQSMBCCDmxlZ28uYmFyLmxvY2FsMA0GCSqGSIb3DQEBCwUAA4ICAQB4FxJwQ/aILMzh7jBSr358RA92mX8srPmzQrjPYoU7T2LxwMf+eb0z5x0PMFH8j5FgRvRGWo6rcco8rL+B+gvrVhQ0TfAFEF77WJfKG2XMlnEN/9Ri73J7+dA45kaw8CZRSfUBpIW6fb4N+6frXyIKwBaZnrT6qiy+Izu+ZH6RkaTFrBn5yOWvVyk7aBHE1eZ+3+eA3qBI4UPaeYFSwr3gY5dxfbPktlFgvpCI22ff4NAb/fzjAQsKRTkXkOVqAvBJcWI5d/g32IVMLq0ub13XLe+yHk0iCxyMaIRdN4+W6RYi3gvtTQh6LaOjncWDYLdsm+vN+YqXEqieY5TC1oC8kG9We9eHzKHdNquJnrju536DPqh4xYEDcb+PGvTr3sqYdSikA9v5FuWUGeiZD/ZEvw/p7F7DevD5NO1JaOtfWDwDwxFHEyn+iwTVq3QDEc4j+oyGnQJs5Spoyz3tJi31VMJk+EAKKUV66aVNynLM7Ce4Oj0M67o4pcnDd0uWBMSAg4lH8KIX0IsmMfLnirIqOOwrZ4UkPKlEjD+oZQf5IBukfdHob/bo4fW8q4eU/I8z9w3BTdV1yNVH/ANHg5AItoPabkr65oBTwY51j3FVq0gK+4xVrevcyIeY3A9XFzA18k/gX7O/kf/IrM0dcZWJnsW39byiWhUd4JetJaGeKg"
@@ -3308,35 +3122,54 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             self.cert_aki_get(self.logger, cert),
         )
 
-    def test_309_cert_aki_pyopenssl_get(self):
-        """test cert_san_get aki"""
-        cert = "MIIEOzCCAiOgAwIBAgIIKndYX0qdb04wDQYJKoZIhvcNAQELBQAwKjEXMBUGA1UECxMOYWNtZTJjZXJ0aWZpZXIxDzANBgNVBAMTBnN1Yi1jYTAeFw0yNDAxMjkyMDA0NTZaFw0yNTAxMjgyMDA0NTZaMD8xFzAVBgNVBAMTDmxlZ28uYmFyLmxvY2FsMRcwFQYDVQQKDA5hY21lMmNlcnRpZmllcjELMAkGA1UEBhMCREUwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAAQKIqEIxeS0JIN+iqsJ+08IJFFmuvfpjFnH4wFD2OLlmeTvfpDsnD00uw/orLvecDvjt48JvgYR8Wv+9C4ajIDfo4IBGTCCARUwHQYDVR0OBBYEFCka80MPgj45/quHJ9oF8Cc1YlsXMB8GA1UdIwQYMBaAFL/ejo4GIiKrrUPI3dRPqKtIQT7VMAsGA1UdDwQEAwID6DBRBgNVHSUBAf8ERzBFBggrBgEFBQcDAQYIKwYBBQUHAwIGCCsGAQUFBwMDBggrBgEFBQcDBAYIKwYBBQUHAwgGCCsGAQUFBwMJBgcrBgEFAgMFMEoGA1UdHwRDMEEwHqAcoBqGGFVSSTpodHRwOi8vZm9vLmJhci5sb2NhbDAfoB2gG4YZVVJJOmh0dHA6Ly9mb28xLmJhci5sb2NhbDAMBgNVHRMBAf8EAjAAMBkGA1UdEQQSMBCCDmxlZ28uYmFyLmxvY2FsMA0GCSqGSIb3DQEBCwUAA4ICAQB4FxJwQ/aILMzh7jBSr358RA92mX8srPmzQrjPYoU7T2LxwMf+eb0z5x0PMFH8j5FgRvRGWo6rcco8rL+B+gvrVhQ0TfAFEF77WJfKG2XMlnEN/9Ri73J7+dA45kaw8CZRSfUBpIW6fb4N+6frXyIKwBaZnrT6qiy+Izu+ZH6RkaTFrBn5yOWvVyk7aBHE1eZ+3+eA3qBI4UPaeYFSwr3gY5dxfbPktlFgvpCI22ff4NAb/fzjAQsKRTkXkOVqAvBJcWI5d/g32IVMLq0ub13XLe+yHk0iCxyMaIRdN4+W6RYi3gvtTQh6LaOjncWDYLdsm+vN+YqXEqieY5TC1oC8kG9We9eHzKHdNquJnrju536DPqh4xYEDcb+PGvTr3sqYdSikA9v5FuWUGeiZD/ZEvw/p7F7DevD5NO1JaOtfWDwDwxFHEyn+iwTVq3QDEc4j+oyGnQJs5Spoyz3tJi31VMJk+EAKKUV66aVNynLM7Ce4Oj0M67o4pcnDd0uWBMSAg4lH8KIX0IsmMfLnirIqOOwrZ4UkPKlEjD+oZQf5IBukfdHob/bo4fW8q4eU/I8z9w3BTdV1yNVH/ANHg5AItoPabkr65oBTwY51j3FVq0gK+4xVrevcyIeY3A9XFzA18k/gX7O/kf/IrM0dcZWJnsW39byiWhUd4JetJaGeKg"
-        self.assertEqual(
-            "bfde8e8e062222abad43c8ddd44fa8ab48413ed5",
-            self.cert_aki_pyopenssl_get(self.logger, cert),
-        )
+    @patch("acme_srv.helpers.certificates.x509.Certificate.extensions")
+    def test_309_cert_aki_get_error_handling(self, mock_ext):
+        """test cert_aki_get() error handling when AKI is missing"""
+        # Use a valid PEM certificate without AKI extension (from other tests)
+        cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
+    ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
+    FgYDVQQDEw9mb28uZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
+    ggEKAoIBAQCqUeNzDyBVugUKZq597ishYAdMPgus5Nw5pWE/Jw7PP0koeFE2wODq
+    HVb+XNFFEX4IOyiE2Pi4ilzfXYGKchhP3wHgnkxGNIwt/cDNZgyTiUpITV/ciFaC
+    7avkvQS6ScCYUYrhby7QnvcU02mAyhNcSVGI5TW7HhFdtWrEAK3N8H6yhxHLSi2y
+    dpQ3kCJyJylqt/Rv3uKNjCvTv867K6A1QSsXoAxtPK9P0UOTRvgHkFf8T32Bn/Er
+    1bjkX9Ms8rqDQmicCWJk260lUHzN6vxaeiEg7Kz3TA8Ik3DMIcvwJrE168G1APo+
+    FyOIKyx+t78HWOlNINIqZMj5e2DpulV7AgMBAAGjXjBcMB8GA1UdIwQYMBaAFK1Z
+    zuGt0Pe+NLerCXqQBYmVV7suMB0GA1UdDgQWBBStWc7hrdD3vjS3qwl6kAWJlVe7
+    LjAaBgNVHREEEzARgg9mb28uZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEB
+    AANW0DD4Xp7LH/Rzf2jVLwiFlbtR6iazyn9S/pH2Gwqjkscv/27/dqJb7CfPdD02
+    5ItQcYkZPJhDOsj63kvUaD89QU31RnYQrXrbXFqYOIAq6kxfZUoQmpfEBxbB4Wxm
+    TW0OWS+FMqNw/SuGs6EQjTRA+gBOeGzj4H9yOFOg0PpadBayZ7UT4lm1LOiFHh8h
+    bta75ocePrurdNxsxKJhLlXbnKD6lurCb4khRhrmLmpK8JxhuaevEVklSQX0gqlR
+    fxAH4XQsaqcaedPNI+W5OUITMz40ezDCbUqxS9KEMCGPoOTXNRAjbr72sc4Vkw7H
+    t+eRUDECE+0UnjyeCjTn3EU="""
+        mock_ext.get_extension_for_oid.side_effect = Exception("No AKI")
+        aki = self.cert_aki_get(self.logger, cert)
+        self.assertEqual(aki, "")
 
-    @patch("acme_srv.helpers.certificates.cert_aki_pyopenssl_get")
-    @patch("acme_srv.helpers.certificates.cert_load")
-    def test_310_aki_get(self, mock_load, mock_aki):
-        """test cert_ski_get()"""
-        cert = "cert"
-        mock_aki.return_value = "mock_aki"
-        mock_load.return_value = "mock_load"
-        self.assertEqual("mock_aki", self.cert_aki_get(self.logger, cert))
-        self.assertTrue(mock_aki.called)
-
-    @patch("OpenSSL.crypto.load_certificate")
-    def test_311_aki_get(self, mock_load):
-        """test cert_aki_get()"""
-        cert = "cert"
-        mock_load.get_extension_count.return_value = 2
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.cert_aki_pyopenssl_get(self.logger, cert))
-        self.assertIn(
-            "WARNING:test_a2c:No AKI found in certificate",
-            lcm.output,
-        )
+    @patch("acme_srv.helpers.certificates.x509.Certificate.extensions")
+    def test_310_cert_ski_get_error_handling(self, mock_ext):
+        """test cert_ski_get() error handling when SKI is missing"""
+        cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
+    ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
+    FgYDVQQDEw9mb28uZXhhbXBsZS5jb20wggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAw
+    ggEKAoIBAQCqUeNzDyBVugUKZq597ishYAdMPgus5Nw5pWE/Jw7PP0koeFE2wODq
+    HVb+XNFFEX4IOyiE2Pi4ilzfXYGKchhP3wHgnkxGNIwt/cDNZgyTiUpITV/ciFaC
+    7avkvQS6ScCYUYrhby7QnvcU02mAyhNcSVGI5TW7HhFdtWrEAK3N8H6yhxHLSi2y
+    dpQ3kCJyJylqt/Rv3uKNjCvTv867K6A1QSsXoAxtPK9P0UOTRvgHkFf8T32Bn/Er
+    1bjkX9Ms8rqDQmicCWJk260lUHzN6vxaeiEg7Kz3TA8Ik3DMIcvwJrE168G1APo+
+    FyOIKyx+t78HWOlNINIqZMj5e2DpulV7AgMBAAGjXjBcMB8GA1UdIwQYMBaAFK1Z
+    zuGt0Pe+NLerCXqQBYmVV7suMB0GA1UdDgQWBBStWc7hrdD3vjS3qwl6kAWJlVe7
+    LjAaBgNVHREEEzARgg9mb28uZXhhbXBsZS5jb20wDQYJKoZIhvcNAQELBQADggEB
+    AANW0DD4Xp7LH/Rzf2jVLwiFlbtR6iazyn9S/pH2Gwqjkscv/27/dqJb7CfPdD02
+    5ItQcYkZPJhDOsj63kvUaD89QU31RnYQrXrbXFqYOIAq6kxfZUoQmpfEBxbB4Wxm
+    TW0OWS+FMqNw/SuGs6EQjTRA+gBOeGzj4H9yOFOg0PpadBayZ7UT4lm1LOiFHh8h
+    bta75ocePrurdNxsxKJhLlXbnKD6lurCb4khRhrmLmpK8JxhuaevEVklSQX0gqlR
+    fxAH4XQsaqcaedPNI+W5OUITMz40ezDCbUqxS9KEMCGPoOTXNRAjbr72sc4Vkw7H
+    t+eRUDECE+0UnjyeCjTn3EU="""
+        mock_ext.get_extension_for_oid.side_effect = Exception("No SKI")
+        ski = self.cert_ski_get(self.logger, cert)
+        self.assertIsNone(ski)
 
     def test_312_validate_fqdn(self):
         """test validate_fqdn()"""

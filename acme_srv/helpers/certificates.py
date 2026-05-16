@@ -27,33 +27,11 @@ def cert_aki_get(logger: logging.Logger, certificate: str) -> str:
         aki = cert.extensions.get_extension_for_oid(x509.OID_AUTHORITY_KEY_IDENTIFIER)
         aki_value = aki.value.key_identifier.hex()
     except Exception as _err:
-        aki_value = cert_aki_pyopenssl_get(logger, certificate)
+        logger.error("Error while getting AKI from certificate: %s", _err)
+        aki_value = ""
+
     logger.debug("cert_aki_get() ended with: %s", aki_value)
     return aki_value
-
-
-def cert_aki_pyopenssl_get(logger, certificate: str) -> str:
-    """Get Authority Key Identifier from a certificate as a hex string."""
-    logger.debug("Helper.cert_aki_pyopenssl_cert()")
-
-    pem_data = convert_string_to_byte(
-        build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
-    )
-    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_data)
-    # Get the AKI extension
-    aki = None
-    for i in range(cert.get_extension_count()):
-        ext = cert.get_extension(i)
-        if "authorityKeyIdentifier" in str(ext.get_short_name()):
-            aki = ext
-    if aki:
-        # Get the SKI value and convert it to hex
-        aki_hex = aki.get_data()[4:].hex()
-    else:
-        logger.warning("No AKI found in certificate")
-        aki_hex = None
-    logger.debug("Helper.cert_ski_pyopenssl_cert() ended with: %s", aki_hex)
-    return aki_hex
 
 
 def cert_load(
@@ -161,33 +139,6 @@ def cert_pubkey_get(logger: logging.Logger, certificate=str) -> str:
     return convert_byte_to_string(pubkey_str)
 
 
-def cert_san_pyopenssl_get(logger, certificate, recode=True):
-    """get subject alternate names from certificate"""
-    logger.debug("Helper.cert_san_pyopenssl_get()")
-    if recode:
-        pem_file = build_pem_file(
-            logger, None, b64_url_recode(logger, certificate), True
-        )
-    else:
-        pem_file = certificate
-
-    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
-    san = []
-    ext_count = cert.get_extension_count()
-    for i in range(0, ext_count):
-        ext = cert.get_extension(i)
-        if "subjectAltName" in str(ext.get_short_name()):
-            # pylint: disable=c2801
-            san_list = ext.__str__().split(",")
-            for san_name in san_list:
-                san_name = san_name.rstrip()
-                san_name = san_name.lstrip()
-                san.append(san_name)
-
-    logger.debug("Helper.cert_san_pyopenssl_get() ended")
-    return san
-
-
 def cert_san_get(
     logger: logging.Logger, certificate: str, recode: bool = True
 ) -> List[str]:
@@ -206,35 +157,9 @@ def cert_san_get(
             sans.append(f"IP:{san}")
     except Exception as err:
         logger.error("Error while getting SANs from certificate: %s", err)
-        # fallback to pyopenssl method if there is an error (e.g. SAN extension not found)
-        # sans = cert_san_pyopenssl_get(logger, certificate, recode=recode)
 
     logger.debug("Helper.cert_san_get() ended")
     return sans
-
-
-def cert_ski_pyopenssl_get(logger, certificate: str) -> str:
-    """Get Subject Key Identifier from a certificate as a hex string."""
-    logger.debug("Helper.cert_ski_pyopenssl_cert()")
-
-    pem_data = convert_string_to_byte(
-        build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
-    )
-    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_data)
-    # Get the SKI extension
-    ski = None
-    for i in range(cert.get_extension_count()):
-        ext = cert.get_extension(i)
-        if "subjectKeyIdentifier" in str(ext.get_short_name()):
-            ski = ext
-    if ski:
-        # Get the SKI value and convert it to hex
-        ski_hex = ski.get_data()[2:].hex()
-    else:
-        logger.warning("No SKI found in certificate")
-        ski_hex = None
-    logger.debug("Helper.cert_ski_pyopenssl_cert() ended with: %s", ski_hex)
-    return ski_hex
 
 
 def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
@@ -246,8 +171,9 @@ def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
         ski = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_KEY_IDENTIFIER)
         ski_value = ski.value.digest.hex()
     except Exception as err:
-        logger.error("Error while getting the SKI fallback to Openssl method: %s", err)
-        ski_value = cert_ski_pyopenssl_get(logger, certificate)
+        logger.error("Error while getting the SKI: %s", err)
+        ski_value = None
+
     logger.debug("Helper.cert_ski_get() ended with: %s", ski_value)
     return ski_value
 
@@ -277,40 +203,14 @@ def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool =
     """get extenstions from certificate certificate"""
     logger.debug("Helper.cert_extensions_get()")
 
-    crypto_module_version = cryptography_version_get(logger)
-    if crypto_module_version < 36:
-        logger.debug("Helper.cert_extensions_get(): using pyopenssl")
-        extension_list = cert_extensions_py_openssl_get(logger, certificate, recode)
-    else:
-        cert = cert_load(logger, certificate, recode=recode)
-        extension_list = []
-        for extension in cert.extensions:
-            extension_list.append(
-                convert_byte_to_string(base64.b64encode(extension.value.public_bytes()))
-            )
+    cert = cert_load(logger, certificate, recode=recode)
+    extension_list = []
+    for extension in cert.extensions:
+        extension_list.append(
+            convert_byte_to_string(base64.b64encode(extension.value.public_bytes()))
+        )
 
     logger.debug("Helper.cert_extensions_get() ended with: %s", extension_list)
-    return extension_list
-
-
-def cert_extensions_py_openssl_get(logger, certificate, recode=True):
-    """get extenstions from certificate certificate"""
-    logger.debug("cert_extensions_py_openssl_get()")
-    if recode:
-        pem_file = build_pem_file(
-            logger, None, b64_url_recode(logger, certificate), True
-        )
-    else:
-        pem_file = certificate
-
-    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
-    extension_list = []
-    ext_count = cert.get_extension_count()
-    for i in range(0, ext_count):
-        ext = cert.get_extension(i)
-        extension_list.append(convert_byte_to_string(base64.b64encode(ext.get_data())))
-
-    logger.debug("cert_extensions_py_openssl_get() ended with: %s", extension_list)
     return extension_list
 
 
