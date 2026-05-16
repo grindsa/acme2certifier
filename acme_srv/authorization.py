@@ -57,6 +57,9 @@ class AuthorizationConfiguration:
     authz_path: str = "/acme/authz/"
     prevalidated_domainlist: Optional[List[str]] = None
     prevalidated_iplist: Optional[List[str]] = None
+    prevalidated_emaillist: Optional[List[str]] = None
+    email_identifier_support: bool = False
+    email_identifier_rewrite: bool = False
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
 
@@ -457,6 +460,12 @@ class Authorization(object):
             self.config.expiry_check_disable = config_dic.getboolean(
                 "Authorization", "expiry_check_disable", fallback=False
             )
+            self.config.email_identifier_support = config_dic.getboolean(
+                "Authorization", "email_identifier_support", fallback=False
+            )
+            self.config.email_identifier_rewrite = config_dic.getboolean(
+                "Authorization", "email_identifier_rewrite", fallback=False
+            )
             url_prefix = config_dic.get("Directory", "url_prefix", fallback=None)
             if url_prefix:
                 self.config.authz_path = f"{url_prefix}{self.config.authz_path}"
@@ -466,6 +475,9 @@ class Authorization(object):
             )
             self.config.prevalidated_iplist = self._load_json_config_param(
                 config_dic, "prevalidated_iplist"
+            )
+            self.config.prevalidated_emaillist = self._load_json_config_param(
+                config_dic, "prevalidated_emaillist"
             )
             # load profiling
             (
@@ -619,6 +631,7 @@ class Authorization(object):
     def _apply_prevalidation_whitelist(
         self, authz_name, auth_details, id_type, id_value, authz_info
     ):
+        if (id_type == "dns" or id_type == "email") and '@' in id_value):
         if id_type == "dns":
             self._handle_domain_prevalidation(
                 authz_name, auth_details, id_value, authz_info
