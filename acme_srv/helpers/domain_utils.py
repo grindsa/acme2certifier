@@ -89,13 +89,21 @@ def is_ip_whitelisted(logger, ip_address, ip_network_list):
 
 
 def is_email_whitelisted(logger, email_address, email_list):
-    """check if an email address is in a list of allowed email addresses"""
+    """Check if an email address is in a list of allowed email addresses or wildcard patterns.
+
+    Supports exact matches and wildcard patterns like *@example.com.
+    """
     logger.debug("Helper.is_email_whitelisted(%s, %s)", email_address, email_list)
     email_address = email_address.lower().strip()
     for pattern in email_list:
         pattern = pattern.lower().strip()
         if pattern == email_address:
             return True
+        # Support wildcard pattern: *@example.com
+        if pattern.startswith("*@"):
+            domain_part = pattern[2:]
+            if email_address.endswith("@" + domain_part):
+                return True
     return False
 
 

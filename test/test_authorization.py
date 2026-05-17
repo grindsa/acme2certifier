@@ -1791,12 +1791,12 @@ class TestAuthorization(unittest.TestCase):
         self.authorization._apply_prevalidation_whitelist(
             authz_name, auth_details, id_type, id_value, authz_info
         )
-
         self.assertEqual(authz_info["status"], "pending")
         self.authorization.repository.mark_authorization_as_valid.assert_not_called()
         self.authorization.repository.mark_order_as_ready.assert_not_called()
         self.mock_logger.debug.assert_any_call(
-            "Authorization.get_authorization_details() - Checking preauthorized IP list for IP identifier"
+            "IP %s is not preauthorized, leaving authorization status unchanged",
+            id_value,
         )
 
     def test_093_ip_prevalidation_iplist_not_set(self):
