@@ -33,6 +33,7 @@ def cert_aki_get(logger: logging.Logger, certificate: str) -> str:
     logger.debug("cert_aki_get() ended with: %s", aki_value)
     return aki_value
 
+
 def _cert_aki_pyopenssl_get(logger, certificate: str) -> str:
     """Get Authority Key Identifier from a certificate as a hex string."""
     logger.debug("Helper.cert_aki_pyopenssl_cert()")
