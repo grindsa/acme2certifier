@@ -6424,6 +6424,59 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
             is_email_whitelisted(self.logger, "user@example.com", email_list)
         )
 
+    def test_535_is_email_whitelisted_exact_match(self):
+        """Test is_email_whitelisted returns True for exact match."""
+        from acme_srv.helpers.domain_utils import is_email_whitelisted
+
+        email_list = ["user@example.com", "admin@foo.com"]
+        self.assertTrue(
+            is_email_whitelisted(self.logger, "user@example.com", email_list)
+        )
+        self.assertTrue(is_email_whitelisted(self.logger, "admin@foo.com", email_list))
+        self.assertFalse(
+            is_email_whitelisted(self.logger, "other@example.com", email_list)
+        )
+
+    def test_536_is_email_whitelisted_wildcard(self):
+        """Test is_email_whitelisted returns True for wildcard *@example.com."""
+        from acme_srv.helpers.domain_utils import is_email_whitelisted
+
+        email_list = ["*@example.com"]
+        self.assertTrue(
+            is_email_whitelisted(self.logger, "user@example.com", email_list)
+        )
+        self.assertTrue(
+            is_email_whitelisted(self.logger, "admin@example.com", email_list)
+        )
+        self.assertFalse(
+            is_email_whitelisted(self.logger, "user@other.com", email_list)
+        )
+
+    def test_537_is_email_whitelisted_mixed_patterns(self):
+        """Test is_email_whitelisted with mixed exact and wildcard patterns."""
+        from acme_srv.helpers.domain_utils import is_email_whitelisted
+
+        email_list = ["*@example.com", "special@foo.com"]
+        self.assertTrue(
+            is_email_whitelisted(self.logger, "user@example.com", email_list)
+        )
+        self.assertTrue(
+            is_email_whitelisted(self.logger, "special@foo.com", email_list)
+        )
+        self.assertFalse(
+            is_email_whitelisted(self.logger, "nobody@bar.com", email_list)
+        )
+
+    def test_538_is_email_whitelisted_strip_and_case(self):
+        """Test is_email_whitelisted is case and whitespace insensitive."""
+        from acme_srv.helpers.domain_utils import is_email_whitelisted
+
+        email_list = ["  User@Example.com  ", "*@foo.com"]
+        self.assertTrue(
+            is_email_whitelisted(self.logger, " user@example.com ", email_list)
+        )
+        self.assertTrue(is_email_whitelisted(self.logger, "ADMIN@FOO.COM", email_list))
+
 
 if __name__ == "__main__":
     unittest.main()

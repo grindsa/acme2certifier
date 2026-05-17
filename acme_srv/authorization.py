@@ -597,40 +597,19 @@ class Authorization(object):
         try:
             with self.config.eab_handler(self.logger) as eab_handler:
                 profile_dic = eab_handler.key_file_load()
-                # load prevalidated_domainlist from eab profile if it exists and override global config
-                prevalidated_domainlist = (
-                    profile_dic.get(eab_kid, {})
-                    .get("authorization", {})
-                    .get("prevalidated_domainlist")
-                )
-                if prevalidated_domainlist:
-                    self.logger.debug(
-                        "Authorization._apply_eab_and_domain_whitelist() - apply prevalidated_domainlist from eab profile."
+                for key, attr in [
+                    ("prevalidated_domainlist", "prevalidated_domainlist"),
+                    ("prevalidated_iplist", "prevalidated_iplist"),
+                    ("prevalidated_emaillist", "prevalidated_emaillist"),
+                ]:
+                    value = (
+                        profile_dic.get(eab_kid, {}).get("authorization", {}).get(key)
                     )
-                    self.config.prevalidated_domainlist = prevalidated_domainlist
-                # load prevalidated_iplist from eab profile if it exists and override global config
-                prevalidated_iplist = (
-                    profile_dic.get(eab_kid, {})
-                    .get("authorization", {})
-                    .get("prevalidated_iplist")
-                )
-                if prevalidated_iplist:
-                    self.logger.debug(
-                        "Authorization._apply_eab_and_domain_whitelist() - apply prevalidated_iplist from eab profile."
-                    )
-                    self.config.prevalidated_iplist = prevalidated_iplist
-                # load prevalidated_emaillist from eab profile if it exists and override global config
-                prevalidated_emaillist = (
-                    profile_dic.get(eab_kid, {})
-                    .get("authorization", {})
-                    .get("prevalidated_emaillist")
-                )
-                if prevalidated_emaillist:
-                    self.logger.debug(
-                        "Authorization._apply_eab_and_domain_whitelist() - apply prevalidated_emaillist from eab profile."
-                    )
-                    self.config.prevalidated_emaillist = prevalidated_emaillist
-
+                    if value:
+                        self.logger.debug(
+                            f"Authorization._apply_eab_and_domain_whitelist() - apply {key} from eab profile."
+                        )
+                        setattr(self.config, attr, value)
         except Exception as err:
             self.logger.error(
                 "Failed to process EAB profile for challenge %s (kid: %s): %s",
@@ -642,6 +621,11 @@ class Authorization(object):
     def _apply_prevalidation_whitelist(
         self, authz_name, auth_details, id_type, id_value, authz_info
     ):
+        self.logger.debug(
+            "≈Checking prevalidation whitelist for identifier type: %s, value: %s",
+            id_type,
+            id_value,
+        )
         if (
             (id_type == "dns" and self.config.email_identifier_rewrite)
             or id_type == "email"
@@ -653,16 +637,18 @@ class Authorization(object):
             self._handle_domain_prevalidation(
                 authz_name, auth_details, id_value, authz_info
             )
-            return
-        if id_type == "ip":
+        elif id_type == "ip":
             self._handle_ip_prevalidation(
                 authz_name, auth_details, id_value, authz_info
             )
-            return
 
     def _handle_email_prevalidation(
         self, authz_name, auth_details, id_value, authz_info
     ):
+        """Handle email identifier prevalidation based on whitelist configuration. If the email is whitelisted, mark the authorization as valid and the order as ready."""
+        self.logger.debug(
+            "Authorization._handle_email_prevalidation() - Checking email identifier rewrite setting for email prevalidation"
+        )
         emaillist = getattr(self.config, "prevalidated_emaillist", None)
         if not emaillist:
             return
@@ -686,11 +672,15 @@ class Authorization(object):
     def _handle_domain_prevalidation(
         self, authz_name, auth_details, id_value, authz_info
     ):
+        """Handle domain identifier prevalidation based on whitelist configuration. If the domain is whitelisted, mark the authorization as valid and the order as ready."""
+        self.logger.debug(
+            "Authorization._handle_domain_prevalidation() - Checking email identifier rewrite setting for domain prevalidation"
+        )
         domainlist = getattr(self.config, "prevalidated_domainlist", None)
         if not domainlist:
             return
         self.logger.debug(
-            "Authorization.get_authorization_details() - Checking preauthorized domain list for DNS identifier"
+            "Authorization._handle_domain_prevalidation() - Checking preauthorized domain list for DNS identifier"
         )
         if is_domain_whitelisted(self.logger, id_value, domainlist):
             self.logger.debug(
@@ -707,11 +697,15 @@ class Authorization(object):
                 )
 
     def _handle_ip_prevalidation(self, authz_name, auth_details, id_value, authz_info):
+        """Handle IP identifier prevalidation based on whitelist configuration. If the IP is whitelisted, mark the authorization as valid and the order as ready."""
+        self.logger.debug(
+            "Authorization._handle_ip_prevalidation() - Checking email identifier rewrite setting for IP prevalidation"
+        )
         iplist = getattr(self.config, "prevalidated_iplist", None)
         if not iplist:
             return
         self.logger.debug(
-            "Authorization.get_authorization_details() - Checking preauthorized IP list for IP identifier"
+            "Authorization._handle_ip_prevalidation() - Checking preauthorized IP list for IP identifier"
         )
         if is_ip_whitelisted(self.logger, id_value, iplist):
             self.logger.debug(
@@ -726,6 +720,11 @@ class Authorization(object):
                 self.logger.debug(
                     "No order information found for authorization %s", authz_name
                 )
+        else:
+            self.logger.debug(
+                "IP %s is not preauthorized, leaving authorization status unchanged",
+                id_value,
+            )
 
     def expire_invalid_authorizations(
         self, timestamp: int = None

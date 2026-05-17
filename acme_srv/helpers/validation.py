@@ -128,7 +128,7 @@ def validate_fqdn(logger: logging.Logger, fqdn: str) -> bool:
     return result
 
 
-def validate_network(logger: logging.Logger, ip_network: str) -> bool:
+def validate_network(logger: logging.Logger, ip_network: str) -> ipaddress._BaseNetwork:
     """check if an ip address is in a list of ip networks"""
     logger.debug("Helper.validate_network(%s)", ip_network)
     return ipaddress.ip_network(ip_network, strict=False)
