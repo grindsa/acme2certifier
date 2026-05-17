@@ -72,7 +72,7 @@ jobs:
     name: Push images to dockerhub and github
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'  && inputs.branch == 'master'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: instance_start
     strategy:
       fail-fast: false
@@ -234,7 +234,7 @@ jobs:
   amd64_pull_and_test:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'  && inputs.branch == 'master'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: build_and_upload_images_to_hub
     strategy:
       fail-fast: false
@@ -420,7 +420,7 @@ jobs:
   arm64_pull_and_test:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'  && inputs.branch == 'master'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: build_and_upload_images_to_hub
     strategy:
       fail-fast: false
@@ -604,7 +604,7 @@ jobs:
   instance_stop:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'  && inputs.branch == 'master'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: arm64_pull_and_test
     steps:
     - name: Checkout code
