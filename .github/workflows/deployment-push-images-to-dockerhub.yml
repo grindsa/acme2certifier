@@ -12,7 +12,7 @@ jobs:
     name: instance_start
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'  && inputs.branch == 'master'
+    if: github.repository == 'grindsa/acme2certifier'
     steps:
     - name: Checkout code
       uses: actions/checkout@v6
