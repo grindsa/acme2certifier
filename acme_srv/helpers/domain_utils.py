@@ -88,6 +88,17 @@ def is_ip_whitelisted(logger, ip_address, ip_network_list):
     return False
 
 
+def is_email_whitelisted(logger, email_address, email_list):
+    """check if an email address is in a list of allowed email addresses"""
+    logger.debug("Helper.is_email_whitelisted(%s, %s)", email_address, email_list)
+    email_address = email_address.lower().strip()
+    for pattern in email_list:
+        pattern = pattern.lower().strip()
+        if pattern == email_address:
+            return True
+    return False
+
+
 def is_domain_whitelisted(
     logger: logging.Logger, domain: str, whitelist: List[str]
 ) -> bool:

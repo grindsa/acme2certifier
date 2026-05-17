@@ -14,7 +14,11 @@ from acme_srv.helper import (
     string_sanitize,
 )
 from acme_srv.helpers.config import load_config, config_eab_profile_load
-from acme_srv.helpers.domain_utils import is_domain_whitelisted, is_ip_whitelisted
+from acme_srv.helpers.domain_utils import (
+    is_domain_whitelisted,
+    is_ip_whitelisted,
+    is_email_whitelisted,
+)
 from acme_srv.message import Message
 from acme_srv.nonce import Nonce
 
@@ -58,7 +62,6 @@ class AuthorizationConfiguration:
     prevalidated_domainlist: Optional[List[str]] = None
     prevalidated_iplist: Optional[List[str]] = None
     prevalidated_emaillist: Optional[List[str]] = None
-    email_identifier_support: bool = False
     email_identifier_rewrite: bool = False
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
@@ -460,11 +463,8 @@ class Authorization(object):
             self.config.expiry_check_disable = config_dic.getboolean(
                 "Authorization", "expiry_check_disable", fallback=False
             )
-            self.config.email_identifier_support = config_dic.getboolean(
-                "Authorization", "email_identifier_support", fallback=False
-            )
             self.config.email_identifier_rewrite = config_dic.getboolean(
-                "Authorization", "email_identifier_rewrite", fallback=False
+                "Order", "email_identifier_rewrite", fallback=False
             )
             url_prefix = config_dic.get("Directory", "url_prefix", fallback=None)
             if url_prefix:
@@ -619,6 +619,17 @@ class Authorization(object):
                         "Authorization._apply_eab_and_domain_whitelist() - apply prevalidated_iplist from eab profile."
                     )
                     self.config.prevalidated_iplist = prevalidated_iplist
+                # load prevalidated_emaillist from eab profile if it exists and override global config
+                prevalidated_emaillist = (
+                    profile_dic.get(eab_kid, {})
+                    .get("authorization", {})
+                    .get("prevalidated_emaillist")
+                )
+                if prevalidated_emaillist:
+                    self.logger.debug(
+                        "Authorization._apply_eab_and_domain_whitelist() - apply prevalidated_emaillist from eab profile."
+                    )
+                    self.config.prevalidated_emaillist = prevalidated_emaillist
 
         except Exception as err:
             self.logger.error(
@@ -631,8 +642,14 @@ class Authorization(object):
     def _apply_prevalidation_whitelist(
         self, authz_name, auth_details, id_type, id_value, authz_info
     ):
-        if (id_type == "dns" or id_type == "email") and '@' in id_value):
-        if id_type == "dns":
+        if (
+            (id_type == "dns" and self.config.email_identifier_rewrite)
+            or id_type == "email"
+        ) and "@" in id_value:
+            self._handle_email_prevalidation(
+                authz_name, auth_details, id_value, authz_info
+            )
+        elif id_type == "dns":
             self._handle_domain_prevalidation(
                 authz_name, auth_details, id_value, authz_info
             )
@@ -642,6 +659,29 @@ class Authorization(object):
                 authz_name, auth_details, id_value, authz_info
             )
             return
+
+    def _handle_email_prevalidation(
+        self, authz_name, auth_details, id_value, authz_info
+    ):
+        emaillist = getattr(self.config, "prevalidated_emaillist", None)
+        if not emaillist:
+            return
+        self.logger.debug(
+            "Authorization.get_authorization_details() - Checking preauthorized email list for email identifier"
+        )
+        if is_email_whitelisted(self.logger, id_value, emaillist):
+            self.logger.debug(
+                "Email %s is preauthorized, setting authorization status to 'valid'",
+                id_value,
+            )
+            authz_info["status"] = "valid"
+            self.repository.mark_authorization_as_valid(authz_name)
+            if auth_details is not None:
+                self.repository.mark_order_as_ready(auth_details.get("order__name"))
+            else:
+                self.logger.debug(
+                    "No order information found for authorization %s", authz_name
+                )
 
     def _handle_domain_prevalidation(
         self, authz_name, auth_details, id_value, authz_info
