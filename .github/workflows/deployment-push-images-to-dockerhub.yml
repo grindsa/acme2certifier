@@ -57,7 +57,7 @@ jobs:
         AWS_INSTANCE_ID: ${{ env.AWS_INSTANCE_ID }}
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
+      uses: grindsa/sleep-action@master
       with:
         time: 10s
 
@@ -72,7 +72,7 @@ jobs:
     name: Push images to dockerhub and github
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'  && inputs.branch == 'master'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: instance_start
     strategy:
       fail-fast: false
@@ -234,7 +234,7 @@ jobs:
   amd64_pull_and_test:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'  && inputs.branch == 'master'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: build_and_upload_images_to_hub
     strategy:
       fail-fast: false
@@ -305,7 +305,7 @@ jobs:
           TAG_NAME: ${{ env.TAG_NAME }}
 
       - name: "[ WAIT ] Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 
@@ -361,6 +361,11 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: Parse software repository secrets from JSON
         uses: ./.github/actions/parse-json-secret
         with:
@@ -384,7 +389,7 @@ jobs:
         continue-on-error: true
         run: |
           cd /tmp/sbom
-          git config --global user.email "grindelsack@gmail.com"
+          git config --global user.email "$EMAIL"
           git config --global user.name "SBOM Generator"
           git add sbom/acme2certifier/
           git commit -a -m "SBOM update"
@@ -415,7 +420,7 @@ jobs:
   arm64_pull_and_test:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'  && inputs.branch == 'master'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: build_and_upload_images_to_hub
     strategy:
       fail-fast: false
@@ -511,7 +516,7 @@ jobs:
           UUID: ${{ env.UUID }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 
@@ -599,7 +604,7 @@ jobs:
   instance_stop:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'  && inputs.branch == 'master'
+    if: github.repository == 'grindsa/acme2certifier'
     needs: arm64_pull_and_test
     steps:
     - name: Checkout code
