@@ -1132,47 +1132,67 @@ class Certificate(object):
     ) -> Tuple[int, str]:
         """Validate revocation request for consistency"""
         self.logger.debug("Certificate._validate_revocation_request(%s)", account_name)
+        log_msg = "Certificate._validate_revocation_request() ended with: %s, %s"
 
-        # set a value to avoid that we are returning none by accident
-        code = 400
-        error = None
         if "reason" in payload:
-            # check revocatoin reason if we get one
+            # check revocation reason if we get one
             rev_reason = self._validate_revocation_reason(payload["reason"])
-            # successful
             if not rev_reason:
+                code = 400
                 error = self.err_msg_dic["badrevocationreason"]
+                self.logger.debug(
+                    log_msg,
+                    code,
+                    error,
+                )
+                return (code, error)
         else:
             # set revocation reason to unspecified
             rev_reason = "unspecified"
 
-        if rev_reason:
-            # check if the account issued the certificate and return the order name
-            if "certificate" in payload:
-                order_name = self._validate_certificate_account_ownership(
-                    account_name, payload["certificate"]
-                )
-            else:
-                self.logger.debug(
-                    "Certificate._validate_revocation_request(): Revocation request missing 'certificate' field"
-                )
-                order_name = None
+        if "certificate" not in payload:
+            self.logger.debug(
+                "Certificate._validate_revocation_request(): Revocation request missing 'certificate' field"
+            )
+            code = 400
+            error = self.err_msg_dic["malformed"]
+            self.logger.debug(
+                log_msg,
+                code,
+                error,
+            )
+            return (code, error)
 
-            error = rev_reason
-            if order_name:
-                # check if the account holds the authorization for the identifiers
-                auth_chk = self._validate_order_authorization(
-                    order_name, payload["certificate"]
-                )
-                if auth_chk:
-                    # all good set code to 200
-                    code = 200
-                else:
-                    error = self.err_msg_dic["unauthorized"]
-
-        self.logger.debug(
-            "Certificate._validate_revocation_request() ended with: %s, %s", code, error
+        # check if the account issued the certificate and return the order name
+        order_name = self._validate_certificate_account_ownership(
+            account_name, payload["certificate"]
         )
+        if not order_name:
+            code = 403
+            error = self.err_msg_dic["unauthorized"]
+            self.logger.debug(
+                log_msg,
+                code,
+                error,
+            )
+            return (code, error)
+
+        # check if the account holds the authorization for the identifiers
+        auth_chk = self._validate_order_authorization(order_name, payload["certificate"])
+        if not auth_chk:
+            code = 403
+            error = self.err_msg_dic["unauthorized"]
+            self.logger.debug(
+                log_msg,
+                code,
+                error,
+            )
+            return (code, error)
+
+        code = 200
+        error = rev_reason
+
+        self.logger.debug(log_msg, code, error)
         return (code, error)
 
     def _store_certificate_in_database(
