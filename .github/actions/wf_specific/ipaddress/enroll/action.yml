@@ -23,12 +23,6 @@ runs:
       with:
         time: 10s
 
-    - name: "Create lego folder"
-      run: |
-        sudo rm -rf lego
-        mkdir -p lego
-      shell: bash
-
     - name: "Test http://acme-srv/directory is accessible"
       run: docker run -i --rm --network acme curlimages/curl -f http://$ACME_SERVER/directory
       shell: bash
@@ -43,6 +37,8 @@ runs:
 
     - name: "Enroll lego works for IP addresses"
       run: |
+        sudo rm -rf lego
+        mkdir -p lego
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme -d 10.0.0.1 -d 172.0.0.1 --http
       shell: bash
       env:
@@ -52,6 +48,8 @@ runs:
       id: enroll_fail01
       continue-on-error: true
       run: |
+        sudo rm -rf lego
+        mkdir -p lego
         docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme -d 10.0.0.1 -d 172.16.0.1 --http
       shell: bash
       env:
