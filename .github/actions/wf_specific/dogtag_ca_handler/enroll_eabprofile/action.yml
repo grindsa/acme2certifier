@@ -22,13 +22,13 @@ runs:
       echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
     shell: bash
 
-  - name: "EAB ACME Profile - 01a - enrollment without profile (first value in list)"
+  - name: "EAB ACME Profile - 00a - enrollment without profile (first value in list)"
     run: |
       sudo rm -rf lego/*
       sudo openssl req -new -newkey rsa:2048 -nodes -keyout /tmp/lego-${{ env.UUID }}.key.pem -out /tmp/lego-${{ env.UUID }}.csr -subj "/CN=lego-${{ env.UUID }}.acme" -addext "subjectAltName = DNS:lego-san-${{ env.UUID }}.acme"
-      docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http
+      docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http
       sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -text -noout
-      sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -text -ext extendedKeyUsage --noout 2>&1 | grep "No extensions in certificate"
+      sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -text -ext extendedKeyUsage --noout 2>&1 | grep "TLS Web Server Authentication, TLS Web Client Authentication"
     shell: bash
 
   - name: "Generate UUID"
@@ -36,13 +36,13 @@ runs:
       echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
     shell: bash
 
-  - name: "EAB ACME Profile - 01b - enrollment with profile (pick value from list)"
+  - name: "EAB ACME Profile - 00b - enrollment with profile (pick value from list)"
     run: |
       sudo rm -rf lego/*
       sudo openssl req -new -newkey rsa:2048 -nodes -keyout /tmp/lego-${{ env.UUID }}.key.pem -out /tmp/lego-${{ env.UUID }}.csr -subj "/CN=lego-${{ env.UUID }}.acme" -addext "subjectAltName = DNS:lego-san-${{ env.UUID }}.acme"
-      sudo docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http --profile caServerCert
+      sudo docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http --profile WebserverSanOnlyTLSClient
       sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -text -noout
-      sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -ext extendedKeyUsage --noout | grep -i "TLS Web Server Authentication, TLS Web Client Authentication"
+      sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -ext extendedKeyUsage --noout | grep -i "TLS Web Client Authentication"
     shell: bash
 
   - name: "Generate UUID"
@@ -56,10 +56,10 @@ runs:
     run: |
       sudo rm -rf lego/*
       sudo openssl req -new -newkey rsa:2048 -nodes -keyout /tmp/lego-${{ env.UUID }}.key.pem -out /tmp/lego-${{ env.UUID }}.csr -subj "/CN=lego-${{ env.UUID }}.acme" -addext "subjectAltName = DNS:lego-san-${{ env.UUID }}.acme"
-      sudo docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --kid keyid_00 --hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http --profile unknownprofile
+      sudo docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http --profile unknownprofile
     shell: bash
 
-  - name: EAB ACME Profile 01c - check  result "
+  - name: EAB ACME Profile 00c - check  result "
     if: steps.legofail02.outcome != 'failure'
     run: |
       echo "legofail outcome is ${{steps.legofail02.outcome }}"
@@ -71,13 +71,13 @@ runs:
       echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
     shell: bash
 
-  - name: "EAB ACME Profile - 01d - enrollment with profile containing parameter not in json (silent overwrite)"
+  - name: "EAB ACME Profile - 01a - enrollment with profile containing parameter not in json (silent overwrite)"
     run: |
       sudo rm -rf lego/*
       sudo openssl req -new -newkey rsa:2048 -nodes -keyout /tmp/lego-${{ env.UUID }}.key.pem -out /tmp/lego-${{ env.UUID }}.csr -subj "/CN=lego-${{ env.UUID }}.acme" -addext "subjectAltName = DNS:lego-san-${{ env.UUID }}.acme"
-      sudo docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --http --profile caServerCert
+      sudo docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --eab.kid keyid_01 --eab.hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --http --profile WebserverSanOnly
       sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -text -noout
-      sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -ext extendedKeyUsage --noout 2>&1 | grep "No extensions in certificate"
+      sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -ext extendedKeyUsage --noout 2>&1 | grep "TLS Web Client Authentication"
     shell: bash
 
   - name: "Generate UUID"
@@ -85,13 +85,13 @@ runs:
       echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
     shell: bash
 
-  - name: "EAB ACME Profile - 02 -  profiling cert_profile"
+  - name: "EAB ACME Profile - 01b -  profiling cert_profile"
     run: |
       sudo rm -rf lego/*
       sudo openssl req -new -newkey rsa:2048 -nodes -keyout /tmp/lego-${{ env.UUID }}.key.pem -out /tmp/lego-${{ env.UUID }}.csr -subj "/CN=lego-${{ env.UUID }}.acme" -addext "subjectAltName = DNS:lego-san-${{ env.UUID }}.acme"
-      docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --kid keyid_01 --hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --http
+      docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --eab.kid keyid_01 --eab.hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg --http --profile WebserverSanOnlyTLSClient
       sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -text -noout
-      sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -ext extendedKeyUsage --noout 2>&1 | grep "No extensions in certificate"
+      sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -ext extendedKeyUsage --noout 2>&1 | grep "TLS Web Client Authentication"
     shell: bash
 
   - name: "Generate UUID"
@@ -99,16 +99,16 @@ runs:
       echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
     shell: bash
 
-  - name: "EAB ACME Profile - 03 - domainlist validation fails (to fail)"
+  - name: "EAB ACME Profile - 02 - domainlist validation fails (to fail)"
     id: legofail03
     continue-on-error: true
     run: |
       sudo rm -rf lego/*
       sudo openssl req -new -newkey rsa:2048 -nodes -keyout /tmp/lego-${{ env.UUID }}.key.pem -out /tmp/lego-${{ env.UUID }}.csr -subj "/CN=lego-${{ env.UUID }}.acme" -addext "subjectAltName = DNS:lego-san-${{ env.UUID }}.acme"
-      docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --kid keyid_02 --hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --http
+      docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --eab.kid keyid_02 --eab.hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --http
     shell: bash
 
-  - name: "EAB ACME Profile - 03 - check  result "
+  - name: "EAB ACME Profile - 02 - check  result "
     if: steps.legofail03.outcome != 'failure'
     run: |
       echo "legofail outcome is ${{steps.legofail03.outcome }}"
@@ -120,11 +120,11 @@ runs:
       echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
     shell: bash
 
-  - name: "EAB ACME Profile - 04 - Settings from acme_srv.cfg"
+  - name: "EAB ACME Profile - 03 - Settings from acme_srv.cfg"
     run: |
       sudo rm -rf lego/*
       sudo openssl req -new -newkey rsa:2048 -nodes -keyout /tmp/lego-${{ env.UUID }}.key.pem -out /tmp/lego-${{ env.UUID }}.csr -subj "/CN=lego-${{ env.UUID }}.acme" -addext "subjectAltName = DNS:lego-san-${{ env.UUID }}.acme"
-      docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --kid keyid_03 --hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr --http
+      docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --rm --name lego-${{ env.UUID }} --network acme goacme/lego run --tls-skip-verify -s https://acme-srv.acme -a --email "lego@example.com" --csr "/lego-${{ env.UUID }}.csr" --eab --eab.kid keyid_03 --eab.hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr --http
       sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.acme.crt -ext extendedKeyUsage --noout | grep -i "TLS Web Server Authentication, TLS Web Client Authentication"
     shell: bash

@@ -68,31 +68,10 @@ runs:
 
   - name: "Configure dogtag server"
     run: |
-      docker exec dogtag bash -c "cat <<EOF > /tmp/ds_instance.inf
-      [general]
-      full_machine_name = $(hostname)
-      strict_host_checking = False
-      [slapd]
-      instance_name = pki-ds
-      root_password = $ADMIN_PASSWORD
-      port = 389
-      [backend-userroot]
-      suffix = dc=example,dc=com
-      EOF"
+      docker exec dogtag bash -c "hn=\$(hostname); printf '%s\n' '[general]' \"full_machine_name = \$hn\" 'strict_host_checking = False' '[slapd]' 'instance_name = pki-ds' \"root_password = $ADMIN_PASSWORD\" 'port = 389' '[backend-userroot]' 'suffix = dc=example,dc=com' > /tmp/ds_instance.inf"
       docker exec dogtag cat /tmp/ds_instance.inf
       docker exec dogtag dscreate from-file /tmp/ds_instance.inf
-      docker exec dogtag bash -c "cat <<EOF > /tmp/root_ca.cfg
-      [DEFAULT]
-      pki_server_database_password=$ADMIN_PASSWORD
-      [CA]
-      pki_instance_name=pki-tomcat
-      pki_https_port=8443
-      pki_admin_password=$ADMIN_PASSWORD
-      pki_client_pkcs12_password=$ADMIN_PASSWORD
-      pki_ds_url=ldap://localhost:389
-      pki_ds_password=$ADMIN_PASSWORD
-      pki_security_domain_name=Test-Domain
-      EOF"
+      docker exec dogtag bash -c "printf '%s\n' '[DEFAULT]' \"pki_server_database_password=$ADMIN_PASSWORD\" '[CA]' 'pki_instance_name=pki-tomcat' 'pki_https_port=8443' \"pki_admin_password=$ADMIN_PASSWORD\" \"pki_client_pkcs12_password=$ADMIN_PASSWORD\" 'pki_ds_url=ldap://localhost:389' \"pki_ds_password=$ADMIN_PASSWORD\" 'pki_security_domain_name=Test-Domain' > /tmp/root_ca.cfg"
       docker exec dogtag pkispawn -s CA -f /tmp/root_ca.cfg
 
       docker exec dogtag mkdir -p ~/.dogtag/nssdb
@@ -142,4 +121,78 @@ runs:
     run: |
       docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-enable Webserver"
       docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-show Webserver"
+    shell: bash
+
+  - name: "Create Webserver SAN-only profile"
+    continue-on-error: true
+    run: |
+      # docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-disable WebserverSanOnly || true"
+      # docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-del WebserverSanOnly || true"
+      docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-show acmeServerCert --output /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's/acmeServerCert/WebserverSanOnly/g' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's/subjectNameDefaultImpl/sanToCNDefaultImpl/g' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's/userSubjectNameDefaultImpl/sanToCNDefaultImpl/g' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's/Subject Name Default/SAN to CN Default/g' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's/subjectNameConstraintImpl/noConstraintImpl/g' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's/Subject Name Constraint/No Subject Name Constraint/g' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's/authenticatorId=\"SessionAuthentication\"/authenticatorId=\"raCertAuth\"/g' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's#<authenticatorId>SessionAuthentication</authenticatorId>#<authenticatorId>raCertAuth</authenticatorId>#g' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's/authzAcl=\"[^\"]*\"/authzAcl=\"group=Certificate Manager Agents\"/g' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's#<authzAcl>[^<]*</authzAcl>#<authzAcl>group=Certificate Manager Agents</authzAcl>#g' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's/^policyset\\..*\\.default\\.params\\.subjAltNameNumGNs=.*/policyset.serverCertSet.9.default.params.subjAltNameNumGNs=1/' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's/^policyset\\..*\\.default\\.params\\.subjAltExtGNEnable_0=.*/policyset.serverCertSet.9.default.params.subjAltExtGNEnable_0=true/' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's/^policyset\\..*\\.default\\.params\\.subjAltExtType_0=.*/policyset.serverCertSet.9.default.params.subjAltExtType_0=DNSName/' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "sed -i 's#^policyset\\..*\\.default\\.params\\.subjAltExtPattern_0=.*#policyset.serverCertSet.9.default.params.subjAltExtPattern_0=\$request.req_san_pattern_0#' /tmp/data/WebserverSanOnly.cfg"
+
+      docker exec dogtag bash -c "grep -Ei 'authenticatorId|authzAcl|subject|sanToCNDefaultImpl|WebserverSanOnly' /tmp/data/WebserverSanOnly.cfg"
+      docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-add /tmp/data/WebserverSanOnly.cfg"
+    shell: bash
+
+  - name: "Enable Webserver SAN-only profile"
+    continue-on-error: true
+    run: |
+      docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-enable WebserverSanOnly"
+      docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-show WebserverSanOnly"
+    shell: bash
+
+  - name: "Create Webserver SAN-only TLS-client profile"
+    continue-on-error: true
+    run: |
+      # docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-disable WebserverSanOnlyTLSClient || true"
+      # docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-del WebserverSanOnlyTLSClient || true"
+      docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-show WebserverSanOnly --output /tmp/data/WebserverSanOnlyTLSClient.cfg"
+      docker exec dogtag bash -c "sed -i 's/WebserverSanOnly/WebserverSanOnlyTLSClient/g' /tmp/data/WebserverSanOnlyTLSClient.cfg"
+      docker exec dogtag bash -c "sed -i 's/TLS Web Server Authentication,//g' /tmp/data/WebserverSanOnlyTLSClient.cfg"
+      docker exec dogtag bash -c "sed -i 's/,TLS Web Server Authentication//g' /tmp/data/WebserverSanOnlyTLSClient.cfg"
+      docker exec dogtag bash -c "sed -i 's/1.3.6.1.5.5.7.3.1,//g' /tmp/data/WebserverSanOnlyTLSClient.cfg"
+      docker exec dogtag bash -c "sed -i 's/,1.3.6.1.5.5.7.3.1//g' /tmp/data/WebserverSanOnlyTLSClient.cfg"
+      docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-add /tmp/data/WebserverSanOnlyTLSClient.cfg"
+      docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-enable WebserverSanOnlyTLSClient"
+    shell: bash
+
+  - name: "Enable Webserver SAN-only TLS-client profile"
+    continue-on-error: true
+    run: |
+      docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-show WebserverSanOnlyTLSClient"
+    shell: bash
+
+  - name: "Create Webserver SAN-only TLS-server profile"
+    continue-on-error: true
+    run: |
+      # docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-disable WebserverSanOnlyTLSServer || true"
+      # docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-del WebserverSanOnlyTLSServer || true"
+      docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-show WebserverSanOnly --output /tmp/data/WebserverSanOnlyTLSServer.cfg"
+      docker exec dogtag bash -c "sed -i 's/WebserverSanOnly/WebserverSanOnlyTLSServer/g' /tmp/data/WebserverSanOnlyTLSServer.cfg"
+      docker exec dogtag bash -c "sed -i 's/TLS Web Client Authentication,//g' /tmp/data/WebserverSanOnlyTLSServer.cfg"
+      docker exec dogtag bash -c "sed -i 's/,TLS Web Client Authentication//g' /tmp/data/WebserverSanOnlyTLSServer.cfg"
+      docker exec dogtag bash -c "sed -i 's/1.3.6.1.5.5.7.3.2,//g' /tmp/data/WebserverSanOnlyTLSServer.cfg"
+      docker exec dogtag bash -c "sed -i 's/,1.3.6.1.5.5.7.3.2//g' /tmp/data/WebserverSanOnlyTLSServer.cfg"
+      docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-add /tmp/data/WebserverSanOnlyTLSServer.cfg"
+      docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-enable WebserverSanOnlyTLSServer"
+    shell: bash
+
+  - name: "Enable Webserver SAN-only TLS-serverprofile"
+    continue-on-error: true
+    run: |
+      docker exec dogtag bash -c "pki -c $ADMIN_PASSWORD -n \"$ADMIN_USER\" ca-profile-show WebserverSanOnlyTLSServer"
     shell: bash

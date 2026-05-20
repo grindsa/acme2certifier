@@ -1178,7 +1178,9 @@ class Certificate(object):
             return (code, error)
 
         # check if the account holds the authorization for the identifiers
-        auth_chk = self._validate_order_authorization(order_name, payload["certificate"])
+        auth_chk = self._validate_order_authorization(
+            order_name, payload["certificate"]
+        )
         if not auth_chk:
             code = 403
             error = self.err_msg_dic["unauthorized"]
