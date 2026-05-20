@@ -14,7 +14,7 @@ Before using the `dogtag_ca_handler`, ensure the following prerequisites are met
 
 ## Limitations
 
-- Dogtag CA requires that all certificate signing requests (CSRs) include a Common Name (CN) in the subject. CSRs without a CN will be rejected.
+- By default Dogtag CA requires that all certificate signing requests (CSRs) include a Common Name (CN) in the subject. CSRs without a CN will be rejected. There is an [option to create a profile copying the first SAN to CN](../.github/actions/wf_specific/dogtag_ca_handler/dogtag_prep/action.yml#L126) if an CSR without CN gets submitted.
 - Only profiles enabled and configured on the Dogtag CA can be used for enrollment. Ensure the required profiles are available and enabled.
 - The handler supports workflows where certificate requests may require approval. Ensure your Dogtag CA is configured accordingly.
 

@@ -47,7 +47,7 @@ jobs:
   acme-test-containers:
     needs: guard
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -112,7 +112,7 @@ jobs:
           sudo echo "client_key: volume/acme/$A2C_USER.key" >> examples/Docker/data/acme_srv.cfg
           sudo echo "client_cert: volume/acme/$A2C_USER.crt" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile: caServerCert" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "profile: WebserverSanOnly" >> examples/Docker/data/acme_srv.cfg
           sudo echo "certrequest_approve: True" >> examples/Docker/data/acme_srv.cfg
           sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
           # sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
@@ -151,7 +151,7 @@ jobs:
         run: |
           # disable challenge validation to avoid issues with profile tests
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"caServerCert\": \"http:\/\/foo.bar\/caservercert\", \"Webserver\": \"http:\/\/foo.bar\/webserver\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebserverSanOnly\": \"http:\/\/foo.bar\/WebserverSanOnly\", \"WebserverSanOnlyTLSClient\": \"http:\/\/foo.bar\/WebserverSanOnlyTLSClient\", \"WebserverSanOnlyTLSServer\": \"http:\/\/foo.bar\/WebserverSanOnlyTLSServer\"}/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
@@ -168,8 +168,8 @@ jobs:
           sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
           sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
           sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile\"\: \[\"Webserver\", \"caServerCert\"\, \"100\"]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile\"\: \"Webserver\"/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile\"\: \[\"WebserverSanOnly\", \"WebserverSanOnlyTLSClient\"\, \"WebserverSanOnlyTLSServer\"\]/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile\"\: \"WebserverSanOnlyTLSClient\"/g" examples/Docker/data/kid_profiles.json
           sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/" examples/Docker/data/kid_profiles.json
           sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
           sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
@@ -204,7 +204,7 @@ jobs:
   test-rpm:
     needs: guard
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier1'
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
@@ -273,7 +273,7 @@ jobs:
           sudo echo "client_key: /opt/acme2certifier/volume/$A2C_USER.key" >> data/volume/acme_srv.cfg
           sudo echo "client_cert: /opt/acme2certifier/volume/$A2C_USER.crt" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "profile: caServerCert" >> data/volume/acme_srv.cfg
+          sudo echo "profile: WebserverSanOnly" >> data/volume/acme_srv.cfg
           sudo echo "certrequest_approve: True" >> data/volume/acme_srv.cfg
           sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
           # sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
@@ -309,7 +309,7 @@ jobs:
         run: |
           # disable challenge validation to avoid issues with profile tests
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"caServerCert\": \"http:\/\/foo.bar\/caservercert\", \"Webserver\": \"http:\/\/foo.bar\/webserver\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebserverSanOnly\": \"http:\/\/foo.bar\/WebserverSanOnly\", \"WebserverSanOnlyTLSClient\": \"http:\/\/foo.bar\/WebserverSanOnlyTLSClient\", \"WebserverSanOnlyTLSServer\": \"http:\/\/foo.bar\/WebserverSanOnlyTLSServer\"}/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c"
         run: |
@@ -330,8 +330,8 @@ jobs:
           sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
           sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile\"\: \[\"Webserver\", \"caServerCert\"\, \"100\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile\"\: \"Webserver\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile\"\: \[\"WebserverSanOnly\", \"WebserverSanOnlyTLSClient\"\, \"WebserverSanOnlyTLSServer\"\]/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile\"\: \"WebserverSanOnlyTLSClient\"/g" data/volume/acme_ca/kid_profiles.json
           sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/" data/volume/acme_ca/kid_profiles.json
           sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
           sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
@@ -453,7 +453,7 @@ jobs:
           sudo echo "client_key: /var/www/acme2certifier/volume/$A2C_USER.key" >> data/volume/acme_srv.cfg
           sudo echo "client_cert: /var/www/acme2certifier/volume/$A2C_USER.crt" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "profile: caServerCert" >> data/volume/acme_srv.cfg
+          sudo echo "profile: WebserverSanOnly" >> data/volume/acme_srv.cfg
           sudo echo "certrequest_approve: True" >> data/volume/acme_srv.cfg
           sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
           # sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
@@ -486,7 +486,7 @@ jobs:
         run: |
           # disable challenge validation to avoid issues with profile tests
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"caServerCert\": \"http:\/\/foo.bar\/caservercert\", \"Webserver\": \"http:\/\/foo.bar\/webserver\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebserverSanOnly\": \"http:\/\/foo.bar\/WebserverSanOnly\", \"WebserverSanOnlyTLSClient\": \"http:\/\/foo.bar\/WebserverSanOnlyTLSClient\", \"WebserverSanOnlyTLSServer\": \"http:\/\/foo.bar\/WebserverSanOnlyTLSServer\"}/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c "
         run: |
@@ -508,8 +508,8 @@ jobs:
           sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
           sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile\"\: \[\"Webserver\", \"caServerCert\"\, \"100\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile\"\: \"Webserver\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile\"\: \[\"WebserverSanOnly\", \"WebserverSanOnlyTLSClient\"\, \"WebserverSanOnlyTLSServer\"\]/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile\"\: \"WebserverSanOnlyTLSClient\"/g" data/volume/acme_ca/kid_profiles.json
           sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/" data/volume/acme_ca/kid_profiles.json
           sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
           sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
