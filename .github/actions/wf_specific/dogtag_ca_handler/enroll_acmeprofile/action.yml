@@ -17,21 +17,23 @@ runs:
     run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
     shell: bash
 
-  - name: "ACME Profile - 01a - enrollment without profile (first value in list)"
+  - name: "ACME Profile - 01 - enrollment with allowed profile"
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.acme --http run --profile Webserver
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.acme --http --profile WebserverSanOnlyTLSClient
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
-      sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage --noout 2>&1 | grep "No extensions in certificate"
-      # sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage --noout | grep -v "TLS Web"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage --noout 2>&1 | grep -i "TLS Web Client Authentication"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage --noout 2>&1 | grep -iv "TLS Web Server Authentication"
     shell: bash
 
-  - name: "ACME Profile - 02 - Allowed profile"
+  - name: "ACME Profile - 02 - enrollment with allowed profile"
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.acme --http run --profile caServerCert
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.acme --http --profile WebserverSanOnlyTLSServer
       sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
-      sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage --noout | grep -i "TLS Web Server Authentication, TLS Web Client Authentication"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage --noout 2>&1 | grep -i "TLS Web Server Authentication"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage --noout 2>&1 | grep -iv "TLS Web Client Authentication"
+
     shell: bash
 
   - name: "ACME Profile - 03 - enrollment with unknown profile (to fail)"
@@ -39,7 +41,7 @@ runs:
     continue-on-error: true
     run: |
       sudo rm -rf lego/*
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.acme --http run --profile unknown
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.acme --http --profile unknown
     shell: bash
 
   - name: ACME Profile 03 - check  result "

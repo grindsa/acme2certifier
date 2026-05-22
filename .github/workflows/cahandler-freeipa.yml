@@ -133,6 +133,7 @@ jobs:
           HOSTNAME_SUFFIX: -${{ env.UUID }}
           USE_RSA: "true"
           USE_CERTBOT: "false"
+          USE_LEGO: "false"
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
@@ -300,6 +301,7 @@ jobs:
           HOSTNAME_SUFFIX: -${{ env.UUID }}
           USE_RSA: "true"
           USE_CERTBOT: "false"
+          USE_LEGO: "false"
 
       - name: "ACME Profiling - Setup a2c with freeca_ca_handler"
         run: |
@@ -480,6 +482,7 @@ jobs:
           HOSTNAME_SUFFIX: -${{ env.UUID }}
           USE_RSA: "true"
           USE_CERTBOT: "false"
+          USE_LEGO: "false"
 
       - name: "ACME Profiling - Setup a2c with freeca_ca_handler"
         run: |

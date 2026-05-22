@@ -10,6 +10,7 @@ and pick the appropriate release branch.
 
 **Features and Improvements**:
 
+- [Prevalidation](docs/identifier_prevalidation.md) of IP and Email identifiers
 - [FreeIPA CA Handler](docs/freeipa.md)
 - [Dogtag CA Handler](docs/dogtag_ca_handler.md)
 - [Dryrun Mode](docs/dryrun.md)
@@ -62,7 +63,7 @@ and pick the appropriate release branch.
 
 - [**Asynchronous Mode**](docs/async_mode.md)
 - **EAB Profiling**:
-  - Support of [domain prevalidation](docs/prevalidated_domainlist.md)
+  - Support of [domain prevalidation](docs/identifier_prevalidation.md)
   - challenge_validation_disable, forward_address_check and reverse_address_check parameters can be configured via[EAB-Profiling feature](docs/eab_profiling.md)
   - eab_pofiling to be enabled in the `[EABhandler]` section of `acme_srv.cfg`
 - **Challenge Error Reporting**: Challange validation error status will be reported to ACME-client

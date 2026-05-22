@@ -43,7 +43,6 @@ class TestACMEHandler(unittest.TestCase):
         """teardown"""
         pass
 
-
     def _generate_full_jwk(self):
         """Helper to generate a full josepy.JWKRSA object"""
         private_key = rsa.generate_private_key(

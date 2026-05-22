@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from acme_srv.helper import (
     b64_url_recode,
     config_allowed_domainlist_load,
+    config_allowed_iplist_load,
     config_profile_load,
     error_dic_get,
     generate_random_string,
@@ -19,6 +20,7 @@ from acme_srv.helper import (
     is_domain_whitelisted,
     config_eab_profile_load,
     config_dryrun_load,
+    is_ip_whitelisted,
 )
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
@@ -158,6 +160,7 @@ class OrderConfiguration:
     profiles_check_disable: bool = True
     idempotent_finalize: bool = False
     allowed_domainlist: List[str] = field(default_factory=list)
+    allowed_iplist: List[str] = field(default_factory=list)
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
     dryrun_profilename: Optional[str] = None
@@ -322,26 +325,16 @@ class Order(object):
         try:
             with self.config.eab_handler(self.logger) as eab_handler:
                 profile_dic = eab_handler.key_file_load()
-                allowed_domainlist = (
-                    profile_dic.get(eab_kid, {})
-                    .get("order", {})
-                    .get("allowed_domainlist")
+                # load allowed_iplist and allowed_domainlist from eab profile if specified
+                self.config.allowed_iplist = self._load_eab_profile_param(
+                    profile_dic, eab_kid, "allowed_iplist", self.config.allowed_iplist
                 )
-                if not allowed_domainlist:
-                    allowed_domainlist = (
-                        profile_dic.get(eab_kid, {})
-                        .get("cahandler", {})
-                        .get("allowed_domainlist")
-                    )
-                    if allowed_domainlist:
-                        self.logger.warning(
-                            "allowed_domainlist parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section"
-                        )
-                if allowed_domainlist:
-                    self.logger.debug(
-                        "Order._apply_eab_profile() - apply allowed_domainlist from eab profile."
-                    )
-                    self.config.allowed_domainlist = allowed_domainlist
+                self.config.allowed_domainlist = self._load_eab_profile_param(
+                    profile_dic,
+                    eab_kid,
+                    "allowed_domainlist",
+                    self.config.allowed_domainlist,
+                )
         except Exception as err:
             self.logger.error(
                 "Failed to process EAB profile for Account %s (kid: %s): %s",
@@ -386,6 +379,28 @@ class Order(object):
 
         self.logger.debug("Order.create_order() ended")
         return (error, detail, order_name, auth_dic, uts_to_date_utc(expires))
+
+    def _load_eab_profile_param(self, profile_dic, eab_kid, param_name, default=None):
+        """Helper to load allowed_iplist or allowed_domainlist from EAB profile."""
+        # Try order section first
+        value = profile_dic.get(eab_kid, {}).get("order", {}).get(param_name, default)
+        if not value:
+            # Try cahandler section for backward compatibility
+            value = (
+                profile_dic.get(eab_kid, {})
+                .get("cahandler", {})
+                .get(param_name, default)
+            )
+            if value:
+                self.logger.warning(
+                    "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
+                    param_name,
+                )
+        if value:
+            self.logger.debug(
+                "Order._apply_eab_profile() - apply %s from eab profile.", param_name
+            )
+        return value
 
     def _load_header_info_config(self, config_dic: Dict[str, str]):
         """Load header info list from config file."""
@@ -542,6 +557,8 @@ class Order(object):
         self.config.allowed_domainlist = config_allowed_domainlist_load(
             self.logger, config_dic
         )
+        # load allowed iplist
+        self.config.allowed_iplist = config_allowed_iplist_load(self.logger, config_dic)
         # load profiling
         (
             self.config.eab_profiling,
@@ -643,6 +660,23 @@ class Order(object):
             return (
                 self.error_msg_dic["rejectedidentifier"],
                 f'FQDN/SAN {identifier["value"]} not allowed by configuration',
+            )
+        elif (
+            id_type == "ip"
+            and self.config.allowed_iplist
+            and not is_ip_whitelisted(
+                self.logger,
+                identifier["value"],
+                self.config.allowed_iplist,
+            )
+        ):
+            self.logger.error(
+                "IP address %s not allowed by configuration",
+                identifier["value"],
+            )
+            return (
+                self.error_msg_dic["rejectedidentifier"],
+                f'IP address {identifier["value"]} not allowed by configuration',
             )
         return None, None
 

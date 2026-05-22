@@ -185,6 +185,23 @@ def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str,
     return allowed_domainlist
 
 
+def config_allowed_iplist_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """load parameters"""
+    logger.debug("Helper.config_allowed_iplist_load()")
+
+    allowed_iplist = []
+
+    if "Order" in config_dic and "allowed_iplist" in config_dic["Order"]:
+        try:
+            allowed_iplist = json.loads(config_dic["Order"]["allowed_iplist"])
+        except Exception as err_:
+            logger.warning("Failed to load allowed_iplist from configuration: %s", err_)
+            allowed_iplist = PARSING_ERR_MSG
+
+    logger.debug("Helper.config_allowed_iplist_load() ended with: %s", allowed_iplist)
+    return allowed_iplist
+
+
 def config_async_mode_load(
     logger: logging.Logger, config_dic: Dict[str, str], db_type: str
 ):

@@ -120,6 +120,7 @@ from .helpers.config import (
     config_headerinfo_load,
     config_enroll_config_log_load,
     config_allowed_domainlist_load,
+    config_allowed_iplist_load,
     config_async_mode_load,
     config_proxy_load,
     config_dryrun_load,
@@ -164,6 +165,7 @@ from .helpers.domain_utils import (
     is_domain_whitelisted,
     allowed_domainlist_check,
     sancheck_lists_create,
+    is_ip_whitelisted,
 )
 
 # General utilities
