@@ -31,7 +31,10 @@ def cert_aki_get(logger: logging.Logger, certificate: str) -> str:
         aki = cert.extensions.get_extension_for_oid(x509.OID_AUTHORITY_KEY_IDENTIFIER)
         aki_value = aki.value.key_identifier.hex()
     except Exception as _err:
-        logger.error("Error while getting AKI from certificate: %s. Fallback to pyOpenSSL method", _err)
+        logger.error(
+            "Error while getting AKI from certificate: %s. Fallback to pyOpenSSL method",
+            _err,
+        )
         aki_value = _cert_aki_pyopenssl_get(logger, certificate)
 
     logger.debug("cert_aki_get() ended with: %s", aki_value)

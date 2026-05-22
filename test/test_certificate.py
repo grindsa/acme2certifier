@@ -2235,10 +2235,10 @@ class TestCertificate(unittest.TestCase):
         ), patch.object(self.cert, "_validate_order_authorization", return_value=False):
             with self.assertLogs(self.cert.logger, level="DEBUG") as log:
                 code, error = self.cert._validate_revocation_request("acc", payload)
-                self.assertEqual(code, 400)
+                self.assertEqual(code, 403)
                 self.assertEqual(error, "unauth")
             self.assertIn(
-                "DEBUG:test_a2c:Certificate._validate_revocation_request() ended with: 400, unauth",
+                "DEBUG:test_a2c:Certificate._validate_revocation_request() ended with: 403, unauth",
                 log.output,
             )
 
@@ -2255,7 +2255,7 @@ class TestCertificate(unittest.TestCase):
             self.cert, "_validate_certificate_account_ownership", return_value="order"
         ), patch.object(self.cert, "_validate_order_authorization", return_value=False):
             code, error = self.cert._validate_revocation_request("acc", payload)
-            self.assertEqual(code, 400)
+            self.assertEqual(code, 403)
             self.assertEqual(error, "unauth")
 
     def test_175_validate_revocation_request_bad_reason(self):
@@ -2282,8 +2282,8 @@ class TestCertificate(unittest.TestCase):
             self.cert, "_validate_certificate_account_ownership", return_value=None
         ):
             code, error = self.cert._validate_revocation_request("acc", payload)
-            self.assertEqual(code, 400)
-            self.assertEqual(error, "unspecified")
+            self.assertEqual(code, 403)
+            self.assertEqual(error, "unauth")
 
     def test_177_validate_revocation_request_unauthorized(self):
         # Explicitly cover line 1171: error = self.err_msg_dic["unauthorized"]
@@ -2301,7 +2301,7 @@ class TestCertificate(unittest.TestCase):
             self.cert, "_validate_order_authorization", return_value=False
         ) as mock_auth:
             code, error = self.cert._validate_revocation_request("acc", payload)
-            self.assertEqual(code, 400)
+            self.assertEqual(code, 403)
             self.assertEqual(error, "unauth")
             mock_own.assert_called_once_with("acc", "cert")
             mock_auth.assert_called_once_with("order", "cert")
@@ -2328,6 +2328,7 @@ class TestCertificate(unittest.TestCase):
             "badrevocationreason": "badreason",
             "unauthorized": "unauth",
             "serverinternal": "internal",
+            "malformed": "malformed",
         }
         with patch.object(
             self.cert, "_validate_certificate_account_ownership", return_value="order"

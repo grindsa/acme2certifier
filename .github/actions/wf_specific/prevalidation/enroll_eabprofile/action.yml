@@ -1,0 +1,216 @@
+name: "enroll_eab"
+description: "enroll_eab"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 5s"
+    uses: grindsa/sleep-action@master
+    with:
+      time: 5s
+
+  - name: "EAB - Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    shell: bash
+
+  - name: "EAB - Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+
+  - name: "EAB - 00a - Enroll lego including prevalidated domain and ip (to succeed)"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme -d lego01.acme.local -d 10.0.0.1 --http
+    shell: bash
+
+  - name: "EAB - 00b - Enroll lego including prevalidated domain (to succeed)"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme -d lego01.acme.local --http
+    shell: bash
+
+  - name: "EAB - 00c - Enroll lego including prevalidated ip (to succeed)"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme -d 10.0.0.1 --http
+    shell: bash
+
+  - name: "EAB - 00d - Enroll lego with prevalidated domain only (to succeed)"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego01.acme.local --http
+    shell: bash
+
+  - name: "EAB - 00e - Enroll lego with prevalidated ip only (to succeed)"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d 10.0.0.1 --http
+    shell: bash
+
+  - name: "EAB - 00f - Enroll lego with with invalid fqdn but preauthorized domain and ip (to fail)"
+    id: legofail00-01
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d lego.acme1 -d lego01.acme.local -d 10.0.0.1 --http
+    shell: bash
+
+  - name: "EAB - 00f - check  result"
+    if: steps.legofail00-01.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail00-01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 00g - Enroll lego with with invalid ip but preauthorized domain and ip (to fail)"
+    id: legofail00-02
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d 172.16.0.2 -d lego01.acme.local -d 10.0.0.1 --http
+    shell: bash
+
+  - name: "EAB - 00g - check  result"
+    if: steps.legofail00-02.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail00-02.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 01a - Enroll lego with prevalidated domain and valid domain (to succeed)"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_01 --eab.hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d lego.acme -d lego01.acme.local --http
+    shell: bash
+
+  - name: "EAB - 01b - Enroll lego with prevalidated domain and invalid domain (to succeed)"
+    id: legofail01-01
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_01 --eab.hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d lego.acme1 -d lego01.acme.local --http
+    shell: bash
+
+  - name: "EAB - 01b - check  result"
+    if: steps.legofail01-01.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail01-01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 01c - Enroll lego with prevalidated domain and invalid domain (to to fail)"
+    id: legofail01-02
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_01 --eab.hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d lego01.acme1 --http
+    shell: bash
+
+  - name: "EAB - 01c - check  result"
+    if: steps.legofail01-02.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail01-02.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 01d - Enroll lego with prevalidated domain and invalid IP (to to fail)"
+    id: legofail01-03
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_01 --eab.hmac YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d 172.0.0.1 --http
+    shell: bash
+
+  - name: "EAB - 01d - check  result"
+    if: steps.legofail01-03.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail01-03.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 02a - Enroll lego with prevalidated domain and valid domain (to succeed)"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_02 --eab.hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme -d 192.168.1.1 --http
+    shell: bash
+
+  - name: "EAB - 02b - Enroll lego with prevalidated domain and invalid domain (to fail)"
+    id: legofail02-01
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_02 --eab.hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme1 -d 192.168.1.1 --http
+    shell: bash
+
+  - name: "EAB - 02b - check  result"
+    if: steps.legofail02-01.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail02-01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 02c - Enroll lego with prevalidated domain and invalid domain (to to fail)"
+    id: legofail02-02
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_02 --eab.hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d 172.0.0.2 --http
+    shell: bash
+
+  - name: "EAB - 02c - check  result"
+    if: steps.legofail02-02.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail02-02.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 02d - Enroll lego with prevalidated domain and invalid IP (to to fail)"
+    id: legofail02-03
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_02 --eab.hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego-01.acme.local --http
+    shell: bash
+
+  - name: "EAB - 02d - check  result"
+    if: steps.legofail02-03.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail02-03.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 03a - Enroll lego including prevalidated domain and ip (to succeed)"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_03 --eab.hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr -d lego.acme --http
+    shell: bash
+
+  - name: "EAB - 03c - Enroll lego with invalid domain (to to fail)"
+    id: legofail03-02
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_03 --eab.hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr -d lego-01.acme.local --http
+    shell: bash
+
+  - name: "EAB - 03c - check  result"
+    if: steps.legofail03-02.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail03-02.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "EAB - 03d - Enroll lego with invalid IP (to to fail)"
+    id: legofail03-03
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_03 --eab.hmac YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMjU2X2JpdHNfYW5kX3Nob3VsZF93b3Jr -d 172.0.0.1 --http
+    shell: bash
+
+  - name: "EAB - 03d - check  result"
+    if: steps.legofail03-03.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail03-03.outcome }}"
+      exit 1
+    shell: bash

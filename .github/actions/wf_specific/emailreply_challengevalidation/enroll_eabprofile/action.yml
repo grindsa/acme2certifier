@@ -1,0 +1,53 @@
+name: "enroll_eab"
+description: "enroll_eab"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 5s"
+    uses: grindsa/sleep-action@master
+    with:
+      time: 5s
+
+  - name: "EAB - Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    shell: bash
+
+  - name: "EAB - Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+
+  - name: "EAB - 00a - Enroll eab with non-prevalidated email"
+    run: |
+      echo "### Enroll certificate"
+      cd acme_email
+      source venv/bin/activate
+      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir data/config. --work-dir data/working --logs-dir data/logs -e $JUM_ADDR --contact $EMAIL --imap --login $JUM_ADDR --password $JUM_PASSWORD --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw
+    shell: bash
+
+  - name: "EAB - 00b - Enroll with prevalidated email (to succeed)"
+    run: |
+      echo "### Enroll certificate"
+      cd acme_email
+      sudo rm -rf data/*
+      source venv/bin/activate
+      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir data/config. --work-dir data/working --logs-dir data/logs -e key_id00_2@mailserver.acme --contact $EMAIL --imap --login $JUM_ADDR --password $JUM_PASSWORD --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw
+    shell: bash
+
+  - name: "EAB - 00c - Enroll lego with with invalid email (to fail)"
+    id: email-fail00-01
+    continue-on-error: true
+    run: |
+      echo "### Enroll certificate"
+      cd acme_email
+      sudo rm -rf data/*
+      source venv/bin/activate
+      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir data/config. --work-dir data/working --logs-dir data/logs -e ulme2@mailserver.acme --contact $EMAIL --imap --login $JUM_ADDR --password $JUM_PASSWORD --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw
+    shell: bash
+
+  - name: "EAB - 00c - check  result"
+    if: steps.email-fail00-01.outcome != 'failure'
+    run: |
+      echo "email-fail outcome is ${{steps.email-fail00-01.outcome }}"
+      exit 1
+    shell: bash

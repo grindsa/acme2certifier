@@ -30,7 +30,6 @@ runs:
     - name: "Create lego folder"
       run: |
         mkdir -p lego
-        sudo rm -rf lego/*
       shell: bash
 
     - name: "Test http://acme-srv/directory is accessible"
@@ -48,7 +47,8 @@ runs:
     - name: "Enroll lego"
       if: ${{ inputs.FAIL == 'false' || inputs.FAIL == 'missing_profile' || inputs.FAIL == 'profile'}}
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme --http run
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme --http
         sudo openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem lego/certificates/lego.acme.crt
       shell: bash
       env:
@@ -60,7 +60,8 @@ runs:
       continue-on-error: true
       id: legofail01
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme --http run # 2>&1 | grep -q "Dry run mode - enrollment skipped"
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme --http # 2>&1 | grep -q "Dry run mode - enrollment skipped"
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -113,7 +114,8 @@ runs:
       continue-on-error: true
       id: legofail02
       run: |
-        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme --http run --profile dry-run
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme --http --profile dry-run
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
