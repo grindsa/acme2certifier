@@ -76,6 +76,7 @@ runs:
     - name: "HTTP - Enroll lego"
       run: |
         echo "##### HTTP - Enroll lego #####"
+        sudo rm -rf lego/*
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
           docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls
@@ -206,6 +207,7 @@ runs:
       continue-on-error: true
       run: |
         echo "##### HTTP - Enroll lego #####"
+        sudo rm -rf lego/*
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
           docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER:$HTTP_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.acme --tls

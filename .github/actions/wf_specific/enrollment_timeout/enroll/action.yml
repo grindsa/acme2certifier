@@ -72,6 +72,7 @@ runs:
 
   - name: "Enroll Lego"
     run: |
+      sudo rm -rf lego/*
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 180 --http
     shell: bash
 
