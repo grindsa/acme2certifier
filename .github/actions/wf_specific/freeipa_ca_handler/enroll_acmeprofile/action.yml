@@ -26,7 +26,6 @@ runs:
     run: |
       sudo rm -rf lego/*
       sudo openssl req -new -newkey rsa:2048 -nodes -keyout /tmp/lego-${{ env.UUID }}.key.pem -out /tmp/lego-${{ env.UUID }}.csr -subj "/CN=lego-${{ env.UUID }}.server.acme" -addext "subjectAltName = DNS:lego-san-${{ env.UUID }}.server.acme"
-      # docker run -i -v $PWD/lego:/.lego/ --rm --name lego-${{ env.UUID }} --network server.acme goacme/lego run --tls-skip-verify -s https://acme-srv.server.acme -a --email "lego@example.com" --key-type=rsa2048 -d lego-${{ env.UUID }}.server.acme -d san-${{ env.UUID }}.server.acme --http
       docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --network server.acme --rm --name lego-${{ env.UUID }} goacme/lego run --tls-skip-verify -s https://acme-srv.server.acme -a --email "lego@example.com"  --csr "/lego-${{ env.UUID }}.csr" --http --profile caIPAserviceCert
       sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.server.acme.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.server.acme.crt -text -noout -ext subjectAltName | grep "DNS:lego-${{ env.UUID }}.server.acme"
@@ -56,7 +55,6 @@ runs:
     run: |
       sudo rm -rf lego/*
       sudo openssl req -new -newkey rsa:2048 -nodes -keyout /tmp/lego-${{ env.UUID }}.key.pem -out /tmp/lego-${{ env.UUID }}.csr -subj "/CN=lego-${{ env.UUID }}.server.acme" -addext "subjectAltName = DNS:lego-san-${{ env.UUID }}.server.acme"
-      # docker run -i -v $PWD/lego:/.lego/ --rm --name lego-${{ env.UUID }} --network server.acme goacme/lego run --tls-skip-verify -s https://acme-srv.server.acme -a --email "lego@example.com" --key-type=rsa2048 -d lego-${{ env.UUID }}.server.acme -d san-${{ env.UUID }}.server.acme --http --profile IECUserRoles
       docker run -i -v $PWD/lego:/.lego/ -v /tmp/lego-${{ env.UUID }}.csr:/lego-${{ env.UUID }}.csr --network server.acme --rm --name lego-${{ env.UUID }} goacme/lego run --tls-skip-verify -s https://acme-srv.server.acme -a --email "lego@example.com"  --csr "/lego-${{ env.UUID }}.csr" --http --profile IECUserRoles
       sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.server.acme.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego-${{ env.UUID }}.server.acme.crt -text -noout -ext subjectAltName | grep -v "DNS:lego-${{ env.UUID }}.server.acme"
