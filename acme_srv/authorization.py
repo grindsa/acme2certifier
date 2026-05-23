@@ -22,6 +22,8 @@ from acme_srv.helpers.domain_utils import (
 from acme_srv.message import Message
 from acme_srv.nonce import Nonce
 
+NO_ORDER_INFO_LOG = "No order information found for authorization %s"
+
 
 # Custom Exceptions
 class AuthorizationError(Exception):
@@ -665,9 +667,7 @@ class Authorization(object):
             if auth_details is not None:
                 self.repository.mark_order_as_ready(auth_details.get("order__name"))
             else:
-                self.logger.debug(
-                    "No order information found for authorization %s", authz_name
-                )
+                self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
 
     def _handle_domain_prevalidation(
         self, authz_name, auth_details, id_value, authz_info
@@ -692,9 +692,7 @@ class Authorization(object):
             if auth_details is not None:
                 self.repository.mark_order_as_ready(auth_details.get("order__name"))
             else:
-                self.logger.debug(
-                    "No order information found for authorization %s", authz_name
-                )
+                self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
 
     def _handle_ip_prevalidation(self, authz_name, auth_details, id_value, authz_info):
         """Handle IP identifier prevalidation based on whitelist configuration. If the IP is whitelisted, mark the authorization as valid and the order as ready."""
@@ -717,9 +715,7 @@ class Authorization(object):
             if auth_details is not None:
                 self.repository.mark_order_as_ready(auth_details.get("order__name"))
             else:
-                self.logger.debug(
-                    "No order information found for authorization %s", authz_name
-                )
+                self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
         else:
             self.logger.debug(
                 "IP %s is not preauthorized, leaving authorization status unchanged",
