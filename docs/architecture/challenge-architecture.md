@@ -190,6 +190,7 @@ MyChallenge-01 Challenge Validator.
 
 Implements validation logic for mychallengie-01 challenges.
 """
+
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 
 

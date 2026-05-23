@@ -90,7 +90,7 @@ def validate_identifier(
     return result
 
 
-def validate_ip(logger: logging.Logger, ip: str, raw=False) -> bool:
+def validate_ip(logger: logging.Logger, ip: str, raw=False) -> ipaddress._BaseAddress:
     """validate ip address"""
     logger.debug("Helper.validate_ip()")
     if raw:
