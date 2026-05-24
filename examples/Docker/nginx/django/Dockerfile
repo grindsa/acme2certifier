@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 LABEL maintainer="grindelsack@gmail.com"
 
 COPY ./*.deb /tmp/
@@ -30,7 +30,7 @@ RUN apt-get update  && \
     rm -rf /usr/share/impacket/script* && \
     rm -rf /usr/bin/impacket-* && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y /tmp/acme2*.deb && \
-    pip3 install requests-pkcs12==1.22 --break-system-packages && \
+    pip3 install requests-pkcs12 --break-system-packages && \
     curl https://packages.microsoft.com/config/ubuntu/24.04/packages-microsoft-prod.deb --output /tmp/packages-microsoft-prod.deb && \
     dpkg -i /tmp/packages-microsoft-prod.deb && \
     rm /tmp/packages-microsoft-prod.deb && \

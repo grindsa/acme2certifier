@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 LABEL maintainer="grindelsack@gmail.com"
 
 ENV APACHE_RUN_USER=www-data
@@ -26,7 +26,7 @@ RUN apt-get update  && \
     rm -rf /usr/share/impacket/script* && \
     rm -rf /usr/bin/impacket-* && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y /tmp/acme2*.deb && \
-    pip3 install requests-pkcs12==1.22 --break-system-packages && \
+    pip3 install requests-pkcs12 --break-system-packages && \
     apt-get clean &&  \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
     mkdir -p /var/www/acme2certifier/volume && \
