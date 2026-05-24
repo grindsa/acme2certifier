@@ -20,6 +20,7 @@ RUN apt-get update  && \
     libkrb5-3 \
     python3-django \
     python3-gssapi \
+    python3-impacket \
     python3-mssql-django \
     python3-mysqldb \
     python3-pip \
@@ -39,9 +40,11 @@ RUN apt-get update  && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/
 
 # configure acme2certifier
-RUN pip3 install impacket --break-system-packages && \
-    rm -rf /usr/local/bin/* && \
-    rm -rf /usr/local/lib/python3.12/dist-packages/impacket/examples/* && \
+RUN pip3 install requests-pkcs12 --break-system-packages && \
+    rm -rf /usr/lib/python3/dist-packages/impacket/examples && \
+    rm -rf /usr/share/doc/python3-impacke/examples && \
+    rm -rf /usr/share/impacket/script* && \
+    rm -rf /usr/bin/impacket-* && \
     cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-enabled/acme2certifier.conf && \
     cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/  && \
     cp /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py  && \
