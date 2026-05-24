@@ -35,11 +35,8 @@ RUN apt-get update  && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
-    mkdir -p /run/uwsgi
-
-# COPY ./ /var/www/acme2certifier/
-
-RUN pip3 install requests-pkcs12 --break-system-packages && \
+    mkdir -p /run/uwsgi && \
+    pip3 install requests-pkcs12 --break-system-packages && \
     rm -rf /usr/lib/python3/dist-packages/impacket/examples && \
     rm -rf /usr/share/doc/python3-impacke/examples && \
     rm -rf /usr/share/impacket/script* && \
