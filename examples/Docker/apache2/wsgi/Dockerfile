@@ -21,12 +21,12 @@ RUN apt-get update  && \
     python3-gssapi \
     python3-impacket \
     python3-pip && \
-    pip3 install requests-pkcs12 --break-system-packages && \
     rm -rf /usr/lib/python3/dist-packages/impacket/examples && \
     rm -rf /usr/share/doc/python3-impacke/examples && \
     rm -rf /usr/share/impacket/script* && \
     rm -rf /usr/bin/impacket-* && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y /tmp/acme2*.deb && \
+    pip3 install requests-pkcs12==1.22 --break-system-packages && \
     apt-get clean &&  \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
     mkdir -p /var/www/acme2certifier/volume && \
