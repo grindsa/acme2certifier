@@ -18,17 +18,17 @@ RUN apt-get update  && \
     supervisor \
     uwsgi \
     uwsgi-plugin-python3 && \
+    pip3 install requests-pkcs12 --break-system-packages && \
+    rm -rf /usr/lib/python3/dist-packages/impacket/examples && \
+    rm -rf /usr/share/doc/python3-impacke/examples && \
+    rm -rf /usr/share/impacket/script* && \
+    rm -rf /usr/bin/impacket-* && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y /tmp/acme2*.deb && \
     apt-get clean &&  \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
     mkdir -p /run/uwsgi && \
-    pip3 install requests-pkcs12 --break-system-packages && \
-    rm -rf /usr/lib/python3/dist-packages/impacket/examples && \
-    rm -rf /usr/share/doc/python3-impacke/examples && \
-    rm -rf /usr/share/impacket/script* && \
-    rm -rf /usr/bin/impacket-* && \
     cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py && \
     cp /var/www/acme2certifier/examples/nginx/acme2certifier.ini /var/www/acme2certifier && \
     cp /var/www/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf && \

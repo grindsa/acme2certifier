@@ -21,16 +21,16 @@ RUN apt-get update  && \
     python3-gssapi \
     python3-impacket \
     python3-pip && \
-    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y /tmp/acme2*.deb && \
-    apt-get clean &&  \
-    rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
-    mkdir -p /var/www/acme2certifier/volume && \
-    mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
     pip3 install requests-pkcs12 --break-system-packages && \
     rm -rf /usr/lib/python3/dist-packages/impacket/examples && \
     rm -rf /usr/share/doc/python3-impacke/examples && \
     rm -rf /usr/share/impacket/script* && \
     rm -rf /usr/bin/impacket-* && \
+    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y /tmp/acme2*.deb && \
+    apt-get clean &&  \
+    rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
+    mkdir -p /var/www/acme2certifier/volume && \
+    mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
     cp /var/www/acme2certifier/examples/apache2/apache_wsgi.conf /etc/apache2/sites-enabled/acme2certifier.conf  && \
     cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py  && \
     rm -rf /var/www/acme2certifier/examples/Docker && \
