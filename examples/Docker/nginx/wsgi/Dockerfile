@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 LABEL maintainer="grindelsack@gmail.com"
 
 COPY ./*.deb /tmp/
@@ -19,7 +19,7 @@ RUN apt-get update  && \
     uwsgi \
     uwsgi-plugin-python3 && \
     DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y /tmp/acme2*.deb && \
-    pip3 install requests-pkcs12==1.22 --break-system-packages && \
+    pip3 install requests-pkcs12 --break-system-packages && \
     rm -rf /usr/lib/python3/dist-packages/impacket/examples && \
     rm -rf /usr/share/doc/python3-impacke/examples && \
     rm -rf /usr/share/impacket/script* && \
