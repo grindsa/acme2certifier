@@ -1001,11 +1001,11 @@ jobs:
       - name: "Modify Dockerfile"
         run: |
           cd examples/Docker/$WEBSRV/$DBHANDLER
-          sed -i '/RUN pip3 install impacket --break-system-packages && \\/d' Dockerfile
-          sed -i '/rm \/usr\/local\/bin\/\*.py && \\/d' Dockerfile
-          sed -i '/rm -rf \/usr\/local\/lib\/python3.12\/dist-packages\/impacket\/examples\/\* && \\/d' Dockerfile
-          sed -i "s/    pip3 install -r/RUN pip3 install -r/g" Dockerfile
-          sed -i "s/    rm -rf \/usr\/local\//\#    rm -rf \/usr\/local\//g" Dockerfile
+          sed -i '/python3-impacket/d' Dockerfile
+          sed -i '/rm -rf \/usr\/lib\/python3\/dist-packages\/impacket\/examples/d' Dockerfile
+          sed -i '/rm -rf \/usr\/share\/doc\/python3-impacke\/examples/d' Dockerfile
+          sed -i '/rm -rf \/usr\/share\/impacket\/script/d' Dockerfile
+          sed -i '/rm -rf \/usr\/bin\/impacket/d' Dockerfile
         env:
           WEBSRV: ${{ matrix.websrv }}
           DBHANDLER: ${{ matrix.dbhandler }}
