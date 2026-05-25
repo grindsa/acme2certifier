@@ -56,7 +56,7 @@ COPY ./examples/nginx/supervisord.conf /etc
 WORKDIR /var/www/acme2certifier
 
 ENTRYPOINT ["/docker-entrypoint.sh"]
-CMD ["/usr//bin/supervisord"]
+CMD ["/usr/bin/supervisord"]
 # CMD ["/bin/bash"]
 
 EXPOSE 80 443
