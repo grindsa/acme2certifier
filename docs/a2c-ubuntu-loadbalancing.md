@@ -1,8 +1,8 @@
 <!-- markdownlint-disable  MD013 -->
 
-<!-- wiki-title # How to build an acme2certifier cluster on Ubuntu 22.04 -->
+<!-- wiki-title # How to build an acme2certifier cluster on Ubuntu 24.04 -->
 
-# How to build an acme2certifier cluster on Ubuntu 22.04
+# How to build an acme2certifier cluster on Ubuntu 24.04
 
 This tutorial describes the configuration of a two-node acme2certifier cluster running in active/active configuration. Although both nodes are active at the same time and provide proxy services via different IP addresses, database, configuration and and runtime objects will be replicated among the nodes.
 
@@ -10,7 +10,7 @@ This setup requires the switch to a different database engine as SQLite, which i
 
 ![architecture](a2c-ubuntu-loadbalancing.png "architecture")
 
-The guide is written for **Ubuntu 22.04**, however adapting to other Linux distributions should not be difficult. There is also a guide for [Alma Linux 9](a2c-alma-loadbalancing.md) available
+The guide is written for **Ubuntu 24.04**, however adapting to other Linux distributions should not be difficult. There is also a guide for [Alma Linux 9](a2c-alma-loadbalancing.md) available
 
 ## Preparation
 

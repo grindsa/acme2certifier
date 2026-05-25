@@ -109,15 +109,15 @@ ______________________________________________________________________
 - **Django project** (allows using alternative databases)
 
 The fastest and most convenient way to install acme2certifier is to use docker containers. There are ready made images available at [dockerhub](https://hub.docker.com/r/grindsa/acme2certifier) and [ghcr.io](https://github.com/grindsa?tab=packages&ecosystem=container) as well as [instructions to build your own container](examples/Docker/).
-In addition rpm packages for AlmaLinux/CentOS Stream/Redhat EL 9 and deb packages for Ubuntu 22.04 will be provided with every release.
+In addition rpm packages for AlmaLinux/CentOS Stream/Redhat EL 9 and deb packages for Ubuntu 24.04 will be provided with every release.
 
 Installation guides:
 
 - [RPM Installation (AlmaLinux 9)](docs/install_rpm.md)
-- [DEB Installation (Ubuntu 22.04)](docs/install_deb.md)
+- [DEB Installation (Ubuntu 24.04)](docs/install_deb.md)
 - [Docker Build Instructions](examples/Docker/)
-- [Apache2 WSGI Setup (Ubuntu 22.04)](docs/install_apache2_wsgi.md)
-- [Nginx WSGI Setup (Ubuntu 22.04)](docs/install_nginx_wsgi_ub22.md)
+- [Apache2 WSGI Setup (Ubuntu 24.04)](docs/install_apache2_wsgi.md)
+- [Nginx WSGI Setup (Ubuntu 24.04)](docs/install_nginx_wsgi_ub22.md)
 
 ## Software Bill Of Material
 

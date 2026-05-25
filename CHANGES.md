@@ -236,7 +236,7 @@ and pick the appropriate release branch.
 - new [tool to validate eab-files](docs/eab_profiling.md#profile-verification)
 - [#165](https://github.com/grindsa/acme2certifier/issues/165) [EAB profiling](docs/eab_profiling.md#enrollment-profiling-via-external-account-binding) for ejbca_handler
 - [#166](https://github.com/grindsa/acme2certifier/issues/166) [EAB profiling](docs/acme_ca.md#eab-profiling) for acme_ca_handler
-- documentation for active/active setup on [Alma9](docs/a2c-alma-loadbalancing.md) and [Ubuntu 22.04](docs/a2c-ubuntu-loadbalancing.md)
+- documentation for active/active setup on [Alma9](docs/a2c-alma-loadbalancing.md) and [Ubuntu 24.04](docs/a2c-ubuntu-loadbalancing.md)
 - [#165](https://github.com/grindsa/acme2certifier/issues/165) documentation of [external database support](docs/external_database_support.md) via django_handler
 
 **Bugfixes**:
