@@ -998,6 +998,15 @@ jobs:
         with:
           json_secret: ${{ secrets.SSH_TUNNEL_CFG }}
 
+      - name: "Download DEB artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+          DESTINATION_PATH: ./
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
       - name: "Modify Dockerfile"
         run: |
           cd examples/Docker/$WEBSRV/$DBHANDLER
