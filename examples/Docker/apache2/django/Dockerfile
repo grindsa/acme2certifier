@@ -27,6 +27,7 @@ RUN apt-get update  && \
     python3-psycopg2 \
     python3-pymysql \
     python3-pyodbc \
+    python3-requests-gssapi \
     python3-yaml  && \
     rm -rf /usr/lib/python3/dist-packages/impacket/examples && \
     rm -rf /usr/share/doc/python3-impacke/examples && \

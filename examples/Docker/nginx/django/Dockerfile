@@ -21,6 +21,7 @@ RUN apt-get update  && \
     python3-psycopg2 \
     python3-pymysql \
     python3-pyodbc \
+    python3-requests-gssapi \
     python3-yaml \
     supervisor \
     uwsgi \
