@@ -117,7 +117,7 @@ Installation guides:
 - [DEB Installation (Ubuntu 24.04)](docs/install_deb.md)
 - [Docker Build Instructions](examples/Docker/)
 - [Apache2 WSGI Setup (Ubuntu 24.04)](docs/install_apache2_wsgi.md)
-- [Nginx WSGI Setup (Ubuntu 24.04)](docs/install_nginx_wsgi_ub22.md)
+- [Nginx WSGI Setup (Ubuntu 24.04)](docs/install_nginx_wsgi_ub24.md)
 
 ## Software Bill Of Material
 
