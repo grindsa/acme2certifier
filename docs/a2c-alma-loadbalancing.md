@@ -10,7 +10,7 @@ This setup requires the switch to a different database engine as SQLite, which i
 
 ![architecture](a2c-alma-loadbalancing.png "architecture")
 
-The guide is written for **Alma Linux 9**, however adapting to other Linux distributions or Red Hat derivatives should not be difficult. There is also a guide for [Ubuntu 22.04](a2c-ubuntu-loadbalancing.md) available
+The guide is written for **Alma Linux 9**, however adapting to other Linux distributions or Red Hat derivatives should not be difficult. There is also a guide for [Ubuntu 24.04](a2c-ubuntu-loadbalancing.md) available
 
 ## Preparation
 
