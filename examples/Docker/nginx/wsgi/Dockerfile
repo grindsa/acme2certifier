@@ -16,6 +16,7 @@ RUN apt-get update  && \
     python3-impacket \
     python3-pip \
     python3-requests-gssapi \
+    python3-yaml \
     supervisor \
     uwsgi \
     uwsgi-plugin-python3 && \

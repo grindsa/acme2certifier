@@ -20,8 +20,9 @@ RUN apt-get update  && \
     libkrb5-3 \
     python3-gssapi \
     python3-impacket \
-    python3-pip && \
+    python3-pip \
     python3-requests-gssapi \
+    python3-yaml  && \
     rm -rf /usr/lib/python3/dist-packages/impacket/examples && \
     rm -rf /usr/share/doc/python3-impacke/examples && \
     rm -rf /usr/share/impacket/script* && \
