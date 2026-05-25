@@ -1010,9 +1010,9 @@ jobs:
       - name: List files
         run: ls -la data/
 
-      - name: "Instanciate Ubuntu 22.04"
+      - name: "Instanciate Ubuntu 24.04"
         run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:22.04
+          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:24.04
 
       - name: "Sleep for 5s"
         uses: grindsa/sleep-action@master
@@ -1171,9 +1171,9 @@ jobs:
       - name: List files
         run: ls -la data/
 
-      - name: "Instanciate Ubuntu 22.04"
+      - name: "Instanciate Ubuntu 24.04"
         run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:22.04
+          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:24.04
 
       - name: "Sleep for 5s"
         uses: grindsa/sleep-action@master
@@ -1220,6 +1220,13 @@ jobs:
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
           docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
           docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
+
+          # fix for django 4.0 upgrade
+          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
+          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
+          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+
           docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
           docker exec acme-srv systemctl restart apache2
 
@@ -1358,9 +1365,9 @@ jobs:
       - name: List files
         run: ls -la data/
 
-      - name: "Instanciate Ubuntu 22.04"
+      - name: "Instanciate Ubuntu 24.04"
         run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:22.04
+          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:24.04
 
       - name: "Sleep for 5s"
         uses: grindsa/sleep-action@master
@@ -1408,6 +1415,13 @@ jobs:
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
           docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
           docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
+
+          # fix for django 4.0 upgrade
+          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
+          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
+          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+
           docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
           docker exec acme-srv systemctl restart apache2
 
@@ -1552,9 +1566,9 @@ jobs:
       - name: List files
         run: ls -la data/
 
-      - name: "Instanciate Ubuntu 22.04"
+      - name: "Instanciate Ubuntu 24.04"
         run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:22.04
+          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:24.04
 
       - name: "Sleep for 5s"
         uses: grindsa/sleep-action@master
@@ -1602,6 +1616,13 @@ jobs:
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
           docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
           docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
+
+          # fix for django 4.0 upgrade
+          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
+          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
+          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+
           docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
           docker exec acme-srv systemctl restart apache2
 
