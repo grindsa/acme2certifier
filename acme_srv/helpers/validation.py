@@ -90,9 +90,12 @@ def validate_identifier(
     return result
 
 
-def validate_ip(logger: logging.Logger, ip: str) -> bool:
+def validate_ip(logger: logging.Logger, ip: str, raw=False) -> bool:
     """validate ip address"""
     logger.debug("Helper.validate_ip()")
+    if raw:
+        return ipaddress.ip_address(ip)
+    result = False
     try:
         ipaddress.ip_address(ip)
         result = True
@@ -123,6 +126,12 @@ def validate_fqdn(logger: logging.Logger, fqdn: str) -> bool:
 
     logger.debug("Helper.validate_fqdn() ended with: %s", result)
     return result
+
+
+def validate_network(logger: logging.Logger, ip_network: str) -> bool:
+    """check if an ip address is in a list of ip networks"""
+    logger.debug("Helper.validate_network(%s)", ip_network)
+    return ipaddress.ip_network(ip_network, strict=False)
 
 
 def ip_validate(logger: logging.Logger, ip_addr: str) -> Tuple[str, bool]:

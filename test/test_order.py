@@ -2437,6 +2437,24 @@ class TestOrderClass(unittest.TestCase):
             ),
         )
 
+    def test_106_are_identifiers_allowed_ip_not_whitelisted(self):
+        # Setup: allowed_iplist is set, is_ip_whitelisted returns False
+        self.order.config.allowed_iplist = ["192.168.1.0/24"]
+        identifier = {"type": "ip", "value": "10.0.0.1"}
+        # Patch is_ip_whitelisted to return False
+        with patch("acme_srv.order.is_ip_whitelisted", return_value=False):
+            error, msg = self.order.are_identifiers_allowed([identifier])
+            self.assertEqual(error, self.order.error_msg_dic["rejectedidentifier"])
+            self.assertEqual(
+                msg,
+                f'IP address {identifier["value"]} not allowed by configuration',
+            )
+        # Patch is_ip_whitelisted to return True (should not error)
+        with patch("acme_srv.order.is_ip_whitelisted", return_value=True):
+            error, msg = self.order.are_identifiers_allowed([identifier])
+            self.assertIsNone(error)
+            self.assertIsNone(msg)
+
 
 if __name__ == "__main__":
     unittest.main()
