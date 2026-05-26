@@ -114,6 +114,15 @@ jobs:
     - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
     - run: echo "UUID ${{ env.UUID }}"
 
+    - name: "Download DEB artifact by name from build run"
+      uses: ./.github/actions/download_artifact
+      with:
+        RUN_ID: ${{ inputs.run_id }}
+        ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+        DESTINATION_PATH: ./
+        TOKEN: ${{ secrets.GH_WF_TOKEN }}
+        REPO: ${{ github.repository }}
+
     - name: "Prepare ssh environment in ramdisk"
       run: |
         sudo mkdir -p /tmp/rd
