@@ -148,6 +148,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         load: true
+        context: .
         tags: grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ env.UUID }}
         file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
         platforms: linux/arm64
