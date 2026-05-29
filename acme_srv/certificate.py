@@ -75,7 +75,6 @@ class CertificateLogger:
                     "account__name",
                     "account__eab_kid",
                     "profile",
-                    "expires",
                     "account__contact",
                 ],
             )
@@ -93,6 +92,7 @@ class CertificateLogger:
             "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
             "common_name": cert_cn_get(self.logger, certificate),
             "san_list": cert_san_get(self.logger, certificate),
+            "expires": "",
         }
 
         if cert_reusage:
@@ -107,9 +107,10 @@ class CertificateLogger:
             # Add profile if existing
             data_dic["profile"] = order_dic.get("profile", "")
 
-        if order_dic.get("expires", ""):
-            # add expires if existing
-            data_dic["expires"] = uts_to_date_utc(order_dic.get("expires", ""))
+        (_, expire_uts) = cert_dates_get(self.logger, certificate)
+        if expire_uts:
+            # Add expires from cert if existing
+            data_dic["expires"] = uts_to_date_utc(expire_uts)
 
         if self.cert_operations_log == "json":
             # Log in json format
