@@ -33,13 +33,13 @@ class TestCertificateLogger(unittest.TestCase):
     @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
     @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
-    def test_001_log_issuance_success_json(self, mock_san, mock_cn, mock_serial):
+    @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
+    def test_001_log_issuance_success_json(self, mock_san, mock_cn, mock_serial, mock_dates):
         self.mock_repository.order_lookup.return_value = {
             "account__name": "acc",
             "account__contact": "contact",
             "account__eab_kid": "kid",
             "profile": "profile",
-            "expires": 1234567890,
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certlogger.log_certificate_issuance(
@@ -53,13 +53,13 @@ class TestCertificateLogger(unittest.TestCase):
     @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
     @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
-    def test_001_log_issuance_success_text(self, mock_san, mock_cn, mock_serial):
+    @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
+    def test_001_log_issuance_success_text(self, mock_san, mock_cn, mock_serial, mock_dates):
         self.mock_repository.order_lookup.return_value = {
             "account__name": "acc",
             "account__contact": "contact",
             "account__eab_kid": "kid",
             "profile": "profile",
-            "expires": 1234567890,
         }
         self.certlogger.cert_operations_log = "xx"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
@@ -137,13 +137,13 @@ class TestCertificateLogger(unittest.TestCase):
     @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
     @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
-    def test_005_log_issuance_text_format(self, mock_san, mock_cn, mock_serial):
+    @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
+    def test_005_log_issuance_json_format(self, mock_san, mock_cn, mock_serial, mock_dates):
         self.mock_repository.order_lookup.return_value = {
             "account__name": "acc",
             "account__contact": "contact",
             "account__eab_kid": "kid",
             "profile": "profile",
-            "expires": 1234567890,
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certlogger.log_certificate_issuance(
@@ -157,15 +157,15 @@ class TestCertificateLogger(unittest.TestCase):
     @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
     @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
     def test_006_log_issuance_with_reusage_and_kid(
-        self, mock_san, mock_cn, mock_serial
+        self, mock_san, mock_cn, mock_serial, mock_dates
     ):
         self.mock_repository.order_lookup.return_value = {
             "account__name": "acc",
             "account__contact": "contact",
             "account__eab_kid": "kid",
             "profile": "profile",
-            "expires": 1234567890,
         }
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.certlogger.log_certificate_issuance(
@@ -179,7 +179,7 @@ class TestCertificateLogger(unittest.TestCase):
     @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
     @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
-    def test_007_log_revocation_text_format(self, mock_san, mock_cn, mock_serial):
+    def test_007_log_revocation_json_format(self, mock_san, mock_cn, mock_serial):
         self.mock_repository.certificate_lookup.return_value = {
             "name": "cert_name",
             "order__account__name": "acc",
