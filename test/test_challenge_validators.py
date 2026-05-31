@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """Comprehensive unit tests for challenge_validators package"""
+
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 import sys
@@ -22,6 +23,9 @@ from acme_srv.challenge_validators.base import (
 from acme_srv.challenge_validators.registry import ChallengeValidatorRegistry
 from acme_srv.challenge_validators.http_validator import HttpChallengeValidator
 from acme_srv.challenge_validators.dns_validator import DnsChallengeValidator
+from acme_srv.challenge_validators.dns_persist_validator import (
+    DnsPersistChallengeValidator,
+)
 from acme_srv.challenge_validators.tls_alpn_validator import TlsAlpnChallengeValidator
 from acme_srv.challenge_validators.email_reply_validator import (
     EmailReplyChallengeValidator,
@@ -202,6 +206,7 @@ class TestChallengeValidator(unittest.TestCase):
 
     def test_002_challenge_validator_validate_challenge_success(self):
         """Test validate_challenge method with successful validation"""
+
         # Create a concrete implementation for testing
         class TestValidator(ChallengeValidator):
             def get_challenge_type(self):
@@ -230,6 +235,7 @@ class TestChallengeValidator(unittest.TestCase):
 
     def test_003_challenge_validator_validate_challenge_exception(self):
         """Test validate_challenge method with exception handling"""
+
         # Create a concrete implementation that raises an exception
         class FailingValidator(ChallengeValidator):
             def get_challenge_type(self):
@@ -2124,6 +2130,145 @@ class TestSourceAddressValidator(unittest.TestCase):
         # Test with whitespace-only resolved_domain
         result = self.validator._domain_matches("example.com", "   ")
         self.assertFalse(result)
+
+
+class TestDnsPersistChallengeValidator(unittest.TestCase):
+    """Test cases for DnsPersistChallengeValidator."""
+
+    def setUp(self):
+        self.logger = Mock(spec=logging.Logger)
+        self.validator = DnsPersistChallengeValidator(self.logger)
+
+    def test_001_get_challenge_type(self):
+        self.assertEqual(self.validator.get_challenge_type(), "dns-persist-01")
+
+    @patch("acme_srv.helper.uts_now", return_value=1700000000)
+    @patch("acme_srv.helper.txt_get")
+    def test_002_perform_validation_success(self, mock_txt_get, _mock_uts_now):
+        mock_txt_get.return_value = [
+            "authority.example; accounturi=https://ca.example/acme/acct/abc; persistUntil=1800000000"
+        ]
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+            options={
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "issuer_domain_names": ["authority.example"],
+            },
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertTrue(result.success)
+        self.assertFalse(result.invalid)
+
+    @patch("acme_srv.helper.uts_now", return_value=1700000000)
+    @patch("acme_srv.helper.txt_get")
+    def test_003_perform_validation_bad_persistuntil_malformed(
+        self, mock_txt_get, _mock_uts_now
+    ):
+        mock_txt_get.return_value = [
+            "authority.example; accounturi=https://ca.example/acme/acct/abc; persistUntil=bad"
+        ]
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+            options={
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "issuer_domain_names": ["authority.example"],
+            },
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertIn("malformed", result.error_message)
+
+    @patch("acme_srv.helper.uts_now", return_value=1700000000)
+    @patch("acme_srv.helper.txt_get")
+    def test_004_perform_validation_expired_persistuntil_unauthorized(
+        self, mock_txt_get, _mock_uts_now
+    ):
+        mock_txt_get.return_value = [
+            "authority.example; accounturi=https://ca.example/acme/acct/abc; persistUntil=1600000000"
+        ]
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+            options={
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "issuer_domain_names": ["authority.example"],
+            },
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertIn("unauthorized", result.error_message)
+
+    @patch("acme_srv.helper.uts_now", return_value=1700000000)
+    @patch("acme_srv.helper.txt_get")
+    def test_005_perform_validation_accounturi_mismatch(self, mock_txt_get, _):
+        mock_txt_get.return_value = [
+            "authority.example; accounturi=https://ca.example/acme/acct/xyz"
+        ]
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+            options={
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "issuer_domain_names": ["authority.example"],
+            },
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertIn("unauthorized", result.error_message)
+
+    @patch("acme_srv.helper.uts_now", return_value=1700000000)
+    @patch("acme_srv.helper.txt_get")
+    def test_006_perform_validation_bytes_txt_record(self, mock_txt_get, _):
+        """Test validation with TXT records returned as bytes by resolver."""
+        mock_txt_get.return_value = [
+            b"authority.example; accounturi=https://ca.example/acme/acct/abc"
+        ]
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+            options={
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "issuer_domain_names": ["authority.example"],
+            },
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertTrue(result.success)
+        self.assertFalse(result.invalid)
 
 
 if __name__ == "__main__":
