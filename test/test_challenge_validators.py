@@ -2270,6 +2270,86 @@ class TestDnsPersistChallengeValidator(unittest.TestCase):
         self.assertTrue(result.success)
         self.assertFalse(result.invalid)
 
+    @patch("acme_srv.helper.uts_now", return_value=1700000000)
+    @patch("acme_srv.helper.txt_get")
+    def test_007_wildcard_request_policy_disabled(self, mock_txt_get, _):
+        """Wildcard request must fail when wildcard policy support is disabled."""
+        mock_txt_get.return_value = [
+            "authority.example; accounturi=https://ca.example/acme/acct/abc; policy=wildcard"
+        ]
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="*.example.com",
+            options={
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "issuer_domain_names": ["authority.example"],
+                "allow_policy_wildcard": False,
+            },
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertIn("unauthorized", result.error_message)
+
+    @patch("acme_srv.helper.uts_now", return_value=1700000000)
+    @patch("acme_srv.helper.txt_get")
+    def test_008_wildcard_request_policy_enabled(self, mock_txt_get, _):
+        """Wildcard request should pass when policy=wildcard and support is enabled."""
+        mock_txt_get.return_value = [
+            "authority.example; accounturi=https://ca.example/acme/acct/abc; policy=wildcard"
+        ]
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="*.example.com",
+            options={
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "issuer_domain_names": ["authority.example"],
+                "allow_policy_wildcard": True,
+            },
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertTrue(result.success)
+        self.assertFalse(result.invalid)
+
+    @patch("acme_srv.helper.uts_now", return_value=1700000000)
+    @patch("acme_srv.helper.txt_get")
+    def test_009_wildcard_request_missing_policy(self, mock_txt_get, _):
+        """Wildcard request should fail if policy=wildcard is missing."""
+        mock_txt_get.return_value = [
+            "authority.example; accounturi=https://ca.example/acme/acct/abc"
+        ]
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="*.example.com",
+            options={
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "issuer_domain_names": ["authority.example"],
+                "allow_policy_wildcard": True,
+            },
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertIn("unauthorized", result.error_message)
+
 
 if __name__ == "__main__":
     unittest.main()

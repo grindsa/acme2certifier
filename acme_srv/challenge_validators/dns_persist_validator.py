@@ -5,6 +5,7 @@ Implements validation logic for dns-persist-01 challenges according to
 current ACME dns-persist draft behavior.
 """
 import re
+from typing import Optional
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 
 
@@ -43,6 +44,10 @@ class DnsPersistChallengeValidator(ChallengeValidator):
 
         accounturi = (context.options or {}).get("accounturi")
         normalized_issuers = self._normalized_issuer_names(context)
+        allow_policy_wildcard = bool(
+            (context.options or {}).get("allow_policy_wildcard", False)
+        )
+        wildcard_request = context.authorization_value.startswith("*.")
 
         fqdn = self._handle_wildcard_domain(context.authorization_value)
         dns_record_name = f"_validation-persist.{fqdn}"
@@ -55,6 +60,8 @@ class DnsPersistChallengeValidator(ChallengeValidator):
                 record,
                 accounturi,
                 normalized_issuers,
+                wildcard_request,
+                allow_policy_wildcard,
                 uts_now,
             )
             malformed_any = malformed_any or record_malformed
@@ -80,7 +87,7 @@ class DnsPersistChallengeValidator(ChallengeValidator):
             details={"dns_record": dns_record_name, "found_records": txt_records},
         )
 
-    def _validate_context(self, context: ChallengeContext) -> ValidationResult:
+    def _validate_context(self, context: ChallengeContext) -> Optional[ValidationResult]:
         """Validate challenge context preconditions."""
         if context.authorization_type and context.authorization_type.lower() != "dns":
             return ValidationResult(
@@ -114,6 +121,8 @@ class DnsPersistChallengeValidator(ChallengeValidator):
         record: str,
         accounturi: str,
         normalized_issuers: set,
+        wildcard_request: bool,
+        allow_policy_wildcard: bool,
         uts_now,
     ):
         """Evaluate one TXT record and return validation verdict."""
@@ -143,6 +152,22 @@ class DnsPersistChallengeValidator(ChallengeValidator):
         if persist_until and int(persist_until) < uts_now():
             self.logger.debug("DnsPersistChallengeValidator._evaluate_record(): persistuntil timestamp is in the past: %s", persist_until)
             return None, False
+
+
+        if wildcard_request:
+            if not allow_policy_wildcard:
+                self.logger.error(
+                    "Wildcard authorization requested for but policy wildcard support is disabled",
+                )
+                return None, False
+
+            policy = params.get("policy", "")
+            if policy.lower() != "wildcard":
+                self.logger.debug(
+                    "DnsPersistChallengeValidator._evaluate_record(): wildcard authorization requested but policy is not wildcard: %s",
+                    policy,
+                )
+                return None, False
 
         return (
             ValidationResult(
