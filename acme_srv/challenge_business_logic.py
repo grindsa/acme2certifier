@@ -3,6 +3,7 @@ Separation of challenge validation logic and database/state management
 operations for challenge processing.
 
 """
+
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 import logging
@@ -88,6 +89,11 @@ class ChallengeRepository(ABC):
     @abstractmethod
     def get_account_jwk(self, challenge_name: str) -> Optional[Dict[str, Any]]:
         """Get JWK for the account associated with the challenge."""
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def get_authorization_account_name(self, authorization_name: str) -> Optional[str]:
+        """Get account name for an authorization."""
         pass  # pragma: no cover
 
 
@@ -205,12 +211,18 @@ class ChallengeFactory:
         server_name: str,
         challenge_path: str,
         email_address: Optional[str] = None,
+        dns_persist_01_support: bool = False,
+        issuer_domain_names: Optional[List[str]] = None,
+        account_path: str = "/acme/acct/",
     ):
         self.repository = repository
         self.logger = logger
         self.server_name = server_name
         self.challenge_path = challenge_path
         self.email_address = email_address
+        self.dns_persist_01_support = dns_persist_01_support
+        self.issuer_domain_names = issuer_domain_names or []
+        self.account_path = account_path
 
     def create_standard_challenge_set(
         self, authorization_name: str, token: str, id_type: str, value: str
@@ -227,6 +239,9 @@ class ChallengeFactory:
                 "ChallengeFactory.create_standard_challenge_set(): Skipping dns-01 challenge for IP identifier"
             )
             challenge_types.remove("dns-01")
+
+        if self.dns_persist_01_support and id_type and id_type.lower() == "dns":
+            challenge_types.append("dns-persist-01")
 
         challenges = []
         for challenge_type in challenge_types:
@@ -332,6 +347,16 @@ class ChallengeFactory:
 
         elif challenge_type == "tkauth-01":
             challenge_dict["tkauth-type"] = "atc"
+        elif challenge_type == "dns-persist-01":
+            account_name = self.repository.get_authorization_account_name(
+                authorization_name
+            )
+            if account_name:
+                challenge_dict["accounturi"] = (
+                    f"{self.server_name}{self.account_path}{account_name}"
+                )
+            challenge_dict["issuer-domain-names"] = self.issuer_domain_names
+            challenge_dict.pop("token", None)
         elif challenge_type == "sectigo-email-01":
             challenge_dict["status"] = "valid"
             challenge_dict.pop("token", None)
@@ -433,6 +458,17 @@ class ChallengeService:
 
             if challenge.type == "email-reply-00" and config.email_address:
                 challenge_dict["from"] = config.email_address
+
+            if challenge.type == "dns-persist-01":
+                account_name = self.repository.get_authorization_account_name(
+                    challenge.authorization_name
+                )
+                if account_name:
+                    challenge_dict["accounturi"] = (
+                        f"{self.factory.server_name}{self.factory.account_path}{account_name}"
+                    )
+                challenge_dict["issuer-domain-names"] = self.factory.issuer_domain_names
+                challenge_dict.pop("token", None)
 
             challenge_list.append(challenge_dict)
 
