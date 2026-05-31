@@ -205,6 +205,8 @@ class DnsPersistChallengeValidator(ChallengeValidator):
 
     def _handle_wildcard_domain(self, fqdn: str) -> str:
         """Handle wildcard domain by removing the '*.' prefix."""
+        self.logger.debug("DnsPersistChallengeValidator._handle_wildcard_domain() for fqdn: %s", fqdn)
         if fqdn.startswith("*."):
+            self.logger.debug("DnsPersistChallengeValidator._handle_wildcard_domain(): Detected wildcard domain, stripping '*.' prefix")
             return fqdn[2:]
         return fqdn
