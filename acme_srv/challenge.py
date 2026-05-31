@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=r0902, r0912, r0913, r0915, r1705
 """Challenge class - refactored version"""
+
 import json
 import time
 from typing import List, Tuple, Dict, Optional, Any
@@ -57,6 +58,8 @@ class ChallengeConfiguration:
     tnauthlist_support: bool = False
     email_identifier_support: bool = False
     email_address: Optional[str] = None
+    dns_persist_01_support: bool = False
+    caaidentities: Optional[List[str]] = None
     forward_address_check: bool = False
     reverse_address_check: bool = False
     source_address: Optional[str] = None
@@ -181,12 +184,16 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 authorization_type=challenge_dic.get("authorization__type", ""),
                 authorization_value=challenge_dic.get("authorization__value", ""),
                 url="",  # Will be constructed later
-                validated=uts_to_date_utc(challenge_dic.get("validated"))
-                if challenge_dic.get("status") == "valid"
-                else None,
-                validation_error=challenge_dic.get("validation_error", None)
-                if "validation_error" in challenge_dic
-                else None,
+                validated=(
+                    uts_to_date_utc(challenge_dic.get("validated"))
+                    if challenge_dic.get("status") == "valid"
+                    else None
+                ),
+                validation_error=(
+                    challenge_dic.get("validation_error", None)
+                    if "validation_error" in challenge_dic
+                    else None
+                ),
             )
         except Exception as err:
             self.logger.critical("Database error: failed to lookup challenge: %s", err)
@@ -313,6 +320,31 @@ class DatabaseChallengeRepository(ChallengeRepository):
             self.logger.critical("Database error: failed to get account JWK: %s", err)
             raise DatabaseError(f"Failed to get account JWK: {err}") from err
 
+    def get_authorization_account_name(self, authorization_name: str) -> Optional[str]:
+        """Get account name for an authorization."""
+        self.logger.debug(
+            "DatabaseChallengeRepository.get_authorization_account_name(%s)",
+            authorization_name,
+        )
+        try:
+            authorization_list = self.dbstore.authorization_lookup(
+                "name", authorization_name, ["order__account__name"]
+            )
+            if (
+                authorization_list
+                and isinstance(authorization_list, list)
+                and "order__account__name" in authorization_list[0]
+            ):
+                return authorization_list[0]["order__account__name"]
+            return None
+        except Exception as err:
+            self.logger.critical(
+                "Database error: failed to get authorization account name: %s", err
+            )
+            raise DatabaseError(
+                f"Failed to get authorization account name: {err}"
+            ) from err
+
 
 class Challenge:
     """Challenge Class"""
@@ -330,7 +362,11 @@ class Challenge:
         self.config = ChallengeConfiguration()
         self.expiry = expiry
         self.server_name = srv_name
-        self.path_dic = {"chall_path": "/acme/chall/", "authz_path": "/acme/authz/"}
+        self.path_dic = {
+            "chall_path": "/acme/chall/",
+            "authz_path": "/acme/authz/",
+            "acct_path": "/acme/acct/",
+        }
         self.source_address = source
 
         # Initialize core components
@@ -408,6 +444,10 @@ class Challenge:
             dns_servers=self.config.dns_server_list,
             proxy_servers=self.config.proxy_server_list,
             timeout=self.config.validation_timeout,
+            options={
+                "accounturi": challenge_details.get("accounturi"),
+                "issuer_domain_names": self.config.caaidentities or [],
+            },
         )
 
         # Perform validation with retry logic for DNS challenges
@@ -419,7 +459,7 @@ class Challenge:
         url_dic = parse_url(self.logger, url)
         challenge_name = url_dic["path"].replace(self.path_dic["chall_path"], "")
         if "/" in challenge_name:
-            (challenge_name, _suffix) = challenge_name.split("/", 1)
+            challenge_name, _suffix = challenge_name.split("/", 1)
         return challenge_name
 
     def _get_challenge_validation_details(
@@ -463,6 +503,7 @@ class Challenge:
                 "authorization_value": challenge_dic["authorization__value"],
                 "jwk_thumbprint": jwk_thumbprint,
                 "keyauthorization": challenge_dic["keyauthorization"],
+                "accounturi": f"{self.server_name}{self.path_dic['acct_path']}{challenge_dic['authorization__order__account__name']}",
             }
 
         except Exception as err:
@@ -532,6 +573,18 @@ class Challenge:
         ):
             # add from address in response for email challenges
             response_dic["data"]["from"] = self.config.email_address
+
+        if updated_challenge_info.type == "dns-persist-01":
+            account_name = self.repository.get_authorization_account_name(
+                updated_challenge_info.authorization_name
+            )
+            if account_name:
+                response_dic["data"][
+                    "accounturi"
+                ] = f"{self.server_name}{self.path_dic['acct_path']}{account_name}"
+            response_dic["data"]["issuer-domain-names"] = (
+                self.config.caaidentities or []
+            )
 
         if (
             updated_challenge_info.validated
@@ -645,6 +698,25 @@ class Challenge:
 
         self.logger.debug("Challenge._load_proxy_configuration() ended")
 
+    def _load_dns_persist_configuration(self, config_dic: Dict[str, str]):
+        """Load dns-persist challenge configuration."""
+        self.config.dns_persist_01_support = config_dic.getboolean(
+            "Challenge", "dns_persist_01_support", fallback=False
+        )
+
+        self.config.caaidentities = self._load_directory_caa_identities(config_dic)
+
+    def _load_directory_caa_identities(self, config_dic: Dict[str, str]) -> List[str]:
+        """Load caaIdentities from Directory section as fallback issuer list."""
+        tmp_caaidentities = config_dic.get("Directory", "caaidentities", fallback=None)
+        if not tmp_caaidentities:
+            return []
+
+        try:
+            return json.loads(tmp_caaidentities)
+        except Exception:
+            return [tmp_caaidentities]
+
     def _load_configuration(self):
         """Load configuration from file."""
         self.logger.debug("Challenge._load_configuration()")
@@ -676,6 +748,8 @@ class Challenge:
             self.config.sectigo_sim = config_dic.getboolean(
                 "Challenge", "sectigo_sim", fallback=False
             )
+            self._load_dns_persist_configuration(config_dic)
+
             self.config.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
             )
@@ -725,6 +799,9 @@ class Challenge:
             self.server_name,
             self.path_dic["chall_path"],
             self.config.email_address,
+            self.config.dns_persist_01_support,
+            self.config.caaidentities,
+            self.path_dic["acct_path"],
         )
         self.service = ChallengeService(
             self.repository, self.state_manager, self.factory, self.logger
@@ -986,7 +1063,7 @@ class Challenge:
     ) -> ValidationResult:
         """Perform validation with retry logic for certain challenge types."""
 
-        retry_challenge_types = ["dns-01", "email-reply-00"]
+        retry_challenge_types = ["dns-01", "dns-persist-01", "email-reply-00"]
         max_attempts = 5 if challenge_type in retry_challenge_types else 1
 
         for attempt in range(max_attempts):
