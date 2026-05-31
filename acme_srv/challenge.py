@@ -59,6 +59,7 @@ class ChallengeConfiguration:
     email_identifier_support: bool = False
     email_address: Optional[str] = None
     dns_persist_01_support: bool = False
+    dns_persist_allow_policy_wildcard: bool = False
     caaidentities: Optional[List[str]] = None
     forward_address_check: bool = False
     reverse_address_check: bool = False
@@ -447,6 +448,7 @@ class Challenge:
             options={
                 "accounturi": challenge_details.get("accounturi"),
                 "issuer_domain_names": self.config.caaidentities or [],
+                "allow_policy_wildcard": self.config.dns_persist_allow_policy_wildcard,
             },
         )
 
@@ -702,6 +704,9 @@ class Challenge:
         """Load dns-persist challenge configuration."""
         self.config.dns_persist_01_support = config_dic.getboolean(
             "Challenge", "dns_persist_01_support", fallback=False
+        )
+        self.config.dns_persist_allow_policy_wildcard = config_dic.getboolean(
+            "Challenge", "dns_persist_allow_policy_wildcard", fallback=False
         )
 
         self.config.caaidentities = self._load_directory_caa_identities(config_dic)
