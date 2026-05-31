@@ -1534,7 +1534,7 @@ class TestChallenge(unittest.TestCase):
         self.challenge.repository.get_challengeinfo_by_challengename.return_value = {
             "name": "test_challenge",
             "status__name": "pending",
-            "authorization__order__account__name": "account1"
+            "authorization__order__account__name": "account1",
             # Missing authorization__order__account__eab_kid key
         }
 

@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """Comprehensive unit tests for challenge_business_logic.py"""
+
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 import sys
@@ -275,6 +276,10 @@ class MockChallengeRepository:
     def get_account_jwk(self, challenge_name: str):
         self.call_log.append(("get_account_jwk", challenge_name))
         return {"kty": "RSA", "n": "test", "e": "AQAB"}
+
+    def get_authorization_account_name(self, authorization_name: str):
+        self.call_log.append(("get_authorization_account_name", authorization_name))
+        return "acct-test"
 
 
 class TestChallengeStateManager(unittest.TestCase):
@@ -571,6 +576,38 @@ class TestChallengeFactory(unittest.TestCase):
         self.assertIn("http-01", types)
         self.assertIn("tls-alpn-01", types)
         self.assertNotIn("dns-01", types)
+
+    def test_035a_create_standard_challenge_set_dns_persist_enabled(self):
+        """Test creating standard challenge set with dns-persist-01 enabled."""
+        from acme_srv.challenge_business_logic import ChallengeFactory
+
+        factory = ChallengeFactory(
+            repository=self.repository,
+            logger=self.logger,
+            server_name="https://example.com",
+            challenge_path="/acme/chall/",
+            dns_persist_01_support=True,
+            issuer_domain_names=["authority.example"],
+            account_path="/acme/acct/",
+        )
+
+        challenges = factory.create_standard_challenge_set(
+            authorization_name="test-auth",
+            token="test-token",
+            id_type="dns",
+            value="example.com",
+        )
+
+        self.assertEqual(len(challenges), 4)
+        dns_persist = [
+            challenge
+            for challenge in challenges
+            if challenge.get("type") == "dns-persist-01"
+        ][0]
+        self.assertEqual(
+            dns_persist["accounturi"], "https://example.com/acme/acct/acct-test"
+        )
+        self.assertEqual(dns_persist["issuer-domain-names"], ["authority.example"])
 
     def test_036_create_standard_challenge_set_repository_failure(self):
         """Test standard challenge set creation when repository fails"""
