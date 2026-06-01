@@ -2350,6 +2350,60 @@ class TestDnsPersistChallengeValidator(unittest.TestCase):
         self.assertTrue(result.invalid)
         self.assertIn("unauthorized", result.error_message)
 
+    @patch("acme_srv.helper.uts_now", return_value=1700000000)
+    @patch("acme_srv.helper.txt_get")
+    def test_010_perform_validation_normalizes_dns_record_name(
+        self, mock_txt_get, _mock_uts_now
+    ):
+        """Validator should normalize case and trailing dot in authorization value."""
+        mock_txt_get.return_value = [
+            "authority.example; accounturi=https://ca.example/acme/acct/abc; persistUntil=1800000000"
+        ]
+
+        context = ChallengeContext(
+            challenge_name="test",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="Example.COM.",
+            options={
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "issuer_domain_names": ["authority.example"],
+            },
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertTrue(result.success)
+        self.assertFalse(result.invalid)
+        mock_txt_get.assert_called_once_with(
+            self.logger, "_validation-persist.example.com", None
+        )
+
+    @patch("acme_srv.helper.txt_get")
+    def test_011_perform_validation_invalid_authorization_value_malformed(
+        self, mock_txt_get
+    ):
+        """Invalid DNS authorization value should fail as malformed before DNS query."""
+        context = ChallengeContext(
+            challenge_name="test",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="bad value",
+            options={
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "issuer_domain_names": ["authority.example"],
+            },
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertIn("malformed", result.error_message)
+        mock_txt_get.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -4,6 +4,7 @@
 
 import json
 import time
+from configparser import ConfigParser
 from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
 from threading import Thread
@@ -497,6 +498,22 @@ class Challenge:
             if not pub_key:
                 return None
 
+            required_fields = (
+                "type",
+                "token",
+                "authorization__type",
+                "authorization__value",
+                "keyauthorization",
+            )
+            missing_fields = [field for field in required_fields if field not in challenge_dic]
+            if missing_fields:
+                self.logger.error(
+                    "Challenge data incomplete for validation (%s), missing fields: %s",
+                    challenge_name,
+                    ", ".join(missing_fields),
+                )
+                return None
+
             jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
             acct_path = self.path_dic.get("acct_path", "/acme/acct/")
             account_name = challenge_dic.get("authorization__order__account__name")
@@ -638,7 +655,7 @@ class Challenge:
         )
         return challenge_check
 
-    def _load_address_check_configuration(self, config_dic: Dict[str, str]):
+    def _load_address_check_configuration(self, config_dic: ConfigParser):
         """Load address check configuration."""
         self.logger.debug("Challenge._load_address_check_configuration()")
 
@@ -661,7 +678,7 @@ class Challenge:
         )
         self.logger.debug("Challenge._load_address_check_configuration() ended")
 
-    def _load_dns_configuration(self, config_dic: Dict[str, str]):
+    def _load_dns_configuration(self, config_dic: ConfigParser):
         """load dns config"""
         self.logger.debug("Challenge._load_dns_configuration()")
 
@@ -691,7 +708,7 @@ class Challenge:
 
         self.logger.debug("Challenge._load_dns_configuration() ended")
 
-    def _load_proxy_configuration(self, config_dic: Dict[str, str]):
+    def _load_proxy_configuration(self, config_dic: ConfigParser):
         """load proxy config"""
         self.logger.debug("Challenge._load_proxy_configuration()")
 
@@ -708,7 +725,7 @@ class Challenge:
 
         self.logger.debug("Challenge._load_proxy_configuration() ended")
 
-    def _load_dns_persist_configuration(self, config_dic: Dict[str, str]):
+    def _load_dns_persist_configuration(self, config_dic: ConfigParser):
         """Load dns-persist challenge configuration."""
         self.config.dns_persist_01_support = config_dic.getboolean(
             "Challenge", "dns_persist_01_support", fallback=False
@@ -722,7 +739,7 @@ class Challenge:
 
         self.config.caaidentities = self._load_directory_caa_identities(config_dic)
 
-    def _load_directory_caa_identities(self, config_dic: Dict[str, str]) -> List[str]:
+    def _load_directory_caa_identities(self, config_dic: ConfigParser) -> List[str]:
         """Load caaIdentities from Directory section as fallback issuer list."""
         tmp_caaidentities = config_dic.get("Directory", "caaidentities", fallback=None)
         if not tmp_caaidentities:

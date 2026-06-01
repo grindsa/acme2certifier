@@ -387,6 +387,67 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             "acme_srv.challenge_validators": Mock(),
         },
     )
+    def test_003b_create_challenge_validator_registry_dns_persist_disabled(self):
+        """Test registry creation with dns-persist-01 support disabled."""
+
+        mock_registry = Mock()
+        mock_registry_instance = Mock()
+        mock_registry_instance.get_supported_types.return_value = [
+            "http-01",
+            "dns-01",
+            "tls-alpn-01",
+        ]
+        mock_registry.return_value = mock_registry_instance
+
+        mock_http_validator = Mock()
+        mock_dns_validator = Mock()
+        mock_dns_persist_validator = Mock()
+        mock_tls_validator = Mock()
+        mock_email_validator = Mock()
+        mock_tkauth_validator = Mock()
+        mock_source_validator = Mock()
+
+        with patch.multiple(
+            "acme_srv.challenge_validators",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            DnsPersistChallengeValidator=mock_dns_persist_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ), patch.multiple(
+            "acme_srv.challenge_registry_setup",
+            ChallengeValidatorRegistry=mock_registry,
+            HttpChallengeValidator=mock_http_validator,
+            DnsChallengeValidator=mock_dns_validator,
+            DnsPersistChallengeValidator=mock_dns_persist_validator,
+            TlsAlpnChallengeValidator=mock_tls_validator,
+            EmailReplyChallengeValidator=mock_email_validator,
+            TkauthChallengeValidator=mock_tkauth_validator,
+            SourceAddressValidator=mock_source_validator,
+        ):
+
+            from acme_srv.challenge_registry_setup import (
+                create_challenge_validator_registry,
+            )
+
+            config = MockConfig(dns_persist_01_support=False)
+            create_challenge_validator_registry(self.logger, config)
+
+            mock_dns_persist_validator.assert_not_called()
+
+    @patch.dict(
+        "sys.modules",
+        {
+            "OpenSSL": Mock(),
+            "OpenSSL.crypto": Mock(),
+            "acme_srv.helper": Mock(),
+            "acme_srv.helpers.certificates": Mock(),
+            "acme_srv.challenge_validators": Mock(),
+        },
+    )
     def test_004_create_challenge_validator_registry_none_config(self):
         """Test registry creation with None config"""
 
