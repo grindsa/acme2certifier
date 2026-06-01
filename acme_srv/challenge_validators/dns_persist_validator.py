@@ -5,12 +5,14 @@ Implements validation logic for dns-persist-01 challenges according to
 current ACME dns-persist draft behavior.
 """
 import re
-from typing import Optional
+from typing import Optional, Set, Tuple
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 
 
 class DnsPersistChallengeValidator(ChallengeValidator):
     """Validator for dns-persist-01 challenges."""
+
+    _DNS_RECORD_LABEL = "_validation-persist"
 
     _MALFORMED_ERROR = (
         '{"status": 400, "type": "urn:ietf:params:acme:error:malformed", '
@@ -19,6 +21,10 @@ class DnsPersistChallengeValidator(ChallengeValidator):
     _UNAUTHORIZED_ERROR = (
         '{"status": 403, "type": "urn:ietf:params:acme:error:unauthorized", '
         '"detail": "dns-persist-01 DNS TXT record did not authorize this request"}'
+    )
+    _INTERNAL_ERROR = (
+        '{"status": 500, "type": "urn:ietf:params:acme:error:serverInternal", '
+        '"detail": "dns-persist-01 validation temporarily unavailable"}'
     )
 
     def get_challenge_type(self) -> str:
@@ -31,11 +37,14 @@ class DnsPersistChallengeValidator(ChallengeValidator):
         try:
             from acme_srv.helper import txt_get, uts_now
         except ImportError as err:
+            self.logger.error(
+                "DnsPersistChallengeValidator dependencies unavailable: %s", err
+            )
             return ValidationResult(
                 success=False,
                 invalid=True,
-                error_message=f"Required dependencies not available: {err}",
-                details={"import_error": str(err)},
+                error_message=self._INTERNAL_ERROR,
+                details={"reason": "validator_dependency_missing"},
             )
 
         context_check = self._validate_context(context)
@@ -49,8 +58,17 @@ class DnsPersistChallengeValidator(ChallengeValidator):
         )
         wildcard_request = context.authorization_value.startswith("*.")
 
-        fqdn = self._handle_wildcard_domain(context.authorization_value)
-        dns_record_name = f"_validation-persist.{fqdn}"
+        fqdn = self._normalize_fqdn_for_dns_query(
+            self._handle_wildcard_domain(context.authorization_value)
+        )
+        if not fqdn:
+            return ValidationResult(
+                success=False,
+                invalid=True,
+                error_message=self._MALFORMED_ERROR,
+                details={"reason": "Invalid DNS authorization value"},
+            )
+        dns_record_name = f"{self._DNS_RECORD_LABEL}.{fqdn}"
 
         txt_records = txt_get(self.logger, dns_record_name, context.dns_servers)
 
@@ -111,7 +129,7 @@ class DnsPersistChallengeValidator(ChallengeValidator):
 
         return None
 
-    def _normalized_issuer_names(self, context: ChallengeContext):
+    def _normalized_issuer_names(self, context: ChallengeContext) -> Set[str]:
         self.logger.debug("DnsPersistChallengeValidator._normalized_issuer_names()")
         issuer_domain_names = (context.options or {}).get("issuer_domain_names") or []
         return {issuer.strip().lower() for issuer in issuer_domain_names}
@@ -120,11 +138,11 @@ class DnsPersistChallengeValidator(ChallengeValidator):
         self,
         record: str,
         accounturi: str,
-        normalized_issuers: set,
+        normalized_issuers: Set[str],
         wildcard_request: bool,
         allow_policy_wildcard: bool,
         uts_now,
-    ):
+    ) -> Tuple[Optional[ValidationResult], bool]:
         """Evaluate one TXT record and return validation verdict."""
         self.logger.debug("DnsPersistChallengeValidator._evaluate_record() for record: %s", record)
         parsed = self._parse_issue_value(record)
@@ -235,3 +253,18 @@ class DnsPersistChallengeValidator(ChallengeValidator):
             self.logger.debug("DnsPersistChallengeValidator._handle_wildcard_domain(): Detected wildcard domain, stripping '*.' prefix")
             return fqdn[2:]
         return fqdn
+
+    def _normalize_fqdn_for_dns_query(self, fqdn: str) -> str:
+        """Normalize and minimally validate DNS name used in TXT queries."""
+        if fqdn is None:
+            return ""
+        normalized = str(fqdn).strip().rstrip(".").lower()
+        if (
+            not normalized
+            or " " in normalized
+            or normalized.startswith(".")
+            or ".." in normalized
+            or not re.fullmatch(r"[a-z0-9.-]+", normalized)
+        ):
+            return ""
+        return normalized

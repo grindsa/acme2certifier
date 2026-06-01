@@ -348,6 +348,17 @@ class TestChallenge(unittest.TestCase):
         self.challenge.repository.get_account_jwk.return_value = None
         self.assertIsNone(self.challenge._get_challenge_validation_details("c1"))
 
+    def test_021a_get_challenge_validation_details_missing_required_fields(self):
+        self.challenge.dbstore.challenge_lookup.return_value = {
+            "type": "dns-01",
+            "token": "tok",
+            "authorization__type": "dns",
+            # missing authorization__value and keyauthorization
+        }
+        self.challenge.repository.get_account_jwk.return_value = {"kty": "RSA"}
+        with patch("acme_srv.challenge.jwk_thumbprint_get", return_value="thumb"):
+            self.assertIsNone(self.challenge._get_challenge_validation_details("c1"))
+
     def test_022_get_challenge_validation_details_exception(self):
         self.challenge.dbstore.challenge_lookup.side_effect = Exception("fail")
         with self.assertLogs("test_a2c", level="DEBUG") as lcm:
