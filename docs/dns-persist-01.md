@@ -1,5 +1,4 @@
 <!-- markdownlint-disable MD013 -->
-
 <!-- wiki-title Experimental ACME dns-persist-01 Challenge Support -->
 
 # Experimental ACME dns-persist-01 Challenge Support
@@ -34,7 +33,30 @@ dns_persist_allow_policy_wildcard: True
 
 This allows a single TXT record with `policy=wildcard` to authorize issuance for both the base domain and wildcard certificates (e.g., `acme.foo.bar` and `*.acme.foo.bar`).
 
+## Just-In-Time (JIT) Validation
+
+When `dns_persist_jit_validation` is enabled in the `[Challenge]` section, the server will attempt to validate a dns-persist-01 authorization immediately at authorization creation time:
+
+- If a valid `_validation-persist.<domain>` TXT record is found and matches the requesting account, the authorization is returned as `valid` immediately (no challenge required).
+- If no valid record is found, the normal challenge flow is used and the client must complete the dns-persist-01 challenge as usual.
+- No ACME error is returned for JIT failure; fallback is transparent to the client.
+
+This feature is experimental and should be used with care. It is useful for automation scenarios where DNS records are managed out-of-band and can be trusted to remain accurate.
+
+**Configuration:**
+
+```config
+[Challenge]
+dns_persist_jit_validation: True
+```
+
+**Security note:** JIT validation does not bypass any account or issuer checks. All security tradeoffs of dns-persist-01 still apply.
+
+**See also:** [draft-ietf-acme-dns-persist §4.4](https://datatracker.ietf.org/doc/draft-ietf-acme-dns-persist/)
+
 ## Security Tradeoffs
+
+Persistent DNS records are powerful: anyone who can set or modify them can authorize certificate issuance for the covered domains. Hence, use only in controlled environments or for specific automation scenarios.
 
 **dns-persist-01 is less restrictive than dns-01**:
 
@@ -47,14 +69,6 @@ This allows a single TXT record with `policy=wildcard` to authorize issuance for
 
 - A single TXT record can enable issuance for all subdomains under a base domain.
 - If an attacker can set or persistently control the TXT record, they can obtain wildcard certificates for the entire domain tree.
-
-## Recommendations
-
-- Use only in controlled environments or for specific automation scenarios.
-- Monitor and audit DNS TXT records used for persistent authorization.
-- Prefer `dns-01` for high-security or public CA deployments.
-- If enabling wildcard support, ensure you have strong DNS change controls and monitoring.
-- Keep account URI values stable per automation identity and rotate records deliberately.
 
 ## Status
 

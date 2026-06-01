@@ -96,6 +96,7 @@ Supported challenge types:
 - [email-reply-00](https://www.rfc-editor.org/rfc/rfc8823.html#name-use-of-acme-for-issuing-end)
 - [tls-alpn-01](https://tools.ietf.org/html/rfc8737)
 - [tkauth-01](https://www.rfc-editor.org/rfc/rfc9447)
+- [dns-persist-01 (experimental)](docs/dns-persist-01.md) — persistent DNS-based authorization and JIT validation (see doc for details)
 
 ______________________________________________________________________
 
