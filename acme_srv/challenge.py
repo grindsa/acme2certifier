@@ -60,6 +60,7 @@ class ChallengeConfiguration:
     email_address: Optional[str] = None
     dns_persist_01_support: bool = False
     dns_persist_allow_policy_wildcard: bool = False
+    dns_persist_jit_validation: bool = False
     caaidentities: Optional[List[str]] = None
     forward_address_check: bool = False
     reverse_address_check: bool = False
@@ -497,6 +498,13 @@ class Challenge:
                 return None
 
             jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
+            acct_path = self.path_dic.get("acct_path", "/acme/acct/")
+            account_name = challenge_dic.get("authorization__order__account__name")
+            accounturi = (
+                f"{self.server_name}{acct_path}{account_name}"
+                if account_name
+                else None
+            )
             self.logger.debug("Challenge._get_challenge_validation_details() ended")
             return {
                 "type": challenge_dic["type"],
@@ -505,7 +513,7 @@ class Challenge:
                 "authorization_value": challenge_dic["authorization__value"],
                 "jwk_thumbprint": jwk_thumbprint,
                 "keyauthorization": challenge_dic["keyauthorization"],
-                "accounturi": f"{self.server_name}{self.path_dic['acct_path']}{challenge_dic['authorization__order__account__name']}",
+                "accounturi": accounturi,
             }
 
         except Exception as err:
@@ -708,6 +716,9 @@ class Challenge:
         self.config.dns_persist_allow_policy_wildcard = config_dic.getboolean(
             "Challenge", "dns_persist_allow_policy_wildcard", fallback=False
         )
+        self.config.dns_persist_jit_validation = config_dic.getboolean(
+            "Challenge", "dns_persist_jit_validation", fallback=False
+        )
 
         self.config.caaidentities = self._load_directory_caa_identities(config_dic)
 
@@ -796,6 +807,7 @@ class Challenge:
     def _initialize_business_logic_components(self):
         """Initialize factory and service components that depend on configuration."""
         self.logger.debug("Challenge._initialize_business_logic_components()")
+        acct_path = self.path_dic.get("acct_path", "/acme/acct/")
 
         # class creating and managing the different challenges
         self.factory = ChallengeFactory(
@@ -806,7 +818,7 @@ class Challenge:
             self.config.email_address,
             self.config.dns_persist_01_support,
             self.config.caaidentities,
-            self.path_dic["acct_path"],
+            acct_path,
         )
         self.service = ChallengeService(
             self.repository, self.state_manager, self.factory, self.logger

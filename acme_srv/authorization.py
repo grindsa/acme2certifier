@@ -7,6 +7,8 @@ from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
 from acme_srv.db_handler import DBstore
 from acme_srv.challenge import Challenge
+from acme_srv.challenge_validators.dns_persist_validator import DnsPersistChallengeValidator, ChallengeContext
+from acme_srv.directory import Directory
 from acme_srv.helper import (
     generate_random_string,
     uts_now,
@@ -65,6 +67,10 @@ class AuthorizationConfiguration:
     prevalidated_iplist: Optional[List[str]] = None
     prevalidated_emaillist: Optional[List[str]] = None
     email_identifier_rewrite: bool = False
+    dns_persist_01_support: bool = False
+    dns_persist_allow_policy_wildcard: bool = False
+    dns_persist_jit_validation: bool = False
+    caaidentities: Optional[list] = None
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
 
@@ -468,6 +474,25 @@ class Authorization(object):
             self.config.email_identifier_rewrite = config_dic.getboolean(
                 "Order", "email_identifier_rewrite", fallback=False
             )
+            self.config.dns_persist_01_support = config_dic.getboolean(
+                "Challenge", "dns_persist_01_support", fallback=False
+            )
+            self.config.dns_persist_allow_policy_wildcard = config_dic.getboolean(
+                "Challenge", "dns_persist_allow_policy_wildcard", fallback=False
+            )
+            self.config.dns_persist_jit_validation = config_dic.getboolean(
+                "Challenge", "dns_persist_jit_validation", fallback=False
+            )
+            # Load caaidentities from Directory section as JSON or comma-separated string
+            caaidentities_raw = config_dic.get("Directory", "caaidentities", fallback=None)
+            caaidentities = None
+            if caaidentities_raw:
+                try:
+                    caaidentities = json.loads(caaidentities_raw)
+                except Exception:
+                    # fallback: try comma-separated string
+                    caaidentities = [x.strip() for x in caaidentities_raw.split(",") if x.strip()]
+            self.config.caaidentities = caaidentities
             url_prefix = config_dic.get("Directory", "url_prefix", fallback=None)
             if url_prefix:
                 self.config.authz_path = f"{url_prefix}{self.config.authz_path}"
@@ -540,37 +565,84 @@ class Authorization(object):
             authz_info["status"] = "pending"
             is_tnauth = False
 
+
         # Extract identifier type and value
-        id_type, id_value = self.business_logic.extract_identifier_info_for_challenge(
-            authz_info
-        )
+        id_type, id_value = self.business_logic.extract_identifier_info_for_challenge(authz_info)
 
-        if auth_details:
-            # Apply EAB profile and prevalidation whitelist logic
-            self._apply_eab_and_prevalidation_whitelist(
-                authz_name, auth_details, id_type, id_value, authz_info
-            )
+        # JIT dns-persist-01 validation if enabled and applicable
+        jit_valid = False
+        if (
+            id_type == "dns"
+            and getattr(self.config, "dns_persist_01_support", False)
+            and getattr(self.config, "dns_persist_jit_validation", False)
+        ):
+            try:
+                # Build context for validator
+                account_name = auth_details.get("order__account__name") if auth_details else None
+                if account_name:
+                    accounturi = f"{self.server_name}/acme/acct/{account_name}"
+                else:
+                    accounturi = None
+                caaidentities = getattr(self.config, "caaidentities", None)
+                # Build validator context
+                validator_context = ChallengeContext(
+                    challenge_name=authz_name,
+                    token=token,
+                    jwk_thumbprint=None,
+                    authorization_type="dns",
+                    authorization_value=id_value,
+                    options={
+                        "accounturi": accounturi,
+                        "issuer_domain_names": caaidentities or [],
+                        "allow_policy_wildcard": getattr(self.config, "dns_persist_allow_policy_wildcard", False),
+                    },
+                    dns_servers=None,
+                    proxy_servers=None,
+                    timeout=10,
+                )
+                self.logger.debug("JIT validator context: %s", validator_context)
+                validator = DnsPersistChallengeValidator(self.logger)
+                result = validator.perform_validation(validator_context)
+                self.logger.debug("JIT validator result: %s", result)
+                if result.success and not result.invalid:
+                    self.logger.debug("Authorization.get_authorization_details(): JIT dns-persist-01 validation result: %s", result)
+                    jit_valid = True
+            except Exception as err:
+                self.logger.error("JIT dns-persist-01 validation failed: %s", err)
 
-        # Get challenge set
-        try:
-            authz_info[
-                "challenges"
-            ] = self.challenge_manager.get_challenge_set_for_authorization(
-                authz_name,
-                authz_info["status"],
-                token,
-                is_tnauth,
-                expires,
-                id_type,
-                id_value,
-            )
-        except Exception as err:
-            self.logger.error(
-                "Failed to create challenge set for authorization %s: %s",
-                authz_name,
-                err,
-            )
-            return None
+        if jit_valid:
+            authz_info["status"] = "valid"
+            self.repository.mark_authorization_as_valid(authz_name)
+            if auth_details is not None:
+                self.repository.mark_order_as_ready(auth_details.get("order__name"))
+            authz_info["challenges"] = []
+            self.logger.info("JIT dns-persist-01 validation succeeded for %s", authz_name)
+        else:
+            if auth_details:
+                # Apply EAB profile and prevalidation whitelist logic
+                self._apply_eab_and_prevalidation_whitelist(
+                    authz_name, auth_details, id_type, id_value, authz_info
+                )
+            # Get challenge set
+            try:
+                authz_info[
+                    "challenges"
+                ] = self.challenge_manager.get_challenge_set_for_authorization(
+                    authz_name,
+                    authz_info["status"],
+                    token,
+                    is_tnauth,
+                    expires,
+                    id_type,
+                    id_value,
+                )
+            except Exception as err:
+                self.logger.error(
+                    "Failed to create challenge set for authorization %s: %s",
+                    authz_name,
+                    err,
+                )
+                return None
 
         self.logger.debug(
             "Authorization.get_authorization_details() returns: %s",
