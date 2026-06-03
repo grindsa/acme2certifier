@@ -15,8 +15,12 @@ from acme_srv.helper import (
     uts_to_date_utc,
     string_sanitize,
 )
-from acme_srv.helpers.config import load_config, config_eab_profile_load
-from acme_srv.helpers.domain_utils import is_domain_whitelisted, is_ip_whitelisted
+from acme_srv.helpers.config import load_config, config_eab_profile_load, config_dns_server_list_load
+from acme_srv.helpers.domain_utils import (
+    is_domain_whitelisted,
+    is_ip_whitelisted,
+    is_email_whitelisted,
+)
 from acme_srv.message import Message
 from acme_srv.nonce import Nonce
 
@@ -57,17 +61,17 @@ class AuthorizationConfiguration:
     validity: int = 86400
     expiry_check_disable: bool = False
     authz_path: str = "/acme/authz/"
-    prevalidated_domainlist: Optional[List[str]] = None
-    prevalidated_iplist: Optional[List[str]] = None
-    prevalidated_emaillist: Optional[List[str]] = None
-    email_identifier_rewrite: bool = False
+    caaidentities: Optional[list] = None
     dns_persist_01_support: bool = False
     dns_persist_allow_policy_wildcard: bool = False
     dns_persist_jit_validation: bool = False
-    caaidentities: Optional[list] = None
+    dns_server_list: Optional[List[str]] = None
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
-
+    email_identifier_rewrite: bool = False
+    prevalidated_domainlist: Optional[List[str]] = None
+    prevalidated_iplist: Optional[List[str]] = None
+    prevalidated_emaillist: Optional[List[str]] = None
 
 @dataclass
 class AuthorizationData:
@@ -477,6 +481,8 @@ class Authorization(object):
             self.config.dns_persist_jit_validation = config_dic.getboolean(
                 "Challenge", "dns_persist_jit_validation", fallback=False
             )
+            self.config.dns_server_list = config_dns_server_list_load(self.logger, config_dic)
+
             # Load caaidentities from Directory section as JSON or comma-separated string
             caaidentities_raw = config_dic.get("Directory", "caaidentities", fallback=None)
             caaidentities = None
@@ -587,7 +593,7 @@ class Authorization(object):
                         "issuer_domain_names": caaidentities or [],
                         "allow_policy_wildcard": getattr(self.config, "dns_persist_allow_policy_wildcard", False),
                     },
-                    dns_servers=None,
+                    dns_servers=self.config.dns_server_list,
                     proxy_servers=None,
                     timeout=10,
                 )

@@ -17,6 +17,7 @@ from acme_srv.helper import (
     error_dic_get,
     config_eab_profile_load,
     config_async_mode_load,
+    config_dns_server_list_load,
 )
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
@@ -661,37 +662,7 @@ class Challenge:
         )
         self.logger.debug("Challenge._load_address_check_configuration() ended")
 
-    def _load_dns_configuration(self, config_dic: Dict[str, str]):
-        """load dns config"""
-        self.logger.debug("Challenge._load_dns_configuration()")
-
-        if "Challenge" in config_dic and "dns_server_list" in config_dic["Challenge"]:
-            try:
-                self.config.dns_server_list = json.loads(
-                    config_dic["Challenge"]["dns_server_list"]
-                )
-            except Exception as err_:
-                self.logger.warning(
-                    "Failed to load dns_server_list from configuration: %s",
-                    err_,
-                )
-        if (
-            "Challenge" in config_dic
-            and "dns_validation_pause_timer" in config_dic["Challenge"]
-        ):
-            try:
-                self.config.dns_validation_pause_timer = int(
-                    config_dic["Challenge"]["dns_validation_pause_timer"]
-                )
-            except Exception as err_:
-                self.logger.warning(
-                    "Failed to parse dns_validation_pause_timer from configuration: %s",
-                    err_,
-                )
-
-        self.logger.debug("Challenge._load_dns_configuration() ended")
-
-    def _load_proxy_configuration(self, config_dic: Dict[str, str]):
+    def _load_proxy_configuration(self, config_dic: ConfigParser):
         """load proxy config"""
         self.logger.debug("Challenge._load_proxy_configuration()")
 
@@ -754,7 +725,6 @@ class Challenge:
                     err_,
                 )
 
-            self._load_dns_configuration(config_dic)
             self._load_proxy_configuration(config_dic)
             self._load_address_check_configuration(config_dic)
             self.config.async_mode = config_async_mode_load(
@@ -765,6 +735,8 @@ class Challenge:
                 "Challenge", "sectigo_sim", fallback=False
             )
             self._load_dns_persist_configuration(config_dic)
+
+            self.config.dns_server_list = config_dns_server_list_load(self.logger, config_dic)
 
             self.config.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
