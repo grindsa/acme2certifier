@@ -123,6 +123,7 @@ from .helpers.config import (
     config_allowed_iplist_load,
     config_async_mode_load,
     config_proxy_load,
+    config_dns_server_list_load,
     config_dryrun_load,
     load_config,
     header_info_jsonify,
