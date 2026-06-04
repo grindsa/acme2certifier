@@ -662,6 +662,14 @@ class Challenge:
         )
         self.logger.debug("Challenge._load_address_check_configuration() ended")
 
+    def _load_dns_configuration(self, config_dic: ConfigParser):
+        """Load DNS challenge configuration."""
+        self.logger.debug("Challenge._load_dns_configuration()")
+
+        self.config.dns_server_list, self.config.dns_validation_pause_timer = config_dns_server_list_load(self.logger, config_dic)
+
+        self.logger.debug("Challenge._load_dns_configuration() ended")
+
     def _load_proxy_configuration(self, config_dic: ConfigParser):
         """load proxy config"""
         self.logger.debug("Challenge._load_proxy_configuration()")
@@ -702,6 +710,10 @@ class Challenge:
         try:
             return json.loads(tmp_caaidentities)
         except Exception:
+            self.logger.warning(
+                "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
+                tmp_caaidentities,
+            )
             return [tmp_caaidentities]
 
     def _load_configuration(self):
@@ -725,6 +737,7 @@ class Challenge:
                     err_,
                 )
 
+            self._load_dns_configuration(config_dic)
             self._load_proxy_configuration(config_dic)
             self._load_address_check_configuration(config_dic)
             self.config.async_mode = config_async_mode_load(
@@ -735,8 +748,6 @@ class Challenge:
                 "Challenge", "sectigo_sim", fallback=False
             )
             self._load_dns_persist_configuration(config_dic)
-
-            self.config.dns_server_list = config_dns_server_list_load(self.logger, config_dic)
 
             self.config.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
