@@ -68,6 +68,7 @@ class AuthorizationConfiguration:
     dns_persist_allow_policy_wildcard: bool = False
     dns_persist_jit_validation: bool = False
     dns_server_list: Optional[List[str]] = None
+    dns_validation_pause_timer: Optional[float] = 0.5
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
     email_identifier_rewrite: bool = False
@@ -483,7 +484,7 @@ class Authorization(object):
             self.config.dns_persist_jit_validation = config_dic.getboolean(
                 "Challenge", "dns_persist_jit_validation", fallback=False
             )
-            self.config.dns_server_list = config_dns_server_list_load(self.logger, config_dic)
+            self.config.dns_server_list, self.config.dns_validation_pause_timer = config_dns_server_list_load(self.logger, config_dic)
 
             # Load caaidentities from Directory section as JSON or comma-separated string
             caaidentities_raw = config_dic.get("Directory", "caaidentities", fallback=None)
@@ -515,6 +516,84 @@ class Authorization(object):
             ) = config_eab_profile_load(self.logger, config_dic)
 
         self.logger.debug("Authorization._load_configuration() ended:")
+
+    def _build_jit_validation_context(
+        self,
+        authz_name: str,
+        token: str,
+        id_value: Optional[str],
+        auth_details: Optional[Dict[str, str]],
+    ) -> ChallengeContext:
+        """Build context object used by the dns-persist JIT validator."""
+        account_name = auth_details.get("order__account__name") if auth_details else None
+        if account_name:
+            accounturi = f"{self.server_name}/acme/acct/{account_name}"
+        else:
+            accounturi = None
+
+        caaidentities = getattr(self.config, "caaidentities", None)
+
+        return ChallengeContext(
+            challenge_name=authz_name,
+            token=token,
+            jwk_thumbprint=None,
+            authorization_type="dns",
+            authorization_value=id_value,
+            options={
+                "accounturi": accounturi,
+                "issuer_domain_names": caaidentities or [],
+                "allow_policy_wildcard": getattr(
+                    self.config, "dns_persist_allow_policy_wildcard", False
+                ),
+            },
+            dns_servers=self.config.dns_server_list,
+            proxy_servers=None,
+            timeout=10,
+        )
+
+    def _run_jit_dns_validation(
+        self,
+        authz_name: str,
+        token: str,
+        id_value: Optional[str],
+        auth_details: Optional[Dict[str, str]],
+    ) -> bool:
+        """Run dns-persist JIT validation and return True on successful validation."""
+        try:
+            validator_context = self._build_jit_validation_context(
+                authz_name, token, id_value, auth_details
+            )
+            self.logger.debug("JIT validator context: %s", validator_context)
+
+            validator = DnsPersistChallengeValidator(self.logger)
+            result = validator.perform_validation(validator_context)
+            self.logger.debug("JIT validator result: %s", result)
+
+            if result.success and not result.invalid:
+                self.logger.debug(
+                    "Authorization.get_authorization_details(): JIT dns-persist-01 validation result: %s",
+                    result,
+                )
+                return True
+
+        except Exception as err:
+            self.logger.error("JIT dns-persist-01 validation failed: %s", err)
+
+        return False
+
+    def _apply_jit_validation_success(
+        self,
+        authz_name: str,
+        auth_details: Optional[Dict[str, str]],
+        authz_info: Dict[str, Any],
+    ) -> None:
+        """Apply state updates when JIT validation succeeds."""
+        authz_info["status"] = "valid"
+        self.repository.mark_authorization_as_valid(authz_name)
+        if auth_details is not None:
+            self.repository.mark_order_as_ready(auth_details.get("order__name"))
+        authz_info["challenges"] = []
+        self.logger.info("JIT dns-persist-01 validation succeeded for %s", authz_name)
 
     def get_authorization_details(self, url: str) -> Optional[Dict[str, str]]:
         """Get detailed authorization information"""
@@ -578,47 +657,12 @@ class Authorization(object):
             and getattr(self.config, "dns_persist_01_support", False)
             and getattr(self.config, "dns_persist_jit_validation", False)
         ):
-            try:
-                # Build context for validator
-                account_name = auth_details.get("order__account__name") if auth_details else None
-                if account_name:
-                    accounturi = f"{self.server_name}/acme/acct/{account_name}"
-                else:
-                    accounturi = None
-                caaidentities = getattr(self.config, "caaidentities", None)
-                # Build validator context
-                validator_context = ChallengeContext(
-                    challenge_name=authz_name,
-                    token=token,
-                    jwk_thumbprint=None,
-                    authorization_type="dns",
-                    authorization_value=id_value,
-                    options={
-                        "accounturi": accounturi,
-                        "issuer_domain_names": caaidentities or [],
-                        "allow_policy_wildcard": getattr(self.config, "dns_persist_allow_policy_wildcard", False),
-                    },
-                    dns_servers=self.config.dns_server_list,
-                    proxy_servers=None,
-                    timeout=10,
-                )
-                self.logger.debug("JIT validator context: %s", validator_context)
-                validator = DnsPersistChallengeValidator(self.logger)
-                result = validator.perform_validation(validator_context)
-                self.logger.debug("JIT validator result: %s", result)
-                if result.success and not result.invalid:
-                    self.logger.debug("Authorization.get_authorization_details(): JIT dns-persist-01 validation result: %s", result)
-                    jit_valid = True
-            except Exception as err:
-                self.logger.error("JIT dns-persist-01 validation failed: %s", err)
+            jit_valid = self._run_jit_dns_validation(
+                authz_name, token, id_value, auth_details
+            )
 
         if jit_valid:
-            authz_info["status"] = "valid"
-            self.repository.mark_authorization_as_valid(authz_name)
-            if auth_details is not None:
-                self.repository.mark_order_as_ready(auth_details.get("order__name"))
-            authz_info["challenges"] = []
-            self.logger.info("JIT dns-persist-01 validation succeeded for %s", authz_name)
+            self._apply_jit_validation_success(authz_name, auth_details, authz_info)
         else:
             if auth_details:
                 # Apply EAB profile and prevalidation whitelist logic
