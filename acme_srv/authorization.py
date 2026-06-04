@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from acme_srv.db_handler import DBstore
 from acme_srv.challenge import Challenge
 from acme_srv.challenge_validators.dns_persist_validator import DnsPersistChallengeValidator, ChallengeContext
-from acme_srv.directory import Directory
 from acme_srv.helper import (
     generate_random_string,
     uts_now,
@@ -452,7 +451,7 @@ class Authorization(object):
         )
         return value
 
-    def _load_configuration(self) -> AuthorizationConfiguration:
+    def _load_configuration(self):
         """Load configuration from file"""
         self.logger.debug("Authorization._load_configuration()")
 
@@ -486,16 +485,30 @@ class Authorization(object):
             )
             self.config.dns_server_list, self.config.dns_validation_pause_timer = config_dns_server_list_load(self.logger, config_dic)
 
-            # Load caaidentities from Directory section as JSON or comma-separated string
-            caaidentities_raw = config_dic.get("Directory", "caaidentities", fallback=None)
-            caaidentities = None
+            # Load caaidentities from Directory section as JSON array or comma-separated string
+            caaidentities_raw = config_dic.get(
+                 "Directory", "caaidentities", fallback=None
+             )
+            caaidentities: Optional[List[str]] = None
+
             if caaidentities_raw:
                 try:
-                    caaidentities = json.loads(caaidentities_raw)
+                     parsed = json.loads(caaidentities_raw)
+                     if isinstance(parsed, list):
+                         caaidentities = parsed
+                     else:
+                         self.logger.warning(
+                             "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
+                             caaidentities_raw,
+                         )
+                         caaidentities = [caaidentities_raw]
                 except Exception:
                     # fallback: try comma-separated string
-                    caaidentities = [x.strip() for x in caaidentities_raw.split(",") if x.strip()]
+                    caaidentities = [
+                         x.strip() for x in caaidentities_raw.split(",") if x.strip()
+                    ]
             self.config.caaidentities = caaidentities
+
             url_prefix = config_dic.get("Directory", "url_prefix", fallback=None)
             if url_prefix:
                 self.config.authz_path = f"{url_prefix}{self.config.authz_path}"
@@ -526,10 +539,11 @@ class Authorization(object):
     ) -> ChallengeContext:
         """Build context object used by the dns-persist JIT validator."""
         account_name = auth_details.get("order__account__name") if auth_details else None
-        if account_name:
-            accounturi = f"{self.server_name}/acme/acct/{account_name}"
-        else:
-            accounturi = None
+
+        acct_path = self.config.authz_path.replace("/acme/authz/", "/acme/acct/")
+        accounturi = (
+             f"{self.server_name}{acct_path}{account_name}" if account_name else None
+         )
 
         caaidentities = getattr(self.config, "caaidentities", None)
 

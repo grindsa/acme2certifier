@@ -603,13 +603,17 @@ class Challenge:
             response_dic["data"]["from"] = self.config.email_address
 
         if updated_challenge_info.type == "dns-persist-01":
-            account_name = self.repository.get_authorization_account_name(
-                updated_challenge_info.authorization_name
-            )
+            try:
+                account_name = self.repository.get_authorization_account_name(
+                    updated_challenge_info.authorization_name
+                )
+            except DatabaseError:
+                account_name = None
+
             if account_name:
-                response_dic["data"][
-                    "accounturi"
-                ] = f"{self.server_name}{self.path_dic['acct_path']}{account_name}"
+                response_dic["data"]["accounturi"] = (
+                    f"{self.server_name}{self.path_dic['acct_path']}{account_name}"
+                )
             response_dic["data"]["issuer-domain-names"] = (
                 self.config.caaidentities or []
             )
@@ -725,7 +729,14 @@ class Challenge:
             return []
 
         try:
-            return json.loads(tmp_caaidentities)
+            parsed = json.loads(tmp_caaidentities)
+            if isinstance(parsed, list):
+                return parsed
+            self.logger.warning(
+                "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
+                tmp_caaidentities,
+            )
+            return [tmp_caaidentities]
         except Exception:
             self.logger.warning(
                 "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
