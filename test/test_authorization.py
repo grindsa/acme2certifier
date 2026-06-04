@@ -792,8 +792,51 @@ class TestAuthorization(unittest.TestCase):
 
         self.assertEqual(self.authorization.config.caaidentities, ["acme.local", "bar.local"])
 
+    @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
     @patch("acme_srv.authorization.load_config")
-    def test_053_load_configuration_invalid_validity(self, mock_load_config):
+    def test_053_load_configuration_caaidentities_json_array(
+        self, mock_load_config, mock_eab_profile
+    ):
+        """Test caaidentities parsing from valid JSON array."""
+        mock_config = ConfigParser()
+        mock_config.read_dict(
+            {
+                "Directory": {"caaidentities": '["acme.local", "bar.local"]'},
+            }
+        )
+        mock_load_config.return_value = mock_config
+
+        self.authorization._load_configuration()
+
+        self.assertEqual(
+            self.authorization.config.caaidentities, ["acme.local", "bar.local"]
+        )
+
+    @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
+    @patch("acme_srv.authorization.load_config")
+    def test_054_load_configuration_caaidentities_json_non_array_warns(
+        self, mock_load_config, mock_eab_profile
+    ):
+        """Test caaidentities non-array JSON falls back and logs warning."""
+        raw_value = '{"issuer": "acme.local"}'
+        mock_config = ConfigParser()
+        mock_config.read_dict(
+            {
+                "Directory": {"caaidentities": raw_value},
+            }
+        )
+        mock_load_config.return_value = mock_config
+
+        self.authorization._load_configuration()
+
+        self.assertEqual(self.authorization.config.caaidentities, [raw_value])
+        self.mock_logger.warning.assert_any_call(
+            "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
+            raw_value,
+        )
+
+    @patch("acme_srv.authorization.load_config")
+    def test_055_load_configuration_invalid_validity(self, mock_load_config):
         """Test configuration loading with invalid validity"""
         mock_config = Mock()
         mock_config.get.side_effect = lambda section, key, fallback=None: {
@@ -811,7 +854,7 @@ class TestAuthorization(unittest.TestCase):
 
     @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
     @patch("acme_srv.authorization.load_config")
-    def test_054_load_configuration_empty_config(
+    def test_056_load_configuration_empty_config(
         self, mock_load_config, mock_eab_profile
     ):
         """Test configuration loading with empty config"""
@@ -823,7 +866,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(self.authorization.config.validity, 86400)
         self.assertFalse(self.authorization.config.expiry_check_disable)
 
-    def test_055_get_authorization_details_not_found(self):
+    def test_057_get_authorization_details_not_found(self):
         """Test get_authorization_details when authorization not found"""
         # Replace repository with mock
         mock_repository = Mock()
@@ -837,7 +880,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(result, {})
 
     @patch("acme_srv.authorization.uts_to_date_utc")
-    def test_056_get_authorization_details_success_minimal(self, mock_uts_to_date):
+    def test_058_get_authorization_details_success_minimal(self, mock_uts_to_date):
         """Test get_authorization_details with minimal success case"""
         mock_uts_to_date.return_value = "2021-01-01T00:00:00Z"
         # Replace components with mocks
@@ -881,7 +924,7 @@ class TestAuthorization(unittest.TestCase):
         )
 
     @patch("acme_srv.authorization.uts_to_date_utc")
-    def test_057_get_authorization_details_success_with_details(self, mock_uts_to_date):
+    def test_059_get_authorization_details_success_with_details(self, mock_uts_to_date):
         """Test get_authorization_details with full details"""
         mock_uts_to_date.return_value = "2021-01-01T00:00:00Z"
 
@@ -930,7 +973,7 @@ class TestAuthorization(unittest.TestCase):
         }
         self.assertEqual(result, expected)
 
-    def test_058_get_authorization_details_challenge_error(self):
+    def test_060_get_authorization_details_challenge_error(self):
         """Test get_authorization_details when challenge creation fails"""
         # Replace components with mocks
         mock_repository = Mock()
@@ -973,7 +1016,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIn("Challenge failed", str(log_args))
 
     @patch("acme_srv.authorization.uts_to_date_utc")
-    def test_059_get_authorization_details_jit_validation_success(self, mock_uts_to_date):
+    def test_061_get_authorization_details_jit_validation_success(self, mock_uts_to_date):
         """Test successful JIT dns-persist validation marks authorization valid"""
         mock_uts_to_date.return_value = "2021-01-01T00:00:00Z"
 
@@ -1054,7 +1097,7 @@ class TestAuthorization(unittest.TestCase):
         )
 
     @patch("acme_srv.authorization.uts_to_date_utc")
-    def test_060_get_authorization_details_jit_validation_invalid_result_fallback(
+    def test_062_get_authorization_details_jit_validation_invalid_result_fallback(
         self, mock_uts_to_date
     ):
         """Test non-valid JIT result falls back to challenge generation"""
@@ -1128,7 +1171,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(context_kwargs["options"]["issuer_domain_names"], [])
 
     @patch("acme_srv.authorization.uts_to_date_utc")
-    def test_061_get_authorization_details_jit_validation_exception_fallback(
+    def test_063_get_authorization_details_jit_validation_exception_fallback(
         self, mock_uts_to_date
     ):
         """Test JIT validator exceptions are logged and fall back to challenge generation"""
@@ -1199,7 +1242,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIn("jit failed", str(error_args[1]))
 
     @patch("acme_srv.authorization.uts_now")
-    def test_062_expire_invalid_authorizations_default_timestamp(self, mock_uts_now):
+    def test_064_expire_invalid_authorizations_default_timestamp(self, mock_uts_now):
         """Test expire_invalid_authorizations with default timestamp"""
         mock_uts_now.return_value = 1234567890
 
@@ -1222,7 +1265,7 @@ class TestAuthorization(unittest.TestCase):
             "expired_authz"
         )
 
-    def test_063_expire_invalid_authorizations_custom_timestamp(self):
+    def test_065_expire_invalid_authorizations_custom_timestamp(self):
         """Test expire_invalid_authorizations with custom timestamp"""
         # Replace components with mocks
         mock_repository = Mock()
@@ -1244,7 +1287,7 @@ class TestAuthorization(unittest.TestCase):
             1000000000, field_list
         )
 
-    def test_064_expire_invalid_authorizations_search_error(self):
+    def test_066_expire_invalid_authorizations_search_error(self):
         """Test expire_invalid_authorizations when search fails"""
         # Replace components with mocks
         mock_repository = Mock()
@@ -1263,7 +1306,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIsInstance(call_args[1], AuthorizationError)
         self.assertIn("Search failed", str(call_args[1]))
 
-    def test_065_expire_invalid_authorizations_not_eligible(self):
+    def test_067_expire_invalid_authorizations_not_eligible(self):
         """Test expire_invalid_authorizations when authorization not eligible"""
         # Replace components with mocks
         mock_repository = Mock()
@@ -1283,7 +1326,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(len(output_list), 0)
         mock_repository.mark_authorization_as_expired.assert_not_called()
 
-    def test_066_expire_invalid_authorizations_expire_error(self):
+    def test_068_expire_invalid_authorizations_expire_error(self):
         """Test expire_invalid_authorizations when expiration fails"""
 
         # Replace components with mocks
@@ -1313,7 +1356,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIsInstance(call_args[2], AuthorizationError)
         self.assertIn("Expire failed", str(call_args[2]))
 
-    def test_067_handle_get_request_success(self):
+    def test_069_handle_get_request_success(self):
         """Test successful GET request handling"""
         auth_data = {"status": "valid", "expires": "2021-01-01T00:00:00Z"}
         with patch.object(
@@ -1328,7 +1371,7 @@ class TestAuthorization(unittest.TestCase):
         expected = {"code": 200, "header": {}, "data": auth_data}
         self.assertEqual(result, expected)
 
-    def test_068_handle_get_request_not_found(self):
+    def test_070_handle_get_request_not_found(self):
         """Test GET request handling when authorization not found"""
         with patch.object(
             self.authorization, "get_authorization_details"
@@ -1346,7 +1389,7 @@ class TestAuthorization(unittest.TestCase):
         }
         self.assertEqual(result, expected)
 
-    def test_069_handle_get_request_none_result(self):
+    def test_071_handle_get_request_none_result(self):
         """Test GET request handling when get_authorization_details returns None"""
         with patch.object(
             self.authorization, "get_authorization_details"
@@ -1364,7 +1407,7 @@ class TestAuthorization(unittest.TestCase):
         }
         self.assertEqual(result, expected)
 
-    def test_070_handle_get_request_authorization_error(self):
+    def test_072_handle_get_request_authorization_error(self):
         """Test GET request handling with authorization error"""
         with patch.object(
             self.authorization, "get_authorization_details"
@@ -1394,7 +1437,7 @@ class TestAuthorization(unittest.TestCase):
             self.assertIn("Authorization error", str(log_args))
             self.assertIn("Test error", str(log_args))
 
-    def test_071_handle_post_request_success_with_expiry_check(self):
+    def test_073_handle_post_request_success_with_expiry_check(self):
         """Test successful POST request handling with expiry check"""
         self.authorization.config.expiry_check_disable = False
 
@@ -1427,7 +1470,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIn("data", result)
         self.assertEqual(result["data"].get("status"), 400)
 
-    def test_072_handle_post_request_expiry_check_disabled(self):
+    def test_074_handle_post_request_expiry_check_disabled(self):
         """Test POST request handling with expiry check disabled"""
         self.authorization.config.expiry_check_disable = True
 
@@ -1451,7 +1494,7 @@ class TestAuthorization(unittest.TestCase):
 
         mock_invalidate.assert_not_called()
 
-    def test_073_handle_post_request_invalidate_error(self):
+    def test_075_handle_post_request_invalidate_error(self):
         """Test POST request handling when invalidate fails"""
         self.mock_message.check.return_value = (
             200,
@@ -1486,7 +1529,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(call_args[0], "Failed to expire authorizations: %s")
         self.assertIn("Invalidate failed", str(call_args[1]))
 
-    def test_074_handle_post_request_no_url(self):
+    def test_076_handle_post_request_no_url(self):
         """Test POST request handling when mcheck returns no URL"""
         # Patch only the check method of the message
         with patch.object(
@@ -1545,7 +1588,7 @@ class TestAuthorization(unittest.TestCase):
             self.assertIn("data", result)
             self.assertEqual(result["data"].get("status"), 400)
 
-    def test_075_handle_post_request_message_check_failure(self):
+    def test_077_handle_post_request_message_check_failure(self):
         """Test POST request handling when message check fails"""
         self.mock_message.check.return_value = (
             400,
@@ -1565,7 +1608,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIn("data", result)
         self.assertEqual(result["data"].get("status"), 400)
 
-    def test_076_handle_post_request_missing_url(self):
+    def test_078_handle_post_request_missing_url(self):
         """Test POST request handling with missing URL in protected"""
         # Patch check to return no 'url' in protected
         with patch.object(
@@ -1598,7 +1641,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get("error"), "malformed")
 
-    def test_077_handle_post_request_authorization_lookup_failed(self):
+    def test_079_handle_post_request_authorization_lookup_failed(self):
         """Test POST request handling when authorization lookup fails"""
         # Patch check to return a valid url in protected
         with patch.object(
@@ -1636,7 +1679,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get("error"), "unauthorized")
 
-    def test_078_handle_post_request_authorization_error(self):
+    def test_080_handle_post_request_authorization_error(self):
         """Test POST request handling when authorization error occurs"""
         # Patch check to return a valid url in protected
         with patch.object(
@@ -1676,7 +1719,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get("error"), "unauthorized")
 
-    def test_079_handle_post_request_authorization_details_valid(self):
+    def test_081_handle_post_request_authorization_details_valid(self):
         """Test POST request handling when get_authorization_details returns something valid"""
         # Patch check to return a valid url in protected
         with patch.object(
@@ -1716,7 +1759,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIsInstance(result, dict)
         self.assertEqual(result.get("error"), "unauthorized")
 
-    def test_080_new_get_backward_compatibility(self):
+    def test_082_new_get_backward_compatibility(self):
         """Test new_get backward compatibility method"""
         with patch.object(self.authorization, "handle_get_request") as mock_handle_get:
             mock_handle_get.return_value = {"code": 200}
@@ -1724,7 +1767,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(result, {"code": 200})
         mock_handle_get.assert_called_once_with("http://example.com/authz/test")
 
-    def test_081_new_post_backward_compatibility(self):
+    def test_083_new_post_backward_compatibility(self):
         """Test new_post backward compatibility method"""
         with patch.object(
             self.authorization, "handle_post_request"
@@ -1734,7 +1777,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(result, {"code": 200})
         mock_handle_post.assert_called_once_with('{"test": "content"}')
 
-    def test_082_invalidate_backward_compatibility(self):
+    def test_084_invalidate_backward_compatibility(self):
         """Test invalidate backward compatibility method"""
         with patch.object(
             self.authorization, "expire_invalid_authorizations"
@@ -1748,7 +1791,7 @@ class TestAuthorization(unittest.TestCase):
     @patch("acme_srv.authorization.config_dns_server_list_load", return_value=(False, None))
     @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
     @patch("acme_srv.authorization.load_config")
-    def test_083_load_configuration_prevalidated_domainlist_success(
+    def test_085_load_configuration_prevalidated_domainlist_success(
         self, mock_load_config, mock_eab_profile, mock_dns_list
     ):
         """Test prevalidated_domainlist loads and logger warning is called"""
@@ -1770,7 +1813,7 @@ class TestAuthorization(unittest.TestCase):
             str(call_args[0]),
         )
 
-    def test_084_apply_prevalidation_whitelist_else_branch(self):
+    def test_086_apply_prevalidation_whitelist_else_branch(self):
         """Test _apply_prevalidation_whitelist else branch when auth_details is None and domain is whitelisted."""
         self.authorization.config.prevalidated_domainlist = ["example.com"]
 
@@ -1814,7 +1857,7 @@ class TestAuthorization(unittest.TestCase):
         # Clean up
         domain_utils.is_domain_whitelisted = orig_is_domain_whitelisted
 
-    def test_085_apply_eab_and_prevalidation_whitelist_always_calls_domain_whitelist(
+    def test_087_apply_eab_and_prevalidation_whitelist_always_calls_domain_whitelist(
         self,
     ):
         """Test that _apply_eab_and_prevalidation_whitelist always calls _apply_prevalidation_whitelist, regardless of EAB profile logic."""
@@ -1846,7 +1889,7 @@ class TestAuthorization(unittest.TestCase):
     @patch("acme_srv.authorization.config_dns_server_list_load", return_value=(False, None))
     @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
     @patch("acme_srv.authorization.load_config")
-    def test_086_load_configuration_prevalidated_domainlist_invalid_json(
+    def test_088_load_configuration_prevalidated_domainlist_invalid_json(
         self, mock_load_config, mock_eab_profile, mock_dns_list
     ):
         """Test prevalidated_domainlist with invalid JSON raises ConfigurationError and sets None"""
@@ -1866,7 +1909,7 @@ class TestAuthorization(unittest.TestCase):
         )
         self.assertIsNone(self.authorization.config.prevalidated_domainlist)
 
-    def test_087_eab_profile_prevalidated_domainlist_applied(self):
+    def test_089_eab_profile_prevalidated_domainlist_applied(self):
         """Test EAB profile sets prevalidated_domainlist from profile"""
         self.authorization.config.eab_profiling = True
         profile_dic = {
@@ -1885,7 +1928,7 @@ class TestAuthorization(unittest.TestCase):
         )
         self.assertEqual(self.authorization.config.prevalidated_domainlist, ["foo.com"])
 
-    def test_088_eab_profile_no_prevalidated_domainlist(self):
+    def test_090_eab_profile_no_prevalidated_domainlist(self):
         """Test EAB profile present but no prevalidated_domainlist in profile"""
         self.authorization.config.eab_profiling = True
         profile_dic = {"kid": {"authorization": {}}}
@@ -1902,7 +1945,7 @@ class TestAuthorization(unittest.TestCase):
         )
         self.assertIsNone(self.authorization.config.prevalidated_domainlist)
 
-    def test_089_eab_profile_handler_exception(self):
+    def test_091_eab_profile_handler_exception(self):
         """Test EAB profile handler raises exception, logger.error called with correct message"""
         self.authorization.config.eab_profiling = True
         mock_context = MagicMock()
@@ -1920,7 +1963,7 @@ class TestAuthorization(unittest.TestCase):
         self.assertIn("kid", str(log_args))
         self.assertIn("fail", str(log_args))
 
-    def test_090_domain_whitelist_dns_match(self):
+    def test_092_domain_whitelist_dns_match(self):
         """Test DNS identifier matches prevalidated_domainlist, status set to valid, mark methods called"""
         self.authorization.config.prevalidated_domainlist = ["foo.com"]
         self.authorization.repository = Mock()
@@ -1937,7 +1980,7 @@ class TestAuthorization(unittest.TestCase):
             "order1"
         )
 
-    def test_091_domain_whitelist_dns_no_match(self):
+    def test_093_domain_whitelist_dns_no_match(self):
         """Test DNS identifier does not match prevalidated_domainlist, status not changed, no mark calls"""
         self.authorization.config.prevalidated_domainlist = ["foo.com"]
         self.authorization.repository = Mock()
@@ -1950,7 +1993,7 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.repository.mark_authorization_as_valid.assert_not_called()
         self.authorization.repository.mark_order_as_ready.assert_not_called()
 
-    def test_092_domain_whitelist_not_set(self):
+    def test_094_domain_whitelist_not_set(self):
         """Test prevalidated_domainlist not set, nothing happens"""
         self.authorization.config.prevalidated_domainlist = None
         self.authorization.repository = Mock()
@@ -1962,7 +2005,7 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.repository.mark_authorization_as_valid.assert_not_called()
         self.authorization.repository.mark_order_as_ready.assert_not_called()
 
-    def test_093_domain_whitelist_non_dns(self):
+    def test_095_domain_whitelist_non_dns(self):
         """Test non-dns identifier, nothing happens"""
         self.authorization.config.prevalidated_domainlist = ["foo.com"]
         self.authorization.repository = Mock()
@@ -1975,7 +2018,7 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.repository.mark_order_as_ready.assert_not_called()
 
     @patch("acme_srv.helpers.domain_utils.is_ip_whitelisted", return_value=True)
-    def test_094_ip_prevalidation_status_set_and_logs(self, mock_ip_whitelisted):
+    def test_096_ip_prevalidation_status_set_and_logs(self, mock_ip_whitelisted):
         """If IP is whitelisted, status is set to valid, mark_authorization_as_valid called, logs info"""
         authz_name = "authz_ip"
         auth_details = {"order__name": "order_ip"}
@@ -2002,7 +2045,7 @@ class TestAuthorization(unittest.TestCase):
         )
 
     @patch("acme_srv.helpers.domain_utils.is_ip_whitelisted", return_value=True)
-    def test_095_ip_prevalidation_status_set_no_auth_details_and_logs(
+    def test_097_ip_prevalidation_status_set_no_auth_details_and_logs(
         self, mock_ip_whitelisted
     ):
         """If IP is whitelisted and auth_details is None, status is set to valid, only mark_authorization_as_valid called, logs info"""
@@ -2029,7 +2072,7 @@ class TestAuthorization(unittest.TestCase):
         )
 
     @patch("acme_srv.helpers.domain_utils.is_ip_whitelisted", return_value=False)
-    def test_096_ip_prevalidation_not_whitelisted(self, mock_ip_whitelisted):
+    def test_098_ip_prevalidation_not_whitelisted(self, mock_ip_whitelisted):
         """If IP is not whitelisted, status remains unchanged, no mark calls, logs debug"""
         authz_name = "authz_ip"
         auth_details = {"order__name": "order_ip"}
@@ -2051,7 +2094,7 @@ class TestAuthorization(unittest.TestCase):
             "Authorization.get_authorization_details() - Checking preauthorized IP list for IP identifier"
         )
 
-    def test_097_ip_prevalidation_iplist_not_set(self):
+    def test_099_ip_prevalidation_iplist_not_set(self):
         """If prevalidated_iplist is None, nothing happens"""
         self.authorization.config.prevalidated_iplist = None
         authz_name = "authz_ip"
@@ -2070,7 +2113,7 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.repository.mark_authorization_as_valid.assert_not_called()
         self.authorization.repository.mark_order_as_ready.assert_not_called()
 
-    def test_098_ip_prevalidation_wrong_id_type(self):
+    def test_100_ip_prevalidation_wrong_id_type(self):
         """If id_type is not 'ip', nothing happens"""
         authz_name = "authz_ip"
         auth_details = {"order__name": "order_ip"}
@@ -2089,7 +2132,7 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.repository.mark_authorization_as_valid.assert_not_called()
         self.authorization.repository.mark_order_as_ready.assert_not_called()
 
-    def test_099_eab_profile_sets_prevalidated_iplist(self):
+    def test_101_eab_profile_sets_prevalidated_iplist(self):
         """Test EAB profile sets prevalidated_iplist from profile and logs debug message"""
         self.authorization.config.eab_profiling = True
         profile_dic = {
@@ -2115,7 +2158,7 @@ class TestAuthorization(unittest.TestCase):
             "Authorization._apply_eab_and_domain_whitelist() - apply prevalidated_iplist from eab profile."
         )
 
-    def test_100_eab_profile_no_prevalidated_iplist(self):
+    def test_102_eab_profile_no_prevalidated_iplist(self):
         """Test EAB profile present but no prevalidated_iplist in profile (should not set or log)"""
         self.authorization.config.eab_profiling = True
         profile_dic = {"kid": {"authorization": {}}}
@@ -2132,7 +2175,7 @@ class TestAuthorization(unittest.TestCase):
         )
         self.assertIsNone(self.authorization.config.prevalidated_iplist)
 
-    def test_101_handle_email_prevalidation_email_whitelisted(self):
+    def test_103_handle_email_prevalidation_email_whitelisted(self):
         """Test _handle_email_prevalidation sets status to valid and calls mark methods when email is whitelisted."""
         self.authorization.config.prevalidated_emaillist = ["user@example.com"]
         self.authorization.repository = Mock()
@@ -2152,7 +2195,7 @@ class TestAuthorization(unittest.TestCase):
             "order_email"
         )
 
-    def test_102_handle_email_prevalidation_email_not_whitelisted(self):
+    def test_104_handle_email_prevalidation_email_not_whitelisted(self):
         """Test _handle_email_prevalidation does not change status or call mark methods when email is not whitelisted."""
         self.authorization.config.prevalidated_emaillist = ["user@example.com"]
         self.authorization.repository = Mock()
@@ -2168,7 +2211,7 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.repository.mark_authorization_as_valid.assert_not_called()
         self.authorization.repository.mark_order_as_ready.assert_not_called()
 
-    def test_103_handle_email_prevalidation_empty_emaillist(self):
+    def test_105_handle_email_prevalidation_empty_emaillist(self):
         """Test _handle_email_prevalidation does nothing if prevalidated_emaillist is None or empty."""
         self.authorization.config.prevalidated_emaillist = None
         self.authorization.repository = Mock()
@@ -2183,7 +2226,7 @@ class TestAuthorization(unittest.TestCase):
         self.authorization.repository.mark_authorization_as_valid.assert_not_called()
         self.authorization.repository.mark_order_as_ready.assert_not_called()
 
-    def test_104_email_prevalidation_no_auth_details(self):
+    def test_106_email_prevalidation_no_auth_details(self):
         """Test _handle_email_prevalidation sets status to valid and only calls mark_authorization_as_valid if auth_details is None."""
         self.authorization.config.prevalidated_emaillist = ["user@example.com"]
         self.authorization.repository = Mock()
@@ -2201,7 +2244,7 @@ class TestAuthorization(unittest.TestCase):
         )
         self.authorization.repository.mark_order_as_ready.assert_not_called()
 
-    def test_105_eab_profile_sets_prevalidated_emaillist(self):
+    def test_107_eab_profile_sets_prevalidated_emaillist(self):
         """Test EAB profile sets prevalidated_emaillist from profile and logs debug message."""
         self.authorization.config.eab_profiling = True
         profile_dic = {
@@ -2234,54 +2277,54 @@ class TestAuthorization(unittest.TestCase):
 class TestAuthorizationExceptions(unittest.TestCase):
     # Test custom exception classes
 
-    def test_106_authorization_error(self):
+    def test_108_authorization_error(self):
         """Test AuthorizationError exception"""
         with self.assertRaises(AuthorizationError) as context:
             raise AuthorizationError("Test error message")
         self.assertEqual(str(context.exception), "Test error message")
 
-    def test_095_authorization_not_found_error(self):
+    def test_109_authorization_not_found_error(self):
         """Test AuthorizationNotFoundError exception"""
         with self.assertRaises(AuthorizationNotFoundError) as context:
             raise AuthorizationNotFoundError("Authorization not found")
         self.assertEqual(str(context.exception), "Authorization not found")
         self.assertIsInstance(context.exception, AuthorizationError)
 
-    def test_096_authorization_expired_error(self):
+    def test_110_authorization_expired_error(self):
         """Test AuthorizationExpiredError exception"""
         with self.assertRaises(AuthorizationExpiredError) as context:
             raise AuthorizationExpiredError("Authorization expired")
         self.assertEqual(str(context.exception), "Authorization expired")
         self.assertIsInstance(context.exception, AuthorizationError)
 
-    def test_097_configuration_error(self):
+    def test_111_configuration_error(self):
         """Test ConfigurationError exception"""
         with self.assertRaises(ConfigurationError) as context:
             raise ConfigurationError("Configuration invalid")
         self.assertEqual(str(context.exception), "Configuration invalid")
         self.assertIsInstance(context.exception, AuthorizationError)
 
-    def test_110_authorization_error(self):
+    def test_112_authorization_error(self):
         """Test AuthorizationError exception"""
         with self.assertRaises(AuthorizationError) as context:
             raise AuthorizationError("Test error message")
         self.assertEqual(str(context.exception), "Test error message")
 
-    def test_111_authorization_not_found_error(self):
+    def test_113_authorization_not_found_error(self):
         """Test AuthorizationNotFoundError exception"""
         with self.assertRaises(AuthorizationNotFoundError) as context:
             raise AuthorizationNotFoundError("Authorization not found")
         self.assertEqual(str(context.exception), "Authorization not found")
         self.assertIsInstance(context.exception, AuthorizationError)
 
-    def test_112_authorization_expired_error(self):
+    def test_114_authorization_expired_error(self):
         """Test AuthorizationExpiredError exception"""
         with self.assertRaises(AuthorizationExpiredError) as context:
             raise AuthorizationExpiredError("Authorization expired")
         self.assertEqual(str(context.exception), "Authorization expired")
         self.assertIsInstance(context.exception, AuthorizationError)
 
-    def test_113_configuration_error(self):
+    def test_115_configuration_error(self):
         """Test ConfigurationError exception"""
         with self.assertRaises(ConfigurationError) as context:
             raise ConfigurationError("Configuration invalid")
@@ -2299,7 +2342,7 @@ class TestAuthorizationRepositoryLogging(unittest.TestCase):
         self.mock_logger = Mock()
         self.repo = AuthorizationRepository(self.mock_dbstore, self.mock_logger)
 
-    def test_114_authorization_expiry_logs_error(self):
+    def test_116_authorization_expiry_logs_error(self):
         self.mock_dbstore.authorization_update.side_effect = Exception("fail")
         with self.assertRaises(Exception):
             self.repo.update_authorization_expiry("authz", "token", 123)
@@ -2307,7 +2350,7 @@ class TestAuthorizationRepositoryLogging(unittest.TestCase):
         args = self.mock_logger.error.call_args[0]
         self.assertIn("Database error during authorization update", args[0])
 
-    def test_115_authorization_as_valid_logs_critical(self):
+    def test_117_authorization_as_valid_logs_critical(self):
         self.mock_dbstore.authorization_update.side_effect = Exception("fail")
         with self.assertRaises(Exception):
             self.repo.mark_authorization_as_valid("authz")
@@ -2315,7 +2358,7 @@ class TestAuthorizationRepositoryLogging(unittest.TestCase):
         args = self.mock_logger.critical.call_args[0]
         self.assertIn("Database error: failed to update authorization", args[0])
 
-    def test_116_order_as_ready_logs_critical(self):
+    def test_118_order_as_ready_logs_critical(self):
         self.mock_dbstore.order_update.side_effect = Exception("fail")
         with self.assertRaises(Exception):
             self.repo.mark_order_as_ready("order1")
@@ -2323,7 +2366,7 @@ class TestAuthorizationRepositoryLogging(unittest.TestCase):
         args = self.mock_logger.critical.call_args[0]
         self.assertIn("Database error: failed to update order", args[0])
 
-    def test_117_authorization_as_expired_logs_critical(self):
+    def test_119_authorization_as_expired_logs_critical(self):
         self.mock_dbstore.authorization_update.side_effect = Exception("fail")
         with self.assertRaises(Exception):
             self.repo.mark_authorization_as_expired("authz")

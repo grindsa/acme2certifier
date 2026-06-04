@@ -150,7 +150,7 @@ def config_dns_server_list_load(logger: logging.Logger, config_dic: Dict[str, st
     logger.debug("Helper.config_dns_server_list_load()")
 
     dns_server_list = []
-    dns_validation_pause_timer = 2
+    dns_validation_pause_timer = 0.5
 
     if "DEFAULT" in config_dic and "dns_server_list" in config_dic["DEFAULT"]:
         try:
