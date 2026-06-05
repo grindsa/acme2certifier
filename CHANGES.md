@@ -10,10 +10,12 @@ and pick the appropriate release branch.
 
 **Features and Improvements**:
 
+- [Experimental support for dns-persist-01 challenges](docs/dns-persist-01.md)
 - [Prevalidation](docs/identifier_prevalidation.md) of IP and Email identifiers
 - [FreeIPA CA Handler](docs/freeipa.md)
 - [Dogtag CA Handler](docs/dogtag_ca_handler.md)
 - [Dryrun Mode](docs/dryrun.md)
+
 
 **Bug Fixes**:
 
