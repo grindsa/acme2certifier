@@ -145,6 +145,50 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
     )
     return enrollment_cfg_log, enrollment_cfg_log_skip_list
 
+def config_dns_server_list_load(logger: logging.Logger, config_dic: Dict[str, str]) -> Tuple[List[str], int]:
+    """load parameters"""
+    logger.debug("Helper.config_dns_server_list_load()")
+
+    dns_server_list = []
+    dns_validation_pause_timer = 0.5
+
+    if "DEFAULT" in config_dic and "dns_server_list" in config_dic["DEFAULT"]:
+        try:
+            dns_server_list = json.loads(config_dic["DEFAULT"]["dns_server_list"])
+        except Exception as err_:
+            logger.warning(
+                "Failed to load dns_server_list from configuration: %s", err_
+            )
+    elif "Challenge" in config_dic and "dns_server_list" in config_dic["Challenge"]:
+        logger.warning(
+            "dns_server_list parameter found in Challenge section - this is deprecated, please use DEFAULT section"
+        )
+        try:
+            dns_server_list = json.loads(config_dic["Challenge"]["dns_server_list"])
+        except Exception as err_:
+            logger.warning(
+                "Failed to load dns_server_list from configuration: %s", err_
+            )
+
+        if (
+            "Challenge" in config_dic
+            and "dns_validation_pause_timer" in config_dic["Challenge"]
+        ):
+            try:
+                dns_validation_pause_timer = int(
+                    config_dic["Challenge"]["dns_validation_pause_timer"]
+                )
+            except Exception as err_:
+                logger.warning(
+                    "Failed to parse dns_validation_pause_timer from configuration: %s",
+                    err_,
+                )
+
+    logger.debug(
+        "Helper.config_dns_server_list_load() ended with: %s", dns_server_list
+    )
+    return dns_server_list, dns_validation_pause_timer
+
 
 def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str, str]):
     """load parameters"""

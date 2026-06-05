@@ -4,12 +4,14 @@ Registry setup utilities for creating and configuring challenge validator regist
 This module provides factory functions for creating pre-configured challenge
 validator registries with all standard ACME challenge types.
 """
+
 from typing import Dict, Any, Optional
 import logging
 from .challenge_validators import (
     ChallengeValidatorRegistry,
     HttpChallengeValidator,
     DnsChallengeValidator,
+    DnsPersistChallengeValidator,
     TlsAlpnChallengeValidator,
     EmailReplyChallengeValidator,
     TkauthChallengeValidator,
@@ -28,8 +30,10 @@ def create_challenge_validator_registry(
     # Register standard ACME challenge validators
     registry.register_validator(HttpChallengeValidator(logger))
     registry.register_validator(DnsChallengeValidator(logger))
-    registry.register_validator(TlsAlpnChallengeValidator(logger))
 
+    if config.dns_persist_01_support:
+        registry.register_validator(DnsPersistChallengeValidator(logger))
+    registry.register_validator(TlsAlpnChallengeValidator(logger))
     if config.email_identifier_support:
         # Register Email-Reply challenge validator if configured
         registry.register_validator(EmailReplyChallengeValidator(logger))

@@ -1,0 +1,86 @@
+name: "persistent_prep"
+description: "Register lego container and create dns records for persistent-01 challenges"
+
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: true
+    default: "rpm"
+  ACME_SERVER:
+    description: "ACME server URL"
+    required: false
+    default: "acme-srv"
+  NAME_SPACE:
+    description: "Kubernetes namespace"
+    required: false
+    default: "acme"
+
+runs:
+  using: "composite"
+  steps:
+
+  - name: "Register lego container"
+    run: |
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego accounts register --tls-skip-verify -s https://$ACME_SERVER.$NAME_SPACE -a --email "lego@example.com"
+      ACCOUNT_URL=$(sudo jq -r '.registration.accountURL' $PWD/lego/accounts/$ACME_SERVER.$NAME_SPACE/lego@example.com/account.json)
+      SRV_NAME="$ACME_SERVER.$NAME_SPACE"
+      HOST_NAME="lego-01.$NAME_SPACE"
+      HOST_RECORD_NAME="_validation-persist.lego-01.$NAME_SPACE"
+      HOST_RECORD_VALUE="$SRV_NAME; accounturi=$ACCOUNT_URL"
+      WC_NAME="*.wc.$NAME_SPACE"
+      WC_RECORD_NAME="_validation-persist.wc.$NAME_SPACE"
+      WC_RECORD_VALUE="$SRV_NAME; accounturi=$ACCOUNT_URL; policy=wildcard"
+
+      echo $ACCOUNT_URL
+      echo $HOST_RECORD_NAME
+      echo $HOST_RECORD_VALUE
+      echo $WC_RECORD_NAME
+      echo $WC_RECORD_VALUE
+
+      docker exec -t \
+        -e HOST_NAME="$HOST_NAME" \
+        acme-sh sh -lc '
+          _info(){ echo "$*"; }
+          _sleep(){ sleep "$1"; }
+          _debug(){ :; }
+          . /acmebin/dnsapi/dns_test.sh
+          dns_test_add "$HOST_NAME" "10.0.0.1"
+      '
+      docker exec -t \
+        -e HOST_RECORD_NAME="$HOST_RECORD_NAME" \
+        -e HOST_RECORD_VALUE="$HOST_RECORD_VALUE" \
+        acme-sh sh -lc '
+          _info(){ echo "$*"; }
+          _sleep(){ sleep "$1"; }
+          _debug(){ :; }
+          . /acmebin/dnsapi/dns_test.sh
+          dns_test_add "$HOST_RECORD_NAME" "$HOST_RECORD_VALUE"
+        '
+      docker exec -t \
+        -e HOST_NAME="$WC_NAME" \
+        acme-sh sh -lc '
+          _info(){ echo "$*"; }
+          _sleep(){ sleep "$1"; }
+          _debug(){ :; }
+          . /acmebin/dnsapi/dns_test.sh
+          dns_test_add "$HOST_NAME" "10.0.0.1"
+      '
+      docker exec -t \
+        -e HOST_RECORD_NAME="$WC_RECORD_NAME" \
+        -e HOST_RECORD_VALUE="$WC_RECORD_VALUE" \
+        acme-sh sh -lc '
+          _info(){ echo "$*"; }
+          _sleep(){ sleep "$1"; }
+          _debug(){ :; }
+          . /acmebin/dnsapi/dns_test.sh
+          dns_test_add "$HOST_RECORD_NAME" "$HOST_RECORD_VALUE"
+        '
+      # check records are propagated
+      host -t TXT $HOST_NAME $(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+      host -t TXT $HOST_RECORD_NAME $(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+      host -t TXT $WC_NAME $(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+      host -t TXT $WC_RECORD_NAME $(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}

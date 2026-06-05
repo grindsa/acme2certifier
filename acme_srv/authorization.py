@@ -7,14 +7,19 @@ from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
 from acme_srv.db_handler import DBstore
 from acme_srv.challenge import Challenge
+from acme_srv.challenge_validators.dns_persist_validator import DnsPersistChallengeValidator, ChallengeContext
 from acme_srv.helper import (
     generate_random_string,
     uts_now,
     uts_to_date_utc,
     string_sanitize,
 )
-from acme_srv.helpers.config import load_config, config_eab_profile_load
-from acme_srv.helpers.domain_utils import is_domain_whitelisted, is_ip_whitelisted
+from acme_srv.helpers.config import load_config, config_eab_profile_load, config_dns_server_list_load
+from acme_srv.helpers.domain_utils import (
+    is_domain_whitelisted,
+    is_ip_whitelisted,
+    is_email_whitelisted,
+)
 from acme_srv.message import Message
 from acme_srv.nonce import Nonce
 
@@ -55,11 +60,18 @@ class AuthorizationConfiguration:
     validity: int = 86400
     expiry_check_disable: bool = False
     authz_path: str = "/acme/authz/"
-    prevalidated_domainlist: Optional[List[str]] = None
-    prevalidated_iplist: Optional[List[str]] = None
+    caaidentities: Optional[list] = None
+    dns_persist_01_support: bool = False
+    dns_persist_allow_policy_wildcard: bool = False
+    dns_persist_jit_validation: bool = False
+    dns_server_list: Optional[List[str]] = None
+    dns_validation_pause_timer: Optional[float] = 0.5
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
-
+    email_identifier_rewrite: bool = False
+    prevalidated_domainlist: Optional[List[str]] = None
+    prevalidated_iplist: Optional[List[str]] = None
+    prevalidated_emaillist: Optional[List[str]] = None
 
 @dataclass
 class AuthorizationData:
@@ -437,7 +449,7 @@ class Authorization(object):
         )
         return value
 
-    def _load_configuration(self) -> AuthorizationConfiguration:
+    def _load_configuration(self):
         """Load configuration from file"""
         self.logger.debug("Authorization._load_configuration()")
 
@@ -457,6 +469,44 @@ class Authorization(object):
             self.config.expiry_check_disable = config_dic.getboolean(
                 "Authorization", "expiry_check_disable", fallback=False
             )
+            self.config.email_identifier_rewrite = config_dic.getboolean(
+                "Order", "email_identifier_rewrite", fallback=False
+            )
+            self.config.dns_persist_01_support = config_dic.getboolean(
+                "Challenge", "dns_persist_01_support", fallback=False
+            )
+            self.config.dns_persist_allow_policy_wildcard = config_dic.getboolean(
+                "Challenge", "dns_persist_allow_policy_wildcard", fallback=False
+            )
+            self.config.dns_persist_jit_validation = config_dic.getboolean(
+                "Challenge", "dns_persist_jit_validation", fallback=False
+            )
+            self.config.dns_server_list, self.config.dns_validation_pause_timer = config_dns_server_list_load(self.logger, config_dic)
+
+            # Load caaidentities from Directory section as JSON array or comma-separated string
+            caaidentities_raw = config_dic.get(
+                 "Directory", "caaidentities", fallback=None
+             )
+            caaidentities: Optional[List[str]] = None
+
+            if caaidentities_raw:
+                try:
+                     parsed = json.loads(caaidentities_raw)
+                     if isinstance(parsed, list):
+                         caaidentities = parsed
+                     else:
+                         self.logger.warning(
+                             "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
+                             caaidentities_raw,
+                         )
+                         caaidentities = [caaidentities_raw]
+                except Exception:
+                    # fallback: try comma-separated string
+                    caaidentities = [
+                         x.strip() for x in caaidentities_raw.split(",") if x.strip()
+                    ]
+            self.config.caaidentities = caaidentities
+
             url_prefix = config_dic.get("Directory", "url_prefix", fallback=None)
             if url_prefix:
                 self.config.authz_path = f"{url_prefix}{self.config.authz_path}"
@@ -474,6 +524,85 @@ class Authorization(object):
             ) = config_eab_profile_load(self.logger, config_dic)
 
         self.logger.debug("Authorization._load_configuration() ended:")
+
+    def _build_jit_validation_context(
+        self,
+        authz_name: str,
+        token: str,
+        id_value: Optional[str],
+        auth_details: Optional[Dict[str, str]],
+    ) -> ChallengeContext:
+        """Build context object used by the dns-persist JIT validator."""
+        account_name = auth_details.get("order__account__name") if auth_details else None
+
+        acct_path = self.config.authz_path.replace("/acme/authz/", "/acme/acct/")
+        accounturi = (
+             f"{self.server_name}{acct_path}{account_name}" if account_name else None
+         )
+
+        caaidentities = getattr(self.config, "caaidentities", None)
+
+        return ChallengeContext(
+            challenge_name=authz_name,
+            token=token,
+            jwk_thumbprint=None,
+            authorization_type="dns",
+            authorization_value=id_value,
+            options={
+                "accounturi": accounturi,
+                "issuer_domain_names": caaidentities or [],
+                "allow_policy_wildcard": getattr(
+                    self.config, "dns_persist_allow_policy_wildcard", False
+                ),
+            },
+            dns_servers=self.config.dns_server_list,
+            proxy_servers=None,
+            timeout=10,
+        )
+
+    def _run_jit_dns_validation(
+        self,
+        authz_name: str,
+        token: str,
+        id_value: Optional[str],
+        auth_details: Optional[Dict[str, str]],
+    ) -> bool:
+        """Run dns-persist JIT validation and return True on successful validation."""
+        try:
+            validator_context = self._build_jit_validation_context(
+                authz_name, token, id_value, auth_details
+            )
+            self.logger.debug("JIT validator context: %s", validator_context)
+
+            validator = DnsPersistChallengeValidator(self.logger)
+            result = validator.perform_validation(validator_context)
+            self.logger.debug("JIT validator result: %s", result)
+
+            if result.success and not result.invalid:
+                self.logger.debug(
+                    "Authorization.get_authorization_details(): JIT dns-persist-01 validation result: %s",
+                    result,
+                )
+                return True
+
+        except Exception as err:
+            self.logger.error("JIT dns-persist-01 validation failed: %s", err)
+
+        return False
+
+    def _apply_jit_validation_success(
+        self,
+        authz_name: str,
+        auth_details: Optional[Dict[str, str]],
+        authz_info: Dict[str, Any],
+    ) -> None:
+        """Apply state updates when JIT validation succeeds."""
+        authz_info["status"] = "valid"
+        self.repository.mark_authorization_as_valid(authz_name)
+        if auth_details is not None:
+            self.repository.mark_order_as_ready(auth_details.get("order__name"))
+        authz_info["challenges"] = []
+        self.logger.info("JIT dns-persist-01 validation succeeded for %s", authz_name)
 
     def get_authorization_details(self, url: str) -> Optional[Dict[str, str]]:
         """Get detailed authorization information"""
@@ -526,37 +655,49 @@ class Authorization(object):
             authz_info["status"] = "pending"
             is_tnauth = False
 
+
         # Extract identifier type and value
-        id_type, id_value = self.business_logic.extract_identifier_info_for_challenge(
-            authz_info
-        )
+        id_type, id_value = self.business_logic.extract_identifier_info_for_challenge(authz_info)
 
-        if auth_details:
-            # Apply EAB profile and prevalidation whitelist logic
-            self._apply_eab_and_prevalidation_whitelist(
-                authz_name, auth_details, id_type, id_value, authz_info
+        # JIT dns-persist-01 validation if enabled and applicable
+        jit_valid = False
+        if (
+            id_type == "dns"
+            and getattr(self.config, "dns_persist_01_support", False)
+            and getattr(self.config, "dns_persist_jit_validation", False)
+        ):
+            jit_valid = self._run_jit_dns_validation(
+                authz_name, token, id_value, auth_details
             )
 
-        # Get challenge set
-        try:
-            authz_info[
-                "challenges"
-            ] = self.challenge_manager.get_challenge_set_for_authorization(
-                authz_name,
-                authz_info["status"],
-                token,
-                is_tnauth,
-                expires,
-                id_type,
-                id_value,
-            )
-        except Exception as err:
-            self.logger.error(
-                "Failed to create challenge set for authorization %s: %s",
-                authz_name,
-                err,
-            )
-            return None
+        if jit_valid:
+            self._apply_jit_validation_success(authz_name, auth_details, authz_info)
+        else:
+            if auth_details:
+                # Apply EAB profile and prevalidation whitelist logic
+                self._apply_eab_and_prevalidation_whitelist(
+                    authz_name, auth_details, id_type, id_value, authz_info
+                )
+            # Get challenge set
+            try:
+                authz_info[
+                    "challenges"
+                ] = self.challenge_manager.get_challenge_set_for_authorization(
+                    authz_name,
+                    authz_info["status"],
+                    token,
+                    is_tnauth,
+                    expires,
+                    id_type,
+                    id_value,
+                )
+            except Exception as err:
+                self.logger.error(
+                    "Failed to create challenge set for authorization %s: %s",
+                    authz_name,
+                    err,
+                )
+                return None
 
         self.logger.debug(
             "Authorization.get_authorization_details() returns: %s",
