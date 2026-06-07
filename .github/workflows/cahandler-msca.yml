@@ -46,7 +46,8 @@ jobs:
   instance_start:
     needs: guard
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier'
+    # if: github.repository == 'grindsa/acme2certifier'
+    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'msca')) }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
@@ -64,7 +65,7 @@ jobs:
           AWS_REGION: ${{ env.AWS_REGION }}
           AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
           ACTION: "start"
-          IGNORE_CURRENT_STATUS: "true"
+          IGNORE_CURRENT_STATUS: "false"
 
       - name: "Sleep for 60s"
         uses: juliangruber/sleep-action@v2.0.3
