@@ -32,6 +32,7 @@ runs:
         SECRET_NAMES: ${{ inputs.secret_names }}
         OUTPUT_FILE: ${{ inputs.output_file }}
         MASK_VALUES: ${{ inputs.mask_values }}
+        ALL_SECRETS_JSON: ${{ env.ALL_SECRETS_JSON }}
       run: |
         # Initialize JSON object
         echo "{" > "$OUTPUT_FILE"
@@ -40,29 +41,53 @@ runs:
         IFS=',' read -ra SECRETS <<< "$SECRET_NAMES"
         secret_count=0
         total_secrets=${#SECRETS[@]}
+        first_entry=true
+
+        mask_values_lower=$(printf '%s' "$MASK_VALUES" | tr '[:upper:]' '[:lower:]')
 
         echo "Processing $total_secrets secrets..."
 
-        for i in "${!SECRETS[@]}"; do
-          secret_name=$(echo "${SECRETS[$i]}" | xargs)  # Trim whitespace
+        for secret_item in "${SECRETS[@]}"; do
+          secret_name=$(echo "$secret_item" | xargs)  # Trim whitespace
+
+          if [ -z "$secret_name" ]; then
+            continue
+          fi
+
+          echo "🔍 Processing secret: $secret_name"
           secret_count=$((secret_count + 1))
 
-          # Get the secret value from environment
-          secret_value="${!secret_name}"
+          secret_found=false
+          secret_value=""
 
-          if [ -n "$secret_value" ]; then
-            # Escape JSON special characters in the secret value
-            escaped_value=$(echo "$secret_value" | sed 's/\\/\\\\/g; s/"/\\"/g; s/\t/\\t/g; s/\r/\\r/g; s/\n/\\n/g')
+          # Preferred: resolve from a JSON snapshot of GitHub secrets passed by workflow env
+          if [ -n "$ALL_SECRETS_JSON" ] && command -v jq >/dev/null 2>&1; then
+            if echo "$ALL_SECRETS_JSON" | jq -e --arg k "$secret_name" 'has($k)' >/dev/null 2>&1; then
+              secret_value=$(echo "$ALL_SECRETS_JSON" | jq -r --arg k "$secret_name" '.[$k]')
+              secret_found=true
+            fi
+          fi
 
+          # Fallback: resolve from step env var with matching secret name
+          if [ "$secret_found" = false ] && [[ -v $secret_name ]]; then
+            secret_value="${!secret_name}"
+            secret_found=true
+          fi
+
+          # Escape JSON value safely (supports multiline values)
+          escaped_value=$(printf '%s' "$secret_value" | python3 -c 'import json, sys; print(json.dumps(sys.stdin.read()))')
+
+          if [ "$secret_found" = true ] && [ -n "$secret_value" ]; then
             # Add comma if not the first entry
-            if [ $i -gt 0 ]; then
+            if [ "$first_entry" = false ]; then
               echo "," >> "$OUTPUT_FILE"
             fi
 
             # Add the key-value pair
-            echo -n "  \"$secret_name\": \"$escaped_value\"" >> "$OUTPUT_FILE"
+            echo -n "  \"$secret_name\": $escaped_value" >> "$OUTPUT_FILE"
+            first_entry=false
 
-            if [ "$MASK_VALUES" = "true" ]; then
+            if [ "$mask_values_lower" = "true" ]; then
               echo "✓ Added secret: $secret_name (value masked)"
             else
               echo "✓ Added secret: $secret_name"
@@ -71,12 +96,13 @@ runs:
             echo "⚠️  Warning: Secret '$secret_name' is empty or not found"
 
             # Add comma if not the first entry
-            if [ $i -gt 0 ]; then
+            if [ "$first_entry" = false ]; then
               echo "," >> "$OUTPUT_FILE"
             fi
 
             # Add null value for missing secrets
             echo -n "  \"$secret_name\": null" >> "$OUTPUT_FILE"
+            first_entry=false
           fi
         done
 
@@ -102,6 +128,13 @@ runs:
             echo "❌ JSON syntax is invalid"
             exit 1
           fi
+        elif command -v python3 >/dev/null 2>&1; then
+          if python3 -m json.tool "$OUTPUT_FILE" >/dev/null 2>&1; then
+            echo "✓ JSON syntax is valid"
+          else
+            echo "❌ JSON syntax is invalid"
+            exit 1
+          fi
         else
-          echo "⚠️  jq not available, skipping JSON validation"
+          echo "⚠️  Neither jq nor python3 is available, skipping JSON validation"
         fi
