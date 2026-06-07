@@ -44,7 +44,7 @@ runs:
     env:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
-  - name: "ACME Profile - 01 Enroll lego with template in acme_srv.cfg (WebServer)"
+  - name: "ACME Profile - 01 Enroll lego with template in acme_srv.cfg (WebServer-07-S)"
     run: |
       sudo rm -rf lego/
       docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network "$NAME_SPACE" goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d "lego.$NAME_SPACE" --http
@@ -58,10 +58,10 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "template: WebServer"
+        docker compose logs | grep "template: WebServer-07-S"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer"
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer-07-S"
       fi
     shell: bash
     env:
@@ -104,10 +104,10 @@ runs:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
       TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
 
-  - name: "ACME Profile - 03 - Enroll lego with template submitted in command line (WebServerModified)"
+  - name: "ACME Profile - 03 - Enroll lego with template submitted in command line (WebServer-07-C)"
     run: |
       sudo rm -rf lego/
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network "$NAME_SPACE" goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d "lego.$NAME_SPACE" --http --profile WebServerModified
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network "$NAME_SPACE" goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d "lego.$NAME_SPACE" --http --profile WebServer-07-C
       sudo openssl verify -CAfile cert-1.pem "lego/certificates/lego.$NAME_SPACE.crt"
       sudo openssl x509 -in "lego/certificates/lego.$NAME_SPACE.crt" -ext extendedKeyUsage  -noout | grep -i "TLS Web Client"
     shell: bash
@@ -118,10 +118,10 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "template: WebServerModified"
+        docker compose logs | grep "template: WebServer-07-C"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServerModified"
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer-07-C"
       fi
     shell: bash
     env:
