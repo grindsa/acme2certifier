@@ -1348,7 +1348,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         )
 
         self.assertEqual([], dns_server_list)
-        self.assertEqual(2, dns_validation_pause_timer)
+        self.assertEqual(0.5, dns_validation_pause_timer)
 
     def test_117_helper_config_dns_server_list_load_default_section(self):
         """config_dns_server_list_load loads dns_server_list from DEFAULT section."""
@@ -1359,7 +1359,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         )
 
         self.assertEqual(["1.1.1.1", "8.8.8.8"], dns_server_list)
-        self.assertEqual(2, dns_validation_pause_timer)
+        self.assertEqual(0.5, dns_validation_pause_timer)
 
     def test_118_helper_config_dns_server_list_load_default_section_parse_error(self):
         """config_dns_server_list_load logs warning on invalid DEFAULT dns_server_list."""
@@ -1371,7 +1371,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             )
 
         self.assertEqual([], dns_server_list)
-        self.assertEqual(2, dns_validation_pause_timer)
+        self.assertEqual(0.5, dns_validation_pause_timer)
         self.assertTrue(
             any(
                 "Failed to load dns_server_list from configuration"
@@ -1421,7 +1421,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             )
 
         self.assertEqual([], dns_server_list)
-        self.assertEqual(2, dns_validation_pause_timer)
+        self.assertEqual(0.5, dns_validation_pause_timer)
         self.assertTrue(
             any(
                 "Failed to load dns_server_list from configuration"
