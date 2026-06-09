@@ -53,6 +53,11 @@ runs:
       exit 1
     shell: bash
 
+  - name: "Sleep for 5s"
+    uses: grindsa/sleep-action@master
+    with:
+      time: 5s
+
   - name: "Check logs for registration failure"
     working-directory: examples/Docker/
     run: |
@@ -85,6 +90,11 @@ runs:
       echo "certbotfail outcome is ${{steps.certbotfail01.outcome }}"
       exit 1
     shell: bash
+
+  - name: "Sleep for 5s"
+    uses: grindsa/sleep-action@master
+    with:
+      time: 5s
 
   - name: "Check logs for registration failure"
     working-directory: examples/Docker/
@@ -119,6 +129,11 @@ runs:
       echo "legofail outcome is ${{steps.legofail01.outcome }}"
       exit 1
     shell: bash
+
+  - name: "Sleep for 5s"
+    uses: grindsa/sleep-action@master
+    with:
+      time: 5s
 
   - name: "Check logs for registration failure"
     working-directory: examples/Docker/
