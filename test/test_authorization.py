@@ -531,23 +531,25 @@ class TestAuthorizationBusinessLogic(unittest.TestCase):
         """Test identifier extraction for challenge"""
         authz_info = {"identifier": {"type": "dns", "value": "example.com"}}
 
-        id_type, id_value = self.business_logic.extract_identifier_info_for_challenge(
-            authz_info
+        id_type, id_value, is_wildcard = (
+            self.business_logic.extract_identifier_info_for_challenge(authz_info)
         )
 
         self.assertEqual(id_type, "dns")
         self.assertEqual(id_value, "example.com")
+        self.assertFalse(is_wildcard)
 
     def test_036_extract_identifier_info_for_challenge_no_identifier(self):
         """Test identifier extraction when no identifier present"""
         authz_info = {"status": "pending"}
 
-        id_type, id_value = self.business_logic.extract_identifier_info_for_challenge(
-            authz_info
+        id_type, id_value, is_wildcard = (
+            self.business_logic.extract_identifier_info_for_challenge(authz_info)
         )
 
         self.assertIsNone(id_type)
         self.assertIsNone(id_value)
+        self.assertFalse(is_wildcard)
 
     def test_037_extract_identifier_info_for_challenge_partial_identifier(self):
         """Test identifier extraction with partial identifier info"""
@@ -558,12 +560,28 @@ class TestAuthorizationBusinessLogic(unittest.TestCase):
             }
         }
 
-        id_type, id_value = self.business_logic.extract_identifier_info_for_challenge(
-            authz_info
+        id_type, id_value, is_wildcard = (
+            self.business_logic.extract_identifier_info_for_challenge(authz_info)
         )
 
         self.assertEqual(id_type, "dns")
         self.assertIsNone(id_value)
+        self.assertFalse(is_wildcard)
+
+    def test_037a_extract_identifier_info_for_challenge_wildcard_marker(self):
+        """Test wildcard marker extraction independent from identifier value format."""
+        authz_info = {
+            "identifier": {"type": "dns", "value": "example.com"},
+            "wildcard": True,
+        }
+
+        id_type, id_value, is_wildcard = (
+            self.business_logic.extract_identifier_info_for_challenge(authz_info)
+        )
+
+        self.assertEqual(id_type, "dns")
+        self.assertEqual(id_value, "example.com")
+        self.assertTrue(is_wildcard)
 
     def test_038_is_authorization_eligible_for_expiry_valid(self):
         """Test eligibility check for valid authorization"""
@@ -650,7 +668,13 @@ class TestChallengeSetManager(unittest.TestCase):
             expiry=1234567890,
         )
         mock_challenge_instance.challengeset_get.assert_called_once_with(
-            "test_authz", "pending", "test_token", False, "dns", "example.com"
+            "test_authz",
+            "pending",
+            "test_token",
+            False,
+            "dns",
+            "example.com",
+            False,
         )
 
     @patch("acme_srv.authorization.Challenge")
@@ -674,7 +698,7 @@ class TestChallengeSetManager(unittest.TestCase):
 
         self.assertEqual(result, [])
         mock_challenge_instance.challengeset_get.assert_called_once_with(
-            "test_authz", "pending", "test_token", False, None, None
+            "test_authz", "pending", "test_token", False, None, None, False
         )
 
 
@@ -902,6 +926,7 @@ class TestAuthorization(unittest.TestCase):
         mock_business_logic.extract_identifier_info_for_challenge.return_value = (
             None,
             None,
+            False,
         )
         mock_challenge_manager.get_challenge_set_for_authorization.return_value = []
 
@@ -952,6 +977,7 @@ class TestAuthorization(unittest.TestCase):
         mock_business_logic.extract_identifier_info_for_challenge.return_value = (
             "dns",
             "example.com",
+            False,
         )
         mock_challenge_manager.get_challenge_set_for_authorization.return_value = [
             {"type": "http-01"}
@@ -994,6 +1020,7 @@ class TestAuthorization(unittest.TestCase):
         mock_business_logic.extract_identifier_info_for_challenge.return_value = (
             "dns",
             "example.com",
+            False,
         )
         mock_challenge_manager.get_challenge_set_for_authorization.side_effect = (
             Exception("Challenge failed")
@@ -1053,6 +1080,7 @@ class TestAuthorization(unittest.TestCase):
         mock_business_logic.extract_identifier_info_for_challenge.return_value = (
             "dns",
             "example.com",
+            False,
         )
 
         self.authorization.server_name = "https://example.com"
@@ -1136,6 +1164,7 @@ class TestAuthorization(unittest.TestCase):
         mock_business_logic.extract_identifier_info_for_challenge.return_value = (
             "dns",
             "example.com",
+            False,
         )
         mock_challenge_manager.get_challenge_set_for_authorization.return_value = [
             {"type": "dns-persist-01"}
@@ -1210,6 +1239,7 @@ class TestAuthorization(unittest.TestCase):
         mock_business_logic.extract_identifier_info_for_challenge.return_value = (
             "dns",
             "example.com",
+            False,
         )
         mock_challenge_manager.get_challenge_set_for_authorization.return_value = [
             {"type": "dns-persist-01"}
