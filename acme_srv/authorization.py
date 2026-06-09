@@ -760,7 +760,19 @@ class Authorization(object):
     def _apply_prevalidation_whitelist(
         self, authz_name, auth_details, id_type, id_value, authz_info
     ):
-        if id_type == "dns":
+        self.logger.debug(
+            "Checking prevalidation whitelist for identifier type: %s, value: %s",
+            id_type,
+            id_value,
+        )
+        if (
+            (id_type == "dns" and self.config.email_identifier_rewrite)
+            or id_type == "email"
+        ) and "@" in id_value:
+            self._handle_email_prevalidation(
+                authz_name, auth_details, id_value, authz_info
+            )
+        elif id_type == "dns":
             self._handle_domain_prevalidation(
                 authz_name, auth_details, id_value, authz_info
             )
@@ -777,10 +789,51 @@ class Authorization(object):
         domainlist = getattr(self.config, "prevalidated_domainlist", None)
         if not domainlist:
             return
+
         self.logger.debug(
-            "Authorization.get_authorization_details() - Checking preauthorized domain list for DNS identifier"
+            "Authorization._handle_domain_prevalidation() - Evaluating domain whitelist match for id_value='%s' (wildcard flag: %s)",
+            id_value,
+            bool(authz_info.get("wildcard")),
         )
-        if is_domain_whitelisted(self.logger, id_value, domainlist):
+        is_whitelisted = is_domain_whitelisted(self.logger, id_value, domainlist)
+        self.logger.debug(
+            "Authorization._handle_domain_prevalidation() - Whitelist check result for id_value='%s': %s",
+            id_value,
+            is_whitelisted,
+        )
+
+        # Wildcard identifiers are normalized earlier ('*.example.org' -> 'example.org').
+        # Reconstruct wildcard form for whitelist checks like '*.example.org'.
+        if (
+            not is_whitelisted
+            and authz_info.get("wildcard")
+            and id_value
+            and not id_value.startswith("*.")
+        ):
+            wildcard_value = f"*.{id_value}"
+            self.logger.debug(
+                "Authorization._handle_domain_prevalidation() - Reconstructed wildcard id_value for whitelist check: '%s' -> '%s'",
+                id_value,
+                wildcard_value,
+            )
+            is_whitelisted = is_domain_whitelisted(
+                self.logger, wildcard_value, domainlist
+            )
+            self.logger.debug(
+                "Authorization._handle_domain_prevalidation() - Whitelist check result for reconstructed wildcard id_value='%s': %s",
+                wildcard_value,
+                is_whitelisted,
+            )
+        else:
+            self.logger.debug(
+                "Authorization._handle_domain_prevalidation() - Skipping reconstructed wildcard whitelist check (is_whitelisted=%s, wildcard=%s, id_value_present=%s, id_value_has_wildcard_prefix=%s)",
+                is_whitelisted,
+                bool(authz_info.get("wildcard")),
+                bool(id_value),
+                bool(id_value and id_value.startswith("*.")),
+            )
+
+        if is_whitelisted:
             self.logger.debug(
                 "Domain %s is preauthorized, setting authorization status to 'valid'",
                 id_value,
