@@ -2285,7 +2285,55 @@ class TestOrderClass(unittest.TestCase):
                 ),
             )
 
-    def test_148_apply_eab_profile_disabled(self):
+    def test_148_check_single_identifier_wildcard_flag_reconstructs_for_domainlist(self):
+        # Covers wildcard-intent fallback for normalized identifiers against wildcard-only policy
+        self.order.config.allowed_domainlist = ["*.bar.local"]
+        identifier = {"type": "dns", "value": "bar.local", "wildcard": True}
+
+        with patch("acme_srv.order.validate_identifier", return_value=True):
+            with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
+                error, detail = self.order._check_single_identifier(
+                    identifier, ["dns", "ip"]
+                )
+
+        self.assertIsNone(error)
+        self.assertIsNone(detail)
+        self.assertIn(
+            "DEBUG:test_a2c:Order._check_single_identifier() - Evaluating allowed_domainlist for value='bar.local' (wildcard flag: True)",
+            log_cm.output,
+        )
+        self.assertIn(
+            "DEBUG:test_a2c:Order._check_single_identifier() - Reconstructed wildcard value for allowed_domainlist check: 'bar.local' -> '*.bar.local'",
+            log_cm.output,
+        )
+        self.assertIn(
+            "DEBUG:test_a2c:Order._check_single_identifier() - allowed_domainlist check result for reconstructed wildcard value='*.bar.local': True",
+            log_cm.output,
+        )
+
+    def test_149_check_single_identifier_non_wildcard_skips_reconstruct_and_rejects(self):
+        # Covers non-wildcard guard: wildcard reconstruction must not broaden policy
+        self.order.config.allowed_domainlist = ["*.bar.local"]
+        identifier = {"type": "dns", "value": "bar.local"}
+
+        with patch("acme_srv.order.validate_identifier", return_value=True):
+            with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
+                error, detail = self.order._check_single_identifier(
+                    identifier, ["dns", "ip"]
+                )
+
+        self.assertEqual(error, self.order.error_msg_dic["rejectedidentifier"])
+        self.assertEqual(detail, "FQDN/SAN bar.local not allowed by configuration")
+        self.assertIn(
+            "DEBUG:test_a2c:Order._check_single_identifier() - Evaluating allowed_domainlist for value='bar.local' (wildcard flag: False)",
+            log_cm.output,
+        )
+        self.assertIn(
+            "DEBUG:test_a2c:Order._check_single_identifier() - Skipping reconstructed wildcard allowed_domainlist check (domain_allowed=False, wildcard=False, value_present=True, value_has_wildcard_prefix=False)",
+            log_cm.output,
+        )
+
+    def test_150_apply_eab_profile_disabled(self):
         # Covers: logger.critical branch in _apply_eab_profile (line 270)
         self.order.config.eab_profiling = False
         self.order.config.eab_handler = MagicMock()
@@ -2298,7 +2346,7 @@ class TestOrderClass(unittest.TestCase):
             self.assertFalse(mock_account_lookup.called)
             self.assertFalse(mock_critical.called)
 
-    def test_149_check_single_identifier_missing_type(self):
+    def test_151_check_single_identifier_missing_type(self):
         # Covers error message for missing 'type' (line 556)
         identifier = {"value": "bar"}
         allowed_identifiers = ["dns", "ip"]
@@ -2310,7 +2358,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertEqual(detail, "Identifier type is missing")
         self.assertIn("ERROR:test_a2c:Identifier type is missing", log_cm.output)
 
-    def test_150_check_single_identifier_wrong_type(self):
+    def test_152_check_single_identifier_wrong_type(self):
         # Covers error message for missing 'type' (line 556)
         identifier = {"type": "unknown", "value": "bar"}
         allowed_identifiers = ["dns", "ip"]
@@ -2324,7 +2372,7 @@ class TestOrderClass(unittest.TestCase):
             "ERROR:test_a2c:Identifier type unknown not supported", log_cm.output
         )
 
-    def test_151_check_single_identifier_invalid_value(self):
+    def test_153_check_single_identifier_invalid_value(self):
         # Covers error message for invalid value (line 571)
         identifier = {"type": "dns", "value": "foo"}
         allowed_identifiers = ["dns", "ip"]
@@ -2340,7 +2388,7 @@ class TestOrderClass(unittest.TestCase):
                 log_cm.output,
             )
 
-    def test_152_add_authorizations_to_db_success(self):
+    def test_154_add_authorizations_to_db_success(self):
         # Test normal case: authorizations added successfully
         self.order.repository.add_authorization.return_value = None
         self.order.config.authz_validity = 1000
@@ -2361,7 +2409,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertEqual(payload["identifiers"][0]["status"], "pending")
         self.assertIn(list(auth_dic.keys())[0], auth_dic)
 
-    def test_153_add_authorizations_to_db_malformed(self):
+    def test_155_add_authorizations_to_db_malformed(self):
         # Test malformed case: oid is None
         oid = None
         payload = {"identifiers": [{"type": "dns", "value": "example.com"}]}
@@ -2377,7 +2425,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_154_add_authorizations_to_db_db_error(self):
+    def test_156_add_authorizations_to_db_db_error(self):
         # Test DB error: add_authorization raises exception
         self.order.repository.add_authorization.side_effect = Exception("fail")
         oid = "order123"
@@ -2391,7 +2439,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_155_add_authorizations_to_db_sectigo_sim(self):
+    def test_157_add_authorizations_to_db_sectigo_sim(self):
         # Covers sectigo_sim branch: status set to valid and update_authorization called
         self.order.config.sectigo_sim = True
         self.order.repository.add_authorization.return_value = None
@@ -2414,7 +2462,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_156_create_from_content_malformed_identifier(self):
+    def test_158_create_from_content_malformed_identifier(self):
         # Covers the branch where error == self.order.error_msg_dic["malformed"] and detail is None
         malformed_error = self.order.error_msg_dic["malformed"]
         with patch.object(
@@ -2443,7 +2491,7 @@ class TestOrderClass(unittest.TestCase):
                 response["detail"], "One of the requested identifiers is not supported"
             )
 
-    def test_157_load_configuration_directory_url_prefix(self):
+    def test_159_load_configuration_directory_url_prefix(self):
         # Covers the Directory/url_prefix branch in _load_configuration (line 513)
         import configparser
 
@@ -2463,7 +2511,7 @@ class TestOrderClass(unittest.TestCase):
                 all(v.startswith("/prefix/") for v in self.order.path_dic.values())
             )
 
-    def test_158_check_single_identifier_missing_value(self):
+    def test_160_check_single_identifier_missing_value(self):
         # Covers lines 578-579: missing 'value' in identifier
         identifier = {"type": "dns"}
         allowed_identifiers = ["dns", "ip"]
@@ -2475,7 +2523,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertEqual(detail, "Identifier value is missing")
         self.assertIn("ERROR:test_a2c:Identifier value is missing", log_cm.output)
 
-    def test_159_is_profile_valid_dryrun_profile_logging(self):
+    def test_161_is_profile_valid_dryrun_profile_logging(self):
         # Set up dryrun profile
         self.order.config.dryrun_profilename = "dryrun-profile"
         self.order.config.profiles_check_disable = False
@@ -2489,7 +2537,7 @@ class TestOrderClass(unittest.TestCase):
         )
         self.assertIsNone(result)
 
-    def test_160_add_profile_to_order_dryrun_profile_logging(self):
+    def test_162_add_profile_to_order_dryrun_profile_logging(self):
         # Set up dryrun profile and no profiles configured
         self.order.config.profiles = {}
         self.order.config.dryrun_profilename = "dryrun-profile"
@@ -2507,7 +2555,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIsNone(error)
         self.assertEqual(updated_dic["profile"], "dryrun-profile")
 
-    def test_161_finalize_csr_handles_dryrun_skipped(self):
+    def test_163_finalize_csr_handles_dryrun_skipped(self):
         # When detail is 'Dry run mode - enrollment skipped', message should be unauthorized error
         self.order._header_info_lookup = MagicMock(return_value={})
         self.order._process_csr = MagicMock(
@@ -2524,7 +2572,7 @@ class TestOrderClass(unittest.TestCase):
             ),
         )
 
-    def test_162_are_identifiers_allowed_ip_not_whitelisted(self):
+    def test_164_are_identifiers_allowed_ip_not_whitelisted(self):
         # Setup: allowed_iplist is set, is_ip_whitelisted returns False
         self.order.config.allowed_iplist = ["192.168.1.0/24"]
         identifier = {"type": "ip", "value": "10.0.0.1"}
@@ -2542,7 +2590,7 @@ class TestOrderClass(unittest.TestCase):
             self.assertIsNone(error)
             self.assertIsNone(msg)
 
-    def test_163_are_identifiers_allowed_ip_whitelisted(self):
+    def test_165_are_identifiers_allowed_ip_whitelisted(self):
         # Should allow IP if in allowed_iplist
         with patch("acme_srv.order.validate_identifier", return_value=True), patch(
             "acme_srv.order.is_ip_whitelisted", return_value=True
@@ -2553,7 +2601,7 @@ class TestOrderClass(unittest.TestCase):
             )
             self.assertEqual(result, (None, None))
 
-    def test_164_are_identifiers_allowed_ip_not_whitelisted(self):
+    def test_166_are_identifiers_allowed_ip_not_whitelisted(self):
         # Should reject IP if not in allowed_iplist
         with patch("acme_srv.order.validate_identifier", return_value=True), patch(
             "acme_srv.order.is_ip_whitelisted", return_value=False
@@ -2570,7 +2618,7 @@ class TestOrderClass(unittest.TestCase):
                 ),
             )
 
-    def test_165_are_identifiers_allowed_iplist_empty(self):
+    def test_167_are_identifiers_allowed_iplist_empty(self):
         # Should allow any IP if allowed_iplist is empty
         with patch("acme_srv.order.validate_identifier", return_value=True), patch(
             "acme_srv.order.is_ip_whitelisted", return_value=False
@@ -2581,7 +2629,7 @@ class TestOrderClass(unittest.TestCase):
             )
             self.assertEqual(result, (None, None))
 
-    def test_166_are_identifiers_allowed_multiple_ips(self):
+    def test_168_are_identifiers_allowed_multiple_ips(self):
         # Should reject on first non-whitelisted IP, allow if all whitelisted
         with patch("acme_srv.order.validate_identifier", return_value=True), patch(
             "acme_srv.order.is_ip_whitelisted", side_effect=[True, False]
