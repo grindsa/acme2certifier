@@ -20,6 +20,29 @@ By default `acme2certifier` validates, during each ACME transaction, whether the
 eabkid_check_disable: True
 ```
 
+## eab_strict_mode
+
+The `eab_strict_mode` parameter is configured in the `[EABhandler]` section of `acme_srv.cfg`.
+
+```ini
+[EABhandler]
+eab_strict_mode: True|False
+```
+
+Default value: `True`
+
+Behavior when `eab_strict_mode = True` (strict mode):
+
+- Account creation requires `externalAccountBinding` in the `newAccount` request.
+- Accounts without stored EAB credentials (`eab_kid`) are treated as unauthorized during message validation.
+- Directory metadata advertises EAB as required via `meta.externalAccountRequired = true` when EAB is enabled.
+
+Behavior when `eab_strict_mode = False` (mixed mode):
+
+- `newAccount` may be accepted without `externalAccountBinding`.
+- Message validation allows accounts without `eab_kid` (unless other checks fail).
+- Directory metadata still shows EAB capability, but indicates it is not mandatory via `meta.externalAccountRequired = false`.
+
 ## File Handler
 
 The `eab_file_handler.py` script allows `kid` and `mac_key` to be loaded from a CSV file. To activate this handler, configure the `EABhandler` section in `acme_srv.cfg` as follows:
