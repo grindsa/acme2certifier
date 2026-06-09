@@ -660,6 +660,17 @@ class Order(object):
                 wildcard_requested,
             )
 
+        # check allowed domainlist for dns identifiers
+        if id_type == "dns" and self.config.allowed_domainlist:
+            domain_value = identifier["value"]
+            wildcard_requested = bool(identifier.get("wildcard"))
+
+            self.logger.debug(
+                "Order._check_single_identifier() - Evaluating allowed_domainlist for value='%s' (wildcard flag: %s)",
+                domain_value,
+                wildcard_requested,
+            )
+
             domain_allowed = is_domain_whitelisted(
                 self.logger,
                 domain_value,
