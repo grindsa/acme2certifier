@@ -609,6 +609,19 @@ class TestChallengeFactory(unittest.TestCase):
         )
         self.assertEqual(dns_persist["issuer-domain-names"], ["authority.example"])
 
+    def test_035b_create_standard_challenge_set_wildcard_flag(self):
+        """Test wildcard challenge filtering from explicit marker with normalized value."""
+        challenges = self.factory.create_standard_challenge_set(
+            authorization_name="test-auth",
+            token="test-token",
+            id_type="dns",
+            value="example.com",
+            is_wildcard=True,
+        )
+
+        self.assertEqual(len(challenges), 1)
+        self.assertEqual(challenges[0]["type"], "dns-01")
+
     def test_036_create_standard_challenge_set_repository_failure(self):
         """Test standard challenge set creation when repository fails"""
         self.repository.create_challenge = Mock(return_value=None)
@@ -961,7 +974,31 @@ class TestChallengeService(unittest.TestCase):
 
         self.assertEqual(len(result), 2)
         self.factory.create_standard_challenge_set.assert_called_once_with(
-            "test-auth", "test-token", "dns", "example.com"
+            "test-auth", "test-token", "dns", "example.com", False
+        )
+
+    def test_054a_get_challenge_set_create_new_standard_wildcard(self):
+        """Test wildcard marker is forwarded to the factory with normalized identifier."""
+        self.repository.find_challenges_by_authorization = Mock(return_value=[])
+        self.factory.create_standard_challenge_set = Mock(
+            return_value=[
+                {"type": "dns-01", "token": "test-token", "status": "pending"}
+            ]
+        )
+
+        config = MockConfig()
+        result = self.service.get_challenge_set_for_authorization(
+            authorization_name="test-auth",
+            token="test-token",
+            id_type="dns",
+            id_value="example.com",
+            config=config,
+            is_wildcard=True,
+        )
+
+        self.assertEqual(len(result), 1)
+        self.factory.create_standard_challenge_set.assert_called_once_with(
+            "test-auth", "test-token", "dns", "example.com", True
         )
 
     def test_055_get_challenge_set_email_identifier(self):

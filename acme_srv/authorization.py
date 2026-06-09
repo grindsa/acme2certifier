@@ -316,20 +316,22 @@ class AuthorizationBusinessLogic:
 
     def extract_identifier_info_for_challenge(
         self, authz_info_dict: Dict[str, str]
-    ) -> Tuple[str, str]:
-        """Extract identifier type and value for challenge operations"""
+    ) -> Tuple[str, str, bool]:
+        """Extract identifier type/value and wildcard marker for challenge operations."""
         self.logger.debug(
             "AuthorizationBusinessLogic.extract_identifier_info_for_challenge()"
         )
 
+        is_wildcard = bool(authz_info_dict.get("wildcard"))
+
         if "identifier" not in authz_info_dict:
-            return None, None
+            return None, None, is_wildcard
 
         identifier = authz_info_dict["identifier"]
         id_type = identifier.get("type")
         id_value = identifier.get("value")
 
-        return id_type, id_value
+        return id_type, id_value, is_wildcard
 
     def is_authorization_eligible_for_expiry(self, auth_record: Dict[str, str]) -> bool:
         """Check if authorization should be expired"""
@@ -369,6 +371,7 @@ class ChallengeSetManager:
         expires: int,
         id_type: str = None,
         id_value: str = None,
+        is_wildcard: bool = False,
     ) -> List[Dict[str, str]]:
         """Get challenge set for authorization"""
         self.logger.debug(
@@ -382,7 +385,13 @@ class ChallengeSetManager:
             expiry=expires,
         ) as challenge:
             return challenge.challengeset_get(
-                authz_name, status, token, is_tnauth, id_type, id_value
+                authz_name,
+                status,
+                token,
+                is_tnauth,
+                id_type,
+                id_value,
+                is_wildcard,
             )
 
 
@@ -662,7 +671,9 @@ class Authorization(object):
 
 
         # Extract identifier type and value
-        id_type, id_value = self.business_logic.extract_identifier_info_for_challenge(authz_info)
+        id_type, id_value, is_wildcard = (
+            self.business_logic.extract_identifier_info_for_challenge(authz_info)
+        )
 
         # JIT dns-persist-01 validation if enabled and applicable
         jit_valid = False
@@ -695,6 +706,7 @@ class Authorization(object):
                     expires,
                     id_type,
                     id_value,
+                    is_wildcard,
                 )
             except Exception as err:
                 self.logger.error(
