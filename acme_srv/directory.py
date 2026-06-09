@@ -32,6 +32,7 @@ class DirectoryConfig:
     caaidentities: List[str] = field(default_factory=list)
     profiles: Dict = field(default_factory=dict)
     eab: bool = False
+    eab_strict_mode: bool = True
     acme_url: Optional[str] = None
     profiles_sync: bool = False
     profiles_sync_interval: int = 604800  # default: 7 days
@@ -177,7 +178,37 @@ class Directory:
             and "eab_handler_file" in config_dic["EABhandler"]
         ):
             self.config.eab = True
+            self.config.eab_strict_mode = self._parse_eab_strict_mode(config_dic)
         self.config.profiles = config_profile_load(self.logger, config_dic)
+
+    def _parse_eab_strict_mode(self, config_dic: object) -> bool:
+        """Parse strict EAB account registration mode from [EABhandler]."""
+        try:
+            return config_dic.getboolean(
+                "EABhandler",
+                "eab_strict_mode",
+                fallback=self.config.eab_strict_mode,
+            )
+        except Exception:
+            eab_cfg = config_dic.get("EABhandler", {})
+            raw_value = eab_cfg.get("eab_strict_mode", None)
+            if raw_value is None:
+                return self.config.eab_strict_mode
+            if isinstance(raw_value, bool):
+                return raw_value
+
+            raw = str(raw_value).strip().lower()
+            if raw in ["1", "true", "yes", "on"]:
+                return True
+            if raw in ["0", "false", "no", "off"]:
+                return False
+
+            self.logger.warning(
+                "Invalid eab_strict_mode value '%s'; fallback to default '%s'",
+                raw_value,
+                self.config.eab_strict_mode,
+            )
+            return self.config.eab_strict_mode
 
     def _parse_cahandler_section(self, config_dic: object) -> None:
         """Parse the [CAHandler] section for ACME URL and profile sync settings."""
@@ -257,7 +288,7 @@ class Directory:
         if self.config.profiles:
             meta_dic["profiles"] = self.config.profiles
         if self.config.eab:
-            meta_dic["externalAccountRequired"] = True
+            meta_dic["externalAccountRequired"] = self.config.eab_strict_mode
         self.logger.debug("Directory._build_meta_information() ended")
         return meta_dic
 
