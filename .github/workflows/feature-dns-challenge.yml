@@ -101,8 +101,61 @@ jobs:
           CA_PATH: examples/Docker/data/acme_ca/
           DEPLOYMENT_TYPE: container
 
+      - name: "Set wildcard_certificate_disable to True"
+        run: |
+          sudo awk '
+          BEGIN { in_order = 0; has_param = 0 }
+          /^\[Order\]$/ {
+            in_order = 1
+            print
+            next
+          }
+          /^\[/ && in_order {
+            if (!has_param) {
+              print "wildcard_certificate_disable: True"
+              has_param = 1
+            }
+            in_order = 0
+          }
+          {
+            if (in_order && /^wildcard_certificate_disable[[:space:]]*:/) {
+              sub(/:.*/, ": True")
+              has_param = 1
+            }
+            print
+          }
+          END {
+            if (in_order && !has_param) {
+              print "wildcard_certificate_disable: True"
+            }
+          }
+          ' examples/Docker/data/acme_srv.cfg | sudo tee examples/Docker/data/acme_srv.cfg.tmp > /dev/null
+          sudo mv examples/Docker/data/acme_srv.cfg.tmp examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Enroll by using dns-01 challenges with wildcard disabled (wildcard expected to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
+        with:
+          CA_PATH: examples/Docker/data/acme_ca/
+          DEPLOYMENT_TYPE: container
+          WILDCARD_EXPECT_FAIL: 'true'
+
+      - name: "Set wildcard_certificate_disable to False"
+        run: |
+          sudo sed -i "s/^wildcard_certificate_disable:.*/wildcard_certificate_disable: False/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Enroll by using dns-01 challenges with wildcard enabled (wildcard expected to succeed)"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
+        with:
+          CA_PATH: examples/Docker/data/acme_ca/
+          DEPLOYMENT_TYPE: container
+
       - name: "Setup openssl ca_handler for persistent-01 challenge support"
         run: |
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
           echo -e "[Directory]\ncaaidentities: [\"acme.local\", \"acme-srv.acme\"]" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: False\ndns_persist_01_support: True/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
@@ -222,8 +275,64 @@ jobs:
       - name: "Enroll by using dns-01 challenges"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
 
+      - name: "Set wildcard_certificate_disable to True"
+        run: |
+          sudo awk '
+          BEGIN { in_order = 0; has_param = 0 }
+          /^\[Order\]$/ {
+            in_order = 1
+            print
+            next
+          }
+          /^\[/ && in_order {
+            if (!has_param) {
+              print "wildcard_certificate_disable: True"
+              has_param = 1
+            }
+            in_order = 0
+          }
+          {
+            if (in_order && /^wildcard_certificate_disable[[:space:]]*:/) {
+              sub(/:.*/, ": True")
+              has_param = 1
+            }
+            print
+          }
+          END {
+            if (in_order && !has_param) {
+              print "wildcard_certificate_disable: True"
+            }
+          }
+          ' data/volume/acme_srv.cfg | sudo tee data/volume/acme_srv.cfg.tmp > /dev/null
+          sudo mv data/volume/acme_srv.cfg.tmp data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "Enroll by using dns-01 challenges with wildcard disabled (wildcard expected to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
+        with:
+          WILDCARD_EXPECT_FAIL: 'true'
+
+      - name: "Set wildcard_certificate_disable to False"
+        run: |
+          sudo sed -i "s/^wildcard_certificate_disable:.*/wildcard_certificate_disable: False/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "Enroll by using dns-01 challenges with wildcard enabled (wildcard expected to succeed)"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
+
       - name: "Setup openssl ca_handler for persistent-01 challenge support"
         run: |
+          sudo chmod 777 data/volume/acme_srv.cfg
           echo -e "[Directory]\ncaaidentities: [\"acme.local\", \"acme-srv.acme\"]" >> data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: False\ndns_persist_01_support: True/g" data/volume/acme_srv.cfg
 
@@ -366,8 +475,66 @@ jobs:
       - name: "Enroll by using dns-01 challenges"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
 
+      - name: "Set wildcard_certificate_disable to True"
+        run: |
+          sudo awk '
+          BEGIN { in_order = 0; has_param = 0 }
+          /^\[Order\]$/ {
+            in_order = 1
+            print
+            next
+          }
+          /^\[/ && in_order {
+            if (!has_param) {
+              print "wildcard_certificate_disable: True"
+              has_param = 1
+            }
+            in_order = 0
+          }
+          {
+            if (in_order && /^wildcard_certificate_disable[[:space:]]*:/) {
+              sub(/:.*/, ": True")
+              has_param = 1
+            }
+            print
+          }
+          END {
+            if (in_order && !has_param) {
+              print "wildcard_certificate_disable: True"
+            }
+          }
+          ' data/volume/acme_srv.cfg | sudo tee data/volume/acme_srv.cfg.tmp > /dev/null
+          sudo mv data/volume/acme_srv.cfg.tmp data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "Enroll by using dns-01 challenges with wildcard disabled (wildcard expected to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
+        with:
+          WILDCARD_EXPECT_FAIL: 'true'
+
+      - name: "Set wildcard_certificate_disable to False"
+        run: |
+          sudo sed -i "s/^wildcard_certificate_disable:.*/wildcard_certificate_disable: False/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSRIPT: ${{ matrix.execscript }}
+
+      - name: "Enroll by using dns-01 challenges with wildcard enabled (wildcard expected to succeed)"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
+
       - name: "Setup openssl ca_handler for persistent-01 challenge support"
         run: |
+          sudo chmod 777 data/volume/acme_srv.cfg
           echo -e "[Directory]\ncaaidentities: [\"acme.local\", \"acme-srv.acme\"]" >> data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: False\ndns_persist_01_support: True/g" data/volume/acme_srv.cfg
 
