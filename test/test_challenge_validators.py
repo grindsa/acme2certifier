@@ -2404,6 +2404,295 @@ class TestDnsPersistChallengeValidator(unittest.TestCase):
         self.assertIn("malformed", result.error_message)
         mock_txt_get.assert_not_called()
 
+    def test_012_perform_validation_helper_import_error(self):
+        """Import failure for helper dependencies should return internal error."""
+        context = ChallengeContext(
+            challenge_name="test",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+            options={
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "issuer_domain_names": ["authority.example"],
+            },
+        )
+
+        real_import = __import__
+
+        def selective_import_error(name, globals=None, locals=None, fromlist=(), level=0):
+            if name == "acme_srv.helper":
+                raise ImportError("helper unavailable")
+            return real_import(name, globals, locals, fromlist, level)
+
+        with patch("builtins.__import__", side_effect=selective_import_error):
+            result = self.validator.perform_validation(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertEqual(result.error_message, self.validator._INTERNAL_ERROR)
+        self.assertEqual(
+            result.details,
+            {"reason": "validator_dependency_missing"},
+        )
+        self.logger.error.assert_called_with(
+            "DnsPersistChallengeValidator dependencies unavailable: %s",
+            unittest.mock.ANY,
+        )
+
+    @patch("acme_srv.helper.txt_get")
+    def test_013_perform_validation_returns_context_check_early(self, mock_txt_get):
+        """Context precondition failures should return immediately without DNS query."""
+        context = ChallengeContext(
+            challenge_name="test",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="ip",
+            authorization_value="example.com",
+            options={
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "issuer_domain_names": ["authority.example"],
+            },
+        )
+
+        result = self.validator.perform_validation(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertEqual(result.error_message, self.validator._UNAUTHORIZED_ERROR)
+        self.assertEqual(
+            result.details,
+            {"reason": "dns-persist-01 only supports DNS identifiers"},
+        )
+        mock_txt_get.assert_not_called()
+
+    def test_014_validate_context_missing_accounturi_returns_malformed(self):
+        """Missing accounturi should fail context validation as malformed."""
+        context = ChallengeContext(
+            challenge_name="test",
+            token="token",
+            jwk_thumbprint="thumb",
+            authorization_type="dns",
+            authorization_value="example.com",
+            options={
+                "issuer_domain_names": ["authority.example"],
+            },
+        )
+
+        result = self.validator._validate_context(context)
+
+        self.assertFalse(result.success)
+        self.assertTrue(result.invalid)
+        self.assertEqual(result.error_message, self.validator._MALFORMED_ERROR)
+        self.assertEqual(
+            result.details,
+            {
+                "reason": "Missing accounturi or issuer-domain-names in challenge context"
+            },
+        )
+
+    def test_015_evaluate_record_returns_malformed_when_parsed_malformed(self):
+        """Malformed parsed record should return (None, True)."""
+        with patch.object(
+            self.validator,
+            "_parse_issue_value",
+            return_value={"malformed": True},
+        ):
+            verdict, record_malformed = self.validator._evaluate_record(
+                record="bad-record",
+                accounturi="https://ca.example/acme/acct/abc",
+                normalized_issuers={"authority.example"},
+                wildcard_request=False,
+                allow_policy_wildcard=False,
+                uts_now=lambda: 1700000000,
+            )
+
+        self.assertIsNone(verdict)
+        self.assertTrue(record_malformed)
+        self.logger.debug.assert_any_call(
+            "DnsPersistChallengeValidator._evaluate_record(): Record is malformed: %s",
+            "bad-record",
+        )
+
+    def test_016_evaluate_record_issuer_not_allowed_returns_unauthorized(self):
+        """Issuer not in normalized_issuers should return (None, False)."""
+        with patch.object(
+            self.validator,
+            "_parse_issue_value",
+            return_value={
+                "malformed": False,
+                "issuer_domain_name": "other.example",
+                "params": {"accounturi": "https://ca.example/acme/acct/abc"},
+            },
+        ):
+            verdict, record_malformed = self.validator._evaluate_record(
+                record="other.example; accounturi=https://ca.example/acme/acct/abc",
+                accounturi="https://ca.example/acme/acct/abc",
+                normalized_issuers={"authority.example"},
+                wildcard_request=False,
+                allow_policy_wildcard=False,
+                uts_now=lambda: 1700000000,
+            )
+
+        self.assertIsNone(verdict)
+        self.assertFalse(record_malformed)
+        self.logger.debug.assert_any_call(
+            "DnsPersistChallengeValidator._evaluate_record(): Issuer '%s' not in normalized issuers: %s",
+            "other.example",
+            {"authority.example"},
+        )
+
+    def test_017_evaluate_record_missing_accounturi_param_returns_malformed(self):
+        """Missing accounturi parameter should return (None, True)."""
+        with patch.object(
+            self.validator,
+            "_parse_issue_value",
+            return_value={
+                "malformed": False,
+                "issuer_domain_name": "authority.example",
+                "params": {},
+            },
+        ):
+            verdict, record_malformed = self.validator._evaluate_record(
+                record="authority.example",
+                accounturi="https://ca.example/acme/acct/abc",
+                normalized_issuers={"authority.example"},
+                wildcard_request=False,
+                allow_policy_wildcard=False,
+                uts_now=lambda: 1700000000,
+            )
+
+        self.assertIsNone(verdict)
+        self.assertTrue(record_malformed)
+        self.logger.debug.assert_any_call(
+            "DnsPersistChallengeValidator._evaluate_record(): Missing accounturi parameter in record: %s",
+            "authority.example",
+        )
+
+    def test_018_evaluate_record_accounturi_mismatch_returns_unauthorized(self):
+        """Account URI mismatch should return (None, False)."""
+        expected_accounturi = "https://ca.example/acme/acct/abc"
+        found_accounturi = "https://ca.example/acme/acct/xyz"
+        with patch.object(
+            self.validator,
+            "_parse_issue_value",
+            return_value={
+                "malformed": False,
+                "issuer_domain_name": "authority.example",
+                "params": {"accounturi": found_accounturi},
+            },
+        ):
+            verdict, record_malformed = self.validator._evaluate_record(
+                record=f"authority.example; accounturi={found_accounturi}",
+                accounturi=expected_accounturi,
+                normalized_issuers={"authority.example"},
+                wildcard_request=False,
+                allow_policy_wildcard=False,
+                uts_now=lambda: 1700000000,
+            )
+
+        self.assertIsNone(verdict)
+        self.assertFalse(record_malformed)
+        self.logger.debug.assert_any_call(
+            "DnsPersistChallengeValidator._evaluate_record(): Account URI mismatch. Expected: %s, Found: %s",
+            expected_accounturi,
+            found_accounturi,
+        )
+
+    def test_019_parse_issue_value_valid_record(self):
+        """Valid issue-value record should parse issuer and params."""
+        result = self.validator._parse_issue_value(
+            "authority.example; accounturi=https://ca.example/acme/acct/abc; persistuntil=1800000000"
+        )
+
+        self.assertFalse(result["malformed"])
+        self.assertEqual(result["issuer_domain_name"], "authority.example")
+        self.assertEqual(
+            result["params"],
+            {
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "persistuntil": "1800000000",
+            },
+        )
+
+    def test_020_parse_issue_value_bytes_record(self):
+        """Bytes TXT records should be decoded and parsed."""
+        result = self.validator._parse_issue_value(
+            b"authority.example; accounturi=https://ca.example/acme/acct/abc"
+        )
+
+        self.assertFalse(result["malformed"])
+        self.assertEqual(result["issuer_domain_name"], "authority.example")
+        self.assertEqual(
+            result["params"],
+            {"accounturi": "https://ca.example/acme/acct/abc"},
+        )
+
+    def test_021_parse_issue_value_none_record_is_malformed(self):
+        """None record should be treated as malformed."""
+        result = self.validator._parse_issue_value(None)
+        self.assertEqual(result, {"malformed": True})
+
+    def test_022_parse_issue_value_empty_after_trim_is_malformed(self):
+        """Whitespace/quoted empty values should be malformed."""
+        result = self.validator._parse_issue_value('   ""   ')
+        self.assertEqual(result, {"malformed": True})
+
+    def test_023_parse_issue_value_invalid_issuer_is_malformed(self):
+        """Issuer containing '=' should be rejected as malformed."""
+        result = self.validator._parse_issue_value("issuer=bad; accounturi=x")
+        self.assertEqual(result, {"malformed": True})
+        self.logger.debug.assert_any_call(
+            "DnsPersistChallengeValidator._parse_issue_value(): Missing or invalid issuer in record: %s",
+            "issuer=bad; accounturi=x",
+        )
+
+    def test_024_parse_issue_value_missing_equals_in_param_is_malformed(self):
+        """Parameter part without '=' should be malformed."""
+        result = self.validator._parse_issue_value("authority.example; accounturi")
+        self.assertEqual(result, {"malformed": True})
+        self.logger.debug.assert_any_call(
+            "DnsPersistChallengeValidator._parse_issue_value(): Missing '=' in parameter part: %s",
+            "accounturi",
+        )
+
+    def test_025_parse_issue_value_missing_key_in_param_is_malformed(self):
+        """Parameter with empty key should be malformed."""
+        result = self.validator._parse_issue_value("authority.example; =value")
+        self.assertEqual(result, {"malformed": True})
+        self.logger.debug.assert_any_call(
+            "DnsPersistChallengeValidator._parse_issue_value(): Missing key in parameter part: %s",
+            "=value",
+        )
+
+    def test_026_parse_issue_value_duplicate_key_is_malformed(self):
+        """Duplicate parameter keys should be malformed."""
+        record = "authority.example; accounturi=a; accounturi=b"
+        result = self.validator._parse_issue_value(record)
+        self.assertEqual(result, {"malformed": True})
+        self.logger.debug.assert_any_call(
+            "DnsPersistChallengeValidator._parse_issue_value(): Duplicate key in parameter part: %s",
+            "accounturi=b",
+        )
+
+    def test_027_parse_issue_value_ignores_empty_parameter_segments(self):
+        """Empty parameter segments should be ignored (lines 225-226)."""
+        record = (
+            "authority.example; ; accounturi=https://ca.example/acme/acct/abc; ; "
+            "persistuntil=1800000000;"
+        )
+        result = self.validator._parse_issue_value(record)
+
+        self.assertFalse(result["malformed"])
+        self.assertEqual(result["issuer_domain_name"], "authority.example")
+        self.assertEqual(
+            result["params"],
+            {
+                "accounturi": "https://ca.example/acme/acct/abc",
+                "persistuntil": "1800000000",
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

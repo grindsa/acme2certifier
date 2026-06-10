@@ -171,7 +171,6 @@ class DnsPersistChallengeValidator(ChallengeValidator):
             self.logger.debug("DnsPersistChallengeValidator._evaluate_record(): persistuntil timestamp is in the past: %s", persist_until)
             return None, False
 
-
         if wildcard_request:
             if not allow_policy_wildcard:
                 self.logger.error(
