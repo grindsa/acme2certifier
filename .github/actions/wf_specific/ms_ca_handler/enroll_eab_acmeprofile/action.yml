@@ -48,10 +48,10 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "template: WebServerModified"
+        docker compose logs | grep "template: WebServer-07-C"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServerModified"
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer-07-C"
       fi
     shell: bash
     env:
@@ -61,7 +61,7 @@ runs:
   - name: "EAB with ACME Profile - 01b - enrollment with profile (pick value from list)"
     run: |
       sudo rm -rf lego/*
-      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.$NAME_SPACE --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http --profile WebServer
+      sudo docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.$NAME_SPACE --eab --eab.kid keyid_00 --eab.hmac V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw --http --profile WebServer-07-S
       sudo openssl x509 -in lego/certificates/lego.$NAME_SPACE.crt -text -noout
       sudo openssl x509 -in lego/certificates/lego.$NAME_SPACE.crt -ext extendedKeyUsage  -noout | grep -i "TLS Web Server"
     shell: bash
@@ -72,10 +72,10 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "template: WebServer"
+        docker compose logs | grep "template: WebServer-07-S"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer"
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer-07-S"
       fi
     shell: bash
     env:
@@ -115,10 +115,10 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "template: WebServer"
+        docker compose logs | grep "template: WebServer-07-C"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer"
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer-07-C"
       fi
     shell: bash
     env:
@@ -158,10 +158,10 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "template: WebServer"
+        docker compose logs | grep "template: WebServer-07-S"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer"
+        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer-07-S"
       fi
     shell: bash
     env:

@@ -75,6 +75,7 @@ class AuthorizationConfiguration:
     prevalidated_iplist: Optional[List[str]] = None
     prevalidated_emaillist: Optional[List[str]] = None
 
+
 @dataclass
 class AuthorizationData:
     """Authorization data structure"""
@@ -316,20 +317,22 @@ class AuthorizationBusinessLogic:
 
     def extract_identifier_info_for_challenge(
         self, authz_info_dict: Dict[str, str]
-    ) -> Tuple[str, str]:
-        """Extract identifier type and value for challenge operations"""
+    ) -> Tuple[str, str, bool]:
+        """Extract identifier type/value and wildcard marker for challenge operations."""
         self.logger.debug(
             "AuthorizationBusinessLogic.extract_identifier_info_for_challenge()"
         )
 
+        is_wildcard = bool(authz_info_dict.get("wildcard"))
+
         if "identifier" not in authz_info_dict:
-            return None, None
+            return None, None, is_wildcard
 
         identifier = authz_info_dict["identifier"]
         id_type = identifier.get("type")
         id_value = identifier.get("value")
 
-        return id_type, id_value
+        return id_type, id_value, is_wildcard
 
     def is_authorization_eligible_for_expiry(self, auth_record: Dict[str, str]) -> bool:
         """Check if authorization should be expired"""
@@ -369,6 +372,7 @@ class ChallengeSetManager:
         expires: int,
         id_type: str = None,
         id_value: str = None,
+        is_wildcard: bool = False,
     ) -> List[Dict[str, str]]:
         """Get challenge set for authorization"""
         self.logger.debug(
@@ -382,7 +386,13 @@ class ChallengeSetManager:
             expiry=expires,
         ) as challenge:
             return challenge.challengeset_get(
-                authz_name, status, token, is_tnauth, id_type, id_value
+                authz_name,
+                status,
+                token,
+                is_tnauth,
+                id_type,
+                id_value,
+                is_wildcard,
             )
 
 
@@ -487,25 +497,25 @@ class Authorization(object):
 
             # Load caaidentities from Directory section as JSON array or comma-separated string
             caaidentities_raw = config_dic.get(
-                 "Directory", "caaidentities", fallback=None
-             )
+                "Directory", "caaidentities", fallback=None
+            )
             caaidentities: Optional[List[str]] = None
 
             if caaidentities_raw:
                 try:
-                     parsed = json.loads(caaidentities_raw)
-                     if isinstance(parsed, list):
-                         caaidentities = parsed
-                     else:
-                         self.logger.warning(
-                             "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
-                             caaidentities_raw,
-                         )
-                         caaidentities = [caaidentities_raw]
+                    parsed = json.loads(caaidentities_raw)
+                    if isinstance(parsed, list):
+                        caaidentities = parsed
+                    else:
+                        self.logger.warning(
+                            "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
+                            caaidentities_raw,
+                        )
+                        caaidentities = [caaidentities_raw]
                 except Exception:
                     # fallback: try comma-separated string
                     caaidentities = [
-                         x.strip() for x in caaidentities_raw.split(",") if x.strip()
+                        x.strip() for x in caaidentities_raw.split(",") if x.strip()
                     ]
             self.config.caaidentities = caaidentities
 
@@ -542,8 +552,8 @@ class Authorization(object):
 
         acct_path = self.config.authz_path.replace("/acme/authz/", "/acme/acct/")
         accounturi = (
-             f"{self.server_name}{acct_path}{account_name}" if account_name else None
-         )
+            f"{self.server_name}{acct_path}{account_name}" if account_name else None
+        )
 
         caaidentities = getattr(self.config, "caaidentities", None)
 
@@ -660,9 +670,10 @@ class Authorization(object):
             authz_info["status"] = "pending"
             is_tnauth = False
 
-
         # Extract identifier type and value
-        id_type, id_value = self.business_logic.extract_identifier_info_for_challenge(authz_info)
+        id_type, id_value, is_wildcard = (
+            self.business_logic.extract_identifier_info_for_challenge(authz_info)
+        )
 
         # JIT dns-persist-01 validation if enabled and applicable
         jit_valid = False
@@ -695,6 +706,7 @@ class Authorization(object):
                     expires,
                     id_type,
                     id_value,
+                    is_wildcard,
                 )
             except Exception as err:
                 self.logger.error(
@@ -756,7 +768,7 @@ class Authorization(object):
         self, authz_name, auth_details, id_type, id_value, authz_info
     ):
         self.logger.debug(
-            "≈Checking prevalidation whitelist for identifier type: %s, value: %s",
+            "Checking prevalidation whitelist for identifier type: %s, value: %s",
             id_type,
             id_value,
         )
@@ -811,10 +823,51 @@ class Authorization(object):
         domainlist = getattr(self.config, "prevalidated_domainlist", None)
         if not domainlist:
             return
+
         self.logger.debug(
-            "Authorization._handle_domain_prevalidation() - Checking preauthorized domain list for DNS identifier"
+            "Authorization._handle_domain_prevalidation() - Evaluating domain whitelist match for id_value='%s' (wildcard flag: %s)",
+            id_value,
+            bool(authz_info.get("wildcard")),
         )
-        if is_domain_whitelisted(self.logger, id_value, domainlist):
+        is_whitelisted = is_domain_whitelisted(self.logger, id_value, domainlist)
+        self.logger.debug(
+            "Authorization._handle_domain_prevalidation() - Whitelist check result for id_value='%s': %s",
+            id_value,
+            is_whitelisted,
+        )
+
+        # Wildcard identifiers are normalized earlier ('*.example.org' -> 'example.org').
+        # Reconstruct wildcard form for whitelist checks like '*.example.org'.
+        if (
+            not is_whitelisted
+            and authz_info.get("wildcard")
+            and id_value
+            and not id_value.startswith("*.")
+        ):
+            wildcard_value = f"*.{id_value}"
+            self.logger.debug(
+                "Authorization._handle_domain_prevalidation() - Reconstructed wildcard id_value for whitelist check: '%s' -> '%s'",
+                id_value,
+                wildcard_value,
+            )
+            is_whitelisted = is_domain_whitelisted(
+                self.logger, wildcard_value, domainlist
+            )
+            self.logger.debug(
+                "Authorization._handle_domain_prevalidation() - Whitelist check result for reconstructed wildcard id_value='%s': %s",
+                wildcard_value,
+                is_whitelisted,
+            )
+        else:
+            self.logger.debug(
+                "Authorization._handle_domain_prevalidation() - Skipping reconstructed wildcard whitelist check (is_whitelisted=%s, wildcard=%s, id_value_present=%s, id_value_has_wildcard_prefix=%s)",
+                is_whitelisted,
+                bool(authz_info.get("wildcard")),
+                bool(id_value),
+                bool(id_value and id_value.startswith("*.")),
+            )
+
+        if is_whitelisted:
             self.logger.debug(
                 "Domain %s is preauthorized, setting authorization status to 'valid'",
                 id_value,

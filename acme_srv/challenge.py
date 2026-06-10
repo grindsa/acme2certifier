@@ -1253,6 +1253,7 @@ class Challenge:
         _tnauth: bool,
         id_type: str = "dns",
         id_value: str = None,
+        is_wildcard: bool = False,
     ) -> List[Dict[str, str]]:
         """Retrieve existing or create new challenge set (replaces challengeset_get)."""
         self.logger.debug(
@@ -1268,6 +1269,7 @@ class Challenge:
                 token=token,
                 id_type=id_type,
                 id_value=id_value,
+                is_wildcard=is_wildcard,
                 config=self.config,
                 url=f"{self.server_name}{self.path_dic['chall_path']}",
             )
