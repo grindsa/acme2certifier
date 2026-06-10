@@ -58,17 +58,82 @@ jobs:
 
       - name: "Get RunnerIP"
         run: |
-          Get-NetIPAddress -AddressFamily IPv4
-          # $runner_ip=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet').IPAddress
-          $runner_ip=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'vEthernet (nat)').IPAddress
-          echo RUNNER_IP=$runner_ip >> $env:GITHUB_ENV
+          $ErrorActionPreference = "Stop"
+
+          Write-Host "Enumerating IPv4 addresses..."
+          Get-NetIPAddress -AddressFamily IPv4 | Format-Table -AutoSize
+
+          $runner_ip = $null
+
+          $default_route_ifindex = (Get-NetRoute -AddressFamily IPv4 -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue |
+            Sort-Object -Property RouteMetric, InterfaceMetric |
+            Select-Object -First 1 -ExpandProperty InterfaceIndex)
+
+          $candidates = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object {
+              $_.IPAddress -ne "127.0.0.1" -and
+              $_.IPAddress -notlike "169.254.*" -and
+              -not $_.SkipAsSource
+            }
+
+          # Prioritize addresses used by local virtual NAT adapters for this workflow.
+          $runner_ip = $candidates |
+            Sort-Object -Property @(
+              @{Expression = {
+                if ($_.IPAddress -like "172.*") { return 0 }
+                if ($_.InterfaceAlias -like "vEthernet*") { return 1 }
+                if ($_.PrefixOrigin -eq "Manual") { return 2 }
+                if ($default_route_ifindex -and $_.InterfaceIndex -eq $default_route_ifindex) { return 3 }
+                return 4
+              }}
+            ) |
+            Select-Object -First 1 -ExpandProperty IPAddress
+
+          # Fallback: first non-loopback, non-link-local IPv4 address.
+          if (-not $runner_ip) {
+            $runner_ip = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+              Where-Object {
+                $_.IPAddress -ne "127.0.0.1" -and
+                $_.IPAddress -notlike "169.254.*"
+              } |
+              Select-Object -First 1 -ExpandProperty IPAddress
+          }
+
+          if (-not $runner_ip) {
+            throw "Could not determine a usable runner IPv4 address"
+          }
+
+          Write-Host "Using runner IPv4: $runner_ip"
+          "RUNNER_IP=$runner_ip" >> $env:GITHUB_ENV
 
       - name: "Echo RunnerIP"
         run:  echo $env:RUNNER_IP
 
       - name: "[ PREPARE ] Create DNS entries "
         run: |
-          Invoke-RestMethod -ContentType "application/json" -Method PUT -Uri "${{ env.CF_DYNAMOP_URL }}" -Headers @{Authorization="Bearer ${{ env.CF_TOKEN }}" } -UseBasicParsing -Body '{"type":"A","name":"${{ env.CF_WINACME1_NAME }}","content":"${{ env.RUNNER_IP }}","ttl":120,"proxied":false}'
+          $ErrorActionPreference = "Stop"
+
+          if (-not [System.Uri]::IsWellFormedUriString($env:CF_DYNAMOP_URL, [System.UriKind]::Absolute)) {
+            throw "CF_DYNAMOP_URL is not a valid absolute URI: $env:CF_DYNAMOP_URL"
+          }
+
+          $payload = @{
+            type = "A"
+            name = "$env:CF_WINACME1_NAME"
+            content = "$env:RUNNER_IP"
+            ttl = 120
+            proxied = $false
+          } | ConvertTo-Json -Compress
+
+          $request = @{
+            ContentType = "application/json"
+            Method = "PUT"
+            Uri = "$env:CF_DYNAMOP_URL"
+            Headers = @{ Authorization = "Bearer $env:CF_TOKEN" }
+            Body = $payload
+          }
+
+          Invoke-RestMethod @request
         shell: pwsh
         env:
           CF_DYNAMOP_URL: ${{ env.CF_DYNAMOP_URL }}
