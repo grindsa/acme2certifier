@@ -75,6 +75,7 @@ class AuthorizationConfiguration:
     prevalidated_iplist: Optional[List[str]] = None
     prevalidated_emaillist: Optional[List[str]] = None
 
+
 @dataclass
 class AuthorizationData:
     """Authorization data structure"""
@@ -496,25 +497,25 @@ class Authorization(object):
 
             # Load caaidentities from Directory section as JSON array or comma-separated string
             caaidentities_raw = config_dic.get(
-                 "Directory", "caaidentities", fallback=None
-             )
+                "Directory", "caaidentities", fallback=None
+            )
             caaidentities: Optional[List[str]] = None
 
             if caaidentities_raw:
                 try:
-                     parsed = json.loads(caaidentities_raw)
-                     if isinstance(parsed, list):
-                         caaidentities = parsed
-                     else:
-                         self.logger.warning(
-                             "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
-                             caaidentities_raw,
-                         )
-                         caaidentities = [caaidentities_raw]
+                    parsed = json.loads(caaidentities_raw)
+                    if isinstance(parsed, list):
+                        caaidentities = parsed
+                    else:
+                        self.logger.warning(
+                            "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
+                            caaidentities_raw,
+                        )
+                        caaidentities = [caaidentities_raw]
                 except Exception:
                     # fallback: try comma-separated string
                     caaidentities = [
-                         x.strip() for x in caaidentities_raw.split(",") if x.strip()
+                        x.strip() for x in caaidentities_raw.split(",") if x.strip()
                     ]
             self.config.caaidentities = caaidentities
 
@@ -551,8 +552,8 @@ class Authorization(object):
 
         acct_path = self.config.authz_path.replace("/acme/authz/", "/acme/acct/")
         accounturi = (
-             f"{self.server_name}{acct_path}{account_name}" if account_name else None
-         )
+            f"{self.server_name}{acct_path}{account_name}" if account_name else None
+        )
 
         caaidentities = getattr(self.config, "caaidentities", None)
 
@@ -668,7 +669,6 @@ class Authorization(object):
         else:
             authz_info["status"] = "pending"
             is_tnauth = False
-
 
         # Extract identifier type and value
         id_type, id_value, is_wildcard = (
