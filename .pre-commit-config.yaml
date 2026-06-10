@@ -25,6 +25,7 @@ repos:
     # rev: 22.10.0
     hooks:
     -   id: black
+        args: [--target-version=py314]
 
 -   repo: https://github.com/executablebooks/mdformat
     rev: 0.7.13

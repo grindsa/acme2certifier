@@ -50,17 +50,19 @@ class TestDirectory(unittest.TestCase):
             with patch(
                 "acme_srv.directory.config_async_mode_load", return_value=False
             ) as mock_async_mode_load:
-                with patch.object(
-                    self.directory, "_parse_directory_section"
-                ) as mock_parse_dir, patch.object(
-                    self.directory, "_parse_booleans"
-                ) as mock_parse_bool, patch.object(
-                    self.directory, "_parse_eab_and_profiles"
-                ) as mock_parse_eab, patch.object(
-                    self.directory, "_load_ca_handler"
-                ) as mock_load_ca, patch.object(
-                    self.directory, "_parse_cahandler_section"
-                ) as mock_parse_cahandler_section:
+                with (
+                    patch.object(
+                        self.directory, "_parse_directory_section"
+                    ) as mock_parse_dir,
+                    patch.object(self.directory, "_parse_booleans") as mock_parse_bool,
+                    patch.object(
+                        self.directory, "_parse_eab_and_profiles"
+                    ) as mock_parse_eab,
+                    patch.object(self.directory, "_load_ca_handler") as mock_load_ca,
+                    patch.object(
+                        self.directory, "_parse_cahandler_section"
+                    ) as mock_parse_cahandler_section,
+                ):
                     self.directory._load_configuration()
                     mock_parse_dir.assert_called()
                     mock_parse_bool.assert_called()

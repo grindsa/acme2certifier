@@ -406,9 +406,10 @@ class TestRenewalinfo(unittest.TestCase):
             {"name": "n2", "cert": "c2"},  # missing cert_raw, should be skipped
         ]
         renewalinfo.dbstore.certificates_search.return_value = certs
-        with patch(
-            "acme_srv.renewalinfo.cert_serial_get", return_value="serial1"
-        ), patch("acme_srv.renewalinfo.cert_aki_get", return_value="aki1"):
+        with (
+            patch("acme_srv.renewalinfo.cert_serial_get", return_value="serial1"),
+            patch("acme_srv.renewalinfo.cert_aki_get", return_value="aki1"),
+        ):
             renewalinfo._update_certificate_table_with_serial_and_aki()
         # Only one add_certificate should be called
         renewalinfo.repository.add_certificate.assert_called_once_with(

@@ -6291,15 +6291,19 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
 
         logger = Mock()
         # All strategies fail
-        with patch(
-            "acme_srv.helpers.certificates.load_pem_pkcs7_certificates",
-            side_effect=Exception("fail1"),
-        ), patch(
-            "acme_srv.helpers.certificates.convert_string_to_byte",
-            side_effect=lambda x: x,
-        ), patch(
-            "acme_srv.helpers.certificates.load_der_pkcs7_certificates",
-            side_effect=Exception("fail2"),
+        with (
+            patch(
+                "acme_srv.helpers.certificates.load_pem_pkcs7_certificates",
+                side_effect=Exception("fail1"),
+            ),
+            patch(
+                "acme_srv.helpers.certificates.convert_string_to_byte",
+                side_effect=lambda x: x,
+            ),
+            patch(
+                "acme_srv.helpers.certificates.load_der_pkcs7_certificates",
+                side_effect=Exception("fail2"),
+            ),
         ):
             with self.assertRaises(Exception) as cm:
                 pkcs7_to_pem(logger, "dummy", outform="list")
