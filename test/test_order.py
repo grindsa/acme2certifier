@@ -1394,7 +1394,7 @@ class TestOrderClass(unittest.TestCase):
                 result,
                 (
                     self.order.error_msg_dic["rejectedidentifier"],
-                    "Wildcard identifier *.foo.com are not allowed",
+                    "Wildcard identifier *.foo.com not allowed",
                 ),
             )
 
