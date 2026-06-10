@@ -27,15 +27,15 @@ runs:
   using: "composite"
   steps:
 
-    - name: "install awccli"
+    - name: "install awscli"
       run: |
         sudo apt-get update
         pip3 install awscli --upgrade --user
         pip3 install boto3 --upgrade --user
-        export PATH=$PATH:$HOME/.local/bin
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
       shell: bash
 
-    - name: "configure awccli"
+    - name: "configure awscli"
       run: |
         aws --version
         aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID

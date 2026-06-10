@@ -190,8 +190,11 @@ class Directory:
                 fallback=self.config.eab_strict_mode,
             )
         except Exception:
-            eab_cfg = config_dic.get("EABhandler", {})
-            raw_value = eab_cfg.get("eab_strict_mode", None)
+            try:
+                eab_cfg = config_dic["EABhandler"] if "EABhandler" in config_dic else {}
+                raw_value = eab_cfg.get("eab_strict_mode", None)
+            except Exception:
+                raw_value = None
             if raw_value is None:
                 return self.config.eab_strict_mode
             if isinstance(raw_value, bool):
