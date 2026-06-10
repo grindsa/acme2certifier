@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=r0902, r0912, r0913, r0915, r1705
 """certificate class"""
+
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict, Union, Optional, Any
@@ -107,7 +108,7 @@ class CertificateLogger:
             # Add profile if existing
             data_dic["profile"] = order_dic.get("profile", "")
 
-        (_, expire_uts) = cert_dates_get(self.logger, certificate)
+        _, expire_uts = cert_dates_get(self.logger, certificate)
         if expire_uts:
             # Add expires from cert if existing
             data_dic["expires"] = uts_to_date_utc(expire_uts)
@@ -779,7 +780,7 @@ class Certificate(object):
         self.logger.debug("Certificate._store_certificate_and_update_order()")
 
         error = None
-        (issue_uts, expire_uts) = cert_dates_get(self.logger, certificate_raw)
+        issue_uts, expire_uts = cert_dates_get(self.logger, certificate_raw)
         try:
             result = self._store_certificate_in_database(
                 certificate_name,
@@ -936,7 +937,7 @@ class Certificate(object):
             cert_reusage,
         ) = self._process_certificate_enrollment(csr)
         if certificate:
-            (result, error) = self._store_certificate_and_update_order(
+            result, error = self._store_certificate_and_update_order(
                 certificate,
                 certificate_raw,
                 poll_identifier,
@@ -958,7 +959,7 @@ class Certificate(object):
 
         else:
             self.logger.error("Enrollment error: %s", error)
-            (result, error, detail) = self._handle_enrollment_error(
+            result, error, detail = self._handle_enrollment_error(
                 error, poll_identifier, order_name, certificate_name
             )
 
@@ -1006,7 +1007,7 @@ class Certificate(object):
         for san in san_list:
             san_is_in = False
             try:
-                (cert_type, cert_value) = san.lower().split(":", 1)
+                cert_type, cert_value = san.lower().split(":", 1)
             except Exception as err_:
                 self.logger.error("Error while splitting san %s: %s", san, err_)
                 cert_type = None
@@ -1304,7 +1305,7 @@ class Certificate(object):
             timestamp = uts_now()
 
         # Delegate to certificate manager
-        (field_list, report_list) = self.certificate_manager.cleanup_certificates(
+        field_list, report_list = self.certificate_manager.cleanup_certificates(
             timestamp, purge
         )
 
@@ -1320,7 +1321,7 @@ class Certificate(object):
         if "issue_uts" in cert and "expire_uts" in cert:
             if cert["issue_uts"] == 0 and cert["expire_uts"] == 0:
                 if cert["cert_raw"]:
-                    (issue_uts, expire_uts) = cert_dates_get(
+                    issue_uts, expire_uts = cert_dates_get(
                         self.logger, cert["cert_raw"]
                     )
                     if issue_uts or expire_uts:
@@ -1659,14 +1660,14 @@ class Certificate(object):
     ) -> Tuple[int, str, str]:
         """Process the actual certificate revocation"""
         try:
-            (code, error) = self._validate_revocation_request(account_name, payload)
+            code, error = self._validate_revocation_request(account_name, payload)
             if code != 200:
                 return code, error, None
 
             # Perform revocation
             rev_date = uts_to_date_utc(uts_now())
             with self.cahandler(self.debug, self.logger) as ca_handler:
-                (code, message, detail) = ca_handler.revoke(
+                code, message, detail = ca_handler.revoke(
                     payload["certificate"], error, rev_date
                 )
 
@@ -1721,7 +1722,7 @@ class Certificate(object):
 
             if code == 200:
                 if "certificate" in payload:
-                    (code, message, detail) = self._process_certificate_revocation(
+                    code, message, detail = self._process_certificate_revocation(
                         account_name, payload
                     )
                 else:
@@ -1757,7 +1758,7 @@ class Certificate(object):
         """Handle successful certificate polling result"""
         try:
             # Get issuing and expiration date
-            (issue_uts, expire_uts) = cert_dates_get(self.logger, certificate_raw)
+            issue_uts, expire_uts = cert_dates_get(self.logger, certificate_raw)
 
             # Update certificate record in database
             result = self._store_certificate_in_database(

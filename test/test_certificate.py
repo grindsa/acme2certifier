@@ -34,7 +34,9 @@ class TestCertificateLogger(unittest.TestCase):
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
     @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
     @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
-    def test_001_log_issuance_success_json(self, mock_san, mock_cn, mock_serial, mock_dates):
+    def test_001_log_issuance_success_json(
+        self, mock_san, mock_cn, mock_serial, mock_dates
+    ):
         self.mock_repository.order_lookup.return_value = {
             "account__name": "acc",
             "account__contact": "contact",
@@ -54,7 +56,9 @@ class TestCertificateLogger(unittest.TestCase):
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
     @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
     @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
-    def test_001_log_issuance_success_text(self, mock_san, mock_cn, mock_serial, mock_dates):
+    def test_001_log_issuance_success_text(
+        self, mock_san, mock_cn, mock_serial, mock_dates
+    ):
         self.mock_repository.order_lookup.return_value = {
             "account__name": "acc",
             "account__contact": "contact",
@@ -138,7 +142,9 @@ class TestCertificateLogger(unittest.TestCase):
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
     @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
     @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
-    def test_005_log_issuance_json_format(self, mock_san, mock_cn, mock_serial, mock_dates):
+    def test_005_log_issuance_json_format(
+        self, mock_san, mock_cn, mock_serial, mock_dates
+    ):
         self.mock_repository.order_lookup.return_value = {
             "account__name": "acc",
             "account__contact": "contact",

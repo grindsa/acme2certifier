@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """unittests for account.py"""
+
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 import importlib
@@ -960,8 +961,8 @@ class TestAccount(unittest.TestCase):
             ("Directory", "url_prefix"): "/prefix",
         }.get((section, key), fallback)
         config_mock.__contains__.side_effect = lambda k: k in ["EABhandler"]
-        config_mock.__getitem__.side_effect = (
-            lambda k: {"eab_handler_file": "handler.py"} if k == "EABhandler" else {}
+        config_mock.__getitem__.side_effect = lambda k: (
+            {"eab_handler_file": "handler.py"} if k == "EABhandler" else {}
         )
 
         # Patch eab_handler_load to return a module with EABhandler
@@ -1004,8 +1005,8 @@ class TestAccount(unittest.TestCase):
         config_mock3.getboolean.return_value = False
         config_mock3.get.return_value = None
         config_mock3.__contains__.side_effect = lambda k: k in ["EABhandler"]
-        config_mock3.__getitem__.side_effect = (
-            lambda k: {"eab_handler_file": "handler.py"} if k == "EABhandler" else {}
+        config_mock3.__getitem__.side_effect = lambda k: (
+            {"eab_handler_file": "handler.py"} if k == "EABhandler" else {}
         )
         with patch("acme_srv.account.load_config", return_value=config_mock3), patch(
             "acme_srv.account.eab_handler_load", return_value=None
@@ -1037,7 +1038,9 @@ class TestAccount(unittest.TestCase):
             self.assertFalse(
                 account.config.tos_check_disable
             )  # Default value should be used
-            self.assertTrue(account.config.eab_strict_mode)  # Default value should be used
+            self.assertTrue(
+                account.config.eab_strict_mode
+            )  # Default value should be used
             self.assertFalse(
                 account.config.inner_header_nonce_allow
             )  # Default value should be used

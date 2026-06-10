@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-""" unittest for renewalinfo.py """
+"""unittest for renewalinfo.py"""
+
 import unittest
 from unittest.mock import MagicMock, patch
 import os

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Comprehensive unittests for order.py"""
+
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 from unittest.mock import patch, MagicMock, call, ANY
@@ -2155,9 +2156,7 @@ class TestOrderClass(unittest.TestCase):
         self.order.config.wildcard_certificate_disable = True
         self.order.repository.account_lookup.return_value = {"eab_kid": "kid_false"}
         mock_eab_handler = MagicMock()
-        profile_dic = {
-            "kid_false": {"order": {"wildcard_certificate_disable": False}}
-        }
+        profile_dic = {"kid_false": {"order": {"wildcard_certificate_disable": False}}}
         mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
         self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
 
@@ -2285,7 +2284,9 @@ class TestOrderClass(unittest.TestCase):
                 ),
             )
 
-    def test_148_check_single_identifier_wildcard_flag_reconstructs_for_domainlist(self):
+    def test_148_check_single_identifier_wildcard_flag_reconstructs_for_domainlist(
+        self,
+    ):
         # Covers wildcard-intent fallback for normalized identifiers against wildcard-only policy
         self.order.config.allowed_domainlist = ["*.bar.local"]
         identifier = {"type": "dns", "value": "bar.local", "wildcard": True}
@@ -2311,7 +2312,9 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_149_check_single_identifier_non_wildcard_skips_reconstruct_and_rejects(self):
+    def test_149_check_single_identifier_non_wildcard_skips_reconstruct_and_rejects(
+        self,
+    ):
         # Covers non-wildcard guard: wildcard reconstruction must not broaden policy
         self.order.config.allowed_domainlist = ["*.bar.local"]
         identifier = {"type": "dns", "value": "bar.local"}

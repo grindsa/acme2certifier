@@ -2420,7 +2420,9 @@ class TestDnsPersistChallengeValidator(unittest.TestCase):
 
         real_import = __import__
 
-        def selective_import_error(name, globals=None, locals=None, fromlist=(), level=0):
+        def selective_import_error(
+            name, globals=None, locals=None, fromlist=(), level=0
+        ):
             if name == "acme_srv.helper":
                 raise ImportError("helper unavailable")
             return real_import(name, globals, locals, fromlist, level)

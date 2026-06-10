@@ -16,7 +16,6 @@ and pick the appropriate release branch.
 - [Dogtag CA Handler](docs/dogtag_ca_handler.md)
 - [Dryrun Mode](docs/dryrun.md)
 
-
 **Bug Fixes**:
 
 -[313](https://github.com/grindsa/acme2certifier/pull/313) - Replace lstrip in WSGI path lookup

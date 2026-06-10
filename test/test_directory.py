@@ -86,8 +86,8 @@ class TestDirectory(unittest.TestCase):
         # Mock config_dic to behave like configparser.ConfigParser
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "Directory"
-        config_dic.__getitem__.side_effect = (
-            lambda k: {"tos_url": "tos", "url_prefix": "/prefix", "home": "custom_home"}
+        config_dic.__getitem__.side_effect = lambda k: (
+            {"tos_url": "tos", "url_prefix": "/prefix", "home": "custom_home"}
             if k == "Directory"
             else None
         )
@@ -309,16 +309,14 @@ class TestDirectory(unittest.TestCase):
         # Mock config_dic to behave like configparser.ConfigParser
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "Directory"
-        config_dic.__getitem__.side_effect = (
-            lambda k: {"tos_url": "tos", "url_prefix": "/prefix", "home": "custom_home"}
+        config_dic.__getitem__.side_effect = lambda k: (
+            {"tos_url": "tos", "url_prefix": "/prefix", "home": "custom_home"}
             if k == "Directory"
             else None
         )
         # Return a non-None value for caaidentities
-        config_dic.get.side_effect = (
-            lambda section, key, fallback=None: '["id1", "id2"]'
-            if key == "caaidentities"
-            else None
+        config_dic.get.side_effect = lambda section, key, fallback=None: (
+            '["id1", "id2"]' if key == "caaidentities" else None
         )
         with patch.object(
             self.directory,
@@ -429,10 +427,8 @@ class TestDirectory(unittest.TestCase):
     def test_040_parse_cahandler_section_profiles_sync_exception(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
-        config_dic.__getitem__.side_effect = (
-            lambda k: {"acme_url": "https://acme.example.com"}
-            if k == "CAhandler"
-            else None
+        config_dic.__getitem__.side_effect = lambda k: (
+            {"acme_url": "https://acme.example.com"} if k == "CAhandler" else None
         )
         config_dic.getboolean.side_effect = Exception("fail")
         with patch.object(self.mock_logger, "error") as mock_error:
@@ -442,10 +438,8 @@ class TestDirectory(unittest.TestCase):
     def test_041_parse_cahandler_section_sets_acme_url(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
-        config_dic.__getitem__.side_effect = (
-            lambda k: {"acme_url": "https://acme.example.com"}
-            if k == "CAhandler"
-            else None
+        config_dic.__getitem__.side_effect = lambda k: (
+            {"acme_url": "https://acme.example.com"} if k == "CAhandler" else None
         )
         config_dic.getboolean.side_effect = lambda section, key, fallback=None: False
         self.directory._parse_cahandler_section(config_dic)
@@ -454,10 +448,8 @@ class TestDirectory(unittest.TestCase):
     def test_042_parse_cahandler_section_profiles_sync_disabled(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
-        config_dic.__getitem__.side_effect = (
-            lambda k: {"acme_url": "https://acme.example.com"}
-            if k == "CAhandler"
-            else None
+        config_dic.__getitem__.side_effect = lambda k: (
+            {"acme_url": "https://acme.example.com"} if k == "CAhandler" else None
         )
         config_dic.getboolean.side_effect = lambda section, key, fallback=None: False
         self.directory.config.profiles = {}
@@ -469,16 +461,12 @@ class TestDirectory(unittest.TestCase):
     ):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
-        config_dic.__getitem__.side_effect = (
-            lambda k: {"acme_url": "https://acme.example.com"}
-            if k == "CAhandler"
-            else None
+        config_dic.__getitem__.side_effect = lambda k: (
+            {"acme_url": "https://acme.example.com"} if k == "CAhandler" else None
         )
         # First call to getboolean returns True for profiles_sync
-        config_dic.getboolean.side_effect = (
-            lambda section, key, fallback=None: True
-            if key == "profiles_sync"
-            else False
+        config_dic.getboolean.side_effect = lambda section, key, fallback=None: (
+            True if key == "profiles_sync" else False
         )
         self.directory.config.profiles = {"profile": "data"}
         with patch.object(self.mock_logger, "error") as mock_error:
@@ -492,10 +480,8 @@ class TestDirectory(unittest.TestCase):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
         config_dic.__getitem__.side_effect = lambda k: {} if k == "CAhandler" else None
-        config_dic.getboolean.side_effect = (
-            lambda section, key, fallback=None: True
-            if key == "profiles_sync"
-            else False
+        config_dic.getboolean.side_effect = lambda section, key, fallback=None: (
+            True if key == "profiles_sync" else False
         )
         self.directory.config.profiles = {}
         self.directory.config.acme_url = None
@@ -509,20 +495,14 @@ class TestDirectory(unittest.TestCase):
     def test_045_parse_cahandler_section_profiles_sync_interval_set(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
-        config_dic.__getitem__.side_effect = (
-            lambda k: {"acme_url": "https://acme.example.com"}
-            if k == "CAhandler"
-            else None
+        config_dic.__getitem__.side_effect = lambda k: (
+            {"acme_url": "https://acme.example.com"} if k == "CAhandler" else None
         )
-        config_dic.getboolean.side_effect = (
-            lambda section, key, fallback=None: True
-            if key == "profiles_sync"
-            else False
+        config_dic.getboolean.side_effect = lambda section, key, fallback=None: (
+            True if key == "profiles_sync" else False
         )
-        config_dic.getint.side_effect = (
-            lambda section, key, fallback=None: 1234
-            if key == "profiles_sync_interval"
-            else fallback
+        config_dic.getint.side_effect = lambda section, key, fallback=None: (
+            1234 if key == "profiles_sync_interval" else fallback
         )
         self.directory.config.profiles = {}
         self.directory.config.acme_url = "https://acme.example.com"
@@ -533,15 +513,11 @@ class TestDirectory(unittest.TestCase):
     def test_046_parse_cahandler_section_profiles_sync_interval_error(self):
         config_dic = MagicMock()
         config_dic.__contains__.side_effect = lambda k: k == "CAhandler"
-        config_dic.__getitem__.side_effect = (
-            lambda k: {"acme_url": "https://acme.example.com"}
-            if k == "CAhandler"
-            else None
+        config_dic.__getitem__.side_effect = lambda k: (
+            {"acme_url": "https://acme.example.com"} if k == "CAhandler" else None
         )
-        config_dic.getboolean.side_effect = (
-            lambda section, key, fallback=None: True
-            if key == "profiles_sync"
-            else False
+        config_dic.getboolean.side_effect = lambda section, key, fallback=None: (
+            True if key == "profiles_sync" else False
         )
         config_dic.getint.side_effect = Exception("fail")
         self.directory.config.profiles = {}

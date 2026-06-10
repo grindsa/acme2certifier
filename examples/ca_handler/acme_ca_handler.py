@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """generic ca handler for CAs supporting acme protocol"""
+
 from __future__ import print_function
 
 # pylint: disable= e0401, w0105, w0212
@@ -494,7 +495,7 @@ class CAhandler(object):
         if challenge:
             chall_content = challenge.chall.validation(user_key)
             try:
-                (chall_name, _token) = chall_content.split(".", 2)
+                chall_name, _token = chall_content.split(".", 2)
             except Exception:
                 self.logger.error(
                     "Challenge split failed: %s",
@@ -999,13 +1000,13 @@ class CAhandler(object):
 
         if regr.body.status == "valid":
             self.logger.debug("CAhandler._enroll(): Valid ACME account: %s", regr.uri)
-            (error, cert_bundle, cert_raw) = self._order_issue(
+            error, cert_bundle, cert_raw = self._order_issue(
                 acmeclient, user_key, csr_pem
             )
         elif not regr.body.status and regr.uri:
             # this is an exisitng but not configured account. Throw error but continue enrolling
             self.logger.info("Existing but not configured ACME account: %s", regr.uri)
-            (error, cert_bundle, cert_raw) = self._order_issue(
+            error, cert_bundle, cert_raw = self._order_issue(
                 acmeclient, user_key, csr_pem
             )
         else:

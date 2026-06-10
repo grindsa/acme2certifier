@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """acme app main view"""
+
 from __future__ import unicode_literals, print_function
 from django.http import HttpResponse, HttpResponseNotFound
 from django.utils.html import escape

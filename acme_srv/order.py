@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Order class"""
+
 from __future__ import print_function
 import json
 import copy
@@ -375,7 +376,7 @@ class Order(object):
                 data_dic["status"] = 1
             else:
                 if "profile" in payload:
-                    (error, data_dic) = self.add_profile_to_order(data_dic, payload)
+                    error, data_dic = self.add_profile_to_order(data_dic, payload)
                     if error == self.error_msg_dic["invalidprofile"]:
                         detail = "Invalid profile specified"
             error = self._add_order_and_authorizations(
@@ -590,7 +591,7 @@ class Order(object):
         url_dic = parse_url(self.logger, url)
         order_name = url_dic["path"].replace(self.path_dic["order_path"], "")
         if "/" in order_name:
-            (order_name, _sinin) = order_name.split("/", 1)
+            order_name, _sinin = order_name.split("/", 1)
         self.logger.debug("Order._name_get() ended")
         return order_name
 
@@ -660,7 +661,11 @@ class Order(object):
             )
 
         # check wildcard certificate disable for dns identifiers
-        if self.config.wildcard_certificate_disable and id_type == "dns" and identifier["value"].startswith("*."):
+        if (
+            self.config.wildcard_certificate_disable
+            and id_type == "dns"
+            and identifier["value"].startswith("*.")
+        ):
             self.logger.error(
                 "Wildcard identifier %s not allowed by configuration",
                 identifier["value"],
@@ -873,7 +878,7 @@ class Order(object):
         # lookup header information
         header_info = self._header_info_lookup(header)
         # this is a new request
-        (code, certificate_name, detail) = self._process_csr(
+        code, certificate_name, detail = self._process_csr(
             order_name, payload["csr"], header_info
         )
         # change status only if we do not have a poll_identifier (stored in detail variable)
@@ -912,7 +917,7 @@ class Order(object):
             # update order_status / set to processing
             self.repository.order_update({"name": order_name, "status": "processing"})
             if "csr" in payload:
-                (code, message, detail, certificate_name) = self._finalize_csr(
+                code, message, detail, certificate_name = self._finalize_csr(
                     order_name, payload, header
                 )
             else:
@@ -961,7 +966,7 @@ class Order(object):
 
         if "url" in protected:
             if "finalize" in protected["url"]:
-                (code, message, detail, certificate_name) = self._finalize_order(
+                code, message, detail, certificate_name = self._finalize_order(
                     order_name, payload, header
                 )
             else:
@@ -1006,7 +1011,7 @@ class Order(object):
             with Certificate(self.debug, self.server_name, self.logger) as certificate:
                 certificate_name = certificate.store_csr(order_name, csr, header_info)
                 if certificate_name:
-                    (error, detail) = certificate.enroll_and_store(
+                    error, detail = certificate.enroll_and_store(
                         certificate_name, csr, order_name
                     )
                     if (
@@ -1186,12 +1191,12 @@ class Order(object):
 
         response_dic = {}
         # check message
-        (code, message, detail, _protected, payload, account_name) = self.message.check(
+        code, message, detail, _protected, payload, account_name = self.message.check(
             content
         )
 
         if code == 200:
-            (error, detail, order_name, auth_dic, expires) = self.create_order(
+            error, detail, order_name, auth_dic, expires = self.create_order(
                 payload, account_name
             )
             if not error:
@@ -1287,7 +1292,7 @@ class Order(object):
 
         response_dic = {}
         # check message
-        (code, message, detail, protected, payload, _account_name) = self.message.check(
+        code, message, detail, protected, payload, _account_name = self.message.check(
             content
         )
 

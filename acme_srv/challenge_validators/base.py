@@ -4,6 +4,7 @@ Base classes and common structures for challenge validators.
 This module contains the abstract base classes, data structures, and exceptions
 used across all challenge validator implementations.
 """
+
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass

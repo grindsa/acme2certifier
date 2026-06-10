@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Comprehensive unit tests for authorization module"""
+
 import sys
 from unittest.mock import MagicMock
 
@@ -814,7 +815,9 @@ class TestAuthorization(unittest.TestCase):
 
         self.authorization._load_configuration()
 
-        self.assertEqual(self.authorization.config.caaidentities, ["acme.local", "bar.local"])
+        self.assertEqual(
+            self.authorization.config.caaidentities, ["acme.local", "bar.local"]
+        )
 
     @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
     @patch("acme_srv.authorization.load_config")
@@ -1043,7 +1046,9 @@ class TestAuthorization(unittest.TestCase):
         self.assertIn("Challenge failed", str(log_args))
 
     @patch("acme_srv.authorization.uts_to_date_utc")
-    def test_061_get_authorization_details_jit_validation_success(self, mock_uts_to_date):
+    def test_061_get_authorization_details_jit_validation_success(
+        self, mock_uts_to_date
+    ):
         """Test successful JIT dns-persist validation marks authorization valid"""
         mock_uts_to_date.return_value = "2021-01-01T00:00:00Z"
 
@@ -1110,7 +1115,9 @@ class TestAuthorization(unittest.TestCase):
 
         self.assertEqual(result["status"], "valid")
         self.assertEqual(result["challenges"], [])
-        mock_repository.mark_authorization_as_valid.assert_called_once_with("test_authz")
+        mock_repository.mark_authorization_as_valid.assert_called_once_with(
+            "test_authz"
+        )
         mock_repository.mark_order_as_ready.assert_called_once_with("order_1")
         mock_challenge_manager.get_challenge_set_for_authorization.assert_not_called()
         mock_context.assert_called_once()
@@ -1118,7 +1125,8 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(context_kwargs["authorization_type"], "dns")
         self.assertEqual(context_kwargs["authorization_value"], "example.com")
         self.assertEqual(
-            context_kwargs["options"]["accounturi"], "https://example.com/acme/acct/acct_1"
+            context_kwargs["options"]["accounturi"],
+            "https://example.com/acme/acct/acct_1",
         )
         self.assertEqual(
             context_kwargs["options"]["issuer_domain_names"], ["acme.local"]
@@ -1818,7 +1826,9 @@ class TestAuthorization(unittest.TestCase):
         self.assertEqual(result, (["field"], ["output"]))
         mock_expire.assert_called_once_with(1000000000)
 
-    @patch("acme_srv.authorization.config_dns_server_list_load", return_value=(False, None))
+    @patch(
+        "acme_srv.authorization.config_dns_server_list_load", return_value=(False, None)
+    )
     @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
     @patch("acme_srv.authorization.load_config")
     def test_085_load_configuration_prevalidated_domainlist_success(
@@ -1921,10 +1931,7 @@ class TestAuthorization(unittest.TestCase):
             )
         )
         self.assertTrue(
-            any(
-                "Whitelist check result for id_value" in msg
-                for msg in debug_messages
-            )
+            any("Whitelist check result for id_value" in msg for msg in debug_messages)
         )
         self.assertTrue(
             any(
@@ -1969,10 +1976,7 @@ class TestAuthorization(unittest.TestCase):
             )
         )
         self.assertTrue(
-            any(
-                "Whitelist check result for id_value" in msg
-                for msg in debug_messages
-            )
+            any("Whitelist check result for id_value" in msg for msg in debug_messages)
         )
         self.assertTrue(
             any(
@@ -2010,7 +2014,10 @@ class TestAuthorization(unittest.TestCase):
             mock_domain_whitelist.assert_called_once_with(
                 "authz", {}, "dns", "foo.com", {}
             )
-    @patch("acme_srv.authorization.config_dns_server_list_load", return_value=(False, None))
+
+    @patch(
+        "acme_srv.authorization.config_dns_server_list_load", return_value=(False, None)
+    )
     @patch("acme_srv.authorization.config_eab_profile_load", return_value=(False, None))
     @patch("acme_srv.authorization.load_config")
     def test_090_load_configuration_prevalidated_domainlist_invalid_json(

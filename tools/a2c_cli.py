@@ -1,6 +1,7 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """acme2certifier cli client"""
+
 import logging
 import datetime
 import re
@@ -217,7 +218,7 @@ class CommandLineInterface(object):
                 line = lin.rstrip()
                 if line.startswith("sleep"):
                     try:
-                        (_sleep, tme) = line.split(" ", 1)
+                        _sleep, tme = line.split(" ", 1)
                         time.sleep(int(tme))
                     except Exception:
                         time.sleep(1)
@@ -303,7 +304,7 @@ class CommandLineInterface(object):
         self.logger.debug("CommandLineInterface._key_operations(%s)", command)
 
         try:
-            (_key, command, argument) = command.split(" ", 2)
+            _key, command, argument = command.split(" ", 2)
         except Exception:
             self._cli_print(f'incomplete key-operations command: "{command}"')
             _key = None  # lgtm [py/unused-local-variable]
@@ -327,7 +328,7 @@ class CommandLineInterface(object):
         self.logger.debug("CommandLineInterface._message_operations()")
 
         try:
-            (_key, command, argument) = command.split(" ", 2)
+            _key, command, argument = command.split(" ", 2)
         except Exception:
             self._cli_print(f'incomplete message-operations command: "{command}"')
             _key = None  # lgtm [py/unused-local-variable]
@@ -348,7 +349,7 @@ class CommandLineInterface(object):
         """report operations"""
         self.logger.debug("CommandLineInterface._message_operations()")
         try:
-            (_key, command, filename) = command.split(" ", 2)
+            _key, command, filename = command.split(" ", 2)
         except Exception:
             self._cli_print(f'incomplete report-operations command: "{command}"')
             command = None
@@ -356,7 +357,7 @@ class CommandLineInterface(object):
 
         if command and filename:
             try:
-                (_filename, format_) = filename.lower().split(".", 2)
+                _filename, format_ = filename.lower().split(".", 2)
             except Exception:
                 self._cli_print(f'incomplete filename: "{command}"')
                 format_ = None
@@ -411,7 +412,7 @@ class CommandLineInterface(object):
         """configure server"""
         self.logger.debug("CommandLineInterface._server_set(%s)", server)
 
-        (_command, url) = server.split(" ")
+        _command, url = server.split(" ")
         if is_url(url):
             self.server = url
             if self.key:

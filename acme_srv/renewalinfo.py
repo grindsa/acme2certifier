@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Renewalinfo class: ACME renewal info handler with separated config and repository helpers."""
+
 from __future__ import print_function
 from typing import Dict
 from dataclasses import dataclass

@@ -1660,7 +1660,9 @@ class TestChallenge(unittest.TestCase):
         )
 
         self.challenge.repository.get_challenge_by_name = Mock(return_value=info)
-        self.challenge.repository.get_authorization_account_name = Mock(return_value=None)
+        self.challenge.repository.get_authorization_account_name = Mock(
+            return_value=None
+        )
         self.challenge._start_async_validation = Mock()
 
         def capture_response_dic(response_dict):

@@ -1,5 +1,6 @@
 #!/usr/bin/python
 """database updater"""
+
 # pylint: disable=E0401, C0413
 import sys
 import json
@@ -94,7 +95,7 @@ def file_load(filename):
 
 if __name__ == "__main__":
 
-    (DEBUG, CONFIG_DIC) = arg_parse()
+    DEBUG, CONFIG_DIC = arg_parse()
 
     # the cli program needs ot be chatty
     CONFIG_DIC["silent"] = False

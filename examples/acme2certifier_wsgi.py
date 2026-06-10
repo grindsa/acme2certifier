@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E0401, R1705
 """wsgi based acme server"""
+
 from __future__ import print_function
 import re
 import json
@@ -26,7 +27,6 @@ from acme_srv.helper import (
     config_check,
 )
 from acme_srv.version import __dbversion__, __version__
-
 
 # We address a cpdesmells
 HTTP_CODE_DIC = {

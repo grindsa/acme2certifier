@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=C0302
 """Dogtag CA handler"""
+
 from __future__ import print_function
 from typing import Tuple, Dict, Optional
 import os

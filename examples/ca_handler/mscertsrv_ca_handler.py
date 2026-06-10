@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """ca handler for  Microsoft Webenrollment service (certsrv)"""
+
 from __future__ import print_function
 import os
 import textwrap
@@ -308,7 +309,7 @@ class CAhandler(object):
 
         # create bundle
         if cert_raw:
-            (error, cert_bundle, cert_raw) = self._cert_bundle_create(ca_pem, cert_raw)
+            error, cert_bundle, cert_raw = self._cert_bundle_create(ca_pem, cert_raw)
         else:
             cert_bundle = None
 
@@ -349,7 +350,7 @@ class CAhandler(object):
 
         if auth_check:
             # enroll certificate
-            (error, cert_bundle, cert_raw) = self._csr_process(ca_server, csr)
+            error, cert_bundle, cert_raw = self._csr_process(ca_server, csr)
         else:
             self.logger.error("Connection or credential check failed for CA server.")
             error = "Connection or Credentialcheck failed."
@@ -372,7 +373,7 @@ class CAhandler(object):
             error = eab_profile_header_info_check(self.logger, self, csr, "template")
             if not error:
                 # enroll certificate
-                (error, cert_bundle, cert_raw) = self._enroll(csr)
+                error, cert_bundle, cert_raw = self._enroll(csr)
             else:
                 self.logger.error("EAB profile check failed: %s", error)
 

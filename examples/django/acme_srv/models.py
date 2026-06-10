@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """model for acme django database"""
+
 from __future__ import unicode_literals
 from django.db import models
 

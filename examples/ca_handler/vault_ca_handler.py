@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """CA handler using HashiCorp Vault"""
+
 from __future__ import print_function
 from typing import Tuple, Dict, List
 import datetime
@@ -29,7 +30,6 @@ from acme_srv.helper import (
     enrollment_config_log,
     request_operation,
 )
-
 
 CONTENT_TYPE = "application/json"
 

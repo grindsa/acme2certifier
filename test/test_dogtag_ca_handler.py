@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """unittests for dogtag rest handler"""
+
 # pylint: disable= C0415, W0212
 import unittest
 import sys

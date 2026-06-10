@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """handler for an openssl ca"""
+
 from __future__ import print_function
 import os
 import json
@@ -419,7 +420,7 @@ class CAhandler(object):
             for san in _san_list:
                 try:
                     # SAN list must be modified/filtered)
-                    (_san_type, san_value) = san.lower().split(":")
+                    _san_type, san_value = san.lower().split(":")
                     san_list.append(san_value)
                 except BaseException:
                     # force check to fail as something went wrong during parsing
@@ -552,7 +553,7 @@ class CAhandler(object):
                     )
 
                     # load ca cert and key
-                    (ca_key, ca_cert) = self._ca_load()
+                    ca_key, ca_cert = self._ca_load()
 
                     # load certificate_profile (if applicable)
                     if self.openssl_conf:
@@ -685,7 +686,7 @@ class CAhandler(object):
 
         if "issuing_ca_crl" in self.issuer_dict and self.issuer_dict["issuing_ca_crl"]:
             # load ca cert and key
-            (ca_key, ca_cert) = self._ca_load()
+            ca_key, ca_cert = self._ca_load()
             # turn of chain_check due to issues in pyopenssl (check is not working if key-usage is set)
             # result = self._certificate_chain_verify(cert, ca_cert)
             result = None

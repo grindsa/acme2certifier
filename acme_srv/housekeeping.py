@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Housekeeping class"""
+
 from __future__ import print_function
 import csv
 import json
@@ -163,7 +164,7 @@ class Housekeeping(object):
 
         if "reportadmin" in permissions_dic and permissions_dic["reportadmin"]:
             # create reports as we have permissions to do so
-            (response_dic, code, message, detail) = self._report_get(payload)
+            response_dic, code, message, detail = self._report_get(payload)
         else:
             code = 403
             message = self.error_msg_dic["unauthorized"]
@@ -199,7 +200,7 @@ class Housekeeping(object):
         if cert[cert_issue_date_field] == 0 or cert[cert_expire_date_field] == 0:
             # cover cases without certificate in dict
             if cert_raw_field in cert:
-                (issue_uts, expire_uts) = cert_dates_get(
+                issue_uts, expire_uts = cert_dates_get(
                     self.logger, cert[cert_raw_field]
                 )
                 cert[cert_issue_date_field] = issue_uts
@@ -516,7 +517,7 @@ class Housekeeping(object):
         self.logger.debug("Housekeeping._to_acc_json()")
 
         # create main dictionary and errorlist
-        (tmp_json, error_list) = self._account_dic_create(account_list)
+        tmp_json, error_list = self._account_dic_create(account_list)
 
         # convert nested dictionaries (challenges, authorizations and orders) into list
         account_list = self._account_list_convert(tmp_json)
@@ -564,10 +565,10 @@ class Housekeeping(object):
     ) -> List[str]:
         """get account report"""
         self.logger.debug("Housekeeping.accountreport_get()")
-        (field_list, account_list) = self._accountlist_get()
+        field_list, account_list = self._accountlist_get()
 
         # normalize lists
-        (field_list, account_list) = self._lists_normalize(
+        field_list, account_list = self._lists_normalize(
             field_list, account_list, "account"
         )
 
@@ -596,10 +597,10 @@ class Housekeeping(object):
         """get certificate report"""
         self.logger.debug("Housekeeping.certreport_get()")
 
-        (field_list, cert_list) = self._certificatelist_get()
+        field_list, cert_list = self._certificatelist_get()
 
         # normalize lists
-        (field_list, cert_list) = self._lists_normalize(
+        field_list, cert_list = self._lists_normalize(
             field_list, cert_list, "certificate"
         )
 
@@ -648,7 +649,7 @@ class Housekeeping(object):
             uts = uts_now()
 
         with Certificate(self.debug, None, self.logger) as certificate:
-            (field_list, cert_list) = certificate.cleanup(timestamp=uts, purge=purge)
+            field_list, cert_list = certificate.cleanup(timestamp=uts, purge=purge)
 
             # normalize lists
             # (field_list, cert_list) = self._lists_normalize(field_list, cert_list, 'certificate')
@@ -717,9 +718,9 @@ class Housekeeping(object):
 
         with Authorization(self.debug, None, self.logger) as authorization:
             # get expired orders
-            (field_list, authorization_list) = authorization.invalidate(timestamp=uts)
+            field_list, authorization_list = authorization.invalidate(timestamp=uts)
             # normalize lists
-            (field_list, authorization_list) = self._lists_normalize(
+            field_list, authorization_list = self._lists_normalize(
                 field_list, authorization_list, "authorization"
             )
             # convert dates into human readable format
@@ -756,7 +757,7 @@ class Housekeeping(object):
 
         if version:
             try:
-                (result, script_name) = self.dbstore.dbversion_get()
+                result, script_name = self.dbstore.dbversion_get()
             except Exception as err_:
                 self.logger.critical(
                     "Database error: failed to check database version: %s",
@@ -784,9 +785,9 @@ class Housekeeping(object):
 
         with Order(self.debug, None, self.logger) as order:
             # get expired orders
-            (field_list, order_list) = order.invalidate(timestamp=uts)
+            field_list, order_list = order.invalidate(timestamp=uts)
             # normalize lists
-            (field_list, order_list) = self._lists_normalize(
+            field_list, order_list = self._lists_normalize(
                 field_list, order_list, "order"
             )
             # convert dates into human readable format
@@ -837,7 +838,7 @@ class Housekeeping(object):
         if code == 200:
             if "type" in payload and "data" in payload:
                 if payload["type"] == "report":
-                    (code, message, detail, response_dic) = self._clireport_get(
+                    code, message, detail, response_dic = self._clireport_get(
                         payload, permissions_dic
                     )
                 else:

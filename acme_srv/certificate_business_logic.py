@@ -102,7 +102,7 @@ class CertificateBusinessLogic:
         self.logger.debug("CertificateBusinessLogic.calculate_certificate_dates()")
 
         try:
-            (issue_uts, expire_uts) = cert_dates_get(self.logger, certificate_raw)
+            issue_uts, expire_uts = cert_dates_get(self.logger, certificate_raw)
         except Exception as err:
             self.logger.error(f"Certificate date calculation error: {err}")
             issue_uts = 0
@@ -179,7 +179,7 @@ class CertificateBusinessLogic:
             cert_info["aki"] = cert_aki_get(self.logger, certificate)
 
             # Get certificate dates
-            (issue_uts, expire_uts) = self.calculate_certificate_dates(certificate)
+            issue_uts, expire_uts = self.calculate_certificate_dates(certificate)
             cert_info["issue_date"] = issue_uts
             cert_info["expire_date"] = expire_uts
 

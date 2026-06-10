@@ -506,7 +506,9 @@ class Challenge:
                 "authorization__value",
                 "keyauthorization",
             )
-            missing_fields = [field for field in required_fields if field not in challenge_dic]
+            missing_fields = [
+                field for field in required_fields if field not in challenge_dic
+            ]
             if missing_fields:
                 self.logger.error(
                     "Challenge data incomplete for validation (%s), missing fields: %s",
@@ -519,9 +521,7 @@ class Challenge:
             acct_path = self.path_dic.get("acct_path", "/acme/acct/")
             account_name = challenge_dic.get("authorization__order__account__name")
             accounturi = (
-                f"{self.server_name}{acct_path}{account_name}"
-                if account_name
-                else None
+                f"{self.server_name}{acct_path}{account_name}" if account_name else None
             )
             self.logger.debug("Challenge._get_challenge_validation_details() ended")
             return {
@@ -611,9 +611,9 @@ class Challenge:
                 account_name = None
 
             if account_name:
-                response_dic["data"]["accounturi"] = (
-                    f"{self.server_name}{self.path_dic['acct_path']}{account_name}"
-                )
+                response_dic["data"][
+                    "accounturi"
+                ] = f"{self.server_name}{self.path_dic['acct_path']}{account_name}"
             response_dic["data"]["issuer-domain-names"] = (
                 self.config.caaidentities or []
             )
@@ -687,7 +687,9 @@ class Challenge:
         """Load DNS challenge configuration."""
         self.logger.debug("Challenge._load_dns_configuration()")
 
-        self.config.dns_server_list, self.config.dns_validation_pause_timer = config_dns_server_list_load(self.logger, config_dic)
+        self.config.dns_server_list, self.config.dns_validation_pause_timer = (
+            config_dns_server_list_load(self.logger, config_dic)
+        )
 
         self.logger.debug("Challenge._load_dns_configuration() ended")
 
