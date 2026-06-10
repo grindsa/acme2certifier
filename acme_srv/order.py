@@ -667,7 +667,7 @@ class Order(object):
             )
             return (
                 self.error_msg_dic["rejectedidentifier"],
-                f'Wildcard identifier {identifier["value"]} are not allowed',
+                f'Wildcard identifier {identifier["value"]} not allowed',
             )
 
         # check allowed domainlist for dns identifiers

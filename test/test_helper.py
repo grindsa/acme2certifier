@@ -3240,8 +3240,9 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         aki = self.cert_aki_get(self.logger, cert)
         self.assertEqual(aki, "abc9fffd566421164b62206dbc800fba8467659a")
 
+    @patch("acme_srv.helpers.certificates._cert_ski_pyopenssl_get")
     @patch("acme_srv.helpers.certificates.x509.Certificate.extensions")
-    def test_306_cert_ski_get_error_handling(self, mock_ext):
+    def test_306_cert_ski_get_error_handling(self, mock_ext, mock_ski_get):
         """test cert_ski_get() error handling when SKI is missing"""
         cert = """MIIDDTCCAfWgAwIBAgIBCjANBgkqhkiG9w0BAQsFADAaMRgwFgYDVQQDEw9mb28u
     ZXhhbXBsZS5jb20wHhcNMTkwMTIwMTY1OTIwWhcNMTkwMjE5MTY1OTIwWjAaMRgw
@@ -3261,8 +3262,9 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     fxAH4XQsaqcaedPNI+W5OUITMz40ezDCbUqxS9KEMCGPoOTXNRAjbr72sc4Vkw7H
     t+eRUDECE+0UnjyeCjTn3EU="""
         mock_ext.get_extension_for_oid.side_effect = Exception("No SKI")
+        mock_ski_get.return_value = 'pyopenssl'
         ski = self.cert_ski_get(self.logger, cert)
-        self.assertIsNone(ski)
+        self.assertEqual(ski, 'pyopenssl')
 
     def test_307_validate_fqdn(self):
         """test validate_fqdn()"""
