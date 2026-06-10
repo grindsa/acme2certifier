@@ -205,11 +205,35 @@ def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
         ski = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_KEY_IDENTIFIER)
         ski_value = ski.value.digest.hex()
     except Exception as err:
-        logger.error("Error while getting the SKI: %s", err)
-        ski_value = None
+        logger.error("Error while getting the SKI: %s. Fallback to pyopenssl", err)
+        ski_value = _cert_ski_pyopenssl_get(logger, certificate)
 
     logger.debug("Helper.cert_ski_get() ended with: %s", ski_value)
     return ski_value
+
+
+def _cert_ski_pyopenssl_get(logger: logging.Logger, certificate: str) -> str:
+    """Get Subject Key Identifier from a certificate as a hex string."""
+    logger.debug("Helper.cert_ski_pyopenssl_cert()")
+
+    pem_data = convert_string_to_byte(
+        build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+    )
+    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_data)
+    # Get the SKI extension
+    ski = None
+    for i in range(cert.get_extension_count()):
+        ext = cert.get_extension(i)
+        if "subjectKeyIdentifier" in str(ext.get_short_name()):
+            ski = ext
+    if ski:
+        # Get the SKI value and convert it to hex
+        ski_hex = ski.get_data()[2:].hex()
+    else:
+        logger.warning("No SKI found in certificate")
+        ski_hex = None
+    logger.debug("Helper.cert_ski_pyopenssl_cert() ended with: %s", ski_hex)
+    return ski_hex
 
 
 def cryptography_version_get(logger: logging.Logger) -> int:
