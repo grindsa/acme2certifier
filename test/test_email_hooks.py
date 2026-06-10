@@ -25,7 +25,7 @@ class DummyConfig:
         val = self.get(section, key, fallback)
         try:
             return int(val) if val is not None else fallback
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return fallback
 
     def getboolean(self, section, key, fallback=None):

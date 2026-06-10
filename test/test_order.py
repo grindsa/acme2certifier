@@ -982,13 +982,16 @@ class TestOrderClass(unittest.TestCase):
         # Identifiers are invalid, triggers error path
         payload = {"identifiers": [{"type": "dns", "value": "example.com"}]}
         account_name = "acct"
-        with patch.object(
-            self.order,
-            "_check_identifiers_validity",
-            return_value=("rejectedidentifier", None),
-        ) as mock_check, patch.object(
-            self.order, "_add_order_and_authorizations", return_value=None
-        ) as mock_add_order_authz:
+        with (
+            patch.object(
+                self.order,
+                "_check_identifiers_validity",
+                return_value=("rejectedidentifier", None),
+            ) as mock_check,
+            patch.object(
+                self.order, "_add_order_and_authorizations", return_value=None
+            ) as mock_add_order_authz,
+        ):
             error, _detail, _order_name, _auth_dic, _expires = self.order.create_order(
                 payload, account_name
             )
@@ -1003,24 +1006,28 @@ class TestOrderClass(unittest.TestCase):
             "profile": "foo",
         }
         account_name = "acct"
-        with patch.object(
-            self.order, "_check_identifiers_validity", return_value=(None, None)
-        ) as mock_check, patch.object(
-            self.order,
-            "add_profile_to_order",
-            return_value=(
-                "invalidprofile",
-                {
-                    "status": 2,
-                    "expires": 1234567890,
-                    "account": account_name,
-                    "name": "randomstring",
-                    "identifiers": '[{"type": "dns", "value": "example.com"}]',
-                },
-            ),
-        ) as mock_add_profile, patch.object(
-            self.order, "_add_order_and_authorizations", return_value=None
-        ) as mock_add_order_authz:
+        with (
+            patch.object(
+                self.order, "_check_identifiers_validity", return_value=(None, None)
+            ) as mock_check,
+            patch.object(
+                self.order,
+                "add_profile_to_order",
+                return_value=(
+                    "invalidprofile",
+                    {
+                        "status": 2,
+                        "expires": 1234567890,
+                        "account": account_name,
+                        "name": "randomstring",
+                        "identifiers": '[{"type": "dns", "value": "example.com"}]',
+                    },
+                ),
+            ) as mock_add_profile,
+            patch.object(
+                self.order, "_add_order_and_authorizations", return_value=None
+            ) as mock_add_order_authz,
+        ):
             error, _detail, _order_name, _auth_dic, _expires = self.order.create_order(
                 payload, account_name
             )
@@ -1033,11 +1040,14 @@ class TestOrderClass(unittest.TestCase):
         # Error occurs in _add_order_and_authorizations
         payload = {"identifiers": [{"type": "dns", "value": "example.com"}]}
         account_name = "acct"
-        with patch.object(
-            self.order, "_check_identifiers_validity", return_value=(None, None)
-        ) as mock_check, patch.object(
-            self.order, "_add_order_and_authorizations", return_value="someerror"
-        ) as mock_add_order_authz:
+        with (
+            patch.object(
+                self.order, "_check_identifiers_validity", return_value=(None, None)
+            ) as mock_check,
+            patch.object(
+                self.order, "_add_order_and_authorizations", return_value="someerror"
+            ) as mock_add_order_authz,
+        ):
             error, _detail, _order_name, _auth_dic, _expires = self.order.create_order(
                 payload, account_name
             )
@@ -1049,9 +1059,10 @@ class TestOrderClass(unittest.TestCase):
         # Payload missing 'identifiers', triggers unsupportedidentifier error
         payload = {"profile": "foo"}
         account_name = "acct"
-        with patch(
-            "acme_srv.order.generate_random_string", return_value="randomstring"
-        ), patch("acme_srv.order.uts_now", return_value=1234567890):
+        with (
+            patch("acme_srv.order.generate_random_string", return_value="randomstring"),
+            patch("acme_srv.order.uts_now", return_value=1234567890),
+        ):
             error, detail, order_name, auth_dic, expires = self.order.create_order(
                 payload, account_name
             )
@@ -1064,29 +1075,37 @@ class TestOrderClass(unittest.TestCase):
     def test_068_create_order_logging(self):
         # Check all log messages with severity INFO and higher
         # Use unified logger and log_stream
-        with patch(
-            "acme_srv.helper.generate_random_string", return_value="randomstring"
-        ), patch("acme_srv.helper.uts_now", return_value=1234567890), patch(
-            "acme_srv.helper.uts_to_date_utc", return_value="2026-01-01T00:00:00Z"
+        with (
+            patch(
+                "acme_srv.helper.generate_random_string", return_value="randomstring"
+            ),
+            patch("acme_srv.helper.uts_now", return_value=1234567890),
+            patch(
+                "acme_srv.helper.uts_to_date_utc", return_value="2026-01-01T00:00:00Z"
+            ),
         ):
-            with patch.object(
-                self.order, "_check_identifiers_validity", return_value=(None, None)
-            ), patch.object(
-                self.order,
-                "add_profile_to_order",
-                return_value=(
-                    None,
-                    {
-                        "status": 2,
-                        "expires": 1234567890,
-                        "account": "acct",
-                        "name": "randomstring",
-                        "identifiers": '[{"type": "dns", "value": "example.com"}]',
-                        "profile": "foo",
-                    },
+            with (
+                patch.object(
+                    self.order, "_check_identifiers_validity", return_value=(None, None)
                 ),
-            ), patch.object(
-                self.order, "_add_order_and_authorizations", return_value=None
+                patch.object(
+                    self.order,
+                    "add_profile_to_order",
+                    return_value=(
+                        None,
+                        {
+                            "status": 2,
+                            "expires": 1234567890,
+                            "account": "acct",
+                            "name": "randomstring",
+                            "identifiers": '[{"type": "dns", "value": "example.com"}]',
+                            "profile": "foo",
+                        },
+                    ),
+                ),
+                patch.object(
+                    self.order, "_add_order_and_authorizations", return_value=None
+                ),
             ):
                 payload = {
                     "identifiers": [{"type": "dns", "value": "example.com"}],
@@ -1101,9 +1120,11 @@ class TestOrderClass(unittest.TestCase):
                 )
 
     def test_069_load_profile_config_all_paths(self):
-        with patch.object(self.order, "_load_profiles_from_config") as m1, patch.object(
-            self.order, "_load_profiles_from_db_if_sync"
-        ) as m2, patch.object(self.order, "_maybe_disable_profile_check") as m3:
+        with (
+            patch.object(self.order, "_load_profiles_from_config") as m1,
+            patch.object(self.order, "_load_profiles_from_db_if_sync") as m2,
+            patch.object(self.order, "_maybe_disable_profile_check") as m3,
+        ):
             with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                 self.order._load_profile_config({"Order": {}, "CAhandler": {}})
                 m1.assert_called_once()
@@ -1115,9 +1136,11 @@ class TestOrderClass(unittest.TestCase):
         )
 
     def test_070_load_profile_config_all_paths(self):
-        with patch.object(self.order, "_load_profiles_from_config") as m1, patch.object(
-            self.order, "_load_profiles_from_db_if_sync"
-        ) as m2, patch.object(self.order, "_maybe_disable_profile_check") as m3:
+        with (
+            patch.object(self.order, "_load_profiles_from_config") as m1,
+            patch.object(self.order, "_load_profiles_from_db_if_sync") as m2,
+            patch.object(self.order, "_maybe_disable_profile_check") as m3,
+        ):
             with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                 self.order._load_profile_config({"Order": {}, "CAhandler": {}})
                 m1.assert_called_once()
@@ -1272,9 +1295,11 @@ class TestOrderClass(unittest.TestCase):
             config_dic.add_section("Authorization")
             config_dic.set("Authorization", "validity", "notint")
             mock_load_config.return_value = config_dic
-            with patch.object(self.order, "_load_order_config"), patch.object(
-                self.order, "_load_header_info_config"
-            ), patch.object(self.order, "_load_profile_config"):
+            with (
+                patch.object(self.order, "_load_order_config"),
+                patch.object(self.order, "_load_header_info_config"),
+                patch.object(self.order, "_load_profile_config"),
+            ):
                 with self.assertLogs("test_a2c", level="WARNING") as log_cm:
                     self.order._load_configuration()
             self.assertIn(
@@ -2096,10 +2121,13 @@ class TestOrderClass(unittest.TestCase):
         with patch.object(self.order, "_apply_eab_profile") as mock_apply_eab:
             payload = {"identifiers": [{"type": "dns", "value": "example.com"}]}
             account_name = "acct"
-            with patch.object(
-                self.order, "_check_identifiers_validity", return_value=(None, None)
-            ), patch.object(
-                self.order, "_add_order_and_authorizations", return_value=None
+            with (
+                patch.object(
+                    self.order, "_check_identifiers_validity", return_value=(None, None)
+                ),
+                patch.object(
+                    self.order, "_add_order_and_authorizations", return_value=None
+                ),
             ):
                 self.order.create_order(payload, account_name)
                 mock_apply_eab.assert_not_called()
@@ -2234,10 +2262,13 @@ class TestOrderClass(unittest.TestCase):
         with patch.object(self.order, "_apply_eab_profile") as mock_apply_eab:
             payload = {"identifiers": [{"type": "dns", "value": "example.com"}]}
             account_name = "acct"
-            with patch.object(
-                self.order, "_check_identifiers_validity", return_value=(None, None)
-            ), patch.object(
-                self.order, "_add_order_and_authorizations", return_value=None
+            with (
+                patch.object(
+                    self.order, "_check_identifiers_validity", return_value=(None, None)
+                ),
+                patch.object(
+                    self.order, "_add_order_and_authorizations", return_value=None
+                ),
             ):
                 self.order.create_order(payload, account_name)
                 mock_apply_eab.assert_called_once_with(account_name)
@@ -2252,14 +2283,18 @@ class TestOrderClass(unittest.TestCase):
             "profile": "foo",
         }
         account_name = "acct"
-        with patch.object(
-            self.order, "_check_identifiers_validity", return_value=(None, None)
-        ), patch.object(
-            self.order,
-            "add_profile_to_order",
-            return_value=(self.order.error_msg_dic["invalidprofile"], {}),
-        ), patch.object(
-            self.order, "_add_order_and_authorizations", return_value=None
+        with (
+            patch.object(
+                self.order, "_check_identifiers_validity", return_value=(None, None)
+            ),
+            patch.object(
+                self.order,
+                "add_profile_to_order",
+                return_value=(self.order.error_msg_dic["invalidprofile"], {}),
+            ),
+            patch.object(
+                self.order, "_add_order_and_authorizations", return_value=None
+            ),
         ):
             error, detail, order_name, auth_dic, expires = self.order.create_order(
                 payload, account_name
@@ -2269,8 +2304,9 @@ class TestOrderClass(unittest.TestCase):
 
     def test_147_are_identifiers_allowed_fqdn_not_whitelisted(self):
         # Covers: FQDN/SAN not allowed by configuration (lines 551-566)
-        with patch("acme_srv.order.validate_identifier", return_value=True), patch(
-            "acme_srv.order.is_domain_whitelisted", return_value=False
+        with (
+            patch("acme_srv.order.validate_identifier", return_value=True),
+            patch("acme_srv.order.is_domain_whitelisted", return_value=False),
         ):
             self.order.config.allowed_domainlist = ["allowed.com"]
             result = self.order.are_identifiers_allowed(
@@ -2340,11 +2376,12 @@ class TestOrderClass(unittest.TestCase):
         # Covers: logger.critical branch in _apply_eab_profile (line 270)
         self.order.config.eab_profiling = False
         self.order.config.eab_handler = MagicMock()
-        with patch.object(
-            self.order.repository, "account_lookup"
-        ) as mock_account_lookup, patch.object(
-            self.order.logger, "critical"
-        ) as mock_critical:
+        with (
+            patch.object(
+                self.order.repository, "account_lookup"
+            ) as mock_account_lookup,
+            patch.object(self.order.logger, "critical") as mock_critical,
+        ):
             self.assertFalse(self.order._apply_eab_profile("acct"))
             self.assertFalse(mock_account_lookup.called)
             self.assertFalse(mock_critical.called)
@@ -2468,24 +2505,28 @@ class TestOrderClass(unittest.TestCase):
     def test_158_create_from_content_malformed_identifier(self):
         # Covers the branch where error == self.order.error_msg_dic["malformed"] and detail is None
         malformed_error = self.order.error_msg_dic["malformed"]
-        with patch.object(
-            self.order,
-            "create_order",
-            return_value=(
-                malformed_error,
-                None,
-                "ordername",
-                {},
-                "2026-01-01T00:00:00Z",
+        with (
+            patch.object(
+                self.order,
+                "create_order",
+                return_value=(
+                    malformed_error,
+                    None,
+                    "ordername",
+                    {},
+                    "2026-01-01T00:00:00Z",
+                ),
             ),
-        ), patch.object(
-            self.order.message,
-            "check",
-            return_value=(200, None, None, None, {}, "acct"),
-        ), patch.object(
-            self.order.message,
-            "prepare_response",
-            side_effect=lambda resp, status: {**resp, **status},
+            patch.object(
+                self.order.message,
+                "check",
+                return_value=(200, None, None, None, {}, "acct"),
+            ),
+            patch.object(
+                self.order.message,
+                "prepare_response",
+                side_effect=lambda resp, status: {**resp, **status},
+            ),
         ):
             response = self.order.create_from_content("dummycontent")
             self.assertEqual(response["code"], 400)
@@ -2595,8 +2636,9 @@ class TestOrderClass(unittest.TestCase):
 
     def test_165_are_identifiers_allowed_ip_whitelisted(self):
         # Should allow IP if in allowed_iplist
-        with patch("acme_srv.order.validate_identifier", return_value=True), patch(
-            "acme_srv.order.is_ip_whitelisted", return_value=True
+        with (
+            patch("acme_srv.order.validate_identifier", return_value=True),
+            patch("acme_srv.order.is_ip_whitelisted", return_value=True),
         ):
             self.order.config.allowed_iplist = ["192.168.1.1", "10.0.0.0/8"]
             result = self.order.are_identifiers_allowed(
@@ -2606,8 +2648,9 @@ class TestOrderClass(unittest.TestCase):
 
     def test_166_are_identifiers_allowed_ip_not_whitelisted(self):
         # Should reject IP if not in allowed_iplist
-        with patch("acme_srv.order.validate_identifier", return_value=True), patch(
-            "acme_srv.order.is_ip_whitelisted", return_value=False
+        with (
+            patch("acme_srv.order.validate_identifier", return_value=True),
+            patch("acme_srv.order.is_ip_whitelisted", return_value=False),
         ):
             self.order.config.allowed_iplist = ["192.168.1.1", "10.0.0.0/8"]
             result = self.order.are_identifiers_allowed(
@@ -2623,8 +2666,9 @@ class TestOrderClass(unittest.TestCase):
 
     def test_167_are_identifiers_allowed_iplist_empty(self):
         # Should allow any IP if allowed_iplist is empty
-        with patch("acme_srv.order.validate_identifier", return_value=True), patch(
-            "acme_srv.order.is_ip_whitelisted", return_value=False
+        with (
+            patch("acme_srv.order.validate_identifier", return_value=True),
+            patch("acme_srv.order.is_ip_whitelisted", return_value=False),
         ):
             self.order.config.allowed_iplist = []
             result = self.order.are_identifiers_allowed(
@@ -2634,8 +2678,9 @@ class TestOrderClass(unittest.TestCase):
 
     def test_168_are_identifiers_allowed_multiple_ips(self):
         # Should reject on first non-whitelisted IP, allow if all whitelisted
-        with patch("acme_srv.order.validate_identifier", return_value=True), patch(
-            "acme_srv.order.is_ip_whitelisted", side_effect=[True, False]
+        with (
+            patch("acme_srv.order.validate_identifier", return_value=True),
+            patch("acme_srv.order.is_ip_whitelisted", side_effect=[True, False]),
         ):
             self.order.config.allowed_iplist = ["10.0.0.0/8"]
             result = self.order.are_identifiers_allowed(
@@ -2651,8 +2696,9 @@ class TestOrderClass(unittest.TestCase):
                     "IP address 8.8.8.8 not allowed by configuration",
                 ),
             )
-        with patch("acme_srv.order.validate_identifier", return_value=True), patch(
-            "acme_srv.order.is_ip_whitelisted", side_effect=[True, True]
+        with (
+            patch("acme_srv.order.validate_identifier", return_value=True),
+            patch("acme_srv.order.is_ip_whitelisted", side_effect=[True, True]),
         ):
             self.order.config.allowed_iplist = ["10.0.0.0/8"]
             result = self.order.are_identifiers_allowed(

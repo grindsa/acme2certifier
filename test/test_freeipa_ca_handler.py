@@ -251,9 +251,10 @@ class TestCAhandler(unittest.TestCase):
 
     def test_016_host_add_principal_success_logs_debug(self):
         # Should log debug when host principal is added successfully (no error in content)
-        with patch.object(self.handler, "_rpc_post", return_value={}), patch.object(
-            self.handler, "logger"
-        ) as mock_logger:
+        with (
+            patch.object(self.handler, "_rpc_post", return_value={}),
+            patch.object(self.handler, "logger") as mock_logger,
+        ):
             self.handler._host_add_principal("host1", "fqdn1")
             mock_logger.debug.assert_called_with(
                 "Host principal %s added to host %s successfully", "fqdn1", "host1"
@@ -261,9 +262,10 @@ class TestCAhandler(unittest.TestCase):
 
     def test_017_host_add_success_logs_info(self):
         # Should log info when host is added successfully (no error in content)
-        with patch.object(self.handler, "_rpc_post", return_value={}), patch.object(
-            self.handler, "logger"
-        ) as mock_logger:
+        with (
+            patch.object(self.handler, "_rpc_post", return_value={}),
+            patch.object(self.handler, "logger") as mock_logger,
+        ):
             self.handler._host_add("host1")
             mock_logger.info.assert_called_with(
                 "Host %s added successfully to freeIPA", "host1"
@@ -304,9 +306,10 @@ class TestCAhandler(unittest.TestCase):
     def test_020_host_add_principal_error_and_success(self):
         # Should log error if _rpc_post returns error, else log success
         self.handler.api_version = "2.257"
-        with patch.object(
-            self.handler, "_rpc_post", return_value={"error": "fail"}
-        ), patch.object(self.handler, "logger") as mock_logger:
+        with (
+            patch.object(self.handler, "_rpc_post", return_value={"error": "fail"}),
+            patch.object(self.handler, "logger") as mock_logger,
+        ):
             self.handler._host_add_principal("host", "fqdn")
             mock_logger.error.assert_called_with(
                 "Failed to add host principal %s for host %s: %s",
@@ -314,9 +317,10 @@ class TestCAhandler(unittest.TestCase):
                 "host",
                 "fail",
             )
-        with patch.object(self.handler, "_rpc_post", return_value={}), patch.object(
-            self.handler, "logger"
-        ) as mock_logger:
+        with (
+            patch.object(self.handler, "_rpc_post", return_value={}),
+            patch.object(self.handler, "logger") as mock_logger,
+        ):
             self.handler._host_add_principal("host", "fqdn")
             mock_logger.debug.assert_called_with(
                 "Host principal %s added to host %s successfully", "fqdn", "host"
@@ -343,22 +347,28 @@ class TestCAhandler(unittest.TestCase):
             )
 
     def test_023_parse_csr_valid_testcase(self):
-        with patch(
-            "examples.ca_handler.freeipa_ca_handler.csr_cn_get", return_value="cn"
-        ), patch(
-            "examples.ca_handler.freeipa_ca_handler.csr_san_get",
-            return_value=["DNS:foo", "DNS:bar"],
+        with (
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.csr_cn_get", return_value="cn"
+            ),
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.csr_san_get",
+                return_value=["DNS:foo", "DNS:bar"],
+            ),
         ):
             cn, san_list = self.handler._parse_csr("dummycsr")
             self.assertEqual(cn, "cn")
             self.assertEqual(san_list, ["foo", "bar"])
 
     def test_024_parse_csr_no_cn_testcase(self):
-        with patch(
-            "examples.ca_handler.freeipa_ca_handler.csr_cn_get", return_value=None
-        ), patch(
-            "examples.ca_handler.freeipa_ca_handler.csr_san_get",
-            return_value=["DNS:foo"],
+        with (
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.csr_cn_get", return_value=None
+            ),
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.csr_san_get",
+                return_value=["DNS:foo"],
+            ),
         ):
             cn, san_list = self.handler._parse_csr("dummycsr")
             self.assertEqual(cn, "foo")
@@ -442,10 +452,15 @@ class TestCAhandler(unittest.TestCase):
         self.assertEqual(self.handler.api_version, "2.257")
 
     def test_034_cert_chain_to_pem_testcase(self):
-        with patch(
-            "examples.ca_handler.freeipa_ca_handler.b64_decode", return_value=b"bytes"
-        ), patch(
-            "examples.ca_handler.freeipa_ca_handler.cert_der2pem", return_value=b"PEM"
+        with (
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.b64_decode",
+                return_value=b"bytes",
+            ),
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.cert_der2pem",
+                return_value=b"PEM",
+            ),
         ):
             pem = self.handler._cert_chain_to_pem([{"__base64__": "abc"}])
             self.assertIn("PEM", pem)
@@ -488,9 +503,12 @@ class TestCAhandler(unittest.TestCase):
                 "result": {"result": {"certificate": "cert", "certificate_chain": None}}
             }
         )
-        with patch.object(
-            self.handler, "_cert_chain_to_pem", side_effect=Exception("fail")
-        ), patch.object(self.handler, "logger") as mock_logger:
+        with (
+            patch.object(
+                self.handler, "_cert_chain_to_pem", side_effect=Exception("fail")
+            ),
+            patch.object(self.handler, "logger") as mock_logger,
+        ):
             error, cert_bundle, cert_raw = self.handler._enroll("host", "csr")
             self.assertIn("Error extracting certificate or chain", error)
             self.assertIsNone(cert_bundle)
@@ -711,49 +729,63 @@ class TestCAhandler(unittest.TestCase):
 
     def test_059_enroll_ensure_host_error(self):
         # Simulate eab_profile_header_info_check ok, _parse_csr returns host/alias, _ensure_host_and_principals returns error
-        with patch(
-            "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
-            return_value=None,
-        ), patch.object(
-            self.handler, "_parse_csr", return_value=("host", ["alias1", "alias2"])
-        ), patch.object(
-            self.handler, "_ensure_host_and_principals", return_value="host_error"
+        with (
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
+                return_value=None,
+            ),
+            patch.object(
+                self.handler, "_parse_csr", return_value=("host", ["alias1", "alias2"])
+            ),
+            patch.object(
+                self.handler, "_ensure_host_and_principals", return_value="host_error"
+            ),
         ):
             result = self.handler.enroll("dummycsr")
             self.assertEqual(result, ("host_error", None, None, None))
 
     def test_060_enroll_enroll_error(self):
         # Simulate all ok until _enroll, which returns error
-        with patch(
-            "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
-            return_value=None,
-        ), patch.object(
-            self.handler, "_parse_csr", return_value=("host", ["alias1", "alias2"])
-        ), patch.object(
-            self.handler, "_ensure_host_and_principals", return_value=None
-        ), patch(
-            "examples.ca_handler.freeipa_ca_handler.build_pem_file",
-            return_value="pemcsr",
-        ), patch.object(
-            self.handler, "_enroll", return_value=("enroll_error", None, None)
+        with (
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
+                return_value=None,
+            ),
+            patch.object(
+                self.handler, "_parse_csr", return_value=("host", ["alias1", "alias2"])
+            ),
+            patch.object(
+                self.handler, "_ensure_host_and_principals", return_value=None
+            ),
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.build_pem_file",
+                return_value="pemcsr",
+            ),
+            patch.object(
+                self.handler, "_enroll", return_value=("enroll_error", None, None)
+            ),
         ):
             result = self.handler.enroll("dummycsr")
             self.assertEqual(result, ("enroll_error", None, None, None))
 
     def test_061_enroll_success(self):
         # Simulate full success path
-        with patch(
-            "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
-            return_value=None,
-        ), patch.object(
-            self.handler, "_parse_csr", return_value=("host", ["alias1", "alias2"])
-        ), patch.object(
-            self.handler, "_ensure_host_and_principals", return_value=None
-        ), patch(
-            "examples.ca_handler.freeipa_ca_handler.build_pem_file",
-            return_value="pemcsr",
-        ), patch.object(
-            self.handler, "_enroll", return_value=(None, "bundle", "raw")
+        with (
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
+                return_value=None,
+            ),
+            patch.object(
+                self.handler, "_parse_csr", return_value=("host", ["alias1", "alias2"])
+            ),
+            patch.object(
+                self.handler, "_ensure_host_and_principals", return_value=None
+            ),
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.build_pem_file",
+                return_value="pemcsr",
+            ),
+            patch.object(self.handler, "_enroll", return_value=(None, "bundle", "raw")),
         ):
             result = self.handler.enroll("dummycsr")
             self.assertEqual(result, (None, "bundle", "raw", None))
@@ -765,11 +797,14 @@ class TestCAhandler(unittest.TestCase):
             {"__base64__": None},  # falsy value
             {"__base64__": ""},  # empty string
         ]
-        with patch(
-            "examples.ca_handler.freeipa_ca_handler.b64_decode"
-        ) as mock_b64_decode, patch(
-            "examples.ca_handler.freeipa_ca_handler.cert_der2pem"
-        ) as mock_cert_der2pem:
+        with (
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.b64_decode"
+            ) as mock_b64_decode,
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.cert_der2pem"
+            ) as mock_cert_der2pem,
+        ):
             result = self.handler._cert_chain_to_pem(certs)
             self.assertEqual(result, "")
             mock_b64_decode.assert_not_called()
@@ -779,10 +814,11 @@ class TestCAhandler(unittest.TestCase):
         # Cover lines 451-454: enrollment_config_log is called if self.enrollment_config_log is True
         self.handler.enrollment_config_log = True
         self.handler.enrollment_config_log_skip_list = ["skip1", "skip2"]
-        with patch(
-            "examples.ca_handler.freeipa_ca_handler.enrollment_config_log"
-        ) as mock_enroll_log, patch.object(
-            self.handler, "_rpc_post", return_value={"error": "fail"}
+        with (
+            patch(
+                "examples.ca_handler.freeipa_ca_handler.enrollment_config_log"
+            ) as mock_enroll_log,
+            patch.object(self.handler, "_rpc_post", return_value={"error": "fail"}),
         ):
             self.handler._enroll("host", "csr")
             mock_enroll_log.assert_called_once_with(
