@@ -164,6 +164,7 @@ class OrderConfiguration:
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
     dryrun_profilename: Optional[str] = None
+    wildcard_certificate_disable: bool = False
 
 
 class Order(object):
@@ -335,6 +336,12 @@ class Order(object):
                     "allowed_domainlist",
                     self.config.allowed_domainlist,
                 )
+                self.config.wildcard_certificate_disable = self._load_eab_profile_param(
+                    profile_dic,
+                    eab_kid,
+                    "wildcard_certificate_disable",
+                    self.config.wildcard_certificate_disable,
+                )
         except Exception as err:
             self.logger.error(
                 "Failed to process EAB profile for Account %s (kid: %s): %s",
@@ -382,25 +389,31 @@ class Order(object):
 
     def _load_eab_profile_param(self, profile_dic, eab_kid, param_name, default=None):
         """Helper to load allowed_iplist or allowed_domainlist from EAB profile."""
-        # Try order section first
-        value = profile_dic.get(eab_kid, {}).get("order", {}).get(param_name, default)
-        if not value:
-            # Try cahandler section for backward compatibility
-            value = (
-                profile_dic.get(eab_kid, {})
-                .get("cahandler", {})
-                .get(param_name, default)
-            )
-            if value:
-                self.logger.warning(
-                    "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
-                    param_name,
-                )
-        if value:
+        profile_entry = profile_dic.get(eab_kid, {})
+        order_cfg = profile_entry.get("order", {})
+
+        # Prefer order section and honor explicit falsy values like False or []
+        if param_name in order_cfg:
+            value = order_cfg.get(param_name)
             self.logger.debug(
                 "Order._apply_eab_profile() - apply %s from eab profile.", param_name
             )
-        return value
+            return value
+
+        # Backward compatibility for deprecated cahandler section
+        cahandler_cfg = profile_entry.get("cahandler", {})
+        if param_name in cahandler_cfg:
+            value = cahandler_cfg.get(param_name)
+            self.logger.warning(
+                "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
+                param_name,
+            )
+            self.logger.debug(
+                "Order._apply_eab_profile() - apply %s from eab profile.", param_name
+            )
+            return value
+
+        return default
 
     def _load_header_info_config(self, config_dic: Dict[str, str]):
         """Load header info list from config file."""
@@ -439,6 +452,9 @@ class Order(object):
             )
             self.config.idempotent_finalize = config_dic.getboolean(
                 "Order", "idempotent_finalize", fallback=False
+            )
+            self.config.wildcard_certificate_disable = config_dic.getboolean(
+                "Order", "wildcard_certificate_disable", fallback=False
             )
             try:
                 self.config.retry_after = int(
@@ -643,24 +659,82 @@ class Order(object):
                 f'identifier value {identifier["value"]} not allowed',
             )
 
-        # check allowed domainlist for dns identifiers
-        if (
-            id_type == "dns"
-            and self.config.allowed_domainlist
-            and not is_domain_whitelisted(
-                self.logger,
-                identifier["value"],
-                self.config.allowed_domainlist,
-            )
-        ):
+        # check wildcard certificate disable for dns identifiers
+        if self.config.wildcard_certificate_disable and id_type == "dns" and identifier["value"].startswith("*."):
             self.logger.error(
-                "FQDN/SAN %s not allowed by configuration",
+                "Wildcard identifier %s not allowed by configuration",
                 identifier["value"],
             )
             return (
                 self.error_msg_dic["rejectedidentifier"],
-                f'FQDN/SAN {identifier["value"]} not allowed by configuration',
+                f'Wildcard identifier {identifier["value"]} not allowed',
             )
+
+        # check allowed domainlist for dns identifiers
+        if id_type == "dns" and self.config.allowed_domainlist:
+            domain_value = identifier["value"]
+            wildcard_requested = bool(identifier.get("wildcard"))
+
+            self.logger.debug(
+                "Order._check_single_identifier() - Evaluating allowed_domainlist for value='%s' (wildcard flag: %s)",
+                domain_value,
+                wildcard_requested,
+            )
+
+            domain_allowed = is_domain_whitelisted(
+                self.logger,
+                domain_value,
+                self.config.allowed_domainlist,
+            )
+
+            self.logger.debug(
+                "Order._check_single_identifier() - allowed_domainlist check result for value='%s': %s",
+                domain_value,
+                domain_allowed,
+            )
+
+            # Defensive fallback for flows where wildcard identifiers were normalized
+            # before reaching order validation but wildcard intent is still provided.
+            if (
+                not domain_allowed
+                and wildcard_requested
+                and domain_value
+                and not domain_value.startswith("*.")
+            ):
+                wildcard_value = f"*.{domain_value}"
+                self.logger.debug(
+                    "Order._check_single_identifier() - Reconstructed wildcard value for allowed_domainlist check: '%s' -> '%s'",
+                    domain_value,
+                    wildcard_value,
+                )
+                domain_allowed = is_domain_whitelisted(
+                    self.logger,
+                    wildcard_value,
+                    self.config.allowed_domainlist,
+                )
+                self.logger.debug(
+                    "Order._check_single_identifier() - allowed_domainlist check result for reconstructed wildcard value='%s': %s",
+                    wildcard_value,
+                    domain_allowed,
+                )
+            else:
+                self.logger.debug(
+                    "Order._check_single_identifier() - Skipping reconstructed wildcard allowed_domainlist check (domain_allowed=%s, wildcard=%s, value_present=%s, value_has_wildcard_prefix=%s)",
+                    domain_allowed,
+                    wildcard_requested,
+                    bool(domain_value),
+                    bool(domain_value and domain_value.startswith("*.")),
+                )
+
+            if not domain_allowed:
+                self.logger.error(
+                    "FQDN/SAN %s not allowed by configuration",
+                    identifier["value"],
+                )
+                return (
+                    self.error_msg_dic["rejectedidentifier"],
+                    f'FQDN/SAN {identifier["value"]} not allowed by configuration',
+                )
         elif (
             id_type == "ip"
             and self.config.allowed_iplist

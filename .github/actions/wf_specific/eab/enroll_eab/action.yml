@@ -1,0 +1,142 @@
+name: "enroll_eab"
+description: "EAB enroll"
+inputs:
+  NAME_SPACE:
+    description: "namespace"
+    required: false
+    default: "acme"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: false
+    default: "container"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  EXEC_SCRIPT:
+    description: "Executable script for deployment"
+    required: false
+    default: "rpm_tester.sh"
+  WEBSRV:
+    description: "Web server for deb deployment"
+    required: false
+    default: "nginx"
+  DATA_DIR:
+    description: "data directory"
+    required: false
+    default: "examples/Docker/data"
+
+
+runs:
+  using: "composite"
+  steps:
+
+  - name: "Sleep for 10s"
+    uses: grindsa/sleep-action@master
+    with:
+      time: 10s
+
+  - name: "Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    shell: bash
+
+  - name: "Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+
+  - name: "Enroll lego"
+    run: |
+      sudo rm -rf "$PWD/lego"
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" --eab --eab.kid keyid_02 --eab.hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http
+      sudo cat lego/certificates/lego.acme.issuer.crt |  awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
+      sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+  - name: "Register acme.sh with eab-credentials"
+    run: |
+      sudo rm -rf "$PWD/acme-sh"
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://$ACME_SERVER --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+  - name: "Enroll acme.sh"
+    run: |
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER -d acme-sh.acme --standalone --debug 3 --output-insecure
+      openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+  - name: "Rename eab-kid"
+    run: |
+      sudo sed -i "s/keyid_02/keyid_12/g" $DATA_DIR/acme_ca/key_file.json
+    shell: bash
+    env:
+      DATA_DIR: ${{ inputs.DATA_DIR }}
+
+  - name: "Restart services"
+    run: |
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        cd examples/Docker/
+        docker compose restart
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+      elif [ "$DEPLOYMENT_TYPE" == "deb" ]; then
+        docker exec acme-srv bash /tmp/acme2certifier/$EXEC_SCRIPT install $WEBSRV
+      fi
+    shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      EXEC_SCRIPT: ${{ inputs.EXEC_SCRIPT }}
+      WEBSRV: ${{ inputs.WEBSRV }}
+
+  - name: "Enroll acme.sh with unknown kid - should fail"
+    id: acmekidfail
+    continue-on-error: true
+    run: |
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+  - name: "Check result "
+    if: steps.acmekidfail.outcome != 'failure'
+    run: |
+      echo "acme-sh outcome is ${{steps.acmekidfail.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Disable eab-kid checking"
+    run: |
+      sudo echo "eabkid_check_disable: True" >> $DATA_DIR/acme_srv.cfg
+    shell: bash
+    env:
+      DATA_DIR: ${{ inputs.DATA_DIR }}
+
+  - name: "Restart services"
+    run: |
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        cd examples/Docker/
+        docker compose restart
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+      elif [ "$DEPLOYMENT_TYPE" == "deb" ]; then
+        docker exec acme-srv bash /tmp/acme2certifier/$EXEC_SCRIPT install $WEBSRV
+      fi
+    shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      EXEC_SCRIPT: ${{ inputs.EXEC_SCRIPT }}
+      WEBSRV: ${{ inputs.WEBSRV }}
+
+  - name: "Enroll acme.sh with unknown kid - should work"
+    # id: acmekidfail
+    # continue-on-error: true
+    run: |
+      docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}

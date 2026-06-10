@@ -145,6 +145,7 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
     )
     return enrollment_cfg_log, enrollment_cfg_log_skip_list
 
+
 def config_dns_server_list_load(logger: logging.Logger, config_dic: Dict[str, str]) -> Tuple[List[str], int]:
     """load parameters"""
     logger.debug("Helper.config_dns_server_list_load()")

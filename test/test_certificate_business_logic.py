@@ -88,18 +88,37 @@ class TestCertificateBusinessLogic(unittest.TestCase):
     def test_010_validate_certificate_data_other(self):
         self.assertFalse(self.logic.validate_certificate_data("something else"))
 
-    def test_011_validate_certificate_data_exception(self):
+    def test_011_validate_certificate_data_base64_der_logs_info(self):
+        der_base64 = "QUJDREVGRw==\n"
+        self.assertTrue(self.logic.validate_certificate_data(der_base64))
+        self.mock_logger.info.assert_called_with(
+            "Certificate appears to be in base64/DER format."
+        )
+
+    def test_012_validate_certificate_data_exception(self):
         # Ensure a logger object exists to avoid AttributeError
         logic = CertificateBusinessLogic(debug=True, logger=MagicMock())
         # purposely pass an object that could raise internally; method should still return True
         self.assertFalse(logic.validate_certificate_data(object()))
+
+    def test_013_validate_certificate_data_strip_exception_logs_error(self):
+        class BrokenStr(str):
+            def strip(self):
+                raise ValueError("strip failure")
+
+        certificate = BrokenStr("broken")
+
+        self.assertFalse(self.logic.validate_certificate_data(certificate))
+        self.mock_logger.error.assert_called_with(
+            "Certificate validation error: strip failure"
+        )
 
     @patch("acme_srv.certificate_business_logic.cert_serial_get")
     @patch("acme_srv.certificate_business_logic.cert_cn_get")
     @patch("acme_srv.certificate_business_logic.cert_san_get")
     @patch("acme_srv.certificate_business_logic.cert_aki_get")
     @patch.object(CertificateBusinessLogic, "calculate_certificate_dates")
-    def test_012_extract_certificate_info(
+    def test_014_extract_certificate_info(
         self, mock_dates, mock_aki, mock_san, mock_cn, mock_serial
     ):
         mock_serial.return_value = "serial"
@@ -119,12 +138,12 @@ class TestCertificateBusinessLogic(unittest.TestCase):
         "acme_srv.certificate_business_logic.cert_serial_get",
         side_effect=Exception("fail"),
     )
-    def test_013_extract_certificate_info_exception(self, mock_serial):
+    def test_015_extract_certificate_info_exception(self, mock_serial):
         info = self.logic.extract_certificate_info("cert")
         self.assertEqual(info, {})
 
     @patch("acme_srv.certificate_business_logic.string_sanitize")
-    def test_014_sanitize_certificate_name(self, mock_string_sanitize):
+    def test_016_sanitize_certificate_name(self, mock_string_sanitize):
         mock_string_sanitize.return_value = "sanitized"
         result = self.logic.sanitize_certificate_name("name")
         self.assertEqual(result, "sanitized")
@@ -133,11 +152,11 @@ class TestCertificateBusinessLogic(unittest.TestCase):
         "acme_srv.certificate_business_logic.string_sanitize",
         side_effect=Exception("fail"),
     )
-    def test_015_sanitize_certificate_name_exception(self, mock_string_sanitize):
+    def test_017_sanitize_certificate_name_exception(self, mock_string_sanitize):
         result = self.logic.sanitize_certificate_name("name")
         self.assertEqual(result, "name")
 
-    def test_016_format_certificate_response_with_cert(self):
+    def test_018_format_certificate_response_with_cert(self):
         result = self.logic.format_certificate_response("cert", 201)
         self.assertEqual(result["code"], 201)
         self.assertEqual(result["data"], "cert")
@@ -146,7 +165,7 @@ class TestCertificateBusinessLogic(unittest.TestCase):
             result["headers"], {"Content-Type": "application/pem-certificate-chain"}
         )
 
-    def test_017_format_certificate_response_without_cert(self):
+    def test_019_format_certificate_response_without_cert(self):
         result = self.logic.format_certificate_response("", 404)
         self.assertEqual(result["code"], 404)
         self.assertEqual(result["data"], "")

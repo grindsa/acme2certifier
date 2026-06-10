@@ -1,4 +1,4 @@
-name: Deployment Tests - Update images on dockerhub and ghcr.io
+name: Deployment Tests - Update images to dockerhub and ghcr.io
 on:
   push:
     branches: [ "master" ]       # Execute on master only

@@ -27,6 +27,7 @@ class MessageConfiguration:
     acct_path: str = "/acme/acct/"
     revocation_path: str = "/acme/revokecert"
     eabkid_check_disable: bool = False
+    eab_strict_mode: bool = True
     invalid_eabkid_deactivate: bool = False
     eab_handler: Optional[object] = None
 
@@ -99,6 +100,10 @@ class Message(object):
                     self.logger.critical("EABHandler could not get loaded")
             else:
                 self.logger.critical("EABHandler configuration incomplete")
+
+            msg_config.eab_strict_mode = config_dic.getboolean(
+                "EABhandler", "eab_strict_mode", fallback=True
+            )
         else:
             msg_config.eabkid_check_disable = True
 
@@ -126,7 +131,8 @@ class Message(object):
             return None
 
         eab_kid = account_dic.get("eab_kid", None)
-        if not eab_kid:
+
+        if self.config.eab_strict_mode and not eab_kid:
             self.logger.error("Account %s has no eab credentials", account_name)
             self.logger.debug(
                 self._CHECK_EAB_CREDENTIALS_LOG_MSG,
@@ -134,13 +140,23 @@ class Message(object):
             )
             return None
 
-        if self.config.eab_handler and not self._eab_mac_key_exists(eab_kid):
+        missing_eab_credentials = (
+            self.config.eab_handler
+            and eab_kid
+            and not self._eab_mac_key_exists(eab_kid)
+        )
+        if missing_eab_credentials:
             self._handle_missing_eab_credentials(account_name, eab_kid)
             self.logger.debug(
                 self._CHECK_EAB_CREDENTIALS_LOG_MSG,
                 None,
             )
             return None
+
+        self.logger.debug(
+            "Message._check_and_handle_invalid_eab_credentials() eab credentials validated or not required for account_name: %s",
+            account_name,
+        )
         self.logger.debug(
             self._CHECK_EAB_CREDENTIALS_LOG_MSG,
             account_name,
