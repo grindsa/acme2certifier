@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Authorization class - refactored version"""
+
 # pylint: disable=R0913, R1705
 from __future__ import print_function
 import json
@@ -7,14 +8,21 @@ from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
 from acme_srv.db_handler import DBstore
 from acme_srv.challenge import Challenge
-from acme_srv.challenge_validators.dns_persist_validator import DnsPersistChallengeValidator, ChallengeContext
+from acme_srv.challenge_validators.dns_persist_validator import (
+    DnsPersistChallengeValidator,
+    ChallengeContext,
+)
 from acme_srv.helper import (
     generate_random_string,
     uts_now,
     uts_to_date_utc,
     string_sanitize,
 )
-from acme_srv.helpers.config import load_config, config_eab_profile_load, config_dns_server_list_load
+from acme_srv.helpers.config import (
+    load_config,
+    config_eab_profile_load,
+    config_dns_server_list_load,
+)
 from acme_srv.helpers.domain_utils import (
     is_domain_whitelisted,
     is_ip_whitelisted,
@@ -493,7 +501,9 @@ class Authorization(object):
             self.config.dns_persist_jit_validation = config_dic.getboolean(
                 "Challenge", "dns_persist_jit_validation", fallback=False
             )
-            self.config.dns_server_list, self.config.dns_validation_pause_timer = config_dns_server_list_load(self.logger, config_dic)
+            self.config.dns_server_list, self.config.dns_validation_pause_timer = (
+                config_dns_server_list_load(self.logger, config_dic)
+            )
 
             # Load caaidentities from Directory section as JSON array or comma-separated string
             caaidentities_raw = config_dic.get(
@@ -548,7 +558,9 @@ class Authorization(object):
         auth_details: Optional[Dict[str, str]],
     ) -> ChallengeContext:
         """Build context object used by the dns-persist JIT validator."""
-        account_name = auth_details.get("order__account__name") if auth_details else None
+        account_name = (
+            auth_details.get("order__account__name") if auth_details else None
+        )
 
         acct_path = self.config.authz_path.replace("/acme/authz/", "/acme/acct/")
         accounturi = (
@@ -696,17 +708,17 @@ class Authorization(object):
                 )
             # Get challenge set
             try:
-                authz_info[
-                    "challenges"
-                ] = self.challenge_manager.get_challenge_set_for_authorization(
-                    authz_name,
-                    authz_info["status"],
-                    token,
-                    is_tnauth,
-                    expires,
-                    id_type,
-                    id_value,
-                    is_wildcard,
+                authz_info["challenges"] = (
+                    self.challenge_manager.get_challenge_set_for_authorization(
+                        authz_name,
+                        authz_info["status"],
+                        token,
+                        is_tnauth,
+                        expires,
+                        id_type,
+                        id_value,
+                        is_wildcard,
+                    )
                 )
             except Exception as err:
                 self.logger.error(

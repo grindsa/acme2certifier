@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """CA handler using Entrust ECS Enterprise"""
+
 from __future__ import print_function
 from typing import Tuple, Dict, List
 import datetime
@@ -30,7 +31,6 @@ from acme_srv.helper import (
     uts_now,
     uts_to_date_utc,
 )
-
 
 CONTENT_TYPE = "application/json"
 

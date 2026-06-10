@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """unittests for account.py"""
+
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import os
 import unittest
@@ -1374,8 +1375,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         self.assertEqual(0.5, dns_validation_pause_timer)
         self.assertTrue(
             any(
-                "Failed to load dns_server_list from configuration"
-                in record.message
+                "Failed to load dns_server_list from configuration" in record.message
                 for record in log_context.records
                 if record.levelname == "WARNING"
             )
@@ -1406,7 +1406,9 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
             )
         )
 
-    def test_120_helper_config_dns_server_list_load_challenge_section_parse_errors(self):
+    def test_120_helper_config_dns_server_list_load_challenge_section_parse_errors(
+        self,
+    ):
         """config_dns_server_list_load logs warnings on invalid Challenge values."""
         config_dic = {
             "Challenge": {
@@ -1424,8 +1426,7 @@ Otme28/kpJxmW3iOMkqN9BE+qAkggFDeNoxPtXRyP2PrRgbaj94e1uznsyni7CYw
         self.assertEqual(0.5, dns_validation_pause_timer)
         self.assertTrue(
             any(
-                "Failed to load dns_server_list from configuration"
-                in record.message
+                "Failed to load dns_server_list from configuration" in record.message
                 for record in log_context.records
                 if record.levelname == "WARNING"
             )
@@ -2591,6 +2592,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self, mock_logging_exception, mock_excepthook
     ):
         """test handle_exception with KeyboardInterrupt subclass - should call sys.__excepthook__"""
+
         # Create a subclass of KeyboardInterrupt
         class CustomKeyboardInterrupt(KeyboardInterrupt):
             pass
@@ -2626,6 +2628,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
     @patch("logging.exception")
     def test_243_handle_exception_custom_exception(self, mock_logging_exception):
         """test handle_exception with custom exception - should call logging.exception"""
+
         # Create a custom exception class
         class CustomException(Exception):
             pass
@@ -3262,9 +3265,9 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
     fxAH4XQsaqcaedPNI+W5OUITMz40ezDCbUqxS9KEMCGPoOTXNRAjbr72sc4Vkw7H
     t+eRUDECE+0UnjyeCjTn3EU="""
         mock_ext.get_extension_for_oid.side_effect = Exception("No SKI")
-        mock_ski_get.return_value = 'pyopenssl'
+        mock_ski_get.return_value = "pyopenssl"
         ski = self.cert_ski_get(self.logger, cert)
-        self.assertEqual(ski, 'pyopenssl')
+        self.assertEqual(ski, "pyopenssl")
 
     def test_307_validate_fqdn(self):
         """test validate_fqdn()"""

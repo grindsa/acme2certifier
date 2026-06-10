@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """CA handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)"""
+
 from __future__ import print_function
 import os
 import json
@@ -340,7 +341,7 @@ class CAhandler(object):
 
         if not error:
             # enroll certificate
-            (error, cert_raw, cert_bundle) = self._enroll(csr)
+            error, cert_raw, cert_bundle = self._enroll(csr)
 
         else:
             self.logger.error("EAB profile check failed: %s", error)

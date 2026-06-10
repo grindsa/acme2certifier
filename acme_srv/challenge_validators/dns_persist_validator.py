@@ -4,6 +4,7 @@ DNS Persist Challenge Validator.
 Implements validation logic for dns-persist-01 challenges according to
 current ACME dns-persist draft behavior.
 """
+
 import re
 from typing import Optional, Set, Tuple
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
@@ -105,7 +106,9 @@ class DnsPersistChallengeValidator(ChallengeValidator):
             details={"dns_record": dns_record_name, "found_records": txt_records},
         )
 
-    def _validate_context(self, context: ChallengeContext) -> Optional[ValidationResult]:
+    def _validate_context(
+        self, context: ChallengeContext
+    ) -> Optional[ValidationResult]:
         """Validate challenge context preconditions."""
         if context.authorization_type and context.authorization_type.lower() != "dns":
             return ValidationResult(
@@ -115,9 +118,9 @@ class DnsPersistChallengeValidator(ChallengeValidator):
                 details={"reason": "dns-persist-01 only supports DNS identifiers"},
             )
 
-        if not (context.options or {}).get("accounturi") or not self._normalized_issuer_names(
-            context
-        ):
+        if not (context.options or {}).get(
+            "accounturi"
+        ) or not self._normalized_issuer_names(context):
             return ValidationResult(
                 success=False,
                 invalid=True,
@@ -144,31 +147,53 @@ class DnsPersistChallengeValidator(ChallengeValidator):
         uts_now,
     ) -> Tuple[Optional[ValidationResult], bool]:
         """Evaluate one TXT record and return validation verdict."""
-        self.logger.debug("DnsPersistChallengeValidator._evaluate_record() for record: %s", record)
+        self.logger.debug(
+            "DnsPersistChallengeValidator._evaluate_record() for record: %s", record
+        )
         parsed = self._parse_issue_value(record)
         if parsed.get("malformed"):
-            self.logger.debug("DnsPersistChallengeValidator._evaluate_record(): Record is malformed: %s", record)
+            self.logger.debug(
+                "DnsPersistChallengeValidator._evaluate_record(): Record is malformed: %s",
+                record,
+            )
             return None, True
 
         issuer = parsed.get("issuer_domain_name", "").lower()
         if issuer not in normalized_issuers:
-            self.logger.debug("DnsPersistChallengeValidator._evaluate_record(): Issuer '%s' not in normalized issuers: %s", issuer, normalized_issuers)
+            self.logger.debug(
+                "DnsPersistChallengeValidator._evaluate_record(): Issuer '%s' not in normalized issuers: %s",
+                issuer,
+                normalized_issuers,
+            )
             return None, False
 
         params = parsed.get("params", {})
         if "accounturi" not in params:
-            self.logger.debug("DnsPersistChallengeValidator._evaluate_record(): Missing accounturi parameter in record: %s", record)
+            self.logger.debug(
+                "DnsPersistChallengeValidator._evaluate_record(): Missing accounturi parameter in record: %s",
+                record,
+            )
             return None, True
         if params["accounturi"] != accounturi:
-            self.logger.debug("DnsPersistChallengeValidator._evaluate_record(): Account URI mismatch. Expected: %s, Found: %s", accounturi, params["accounturi"])
+            self.logger.debug(
+                "DnsPersistChallengeValidator._evaluate_record(): Account URI mismatch. Expected: %s, Found: %s",
+                accounturi,
+                params["accounturi"],
+            )
             return None, False
 
         persist_until = params.get("persistuntil")
         if persist_until and not re.fullmatch(r"\d+", persist_until):
-            self.logger.debug("DnsPersistChallengeValidator._evaluate_record(): Invalid persistuntil value (not an integer): %s", persist_until)
+            self.logger.debug(
+                "DnsPersistChallengeValidator._evaluate_record(): Invalid persistuntil value (not an integer): %s",
+                persist_until,
+            )
             return None, True
         if persist_until and int(persist_until) < uts_now():
-            self.logger.debug("DnsPersistChallengeValidator._evaluate_record(): persistuntil timestamp is in the past: %s", persist_until)
+            self.logger.debug(
+                "DnsPersistChallengeValidator._evaluate_record(): persistuntil timestamp is in the past: %s",
+                persist_until,
+            )
             return None, False
 
         if wildcard_request:
@@ -200,7 +225,9 @@ class DnsPersistChallengeValidator(ChallengeValidator):
 
     def _parse_issue_value(self, record):
         """Parse issue-value style TXT record content."""
-        self.logger.debug("DnsPersistChallengeValidator._parse_issue_value() for record: %s", record)
+        self.logger.debug(
+            "DnsPersistChallengeValidator._parse_issue_value() for record: %s", record
+        )
 
         # dnspython TXT records are often returned as bytes.
         if isinstance(record, bytes):
@@ -217,7 +244,10 @@ class DnsPersistChallengeValidator(ChallengeValidator):
         parts = [part.strip() for part in value.split(";")]
         issuer = parts[0]
         if not issuer or "=" in issuer:
-            self.logger.debug("DnsPersistChallengeValidator._parse_issue_value(): Missing or invalid issuer in record: %s", record)
+            self.logger.debug(
+                "DnsPersistChallengeValidator._parse_issue_value(): Missing or invalid issuer in record: %s",
+                record,
+            )
             return {"malformed": True}
 
         params = {}
@@ -225,20 +255,33 @@ class DnsPersistChallengeValidator(ChallengeValidator):
             if not part:
                 continue
             if "=" not in part:
-                self.logger.debug("DnsPersistChallengeValidator._parse_issue_value(): Missing '=' in parameter part: %s", part)
+                self.logger.debug(
+                    "DnsPersistChallengeValidator._parse_issue_value(): Missing '=' in parameter part: %s",
+                    part,
+                )
                 return {"malformed": True}
             key, val = part.split("=", 1)
             key = key.strip().lower()
             val = val.strip()
             if not key:
-                self.logger.debug("DnsPersistChallengeValidator._parse_issue_value(): Missing key in parameter part: %s", part)
+                self.logger.debug(
+                    "DnsPersistChallengeValidator._parse_issue_value(): Missing key in parameter part: %s",
+                    part,
+                )
                 return {"malformed": True}
             if key in params:
-                self.logger.debug("DnsPersistChallengeValidator._parse_issue_value(): Duplicate key in parameter part: %s", part)
+                self.logger.debug(
+                    "DnsPersistChallengeValidator._parse_issue_value(): Duplicate key in parameter part: %s",
+                    part,
+                )
                 return {"malformed": True}
             params[key] = val
 
-        self.logger.debug("DnsPersistChallengeValidator._parse_issue_value(): Parsed record with issuer: %s and params: %s", issuer, params)
+        self.logger.debug(
+            "DnsPersistChallengeValidator._parse_issue_value(): Parsed record with issuer: %s and params: %s",
+            issuer,
+            params,
+        )
         return {
             "malformed": False,
             "issuer_domain_name": issuer,
@@ -247,9 +290,13 @@ class DnsPersistChallengeValidator(ChallengeValidator):
 
     def _handle_wildcard_domain(self, fqdn: str) -> str:
         """Handle wildcard domain by removing the '*.' prefix."""
-        self.logger.debug("DnsPersistChallengeValidator._handle_wildcard_domain() for fqdn: %s", fqdn)
+        self.logger.debug(
+            "DnsPersistChallengeValidator._handle_wildcard_domain() for fqdn: %s", fqdn
+        )
         if fqdn.startswith("*."):
-            self.logger.debug("DnsPersistChallengeValidator._handle_wildcard_domain(): Detected wildcard domain, stripping '*.' prefix")
+            self.logger.debug(
+                "DnsPersistChallengeValidator._handle_wildcard_domain(): Detected wildcard domain, stripping '*.' prefix"
+            )
             return fqdn[2:]
         return fqdn
 

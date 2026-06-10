@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """unittests for openssl_ca_handler"""
+
 # pylint: disable=C0415, R0904, R0913, W0212
 import sys
 import os
@@ -12,7 +13,6 @@ from io import StringIO
 import shutil
 import configparser
 import json
-
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
@@ -1329,6 +1329,7 @@ class TestACMEHandler(unittest.TestCase):
     def test_073_get_handler_cls_address_string(self):
         """Test get_handler_cls() returns handler with correct address_string()."""
         handler_cls = self.get_handler_cls()
+
         # Create a dummy instance with client_address attribute
         class DummyRequest:
             pass

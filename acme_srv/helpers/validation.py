@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Validation utilities for acme2certifier"""
+
 import re
 import logging
 import ipaddress
@@ -25,7 +26,7 @@ def fqdn_in_san_check(logger: logging.Logger, san_list: List[str], fqdn: str) ->
     if fqdn and san_list:
         for san in san_list:
             try:
-                (_type, value) = san.lower().split(":", 1)
+                _type, value = san.lower().split(":", 1)
                 if fqdn == value:
                     result = True
                     break

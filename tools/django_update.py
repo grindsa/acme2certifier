@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 """database updater"""
+
 # pylint: disable=C0209, E0401, C0413
 import sys
 import os

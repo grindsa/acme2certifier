@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Domain utilities for acme2certifier"""
+
 import logging
 from typing import List, Tuple
 import idna
@@ -139,7 +140,7 @@ def allowed_domainlist_check(
 
     error = None
     if allowed_domain_list:
-        (san_list, check_list) = sancheck_lists_create(logger, csr)
+        san_list, check_list = sancheck_lists_create(logger, csr)
 
         # clean email addresses
         tmp_san_list = []
@@ -182,7 +183,7 @@ def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
         for san in _san_list:
             try:
                 # SAN list must be modified/filtered)
-                (_san_type, san_value) = san.lower().split(":")
+                _san_type, san_value = san.lower().split(":")
                 san_list.append(san_value)
             except Exception:
                 # force check to fail as something went wrong during parsing

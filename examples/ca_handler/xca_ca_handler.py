@@ -1,6 +1,7 @@
 # pylint: disable=e0401, c0302
 # -*- coding: utf-8 -*-
 """handler for xca ca handler"""
+
 from __future__ import print_function
 import os
 import sqlite3
@@ -43,7 +44,6 @@ from acme_srv.helper import (
     uts_now,
     uts_to_date_utc,
 )
-
 
 # Define constants
 DEFAULT_DATE_FORMAT = "%Y%m%d%H%M%SZ"
@@ -197,7 +197,7 @@ class CAhandler(object):
         """load ca key and cert"""
         self.logger.debug("CAhandler._ca_load()")
         ca_key = self._ca_key_load()
-        (ca_cert, ca_id) = self._ca_cert_load()
+        ca_cert, ca_id = self._ca_cert_load()
 
         self.logger.debug("CAhandler._ca_load() ended")
         return (ca_key, ca_cert, ca_id)
@@ -341,7 +341,7 @@ class CAhandler(object):
 
         # load template if configured
         if self.template_name:
-            (dn_dic, template_dic) = self._template_load()
+            dn_dic, template_dic = self._template_load()
         else:
             dn_dic = {}
             template_dic = {}
@@ -760,9 +760,9 @@ class CAhandler(object):
         csr_extensions_dic = {}
         if csr_extensions_list:
             for ext in csr_extensions_list:
-                csr_extensions_dic[
-                    convert_byte_to_string(ext.oid._name)
-                ] = ext  # pylint: disable=W0212
+                csr_extensions_dic[convert_byte_to_string(ext.oid._name)] = (
+                    ext  # pylint: disable=W0212
+                )
 
         if template_dic:
             # prcoess xca template
@@ -977,7 +977,10 @@ class CAhandler(object):
         if not request_name:
             san_list = csr_san_get(self.logger, csr)
             try:
-                (_identifiier, request_name,) = san_list[
+                (
+                    _identifiier,
+                    request_name,
+                ) = san_list[
                     0
                 ].split(":")
             except Exception:
@@ -1228,7 +1231,7 @@ class CAhandler(object):
         template_dic = {}
         if "template" in db_result:
             byte_stream = b64_decode(self.logger, db_result["template"])
-            (dn_dic, template_dic) = self._template_parse(byte_stream)
+            dn_dic, template_dic = self._template_parse(byte_stream)
         self._db_close()
         self.logger.debug("CAhandler._template_load() ended")
 
@@ -1239,7 +1242,7 @@ class CAhandler(object):
     ) -> Tuple[Dict[str, str], Dict[str, str]]:
         """process template"""
         self.logger.debug("CAhandler._template_parse()")
-        (asn1_stream, utf_stream) = self._stream_split(byte_string)
+        asn1_stream, utf_stream = self._stream_split(byte_string)
 
         dn_dic = {}
         if asn1_stream:
@@ -1342,11 +1345,11 @@ class CAhandler(object):
         ]
 
         # key_usage
-        (kuc, ku_dic) = self._keyusage_generate(template_dic, csr_extensions_dic)
+        kuc, ku_dic = self._keyusage_generate(template_dic, csr_extensions_dic)
         extension_list.append({"name": KeyUsage(**ku_dic), "critical": kuc})
 
         # extended key_usage
-        (ekuc, eku_list) = self._extended_keyusage_generate(
+        ekuc, eku_list = self._extended_keyusage_generate(
             template_dic, csr_extensions_dic
         )
         if eku_list:
@@ -1431,10 +1434,10 @@ class CAhandler(object):
                 )
 
                 # load ca cert and key
-                (ca_key, ca_cert, ca_id) = self._ca_load()
+                ca_key, ca_cert, ca_id = self._ca_load()
 
                 if ca_key and ca_cert and ca_id:
-                    (cert_bundle, cert_raw) = self._cert_sign(
+                    cert_bundle, cert_raw = self._cert_sign(
                         csr, request_name, ca_key, ca_cert, ca_id
                     )
                 else:
@@ -1473,14 +1476,14 @@ class CAhandler(object):
 
         if self.xdb_file:
             # load ca cert and key
-            (_ca_key, _ca_cert, ca_id) = self._ca_load()
+            _ca_key, _ca_cert, ca_id = self._ca_load()
 
             serial = cert_serial_get(self.logger, cert)
             if serial:
                 serial = f"{serial:X}"
 
             if ca_id and serial:
-                (code, message, detail) = self._revocation_check(
+                code, message, detail = self._revocation_check(
                     serial, ca_id, err_msg_dic
                 )
             else:

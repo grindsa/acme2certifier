@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Network utilities for acme2certifier"""
+
 import html
 import socket
 import ssl
@@ -123,7 +124,7 @@ def fqdn_resolve(
             # add specific dns server
             req.nameservers = dnssrv
         # resolve hostname
-        (result, invalid, error_msg) = _fqdn_resolve(
+        result, invalid, error_msg = _fqdn_resolve(
             logger, req, host, catch_all=catch_all
         )
 
@@ -193,7 +194,7 @@ def patched_create_connection(address: List[str], *args, **kwargs):  # pragma: n
     dns_server_list = dns_server_list_load()
     # resolve hostname to an ip address; use your own resolver
     host, port = address
-    (hostname, _invalid, _error) = fqdn_resolve(host, dns_server_list)
+    hostname, _invalid, _error = fqdn_resolve(host, dns_server_list)
     # pylint: disable=W0212
     return connection._orig_create_connection((hostname, port), *args, **kwargs)
 
@@ -286,7 +287,7 @@ def url_get_with_default_dns(
     )
 
     # we need to tweak headers and url for ipv6 addresse
-    (headers, url) = v6_adjust(logger, url)
+    headers, url = v6_adjust(logger, url)
     try:
         req = requests.get(
             url, verify=verify, timeout=timeout, headers=headers, proxies=proxy_list
@@ -407,7 +408,7 @@ def proxystring_convert(
         "socks5": socks.PROXY_TYPE_SOCKS5,
     }
     try:
-        (proxy_proto, proxy) = proxy_server.split("://")
+        proxy_proto, proxy = proxy_server.split("://")
     except Exception:
         logger.error(
             "Error while splitting proxy_server string: %s",
@@ -418,7 +419,7 @@ def proxystring_convert(
 
     if proxy:
         try:
-            (proxy_addr, proxy_port) = proxy.split(":")
+            proxy_addr, proxy_port = proxy.split(":")
         except Exception:
             logger.error("Error while splitting proxy into host/port: %s", proxy)
             proxy_addr = None
@@ -495,9 +496,7 @@ def servercert_get(
     context.options |= ssl.PROTOCOL_TLS_SERVER
 
     if proxy_server:
-        (proxy_proto, proxy_addr, proxy_port) = proxystring_convert(
-            logger, proxy_server
-        )
+        proxy_proto, proxy_addr, proxy_port = proxystring_convert(logger, proxy_server)
         if proxy_proto and proxy_addr and proxy_port:
             logger.debug("servercert_get(): configure proxy")
             sock.setproxy(proxy_proto, proxy_addr, port=proxy_port)

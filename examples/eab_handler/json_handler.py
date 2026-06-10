@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """eab json handler"""
+
 from __future__ import print_function
 import json
 from typing import Dict

@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 """signing script to create a signed pkcs7 structure out of a pkcs7 csr"""
+
 # -*- coding: utf-8 -*-
 # pylint: disable=C0413, E0401, E0611, W0212
 from __future__ import print_function
@@ -23,7 +24,6 @@ from examples.ca_handler.pkcs7_soap_ca_handler import (
     binary_write,
     CAhandler,
 )  # nopep8
-
 
 if __name__ == "__main__":
 
@@ -64,7 +64,7 @@ if __name__ == "__main__":
         decoded_cert = ca_handler._cert_decode(signing_cert)
 
         # create pkcs7 bundle and dump it to file
-        (_error, pkcs7_bundle) = ca_handler._pkcs7_create(
+        _error, pkcs7_bundle = ca_handler._pkcs7_create(
             decoded_cert, csr_der, signing_key
         )
         binary_write(LOGGER, OUT_FILE, pkcs7_bundle)

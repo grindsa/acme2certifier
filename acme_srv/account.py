@@ -25,7 +25,6 @@ from acme_srv.signature import Signature
 import json
 from acme_srv.helper import b64decode_pad
 
-
 DB_ERROR_MSG = "Database error"
 
 
@@ -80,7 +79,7 @@ class ExternalAccountBinding:
         if content and mac_key:
             signature = Signature(None, self.server_name, self.logger)
             jwk_ = json.dumps({"k": mac_key, "kty": "oct"})
-            (sig_check, error) = signature.eab_check(json.dumps(content), jwk_)
+            sig_check, error = signature.eab_check(json.dumps(content), jwk_)
         else:
             sig_check = False
             error = None
@@ -101,7 +100,7 @@ class ExternalAccountBinding:
         else:
             eab_mac_key = None
         if eab_mac_key:
-            (result, error) = self.verify_signature(
+            result, error = self.verify_signature(
                 payload["externalaccountbinding"], eab_mac_key
             )
             if result:
@@ -408,7 +407,7 @@ class Account:
 
         # tos check
         if self.config.tos_url and not self.config.tos_check_disable:
-            (code, message, detail) = self._check_tos(payload)
+            code, message, detail = self._check_tos(payload)
             if code != 200:
                 return code, message, detail
 

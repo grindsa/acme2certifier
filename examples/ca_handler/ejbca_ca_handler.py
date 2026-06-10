@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """ejbca rest ca handler"""
+
 import os
 from typing import Tuple, Dict
 import requests
@@ -343,7 +344,7 @@ class CAhandler(object):
             self.logger.info("CN not found in CSR")
             san_list = csr_san_get(self.logger, csr)
             if san_list:
-                (_type, san_value) = san_list[0].split(":")
+                _type, san_value = san_list[0].split(":")
                 cn = san_value
                 self.logger.info(
                     "CN not found in CSR. Using first SAN entry as CN: %s",
@@ -469,7 +470,7 @@ class CAhandler(object):
 
             if not error:
                 # cnroll certificate
-                (error, cert_bundle, cert_raw) = self._enroll(csr)
+                error, cert_bundle, cert_raw = self._enroll(csr)
             else:
                 self.logger.error(
                     "Enrollment error. CSR got rejected with error: %s", error

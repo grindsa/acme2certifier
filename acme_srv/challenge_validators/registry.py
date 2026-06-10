@@ -3,6 +3,7 @@ Challenge Validator Registry.
 
 Provides a registry system for managing and accessing challenge validators.
 """
+
 from typing import Dict, List, Optional
 import logging
 from .base import (

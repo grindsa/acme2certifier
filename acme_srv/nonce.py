@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Nonce class"""
+
 from __future__ import print_function
 import uuid
 from typing import Tuple, Dict
@@ -71,7 +72,7 @@ class Nonce(object):
         """Check nonce (public method, backward compatible)."""
         self.logger.debug("Nonce.check_nonce()")
         if "nonce" in protected_decoded:
-            (code, message, detail) = self._validate_and_consume_nonce(
+            code, message, detail = self._validate_and_consume_nonce(
                 protected_decoded["nonce"]
             )
         else:

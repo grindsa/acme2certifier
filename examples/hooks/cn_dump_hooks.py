@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=C0209, E0401, R0913, W0613
 """hook class for testing"""
+
 import json
 from acme_srv.helper import load_config, cert_san_get, csr_san_get
 

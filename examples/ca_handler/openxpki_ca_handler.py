@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """openxpki rpc ca handler"""
+
 import math
 import time
 import os
@@ -304,7 +305,7 @@ class CAhandler(object):
                 and sign_response["result"]["state"].upper() == "SUCCESS"
             ):
                 # successful enrollment
-                (error, cert_bundle, cert_raw) = self._cert_bundle_create(
+                error, cert_bundle, cert_raw = self._cert_bundle_create(
                     sign_response["result"]
                 )
                 poll_indentifier = sign_response["result"]["data"]["cert_identifier"]
@@ -430,7 +431,7 @@ class CAhandler(object):
                 }
                 if self.session:
                     # enroll via RPC
-                    (error, cert_bundle, cert_raw, poll_indentifier) = self._enroll(
+                    error, cert_bundle, cert_raw, poll_indentifier = self._enroll(
                         data_dic
                     )
                 else:
@@ -485,7 +486,7 @@ class CAhandler(object):
         cert_identifier = self._cert_identifier_get(cert_raw)
 
         if cert_identifier:
-            (code, message, detail) = self._revoke(cert_identifier, rev_reason)
+            code, message, detail = self._revoke(cert_identifier, rev_reason)
         else:
             code = 400
             message = self.err_msg_dic["serverinternal"]

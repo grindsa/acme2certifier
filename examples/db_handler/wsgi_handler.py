@@ -1,6 +1,7 @@
 # pylint: disable=c0302, r0904, w0102
 # -*- coding: utf-8 -*-
 """wsgi handler for acme2certifier"""
+
 from __future__ import print_function
 import sqlite3
 import json
@@ -10,7 +11,6 @@ import os
 # pylint: disable=E0401
 from acme_srv.helper import datestr_to_date, load_config
 from acme_srv.version import __dbversion__
-
 
 # Define constants
 COLUMN_NOT_IN_TABLE_MSG = "Column: %s not found in %s table"
@@ -402,11 +402,9 @@ class DBstore(object):
         self._db_open()
         # create status table
         self.logger.debug("create status")
-        self.cursor.execute(
-            """
+        self.cursor.execute("""
             CREATE TABLE "status" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL)
-        """
-        )
+        """)
         insert_status_statement = """INSERT INTO status(name) VALUES(:name)"""
         self.cursor.execute(insert_status_statement, {"name": "invalid"})
         self.cursor.execute(insert_status_statement, {"name": "pending"})
@@ -418,54 +416,37 @@ class DBstore(object):
         self.cursor.execute(insert_status_statement, {"name": "revoked"})
         # create nonce table
         self.logger.debug("create nonce")
-        self.cursor.execute(
-            """
+        self.cursor.execute("""
             CREATE TABLE "nonce" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "nonce" varchar(30) NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        """
-        )
+        """)
         self.logger.debug("create account")
-        self.cursor.execute(
-            """
+        self.cursor.execute("""
             CREATE TABLE "account" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "alg" varchar(10) NOT NULL, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "eab_kid" varchar(255) DEFAULT \'\', "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 5, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        """
-        )
+        """)
         self.logger.debug("create cliaccount")
-        self.cursor.execute(
-            """
+        self.cursor.execute("""
             CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "cliadmin" INT, "reportadmin" INT, "certificateadmin" INT, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        """
-        )
+        """)
         self.logger.debug("create orders")
-        self.cursor.execute(
-            """
+        self.cursor.execute("""
             CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "profile" varchar(64), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        """
-        )
+        """)
         self.logger.debug("create authorization")
-        self.cursor.execute(
-            """
+        self.cursor.execute("""
             CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "order" ("id"), "type" varchar(5) NOT NULL, "value" text NOT NULL, "expires" integer, "token" varchar(64), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        """
-        )
+        """)
         self.logger.debug("create challenge")
-        self.cursor.execute(
-            """
+        self.cursor.execute("""
             CREATE TABLE "challenge" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "token" varchar(64), "authorization_id" integer NOT NULL REFERENCES "authorization" ("id"), "expires" integer, "type" varchar(15) NOT NULL, "keyauthorization" varchar(128), "source" varchar(128), "status_id" integer NOT NULL REFERENCES "status" ("id"), "validated" integer DEFAULT 0, "validation_error" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        """
-        )
+        """)
         self.logger.debug("create certificate")
-        self.cursor.execute(
-            """
+        self.cursor.execute("""
             CREATE TABLE "certificate" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "cert" text, "cert_raw" text, "error" text, "order_id" integer NOT NULL REFERENCES "order" ("id"), "csr" text NOT NULL, "poll_identifier" text,  "header_info" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL, "renewal_info" text, "aki" text, "serial" text, "issue_uts" integer DEFAULT 0, "expire_uts" integer DEFAULT 0, "replaced" bolean DEFAULT 0)
-        """
-        )
-        self.cursor.execute(
-            """
+        """)
+        self.cursor.execute("""
             CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(30) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        """
-        )
-        self.cursor.execute(
-            """
+        """)
+        self.cursor.execute("""
             CREATE TRIGGER [UpdateLastTime]
                 AFTER
                 UPDATE
@@ -475,17 +456,14 @@ class DBstore(object):
             BEGIN
                 update housekeeping set modified_at=CURRENT_TIMESTAMP where id=OLD.id;
             END
-        """
-        )
+        """)
 
         self.cursor.execute(
             f"""INSERT OR IGNORE INTO housekeeping (name, value) VALUES ("dbversion", "{__dbversion__}")"""
         )
-        self.cursor.execute(
-            """
+        self.cursor.execute("""
             CREATE TABLE "cahandler" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value1" text, "value2" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-        """
-        )
+        """)
         self._db_close()
         self.logger.debug("DBStore._db_create() ended")
 
@@ -527,11 +505,9 @@ class DBstore(object):
                     "alter authorization table - change value field type to TEXT"
                 )
                 self.cursor.execute("""ALTER TABLE authorization RENAME TO tmp""")
-                self.cursor.execute(
-                    """
+                self.cursor.execute("""
                     CREATE TABLE "authorization" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "order_id" integer NOT NULL REFERENCES "order" ("id"), "type" varchar(5) NOT NULL, "value" text NOT NULL, "expires" integer, "token" varchar(64), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-                """
-                )
+                """)
                 self.cursor.execute(
                     """INSERT INTO authorization(id, name, order_id, type, value, expires, token, status_id, created_at) SELECT id, name, order_id, type, value, expires, token, status_id, created_at  FROM tmp"""
                 )
@@ -546,11 +522,9 @@ class DBstore(object):
         )
         if self.cursor.fetchone()[0] != 1:
             self.logger.info("create cahandler table")
-            self.cursor.execute(
-                """
+            self.cursor.execute("""
                 CREATE TABLE "cahandler" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "value1" text, "value2" text, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-            """
-            )
+            """)
 
     def _db_update_certificate(self):
         """alter certificate table"""
@@ -634,11 +608,9 @@ class DBstore(object):
         )
         if self.cursor.fetchone()[0] != 1:
             self.logger.info("create cliaccount table")
-            self.cursor.execute(
-                """
+            self.cursor.execute("""
                 CREATE TABLE "cliaccount" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) NOT NULL UNIQUE, "jwk" TEXT UNIQUE NOT NULL, "contact" TEXT NOT NULL, "cliadmin" INT, "reportadmin" INT, "certificateadmin" INT, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-            """
-            )
+            """)
 
     def _db_update_housekeeping(self):
         """alter housekeeping table"""
@@ -650,13 +622,10 @@ class DBstore(object):
         )
         if self.cursor.fetchone()[0] != 1:
             self.logger.info("create housekeeping table and trigger")
-            self.cursor.execute(
-                """
+            self.cursor.execute("""
                 CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(30) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-            """
-            )
-            self.cursor.execute(
-                """
+            """)
+            self.cursor.execute("""
                 CREATE TRIGGER [UpdateLastTime]
                     AFTER
                     UPDATE
@@ -666,8 +635,7 @@ class DBstore(object):
                 BEGIN
                     update housekeeping set modified_at=CURRENT_TIMESTAMP where id=OLD.id;
                 END
-            """
-            )
+            """)
         else:
             self.cursor.execute("""PRAGMA table_info(housekeeping)""")
             for column in self.cursor.fetchall():
@@ -680,11 +648,9 @@ class DBstore(object):
                     self.cursor.execute(
                         """ALTER TABLE housekeeping RENAME TO tmp_hk"""
                     )  # pragma: no cover
-                    self.cursor.execute(
-                        """
+                    self.cursor.execute("""
                         CREATE TABLE "housekeeping" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(30) NOT NULL UNIQUE, "value" text, "modified_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-                    """
-                    )  # pragma: no cover
+                    """)  # pragma: no cover
                     self.cursor.execute(
                         """INSERT INTO housekeeping(id, name, value, modified_at) SELECT id, name, value, modified_at  FROM tmp_hk"""
                     )  # pragma: no cover
@@ -704,11 +670,9 @@ class DBstore(object):
                     "alter orders table - change identifier field type to TEXT"
                 )
                 self.cursor.execute("""ALTER TABLE orders RENAME TO tmp""")
-                self.cursor.execute(
-                    """
+                self.cursor.execute("""
                     CREATE TABLE "orders" ("id" integer NOT NULL PRIMARY KEY AUTOINCREMENT, "name" varchar(15) UNIQUE NOT NULL, "notbefore" integer DEFAULT 0, "notafter" integer DEFAULT 0, "identifiers" text NOT NULL, "account_id" integer NOT NULL REFERENCES "account" ("id"), "status_id" integer NOT NULL REFERENCES "status" ("id") DEFAULT 2, "expires" integer NOT NULL, "created_at" TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL)
-                """
-                )
+                """)
                 self.cursor.execute(
                     """INSERT INTO orders(id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at) SELECT id, name, notbefore, notafter, identifiers, account_id, status_id, expires, created_at  FROM tmp"""
                 )

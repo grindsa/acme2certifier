@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """EAB (External Account Binding) utilities for acme2certifier"""
+
 import logging
 from typing import Optional
 from .csr import csr_subject_get

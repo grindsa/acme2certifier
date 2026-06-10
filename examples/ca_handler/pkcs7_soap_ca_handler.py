@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """propritary soap_ca_handler"""
+
 from __future__ import print_function
 import subprocess
 
@@ -550,19 +551,19 @@ class CAhandler(object):
 
         if self.signing_script_dic:
             # signing by external script
-            (error, pkcs7_bundle) = self._pkcs7_sign_external(csr_der)
+            error, pkcs7_bundle = self._pkcs7_sign_external(csr_der)
         else:
             # create pkcs7 bundle
             decoded_cert = self._cert_decode(self.signing_cert)
             # signing by handler
-            (error, pkcs7_bundle) = self._pkcs7_create(
+            error, pkcs7_bundle = self._pkcs7_create(
                 decoded_cert, csr_der, self.signing_key
             )
 
         if not error:
             # build and soap request to be send to ca server
             payload = self._soaprequest_build(b64_encode(self.logger, pkcs7_bundle))
-            (error, b64_cert_bundle) = self._soaprequest_send(payload)
+            error, b64_cert_bundle = self._soaprequest_send(payload)
         else:
             self.logger.error("CAhandler.enroll() aborted with error: %s", error)
             b64_cert_bundle = None  # lgtm [py/unused-local-variable]

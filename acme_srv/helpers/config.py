@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Configuration utilities for acme2certifier"""
+
 import configparser
 import json
 import logging
@@ -146,7 +147,9 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
     return enrollment_cfg_log, enrollment_cfg_log_skip_list
 
 
-def config_dns_server_list_load(logger: logging.Logger, config_dic: Dict[str, str]) -> Tuple[List[str], int]:
+def config_dns_server_list_load(
+    logger: logging.Logger, config_dic: Dict[str, str]
+) -> Tuple[List[str], int]:
     """load parameters"""
     logger.debug("Helper.config_dns_server_list_load()")
 
@@ -185,9 +188,7 @@ def config_dns_server_list_load(logger: logging.Logger, config_dic: Dict[str, st
                     err_,
                 )
 
-    logger.debug(
-        "Helper.config_dns_server_list_load() ended with: %s", dns_server_list
-    )
+    logger.debug("Helper.config_dns_server_list_load() ended with: %s", dns_server_list)
     return dns_server_list, dns_validation_pause_timer
 
 
@@ -281,7 +282,7 @@ def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
             url_dic = parse_url(logger, host_name)
             if "host" in url_dic:
                 # check if we need to set the proxy
-                (fqdn, _port) = url_dic["host"].split(":")
+                fqdn, _port = url_dic["host"].split(":")
                 proxy_server = proxy_check(logger, fqdn, proxy_list)
                 proxy = {"http": proxy_server, "https": proxy_server}
         except Exception as err_:

@@ -92,7 +92,7 @@ class Request:
         alt: str = None,
         debug=False,
         do_kerberos=False,
-        **kwargs
+        **kwargs,
     ):
         self.target = target
         self.ca = ca
