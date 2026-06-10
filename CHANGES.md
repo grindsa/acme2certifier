@@ -10,15 +10,19 @@ and pick the appropriate release branch.
 
 **Features and Improvements**:
 
+- [EAB strict mode](docs/eab.md) to allow registration of EAB and non-EAB clients at the same a2c instance
 - [Experimental support for dns-persist-01 challenges](docs/dns-persist-01.md)
 - [Prevalidation](docs/identifier_prevalidation.md) of IP and Email identifiers
 - [FreeIPA CA Handler](docs/freeipa.md)
 - [Dogtag CA Handler](docs/dogtag_ca_handler.md)
 - [Dryrun Mode](docs/dryrun.md)
+- Option `wildcard_certificate_disable` to prevent the ernollment of wildcard certificates globally. Can be overridden via [eab-profiling](docs/eab_profiling.md)
 
 **Bug Fixes**:
 
--[313](https://github.com/grindsa/acme2certifier/pull/313) - Replace lstrip in WSGI path lookup
+- [313](https://github.com/grindsa/acme2certifier/pull/313) - Replace lstrip in WSGI path lookup
+- Restrict challenges for wildcard certificate requests to `dns-01` and `dns-persist-01`
+- Improved wildcard matching as part of allowed_domain_list and domain_prevalidation checks
 
 ## Changes in 0.42.1
 
