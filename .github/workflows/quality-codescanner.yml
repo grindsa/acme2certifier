@@ -52,7 +52,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@master
         with:
-          python-version: 3.9
+          python-version: 3.13
 
       - name: Install components
         run: |
