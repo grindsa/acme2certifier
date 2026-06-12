@@ -672,23 +672,81 @@ class Order(object):
             )
 
         # check allowed domainlist for dns identifiers
-        if (
-            id_type == "dns"
-            and self.config.allowed_domainlist
-            and not is_domain_whitelisted(
+        if id_type == "dns" and self.config.allowed_domainlist:
+            domain_value = identifier["value"]
+            wildcard_requested = bool(identifier.get("wildcard"))
+
+            self.logger.debug(
+                "Order._check_single_identifier() - Evaluating allowed_domainlist for value='%s' (wildcard flag: %s)",
+                domain_value,
+                wildcard_requested,
+            )
+
+        # check allowed domainlist for dns identifiers
+        if id_type == "dns" and self.config.allowed_domainlist:
+            domain_value = identifier["value"]
+            wildcard_requested = bool(identifier.get("wildcard"))
+
+            self.logger.debug(
+                "Order._check_single_identifier() - Evaluating allowed_domainlist for value='%s' (wildcard flag: %s)",
+                domain_value,
+                wildcard_requested,
+            )
+
+            domain_allowed = is_domain_whitelisted(
                 self.logger,
-                identifier["value"],
+                domain_value,
                 self.config.allowed_domainlist,
             )
-        ):
-            self.logger.error(
-                "FQDN/SAN %s not allowed by configuration",
-                identifier["value"],
+
+            self.logger.debug(
+                "Order._check_single_identifier() - allowed_domainlist check result for value='%s': %s",
+                domain_value,
+                domain_allowed,
             )
-            return (
-                self.error_msg_dic["rejectedidentifier"],
-                f'FQDN/SAN {identifier["value"]} not allowed by configuration',
-            )
+
+            # Defensive fallback for flows where wildcard identifiers were normalized
+            # before reaching order validation but wildcard intent is still provided.
+            if (
+                not domain_allowed
+                and wildcard_requested
+                and domain_value
+                and not domain_value.startswith("*.")
+            ):
+                wildcard_value = f"*.{domain_value}"
+                self.logger.debug(
+                    "Order._check_single_identifier() - Reconstructed wildcard value for allowed_domainlist check: '%s' -> '%s'",
+                    domain_value,
+                    wildcard_value,
+                )
+                domain_allowed = is_domain_whitelisted(
+                    self.logger,
+                    wildcard_value,
+                    self.config.allowed_domainlist,
+                )
+                self.logger.debug(
+                    "Order._check_single_identifier() - allowed_domainlist check result for reconstructed wildcard value='%s': %s",
+                    wildcard_value,
+                    domain_allowed,
+                )
+            else:
+                self.logger.debug(
+                    "Order._check_single_identifier() - Skipping reconstructed wildcard allowed_domainlist check (domain_allowed=%s, wildcard=%s, value_present=%s, value_has_wildcard_prefix=%s)",
+                    domain_allowed,
+                    wildcard_requested,
+                    bool(domain_value),
+                    bool(domain_value and domain_value.startswith("*.")),
+                )
+
+            if not domain_allowed:
+                self.logger.error(
+                    "FQDN/SAN %s not allowed by configuration",
+                    identifier["value"],
+                )
+                return (
+                    self.error_msg_dic["rejectedidentifier"],
+                    f'FQDN/SAN {identifier["value"]} not allowed by configuration',
+                )
         elif (
             id_type == "ip"
             and self.config.allowed_iplist
