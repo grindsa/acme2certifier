@@ -44,17 +44,17 @@ jobs:
       run: |
         wget https://raw.githubusercontent.com/grindsa/aws_ec2_mgr/main/aws_ec_mgr.py
         chmod a+rx ./aws_ec_mgr.py
-        python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_INSTANCE_ID | grep -i "stopped"
+        python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_X64-UB-01_INSTANCE_ID | grep -i "stopped"
       env:
         AWS_REGION: ${{ env.AWS_REGION }}
-        AWS_INSTANCE_ID: ${{ env.AWS_INSTANCE_ID }}
+        AWS_X64-UB-01_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
     - name: "start instance"
       run: |
-        python3 ./aws_ec_mgr.py -a start -r $AWS_REGION -i $AWS_INSTANCE_ID
+        python3 ./aws_ec_mgr.py -a start -r $AWS_REGION -i $AWS_X64-UB-01_INSTANCE_ID
       env:
         AWS_REGION: ${{ env.AWS_REGION }}
-        AWS_INSTANCE_ID: ${{ env.AWS_INSTANCE_ID }}
+        AWS_X64-UB-01_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
     - name: "[ WAIT ] Sleep for 10s"
       uses: grindsa/sleep-action@master
@@ -63,10 +63,10 @@ jobs:
 
     - name: "check instance status"
       run: |
-        python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_INSTANCE_ID | grep -i "running"
+        python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_X64-UB-01_INSTANCE_ID | grep -i "running"
       env:
         AWS_REGION: ${{ env.AWS_REGION }}
-        AWS_INSTANCE_ID: ${{ env.AWS_INSTANCE_ID }}
+        AWS_X64-UB-01_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
   build_and_upload_images_to_hub:
     name: Push images to dockerhub and github
@@ -637,8 +637,8 @@ jobs:
       run: |
         wget https://raw.githubusercontent.com/grindsa/aws_ec2_mgr/main/aws_ec_mgr.py
         chmod a+rx ./aws_ec_mgr.py
-        python3 ./aws_ec_mgr.py -a stop -r $AWS_REGION -i $AWS_INSTANCE_ID
-        python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_INSTANCE_ID
+        python3 ./aws_ec_mgr.py -a stop -r $AWS_REGION -i $AWS_X64-UB-01_INSTANCE_ID
+        python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_X64-UB-01_INSTANCE_ID
       env:
         AWS_REGION: ${{ env.AWS_REGION }}
-        AWS_INSTANCE_ID: ${{ env.AWS_INSTANCE_ID }}
+        AWS_X64-UB-01_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
