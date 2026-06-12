@@ -1,0 +1,62 @@
+name: "assert_directory_eab_required"
+description: "Assert ACME directory meta.externalAccountRequired value"
+inputs:
+  NAME_SPACE:
+    description: "Docker network namespace"
+    required: false
+    default: "acme"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  HTTP_PORT:
+    description: "ACME server HTTP port"
+    required: false
+    default: "80"
+  EXPECTED_VALUE:
+    description: "Expected boolean value for meta.externalAccountRequired (true/false)"
+    required: false
+    default: "true"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Fetch directory JSON"
+      id: fetch_directory
+      run: |
+        DIRECTORY_JSON=""
+        for attempt in $(seq 1 30); do
+          if DIRECTORY_JSON=$(docker run -i --rm --network "$NAME_SPACE" curlimages/curl -fsS --connect-timeout 3 --max-time 10 "http://$ACME_SERVER:$HTTP_PORT/directory"); then
+            break
+          fi
+
+          echo "Directory endpoint not ready yet (attempt ${attempt}/30), retrying..."
+          sleep 2
+        done
+
+        if [ -z "$DIRECTORY_JSON" ]; then
+          echo "Failed to fetch directory endpoint after retries"
+          exit 1
+        fi
+
+        echo "directory_json<<EOF" >> "$GITHUB_OUTPUT"
+        echo "$DIRECTORY_JSON" >> "$GITHUB_OUTPUT"
+        echo "EOF" >> "$GITHUB_OUTPUT"
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+
+    - name: "Assert externalAccountRequired"
+      run: |
+        if echo '${{ steps.fetch_directory.outputs.directory_json }}' | grep -Eq '"externalAccountRequired"[[:space:]]*:[[:space:]]*'"$EXPECTED_VALUE"; then
+          echo "externalAccountRequired matches expected value: $EXPECTED_VALUE"
+        else
+          echo "Expected externalAccountRequired=$EXPECTED_VALUE but directory did not match"
+          echo '${{ steps.fetch_directory.outputs.directory_json }}'
+          exit 1
+        fi
+      shell: bash
+      env:
+        EXPECTED_VALUE: ${{ inputs.EXPECTED_VALUE }}
