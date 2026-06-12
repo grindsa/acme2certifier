@@ -164,6 +164,7 @@ class OrderConfiguration:
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
     dryrun_profilename: Optional[str] = None
+    wildcard_certificate_disable: bool = False
 
 
 class Order(object):
@@ -341,6 +342,7 @@ class Order(object):
                     "wildcard_certificate_disable",
                     self.config.wildcard_certificate_disable,
                 )
+                raise NotImplementedError('foo')
         except Exception as err:
             self.logger.error(
                 "Failed to process EAB profile for Account %s (kid: %s): %s",
@@ -388,25 +390,31 @@ class Order(object):
 
     def _load_eab_profile_param(self, profile_dic, eab_kid, param_name, default=None):
         """Helper to load allowed_iplist or allowed_domainlist from EAB profile."""
-        # Try order section first
-        value = profile_dic.get(eab_kid, {}).get("order", {}).get(param_name, default)
-        if not value:
-            # Try cahandler section for backward compatibility
-            value = (
-                profile_dic.get(eab_kid, {})
-                .get("cahandler", {})
-                .get(param_name, default)
-            )
-            if value:
-                self.logger.warning(
-                    "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
-                    param_name,
-                )
-        if value:
+        profile_entry = profile_dic.get(eab_kid, {})
+        order_cfg = profile_entry.get("order", {})
+
+        # Prefer order section and honor explicit falsy values like False or []
+        if param_name in order_cfg:
+            value = order_cfg.get(param_name)
             self.logger.debug(
                 "Order._apply_eab_profile() - apply %s from eab profile.", param_name
             )
-        return value
+            return value
+
+        # Backward compatibility for deprecated cahandler section
+        cahandler_cfg = profile_entry.get("cahandler", {})
+        if param_name in cahandler_cfg:
+            value = cahandler_cfg.get(param_name)
+            self.logger.warning(
+                "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
+                param_name,
+            )
+            self.logger.debug(
+                "Order._apply_eab_profile() - apply %s from eab profile.", param_name
+            )
+            return value
+
+        return default
 
     def _load_header_info_config(self, config_dic: Dict[str, str]):
         """Load header info list from config file."""
@@ -445,6 +453,9 @@ class Order(object):
             )
             self.config.idempotent_finalize = config_dic.getboolean(
                 "Order", "idempotent_finalize", fallback=False
+            )
+            self.config.wildcard_certificate_disable = config_dic.getboolean(
+                "Order", "wildcard_certificate_disable", fallback=False
             )
             try:
                 self.config.retry_after = int(
@@ -647,6 +658,17 @@ class Order(object):
             return (
                 self.error_msg_dic["rejectedidentifier"],
                 f'identifier value {identifier["value"]} not allowed',
+            )
+
+        # check wildcard certificate disable for dns identifiers
+        if self.config.wildcard_certificate_disable and id_type == "dns" and identifier["value"].startswith("*."):
+            self.logger.error(
+                "Wildcard identifier %s not allowed by configuration",
+                identifier["value"],
+            )
+            return (
+                self.error_msg_dic["rejectedidentifier"],
+                f'Wildcard identifier {identifier["value"]} are not allowed',
             )
 
         # check allowed domainlist for dns identifiers
