@@ -1382,7 +1382,31 @@ class TestOrderClass(unittest.TestCase):
             )
             self.assertEqual(result, (None, None))
 
-    def test_091_rewrite_email_identifiers_basic(self):
+    def test_092_are_identifiers_allowed_wildcard_rejected_when_disabled(self):
+        # Should reject wildcard DNS identifiers when wildcard support is disabled
+        with patch("acme_srv.order.validate_identifier", return_value=True):
+            self.order.config.wildcard_certificate_disable = True
+            result = self.order.are_identifiers_allowed(
+                [{"type": "dns", "value": "*.foo.com"}]
+            )
+            self.assertEqual(
+                result,
+                (
+                    self.order.error_msg_dic["rejectedidentifier"],
+                    "Wildcard identifier *.foo.com are not allowed",
+                ),
+            )
+
+    def test_093_are_identifiers_allowed_wildcard_allowed_when_not_disabled(self):
+        # Should allow wildcard DNS identifiers when wildcard support is enabled
+        with patch("acme_srv.order.validate_identifier", return_value=True):
+            self.order.config.wildcard_certificate_disable = False
+            result = self.order.are_identifiers_allowed(
+                [{"type": "dns", "value": "*.foo.com"}]
+            )
+            self.assertEqual(result, (None, None))
+
+    def test_094_rewrite_email_identifiers_basic(self):
         # Should rewrite DNS with @ to email
         self.order.config.email_identifier_support = True
         self.order.config.email_identifier_rewrite = True
@@ -1393,7 +1417,7 @@ class TestOrderClass(unittest.TestCase):
             result[0]["value"], "foo@bar.com"
         )  # Additional assertion to differentiate
 
-    def test_092_rewrite_email_identifiers_no_rewrite(self):
+    def test_095_rewrite_email_identifiers_no_rewrite(self):
         # Should not rewrite if no @ in value
         input_list = [{"type": "dns", "value": "foobar.com"}]
         result = self.order._rewrite_email_identifiers(input_list)
@@ -1402,7 +1426,7 @@ class TestOrderClass(unittest.TestCase):
             result[0]["value"], "foobar.com"
         )  # Additional assertion to differentiate
 
-    def test_093_rewrite_email_identifiers_other_types(self):
+    def test_096_rewrite_email_identifiers_other_types(self):
         # Should not rewrite if type is not dns
         input_list = [{"type": "email", "value": "foo@bar.com"}]
         result = self.order._rewrite_email_identifiers(input_list)
@@ -1411,7 +1435,7 @@ class TestOrderClass(unittest.TestCase):
             result[0]["value"], "foo@bar.com"
         )  # Additional assertion to differentiate
 
-    def test_094_rewrite_email_identifiers_logging(self):
+    def test_097_rewrite_email_identifiers_logging(self):
         # Should log info and debug messages using the unified logger
         self.order.config.email_identifier_support = True
         self.order.config.email_identifier_rewrite = True
@@ -1429,7 +1453,7 @@ class TestOrderClass(unittest.TestCase):
             "DEBUG:test_a2c:Order._rewrite_email_identifiers() ended", log_cm.output
         )
 
-    def test_095_name_get_basic(self):
+    def test_098_name_get_basic(self):
         # Should log debug messages using central logger and log_stream
         with patch(
             "acme_srv.order.parse_url", return_value={"path": "/acme/order/ord123"}
@@ -1442,7 +1466,7 @@ class TestOrderClass(unittest.TestCase):
             )
             self.assertIn("DEBUG:test_a2c:Order._name_get() ended", log_cm.output)
 
-    def test_096_process_csr_all_paths(self):
+    def test_099_process_csr_all_paths(self):
         # Covers: found, not found, error, logging
         with patch("acme_srv.helper.b64_url_recode", return_value="csrval"):
             # Found path
@@ -1468,7 +1492,7 @@ class TestOrderClass(unittest.TestCase):
                     log_cm.output,
                 )
 
-    def test_097_process_csr_rejected_identifier(self):
+    def test_100_process_csr_rejected_identifier(self):
         # Covers: enroll_and_store returns rejectedIdentifier leading to 401
         with patch("acme_srv.helper.b64_url_recode", return_value="csrval"):
             self.order._get_order_info = MagicMock(return_value={"name": "order1"})
@@ -1490,7 +1514,7 @@ class TestOrderClass(unittest.TestCase):
                     log_cm.output,
                 )
 
-    def test_098_process_csr_serverinternal_error(self):
+    def test_101_process_csr_serverinternal_error(self):
         # Covers: enroll_and_store returns serverinternal leading to 500
         with patch("acme_srv.helper.b64_url_recode", return_value="csrval"):
 
@@ -1518,7 +1542,7 @@ class TestOrderClass(unittest.TestCase):
                     log_cm.output,
                 )
 
-    def test_099_process_csr_certificate_store_failure(self):
+    def test_102_process_csr_certificate_store_failure(self):
         # Covers: store_csr returns falsy leading to 500 and CSR processing failed detail
         with patch("acme_srv.helper.b64_url_recode", return_value="csrval"):
             self.order._get_order_info = MagicMock(return_value={"name": "order1"})
@@ -1542,7 +1566,7 @@ class TestOrderClass(unittest.TestCase):
                     log_cm.output,
                 )
 
-    def test_100_finalize_order_all_paths(self):
+    def test_103_finalize_order_all_paths(self):
         # Covers: ready, valid/idempotent, not ready, logging
 
         # Ready path
@@ -1564,7 +1588,7 @@ class TestOrderClass(unittest.TestCase):
         result = self.order._finalize_order("order1", {"csr": "csrval"})
         self.assertEqual(result[0], 403)
 
-    def test_101_finalize_csr_updates_status_when_no_detail(self):
+    def test_104_finalize_csr_updates_status_when_no_detail(self):
         # When code==200 and no detail, order_status should update to valid
         self.order.repository.order_update = MagicMock()
         self.order._header_info_lookup = MagicMock(return_value={})
@@ -1575,7 +1599,7 @@ class TestOrderClass(unittest.TestCase):
             {"name": "order1", "status": "valid"}
         )
 
-    def test_102_finalize_csr_handles_timeout(self):
+    def test_105_finalize_csr_handles_timeout(self):
         # When certificate_name=='timeout', code is set to 200 and message=timeout
         self.order.repository.order_update = MagicMock()
         self.order._header_info_lookup = MagicMock(return_value={})
@@ -1587,7 +1611,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn("DEBUG:test_a2c:Order._finalize_csr(order1)", log_cm.output)
         self.assertIn("DEBUG:test_a2c:Order._finalize_csr() ended", log_cm.output)
 
-    def test_103_finalize_csr_handles_rejected_identifier(self):
+    def test_106_finalize_csr_handles_rejected_identifier(self):
         # When certificate_name=='urn:ietf:params:acme:error:rejectedIdentifier', code=401 and message set
         self.order._header_info_lookup = MagicMock(return_value={})
         rej = "urn:ietf:params:acme:error:rejectedIdentifier"
@@ -1599,7 +1623,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn("DEBUG:test_a2c:Order._finalize_csr(order1)", log_cm.output)
         self.assertIn("DEBUG:test_a2c:Order._finalize_csr() ended", log_cm.output)
 
-    def test_104_finalize_csr_enrollment_failed_else_branch(self):
+    def test_107_finalize_csr_enrollment_failed_else_branch(self):
         # Else branch: message set to certificate_name and detail='enrollment failed'
 
         self.order.repository.order_update = MagicMock()
@@ -1612,7 +1636,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn("DEBUG:test_a2c:Order._finalize_csr(order1)", log_cm.output)
         self.assertIn("DEBUG:test_a2c:Order._finalize_csr() ended", log_cm.output)
 
-    def test_105_order_dic_create_all_paths(self):
+    def test_108_order_dic_create_all_paths(self):
         # Covers: all fields, parse error, logging
         tmp_dic = {
             "status": "pending",
@@ -1639,7 +1663,7 @@ class TestOrderClass(unittest.TestCase):
             "ERROR:test_a2c:Error while parsing the identifier notjson", log_cm.output
         )
 
-    def test_106_get_authorization_list_all_paths(self):
+    def test_109_get_authorization_list_all_paths(self):
         self.order.repository.authorization_lookup.return_value = [
             {"name": "auth1", "status__name": "valid"}
         ]
@@ -1648,7 +1672,7 @@ class TestOrderClass(unittest.TestCase):
             [{"name": "auth1", "status__name": "valid"}],
         )
 
-    def test_107_get_authorization_list_all_paths(self):
+    def test_110_get_authorization_list_all_paths(self):
         # DB error path
         self.order.repository.authorization_lookup.side_effect = Exception("fail")
         with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
@@ -1666,7 +1690,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_108_update_validity_list_all_paths(self):
+    def test_111_update_validity_list_all_paths(self):
         # Covers: all code paths, logging
         with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
             # All valid
@@ -1684,7 +1708,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn("DEBUG:test_a2c:Order._update_validity_list()", log_cm.output)
         self.assertIn("DEBUG:test_a2c:Order.get_order_details() ended", log_cm.output)
 
-    def test_109_get_order_details_all_paths(self):
+    def test_112_get_order_details_all_paths(self):
         # Covers: found, not found, logging
 
         with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
@@ -1699,7 +1723,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn("DEBUG:test_a2c:Order.get_order_details(order1)", log_cm.output)
         self.assertIn("DEBUG:test_a2c:Order.get_order_details() ended", log_cm.output)
 
-    def test_110_invalidate_expired_orders_all_paths(self):
+    def test_113_invalidate_expired_orders_all_paths(self):
         # Covers: success, db error, logging
         self.order.repository.orders_invalid_search.return_value = [
             {"name": "order1", "status__name": "pending"}
@@ -1724,7 +1748,7 @@ class TestOrderClass(unittest.TestCase):
             ),
         )
 
-    def test_111_invalidate_expired_orders_all_paths(self):
+    def test_114_invalidate_expired_orders_all_paths(self):
         # DB error path
         self.order.repository.orders_invalid_search.side_effect = Exception("fail")
         with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
@@ -1735,7 +1759,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_112_process_order_request_all_paths(self):
+    def test_115_process_order_request_all_paths(self):
         # Covers: finalize, polling, cert found, cert not found, url missing, logging
 
         self.order._finalize_order = MagicMock(return_value=(200, "msg", None, "cert"))
@@ -1775,7 +1799,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_113_check_identifiers_validity_all_paths(self):
+    def test_116_check_identifiers_validity_all_paths(self):
         # Covers: valid, too many, malformed, email rewrite, allowed, rejected, and logging
         with patch("acme_srv.order.validate_identifier", return_value=True):
             self.order.config.identifier_limit = 2
@@ -1802,7 +1826,7 @@ class TestOrderClass(unittest.TestCase):
                 (self.order.error_msg_dic["malformed"], "malformed identifiers list"),
             )
 
-    def test_114_check_identifiers_validity_all_paths(self):
+    def test_117_check_identifiers_validity_all_paths(self):
         with patch("acme_srv.order.validate_identifier", return_value=False):
             self.order.config.identifier_limit = 2
             self.order.config.email_identifier_support = True
@@ -1817,13 +1841,13 @@ class TestOrderClass(unittest.TestCase):
                 ),
             )
 
-    def test_115_get_order_info_all_paths(self):
+    def test_118_get_order_info_all_paths(self):
         # Covers: successful lookup, DB error, logging
         self.order.repository.order_lookup.return_value = {"name": "order1"}
         result = self.order._get_order_info("order1")
         self.assertEqual(result, {"name": "order1"})
 
-    def test_116_get_order_info_all_paths(self):
+    def test_119_get_order_info_all_paths(self):
         # Clear log buffer before error path
         self.order.repository.order_lookup.side_effect = Exception("fail")
         with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
@@ -1834,7 +1858,7 @@ class TestOrderClass(unittest.TestCase):
                 log_cm.output,
             )
 
-    def test_117_header_info_lookup_all_paths(self):
+    def test_120_header_info_lookup_all_paths(self):
         # Covers: header present, header missing, header_info_list missing, logging
         # Use central logger and log_stream from setUp
 
@@ -1852,14 +1876,14 @@ class TestOrderClass(unittest.TestCase):
         result = self.order._header_info_lookup({"X-Test": "foo"})
         self.assertIsNone(result)
 
-    def test_118_enter_loads_configuration_and_returns_self(self):
+    def test_121_enter_loads_configuration_and_returns_self(self):
         # Covers __enter__: should call _load_configuration and return self
         with patch.object(self.order, "_load_configuration") as mock_load_config:
             result = self.order.__enter__()
             mock_load_config.assert_called_once()
             self.assertIs(result, self.order)
 
-    def test_119_parse_order_content_adds_certificate(self):
+    def test_122_parse_order_content_adds_certificate(self):
         # Covers lines 976-978: certificate_name and status valid adds certificate path
         with patch.object(
             self.order.message,
@@ -1888,7 +1912,7 @@ class TestOrderClass(unittest.TestCase):
                             "https://example.com/acme/cert/cert123",
                         )
 
-    def test_120_invalidate_expired_orders_update_error_logging(self):
+    def test_123_invalidate_expired_orders_update_error_logging(self):
         # Covers lines 831-840: order_update raises OrderDatabaseError and logs CRITICAL
         self.order.repository.orders_invalid_search = MagicMock(
             return_value=[{"name": "order1", "status__name": "pending"}]
@@ -1902,7 +1926,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_121_process_csr_generic_error(self):
+    def test_124_process_csr_generic_error(self):
         # Covers lines 681-684: error is not rejectedIdentifier or serverinternal
         with patch.object(
             self.order, "_get_order_info", return_value={"name": "order1"}
@@ -1916,7 +1940,7 @@ class TestOrderClass(unittest.TestCase):
                 self.assertEqual(result[0], 400)
                 self.assertEqual(result[1], "someerror")
 
-    def test_122_process_csr_serverinternal_error(self):
+    def test_125_process_csr_serverinternal_error(self):
         # Covers lines 684-689: error == serverinternal triggers code=500
         with patch.object(
             self.order, "_get_order_info", return_value={"name": "order1"}
@@ -1933,7 +1957,7 @@ class TestOrderClass(unittest.TestCase):
                 self.assertEqual(result[0], 500)
                 self.assertEqual(result[1], "urn:ietf:params:acme:error:serverInternal")
 
-    def test_123_process_order_request_db_error_logging(self):
+    def test_126_process_order_request_db_error_logging(self):
         # Covers: OrderDatabaseError in certificate_lookup and CRITICAL log
         self.order.repository.certificate_lookup.side_effect = Exception("fail")
         with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
@@ -1948,7 +1972,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_124_process_order_request_no_url(self):
+    def test_127_process_order_request_no_url(self):
         # Covers lines 634-638: protected dict missing 'url' and checks log
         with patch.object(self.order.logger, "debug") as mock_debug:
             result = self.order._process_order_request("ordername", {}, {}, None)
@@ -1964,7 +1988,7 @@ class TestOrderClass(unittest.TestCase):
                 "url is missing in protected",
             )
 
-    def test_125_finalize_order_valid_OrderDatabaseError(self):
+    def test_128_finalize_order_valid_OrderDatabaseError(self):
         # Covers lines 593-597: status not ready
         self.order.repository.order_lookup.return_value = {"status": "valid"}
         self.order.config.idempotent_finalize = True
@@ -1981,7 +2005,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_126_finalize_order_ready_nocsr(self):
+    def test_129_finalize_order_ready_nocsr(self):
         # Covers lines 593-597: status not ready
         self.order.repository.order_lookup.return_value = {"status": "ready"}
         result = self.order._finalize_order("ordername", {}, None)
@@ -1990,7 +2014,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertEqual(result[2], "csr is missing in payload")
         self.assertIsNone(result[3])
 
-    def test_127_finalize_csr_timeout(self):
+    def test_130_finalize_csr_timeout(self):
         # Patch _process_csr to return (200, 'timeout', 'not_none') so the elif branch is taken
         with patch.object(
             self.order, "_process_csr", return_value=(400, "timeout", "not_none")
@@ -2003,7 +2027,7 @@ class TestOrderClass(unittest.TestCase):
             self.assertEqual(result[2], "not_none")
             self.assertEqual(result[3], "timeout")
 
-    def test_128_from_content_rejectedidentifier_with_detail(self):
+    def test_131_from_content_rejectedidentifier_with_detail(self):
         # Ensure the 'rejectedidentifier' error branch is covered
         rejected = self.order.error_msg_dic["rejectedidentifier"]
         with patch.object(
@@ -2033,7 +2057,7 @@ class TestOrderClass(unittest.TestCase):
                     self.assertEqual(result["type"], rejected)
                     self.assertEqual(result["detail"], "detail")
 
-    def test_129_from_content_rejectedidentifier_without_detail(self):
+    def test_132_from_content_rejectedidentifier_without_detail(self):
         # Ensure the 'rejectedidentifier' error branch is covered
         rejected = self.order.error_msg_dic["rejectedidentifier"]
         with patch.object(
@@ -2066,7 +2090,7 @@ class TestOrderClass(unittest.TestCase):
                         "Some of the requested identifiers got rejected",
                     )
 
-    def test_130_apply_eab_profile_eab_profiling_disabled(self):
+    def test_133_apply_eab_profile_eab_profiling_disabled(self):
         self.order.config.eab_profiling = False
         with patch.object(self.order, "_apply_eab_profile") as mock_apply_eab:
             payload = {"identifiers": [{"type": "dns", "value": "example.com"}]}
@@ -2079,14 +2103,14 @@ class TestOrderClass(unittest.TestCase):
                 self.order.create_order(payload, account_name)
                 mock_apply_eab.assert_not_called()
 
-    def test_131_apply_eab_profile_account_lookup_db_error(self):
+    def test_134_apply_eab_profile_account_lookup_db_error(self):
         self.order.config.eab_profiling = True
         self.order.repository.account_lookup.side_effect = Exception("fail")
         with patch.object(self.order.logger, "critical") as mock_critical:
             self.order._apply_eab_profile("acct")
             mock_critical.assert_called()
 
-    def test_132_apply_eab_profile_no_eab_kid(self):
+    def test_135_apply_eab_profile_no_eab_kid(self):
         self.order.config.eab_profiling = True
         self.order.repository.account_lookup.return_value = {}
         with patch.object(self.order.logger, "debug") as mock_debug:
@@ -2096,7 +2120,7 @@ class TestOrderClass(unittest.TestCase):
                 "acct",
             )
 
-    def test_133_apply_eab_profile_allowed_domainlist_order_section(self):
+    def test_136_apply_eab_profile_allowed_domainlist_order_section(self):
         self.order.config.eab_profiling = True
         self.order.repository.account_lookup.return_value = {"eab_kid": "kid1"}
         mock_eab_handler = MagicMock()
@@ -2111,7 +2135,7 @@ class TestOrderClass(unittest.TestCase):
             )
         self.assertEqual(self.order.config.allowed_domainlist, ["example.com"])
 
-    def test_134_apply_eab_profile_allowed_domainlist_cahandler_section(self):
+    def test_137_apply_eab_profile_allowed_domainlist_cahandler_section(self):
         self.order.config.eab_profiling = True
         self.order.repository.account_lookup.return_value = {"eab_kid": "kid2"}
         mock_eab_handler = MagicMock()
@@ -2126,7 +2150,70 @@ class TestOrderClass(unittest.TestCase):
             )
         self.assertEqual(self.order.config.allowed_domainlist, ["test.com"])
 
-    def test_135_apply_eab_profile_generic_exception(self):
+    def test_138_apply_eab_profile_wildcard_disable_false_order_section(self):
+        self.order.config.eab_profiling = True
+        self.order.config.wildcard_certificate_disable = True
+        self.order.repository.account_lookup.return_value = {"eab_kid": "kid_false"}
+        mock_eab_handler = MagicMock()
+        profile_dic = {
+            "kid_false": {"order": {"wildcard_certificate_disable": False}}
+        }
+        mock_eab_handler.__enter__.return_value.key_file_load.return_value = profile_dic
+        self.order.config.eab_handler = MagicMock(return_value=mock_eab_handler)
+
+        self.order._apply_eab_profile("acct")
+
+        self.assertFalse(self.order.config.wildcard_certificate_disable)
+
+    def test_139_load_eab_profile_param_false_cahandler_section(self):
+        profile_dic = {
+            "kid_false": {"cahandler": {"wildcard_certificate_disable": False}}
+        }
+        with self.assertLogs("test_a2c", level="WARNING") as log_cm:
+            value = self.order._load_eab_profile_param(
+                profile_dic, "kid_false", "wildcard_certificate_disable", True
+            )
+
+        self.assertFalse(value)
+        self.assertIn(
+            "WARNING:test_a2c:wildcard_certificate_disable parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
+            log_cm.output,
+        )
+
+    def test_140_load_eab_profile_param_empty_list_in_order_section(self):
+        profile_dic = {"kid_list": {"order": {"allowed_domainlist": []}}}
+        value = self.order._load_eab_profile_param(
+            profile_dic, "kid_list", "allowed_domainlist", ["default.com"]
+        )
+        self.assertEqual(value, [])
+
+    def test_141_load_eab_profile_param_empty_string_in_order_section(self):
+        profile_dic = {"kid_str": {"order": {"custom_key": ""}}}
+        value = self.order._load_eab_profile_param(
+            profile_dic, "kid_str", "custom_key", "fallback"
+        )
+        self.assertEqual(value, "")
+
+    def test_142_load_eab_profile_param_order_section_has_precedence(self):
+        profile_dic = {
+            "kid_precedence": {
+                "order": {"wildcard_certificate_disable": False},
+                "cahandler": {"wildcard_certificate_disable": True},
+            }
+        }
+        value = self.order._load_eab_profile_param(
+            profile_dic, "kid_precedence", "wildcard_certificate_disable", True
+        )
+        self.assertFalse(value)
+
+    def test_143_load_eab_profile_param_returns_default_if_param_missing(self):
+        profile_dic = {"kid_missing": {"order": {}, "cahandler": {}}}
+        value = self.order._load_eab_profile_param(
+            profile_dic, "kid_missing", "wildcard_certificate_disable", True
+        )
+        self.assertTrue(value)
+
+    def test_144_apply_eab_profile_generic_exception(self):
         self.order.config.eab_profiling = True
         self.order.repository.account_lookup.return_value = {"eab_kid": "kid3"}
         mock_eab_handler = MagicMock()
@@ -2141,7 +2228,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
 
-    def test_136_create_order_eab_profiling_branch(self):
+    def test_145_create_order_eab_profiling_branch(self):
         # Covers: if self.config.eab_profiling and self.config.eab_handler
         self.order.config.eab_profiling = True
         self.order.config.eab_handler = MagicMock()
@@ -2156,7 +2243,7 @@ class TestOrderClass(unittest.TestCase):
                 self.order.create_order(payload, account_name)
                 mock_apply_eab.assert_called_once_with(account_name)
 
-    def test_137_create_order_invalid_profile_detail(self):
+    def test_146_create_order_invalid_profile_detail(self):
         # Covers: if error == self.error_msg_dic["invalidprofile"]: detail = "Invalid profile specified"
         self.order.config.eab_profiling = False
         self.order.config.eab_handler = None
@@ -2181,7 +2268,7 @@ class TestOrderClass(unittest.TestCase):
             self.assertIsNone(error)
             self.assertEqual(detail, "Invalid profile specified")
 
-    def test_138_are_identifiers_allowed_fqdn_not_whitelisted(self):
+    def test_147_are_identifiers_allowed_fqdn_not_whitelisted(self):
         # Covers: FQDN/SAN not allowed by configuration (lines 551-566)
         with patch("acme_srv.order.validate_identifier", return_value=True), patch(
             "acme_srv.order.is_domain_whitelisted", return_value=False
