@@ -26,10 +26,6 @@ case "${1}" in
       apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 rsyslog
     fi
 
-    apt-get install -y python3-pip
-    pip install requests-pkcs12 --break-system-packages
-    # pip install pyopenssl --upgrade
-
     systemctl enable rsyslog
     systemctl start syslog
 
@@ -43,6 +39,9 @@ case "${1}" in
 
     echo "install a2c"
     apt-get install -y /tmp/acme2certifier/acme2certifier*.deb
+
+    apt-get install -y python3-pip
+    pip install "requests-pkcs12" "cryptography<=48.0.1" --break-system-packages
 
     if [[ "${2}" = "apache2" ]]; then
       echo "configure apache"

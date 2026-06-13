@@ -123,6 +123,7 @@ jobs:
 
       - name: "Enroll acme.sh with profileID ACME"
         run: |
+          sudo rm -rf acme-sh/*
           docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --useragent profile_name=ACME --keylength 2048 --debug 3 --output-insecure
           awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme/ca.cer
           openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
@@ -137,6 +138,7 @@ jobs:
 
       - name: "Enroll acme.sh with profileID ACME_2"
         run: |
+          sudo rm -rf acme-sh/*
           docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --renew --server http://acme-srv --force -d acme-sh.acme --standalone --useragent profile_name=ACME_2 --keylength 2048 --debug 3 --output-insecure
           openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme/acme-sh.acme.cer
           openssl x509 -in acme-sh/acme-sh.acme/acme-sh.acme.cer -ext keyUsage -noout | grep "Key Encipherment, Data Encipherment"
