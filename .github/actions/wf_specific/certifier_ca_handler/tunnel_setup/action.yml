@@ -46,7 +46,7 @@ runs:
 
   - name: "Setup ssh forwarder"
     run: |
-        docker run -d --rm --network $NAME_SPACE --name=forwarder  -e "MAPPINGS=8084:127.0.0.1:8084" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 8080:8084 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
+        docker run -d --rm --network $NAME_SPACE --name=forwarder  -e "MAPPINGS=8084:127.0.0.1:8084; 8080:127.0.0.1:8080" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 8080:8080 -p 8084:8084 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
     env:
       SSH_USER: ${{ inputs.SSH_USER }}
       SSH_HOST: ${{ inputs.SSH_HOST }}
