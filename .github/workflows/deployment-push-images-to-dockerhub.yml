@@ -444,6 +444,11 @@ jobs:
         with:
           json_secret: ${{ secrets.AWS_CFG }}
 
+      - name: "Parse ARM64_CFG secrets"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.ARM64_CFG }}
+
       - name: "Retrieve Version from version.py"
         run: |
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
@@ -465,14 +470,14 @@ jobs:
           sudo chmod 600 /tmp/rd/ak.tmp
           sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
         env:
-          SSH_KEY: ${{ env.AWS_SSH_KEY }}
-          KNOWN_HOSTS: ${{ env.AWS_SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.AWS_ARM_SSH_KEY }}
+          KNOWN_HOSTS: ${{ env.AWS_ARM_SSH_KNOWN_HOSTS }}
 
       - name: "Create working directory on remote host"
         run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts  mkdir -p /tmp/a2c/$UUID
         env:
-          SSH_USER: ${{ env.AWS_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_SSH_HOST }}
+          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
+          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
           UUID: ${{ env.UUID }}
 
       - name: "Generate keys and certificates"
@@ -491,8 +496,8 @@ jobs:
       - name: "Copy data package to remote host"
         run: sudo scp -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts -r /tmp/data $SSH_USER@$SSH_HOST:/tmp/a2c/$UUID/
         env:
-          SSH_USER: ${{ env.AWS_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_SSH_HOST }}
+          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
+          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
           WEB_SRV: ${{ matrix.websrv }}
           DB_HANDLER: ${{ matrix.dbhandler }}
           UUID: ${{ env.UUID }}
@@ -508,8 +513,8 @@ jobs:
           sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker network create $UUID"
           sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -d --rm -id --network $UUID --name=acme-srv-$UUID -v "/tmp/a2c/$UUID/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:$TAG_NAME-$WEB_SRV-$DB_HANDLER"
         env:
-          SSH_USER: ${{ env.AWS_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_SSH_HOST }}
+          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
+          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
           WEB_SRV: ${{ matrix.websrv }}
           DB_HANDLER: ${{ matrix.dbhandler }}
           TAG_NAME: ${{ env.TAG_NAME }}
@@ -523,15 +528,15 @@ jobs:
       - name: "Test http://acme-srv/directory internally"
         run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --network $UUID curlimages/curl -f http://acme-srv-$UUID/directory"
         env:
-          SSH_USER: ${{ env.AWS_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_SSH_HOST }}
+          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
+          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
           UUID: ${{ env.UUID }}
 
       - name: "Test if https://acme-srv/directory internally"
         run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --network $UUID curlimages/curl --insecure -f https://acme-srv-$UUID/directory"
         env:
-          SSH_USER: ${{ env.AWS_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_SSH_HOST }}
+          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
+          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
           UUID: ${{ env.UUID }}
 
       - name: "acme.sh enroll"
@@ -540,16 +545,16 @@ jobs:
           sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run --rm -id -v /tmp/a2c/$UUID/acme-sh:/acme.sh --network $UUID --name=acme-sh-$UUID neilpang/acme.sh:latest daemon"
           sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker exec -i acme-sh-$UUID acme.sh --server http://acme-srv-$UUID  --accountemail 'acme-sh@example.com' --issue -d acme-sh-$UUID --standalone --debug 3 --output-insecure --force"
         env:
-          SSH_USER: ${{ env.AWS_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_SSH_HOST }}
+          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
+          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
           UUID: ${{ env.UUID }}
 
       - name: "acme.sh revoke"
         run: |
           sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker exec -i acme-sh-$UUID acme.sh --server http://acme-srv-$UUID --revoke -d acme-sh-$UUID --standalone --debug 3 --output-insecure"
         env:
-          SSH_USER: ${{ env.AWS_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_SSH_HOST }}
+          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
+          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
           UUID: ${{ env.UUID }}
 
       - name: "Certbot enroll"
@@ -558,16 +563,16 @@ jobs:
           sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --name certbot-$UUID --network $UUID -v /tmp/a2c/$UUID/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv-$UUID --no-eff-email"
           sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --name certbot-$UUID --network $UUID -v /tmp/a2c/$UUID/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv-$UUID --standalone --preferred-challenges http -d certbot-$UUID --cert-name certbot-$UUID"
         env:
-          SSH_USER: ${{ env.AWS_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_SSH_HOST }}
+          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
+          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
           UUID: ${{ env.UUID }}
 
       - name: "Certbot revoke"
         run: |
           sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --name certbot-$UUID --network $UUID -v /tmp/a2c/$UUID/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv-$UUID -d certbot-$UUID --cert-name certbot-$UUID"
         env:
-          SSH_USER: ${{ env.AWS_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_SSH_HOST }}
+          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
+          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
           UUID: ${{ env.UUID }}
 
       - name: "Lego enroll"
@@ -575,16 +580,16 @@ jobs:
           sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "mkdir -p /tmp/a2c/$UUID/lego"
           sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID --network $UUID goacme/lego run --tls-skip-verify -s https://acme-srv-$UUID/directory -a --email lego@example.com -d lego-$UUID --http"
         env:
-          SSH_USER: ${{ env.AWS_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_SSH_HOST }}
+          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
+          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
           UUID: ${{ env.UUID }}
 
       - name: "lego certificates revoke"
         run: |
           sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID  --network $UUID goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv-$UUID --email "lego@example.com" --cert.name lego-$UUID"
         env:
-          SSH_USER: ${{ env.AWS_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_SSH_HOST }}
+          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
+          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
           UUID: ${{ env.UUID }}
 
       - name: "Cleanup on remote host"
@@ -595,8 +600,8 @@ jobs:
           sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker image rm grindsa/acme2certifier:$TAG_NAME-$WEB_SRV-$DB_HANDLER"
           sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "sudo rm -rf /tmp/a2c/$UUID"
         env:
-          SSH_USER: ${{ env.AWS_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_SSH_HOST }}
+          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
+          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
           WEB_SRV: ${{ matrix.websrv }}
           DB_HANDLER: ${{ matrix.dbhandler }}
           UUID: ${{ env.UUID }}
