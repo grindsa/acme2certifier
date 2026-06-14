@@ -675,7 +675,7 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPTrestart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
           EXECSRIPT: ${{ matrix.execscript }}
@@ -719,7 +719,7 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPTrestart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
           EXECSRIPT: ${{ matrix.execscript }}
@@ -746,7 +746,7 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPTrestart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
           EXECSRIPT: ${{ matrix.execscript }}
@@ -790,7 +790,7 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPTrestart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
           EXECSRIPT: ${{ matrix.execscript }}
