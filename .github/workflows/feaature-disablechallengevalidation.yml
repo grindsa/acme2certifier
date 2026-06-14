@@ -578,7 +578,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -592,7 +592,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -613,7 +613,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -668,7 +668,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB - forward address check enabled"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile

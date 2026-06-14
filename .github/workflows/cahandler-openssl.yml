@@ -379,7 +379,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "With Template -  enrollment"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_teamplate
@@ -397,7 +397,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "With CN enforce - enrollment"
         if: matrix.execscript == 'rpm_tester.sh'
@@ -416,7 +416,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "With cert_validity - enrollment"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity

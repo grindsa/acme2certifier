@@ -507,7 +507,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_acmeprofile
@@ -535,7 +535,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_eabprofile

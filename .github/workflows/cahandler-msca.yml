@@ -2059,7 +2059,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "KRB - enrollment default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -2086,7 +2086,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "NTLM - enrollment mit default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -2103,7 +2103,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "NTLM - enrollment allowed domainlist"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
@@ -2142,7 +2142,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "KRB ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
@@ -2330,7 +2330,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "KRB - enrollment mit default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -2345,7 +2345,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "KRB - enrollment allowed domainlist"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
@@ -2375,7 +2375,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
