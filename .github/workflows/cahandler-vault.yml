@@ -417,7 +417,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/vault_ca_handler/enroll_acmeprofile
@@ -446,7 +446,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}

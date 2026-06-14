@@ -678,7 +678,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB without headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_wo_headerinfo
@@ -722,7 +722,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB with headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_w_headerinfo
@@ -749,7 +749,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_acmeprofile
@@ -793,7 +793,7 @@ jobs:
           docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_acmeprofile
