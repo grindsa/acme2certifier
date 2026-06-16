@@ -1204,6 +1204,164 @@ class TestACMEHandler(unittest.TestCase):
         mock_handler_check.return_value = "mock_handler_check"
         self.assertEqual("mock_handler_check", self.cahandler.handler_check())
 
+    @patch("examples.ca_handler.mswcce_ca_handler.load_config")
+    def test_067_config_load_python_kerberos_backend(self, mock_load_cfg):
+        """test _config_load with python kerberos backend options"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "use_kerberos": "True",
+            "kerberos_auth_backend": "python",
+            "kerberos_principal": "svc-a2c-enroll@EXAMPLE.COM",
+            "kerberos_keytab": "/tmp/svc.keytab",
+            "kerberos_ccache": "/tmp/krb5cc_svc",
+            "kerberos_krb5_config": "/tmp/krb5.conf",
+        }
+        mock_load_cfg.return_value = parser
+        self.cahandler._config_load()
+        self.assertTrue(self.cahandler.use_kerberos)
+        self.assertEqual("python", self.cahandler.kerberos_auth_backend)
+        self.assertEqual(
+            "svc-a2c-enroll@EXAMPLE.COM",
+            self.cahandler.kerberos_principal,
+        )
+        self.assertEqual("/tmp/svc.keytab", self.cahandler.kerberos_keytab)
+        self.assertEqual("/tmp/krb5cc_svc", self.cahandler.kerberos_ccache)
+        self.assertEqual("/tmp/krb5.conf", self.cahandler.kerberos_krb5_config)
+
+    @patch("examples.ca_handler.mswcce_ca_handler.load_config")
+    def test_067a_config_load_autoselect_python_backend(self, mock_load_cfg):
+        """test backend autoselection to python for keytab-based kerberos config"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "use_kerberos": "True",
+            "kerberos_principal": "svc-a2c-enroll@EXAMPLE.COM",
+            "kerberos_keytab": "/tmp/svc.keytab",
+        }
+        mock_load_cfg.return_value = parser
+
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+
+        self.assertEqual("python", self.cahandler.kerberos_auth_backend)
+        self.assertIn(
+            "INFO:test_a2c:Auto-selected kerberos_auth_backend='python' because kerberos_principal and kerberos_keytab are configured.",
+            lcm.output,
+        )
+
+    @patch("examples.ca_handler.mswcce_ca_handler.load_config")
+    def test_067b_config_load_keep_explicit_backend(self, mock_load_cfg):
+        """test explicit backend is preserved even in keytab mode"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "use_kerberos": "True",
+            "kerberos_auth_backend": "impacket",
+            "kerberos_principal": "svc-a2c-enroll@EXAMPLE.COM",
+            "kerberos_keytab": "/tmp/svc.keytab",
+            "kerberos_ccache": "/tmp/krb5cc_svc",
+        }
+        mock_load_cfg.return_value = parser
+
+        self.cahandler._config_load()
+
+        self.assertEqual("impacket", self.cahandler.kerberos_auth_backend)
+
+    def test_068_config_is_complete_kerberos_keytab(self):
+        """test config completeness in kerberos keytab mode"""
+        self.cahandler.host = "host"
+        self.cahandler.template = "template"
+        self.cahandler.use_kerberos = True
+        self.cahandler.kerberos_auth_backend = "python"
+        self.cahandler.kerberos_principal = "svc-a2c-enroll@EXAMPLE.COM"
+        self.cahandler.kerberos_keytab = "/tmp/svc.keytab"
+
+        result, error = self.cahandler._config_is_complete()
+        self.assertTrue(result)
+        self.assertFalse(error)
+
+    def test_069_config_is_complete_kerberos_incomplete(self):
+        """test config completeness in incomplete kerberos mode"""
+        self.cahandler.host = "host"
+        self.cahandler.template = "template"
+        self.cahandler.use_kerberos = True
+
+        result, error = self.cahandler._config_is_complete()
+        self.assertFalse(result)
+        self.assertIn("kerberos is enabled", error)
+
+    @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._kerberos_prepare_python_backend")
+    def test_070_enroll_python_backend_error(self, mock_krb_prepare):
+        """test enroll returns python backend setup errors"""
+        mock_krb_prepare.return_value = "backend error"
+        self.cahandler.host = "host"
+        self.cahandler.template = "template"
+        self.cahandler.use_kerberos = True
+        self.cahandler.kerberos_auth_backend = "python"
+        self.cahandler.kerberos_principal = "svc-a2c-enroll@EXAMPLE.COM"
+        self.cahandler.kerberos_keytab = "/tmp/svc.keytab"
+
+        error, cert_bundle, cert_raw, _ = self.cahandler.enroll("csr")
+        self.assertEqual("backend error", error)
+        self.assertFalse(cert_bundle)
+        self.assertFalse(cert_raw)
+
+    @patch("examples.ca_handler.mswcce_ca_handler.importlib.import_module")
+    @patch("examples.ca_handler.mswcce_ca_handler.os.path.isfile")
+    def test_071_kerberos_prepare_python_backend_fallback_kinit(
+        self,
+        mock_isfile,
+        mock_import_module,
+    ):
+        """fallback to gssapi high-level acquire if raw API is unavailable"""
+        self.cahandler.use_kerberos = True
+        self.cahandler.kerberos_auth_backend = "python"
+        self.cahandler.kerberos_principal = "svc-a2c-enroll@EXAMPLE.COM"
+        self.cahandler.kerberos_keytab = "/tmp/svc.keytab"
+        self.cahandler.kerberos_ccache = "/tmp/krb5cc_svc"
+
+        mock_isfile.return_value = True
+
+        mock_gssapi = Mock()
+        mock_gssapi.NameType.kerberos_principal = "kerberos_principal"
+        mock_gssapi.Name.return_value = "principal"
+        mock_gssapi.raw = object()
+        mock_gssapi.Credentials = Mock()
+        mock_gssapi.Credentials.acquire = Mock(return_value=(None, None, None))
+        mock_import_module.return_value = mock_gssapi
+
+        error = self.cahandler._kerberos_prepare_python_backend()
+
+        self.assertFalse(error)
+        self.assertTrue(mock_gssapi.Credentials.acquire.called)
+        self.assertEqual(
+            "/tmp/krb5cc_svc",
+            self.cahandler.kerberos_ccache,
+        )
+
+    @patch("examples.ca_handler.mswcce_ca_handler.subprocess.run")
+    @patch("examples.ca_handler.mswcce_ca_handler.os.path.isfile")
+    def test_072_kerberos_acquire_with_kinit_with_krb5_config(
+        self,
+        mock_isfile,
+        mock_subprocess_run,
+    ):
+        """test kinit fallback uses optional KRB5_CONFIG when configured"""
+        self.cahandler.kerberos_keytab = "/tmp/svc.keytab"
+        self.cahandler.kerberos_principal = "svc-a2c-enroll@EXAMPLE.COM"
+        self.cahandler.kerberos_krb5_config = "/tmp/krb5.conf"
+
+        def _isfile_side_effect(path):
+            return path == "/tmp/krb5.conf"
+
+        mock_isfile.side_effect = _isfile_side_effect
+
+        result = self.cahandler._kerberos_acquire_with_kinit("/tmp/krb5cc_svc")
+
+        self.assertTrue(result)
+        self.assertTrue(mock_subprocess_run.called)
+        _, run_kwargs = mock_subprocess_run.call_args
+        self.assertEqual("/tmp/krb5cc_svc", run_kwargs["env"]["KRB5CCNAME"])
+        self.assertEqual("/tmp/krb5.conf", run_kwargs["env"]["KRB5_CONFIG"])
+
 
 if __name__ == "__main__":
 
