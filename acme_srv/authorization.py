@@ -594,6 +594,28 @@ class Authorization(object):
             self.config, "prevalidated_domainlist", None
         ):
             return
+
+        wildcard_all = (
+            len(self.config.prevalidated_domainlist) == 1
+            and isinstance(self.config.prevalidated_domainlist[0], str)
+            and self.config.prevalidated_domainlist[0].strip() == "*"
+        )
+
+        if wildcard_all:
+            self.logger.warning(
+                "Global wildcard prevalidation is active (prevalidated_domainlist contains '*'). Marking authorization %s as valid without challenge validation.",
+                authz_name,
+            )
+            authz_info["status"] = "valid"
+            self.repository.mark_authorization_as_valid(authz_name)
+            if auth_details is not None:
+                self.repository.mark_order_as_ready(auth_details.get("order__name"))
+            else:
+                self.logger.debug(
+                    "No order information found for authorization %s", authz_name
+                )
+            return
+
         self.logger.debug(
             "Authorization.get_authorization_details() - Checking preauthorized domain list for DNS identifier"
         )
