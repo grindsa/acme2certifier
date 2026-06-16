@@ -1663,6 +1663,73 @@ class TestAuthorization(unittest.TestCase):
         self.assertIn("kid", str(log_args))
         self.assertIn("fail", str(log_args))
 
+    def test_086_apply_domain_whitelist_wildcard_all_marks_valid(self):
+        """Test wildcard '*' in prevalidated_domainlist marks DNS authorization as valid"""
+        self.authorization.config.prevalidated_domainlist = ["*"]
+
+        self.authorization.repository.mark_authorization_as_valid = Mock()
+        self.authorization.repository.mark_order_as_ready = Mock()
+
+        authz_name = "authz-wildcard"
+        auth_details = {"order__name": "order-wildcard"}
+        authz_info = {"status": "pending"}
+
+        self.authorization._apply_domain_whitelist(
+            authz_name,
+            auth_details,
+            "dns",
+            "any.example.test",
+            authz_info,
+        )
+
+        self.assertEqual(authz_info["status"], "valid")
+        self.authorization.repository.mark_authorization_as_valid.assert_called_once_with(
+            authz_name
+        )
+        self.authorization.repository.mark_order_as_ready.assert_called_once_with(
+            "order-wildcard"
+        )
+
+    def test_087_apply_domain_whitelist_wildcard_all_ignores_non_dns(self):
+        """Test wildcard '*' does not auto-validate non-DNS identifiers"""
+        self.authorization.config.prevalidated_domainlist = ["*"]
+
+        self.authorization.repository.mark_authorization_as_valid = Mock()
+        self.authorization.repository.mark_order_as_ready = Mock()
+
+        authz_info = {"status": "pending"}
+        self.authorization._apply_domain_whitelist(
+            "authz-non-dns",
+            {"order__name": "order-non-dns"},
+            "ip",
+            "10.1.2.3",
+            authz_info,
+        )
+
+        self.assertEqual(authz_info["status"], "pending")
+        self.authorization.repository.mark_authorization_as_valid.assert_not_called()
+        self.authorization.repository.mark_order_as_ready.assert_not_called()
+
+    def test_088_apply_domain_whitelist_wildcard_all_stripped_entry(self):
+        """Test wildcard is not treated as global when additional entries exist"""
+        self.authorization.config.prevalidated_domainlist = [" * ", "example.com"]
+
+        self.authorization.repository.mark_authorization_as_valid = Mock()
+        self.authorization.repository.mark_order_as_ready = Mock()
+
+        authz_info = {"status": "pending"}
+        self.authorization._apply_domain_whitelist(
+            "authz-spaces",
+            {"order__name": "order-spaces"},
+            "dns",
+            "not-listed.example.net",
+            authz_info,
+        )
+
+        self.assertEqual(authz_info["status"], "pending")
+        self.authorization.repository.mark_authorization_as_valid.assert_not_called()
+        self.authorization.repository.mark_order_as_ready.assert_not_called()
+
     def test_086_domain_whitelist_dns_match(self):
         """Test DNS identifier matches prevalidated_domainlist, status set to valid, mark methods called"""
         self.authorization.config.prevalidated_domainlist = ["foo.com"]

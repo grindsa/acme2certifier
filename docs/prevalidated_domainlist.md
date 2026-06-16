@@ -33,6 +33,15 @@ Add the following to your `[Authorization]` section:
 prevalidated_domainlist: ["example.com", "trusted.example.org"]
 ```
 
+You can also configure a global wildcard:
+
+```ini
+[Authorization]
+prevalidated_domainlist: ["*"]
+```
+
+When `prevalidated_domainlist` is configured as a single wildcard entry (`["*"]`), every DNS identifier is treated as prevalidated and is marked `valid` immediately.
+
 - The value must be a valid JSON array of domain names.
 - Restart the ACME service after changing the configuration.
 
@@ -59,6 +68,7 @@ When an account with key ID `keyid_03` requests authorization, the specified dom
 **Warning: Enabling the prevalidated domain list feature can severely weaken the security of your ACME deployment.**
 
 - Any domain listed in `prevalidated_domainlist` will be issued certificates without proof of control.
+- If `prevalidated_domainlist` is exactly `["*"]`, all DNS domains are prevalidated and challenge validation is effectively disabled for DNS authorizations.
 - If the list is set globally, any client can obtain certificates for those domains.
 - Use this feature only in tightly controlled environments, such as internal PKIs or for legacy migration scenarios.
 - Always audit and restrict the list to the minimum set of domains required.
