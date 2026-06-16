@@ -53,8 +53,9 @@ As of today, the `acme_ca_handler` supports the following operations:
 ## Supported CAs
 
 - [Let's Encrypt](https://letsencrypt.org/)
-- [BuyPass](https://www.buypass.com/)
 - [ZeroSSL](https://zerossl.com/)
+- [Harica](https://harica.gr/en/)
+- Any other CertificateAuthority providing an ACME interface
 
 ## Prerequisites
 
@@ -113,22 +114,6 @@ For production:
 ```cfg
 acme_url: https://acme-v02.api.letsencrypt.org
 acme_keyfile: /var/www/acme2certifier/volume/acme/le_private_key.json
-```
-
-### BuyPass
-
-```cfg
-acme_keyfile: acme_srv/acme/buypass_test_private_key.json
-acme_url: https://api.test4.buypass.no/acme
-acme_account_email: email@example.com
-```
-
-For production:
-
-```cfg
-acme_keyfile: acme_srv/acme/buypass_prod_private_key.json
-acme_url: https://api.buypass.com/acme
-acme_account_email: email@example.com
 ```
 
 ### ZeroSSL
