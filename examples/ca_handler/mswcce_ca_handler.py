@@ -1,5 +1,3 @@
-
-
 # -*- coding: utf-8 -*-
 """CA handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)"""
 
@@ -48,11 +46,11 @@ class CAhandler(object):
         self.ca_name = None
         self.ca_bundle = False
         self.use_kerberos = False
-        self.kerberos_auth_backend = "impacket"
-        self.kerberos_principal = None
-        self.kerberos_keytab = None
-        self.kerberos_ccache = None
-        self.kerberos_krb5_config = None
+        self.krb5_auth_backend = "impacket"
+        self.krb5_principal = None
+        self.krb5_keytab = None
+        self.krb5_cache = None
+        self.krb5_config = None
         self.header_info_field = None
         self.timeout = 5
         self.eab_handler = None
@@ -130,36 +128,36 @@ class CAhandler(object):
             "password_variable",
             "Unable to load password variable from environment: %s",
         )
-        self.kerberos_principal = self._config_credential_item_load(
+        self.krb5_principal = self._config_credential_item_load(
             config_dic,
             cahandler_cfg,
-            self.kerberos_principal,
-            "kerberos_principal",
-            "kerberos_principal_variable",
+            self.krb5_principal,
+            "krb5_principal",
+            "krb5_principal_variable",
             "Unable to load kerberos principal variable from environment: %s",
         )
-        self.kerberos_keytab = self._config_credential_item_load(
+        self.krb5_keytab = self._config_credential_item_load(
             config_dic,
             cahandler_cfg,
-            self.kerberos_keytab,
-            "kerberos_keytab",
-            "kerberos_keytab_variable",
+            self.krb5_keytab,
+            "krb5_keytab",
+            "krb5_keytab_variable",
             "Unable to load kerberos keytab variable from environment: %s",
         )
-        self.kerberos_ccache = self._config_credential_item_load(
+        self.krb5_cache = self._config_credential_item_load(
             config_dic,
             cahandler_cfg,
-            self.kerberos_ccache,
-            "kerberos_ccache",
-            "kerberos_ccache_variable",
+            self.krb5_cache,
+            "krb5_cache",
+            "krb5_cache_variable",
             "Unable to load kerberos ccache variable from environment: %s",
         )
-        self.kerberos_krb5_config = self._config_credential_item_load(
+        self.krb5_config = self._config_credential_item_load(
             config_dic,
             cahandler_cfg,
-            self.kerberos_krb5_config,
-            "kerberos_krb5_config",
-            "kerberos_krb5_config_variable",
+            self.krb5_config,
+            "krb5_config",
+            "krb5_config_variable",
             "Unable to load kerberos krb5 config variable from environment: %s",
         )
 
@@ -188,7 +186,11 @@ class CAhandler(object):
             if loaded_value:
                 self.logger.info("Overwrite %s", cfg_key)
             loaded_value = config_dic.get("CAhandler", cfg_key)
-        self.logger.debug("CAhandler._config_credential_item_load(%s) ended with value: %s", cfg_key, "******" if loaded_value else None)
+        self.logger.debug(
+            "CAhandler._config_credential_item_load(%s) ended with value: %s",
+            cfg_key,
+            "******" if loaded_value else None,
+        )
         return loaded_value
 
     def _config_parameters_load(self, config_dic: Dict[str, str]):
@@ -230,30 +232,30 @@ class CAhandler(object):
                 err_,
             )
 
-        if "kerberos_auth_backend" in config_dic["CAhandler"]:
-            self.kerberos_auth_backend = config_dic.get(
-                "CAhandler", "kerberos_auth_backend", fallback="impacket"
+        if "krb5_auth_backend" in config_dic["CAhandler"]:
+            self.krb5_auth_backend = config_dic.get(
+                "CAhandler", "krb5_auth_backend", fallback="impacket"
             ).lower()
         elif self.use_kerberos and self._kerberos_keytab_is_configured():
-            self.kerberos_auth_backend = "python"
+            self.krb5_auth_backend = "python"
             self.logger.info(
-                "Auto-selected kerberos_auth_backend='python' because kerberos_principal and kerberos_keytab are configured."
+                "Auto-selected krb5_auth_backend='python' because krb5_principal and krb5_keytab are configured."
             )
         else:
-            self.kerberos_auth_backend = "impacket"
+            self.krb5_auth_backend = "impacket"
 
-        if self.kerberos_auth_backend not in ["impacket", "python"]:
+        if self.krb5_auth_backend not in ["impacket", "python"]:
             self.logger.warning(
-                "Unknown kerberos_auth_backend '%s'. Falling back to 'impacket'.",
-                self.kerberos_auth_backend,
+                "Unknown krb5_auth_backend '%s'. Falling back to 'impacket'.",
+                self.krb5_auth_backend,
             )
-            self.kerberos_auth_backend = "impacket"
+            self.krb5_auth_backend = "impacket"
 
         self.logger.debug("CAhandler._config_parameters_load()")
 
     def _kerberos_keytab_is_configured(self) -> bool:
         """check if keytab flow can be used"""
-        result = bool(self.kerberos_principal and self.kerberos_keytab)
+        result = bool(self.krb5_principal and self.krb5_keytab)
         self.logger.debug("CAhandler._kerberos_keytab_is_configured() = %s", result)
         return result
 
@@ -261,7 +263,9 @@ class CAhandler(object):
         """extract username from kerberos principal"""
         self.logger.debug("CAhandler._kerberos_username_from_principal()")
         if not principal:
-            self.logger.error("Kerberos principal is not configured, cannot extract username.")
+            self.logger.error(
+                "Kerberos principal is not configured, cannot extract username."
+            )
             return None
         self.logger.debug("Extracting username from kerberos principal '%s'", principal)
         return principal.split("@", maxsplit=1)[0]
@@ -269,34 +273,41 @@ class CAhandler(object):
     def _kerberos_prepare_python_backend(self) -> Optional[str]:
         """prepare kerberos credentials in python using gssapi/keytab"""
         self.logger.debug("CAhandler._kerberos_prepare_python_backend()")
-        if not self.use_kerberos or self.kerberos_auth_backend != "python":
+        if not self.use_kerberos or self.krb5_auth_backend != "python":
             return None
 
         if not self._kerberos_keytab_is_configured():
             return None
 
-        if not os.path.isfile(self.kerberos_keytab):
-            self.logger.error("Kerberos keytab file does not exist: %s", self.kerberos_keytab)
+        if not os.path.isfile(self.krb5_keytab):
+            self.logger.error(
+                "Kerberos keytab file does not exist: %s", self.krb5_keytab
+            )
             return "Kerberos keytab file does not exist."
 
         try:
             gssapi = importlib.import_module("gssapi")
         except Exception as err:
             self.logger.error("Failed to import gssapi module: %s", err)
-            return "gssapi module is required for kerberos_auth_backend=python."
+            return "gssapi module is required for krb5_auth_backend=python."
 
-        ccache_file = self.kerberos_ccache
+        ccache_file = self.krb5_cache
         if not ccache_file:
             ccache_file = tempfile.NamedTemporaryFile(
                 prefix="acme2certifier_krb5cc_", delete=False
             ).name
-            self.logger.debug("No kerberos ccache configured, created temporary ccache file: %s", ccache_file)
-            self.kerberos_ccache = ccache_file
+            self.logger.debug(
+                "No kerberos ccache configured, created temporary ccache file: %s",
+                ccache_file,
+            )
+            self.krb5_cache = ccache_file
 
         if ccache_file.startswith("FILE:"):
             ccache_file = ccache_file.split("FILE:", maxsplit=1)[1]
-            self.logger.debug("Normalized kerberos ccache path from FILE: prefix: %s", ccache_file)
-            self.kerberos_ccache = ccache_file
+            self.logger.debug(
+                "Normalized kerberos ccache path from FILE: prefix: %s", ccache_file
+            )
+            self.krb5_cache = ccache_file
 
         if not os.path.exists(ccache_file):
             with open(ccache_file, "a", encoding="utf-8") as ccache_handle:
@@ -307,30 +318,30 @@ class CAhandler(object):
 
         try:
             principal = gssapi.Name(
-                self.kerberos_principal,
+                self.krb5_principal,
                 gssapi.NameType.kerberos_principal,
             )
         except Exception as err:
             self.logger.error(
                 "Failed to build kerberos principal from '%s': %s",
-                self.kerberos_principal,
+                self.krb5_principal,
                 err,
             )
-            return "Failed to build kerberos principal for kerberos keytab authentication."
+            return (
+                "Failed to build kerberos principal for kerberos keytab authentication."
+            )
 
         # Acquire initiator creds from keytab into ccache via available backend.
         self.logger.debug(
             "Acquiring kerberos credentials for principal '%s' using keytab '%s'",
-            self.kerberos_principal,
-            self.kerberos_keytab,
+            self.krb5_principal,
+            self.krb5_keytab,
         )
 
         if self._kerberos_acquire_with_gssapi_raw(gssapi, principal, ccache_file):
             return None
 
-        if self._kerberos_acquire_with_gssapi_highlevel(
-            gssapi, principal, ccache_file
-        ):
+        if self._kerberos_acquire_with_gssapi_highlevel(gssapi, principal, ccache_file):
             return None
 
         if self._kerberos_acquire_with_kinit(ccache_file):
@@ -356,7 +367,7 @@ class CAhandler(object):
                 return False
 
             store = {
-                b"client_keytab": self.kerberos_keytab.encode("utf-8"),
+                b"client_keytab": self.krb5_keytab.encode("utf-8"),
                 b"ccache": ccache_file.encode("utf-8"),
             }
             raw_acquire(
@@ -396,7 +407,7 @@ class CAhandler(object):
                 name=principal,
                 usage="initiate",
                 store={
-                    "client_keytab": self.kerberos_keytab,
+                    "client_keytab": self.krb5_keytab,
                     "ccache": ccache_file,
                 },
             )
@@ -417,25 +428,25 @@ class CAhandler(object):
         try:
             kinit_env = dict(os.environ)
             kinit_env["KRB5CCNAME"] = ccache_file
-            if self.kerberos_krb5_config:
-                if os.path.isfile(self.kerberos_krb5_config):
-                    kinit_env["KRB5_CONFIG"] = self.kerberos_krb5_config
+            if self.krb5_config:
+                if os.path.isfile(self.krb5_config):
+                    kinit_env["KRB5_CONFIG"] = self.krb5_config
                     self.logger.debug(
                         "Using kerberos config file for kinit fallback: %s",
-                        self.kerberos_krb5_config,
+                        self.krb5_config,
                     )
                 else:
                     self.logger.warning(
-                        "Configured kerberos_krb5_config does not exist: %s. Ignoring for kinit fallback.",
-                        self.kerberos_krb5_config,
+                        "Configured krb5_config does not exist: %s. Ignoring for kinit fallback.",
+                        self.krb5_config,
                     )
             subprocess.run(
                 [
                     "kinit",
                     "-k",
                     "-t",
-                    self.kerberos_keytab,
-                    self.kerberos_principal,
+                    self.krb5_keytab,
+                    self.krb5_principal,
                 ],
                 check=True,
                 stdout=subprocess.PIPE,
@@ -480,13 +491,10 @@ class CAhandler(object):
             return (True, None)
 
         if self._kerberos_keytab_is_configured():
-            if (
-                self.kerberos_auth_backend == "impacket"
-                and not self.kerberos_ccache
-            ):
+            if self.krb5_auth_backend == "impacket" and not self.krb5_cache:
                 return (
                     False,
-                    "Configuration incomplete: kerberos keytab with kerberos_auth_backend=impacket requires kerberos_ccache.",
+                    "Configuration incomplete: kerberos keytab with krb5_auth_backend=impacket requires krb5_cache.",
                 )
             return (True, None)
 
@@ -561,10 +569,10 @@ class CAhandler(object):
         request_password = self.password
         request_no_pass = False
         if self.use_kerberos and self._kerberos_keytab_is_configured():
-            self.logger.debug("Using kerberos keytab authentication. Username will be extracted from kerberos principal and password will be empty.")
-            request_user = self._kerberos_username_from_principal(
-                self.kerberos_principal
+            self.logger.debug(
+                "Using kerberos keytab authentication. Username will be extracted from kerberos principal and password will be empty."
             )
+            request_user = self._kerberos_username_from_principal(self.krb5_principal)
             # In keytab mode credentials come from ccache, not plaintext password.
             request_password = ""
             request_no_pass = True
