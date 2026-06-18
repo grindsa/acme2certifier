@@ -1917,6 +1917,104 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
+    @patch("examples.ca_handler.mswcce_ca_handler.fqdn_resolve")
+    @patch("examples.ca_handler.mswcce_ca_handler.ip_validate")
+    @patch("examples.ca_handler.mswcce_ca_handler.load_config")
+    def test_096_config_load_domain_controller_fqdn_resolution(
+        self,
+        mock_load_cfg,
+        mock_ip_validate,
+        mock_fqdn_resolve,
+    ):
+        """test _config_parameters_load resolves domain_controller FQDN to first IP"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"domain_controller": "dc01.example.local"}
+        mock_load_cfg.return_value = parser
+        mock_ip_validate.return_value = (None, True)
+        mock_fqdn_resolve.return_value = ("10.0.0.10", False, None)
+
+        self.cahandler._config_load()
+
+        self.assertEqual("10.0.0.10", self.cahandler.domain_controller)
+        mock_ip_validate.assert_called_once_with(self.logger, "dc01.example.local")
+        mock_fqdn_resolve.assert_called_once_with(self.logger, "dc01.example.local")
+
+    @patch("examples.ca_handler.mswcce_ca_handler.fqdn_resolve")
+    @patch("examples.ca_handler.mswcce_ca_handler.ip_validate")
+    @patch("examples.ca_handler.mswcce_ca_handler.load_config")
+    def test_097_config_load_domain_controller_ip_passthrough(
+        self,
+        mock_load_cfg,
+        mock_ip_validate,
+        mock_fqdn_resolve,
+    ):
+        """test _config_parameters_load keeps literal domain_controller IP without DNS lookup"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"domain_controller": "10.0.0.12"}
+        mock_load_cfg.return_value = parser
+        mock_ip_validate.return_value = ("12.0.0.10.in-addr.arpa", False)
+
+        self.cahandler._config_load()
+
+        self.assertEqual("10.0.0.12", self.cahandler.domain_controller)
+        mock_ip_validate.assert_called_once_with(self.logger, "10.0.0.12")
+        self.assertFalse(mock_fqdn_resolve.called)
+
+    @patch("examples.ca_handler.mswcce_ca_handler.fqdn_resolve")
+    @patch("examples.ca_handler.mswcce_ca_handler.ip_validate")
+    @patch("examples.ca_handler.mswcce_ca_handler.load_config")
+    def test_098_config_load_domain_controller_fqdn_resolution_list_first_ip(
+        self,
+        mock_load_cfg,
+        mock_ip_validate,
+        mock_fqdn_resolve,
+    ):
+        """test _config_parameters_load picks first IP when fqdn_resolve returns a list"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"domain_controller": "dc-list.example.local"}
+        mock_load_cfg.return_value = parser
+        mock_ip_validate.return_value = (None, True)
+        mock_fqdn_resolve.return_value = (["10.0.0.20", "10.0.0.21"], False, None)
+
+        self.cahandler._config_load()
+
+        self.assertEqual("10.0.0.20", self.cahandler.domain_controller)
+        mock_ip_validate.assert_called_once_with(self.logger, "dc-list.example.local")
+        mock_fqdn_resolve.assert_called_once_with(
+            self.logger,
+            "dc-list.example.local",
+        )
+
+    @patch("examples.ca_handler.mswcce_ca_handler.fqdn_resolve")
+    @patch("examples.ca_handler.mswcce_ca_handler.ip_validate")
+    @patch("examples.ca_handler.mswcce_ca_handler.load_config")
+    def test_099_config_load_domain_controller_fqdn_resolution_failure_warning(
+        self,
+        mock_load_cfg,
+        mock_ip_validate,
+        mock_fqdn_resolve,
+    ):
+        """test _config_parameters_load logs warning and keeps fqdn on failed resolution"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"domain_controller": "dc-fail.example.local"}
+        mock_load_cfg.return_value = parser
+        mock_ip_validate.return_value = (None, True)
+        mock_fqdn_resolve.return_value = (None, True, "NXDOMAIN")
+
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            self.cahandler._config_load()
+
+        self.assertEqual("dc-fail.example.local", self.cahandler.domain_controller)
+        mock_ip_validate.assert_called_once_with(self.logger, "dc-fail.example.local")
+        mock_fqdn_resolve.assert_called_once_with(
+            self.logger,
+            "dc-fail.example.local",
+        )
+        self.assertIn(
+            "WARNING:test_a2c:Failed to resolve domain controller 'dc-fail.example.local': NXDOMAIN",
+            lcm.output,
+        )
+
 
 if __name__ == "__main__":
 

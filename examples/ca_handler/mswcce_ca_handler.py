@@ -25,6 +25,8 @@ from acme_srv.helper import (
     enrollment_config_log,
     handler_config_check,
     header_info_get,
+    fqdn_resolve,
+    ip_validate,
     load_config,
     proxy_check,
     radomize_parameter_list,
@@ -202,6 +204,8 @@ class CAhandler(object):
         elif "dns_server" in config_dic["CAhandler"]:
             self.domain_controller = config_dic.get("CAhandler", "dns_server")
 
+        self.domain_controller = self._domain_controller_resolve(self.domain_controller)
+
         self.target_domain = config_dic.get("CAhandler", "target_domain", fallback=None)
         self.ca_name = config_dic.get("CAhandler", "ca_name", fallback=None)
         self.ca_bundle = config_dic.get("CAhandler", "ca_bundle", fallback=None)
@@ -252,6 +256,44 @@ class CAhandler(object):
             self.krb5_auth_backend = "impacket"
 
         self.logger.debug("CAhandler._config_parameters_load()")
+
+    def _domain_controller_resolve(self, domain_controller: Optional[str]) -> Optional[str]:
+        """resolve FQDN domain controller names to first returned IP address"""
+        self.logger.debug("CAhandler._domain_controller_resolve(%s)", domain_controller)
+        if not domain_controller:
+            return domain_controller
+
+        _reverse_pointer, invalid_ip = ip_validate(self.logger, domain_controller)
+        if not invalid_ip:
+            self.logger.debug(
+                "Domain controller '%s' is already an IP address",
+                domain_controller,
+            )
+            return domain_controller
+
+        resolved_ip, invalid_resolution, error_msg = fqdn_resolve(
+            self.logger,
+            domain_controller,
+        )
+
+        if not invalid_resolution and resolved_ip:
+            if isinstance(resolved_ip, list):
+                resolved_ip = resolved_ip[0]
+            self.logger.debug(
+                "Resolved domain controller '%s' to '%s'",
+                domain_controller,
+                resolved_ip,
+            )
+            return resolved_ip
+
+        if invalid_resolution:
+            self.logger.warning(
+                "Failed to resolve domain controller '%s': %s",
+                domain_controller,
+                error_msg,
+            )
+
+        return domain_controller
 
     def _kerberos_keytab_is_configured(self) -> bool:
         """check if keytab flow can be used"""
