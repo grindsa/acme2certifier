@@ -100,7 +100,7 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 - **krb5_config** *(optional)* – Path to a custom `krb5.conf` file. Used by the kinit fallback path.
 - **krb5_config_variable** *(optional)* – Environment variable containing the `krb5.conf` path (overridden if `krb5_config` is set in `acme_srv.cfg`).
 - **target_domain** *(optional)* – Active Directory domain name.
-- **domain_controller** *(optional)* – IP address of the domain controller/DNS server.
+- **domain_controller** *(optional)* – Domain controller endpoint. You can provide either an IP address or an FQDN. If an FQDN is configured, acme2certifier resolves it via DNS and uses the first returned IP address.
 - **dns_server** *(optional)* – IP address of the DNS server.
 - **ca_bundle** – CA certificate chain in PEM format, provided along with the client certificate.
 - **template** – Certificate template used for enrollment.
