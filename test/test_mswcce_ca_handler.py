@@ -895,14 +895,21 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.user = "user"
         self.cahandler.password = "password"
         self.cahandler.template = "template"
-        mock_rcr.return_value = Mock(return_value="raw_data")
+        mock_request = Mock()
+        mock_request.get_cert.return_value = {
+            "request_id": 1,
+            "disposition": 3,
+            "disposition_message": None,
+            "certificate": "raw_data",
+        }
+        mock_rcr.return_value = mock_request
         mock_file.return_value = "file_load"
         mock_s2b.return_value = "s2b"
         mock_b2s.side_effect = Exception("ex_b2s")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
                 (
-                    "Certificate bundling failed: CA certificate or issued certificate is missing.",
+                    "Could not get certificate from CA server",
                     None,
                     None,
                     None,
@@ -910,10 +917,6 @@ class TestACMEHandler(unittest.TestCase):
                 self.cahandler.enroll("csr"),
             )
         self.assertIn("ERROR:test_a2c:Enrollment failed with error: ex_b2s", lcm.output)
-        self.assertIn(
-            "ERROR:test_a2c:Certificate bundling failed: CA certificate or issued certificate is missing.",
-            lcm.output,
-        )
         self.assertTrue(mock_rcr.called)
 
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler.request_create")
@@ -927,7 +930,14 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.user = "user"
         self.cahandler.password = "password"
         self.cahandler.template = "template"
-        mock_rcr.return_value = Mock(return_value="raw_data")
+        mock_request = Mock()
+        mock_request.get_cert.return_value = {
+            "request_id": 1,
+            "disposition": 3,
+            "disposition_message": None,
+            "certificate": "raw_data",
+        }
+        mock_rcr.return_value = mock_request
         mock_file.return_value = "file_load"
         mock_s2b.return_value = "s2b"
         mock_b2s.return_value = None
@@ -958,7 +968,14 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.user = "user"
         self.cahandler.password = "password"
         self.cahandler.template = "template"
-        mock_rcr.return_value = Mock(return_value="raw_data")
+        mock_request = Mock()
+        mock_request.get_cert.return_value = {
+            "request_id": 1,
+            "disposition": 3,
+            "disposition_message": None,
+            "certificate": "raw_data",
+        }
+        mock_rcr.return_value = mock_request
         mock_file.return_value = "file_load"
         mock_s2b.return_value = "s2b"
         mock_b2s.return_value = "b2s"
@@ -978,7 +995,14 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.user = "user"
         self.cahandler.password = "password"
         self.cahandler.template = "template"
-        mock_rcr.return_value = Mock(return_value="raw_data")
+        mock_request = Mock()
+        mock_request.get_cert.return_value = {
+            "request_id": 1,
+            "disposition": 3,
+            "disposition_message": None,
+            "certificate": "raw_data",
+        }
+        mock_rcr.return_value = mock_request
         mock_file.return_value = "file_load"
         mock_s2b.return_value = "s2b"
         mock_b2s.return_value = "b2s"
@@ -998,7 +1022,14 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.user = "user"
         self.cahandler.password = "password"
         self.cahandler.template = "template"
-        mock_rcr.return_value = Mock(return_value="raw_data")
+        mock_request = Mock()
+        mock_request.get_cert.return_value = {
+            "request_id": 1,
+            "disposition": 3,
+            "disposition_message": None,
+            "certificate": "raw_data",
+        }
+        mock_rcr.return_value = mock_request
         mock_file.return_value = "file_load"
         mock_s2b.return_value = "s2b"
         mock_b2s.return_value = (
@@ -1029,7 +1060,14 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.user = "user"
         self.cahandler.password = "password"
         self.cahandler.template = "template"
-        mock_rcr.return_value = Mock(return_value="raw_data")
+        mock_request = Mock()
+        mock_request.get_cert.return_value = {
+            "request_id": 1,
+            "disposition": 3,
+            "disposition_message": None,
+            "certificate": "raw_data",
+        }
+        mock_rcr.return_value = mock_request
         mock_file.return_value = None
         mock_s2b.return_value = "s2b"
         mock_eab.return_value = None
@@ -1063,7 +1101,14 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.password = "password"
         self.cahandler.template = "template"
         self.cahandler.header_info_field = "header_info"
-        mock_rcr.return_value = Mock(return_value="raw_data")
+        mock_request = Mock()
+        mock_request.get_cert.return_value = {
+            "request_id": 1,
+            "disposition": 3,
+            "disposition_message": None,
+            "certificate": "raw_data",
+        }
+        mock_rcr.return_value = mock_request
         mock_file.return_value = None
         mock_s2b.return_value = "s2b"
         mock_b2s.return_value = (
@@ -1089,7 +1134,14 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.password = "password"
         self.cahandler.template = "template"
         self.cahandler.header_info_field = "header_info"
-        mock_rcr.return_value = Mock(return_value="raw_data")
+        mock_request = Mock()
+        mock_request.get_cert.return_value = {
+            "request_id": 1,
+            "disposition": 3,
+            "disposition_message": None,
+            "certificate": "raw_data",
+        }
+        mock_rcr.return_value = mock_request
         mock_file.return_value = None
         mock_s2b.return_value = "s2b"
         mock_b2s.return_value = (
@@ -1128,6 +1180,20 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.enrollment_config_log = True
         self.assertEqual("foo", self.cahandler.request_create())
         self.assertTrue(mock_ecl.called)
+
+    @patch("examples.ca_handler.mswcce_ca_handler.Request")
+    @patch("examples.ca_handler.mswcce_ca_handler.Target")
+    def test_057a_request_create_noninteractive_no_pass(self, mock_target, mock_request):
+        """test request_create enforces no_pass=True to avoid interactive password prompts"""
+        mock_target.return_value = True
+        mock_request.return_value = "foo"
+        self.cahandler.use_kerberos = False
+        self.cahandler.user = "user"
+        self.cahandler.password = ""
+
+        self.assertEqual("foo", self.cahandler.request_create())
+        _, target_kwargs = mock_target.call_args
+        self.assertTrue(target_kwargs["no_pass"])
 
     @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._config_load")
     def test_058__enter(self, mock_cfgload):
@@ -1365,6 +1431,7 @@ class TestACMEHandler(unittest.TestCase):
         _, run_kwargs = mock_subprocess_run.call_args
         self.assertEqual("/tmp/krb5cc_svc", run_kwargs["env"]["KRB5CCNAME"])
         self.assertEqual("/tmp/krb5.conf", run_kwargs["env"]["KRB5_CONFIG"])
+        self.assertEqual(self.cahandler.KINIT_TIMEOUT_SECONDS, run_kwargs["timeout"])
 
     def test_073_kerberos_username_from_principal(self):
         """test kerberos username extraction from principal"""
@@ -1480,7 +1547,7 @@ class TestACMEHandler(unittest.TestCase):
 
         self.assertFalse(error)
         self.assertEqual("/tmp/krb5cc_svc", self.cahandler.krb5_cache)
-        self.assertEqual("/tmp/krb5cc_svc", os.environ["KRB5CCNAME"])
+        self.assertNotIn("KRB5CCNAME", os.environ)
         self.assertTrue(mock_raw_acquire.called)
         self.assertFalse(mock_high_acquire.called)
         self.assertFalse(mock_kinit_acquire.called)
@@ -1800,6 +1867,28 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
+    @patch("examples.ca_handler.mswcce_ca_handler.subprocess.run")
+    def test_090b_kerberos_acquire_with_kinit_timeout(
+        self,
+        mock_subprocess_run,
+    ):
+        """test kinit fallback handles subprocess timeout"""
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_principal = "svc-a2c-enroll@EXAMPLE.COM"
+
+        mock_subprocess_run.side_effect = subprocess.TimeoutExpired(
+            cmd=["kinit"], timeout=self.cahandler.KINIT_TIMEOUT_SECONDS
+        )
+
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = self.cahandler._kerberos_acquire_with_kinit("/tmp/krb5cc_svc")
+
+        self.assertFalse(result)
+        self.assertIn(
+            f"ERROR:test_a2c:kinit timed out after {self.cahandler.KINIT_TIMEOUT_SECONDS} seconds while acquiring kerberos credentials",
+            lcm.output,
+        )
+
     def test_091_config_is_complete_kerberos_keytab_impacket_missing_cache(self):
         """test _config_is_complete fails for keytab+impacket when krb5_cache is missing"""
         self.cahandler.host = "host"
@@ -1882,6 +1971,7 @@ class TestACMEHandler(unittest.TestCase):
         """test handler_check uses reduced required fields in kerberos keytab mode"""
         mock_handler_check.return_value = "ok"
         self.cahandler.use_kerberos = True
+        self.cahandler.krb5_auth_backend = "python"
         self.cahandler.krb5_principal = "svc-a2c-enroll@EXAMPLE.COM"
         self.cahandler.krb5_keytab = "/tmp/svc.keytab"
 
@@ -1891,6 +1981,30 @@ class TestACMEHandler(unittest.TestCase):
         _, call_args = mock_handler_check.call_args
         self.assertEqual(
             ["host", "template", "ca_name", "target_domain"],
+            (
+                call_args["required_fields"]
+                if "required_fields" in call_args
+                else mock_handler_check.call_args[0][2]
+            ),
+        )
+
+    @patch("examples.ca_handler.mswcce_ca_handler.handler_config_check")
+    def test_094a_handler_check_kerberos_keytab_impacket_requires_cache(
+        self, mock_handler_check
+    ):
+        """test handler_check requires krb5_cache in kerberos keytab impacket mode"""
+        mock_handler_check.return_value = "ok"
+        self.cahandler.use_kerberos = True
+        self.cahandler.krb5_auth_backend = "impacket"
+        self.cahandler.krb5_principal = "svc-a2c-enroll@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+
+        result = self.cahandler.handler_check()
+
+        self.assertEqual("ok", result)
+        _, call_args = mock_handler_check.call_args
+        self.assertEqual(
+            ["host", "template", "ca_name", "target_domain", "krb5_cache"],
             (
                 call_args["required_fields"]
                 if "required_fields" in call_args
@@ -2013,6 +2127,105 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn(
             "WARNING:test_a2c:Failed to resolve domain controller 'dc-fail.example.local': NXDOMAIN",
             lcm.output,
+        )
+
+    @patch.dict(
+        "os.environ",
+        {"KRB5CCNAME": "existing_ccache", "KRB5_CONFIG": "existing_krb5_config"},
+        clear=True,
+    )
+    @patch("examples.ca_handler.mswcce_ca_handler.os.path.isfile")
+    def test_100_kerberos_runtime_environment_restores_previous_values(
+        self, mock_isfile
+    ):
+        """test kerberos runtime env context restores previous process env values"""
+        self.cahandler.krb5_cache = "/tmp/runtime_ccache"
+        self.cahandler.krb5_config = "/tmp/runtime_krb5.conf"
+        mock_isfile.return_value = True
+
+        with self.cahandler._kerberos_runtime_environment():
+            self.assertEqual("/tmp/runtime_ccache", os.environ.get("KRB5CCNAME"))
+            self.assertEqual("/tmp/runtime_krb5.conf", os.environ.get("KRB5_CONFIG"))
+
+        self.assertEqual("existing_ccache", os.environ.get("KRB5CCNAME"))
+        self.assertEqual("existing_krb5_config", os.environ.get("KRB5_CONFIG"))
+
+    @patch("examples.ca_handler.mswcce_ca_handler.os.unlink")
+    def test_101_kerberos_cleanup_temporary_ccache(self, mock_unlink):
+        """test temporary ccache cleanup removes file and resets handler state"""
+        self.cahandler.krb5_cache = "/tmp/runtime_ccache"
+        self.cahandler._krb5_cache_is_temporary = True
+
+        self.cahandler._kerberos_cleanup_temporary_ccache()
+
+        mock_unlink.assert_called_once_with("/tmp/runtime_ccache")
+        self.assertFalse(self.cahandler._krb5_cache_is_temporary)
+        self.assertIsNone(self.cahandler.krb5_cache)
+
+    @patch("examples.ca_handler.mswcce_ca_handler.CAhandler.request_create")
+    @patch("examples.ca_handler.mswcce_ca_handler.convert_string_to_byte")
+    @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._file_load")
+    @patch("examples.ca_handler.mswcce_ca_handler.build_pem_file")
+    def test_102_enroll_pending_disposition(
+        self,
+        _mock_pem,
+        mock_file,
+        mock_s2b,
+        mock_rcr,
+    ):
+        """test enrollment returns explicit error for pending disposition"""
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+
+        mock_request = Mock()
+        mock_request.get_cert.return_value = {
+            "request_id": 55,
+            "disposition": 5,
+            "disposition_message": "pending",
+            "certificate": None,
+        }
+        mock_rcr.return_value = mock_request
+        mock_file.return_value = "file_load"
+        mock_s2b.return_value = "s2b"
+
+        self.assertEqual(
+            ("Certificate request is pending approval.", None, None, None),
+            self.cahandler.enroll("csr"),
+        )
+
+    @patch("examples.ca_handler.mswcce_ca_handler.CAhandler.request_create")
+    @patch("examples.ca_handler.mswcce_ca_handler.convert_string_to_byte")
+    @patch("examples.ca_handler.mswcce_ca_handler.CAhandler._file_load")
+    @patch("examples.ca_handler.mswcce_ca_handler.build_pem_file")
+    def test_103_enroll_nonissued_disposition(
+        self,
+        _mock_pem,
+        mock_file,
+        mock_s2b,
+        mock_rcr,
+    ):
+        """test enrollment returns generic error for non-issued non-pending disposition"""
+        self.cahandler.host = "host"
+        self.cahandler.user = "user"
+        self.cahandler.password = "password"
+        self.cahandler.template = "template"
+
+        mock_request = Mock()
+        mock_request.get_cert.return_value = {
+            "request_id": 99,
+            "disposition": 2,
+            "disposition_message": "access denied",
+            "certificate": None,
+        }
+        mock_rcr.return_value = mock_request
+        mock_file.return_value = "file_load"
+        mock_s2b.return_value = "s2b"
+
+        self.assertEqual(
+            ("Could not get certificate from CA server", None, None, None),
+            self.cahandler.enroll("csr"),
         )
 
 
