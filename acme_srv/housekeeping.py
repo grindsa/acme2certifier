@@ -9,6 +9,7 @@ from acme_srv.db_handler import DBstore
 from acme_srv.authorization import Authorization
 from acme_srv.certificate import Certificate
 from acme_srv.message import Message
+from acme_srv.nonce import Nonce
 from acme_srv.order import Order
 from acme_srv.helper import (
     load_config,
@@ -776,6 +777,16 @@ class Housekeeping(object):
                 self.logger.debug("Database version: %s is upto date", version)
         else:
             self.logger.critical("Database version could not be verified.")
+
+    def nonce_cleanup(
+        self, uts: int = uts_now(), report_format: str = "csv", report_name: str = None
+    ):
+        """nonce cleanup based on expiry date"""
+        self.logger.debug("Housekeeping.nonce_cleanup()")
+
+        with Nonce(self.debug, self.logger) as nonce:
+            # get expired orders
+            field_list, order_list = nonce.expire_nonces(timestamp=uts)
 
     def orders_invalidate(
         self, uts: int = uts_now(), report_format: str = "csv", report_name: str = None

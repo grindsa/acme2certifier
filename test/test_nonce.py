@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-"""unittests for account.py"""
+"""unittests for nonce.py"""
 
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
@@ -18,8 +18,8 @@ class FakeDBStore(object):
     pass
 
 
-class TestACMEHandler(unittest.TestCase):
-    """test class for ACMEHandler"""
+class TestNonce(unittest.TestCase):
+    """tests for Nonce"""
 
     acme = None
 
@@ -138,6 +138,198 @@ class TestACMEHandler(unittest.TestCase):
     def test_009__enter_(self):
         """test enter"""
         self.nonce.__enter__()
+
+    @patch("acme_srv.nonce.load_config", return_value=None)
+    def test_010_load_configuration_without_config(self, _mock_load_config):
+        """test _load_configuration() keeps default validity if config is missing"""
+        self.nonce.config.validity = 7200
+        self.nonce._load_configuration()
+        self.assertEqual(7200, self.nonce.config.validity)
+
+    @patch("acme_srv.nonce.load_config")
+    def test_011_load_configuration_with_validity(self, mock_load_config):
+        """test _load_configuration() applies Nonce.validity from config"""
+        config_mock = MagicMock()
+        config_mock.get.return_value = "3600"
+        mock_load_config.return_value = config_mock
+
+        self.nonce.config.validity = 7200
+        self.nonce._load_configuration()
+
+        self.assertEqual(3600, self.nonce.config.validity)
+        config_mock.get.assert_called_once_with("Nonce", "validity", fallback=7200)
+
+    @patch("acme_srv.nonce.load_config")
+    def test_012_load_configuration_invalid_validity(self, mock_load_config):
+        """test _load_configuration() raises ConfigurationError on invalid validity"""
+        config_mock = MagicMock()
+        config_mock.get.return_value = "invalid"
+        mock_load_config.return_value = config_mock
+
+        from acme_srv.nonce import ConfigurationError
+
+        with self.assertRaises(ConfigurationError) as ctx:
+            self.nonce._load_configuration()
+
+        self.assertIn("Invalid validity parameter", str(ctx.exception))
+
+    @patch("acme_srv.nonce.load_config")
+    def test_013_load_configuration_uses_current_fallback(self, mock_load_config):
+        """test _load_configuration() uses current validity as fallback value"""
+        config_mock = MagicMock()
+        config_mock.get.return_value = "1800"
+        mock_load_config.return_value = config_mock
+
+        self.nonce.config.validity = 999
+        self.nonce._load_configuration()
+
+        config_mock.get.assert_called_once_with("Nonce", "validity", fallback=999)
+        self.assertEqual(1800, self.nonce.config.validity)
+
+    def test_014_expire_nonces_skips_if_validity_disabled(self):
+        """test expire_nonces() returns empty result when validity <= 0"""
+        repo_mock = MagicMock()
+        from acme_srv.nonce import Nonce
+
+        nonce = Nonce(False, self.logger, repo=repo_mock)
+        nonce.config.validity = 0
+
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            result = nonce.expire_nonces(timestamp=10000)
+
+        self.assertEqual(([], []), result)
+        self.assertIn(
+            "Nonce.expire_nonces() skipped: validity is set to 0", lcm.output[0]
+        )
+        repo_mock.search_expired_nonces.assert_not_called()
+        repo_mock.delete_nonces.assert_not_called()
+
+    def test_015_expire_nonces_no_expired_entries(self):
+        """test expire_nonces() with no expired nonce entries"""
+        repo_mock = MagicMock()
+        repo_mock.search_expired_nonces.return_value = []
+        from acme_srv.nonce import Nonce
+
+        nonce = Nonce(False, self.logger, repo=repo_mock)
+        nonce.config.validity = 120
+
+        result = nonce.expire_nonces(timestamp=5000)
+
+        self.assertEqual(([], []), result)
+        repo_mock.search_expired_nonces.assert_called_once_with(4880)
+        repo_mock.delete_nonces.assert_not_called()
+
+    def test_016_expire_nonces_with_expired_entries(self):
+        """test expire_nonces() deletes found expired nonces"""
+        repo_mock = MagicMock()
+        repo_mock.search_expired_nonces.return_value = ["n1", "n2", "n3"]
+        repo_mock.delete_nonces.return_value = 3
+        from acme_srv.nonce import Nonce
+
+        nonce = Nonce(False, self.logger, repo=repo_mock)
+        nonce.config.validity = 300
+
+        result = nonce.expire_nonces(timestamp=2000)
+
+        self.assertEqual(([], ["n1", "n2", "n3"]), result)
+        repo_mock.search_expired_nonces.assert_called_once_with(1700)
+        repo_mock.delete_nonces.assert_called_once_with(["n1", "n2", "n3"])
+
+    def test_017_expire_nonces_handles_search_exception(self):
+        """test expire_nonces() handles repository search errors"""
+        repo_mock = MagicMock()
+        repo_mock.search_expired_nonces.side_effect = Exception("exc_search")
+        from acme_srv.nonce import Nonce
+
+        nonce = Nonce(False, self.logger, repo=repo_mock)
+        nonce.config.validity = 60
+
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = nonce.expire_nonces(timestamp=1000)
+
+        self.assertEqual(([], []), result)
+        self.assertIn(
+            "CRITICAL:test_a2c:Database error: failed to search expired nonces: exc_search",
+            lcm.output,
+        )
+        repo_mock.delete_nonces.assert_not_called()
+
+    def test_018_expire_nonces_handles_delete_exception(self):
+        """test expire_nonces() handles repository delete errors"""
+        repo_mock = MagicMock()
+        repo_mock.search_expired_nonces.return_value = ["n1", "n2"]
+        repo_mock.delete_nonces.side_effect = Exception("exc_delete")
+        from acme_srv.nonce import Nonce
+
+        nonce = Nonce(False, self.logger, repo=repo_mock)
+        nonce.config.validity = 100
+
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            result = nonce.expire_nonces(timestamp=1000)
+
+        self.assertEqual(([], ["n1", "n2"]), result)
+        self.assertIn(
+            "CRITICAL:test_a2c:Database error: failed to search expired nonces: exc_delete",
+            lcm.output,
+        )
+        repo_mock.search_expired_nonces.assert_called_once_with(900)
+        repo_mock.delete_nonces.assert_called_once_with(["n1", "n2"])
+
+
+class TestNonceRepository(unittest.TestCase):
+    """tests for NonceRepository pass-through methods"""
+
+    def setUp(self):
+        """setup repository test fixtures"""
+        from acme_srv.nonce import NonceRepository
+
+        self.dbstore_mock = MagicMock()
+        self.repo = NonceRepository(self.dbstore_mock)
+
+    def test_019_repository_delete_nonces(self):
+        """test NonceRepository.delete_nonces() forwards call to DB layer"""
+        self.dbstore_mock.nonce_delete_bulk.return_value = 2
+
+        result = self.repo.delete_nonces(["n1", "n2"])
+
+        self.assertEqual(2, result)
+        self.dbstore_mock.nonce_delete_bulk.assert_called_once_with(["n1", "n2"])
+
+    def test_020_repository_check_nonce(self):
+        """test NonceRepository.check_nonce() forwards call to DB layer"""
+        self.dbstore_mock.nonce_check.return_value = True
+
+        result = self.repo.check_nonce("nonce-1")
+
+        self.assertTrue(result)
+        self.dbstore_mock.nonce_check.assert_called_once_with("nonce-1")
+
+    def test_021_repository_delete_nonce(self):
+        """test NonceRepository.delete_nonce() forwards call to DB layer"""
+        self.dbstore_mock.nonce_delete.return_value = None
+
+        result = self.repo.delete_nonce("nonce-2")
+
+        self.assertIsNone(result)
+        self.dbstore_mock.nonce_delete.assert_called_once_with("nonce-2")
+
+    def test_022_repository_add_nonce(self):
+        """test NonceRepository.add_nonce() forwards call to DB layer"""
+        self.dbstore_mock.nonce_add.return_value = 42
+
+        result = self.repo.add_nonce("nonce-3")
+
+        self.assertEqual(42, result)
+        self.dbstore_mock.nonce_add.assert_called_once_with("nonce-3")
+
+    def test_023_repository_search_expired_nonces(self):
+        """test NonceRepository.search_expired_nonces() forwards timestamp filter"""
+        self.dbstore_mock.nonce_search_by_timestamp.return_value = ["n1", "n2"]
+
+        result = self.repo.search_expired_nonces(1234)
+
+        self.assertEqual(["n1", "n2"], result)
+        self.dbstore_mock.nonce_search_by_timestamp.assert_called_once_with(1234)
 
 
 if __name__ == "__main__":
