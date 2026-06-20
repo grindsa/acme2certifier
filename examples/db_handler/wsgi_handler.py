@@ -1727,6 +1727,46 @@ class DBstore(object):
         self._db_close()
         self.logger.debug("DBStore.nonce_delete() ended")
 
+    def nonce_delete_bulk(self, nonce_list: List[str]) -> int:
+        """Delete a list of nonces in a single cleanup run."""
+        self.logger.debug(
+            "DBStore.nonce_delete_bulk() with %s entries", len(nonce_list)
+        )
+        if not nonce_list:
+            return 0
+
+        total_deleted = 0
+        chunk_size = 900
+        self._db_open()
+        for i in range(0, len(nonce_list), chunk_size):
+            chunk = nonce_list[i : i + chunk_size]
+            placeholders = ",".join(["?"] * len(chunk))
+            statement = f"DELETE FROM nonce WHERE nonce IN ({placeholders})"
+            self.cursor.execute(statement, chunk)
+            total_deleted += self.cursor.rowcount
+        self._db_close()
+        self.logger.debug(
+            "DBStore.nonce_delete_bulk() ended, deleted: %s", total_deleted
+        )
+        return total_deleted
+
+    def nonce_search_by_timestamp(self, timestamp: int) -> List[str]:
+        """search nonce table for a certain timestamp"""
+        self.logger.debug("DBStore.nonce_search_by_timestamp(timestamp:%s)", timestamp)
+        self._db_open()
+        pre_statement = f"""SELECT nonce, created_at FROM nonce WHERE CAST(strftime('%s', created_at) AS INTEGER) < ?"""
+        self.cursor.execute(pre_statement, [timestamp])
+        rows = self.cursor.fetchall()
+
+        nonce_list = []
+        for row in rows:
+            if row:
+                nonce_list.append(row[0])
+
+        self._db_close()
+        self.logger.debug("DBStore.nonce_search_by_timestamp() ended")
+        return nonce_list
+
     def order_add(self, data_dic: Dict[str, str]) -> int:
         """add order to database"""
         self.logger.debug("DBStore.order_add(%s)", data_dic)
