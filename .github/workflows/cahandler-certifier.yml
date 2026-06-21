@@ -71,7 +71,7 @@ jobs:
           IGNORE_CURRENT_STATUS: "false"
 
       - name: "Sleep for 60s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 60s
 
@@ -1095,7 +1095,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -1163,12 +1163,7 @@ jobs:
           CMP_SECRET: ${{ env.CMP_SECRET }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
-        with:
-          time: 10s
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -1293,7 +1288,7 @@ jobs:
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 
@@ -1338,7 +1333,7 @@ jobs:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -1367,7 +1362,7 @@ jobs:
           exit 1
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -1416,7 +1411,7 @@ jobs:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -1443,11 +1438,6 @@ jobs:
         run: |
           echo "legofail outcome is ${{steps.legofail02.outcome }}"
           exit 1
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
-        with:
-          time: 10s
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -1534,7 +1524,7 @@ jobs:
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 5s
 
@@ -1580,7 +1570,7 @@ jobs:
           EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -1650,7 +1640,7 @@ jobs:
           EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: grindsa/sleep-action@master
         with:
           time: 10s
 
@@ -1677,11 +1667,6 @@ jobs:
         run: |
           echo "legofail outcome is ${{steps.legofail02.outcome }}"
           exit 1
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
-        with:
-          time: 10s
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
