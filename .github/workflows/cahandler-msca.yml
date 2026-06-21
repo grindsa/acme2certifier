@@ -2410,7 +2410,7 @@ jobs:
   instance_stop:
     needs: [guard, instance_start, mscertserv-test-containers, mscertsrv-eabprov-container-tests, mswcce-test-containers, mswcce-eab-container-tests, mscertsrv-without-impacket_tests, mscertsrv-test-rpm, mscertsrv-eabprofile-test-rpm, mswcce-tests-rpm, mswcce-eab-tests-rpm, mscertsrv-test-deb, mswcce-test-deb]
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier'
+    if: ${{ always() && github.repository == 'grindsa/acme2certifier' }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
