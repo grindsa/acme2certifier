@@ -386,7 +386,7 @@ class TestHooks(unittest.TestCase):
             "Hooks": {
                 "appname": "hooks-app",  # Should override DEFAULT
                 "sender": "hooks@example.com",  # Should override DEFAULT
-                "rcpt": "admin@example.com"
+                "rcpt": "admin@example.com",
                 # smtp_server and smtp_port should come from DEFAULT
             },
         }
@@ -422,7 +422,7 @@ class TestHooks(unittest.TestCase):
             },
             "Hooks": {
                 "appname": "hooks-app",
-                "rcpt": "admin@example.com"
+                "rcpt": "admin@example.com",
                 # sender comes from DEFAULT
             },
         }
@@ -468,7 +468,7 @@ class TestHooks(unittest.TestCase):
             "Hooks": {
                 "appname": "test-app",
                 "sender": "test@example.com",
-                "rcpt": "admin@example.com"
+                "rcpt": "admin@example.com",
                 # No smtp_port or smtp_timeout in Hooks
             },
         }
@@ -579,7 +579,7 @@ class TestHooks(unittest.TestCase):
             "Hooks": {
                 "appname": "test-app",
                 "sender": "test@example.com",
-                "rcpt": "admin@example.com"
+                "rcpt": "admin@example.com",
                 # No boolean values in Hooks
             },
         }

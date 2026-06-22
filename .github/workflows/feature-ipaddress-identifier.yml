@@ -112,6 +112,11 @@ jobs:
         env:
           RUNNER_IP: ${{ env.RUNNER_IP }}
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure allowed_iplist"
         run: |
           sudo rm -rf lego/*
@@ -213,6 +218,11 @@ jobs:
           sudo openssl x509 -in lego/certificates/lego.acme.crt --text --noout | grep "IP Address"
         env:
           RUNNER_IP: ${{ env.RUNNER_IP }}
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Reconfigure allowed_iplist"
         run: |
@@ -338,6 +348,11 @@ jobs:
           sudo openssl x509 -in lego/certificates/lego.acme.crt --text --noout | grep "IP Address"
         env:
           RUNNER_IP: ${{ env.RUNNER_IP }}
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Reconfigure allowed_iplist"
         run: |

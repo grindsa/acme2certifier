@@ -93,6 +93,11 @@ jobs:
       - name: "Test regular enrollment"
         uses: ./.github/actions/acme_clients
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Test enrollment with prevalidated identifiers (both domain and ip)"
         uses: ./.github/actions/wf_specific/prevalidation/enroll
         with:
@@ -111,6 +116,11 @@ jobs:
           PREVALIDATED: "domain"
           DEPLOYMENT_TYPE: "container"
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Setup openssl ca_handler with ip prevalidation support"
         run: |
           sudo sed -i "s/# prevalidated_iplist/prevalidated_iplist/g" examples/Docker/data/ca_handler.py
@@ -123,6 +133,11 @@ jobs:
         with:
           PREVALIDATED: "ip"
           DEPLOYMENT_TYPE: "container"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Setup openssl ca_handler with eab-profiling support"
         run: |
@@ -235,6 +250,11 @@ jobs:
           PREVALIDATED: "both"
           DEPLOYMENT_TYPE: "rpm"
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "Setup openssl ca_handler with domain prevalidation support"
         run: |
           sudo sed -i "s/prevalidated_iplist/# prevalidated_iplist/g" data/volume/acme_srv.cfg
@@ -250,6 +270,11 @@ jobs:
         with:
           PREVALIDATED: "domain"
           DEPLOYMENT_TYPE: "rpm"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Setup openssl ca_handler with ip prevalidation support"
         run: |
@@ -267,6 +292,11 @@ jobs:
         with:
           PREVALIDATED: "ip"
           DEPLOYMENT_TYPE: "rpm"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Setup openssl ca_handler with eab-profiling support"
         run: |
@@ -394,6 +424,11 @@ jobs:
           PREVALIDATED: "both"
           DEPLOYMENT_TYPE: "deb"
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "Setup openssl ca_handler with domain prevalidation support"
         run: |
           sudo sed -i "s/prevalidated_iplist/# prevalidated_iplist/g" data/volume/acme_srv.cfg
@@ -410,6 +445,11 @@ jobs:
         with:
           PREVALIDATED: "domain"
           DEPLOYMENT_TYPE: "deb"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Setup openssl ca_handler with ip prevalidation support"
         run: |
@@ -428,6 +468,11 @@ jobs:
         with:
           PREVALIDATED: "ip"
           DEPLOYMENT_TYPE: "deb"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Setup openssl ca_handler with eab-profiling support"
         run: |

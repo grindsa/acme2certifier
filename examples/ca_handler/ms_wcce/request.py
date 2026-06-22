@@ -160,7 +160,9 @@ class Request:
             if cert_der:
                 cert_pem = der_to_pem(cert_der)
             else:
-                logging.error("Certificate request was issued but no certificate was returned")
+                logging.error(
+                    "Certificate request was issued but no certificate was returned"
+                )
         elif error_code == 5:
             logging.warning("Certificate request is pending approval")
         else:
