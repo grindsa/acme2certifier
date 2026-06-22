@@ -79,7 +79,7 @@ runs:
       $ECN_TOK: ${{ env.ECN_TOK }}
 
   - name: "Sleep for 20s"
-    uses: grindsa/sleep-action@master
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 20s
 
@@ -91,7 +91,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 20s"
-    uses: grindsa/sleep-action@master
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 20s
 
