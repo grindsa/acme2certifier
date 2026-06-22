@@ -49,7 +49,7 @@ class NonceRepository:
 class NonceConfiguration:
     """Configuration for Nonce operations"""
 
-    validity: int = 7200
+    validity: int = 86400 # Default validity in seconds (24 hours)
 
 
 class Nonce(object):
