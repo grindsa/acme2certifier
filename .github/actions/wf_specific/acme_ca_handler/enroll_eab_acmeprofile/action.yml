@@ -11,7 +11,7 @@ runs:
   steps:
 
   - name: "Sleep for 10s"
-    uses: grindsa/sleep-action@master
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 10s
 

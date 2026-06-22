@@ -4,7 +4,7 @@ runs:
   using: "composite"
   steps:
   - name: "Profile 1 - Sleep for 10s"
-    uses: grindsa/sleep-action@master
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 10s
 
@@ -64,6 +64,6 @@ runs:
     shell: bash
 
   - name: "Sleep for 5s"
-    uses: grindsa/sleep-action@master
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 5s

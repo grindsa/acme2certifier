@@ -23,7 +23,7 @@ runs:
   steps:
 
     - name: "Sleep for 10s"
-      uses: grindsa/sleep-action@master
+      uses: juliangruber/sleep-action@v2.0.4
       with:
         time: 10s
 
@@ -74,7 +74,7 @@ runs:
       shell: bash
 
     - name: "Sleep for 10s"
-      uses: grindsa/sleep-action@master
+      uses: juliangruber/sleep-action@v2.0.4
       with:
         time: 10s
 
@@ -129,7 +129,7 @@ runs:
 
     - name: "Sleep for 10s"
       if: ${{ inputs.FAIL == 'profile' }}
-      uses: grindsa/sleep-action@master
+      uses: juliangruber/sleep-action@v2.0.4
       with:
         time: 10s
 
