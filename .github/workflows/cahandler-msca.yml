@@ -46,8 +46,8 @@ jobs:
   instance_start:
     needs: guard
     runs-on: ubuntu-latest
-    # if: github.repository == 'grindsa/acme2certifier'
-    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'msca')) }}
+    # if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'msca')) }}
+    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'wf_')) }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
@@ -189,6 +189,11 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler"
         run: |
           sudo touch examples/Docker/data/ca_certs.pem
@@ -230,6 +235,11 @@ jobs:
           NAME_SPACE: local
           DEPLOYMENT_TYPE: container
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "NTLM Headerinfo - Setup a2c with mscertsrv_ca_handler"
         run: |
           sudo touch examples/Docker/data/acme_srv.cfg
@@ -252,6 +262,11 @@ jobs:
         with:
           NAME_SPACE: local
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "NTLM Headerinfo - Setup a2c with mscertsrv_ca_handler with allowed_domainlist configuration"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
@@ -268,6 +283,11 @@ jobs:
         run: |
           cd examples/Docker
           docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "NTLM ACME Profiling - Setup a2c with mscertsrv_ca_handler"
         run: |
@@ -441,6 +461,11 @@ jobs:
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerboros)"
         run: |
@@ -640,6 +665,11 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "NTLM ACME Profile - Setup a2c with ms_wcce_ca_handler"
         run: |
           sudo touch examples/Docker/data/ca_certs.pem
@@ -666,6 +696,11 @@ jobs:
 
       - name: "NTLM ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
         with:
           DEPLOYMENT_TYPE: container
 
@@ -701,6 +736,11 @@ jobs:
       - name: "KRB Headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "KRB - Setup a2c with mswcce_ca_handler with allowed_domainlist configuration"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
@@ -715,6 +755,11 @@ jobs:
         run: |
           cd examples/Docker
           docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "KRB ACME Profile - Setup a2c with ms_wcce_ca_handler"
         run: |
@@ -910,6 +955,11 @@ jobs:
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerboros)"
         run: |
@@ -1202,6 +1252,11 @@ jobs:
         with:
           NAME_SPACE: local
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "NTLM - Setup a2c with mscertsrv_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
@@ -1228,6 +1283,11 @@ jobs:
         with:
           NAME_SPACE: local
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "NTLM - Setup a2c with mscertsrv_ca_handler with allowed_domainlist configuration"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
@@ -1245,6 +1305,11 @@ jobs:
       - name: "Verify allowed_domainlist error"
         run: |
           docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler using kerberos"
         run: |
@@ -1425,6 +1490,11 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab
         with:
           NAME_SPACE: local
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerboros)"
         run: |
@@ -1629,6 +1699,11 @@ jobs:
       - name: "NTLM - enrollment mit default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "KRB - Setup a2c with ms_wcce_ca_handler (Kerberos)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -1660,6 +1735,11 @@ jobs:
       - name: "KRB - enrollment mit default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "KRB - Setup a2c with mswcce_ca_handler with allowed_domainlist configuration"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
@@ -1677,6 +1757,11 @@ jobs:
       - name: "Verify allowed_domainlist error"
         run: |
           docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerboros)"
         run: |
@@ -1873,6 +1958,11 @@ jobs:
       - name: "EAB with headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerboros)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -2066,6 +2156,11 @@ jobs:
         with:
           NAME_SPACE: local
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "NTLM - Setup a2c with mscertsrv_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
@@ -2093,6 +2188,11 @@ jobs:
         with:
           NAME_SPACE: local
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "NTLM - Setup a2c with mscertsrv_ca_handler with allowed_domainlist configuration"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
@@ -2109,6 +2209,11 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
         with:
           NAME_SPACE: local
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler using kerberos"
         run: |
@@ -2302,6 +2407,11 @@ jobs:
       - name: "NTLM - enrollment mit default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "KRB - Setup a2c with ms_wcce_ca_handler (Kerberos)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -2335,6 +2445,11 @@ jobs:
       - name: "KRB - enrollment mit default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "KRB - Setup a2c with mswcce_ca_handler with allowed_domainlist configuration"
         run: |
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
@@ -2349,6 +2464,11 @@ jobs:
 
       - name: "KRB - enrollment allowed domainlist"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerboros)"
         run: |

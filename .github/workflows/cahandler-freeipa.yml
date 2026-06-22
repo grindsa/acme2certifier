@@ -141,6 +141,11 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "ACME Profiling - Setup a2c with freeca_ca_handler"
         run: |
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
@@ -164,6 +169,11 @@ jobs:
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB Profiling - Setup a2c with freeca_ca_handler"
         run: |
@@ -303,6 +313,11 @@ jobs:
           USE_CERTBOT: "false"
           USE_LEGO: "false"
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "ACME Profiling - Setup a2c with freeca_ca_handler"
         run: |
           sudo mkdir -p data/volume/acme_ca
@@ -331,6 +346,11 @@ jobs:
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB Profiling - Setup a2c with freeca_ca_handler"
         run: |
@@ -484,6 +504,11 @@ jobs:
           USE_CERTBOT: "false"
           USE_LEGO: "false"
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "ACME Profiling - Setup a2c with freeca_ca_handler"
         run: |
           sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
@@ -511,6 +536,11 @@ jobs:
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "EAB Profiling - Setup a2c with freeca_ca_handler"
         run: |

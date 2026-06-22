@@ -385,6 +385,11 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "EAB ACME Profiling - Setup acme ca_handler"
         run: |
           sudo mkdir -p examples/Docker/data/acme
@@ -801,6 +806,11 @@ jobs:
           # docker exec acme-srv grep -i "found in keyfile" /var/log/messages
           docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "ACME Profile - Setup acme ca_handler"
         run: |
           sudo mkdir -p data/acme
@@ -1077,6 +1087,11 @@ jobs:
 
       - name: "EAB Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB ACME Profiling - Setup acme_ca_handler"
         run: |

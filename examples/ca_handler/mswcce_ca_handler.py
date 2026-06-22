@@ -264,7 +264,9 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_parameters_load()")
 
-    def _domain_controller_resolve(self, domain_controller: Optional[str]) -> Optional[str]:
+    def _domain_controller_resolve(
+        self, domain_controller: Optional[str]
+    ) -> Optional[str]:
         """resolve FQDN domain controller names to first returned IP address"""
         self.logger.debug("CAhandler._domain_controller_resolve(%s)", domain_controller)
         if not domain_controller:
@@ -343,9 +345,7 @@ class CAhandler(object):
         ccache_file = self.krb5_cache
         self._krb5_cache_is_temporary = False
         if not ccache_file:
-            ccache_fd, ccache_file = tempfile.mkstemp(
-                prefix="acme2certifier_krb5cc_"
-            )
+            ccache_fd, ccache_file = tempfile.mkstemp(prefix="acme2certifier_krb5cc_")
             os.close(ccache_fd)
             self.logger.debug(
                 "No kerberos ccache configured, created temporary ccache file: %s",
@@ -618,9 +618,11 @@ class CAhandler(object):
             return (
                 True,
                 None,
-                "kerberos_keytab_impacket"
-                if self.krb5_auth_backend == "impacket"
-                else "kerberos_keytab_python",
+                (
+                    "kerberos_keytab_impacket"
+                    if self.krb5_auth_backend == "impacket"
+                    else "kerberos_keytab_python"
+                ),
             )
 
         if self.user and self.password:
@@ -829,7 +831,9 @@ class CAhandler(object):
                 self._kerberos_cleanup_temporary_ccache()
 
         if error:
-            self.logger.error("Certificate bundling skipped due to previous error: %s", error)
+            self.logger.error(
+                "Certificate bundling skipped due to previous error: %s", error
+            )
             self.logger.debug("CAhandler._enroll() ended with error: %s", error)
             return error, cert_raw, cert_bundle
 
