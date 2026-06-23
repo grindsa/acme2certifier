@@ -25,6 +25,26 @@ from examples.ca_handler.pkcs7_soap_ca_handler import (
     CAhandler,
 )  # nopep8
 
+
+def _validate_input_path(path_value):
+    """validate input path before filesystem access"""
+    if not path_value:
+        raise ValueError("Path is empty")
+
+    base_dir = os.path.realpath(os.getcwd())
+    candidate = os.path.realpath(os.path.abspath(path_value))
+
+    if candidate != base_dir and not candidate.startswith(base_dir + os.sep):
+        raise ValueError(
+            f"Invalid path '{path_value}'. Path must be within '{base_dir}'."
+        )
+
+    if not os.path.isfile(candidate):
+        raise ValueError(f"Invalid path '{path_value}'. File does not exist.")
+
+    return candidate
+
+
 if __name__ == "__main__":
 
     DEBUG = True
@@ -42,6 +62,14 @@ if __name__ == "__main__":
     CONFIG_VARIANT = sys.argv[4]
 
     if IN_FILE and OUT_FILE and SIGNER_ALIAS and CONFIG_VARIANT:
+
+        try:
+            IN_FILE = _validate_input_path(IN_FILE)
+            SIGNER_ALIAS = _validate_input_path(SIGNER_ALIAS)
+            CONFIG_VARIANT = _validate_input_path(CONFIG_VARIANT)
+        except ValueError as err:
+            LOGGER.error("Input validation failed: %s", err)
+            sys.exit(1)
 
         # load CSR
         csr_der = binary_read(LOGGER, IN_FILE)

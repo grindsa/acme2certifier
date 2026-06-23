@@ -30,11 +30,39 @@ from acme_srv.helper import (
 )
 
 
+def _validate_binary_path(file_name, for_write=False):
+    """validate path before filesystem access"""
+    if not file_name or not isinstance(file_name, str):
+        raise ValueError("Invalid file path")
+
+    if "\x00" in file_name:
+        raise ValueError("Invalid file path")
+
+    normalized = os.path.normpath(file_name)
+    if not os.path.isabs(file_name) and (
+        normalized == os.pardir or normalized.startswith(os.pardir + os.sep)
+    ):
+        raise ValueError("Path traversal detected")
+
+    candidate = os.path.realpath(os.path.abspath(file_name))
+
+    if for_write:
+        target_dir = os.path.dirname(candidate) or os.getcwd()
+        if not os.path.isdir(target_dir):
+            raise ValueError("Target directory does not exist")
+    else:
+        if not os.path.isfile(candidate):
+            raise ValueError("Input file does not exist")
+
+    return candidate
+
+
 def binary_read(logger, file_name):
     """dump filename in binary format"""
     logger.debug("read_binary(%s)", file_name)
+    safe_file_name = _validate_binary_path(file_name)
     # dump csr into file
-    with open(file_name, "rb") as reader:
+    with open(safe_file_name, "rb") as reader:
         content = reader.read()
 
     return content
@@ -43,9 +71,10 @@ def binary_read(logger, file_name):
 def binary_write(logger, file_name, content):
     """dump filename in binary format"""
     logger.debug("write_binary(%s)", file_name)
+    safe_file_name = _validate_binary_path(file_name, for_write=True)
 
     # dump csr into file
-    with open(file_name, "wb") as writer:
+    with open(safe_file_name, "wb") as writer:
         writer.write(content)
 
 
