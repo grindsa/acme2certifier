@@ -40,9 +40,12 @@ Requires:       python3-xmltodict
 Requires:       python3-pyasn1
 Requires:       python3-pyasn1-modules
 Requires:       python3-pyyaml
+Requires(post): policycoreutils
 # Weak dependency for dataclasses - will install if available, won't fail if not
 Recommends:     python3-dataclasses
-Requires(post): policycoreutils
+Recommends:     krb5-workstation
+Recommends:     krb5-libs
+
 
 BuildArch:		noarch
 
@@ -61,7 +64,7 @@ acme2certifier is development project to create an ACME protocol proxy. Main int
   - Dogtag Certificate System
   - Entrust ECS Enterprise
   - Keyfactor EJBCA
-  - Generic ACME protocol handler supporting Letsencrypt, BuyPass.com and ZeroSSL and others
+  - Generic ACME protocol handler supporting Letsencrypt, ZeroSSL and others
   - Generic EST protocol handler
   - Generic CMPv2 protocol handler
   - FreeIPA
