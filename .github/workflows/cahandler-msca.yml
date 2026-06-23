@@ -240,6 +240,57 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
+      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler with keytab support"
+        run: |
+          sudo touch examples/Docker/data/ca_certs.pem
+          sudo chmod 777 examples/Docker/data/ca_certs.pem
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo touch examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_keytab: volume/krb5.keytab" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "auth_method: gssapi" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_config: /var/www/acme2certifier/volume/krb5.conf" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
+
+          sudo touch examples/Docker/data/krb5.conf
+          sudo chmod 777 examples/Docker/data/krb5.conf
+          cat <<EOF > examples/Docker/data/krb5.conf
+          $KRB5_CONF
+          EOF
+          sudo touch examples/Docker/data/krb5.keytab
+          sudo chmod 777 examples/Docker/data/krb5.keytab
+          sudo echo $KRB5_KEYTAB | base64 -d > examples/Docker/data/krb5.keytab
+
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Sleep for 10s"
+        uses: juliangruber/sleep-action@v2.0.4
+        with:
+          time: 10s
+
+      - name: "KRB ACME Profiling - Enrollment with keytab support"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+
       - name: "NTLM Headerinfo - Setup a2c with mscertsrv_ca_handler"
         run: |
           sudo touch examples/Docker/data/acme_srv.cfg
@@ -410,8 +461,8 @@ jobs:
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_keytab: volume/krb5.keytab" >> examples/Docker/data/acme_srv.cfg
           sudo echo "auth_method: gssapi" >> examples/Docker/data/acme_srv.cfg
           sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
@@ -431,6 +482,9 @@ jobs:
           cat <<EOF > examples/Docker/data/krb5.conf
           $KRB5_CONF
           EOF
+          sudo touch examples/Docker/data/krb5.keytab
+          sudo chmod 777 examples/Docker/data/krb5.keytab
+          sudo echo $KRB5_KEYTAB | base64 -d > examples/Docker/data/krb5.keytab
 
           sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
           sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
@@ -467,7 +521,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos)"
+      - name: "EAB ACME Profiling - Setup a2c with mscertsrv_ca_handler (Kerberos)"
         run: |
           sudo touch examples/Docker/data/ca_certs.pem
           sudo chmod 777 examples/Docker/data/ca_certs.pem
@@ -1155,6 +1209,53 @@ jobs:
           TEST_ADL: "false"
           NAME_SPACE: local
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "KRB - Setup a2c with mscertsrv_ca_handler with keytab"
+        run: |
+          sudo touch examples/Docker/data/ca_certs.pem
+          sudo chmod 777 examples/Docker/data/ca_certs.pem
+          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
+          sudo touch examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_file: examples/ca_handler/mscertsrv_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_keytab: volume/krb5.keytab" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "auth_method: gssapi" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_config: /var/www/acme2certifier/volume/krb5.conf" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "verify: False" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "request_timeout: 30" >> examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
+
+          sudo touch examples/Docker/data/krb5.conf
+          sudo chmod 777 examples/Docker/data/krb5.conf
+          cat <<EOF > examples/Docker/data/krb5.conf
+          $KRB5_CONF
+          EOF
+          sudo touch examples/Docker/data/krb5.keytab
+          sudo chmod 777 examples/Docker/data/krb5.keytab
+          sudo echo $KRB5_KEYTAB | base64 -d > examples/Docker/data/krb5.keytab
+
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Test enrollment"
+        uses: ./.github/actions/acme_clients
+        with:
+          REVOCATION: "false"
+          VERIFY_CERT: "false"
+          USE_CERTBOT: "false"
+          TEST_ADL: "false"
+          NAME_SPACE: local
+
+
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
@@ -1374,6 +1475,56 @@ jobs:
           DEPLOYMENT_TYPE: rpm
           TAIL_NUMBER: 1900
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler using kerberos and keytab"
+        run: |
+          mkdir -p data/volume/acme_ca
+          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_keytab: /opt/acme2certifier/volume/acme_ca/krb5.keytab" >> data/volume/acme_srv.cfg
+
+          sudo echo "auth_method: gssapi" >> data/volume/acme_srv.cfg
+          sudo echo "template: $MSCA_TEMPLATE" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_config: volume/acme_ca/krb5.conf" >> data/volume/acme_srv.cfg
+          sudo echo "verify: False" >> data/volume/acme_srv.cfg
+          sudo echo "request_timeout: 30" >> data/volume/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
+
+          sudo touch data/volume/acme_ca/krb5.conf
+          sudo chmod 777 data/volume/acme_ca/krb5.conf
+          cat <<EOF > data/volume/acme_ca/krb5.conf
+          $KRB5_CONF
+          EOF
+          sudo touch data/volume/acme_ca/krb5.keytab
+          sudo chmod 777 data/volume/acme_ca/krb5.keytab
+          sudo echo $KRB5_KEYTAB | base64 -d > data/volume/acme_ca/krb5.keytab
+
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "KRB ACME Profiling - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: rpm
+          TAIL_NUMBER: 1900
+
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
@@ -1519,7 +1670,72 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos)"
+      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab)"
+        run: |
+          mkdir -p data/volume/acme_ca
+          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_keytab: /opt/acme2certifier/volume/acme_ca/krb5.keytab" >> data/volume/acme_srv.cfg
+          sudo echo "auth_method: gssapi" >> data/volume/acme_srv.cfg
+          sudo echo "template: $MSCA_TEMPLATE" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_config: volume/acme_ca/krb5.conf" >> data/volume/acme_srv.cfg
+          sudo echo "verify: False" >> data/volume/acme_srv.cfg
+          sudo echo "request_timeout: 30" >> data/volume/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
+
+          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+
+          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
+          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template\"\: \[\"WebServer-07-C\"\, \"WebServer-07-S\"]/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template\"\: \"WebServer-07-C\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/example.net/local/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+
+          sudo touch data/volume/acme_ca/krb5.conf
+          sudo chmod 777 data/volume/acme_ca/krb5.conf
+          cat <<EOF > data/volume/acme_ca/krb5.conf
+          $KRB5_CONF
+          EOF
+          sudo touch data/volume/acme_ca/krb5.keytab
+          sudo chmod 777 data/volume/acme_ca/krb5.keytab
+          sudo echo $KRB5_KEYTAB | base64 -d > data/volume/acme_ca/krb5.keytab
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "EAB ACME Profiling - Enrollment with ms_wcce_ca_handler and keytab"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: rpm
+          TAIL_NUMBER: 1900
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
@@ -1575,6 +1791,7 @@ jobs:
           NAME_SPACE: local
           DEPLOYMENT_TYPE: rpm
           TAIL_NUMBER: 1900
+
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -2298,6 +2515,58 @@ jobs:
           NAME_SPACE: local
           DEPLOYMENT_TYPE: deb
           TAIL_NUMBER: 1900
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler using kerberos and keytab"
+        run: |
+          mkdir -p data/volume/acme_ca
+          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
+          sudo touch data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mscertsrv_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_keytab: /var/www/acme2certifier/volume/acme_ca/krb5.keytab" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_kinit_path: /usr/bin/kinit" >> data/volume/acme_srv.cfg
+          sudo echo "auth_method: gssapi" >> data/volume/acme_srv.cfg
+          sudo echo "template: $MSCA_TEMPLATE" >> data/volume/acme_srv.cfg
+          sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_config: volume/acme_ca/krb5.conf" >> data/volume/acme_srv.cfg
+          sudo echo "verify: False" >> data/volume/acme_srv.cfg
+          sudo echo "request_timeout: 30" >> data/volume/acme_srv.cfg
+          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
+
+          sudo touch data/volume/acme_ca/krb5.conf
+          sudo chmod 777 data/volume/acme_ca/krb5.conf
+          cat <<EOF > data/volume/acme_ca/krb5.conf
+          $KRB5_CONF
+          EOF
+
+          sudo touch data/volume/acme_ca/krb5.keytab
+          sudo chmod 777 data/volume/acme_ca/krb5.keytab
+          sudo echo $KRB5_KEYTAB | base64 -d > data/volume/acme_ca/krb5.keytab
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "KRB ACME Profiling - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: deb
+          TAIL_NUMBER: 1900
+
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
