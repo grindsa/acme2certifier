@@ -174,7 +174,7 @@ jobs:
           NAME_SPACE: local
 
       - name: "Sleep for 10s"
-        uses: grindsa/sleep-action@master
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -225,7 +225,7 @@ jobs:
           docker compose restart
 
       - name: "Sleep for 10s"
-        uses: grindsa/sleep-action@master
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -467,7 +467,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerboros)"
+      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos)"
         run: |
           sudo touch examples/Docker/data/ca_certs.pem
           sudo chmod 777 examples/Docker/data/ca_certs.pem
@@ -610,7 +610,7 @@ jobs:
           sudo systemctl enable dnsmasq
           sudo systemctl start dnsmasq
 
-      - name: "[ PREPARE ] test dns resulution"
+      - name: "[ PREPARE ] test dns resolution"
         run: |
           host $MSCA_ADS_DOMAIN 127.0.0.1
           host $MSCA_FQDN 127.0.0.1
@@ -729,7 +729,7 @@ jobs:
           docker compose restart
 
       - name: "KRB Headerinfo - Sleep for 10s"
-        uses: grindsa/sleep-action@master
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -787,7 +787,7 @@ jobs:
           docker compose restart
 
       - name: "KRB ACME Profile - Sleep for 10s"
-        uses: grindsa/sleep-action@master
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -868,7 +868,7 @@ jobs:
           sudo systemctl enable dnsmasq
           sudo systemctl start dnsmasq
 
-      - name: "[ PREPARE ] test dns resulution"
+      - name: "[ PREPARE ] test dns resolution"
         run: |
           host $MSCA_ADS_DOMAIN 127.0.0.1
           host $MSCA_FQDN 127.0.0.1
@@ -902,7 +902,7 @@ jobs:
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
 
-      - name: "EAB with headerinfo - Setup a2c with ms_wcce_ca_handler (Kerboros)"
+      - name: "EAB with headerinfo - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab)"
         run: |
           sudo touch examples/Docker/data/ca_certs.pem
           sudo chmod 777 examples/Docker/data/ca_certs.pem
@@ -912,8 +912,11 @@ jobs:
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+          # sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
+          # sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_keytab: volume/krb5.keytab" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_config: volume/krb5.conf" >> examples/Docker/data/acme_srv.cfg
           sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_name: $MSCA_NAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
@@ -941,6 +944,15 @@ jobs:
           sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
           sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
+          sudo touch examples/Docker/data/krb5.conf
+          sudo chmod 777 examples/Docker/data/krb5.conf
+          cat <<EOF > examples/Docker/data/krb5.conf
+          $KRB5_CONF
+          EOF
+          sudo touch examples/Docker/data/krb5.keytab
+          sudo chmod 777 examples/Docker/data/krb5.keytab
+          sudo echo $KRB5_KEYTAB | base64 -d > examples/Docker/data/krb5.keytab
+
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
         with:
@@ -961,7 +973,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerboros)"
+      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos)"
         run: |
           sudo touch examples/Docker/data/ca_certs.pem
           sudo chmod 777 examples/Docker/data/ca_certs.pem
@@ -971,8 +983,9 @@ jobs:
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_keytab: volume/krb5.keytab" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "krb5_config: volume/krb5.conf" >> examples/Docker/data/acme_srv.cfg
           sudo echo "template: $MSCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_name: $MSCA_NAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> examples/Docker/data/acme_srv.cfg
@@ -992,7 +1005,7 @@ jobs:
           sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
           sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
           sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/eab_handler/kid_profiles.json
+          sudo chmod 777 examples/Docker/data/kid_profiles.json
           sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template\"\: \[\"WebServer-07-C\"\, \"WebServer-07-S\"]/g" examples/Docker/data/kid_profiles.json
           sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template\"\: \"WebServer-07-C\"/g" examples/Docker/data/kid_profiles.json
           sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
@@ -1000,6 +1013,16 @@ jobs:
           sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
           sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
           sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+
+          sudo touch examples/Docker/data/krb5.conf
+          sudo chmod 777 examples/Docker/data/krb5.conf
+          cat <<EOF > examples/Docker/data/krb5.conf
+          $KRB5_CONF
+          EOF
+          sudo touch examples/Docker/data/krb5.keytab
+          sudo chmod 777 examples/Docker/data/krb5.keytab
+          sudo echo $KRB5_KEYTAB | base64 -d > examples/Docker/data/krb5.keytab
+
           cd examples/Docker/
           docker compose restart
 
@@ -1496,7 +1519,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerboros)"
+      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
@@ -1650,7 +1673,7 @@ jobs:
           sudo systemctl enable dnsmasq
           sudo systemctl start dnsmasq
 
-      - name: "Test dns resulution"
+      - name: "Test dns resolution"
         run: |
           host $MSCA_ADS_DOMAIN ${{ env.RUNNER_IP }}
           host $MSCA_FQDN ${{ env.RUNNER_IP }}
@@ -1763,7 +1786,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerboros)"
+      - name: "ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos)"
         run: |
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
@@ -1891,7 +1914,7 @@ jobs:
           sudo systemctl enable dnsmasq
           sudo systemctl start dnsmasq
 
-      - name: "Test dns resulution"
+      - name: "Test dns resolution"
         run: |
           host $MSCA_ADS_DOMAIN ${{ env.RUNNER_IP }}
           host $MSCA_FQDN ${{ env.RUNNER_IP }}
@@ -1920,8 +1943,9 @@ jobs:
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
-          sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
-          sudo echo "password: $MSCA_PASSWORD" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_keytab: /opt/acme2certifier/volume/acme_ca/krb5.keytab" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_config: /opt/acme2certifier/volume/acme_ca/krb5.conf" >> data/volume/acme_srv.cfg
           sudo echo "template: $MSCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo echo "ca_name: $MSCA_NAME" >> data/volume/acme_srv.cfg
           sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> data/volume/acme_srv.cfg
@@ -1949,6 +1973,16 @@ jobs:
           sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
           sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
+          sudo touch data/volume/acme_ca/krb5.conf
+          sudo chmod 777 data/volume/acme_ca/krb5.conf
+          cat <<EOF > data/volume/acme_ca/krb5.conf
+          $KRB5_CONF
+          EOF
+          sudo touch data/volume/acme_ca/krb5.keytab
+          sudo chmod 777 data/volume/acme_ca/krb5.keytab
+          sudo echo $KRB5_KEYTAB | base64 -d > data/volume/acme_ca/krb5.keytab
+
+
       - name: "Execute install script"
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
@@ -1963,7 +1997,7 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerboros)"
+      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo touch data/volume/acme_ca/ca_certs.pem
@@ -1974,8 +2008,9 @@ jobs:
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
-          sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
-          sudo echo "password: $MSCA_PASSWORD" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_keytab: /opt/acme2certifier/volume/acme_ca/krb5.keytab" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_config: /opt/acme2certifier/volume/acme_ca/krb5.conf" >> data/volume/acme_srv.cfg
           sudo echo "template: $MSCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo echo "ca_name: $MSCA_NAME" >> data/volume/acme_srv.cfg
           sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> data/volume/acme_srv.cfg
@@ -2004,9 +2039,18 @@ jobs:
           sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
           sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
+          sudo touch data/volume/acme_ca/krb5.conf
+          sudo chmod 777 data/volume/acme_ca/krb5.conf
+          cat <<EOF > data/volume/acme_ca/krb5.conf
+          $KRB5_CONF
+          EOF
+          sudo touch data/volume/acme_ca/krb5.keytab
+          sudo chmod 777 data/volume/acme_ca/krb5.keytab
+          sudo echo $KRB5_KEYTAB | base64 -d > data/volume/acme_ca/krb5.keytab
+
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
         env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
@@ -2022,12 +2066,11 @@ jobs:
           docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
           sudo rm -rf data/*.rpm
           sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
           sudo cp -rp dnsmasq/ ${{ github.workspace }}/artifact/dnsmasq/
           # docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
           # docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
           docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh dnsmasq
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log dnsmasq
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
@@ -2282,7 +2325,8 @@ jobs:
   # Test DEB mswcce
   # ---------------------------------------------------------
   mswcce-test-deb:
-    needs: [guard, instance_start, mscertsrv-test-deb]
+    # needs: [guard, instance_start, mscertsrv-test-deb]
+    needs: [guard, instance_start]
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
@@ -2357,7 +2401,7 @@ jobs:
           sudo systemctl enable dnsmasq
           sudo systemctl start dnsmasq
 
-      - name: "Test dns resulution"
+      - name: "Test dns resolution"
         run: |
           host $MSCA_ADS_DOMAIN ${{ env.RUNNER_IP }}
           host $MSCA_FQDN ${{ env.RUNNER_IP }}
@@ -2470,15 +2514,17 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerboros)"
+      - name: "ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab)"
         run: |
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/mswcce_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
-          sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
-          sudo echo "password: $MSCA_PASSWORD" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_keytab: /var/www/acme2certifier/volume/acme_ca/krb5.keytab" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_config: /var/www/acme2certifier/volume/acme_ca/krb5.conf" >> data/volume/acme_srv.cfg
+          sudo echo "krb5_kinit_path: /usr/bin/kinit" >> data/volume/acme_srv.cfg
           sudo echo "template: $MSCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo echo "ca_name: $MSCA_NAME" >> data/volume/acme_srv.cfg
           sudo echo "target_domain: $MSCA_ADS_DOMAIN" >> data/volume/acme_srv.cfg
@@ -2489,6 +2535,15 @@ jobs:
           sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
+
+          sudo touch data/volume/acme_ca/krb5.conf
+          sudo chmod 777 data/volume/acme_ca/krb5.conf
+          cat <<EOF > data/volume/acme_ca/krb5.conf
+          $KRB5_CONF
+          EOF
+          sudo touch data/volume/acme_ca/krb5.keytab
+          sudo chmod 777 data/volume/acme_ca/krb5.keytab
+          sudo echo $KRB5_KEYTAB | base64 -d > data/volume/acme_ca/krb5.keytab
 
       - name: "Reconfigure a2c "
         run: |

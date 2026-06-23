@@ -12,7 +12,7 @@ Rules-Requires-Root: no
 Package: acme2certifier
 Architecture: all
 Depends: ${misc:Depends}, tzdata, python3-setuptools, python3-jwcrypto, python3-cryptography, python3-openssl, python3-dnspython, python3-configargparse, python3-dateutil, python3-requests, python3-requests-ntlm, python3-socks, python3-josepy, python3-acme, python3-xmltodict, python3-pyasn1, python3-pyasn1-modules, python3-django, python3-mysqldb, python3-pymysql, python3-psycopg2, python3-yaml
-Recommends: python3-requests-gssapi
+Recommends: python3-requests-gssapi, krb5-user
 Description: Library implementing ACME server functionality
  acme2certifier is development project to create an ACME protocol proxy. Main intention is to provide ACME services on CA servers which do not support this protocol yet.
  As of today the following handlers are available:
@@ -20,7 +20,7 @@ Description: Library implementing ACME server functionality
  - Dogtag Certificate System
  - Entrust ECS Enterprise
  - Keyfactor EJBCA
- - Generic ACME protocol handler supporting Letsencrypt, BuyPass.com and ZeroSSL and others
+ - Generic ACME protocol handler supporting Letsencrypt, ZeroSSL and others
  - Generic EST protocol handler
  - Generic CMPv2 protocol handler
  - FreeIPA

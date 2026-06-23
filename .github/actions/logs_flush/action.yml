@@ -22,6 +22,7 @@ runs:
       elif [ "$DEPLOYMENT_TYPE" == "deb" ]; then
         echo "deb deployment"
         docker exec -i acme-srv sh -c 'if [ -f /var/log/apache2/error.log ]; then truncate -s 0 /var/log/apache2/error.log; elif [ -f /var/log/nginx/error.log ]; then truncate -s 0 /var/log/nginx/error.log; fi'
+        docker exec -i acme-srv truncate -s 0 /var/log/syslog
       fi
     shell: bash
     env:
