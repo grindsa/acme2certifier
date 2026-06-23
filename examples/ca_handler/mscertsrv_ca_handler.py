@@ -609,7 +609,9 @@ class CAhandler(object):
         self.logger.debug("CAhandler._credentials_are_configured()")
         if self.auth_method == "gssapi" and self._kerberos_keytab_is_configured():
             return True
-        self.logger.debug("CAhandler._credentials_are_configured() ended with user/password check")
+        self.logger.debug(
+            "CAhandler._credentials_are_configured() ended with user/password check"
+        )
         return bool(self.user and self.password)
 
     def _pkcs7_to_pem(self, pkcs7_content: str, outform: str = "string") -> List[str]:
@@ -728,7 +730,11 @@ class CAhandler(object):
 
         self._parameter_overwrite(csr)
 
-        if not ((self.host or self.url) and self._credentials_are_configured() and self.template):
+        if not (
+            (self.host or self.url)
+            and self._credentials_are_configured()
+            and self.template
+        ):
             self.logger.error("Configuration incomplete")
             error = "Config incomplete"
             self.logger.debug("Certificate.enroll() ended")
