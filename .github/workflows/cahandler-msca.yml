@@ -68,7 +68,7 @@ jobs:
           IGNORE_CURRENT_STATUS: "false"
 
       - name: "Sleep for 60s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 60s
 
