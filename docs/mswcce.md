@@ -71,6 +71,7 @@ krb5_principal: <principal@REALM>
 krb5_keytab: </path/to/keytab>
 krb5_cache: </path/to/ccache>
 krb5_config: </path/to/krb5.conf>
+krb5_kinit_path: </path/to/kinit>
 target_domain: <domain_name>
 domain_controller: <IP_of_domain_controller>
 ca_name: <ca_name>
@@ -99,6 +100,8 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 - **krb5_cache_variable** *(optional)* – Environment variable containing the ccache path (overridden if `krb5_cache` is set in `acme_srv.cfg`).
 - **krb5_config** *(optional)* – Path to a custom `krb5.conf` file. Used by the kinit fallback path.
 - **krb5_config_variable** *(optional)* – Environment variable containing the `krb5.conf` path (overridden if `krb5_config` is set in `acme_srv.cfg`).
+- **krb5_kinit_path** *(optional)* – Full path to the `kinit` binary used by the kinit fallback path. Defaults to `kinit` resolved from `PATH`.
+- **krb5_kinit_path_variable** *(optional)* – Environment variable containing the `kinit` binary path (overridden if `krb5_kinit_path` is set in `acme_srv.cfg`).
 - **target_domain** *(optional)* – Active Directory domain name.
 - **domain_controller** *(optional)* – Domain controller endpoint. You can provide either an IP address or an FQDN. If an FQDN is configured, acme2certifier resolves it via DNS and uses the first returned IP address.
 - **dns_server** *(optional)* – IP address of the DNS server.
@@ -156,6 +159,7 @@ krb5_keytab: /etc/acme2certifier/svc-a2c-enroll.keytab
 krb5_auth_backend: python
 krb5_cache: /var/lib/acme2certifier/krb5cc_a2c
 krb5_config: /etc/krb5.conf
+krb5_kinit_path: /usr/bin/kinit
 ```
 
 ### Validate with kinit and klist

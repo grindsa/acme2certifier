@@ -59,6 +59,7 @@ class CAhandler(object):
         self.krb5_keytab = None
         self.krb5_cache = None
         self.krb5_config = None
+        self.krb5_kinit_path = "kinit"
         self.header_info_field = None
         self.timeout = 5
         self.eab_handler = None
@@ -168,6 +169,14 @@ class CAhandler(object):
             "krb5_config",
             "krb5_config_variable",
             "Unable to load kerberos krb5 config variable from environment: %s",
+        )
+        self.krb5_kinit_path = self._config_credential_item_load(
+            config_dic,
+            cahandler_cfg,
+            self.krb5_kinit_path,
+            "krb5_kinit_path",
+            "krb5_kinit_path_variable",
+            "Unable to load kerberos kinit path variable from environment: %s",
         )
 
         self.logger.debug("CAhandler._config_credentials_load() ended")
@@ -527,6 +536,7 @@ class CAhandler(object):
     def _kerberos_acquire_with_kinit(self, ccache_file: str) -> bool:
         """acquire kerberos credentials using kinit fallback"""
         self.logger.debug("CAhandler._kerberos_acquire_with_kinit()")
+        kinit_cmd = self.krb5_kinit_path or "kinit"
         try:
             kinit_env = dict(os.environ)
             kinit_env["KRB5CCNAME"] = ccache_file
@@ -544,7 +554,7 @@ class CAhandler(object):
                     )
             subprocess.run(
                 [
-                    "kinit",
+                    kinit_cmd,
                     "-k",
                     "-t",
                     self.krb5_keytab,
@@ -565,7 +575,7 @@ class CAhandler(object):
             )
             return False
         except FileNotFoundError as err:
-            self.logger.error("kinit command not found: %s", err)
+            self.logger.error("%s command not found: %s", kinit_cmd, err)
             return False
         except Exception as err:
             stderr = None
