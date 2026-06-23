@@ -348,6 +348,7 @@ class CAhandler(object):
 
     def _kerberos_keytab_is_configured(self) -> bool:
         """check if keytab flow can be used"""
+        self.logger.debug("CAhandler._kerberos_keytab_is_configured()")
         result = bool(self.krb5_principal and self.krb5_keytab)
         self.logger.debug("CAhandler._kerberos_keytab_is_configured() = %s", result)
         return result
@@ -605,9 +606,10 @@ class CAhandler(object):
 
     def _credentials_are_configured(self) -> bool:
         """check credential completeness based on selected auth mode"""
+        self.logger.debug("CAhandler._credentials_are_configured()")
         if self.auth_method == "gssapi" and self._kerberos_keytab_is_configured():
             return True
-
+        self.logger.debug("CAhandler._credentials_are_configured() ended with user/password check")
         return bool(self.user and self.password)
 
     def _pkcs7_to_pem(self, pkcs7_content: str, outform: str = "string") -> List[str]:
