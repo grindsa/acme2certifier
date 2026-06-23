@@ -1285,6 +1285,7 @@ class TestACMEHandler(unittest.TestCase):
             "krb5_keytab": "/tmp/svc.keytab",
             "krb5_cache": "/tmp/krb5cc_svc",
             "krb5_config": "/tmp/krb5.conf",
+            "krb5_kinit_path": "/usr/local/bin/kinit",
         }
         mock_load_cfg.return_value = parser
         self.cahandler._config_load()
@@ -1297,6 +1298,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("/tmp/svc.keytab", self.cahandler.krb5_keytab)
         self.assertEqual("/tmp/krb5cc_svc", self.cahandler.krb5_cache)
         self.assertEqual("/tmp/krb5.conf", self.cahandler.krb5_config)
+        self.assertEqual("/usr/local/bin/kinit", self.cahandler.krb5_kinit_path)
 
     @patch("examples.ca_handler.mswcce_ca_handler.load_config")
     def test_067a_config_load_autoselect_python_backend(self, mock_load_cfg):
@@ -1430,10 +1432,27 @@ class TestACMEHandler(unittest.TestCase):
 
         self.assertTrue(result)
         self.assertTrue(mock_subprocess_run.called)
-        _, run_kwargs = mock_subprocess_run.call_args
+        run_args, run_kwargs = mock_subprocess_run.call_args
+        self.assertEqual("kinit", run_args[0][0])
         self.assertEqual("/tmp/krb5cc_svc", run_kwargs["env"]["KRB5CCNAME"])
         self.assertEqual("/tmp/krb5.conf", run_kwargs["env"]["KRB5_CONFIG"])
         self.assertEqual(self.cahandler.KINIT_TIMEOUT_SECONDS, run_kwargs["timeout"])
+
+    @patch("examples.ca_handler.mswcce_ca_handler.subprocess.run")
+    def test_072a_kerberos_acquire_with_kinit_custom_binary_path(
+        self,
+        mock_subprocess_run,
+    ):
+        """test kinit fallback uses configured kinit binary path"""
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_principal = "svc-a2c-enroll@EXAMPLE.COM"
+        self.cahandler.krb5_kinit_path = "/usr/local/bin/kinit"
+
+        result = self.cahandler._kerberos_acquire_with_kinit("/tmp/krb5cc_svc")
+
+        self.assertTrue(result)
+        run_args, _run_kwargs = mock_subprocess_run.call_args
+        self.assertEqual("/usr/local/bin/kinit", run_args[0][0])
 
     def test_073_kerberos_username_from_principal(self):
         """test kerberos username extraction from principal"""
