@@ -778,15 +778,16 @@ class Housekeeping(object):
         else:
             self.logger.critical("Database version could not be verified.")
 
-    def nonce_cleanup(
-        self, uts: int = uts_now(), report_format: str = "csv", report_name: str = None
-    ):
+    def nonce_cleanup(self, uts: int = uts_now()):
         """nonce cleanup based on expiry date"""
         self.logger.debug("Housekeeping.nonce_cleanup()")
 
         with Nonce(self.debug, self.logger) as nonce:
             # get expired orders
-            field_list, order_list = nonce.expire_nonces(timestamp=uts)
+            _field_list, order_list = nonce.expire_nonces(timestamp=uts)
+
+        self.logger.debug("Housekeeping.nonce_cleanup() ended")
+        return order_list
 
     def orders_invalidate(
         self, uts: int = uts_now(), report_format: str = "csv", report_name: str = None

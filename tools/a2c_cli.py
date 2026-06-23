@@ -213,6 +213,8 @@ class CommandLineInterface(object):
         """load config"""
         self.logger.debug("CommandLineInterface._load_cfg()")
 
+        ifile = self._validate_batchfile_path(ifile)
+
         with open(ifile, "r", encoding="utf8") as fha:
             for lin in fha:
                 line = lin.rstrip()
@@ -225,6 +227,26 @@ class CommandLineInterface(object):
                 else:
                     if line.startswith("#") is False:
                         self._command_check(line)
+
+    def _validate_batchfile_path(self, ifile):
+        """validate batchfile path before reading from disk"""
+        self.logger.debug("CommandLineInterface._validate_batchfile_path(%s)", ifile)
+
+        if not ifile:
+            raise ValueError("Batchfile path is empty")
+
+        base_dir = os.path.realpath(os.getcwd())
+        candidate = os.path.realpath(os.path.abspath(ifile))
+
+        if candidate != base_dir and not candidate.startswith(base_dir + os.sep):
+            raise ValueError(
+                f"Invalid batchfile path '{ifile}'. Path must be within '{base_dir}'."
+            )
+
+        if not os.path.isfile(candidate):
+            raise ValueError(f"Invalid batchfile path '{ifile}'. File does not exist.")
+
+        return candidate
 
     def _cli_print(self, text, date_print=True, printreturn=True):
         """cli printout text"""
