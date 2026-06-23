@@ -21,9 +21,9 @@ case "${1}" in
     apt-get update
     apt-get -y upgrade
     if [[ "${2}" = "apache2" ]]; then
-      apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3 rsyslog
+      apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3 rsyslog krb5-user
     elif [[ "${2}" = "nginx" ]]; then
-      apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 rsyslog
+      apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 rsyslog krb5-user
     fi
 
     systemctl enable rsyslog

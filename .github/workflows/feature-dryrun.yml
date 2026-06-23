@@ -101,6 +101,11 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure openssl ca_handler - dryrun mode to true"
         run: |
           sudo sed -i "s/dryrun: False/dryrun: True/g" examples/Docker/data/acme_srv.cfg
@@ -112,6 +117,11 @@ jobs:
         with:
           FAIL: "true"
           DEPLOYMENT_TYPE: "container"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Reconfigure openssl ca_handler - dryrun mode profile and no profile name"
         run: |
@@ -125,6 +135,11 @@ jobs:
           FAIL: "missing_profile"
           DEPLOYMENT_TYPE: "container"
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure openssl ca_handler - dryrun mode profile and no profiles in cfg"
         run: |
           sudo sed -i "s/dryrun: profile/dryrun: profile\ndryrun_profile: dry-run/g" examples/Docker/data/acme_srv.cfg
@@ -136,6 +151,11 @@ jobs:
         with:
           FAIL: "profile"
           DEPLOYMENT_TYPE: "container"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Reconfigure openssl ca_handler - dryrun mode profile and profiles in cfg"
         run: |
@@ -227,6 +247,11 @@ jobs:
           DEPLOYMENT_TYPE: "rpm"
           CA_PATH: data/volume/acme_ca/
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "Reconfigure openssl ca_handler - dryrun mode true"
         run: |
           sudo sed -i "s/dryrun: False/dryrun: True/g" data/volume/acme_srv.cfg
@@ -243,6 +268,11 @@ jobs:
           FAIL: "true"
           DEPLOYMENT_TYPE: "rpm"
           CA_PATH: data/volume/acme_ca/
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Reconfigure openssl ca_handler - dryrun mode profile and no profile name"
         run: |
@@ -261,6 +291,11 @@ jobs:
           DEPLOYMENT_TYPE: "rpm"
           CA_PATH: data/volume/acme_ca/
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "Reconfigure openssl ca_handler - dryrun mode profile and no profiles in cfg"
         run: |
           sudo sed -i "s/dryrun: profile/dryrun: profile\ndryrun_profile: dry-run/g" data/volume/acme_srv.cfg
@@ -277,6 +312,11 @@ jobs:
           FAIL: "profile"
           DEPLOYMENT_TYPE: "rpm"
           CA_PATH: data/volume/acme_ca/
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Reconfigure openssl ca_handler - dryrun mode profile and profiles in cfg"
         run: |
@@ -378,6 +418,11 @@ jobs:
           DEPLOYMENT_TYPE: "deb"
           CA_PATH: data/volume/acme_ca/
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "Reconfigure openssl ca_handler - dryrun mode true"
         run: |
           sudo sed -i "s/dryrun: False/dryrun: True/g" data/volume/acme_srv.cfg
@@ -395,6 +440,11 @@ jobs:
           FAIL: "true"
           DEPLOYMENT_TYPE: "deb"
           CA_PATH: data/volume/acme_ca/
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Reconfigure openssl ca_handler - dryrun mode profile and no profile name"
         run: |
@@ -414,6 +464,11 @@ jobs:
           DEPLOYMENT_TYPE: "deb"
           CA_PATH: data/volume/acme_ca/
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "Reconfigure openssl ca_handler - dryrun mode profile and no profiles in cfg"
         run: |
           sudo sed -i "s/dryrun: profile/dryrun: profile\ndryrun_profile: dry-run/g" data/volume/acme_srv.cfg
@@ -431,6 +486,11 @@ jobs:
           FAIL: "profile"
           DEPLOYMENT_TYPE: "deb"
           CA_PATH: data/volume/acme_ca/
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Reconfigure openssl ca_handler - dryrun mode profile and profiles in cfg"
         run: |

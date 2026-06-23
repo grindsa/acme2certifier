@@ -2,6 +2,7 @@
 
 # pylint: disable=C0209, C0415, E0401, R0913, W1201
 import logging
+from typing import Any, Dict, Optional
 
 from cryptography import x509
 from cryptography.hazmat.primitives.serialization import Encoding
@@ -111,8 +112,8 @@ class Request:
             do_kerberos=self.do_kerberos,
         )
 
-    def get_cert(self, csr: bytes) -> bytes:
-        """get cert"""
+    def get_cert(self, csr: bytes) -> Dict[str, Any]:
+        """submit certificate request and return structured response"""
         csr = csr_pem_to_der(csr)
 
         attributes = ["CertificateTemplate:%s" % self.template]
@@ -142,9 +143,26 @@ class Request:
 
         error_code = response["pdwDisposition"]
         request_id = response["pdwRequestId"]
+        disposition_message_raw = b"".join(response["pctbDispositionMessage"]["pb"])
+        disposition_message: Optional[str] = None
+
+        if disposition_message_raw:
+            try:
+                disposition_message = disposition_message_raw.decode("utf-16le").strip()
+            except Exception:
+                disposition_message = None
+
+        cert_pem = None
 
         if error_code == 3:
             logging.info("Successfully requested certificate")
+            cert_der = b"".join(response["pctbEncodedCert"]["pb"])
+            if cert_der:
+                cert_pem = der_to_pem(cert_der)
+            else:
+                logging.error(
+                    "Certificate request was issued but no certificate was returned"
+                )
         elif error_code == 5:
             logging.warning("Certificate request is pending approval")
         else:
@@ -154,9 +172,7 @@ class Request:
                     "Got unknown error while trying to request certificate: (%s): %s"
                     % (
                         error_msg,
-                        b"".join(response["pctbDispositionMessage"]["pb"]).decode(
-                            "utf-16le"
-                        ),
+                        disposition_message,
                     )
                 )
             else:
@@ -165,5 +181,9 @@ class Request:
                 )
 
         logging.info("Request ID is %d" % request_id)
-
-        return der_to_pem(b"".join(response["pctbEncodedCert"]["pb"]))
+        return {
+            "request_id": request_id,
+            "disposition": error_code,
+            "disposition_message": disposition_message,
+            "certificate": cert_pem,
+        }

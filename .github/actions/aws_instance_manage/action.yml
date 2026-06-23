@@ -70,7 +70,7 @@ runs:
 
     - name: "[ WAIT ] Sleep for 10s"
       if: ${{ inputs.ACTION == 'start' }}
-      uses: juliangruber/sleep-action@v2.0.3
+      uses: juliangruber/sleep-action@v2.0.4
       with:
         time: 10s
 
@@ -104,6 +104,6 @@ runs:
 
     - name: "[ WAIT ] Sleep for 10s"
       if: ${{ inputs.ACTION == 'stop' }}
-      uses: juliangruber/sleep-action@v2.0.3
+      uses: juliangruber/sleep-action@v2.0.4
       with:
         time: 10s

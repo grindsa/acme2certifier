@@ -147,6 +147,11 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "ACME Profiling - Setup a2c with dogtag_ca_handler"
         run: |
           # disable challenge validation to avoid issues with profile tests
@@ -157,6 +162,11 @@ jobs:
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/dogtag_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB Profiling - Setup a2c with dogtag_ca_handler"
         run: |
@@ -305,6 +315,11 @@ jobs:
         run: |
           docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "ACME Profiling - Setup a2c with dogtag_ca_handler"
         run: |
           # disable challenge validation to avoid issues with profile tests
@@ -319,6 +334,11 @@ jobs:
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/dogtag_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB Profiling - Setup a2c with dogtag_ca_handler"
         run: |
@@ -482,6 +502,11 @@ jobs:
           USE_CERTBOT: "false"
           HOSTNAME_SUFFIX: -${{ env.UUID }}
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "ACME Profiling - Setup a2c with dogtag_ca_handler"
         run: |
           # disable challenge validation to avoid issues with profile tests
@@ -497,6 +522,11 @@ jobs:
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/dogtag_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "EAB Profiling - Setup a2c with dogtag_ca_handler"
         run: |
