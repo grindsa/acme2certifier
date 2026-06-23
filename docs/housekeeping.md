@@ -67,3 +67,7 @@ There are several methods for internal database maintenance.
   - `uts`: Optional - Unix timestamp for authorization comparison. If not specified, the current Unix timestamp will be used.
   - `report_format`: Optional - `csv`/`json` - Specifies the report format (default: `csv`).
   - `report_name`: Optional - Specifies the report file name.
+
+- `nonce_invalidate(uts, report_format)`: Expires and removes nonces based on a timestamp cutoff. The method compares nonce `created_at` values (stored as date strings in the database) against the provided Unix timestamp and selects all entries older than the calculated threshold. The threshold is `uts - validity`, where `validity` is configured in the `[Nonce]` section of `acme_srv.cfg`.
+
+  - `uts`: Optional - Unix timestamp used as reference time. If not specified, the current Unix timestamp will be used. A `validity` of `0` disables the nonce cleanup.
