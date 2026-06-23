@@ -101,6 +101,11 @@ jobs:
           CA_PATH: examples/Docker/data/acme_ca/
           DEPLOYMENT_TYPE: container
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Set wildcard_certificate_disable to True"
         run: |
           sudo awk '
@@ -141,6 +146,11 @@ jobs:
           DEPLOYMENT_TYPE: container
           WILDCARD_EXPECT_FAIL: 'true'
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Set wildcard_certificate_disable to False"
         run: |
           sudo sed -i "s/^wildcard_certificate_disable:.*/wildcard_certificate_disable: False/g" examples/Docker/data/acme_srv.cfg
@@ -151,6 +161,11 @@ jobs:
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
         with:
           CA_PATH: examples/Docker/data/acme_ca/
+          DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
           DEPLOYMENT_TYPE: container
 
       - name: "Setup openssl ca_handler for persistent-01 challenge support"
@@ -173,6 +188,11 @@ jobs:
           DEPLOYMENT_TYPE: container
           TO_FAIL: 'true'
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Enable Wildcard support"
         run: |
           sudo sed -i "s/dns_persist_01_support: True/dns_persist_01_support: True\ndns_persist_allow_policy_wildcard: True/g" examples/Docker/data/acme_srv.cfg
@@ -183,6 +203,11 @@ jobs:
         uses: ./.github/actions/wf_specific/dns/enroll_persistent01
         with:
           CA_PATH: examples/Docker/data/acme_ca/
+          DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
           DEPLOYMENT_TYPE: container
 
       - name: "Enable JIT support"
@@ -275,6 +300,11 @@ jobs:
       - name: "Enroll by using dns-01 challenges"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "Set wildcard_certificate_disable to True"
         run: |
           sudo awk '
@@ -317,6 +347,11 @@ jobs:
         with:
           WILDCARD_EXPECT_FAIL: 'true'
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "Set wildcard_certificate_disable to False"
         run: |
           sudo sed -i "s/^wildcard_certificate_disable:.*/wildcard_certificate_disable: False/g" data/volume/acme_srv.cfg
@@ -329,6 +364,11 @@ jobs:
 
       - name: "Enroll by using dns-01 challenges with wildcard enabled (wildcard expected to succeed)"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Setup openssl ca_handler for persistent-01 challenge support"
         run: |
@@ -354,6 +394,11 @@ jobs:
           DEPLOYMENT_TYPE: container
           TO_FAIL: 'true'
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "Enable Wildcard support"
         run: |
           sudo sed -i "s/dns_persist_01_support: True/dns_persist_01_support: True\ndns_persist_allow_policy_wildcard: True/g" data/volume/acme_srv.cfg
@@ -369,6 +414,11 @@ jobs:
         with:
           CA_PATH: data/volume/acme_ca/
           DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Enable JIT support"
         run: |
@@ -475,6 +525,11 @@ jobs:
       - name: "Enroll by using dns-01 challenges"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "Set wildcard_certificate_disable to True"
         run: |
           sudo awk '
@@ -518,6 +573,11 @@ jobs:
         with:
           WILDCARD_EXPECT_FAIL: 'true'
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "Set wildcard_certificate_disable to False"
         run: |
           sudo sed -i "s/^wildcard_certificate_disable:.*/wildcard_certificate_disable: False/g" data/volume/acme_srv.cfg
@@ -531,6 +591,11 @@ jobs:
 
       - name: "Enroll by using dns-01 challenges with wildcard enabled (wildcard expected to succeed)"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Setup openssl ca_handler for persistent-01 challenge support"
         run: |
@@ -557,6 +622,11 @@ jobs:
           DEPLOYMENT_TYPE: container
           TO_FAIL: 'true'
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "Enable Wildcard support"
         run: |
           sudo sed -i "s/dns_persist_01_support: True/dns_persist_01_support: True\ndns_persist_allow_policy_wildcard: True/g" data/volume/acme_srv.cfg
@@ -573,6 +643,11 @@ jobs:
         with:
           CA_PATH: data/volume/acme_ca/
           DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Enable JIT support"
         run: |

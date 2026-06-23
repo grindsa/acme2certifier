@@ -129,17 +129,23 @@ class Certsrv(object):
             from requests_gssapi import HTTPSPNEGOAuth
             import gssapi
 
-            oid = "1.3.6.1.5.5.2"  # SPNEGO
-            # pylint: disable=e1101
-            cred = gssapi.raw.acquire_cred_with_password(
-                gssapi.Name(username, gssapi.NameType.user),
-                password.encode("utf-8"),
-                mechs=[gssapi.OID.from_int_seq(oid)],
-                usage="initiate",
-            )
-            self.session.auth = HTTPSPNEGOAuth(
-                creds=cred.creds, mech=gssapi.OID.from_int_seq(oid)
-            )
+            # Support two GSSAPI modes:
+            # 1) username/password (legacy behavior)
+            # 2) default credential cache (for keytab/kinit prepared by caller)
+            if password:
+                oid = "1.3.6.1.5.5.2"  # SPNEGO
+                # pylint: disable=e1101
+                cred = gssapi.raw.acquire_cred_with_password(
+                    gssapi.Name(username, gssapi.NameType.user),
+                    password.encode("utf-8"),
+                    mechs=[gssapi.OID.from_int_seq(oid)],
+                    usage="initiate",
+                )
+                self.session.auth = HTTPSPNEGOAuth(
+                    creds=cred.creds, mech=gssapi.OID.from_int_seq(oid)
+                )
+            else:
+                self.session.auth = HTTPSPNEGOAuth()
         else:
             self.session.auth = (username, password)
 

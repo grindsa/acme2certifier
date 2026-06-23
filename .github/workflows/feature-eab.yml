@@ -133,6 +133,11 @@ jobs:
           DEPLOYMENT_TYPE: "container"
           DATA_DIR: "examples/Docker/data"
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Switch to non-strict mode"
         run: |
           sudo echo "eab_strict_mode: False" >> examples/Docker/data/acme_srv.cfg
@@ -172,6 +177,11 @@ jobs:
         with:
           DEPLOYMENT_TYPE: "container"
           DATA_DIR: "examples/Docker/data"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Switch back to strict mode (no EAB profiling)"
         run: |
@@ -213,6 +223,11 @@ jobs:
         with:
           DEPLOYMENT_TYPE: "container"
           DATA_DIR: "examples/Docker/data"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Switch to non-strict mode with EAB profiling and wildcard disabled"
         run: |
@@ -395,6 +410,11 @@ jobs:
           DEPLOYMENT_TYPE: "rpm"
           EXEC_SCRIPT: ${{ matrix.execscript }}
           DATA_DIR: "data/volume"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Switch to non-strict mode with EAB profiling and wildcard disabled (rpm)"
         run: |
@@ -587,6 +607,11 @@ jobs:
           EXEC_SCRIPT: ${{ matrix.execscript }}
           WEBSRV: ${{ matrix.websrv }}
           DATA_DIR: "data/volume"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Switch to non-strict mode with EAB profiling and wildcard disabled (deb)"
         run: |

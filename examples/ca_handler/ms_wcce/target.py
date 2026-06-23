@@ -126,9 +126,10 @@ class Target:
             domain = ""
 
         if password == "" and username != "" and no_pass is not True:
-            from getpass import getpass
-
-            password = getpass("Password:")
+            logging.warning(
+                "Empty password supplied for user '%s'. Continuing without interactive prompt.",
+                username,
+            )
 
         lmhash = nthash = ""
 

@@ -108,7 +108,11 @@ ca_bundle: <filename>
 auth_method: <basic|ntlm|gssapi>
 template: <name>
 allowed_domainlist: ["example.com", "*.example2.com"]
+krb5_principal: <principal@REALM>
+krb5_keytab: </path/to/keytab>
+krb5_cache: </path/to/ccache>
 krb5_config: <path_to_individual>/krb5.conf
+krb5_kinit_path: </path/to/kinit>
 ```
 
 ### Parameter Explanations
@@ -121,11 +125,40 @@ krb5_config: <path_to_individual>/krb5.conf
 - **password_variable** *(optional)* – Name of the environment variable containing the password (overridden if `password` is set in `acme_srv.cfg`).
 - **ca_bundle** – CA certificate bundle in PEM format, required for validating the server certificate.
 - **auth_method** – Authentication method (`basic`, `ntlm`, or `gssapi`).
+- **krb5_principal** *(optional, required for keytab mode)* – Kerberos principal, for example `svc-a2c-enroll@EXAMPLE.COM`.
+- **krb5_principal_variable** *(optional)* – Name of the environment variable containing the Kerberos principal (overridden if `krb5_principal` is set in `acme_srv.cfg`).
+- **krb5_keytab** *(optional, required for keytab mode)* – Path to the Kerberos keytab file used by the service account.
+- **krb5_keytab_variable** *(optional)* – Name of the environment variable containing the keytab path (overridden if `krb5_keytab` is set in `acme_srv.cfg`).
+- **krb5_cache** *(optional)* – Path to the Kerberos credential cache (ccache). In keytab mode, a temporary ccache is created if this value is omitted.
+- **krb5_cache_variable** *(optional)* – Name of the environment variable containing the ccache path (overridden if `krb5_cache` is set in `acme_srv.cfg`).
 - **krb5_config** *(optional)* – Path to an individual `krb5.conf` file.
+- **krb5_config_variable** *(optional)* – Name of the environment variable containing the `krb5.conf` path (overridden if `krb5_config` is set in `acme_srv.cfg`).
+- **krb5_kinit_path** *(optional)* – Full path to the `kinit` binary used by the keytab fallback path. Defaults to `kinit` resolved from `PATH`.
+- **krb5_kinit_path_variable** *(optional)* – Name of the environment variable containing the `kinit` binary path (overridden if `krb5_kinit_path` is set in `acme_srv.cfg`).
 - **template** – Certificate template used for enrollment.
 - **allowed_domainlist** *(optional)* – List of allowed domain names for enrollment (JSON format).
 - **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`).
 - **enrollment_config_log_skip_list** *(optional)* – List of enrollment parameters to exclude from logs (JSON format).
+
+### GSSAPI Keytab Mode
+
+When `auth_method` is set to `gssapi`, the handler supports keytab-based Kerberos authentication.
+If `krb5_principal` and `krb5_keytab` are configured, the handler prepares Kerberos credentials using Python GSSAPI and falls back to `kinit` if needed.
+
+Example:
+
+```ini
+[CAhandler]
+handler_file: examples/ca_handler/mscertsrv_ca_handler.py
+host: <hostname>
+auth_method: gssapi
+template: <name>
+krb5_principal: svc-a2c-enroll@EXAMPLE.COM
+krb5_keytab: /etc/acme2certifier/svc-a2c-enroll.keytab
+krb5_cache: /var/lib/acme2certifier/krb5cc_a2c
+krb5_config: /etc/krb5.conf
+krb5_kinit_path: /usr/bin/kinit
+```
 
 ## Passing a Template from Client to Server
 
