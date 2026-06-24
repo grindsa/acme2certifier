@@ -2856,9 +2856,7 @@ class TestOrderClass(unittest.TestCase):
         ):
             result = self.order._load_eab_profile_mapping({"kid": {}}, "kid")
 
-        mock_load_param.assert_called_once_with(
-            {"kid": {}}, "kid", "template", None
-        )
+        mock_load_param.assert_called_once_with({"kid": {}}, "kid", "template", None)
         mock_to_dict.assert_called_once_with("profile-a")
         self.assertEqual(result, {"profile-a": True})
 
