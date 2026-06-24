@@ -632,14 +632,18 @@ class TestACMEHandler(unittest.TestCase):
 </soapenv:Envelope>\n"""
         self.assertEqual(result, self.cahandler._soaprequest_build(pkcs7))
 
+    @patch("os.path.isfile")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_028_binary_read(self):
+    def test_028_binary_read(self, mock_isfile):
         """test read binary file"""
+        mock_isfile.return_value = True
         self.assertEqual("foo", self.binary_read(self.logger, "filename"))
 
+    @patch("os.path.isdir")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_029_binary_write(self):
+    def test_029_binary_write(self, mock_isdir):
         """test wrote binary file"""
+        mock_isdir.return_value = True
         self.assertFalse(self.binary_write(self.logger, "filename", "content"))
 
     def test_030_sign(self):

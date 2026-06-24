@@ -159,6 +159,7 @@ jobs:
           (Get-Content acme2certifier/settings.py) -replace 'django.contrib.staticfiles', 'sslserver' | Set-Content acme2certifier/settings.py
           cp examples/ca_handler/openssl_ca_handler.py acme2certifier/ca_handler.py
           cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg acme_srv/acme_srv.cfg
+          (Get-Content acme_srv/acme_srv.cfg) -replace 'challenge_validation_disable: False', 'challenge_validation_disable: True' | Set-Content acme_srv/acme_srv.cfg
           cp .github/acme2certifier_cert.pem acme2certifier/acme2certifier_cert.pem
           cp .github/acme2certifier_key.pem acme2certifier/acme2certifier_key.pem
           mkdir .\volume/acme_ca/certs
@@ -190,7 +191,7 @@ jobs:
 
       - name: "Download win-acme"
         run: |
-          Invoke-RestMethod -Uri https://github.com/win-acme/win-acme/releases/download/v2.2.8.1635/win-acme.v2.2.8.1635.x64.trimmed.zip -OutFile win-acme.zip
+          Invoke-RestMethod -Uri https://github.com/win-acme/win-acme/releases/download/v2.2.9.1701/win-acme.v2.2.9.1701.x64.trimmed.zip -OutFile win-acme.zip
           Expand-Archive .\win-acme.zip
           mkdir win-acme\certs
           dir win-acme\*
@@ -202,6 +203,21 @@ jobs:
         env:
           CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
           CF_WINACME2_NAME: ${{ env.CF_WINACME2_NAME }}
+
+      - name: "Download simple-acme"
+        run: |
+          Invoke-RestMethod -Uri https://github.com/simple-acme/simple-acme/releases/download/v2.3.6/simple-acme.v2.3.6.2257.win-x64.pluggable.zip -OutFile simple-acme.zip
+          Expand-Archive .\simple-acme.zip
+          mkdir simple-acme\certs
+          dir simple-acme\*
+
+      - name: "Enroll certificate via simple-acme"
+        run: |
+          .\simple-acme\wacs.exe --baseuri http://127.0.0.1:8080 --emailaddress=grindsa@bar.local --pemfilespath simple-acme\certs --source manual --host "%CF_SIMPLEACME1_NAME%","%CF_SIMPLEACME2_NAME%" --store pemfiles --force
+        shell: cmd
+        env:
+          CF_SIMPLEACME1_NAME: ${{ env.CF_WINACME1_NAME }}
+          CF_SIMPLEACME2_NAME: ${{ env.CF_WINACME2_NAME }}
 
       - name: "Try to get up the sslserver"
         run: |
