@@ -215,7 +215,7 @@ jobs:
 
           sudo cp examples/ca_handler/xca_ca_handler.py data/volume/ca_handler.py
           sudo chmod 777 data/volume/ca_handler.py
-          sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, \"template_name\")/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
+          sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
           sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" data/volume/ca_handler.py
 
           sudo touch data/volume/acme_srv.cfg
@@ -345,7 +345,7 @@ jobs:
 
           sudo cp examples/ca_handler/xca_ca_handler.py data/volume/ca_handler.py
           sudo chmod 777 data/volume/ca_handler.py
-          sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, \"template_name\")/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
+          sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
           sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" data/volume/ca_handler.py
 
           sudo touch data/volume/acme_srv.cfg
