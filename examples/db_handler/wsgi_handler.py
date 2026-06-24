@@ -1754,7 +1754,7 @@ class DBstore(object):
         """search nonce table for a certain timestamp"""
         self.logger.debug("DBStore.nonce_search_by_timestamp(timestamp:%s)", timestamp)
         self._db_open()
-        pre_statement = f"""SELECT nonce, created_at FROM nonce WHERE CAST(strftime('%s', created_at) AS INTEGER) < ?"""
+        pre_statement = """SELECT nonce, created_at FROM nonce WHERE CAST(strftime('%s', created_at) AS INTEGER) < ?"""
         self.cursor.execute(pre_statement, [timestamp])
         rows = self.cursor.fetchall()
 
