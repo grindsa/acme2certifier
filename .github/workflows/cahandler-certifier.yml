@@ -45,8 +45,7 @@ jobs:
   instance_start:
     needs: guard
     runs-on: ubuntu-latest
-    # if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'certifier')) }}
-    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'wf_')) }}
+    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'certifier')) }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
@@ -1825,7 +1824,7 @@ jobs:
   instance_stop:
     needs: [guard, instance_start, test-containers, test-deb, test-rpm, test-cmpv2-containers, test-cmpv2-deb, test-cmpv2-rpm]
     runs-on: ubuntu-latest
-    if: ${{ always() && github.repository == 'grindsa/acme2certifier' }}
+    if: ${{ always() && github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'certifier')) }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
