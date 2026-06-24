@@ -252,6 +252,16 @@ class Order(object):
                 self.logger.warning(
                     "Profile '%s' is not valid. Ignoring submitted profile.", profile
                 )
+                # cover cornercase, were whe have only one profile configured, and the submitted profile is not valid
+                # in this case we overwrite the submitted profile silently
+                if len(self.config.profiles.keys()) == 1:
+                    self.logger.info(
+                        "Only one profile configured. Overwriting submitted profile '%s' with '%s'.",
+                        profile,
+                        list(self.config.profiles.keys())[0],
+                    )
+                    error = None
+
         self.logger.debug("Order.is_profile_valid() ended with %s", error)
         return error
 
@@ -460,10 +470,11 @@ class Order(object):
         cahandler_cfg = profile_entry.get("cahandler", {})
         if param_name in cahandler_cfg:
             value = cahandler_cfg.get(param_name)
-            self.logger.warning(
-                "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
-                param_name,
-            )
+            if param_name != self.config.profile_mapping_field:
+                self.logger.warning(
+                    "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
+                    param_name,
+                )
             self.logger.debug(
                 "Order._apply_eab_profile() - apply %s from eab profile.", param_name
             )
