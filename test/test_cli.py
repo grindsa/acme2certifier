@@ -545,36 +545,44 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("time.sleep")
     @patch("tools.a2c_cli.CommandLineInterface._command_check")
+    @patch("os.path.isfile")
     @patch("builtins.open", mock_open(read_data="foo\nbar"), create=True)
-    def test_054__load_cfg(self, mock_check, mock_sleep):
+    def test_054__load_cfg(self, mock_isfile, mock_check, mock_sleep):
         """test _load_cfg"""
+        mock_isfile.return_value = True
         self.a2ccli._load_cfg("filename")
         self.assertTrue(mock_check.called)
         self.assertFalse(mock_sleep.called)
 
     @patch("time.sleep")
     @patch("tools.a2c_cli.CommandLineInterface._command_check")
+    @patch("os.path.isfile")
     @patch("builtins.open", mock_open(read_data="sleep 10\nbar"), create=True)
-    def test_055__load_cfg(self, mock_check, mock_sleep):
+    def test_055__load_cfg(self, mock_isfile, mock_check, mock_sleep):
         """test _load_cfg with sleep command"""
+        mock_isfile.return_value = True
         self.a2ccli._load_cfg("filename")
         self.assertTrue(mock_check.called)
         self.assertTrue(mock_sleep.called)
 
     @patch("time.sleep")
     @patch("tools.a2c_cli.CommandLineInterface._command_check")
+    @patch("os.path.isfile")
     @patch("builtins.open", mock_open(read_data="sleep\nbar"), create=True)
-    def test_056__load_cfg(self, mock_check, mock_sleep):
+    def test_056__load_cfg(self, mock_isfile, mock_check, mock_sleep):
         """test _load_cfg with sleep command - slit failes"""
+        mock_isfile.return_value = True
         self.a2ccli._load_cfg("filename")
         self.assertTrue(mock_check.called)
         self.assertTrue(mock_sleep.called)
 
     @patch("time.sleep")
     @patch("tools.a2c_cli.CommandLineInterface._command_check")
+    @patch("os.path.isfile")
     @patch("builtins.open", mock_open(read_data="#foo\n#bar"), create=True)
-    def test_057__load_cfg(self, mock_check, mock_sleep):
+    def test_057__load_cfg(self, mock_isfile, mock_check, mock_sleep):
         """test _load_cfg"""
+        mock_isfile.return_value = True
         self.a2ccli._load_cfg("filename")
         self.assertFalse(mock_check.called)
         self.assertFalse(mock_sleep.called)

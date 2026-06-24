@@ -681,11 +681,6 @@ jobs:
       - name: "EAB ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_acmeprofile
 
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
-        with:
-          DEPLOYMENT_TYPE: container
-
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         run: |
