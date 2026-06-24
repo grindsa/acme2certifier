@@ -198,7 +198,9 @@ class CAhandler(object):
         """load hostname"""
         self.logger.debug("CAhandler._config_parameters_load()")
 
-        self.template = config_dic.get("CAhandler", self.profile_mapping_field, fallback=self.template)
+        self.template = config_dic.get(
+            "CAhandler", self.profile_mapping_field, fallback=self.template
+        )
         if "auth_method" in config_dic["CAhandler"] and config_dic["CAhandler"][
             "auth_method"
         ] in ["basic", "ntlm", "gssapi"]:
@@ -748,7 +750,9 @@ class CAhandler(object):
             return (kerberos_error, None, None, None)
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
+        error = eab_profile_header_info_check(
+            self.logger, self, csr, self.profile_mapping_field
+        )
         if not error:
             # enroll certificate
             with self._kerberos_runtime_environment():

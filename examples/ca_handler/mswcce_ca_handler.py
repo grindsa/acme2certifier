@@ -226,7 +226,9 @@ class CAhandler(object):
         self.target_domain = config_dic.get("CAhandler", "target_domain", fallback=None)
         self.ca_name = config_dic.get("CAhandler", "ca_name", fallback=None)
         self.ca_bundle = config_dic.get("CAhandler", "ca_bundle", fallback=None)
-        self.template = config_dic.get("CAhandler", self.profile_mapping_field, fallback=None)
+        self.template = config_dic.get(
+            "CAhandler", self.profile_mapping_field, fallback=None
+        )
 
         # load enrollment config log
         (
@@ -883,7 +885,9 @@ class CAhandler(object):
             )
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
+        error = eab_profile_header_info_check(
+            self.logger, self, csr, self.profile_mapping_field
+        )
 
         if not error:
             # enroll certificate
@@ -902,7 +906,12 @@ class CAhandler(object):
         _auth_valid, _auth_error, auth_mode = self._auth_mode_validate()
 
         if auth_mode in ["kerberos_keytab_python", "kerberos_keytab_impacket"]:
-            required_fields = ["host", self.profile_mapping_field, "ca_name", "target_domain"]
+            required_fields = [
+                "host",
+                self.profile_mapping_field,
+                "ca_name",
+                "target_domain",
+            ]
             if auth_mode == "kerberos_keytab_impacket":
                 required_fields.append("krb5_cache")
         else:

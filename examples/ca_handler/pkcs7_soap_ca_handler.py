@@ -32,7 +32,6 @@ from acme_srv.helper import (
 INVALID_FILE_PATH_ERROR = "Invalid file path"
 
 
-
 def _validate_binary_path(file_name, for_write=False):
     """validate path before filesystem access"""
     if not file_name or not isinstance(file_name, str):

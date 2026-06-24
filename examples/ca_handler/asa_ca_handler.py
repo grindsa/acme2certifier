@@ -485,7 +485,9 @@ class CAhandler(object):
         poll_indentifier = None
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
+        error = eab_profile_header_info_check(
+            self.logger, self, csr, self.profile_mapping_field
+        )
 
         if self.enrollment_config_log:
             self.enrollment_config_log_skip_list.extend(["api_password", "auth"])

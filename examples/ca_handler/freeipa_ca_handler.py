@@ -552,7 +552,9 @@ class CAhandler(object):
         cert_raw = None
         poll_identifier = None
 
-        error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
+        error = eab_profile_header_info_check(
+            self.logger, self, csr, self.profile_mapping_field
+        )
 
         if not error:
             # optional: lookup http header information from request
