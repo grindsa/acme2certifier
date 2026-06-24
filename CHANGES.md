@@ -17,6 +17,7 @@ and pick the appropriate release branch.
 - [Dogtag CA Handler](docs/dogtag_ca_handler.md)
 - [Dryrun Mode](docs/dryrun.md)
 - Option `wildcard_certificate_disable` to prevent the ernollment of wildcard certificates globally. Can be overridden via [eab-profiling](docs/eab_profiling.md)
+- Kerberos keytab support in [mswcce_ca_handler.py](docs/mswcce.md#keytab-support) and [mscertserv_ca_handler.py](docs/mscertsrv.md#gssapi-keytab-mode)
 
 **Bug Fixes**:
 
