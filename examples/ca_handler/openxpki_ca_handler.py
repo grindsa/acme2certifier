@@ -52,6 +52,7 @@ class CAhandler(object):
         self.eab_profiling = False
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
+        self.profile_mapping_field = "cert_profile_name"
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -140,7 +141,7 @@ class CAhandler(object):
 
         if "CAhandler" in config_dic:
             self.cert_profile_name = config_dic.get(
-                "CAhandler", "cert_profile_name", fallback=self.cert_profile_name
+                "CAhandler", self.profile_mapping_field, fallback=self.cert_profile_name
             )
             if "ca_bundle" in config_dic["CAhandler"]:
                 try:
@@ -270,7 +271,7 @@ class CAhandler(object):
             self.profiles = config_profile_load(self.logger, config_dic)
         # check configuration for completeness
         variable_dic = self.__dict__
-        for ele in ["host", "cert_profile_name", "endpoint_name"]:
+        for ele in ["host", self.profile_mapping_field, "endpoint_name"]:
             if not variable_dic[ele]:
                 self.logger.error(
                     'Configuration incomplete: parameter "%s" is missing in configuration file.',
@@ -414,7 +415,7 @@ class CAhandler(object):
 
             # check for eab profiling and header_info
             error = eab_profile_header_info_check(
-                self.logger, self, csr, "cert_profile_name"
+                self.logger, self, csr, self.profile_mapping_field
             )
 
             if not error:
@@ -450,7 +451,7 @@ class CAhandler(object):
         """check if handler is ready"""
         self.logger.debug("CAhandler.check()")
         error = handler_config_check(
-            self.logger, self, ["host", "cert_profile_name", "endpoint_name"]
+            self.logger, self, ["host", self.profile_mapping_field, "endpoint_name"]
         )
         self.logger.debug("CAhandler.check() ended with %s", error)
         return error

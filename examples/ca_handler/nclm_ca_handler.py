@@ -56,6 +56,7 @@ class CAhandler(object):
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
+        self.profile_mapping_field = "template_name"
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -478,7 +479,7 @@ class CAhandler(object):
         self.api_host = config_dic.get("CAhandler", "api_host", fallback=self.api_host)
         self.ca_name = config_dic.get("CAhandler", "ca_name", fallback=self.ca_name)
         self.template_info_dic["name"] = config_dic.get(
-            "CAhandler", "template_name", fallback=None
+            "CAhandler", self.profile_mapping_field, fallback=None
         )
         if "container_name" in config_dic["CAhandler"]:
             self.container_info_dic["name"] = config_dic.get(
@@ -612,7 +613,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._csr_check()")
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, "template_name")
+        error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
 
         self.logger.debug("CAhandler._csr_check() ended with: %s", error)
         return error

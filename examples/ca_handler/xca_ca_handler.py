@@ -75,6 +75,7 @@ class CAhandler(object):
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
+        self.profile_mapping_field = "template_name"
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -485,7 +486,7 @@ class CAhandler(object):
                 "CAhandler", "issuing_ca_key", fallback=self.issuing_ca_key
             )
             self.template_name = config_dic.get(
-                "CAhandler", "template_name", fallback=self.template_name
+                "CAhandler", self.profile_mapping_field, fallback=self.template_name
             )
 
         if "passphrase_variable" in config_dic["CAhandler"]:
@@ -1416,7 +1417,7 @@ class CAhandler(object):
 
         # fmt: off
         if not error:
-            error = eab_profile_header_info_check(self.logger, self, csr, "template_name")
+            error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
         # fmt: on
 
         if not error:

@@ -47,6 +47,7 @@ class CAhandler(object):
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
+        self.profile_mapping_field = "cert_type"
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -130,7 +131,7 @@ class CAhandler(object):
             )
             self.api_key = config_dic.get("CAhandler", "api_key", fallback=self.api_key)
             self.cert_type = config_dic.get(
-                "CAhandler", "cert_type", fallback="ssl_basic"
+                "CAhandler", self.profile_mapping_field, fallback="ssl_basic"
             )
             self.signature_hash = config_dic.get(
                 "CAhandler", "signature_hash", fallback="sha256"
@@ -287,7 +288,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._csr_check()")
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, "cert_type")
+        error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
 
         self.logger.debug("CAhandler._csr_check() ended with: %s", error)
         return error

@@ -76,6 +76,7 @@ class CAhandler(object):
         self.profile = None
         self.profiles = {}
         self.ssl_verify = True
+        self.profile_mapping_field = "profile"
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -129,7 +130,7 @@ class CAhandler(object):
         self.eab_hmac_key = config_dic.get("CAhandler", "eab_hmac_key", fallback=None)
         self.acme_keypath = config_dic.get("CAhandler", "acme_keypath", fallback=None)
         # load profile from config file if set
-        self.profile = config_dic.get("CAhandler", "profile", fallback=None)
+        self.profile = config_dic.get("CAhandler", self.profile_mapping_field, fallback=None)
 
         self.logger.debug("CAhandler._config_eab_load() ended")
 
@@ -1096,7 +1097,7 @@ class CAhandler(object):
         user_key = None
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, "profile")
+        error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
         if not error:
             if self.enrollment_config_log:
                 self.enrollment_config_log_skip_list.extend(["dbstore", "eab_mac_key"])
