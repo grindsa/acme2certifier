@@ -53,6 +53,7 @@ class CAhandler(object):
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
+        self.profile_mapping_field = "profile_name"
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -233,7 +234,7 @@ class CAhandler(object):
             self._config_password_load(config_dic["CAhandler"])
             self._config_key_load(config_dic["CAhandler"])
             self.ca_name = config_dic["CAhandler"].get("ca_name")
-            self.profile_name = config_dic["CAhandler"].get("profile_name")
+            self.profile_name = config_dic["CAhandler"].get(self.profile_mapping_field)
 
             if (
                 "ca_bundle" in config_dic["CAhandler"]
@@ -267,7 +268,7 @@ class CAhandler(object):
             "api_password",
             "api_key",
             "ca_name",
-            "profile_name",
+            self.profile_mapping_field,
         ]:
             if not getattr(self, ele):
                 self.logger.error(
@@ -484,7 +485,7 @@ class CAhandler(object):
         poll_indentifier = None
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, "profile_name")
+        error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
 
         if self.enrollment_config_log:
             self.enrollment_config_log_skip_list.extend(["api_password", "auth"])
@@ -532,7 +533,7 @@ class CAhandler(object):
                 "api_password",
                 "api_key",
                 "ca_name",
-                "profile_name",
+                self.profile_mapping_field,
             ],
         )
 

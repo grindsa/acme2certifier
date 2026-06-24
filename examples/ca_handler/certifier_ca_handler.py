@@ -56,6 +56,7 @@ class CAhandler(object):
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
+        self.profile_mapping_field = "profile_id"
 
     def __enter__(self):
         """Makes ACMEHandler a Context Manager"""
@@ -387,7 +388,7 @@ class CAhandler(object):
         ) = config_enroll_config_log_load(self.logger, config_dic)
 
         # load profile_id
-        self.profile_id = config_dic.get("CAhandler", "profile_id", fallback=None)
+        self.profile_id = config_dic.get("CAhandler", self.profile_mapping_field, fallback=None)
 
         # check if we get a ca bundle for verification
         if "ca_bundle" in config_dic["CAhandler"]:
@@ -461,7 +462,7 @@ class CAhandler(object):
         self.logger.debug("CAhandler._csr_check()")
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, "profile_id")
+        error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
 
         self.logger.debug("CAhandler._csr_check() ended with: %s", error)
         return error

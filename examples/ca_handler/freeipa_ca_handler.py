@@ -63,6 +63,7 @@ class CAhandler(object):
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
+        self.profile_mapping_field = "profile_id"
 
     def __enter__(self):
         """
@@ -111,7 +112,7 @@ class CAhandler(object):
         self.realm = config_dic.get(self.CONFIG_SECTION, "realm", fallback=self.realm)
 
         self.profile_id = config_dic.get(
-            self.CONFIG_SECTION, "profile_id", fallback=self.profile_id
+            self.CONFIG_SECTION, self.profile_mapping_field, fallback=self.profile_id
         )
 
         self.ca_bundle = config_dic.get(
@@ -472,7 +473,7 @@ class CAhandler(object):
                 "CAhandler._enroll(): Adding profile_id %s to RPC payload for enrollment",
                 self.profile_id,
             )
-            rpc_payload["params"][1]["profile_id"] = self.profile_id
+            rpc_payload["params"][1][self.profile_mapping_field] = self.profile_id
 
         content = self._rpc_post(rpc_payload)
         error = None
@@ -551,7 +552,7 @@ class CAhandler(object):
         cert_raw = None
         poll_identifier = None
 
-        error = eab_profile_header_info_check(self.logger, self, csr, "profile_id")
+        error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
 
         if not error:
             # optional: lookup http header information from request

@@ -264,6 +264,7 @@ class CAhandler(object):
         self.profiles = {}
         self.request_timeout = self.DEFAULT_REQUEST_TIMEOUT
         self.proxy = None
+        self.profile_mapping_field = "profile"
 
     def __enter__(self) -> "CAhandler":
         """
@@ -752,7 +753,7 @@ class CAhandler(object):
         )
 
         self.profile = config_dic.get(
-            self.CONFIG_SECTION, "profile", fallback=self.profile
+            self.CONFIG_SECTION, self.profile_mapping_field, fallback=self.profile
         )
 
         self.ca_bundle = config_dic.get(
@@ -926,7 +927,7 @@ class CAhandler(object):
         poll_identifier = None
 
         error: Optional[str] = eab_profile_header_info_check(
-            self.logger, self, csr, "profile"
+            self.logger, self, csr, self.profile_mapping_field
         )
 
         if error:

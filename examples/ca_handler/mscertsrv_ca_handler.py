@@ -61,6 +61,7 @@ class CAhandler(object):
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
         self._krb5_cache_is_temporary = False
+        self.profile_mapping_field = "template"
 
     KINIT_TIMEOUT_SECONDS = 30
 
@@ -197,7 +198,7 @@ class CAhandler(object):
         """load hostname"""
         self.logger.debug("CAhandler._config_parameters_load()")
 
-        self.template = config_dic.get("CAhandler", "template", fallback=self.template)
+        self.template = config_dic.get("CAhandler", self.profile_mapping_field, fallback=self.template)
         if "auth_method" in config_dic["CAhandler"] and config_dic["CAhandler"][
             "auth_method"
         ] in ["basic", "ntlm", "gssapi"]:
@@ -635,7 +636,7 @@ class CAhandler(object):
                 header_info_dic = json.loads(header_info[-1]["header_info"])
                 if self.header_info_field in header_info_dic:
                     for ele in header_info_dic[self.header_info_field].split(" "):
-                        if "template" in ele.lower():
+                        if self.profile_mapping_field in ele.lower():
                             template_name = ele.split("=")[1]
                             break
             except Exception as err:
@@ -747,7 +748,7 @@ class CAhandler(object):
             return (kerberos_error, None, None, None)
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, "template")
+        error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
         if not error:
             # enroll certificate
             with self._kerberos_runtime_environment():
@@ -762,7 +763,7 @@ class CAhandler(object):
     def handler_check(self):
         """check if handler is ready"""
         self.logger.debug("CAhandler.check()")
-        required = ["host", "template"]
+        required = ["host", self.profile_mapping_field]
         if not self._kerberos_keytab_is_configured():
             required.extend(["user", "password"])
 
