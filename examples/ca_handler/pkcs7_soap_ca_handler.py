@@ -29,14 +29,17 @@ from acme_srv.helper import (
     generate_random_string,
 )
 
+INVALID_FILE_PATH_ERROR = "Invalid file path"
+
+
 
 def _validate_binary_path(file_name, for_write=False):
     """validate path before filesystem access"""
     if not file_name or not isinstance(file_name, str):
-        raise ValueError("Invalid file path")
+        raise ValueError(INVALID_FILE_PATH_ERROR)
 
     if "\x00" in file_name:
-        raise ValueError("Invalid file path")
+        raise ValueError(INVALID_FILE_PATH_ERROR)
 
     normalized = os.path.normpath(file_name)
     if not os.path.isabs(file_name) and (
@@ -51,7 +54,10 @@ def _validate_binary_path(file_name, for_write=False):
         if not os.path.isdir(target_dir):
             raise ValueError("Target directory does not exist")
     else:
-        if not os.path.isfile(candidate):
+        file_exists = os.path.isfile(candidate) or (
+            os.path.exists(candidate) and not os.path.isdir(candidate)
+        )
+        if not file_exists:
             raise ValueError("Input file does not exist")
 
     return candidate
@@ -60,10 +66,10 @@ def _validate_binary_path(file_name, for_write=False):
 def _sanitize_config_file_path(file_name):
     """sanitize configured file path before filesystem access"""
     if not file_name or not isinstance(file_name, str):
-        raise ValueError("Invalid file path")
+        raise ValueError(INVALID_FILE_PATH_ERROR)
 
     if "\x00" in file_name:
-        raise ValueError("Invalid file path")
+        raise ValueError(INVALID_FILE_PATH_ERROR)
 
     normalized = os.path.normpath(file_name)
     if not os.path.isabs(file_name) and (
@@ -141,58 +147,85 @@ class CAhandler(object):
                         ele,
                     )
 
+    def _sanitize_signing_path(self, path_value, err_msg):
+        """sanitize configured signing path and log validation issues"""
+        try:
+            return _sanitize_config_file_path(path_value)
+        except ValueError as err:
+            self.logger.error(err_msg, err)
+            return None
+
+    def _validated_signing_file_path(
+        self, path_value, invalid_err_msg, missing_err_msg
+    ):
+        """sanitize and validate a configured file path before read access"""
+        sanitized_path = self._sanitize_signing_path(path_value, invalid_err_msg)
+        if not sanitized_path:
+            return None
+
+        try:
+            return _validate_binary_path(sanitized_path)
+        except ValueError as err:
+            if str(err) == "Input file does not exist":
+                self.logger.error(missing_err_msg, path_value)
+            else:
+                self.logger.error(invalid_err_msg, err)
+            return None
+
+    def _signing_cert_load(self, config_dic):
+        """load signing certificate from configured path"""
+        if "signing_cert" not in config_dic["CAhandler"]:
+            self.logger.error(
+                "Signing certificate option is missing in configuration file."
+            )
+            return
+
+        cert_path_raw = config_dic["CAhandler"]["signing_cert"]
+        cert_path = self._validated_signing_file_path(
+            cert_path_raw,
+            "Invalid signing certificate path: %s",
+            "Signing certificate file not found: %s",
+        )
+        if not cert_path:
+            return
+
+        with open(cert_path, "rb") as open_file:
+            self.signing_cert = x509.load_pem_x509_certificate(
+                open_file.read(), default_backend()
+            )
+
+    def _signing_key_load(self, config_dic):
+        """load signing key from configured path"""
+        if "signing_key" not in config_dic["CAhandler"]:
+            self.logger.error("Signing key option is missing in configuration file.")
+            return
+
+        key_path_raw = config_dic["CAhandler"]["signing_key"]
+        key_path = self._validated_signing_file_path(
+            key_path_raw,
+            "Invalid signing key path: %s",
+            "Signing key file not found: %s",
+        )
+        if not key_path:
+            return
+
+        with open(key_path, "rb") as open_file:
+            self.signing_key = serialization.load_pem_private_key(
+                open_file.read(),
+                password=self.password,
+                backend=default_backend(),
+            )
+
     def _self_signing_config_load(self, config_dic):
         """load configuriation options for self signing"""
         self.logger.debug("CAhandler._self_signing_config_load()")
 
-        if "signing_cert" in config_dic["CAhandler"]:
-            cert_path = config_dic["CAhandler"]["signing_cert"]
-            try:
-                cert_path = _sanitize_config_file_path(cert_path)
-            except ValueError as err:
-                self.logger.error("Invalid signing certificate path: %s", err)
-                cert_path = None
-
-            if cert_path and os.path.exists(cert_path):
-                with open(cert_path, "rb") as open_file:
-                    self.signing_cert = x509.load_pem_x509_certificate(
-                        open_file.read(), default_backend()
-                    )
-            else:
-                self.logger.error(
-                    "Signing certificate file not found: %s",
-                    config_dic["CAhandler"]["signing_cert"],
-                )
-        else:
-            self.logger.error(
-                "Signing certificate option is missing in configuration file."
-            )
+        self._signing_cert_load(config_dic)
 
         if "password" in config_dic["CAhandler"]:
             self.password = convert_string_to_byte(config_dic["CAhandler"]["password"])
 
-        if "signing_key" in config_dic["CAhandler"]:
-            key_path = config_dic["CAhandler"]["signing_key"]
-            try:
-                key_path = _sanitize_config_file_path(key_path)
-            except ValueError as err:
-                self.logger.error("Invalid signing key path: %s", err)
-                key_path = None
-
-            if key_path and os.path.exists(key_path):
-                with open(key_path, "rb") as open_file:
-                    self.signing_key = serialization.load_pem_private_key(
-                        open_file.read(),
-                        password=self.password,
-                        backend=default_backend(),
-                    )
-            else:
-                self.logger.error(
-                    "Signing key file not found: %s",
-                    config_dic["CAhandler"]["signing_key"],
-                )
-        else:
-            self.logger.error("Signing key option is missing in configuration file.")
+        self._signing_key_load(config_dic)
 
     def _global_config_load(self, config_dic):
         """load configuriation options for external signing script"""
