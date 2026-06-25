@@ -253,7 +253,7 @@ class Order(object):
                 self.logger.warning(
                     "Profile '%s' is not valid. Ignoring submitted profile.", profile
                 )
-                # cover cornercase, were whe have only one profile configured, and the submitted profile is not valid
+                # cover cornercase, where we have only one profile configured, and the submitted profile is not valid
                 # in this case we overwrite the submitted profile silently
                 if len(self.config.profiles.keys()) == 1:
                     self.logger.info(
@@ -296,7 +296,24 @@ class Order(object):
         error = self.is_profile_valid(payload["profile"])
         if not error:
             if self.config.profiles:
-                data_dic["profile"] = payload["profile"]
+                profile = payload["profile"]
+                if (
+                    not self.config.profiles_check_disable
+                    and profile not in self.config.profiles
+                    and not (
+                        self.config.dryrun_profilename
+                        and self.config.dryrun_profilename == profile
+                    )
+                    and len(self.config.profiles.keys()) == 1
+                ):
+                    profile = list(self.config.profiles.keys())[0]
+                    self.logger.info(
+                        "Order.add_profile_to_order(): overwriting submitted profile '%s' with '%s'.",
+                        payload["profile"],
+                        profile,
+                    )
+
+                data_dic["profile"] = profile
             elif (
                 self.config.dryrun_profilename
                 and self.config.dryrun_profilename == payload["profile"]
@@ -390,6 +407,11 @@ class Order(object):
                 account_name,
             )
             self.config.profiles = eab_profile_dic
+            if self.config.profiles_check_disable:
+                self.logger.debug(
+                    "Order._apply_eab_profile() - enabling profile validation because EAB profile mapping is present"
+                )
+            self.config.profiles_check_disable = False
 
     def _profile_mapping_to_dict(self, profile_value) -> Dict[str, bool]:
         """Normalize profile mapping value to dict keys."""
