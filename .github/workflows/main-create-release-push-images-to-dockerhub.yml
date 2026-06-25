@@ -1,7 +1,7 @@
 name: Deployment Tests - Update images to dockerhub and ghcr.io
 on:
   push:
-    branches: [ "master" ]       # Execute on master only
+    branches: [ "master", "wf_push" ]       # Execute on master only
   workflow_dispatch: {}
   schedule:
     - cron: '0 01 * * 6'  # Every Saturday morning
