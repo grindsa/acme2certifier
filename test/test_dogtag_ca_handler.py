@@ -125,7 +125,7 @@ class TestCAhandler(unittest.TestCase):
         "examples.ca_handler.dogtag_ca_handler.config_eab_profile_load",
         return_value=(True, "handler"),
     )
-    def test_config_load_eab_profile(self, mock_eab):
+    def test_010_load_eab_profile(self, mock_eab):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
@@ -138,7 +138,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertEqual(self.cahandler.eab_handler, "handler")
 
     @patch("examples.ca_handler.dogtag_ca_handler.CAhandler._config_passphrase_load")
-    def test_010_config_load_cert_passphrase(self, mock_passphrase):
+    def test_011_config_load_cert_passphrase(self, mock_passphrase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
@@ -151,7 +151,7 @@ class TestCAhandler(unittest.TestCase):
         "examples.ca_handler.dogtag_ca_handler.config_profile_load",
         return_value={"p": 1},
     )
-    def test_011_config_load_profiles(self, mock_profile):
+    def test_012_config_load_profiles(self, mock_profile):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
@@ -165,7 +165,7 @@ class TestCAhandler(unittest.TestCase):
         "examples.ca_handler.dogtag_ca_handler.config_headerinfo_load",
         return_value=True,
     )
-    def test_012_config_load_header_info(self, mock_header):
+    def test_013_config_load_header_info(self, mock_header):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
@@ -179,7 +179,7 @@ class TestCAhandler(unittest.TestCase):
         "examples.ca_handler.dogtag_ca_handler.config_enroll_config_log_load",
         return_value=("log", ["skip"]),
     )
-    def test_013_config_load_enrollment_config_log(self, mock_enroll):
+    def test_014_config_load_enrollment_config_log(self, mock_enroll):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
@@ -191,7 +191,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertEqual(self.cahandler.enrollment_config_log, "log")
             self.assertEqual(self.cahandler.enrollment_config_log_skip_list, ["skip"])
 
-    def test_014_api_post_success(self):
+    def test_015_api_post_success(self):
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"result": "ok"}
@@ -205,7 +205,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertEqual(content, {"result": "ok"})
 
-    def test_015_api_post_error(self):
+    def test_016_api_post_error(self):
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.side_effect = Exception("bad json")
@@ -221,7 +221,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertIn("error", content)
             mock_log.assert_called()
 
-    def test_016_api_post_exception(self):
+    def test_017_api_post_exception(self):
         self.cahandler.session = Mock()
         self.cahandler.api_host = "https://api.example.com"
         self.cahandler.proxy = None
@@ -234,7 +234,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertIn("error", content)
             mock_log.assert_called()
 
-    def test_017_api_post_creates_session(self):
+    def test_018_api_post_creates_session(self):
         # Remove session to force _login call
         self.cahandler.session = None
         self.cahandler.api_host = "https://api.example.com"
@@ -255,7 +255,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertEqual(code, 200)
             self.assertEqual(content, {"result": "ok"})
 
-    def test_018_api_get_success(self):
+    def test_019_api_get_success(self):
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"result": "ok"}
@@ -269,7 +269,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertEqual(content, {"result": "ok"})
 
-    def test_019_api_get_json_error(self):
+    def test_020_api_get_json_error(self):
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.side_effect = Exception("bad json")
@@ -285,7 +285,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertIn("error", content)
             mock_log.assert_called()
 
-    def test_020_api_get_exception(self):
+    def test_021_api_get_exception(self):
         self.cahandler.session = Mock()
         self.cahandler.api_host = "https://api.example.com"
         self.cahandler.proxy = None
@@ -298,7 +298,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertIn("error", content)
             mock_log.assert_called()
 
-    def test_021_api_get_creates_session(self):
+    def test_022_api_get_creates_session(self):
         self.cahandler.session = None
         self.cahandler.api_host = "https://api.example.com"
         mock_session = Mock()
@@ -318,7 +318,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertEqual(code, 200)
             self.assertEqual(content, {"result": "ok"})
 
-    def test_022_api_version_get_success(self):
+    def test_023_api_version_get_success(self):
         self.cahandler.api_version = None
         self.cahandler.REST_INFO = "/info"
         version_dict = {"version": "1.2.3", "other": "x"}
@@ -331,7 +331,7 @@ class TestCAhandler(unittest.TestCase):
                 self.assertEqual(self.cahandler.api_version, "1.2.3")
                 mock_log.assert_called()
 
-    def test_023_api_version_get_success_case_insensitive(self):
+    def test_024_api_version_get_success_case_insensitive(self):
         self.cahandler.api_version = None
         self.cahandler.REST_INFO = "/info"
         version_dict = {"Version": "2.0.0"}
@@ -339,7 +339,7 @@ class TestCAhandler(unittest.TestCase):
             self.cahandler._api_version_get()
             self.assertEqual(self.cahandler.api_version, "2.0.0")
 
-    def test_024_api_version_get_failure(self):
+    def test_025_api_version_get_failure(self):
         self.cahandler.api_version = None
         self.cahandler.REST_INFO = "/info"
         with patch.object(
@@ -351,14 +351,14 @@ class TestCAhandler(unittest.TestCase):
                 self.assertEqual(self.cahandler.api_version, "unknown")
                 mock_log.assert_called()
 
-    def test_025_api_version_get_non_dict_content(self):
+    def test_026_api_version_get_non_dict_content(self):
         self.cahandler.api_version = None
         self.cahandler.REST_INFO = "/info"
         with patch.object(self.cahandler, "_api_get", return_value=(200, "notadict")):
             self.cahandler._api_version_get()
             self.assertEqual(self.cahandler.api_version, "unknown")
 
-    def test_026_get_approval_nonce_success(self):
+    def test_027_get_approval_nonce_success(self):
         self.cahandler.REST_AGENT_CERTREQUESTS = "/agent/"
         with patch.object(
             self.cahandler, "_api_get", return_value=(200, {"nonce": "abc123"})
@@ -374,7 +374,7 @@ class TestCAhandler(unittest.TestCase):
                     any("Received nonce for approval" in msg for msg in calls)
                 )
 
-    def test_027_get_approval_nonce_status_logging(self):
+    def test_028_get_approval_nonce_status_logging(self):
         self.cahandler.REST_AGENT_CERTREQUESTS = "/agent/"
         response = {"requestStatus": "pending", "nonce": "abc123"}
         with patch.object(
@@ -387,7 +387,7 @@ class TestCAhandler(unittest.TestCase):
                 calls = [c[0][0] for c in mock_log.call_args_list]
                 self.assertTrue(any("Certificate request" in msg for msg in calls))
 
-    def test_028_get_approval_nonce_failure(self):
+    def test_029_get_approval_nonce_failure(self):
         self.cahandler.REST_AGENT_CERTREQUESTS = "/agent/"
         with patch.object(
             self.cahandler, "_api_get", return_value=(404, {"error": "not found"})
@@ -401,7 +401,7 @@ class TestCAhandler(unittest.TestCase):
                 self.assertIsNone(nonce)
                 mock_log.assert_called()
 
-    def test_029_get_approval_nonce_no_nonce(self):
+    def test_030_get_approval_nonce_no_nonce(self):
         self.cahandler.REST_AGENT_CERTREQUESTS = "/agent/"
         # 200 but no nonce in response
         with patch.object(
@@ -415,7 +415,7 @@ class TestCAhandler(unittest.TestCase):
                 self.assertIsNone(nonce)
                 mock_log.assert_called()
 
-    def test_030_certrequest_approve_nonce_error(self):
+    def test_031_certrequest_approve_nonce_error(self):
         self.cahandler.REST_AGENT_CERTREQUESTS = "/agent/"
         with patch.object(
             self.cahandler, "_get_approval_nonce", return_value=("nonce error", None)
@@ -434,7 +434,34 @@ class TestCAhandler(unittest.TestCase):
                     any("Cannot approve certificate request" in msg for msg in calls)
                 )
 
-    def test_031_certrequest_approve_missing_certId(self):
+    def test_032_certrequest_approve_post_error_uses_approve_error(self):
+        self.cahandler.REST_AGENT_CERTREQUESTS = "/agent/"
+        with patch.object(
+            self.cahandler, "_get_approval_nonce", return_value=(None, "nonce")
+        ):
+            with patch(
+                "examples.ca_handler.dogtag_ca_handler.approve_profile_get",
+                return_value={"Nonce": "nonce"},
+            ):
+                with patch.object(
+                    self.cahandler,
+                    "_api_post",
+                    return_value=(400, {"error": "bad request"}),
+                ):
+                    with patch.object(
+                        self.cahandler,
+                        "_approve_error",
+                        return_value=("approve failed", None, None),
+                    ) as mock_approve_error:
+                        result = self.cahandler._certrequest_approve("reqid")
+                        self.assertEqual(result, ("approve failed", None, None))
+                        mock_approve_error.assert_called_once_with(
+                            "Failed to approve certificate request.",
+                            400,
+                            {"error": "bad request"},
+                        )
+
+    def test_033_certrequest_approve_missing_certId(self):
         self.cahandler.REST_AGENT_CERTREQUESTS = "/agent/"
         self.cahandler.REST_CERTREQUESTS = "/certreqs"
         with patch.object(
@@ -459,7 +486,7 @@ class TestCAhandler(unittest.TestCase):
                         self.assertIsNone(cert_bundle)
                         self.assertIsNone(cert_raw)
 
-    def test_032_certrequest_approve_no_request_status(self):
+    def test_034_certrequest_approve_no_request_status(self):
         self.cahandler.REST_AGENT_CERTREQUESTS = "/agent/"
         self.cahandler.REST_CERTREQUESTS = "/certreqs"
         with patch.object(
@@ -494,7 +521,7 @@ class TestCAhandler(unittest.TestCase):
                                 )
                             )
 
-    def test_033_certrequest_approve_cert_fetch_raw_error(self):
+    def test_035_certrequest_approve_cert_fetch_raw_error(self):
         self.cahandler.REST_AGENT_CERTREQUESTS = "/agent/"
         self.cahandler.REST_CERTREQUESTS = "/certreqs"
         self.cahandler.REST_CERTS = "/certs/"
@@ -556,7 +583,7 @@ class TestCAhandler(unittest.TestCase):
                                                 )
                                             )
 
-    def test_034_certrequest_approve_cert_fetch_chain_error(self):
+    def test_036_certrequest_approve_cert_fetch_chain_error(self):
         self.cahandler.REST_AGENT_CERTREQUESTS = "/agent/"
         self.cahandler.REST_CERTREQUESTS = "/certreqs"
         self.cahandler.REST_CERTS = "/certs/"
@@ -620,7 +647,7 @@ class TestCAhandler(unittest.TestCase):
                                                 )
                                             )
 
-    def test_035_certrequest_approve_cert_fetch_fail(self):
+    def test_037_certrequest_approve_cert_fetch_fail(self):
         self.cahandler.REST_AGENT_CERTREQUESTS = "/agent/"
         self.cahandler.REST_CERTREQUESTS = "/certreqs"
         self.cahandler.REST_CERTS = "/certs/"
@@ -650,7 +677,7 @@ class TestCAhandler(unittest.TestCase):
                         self.assertIsNone(cert_bundle)
                         self.assertIsNone(cert_raw)
 
-    def test_036_parse_cert_key_usage_and_eku(self):
+    def test_038_parse_cert_key_usage_and_eku(self):
         # Mock the certificate and its extensions to ensure print is called
         class DummyKU:
             digital_signature = True
@@ -686,7 +713,7 @@ class TestCAhandler(unittest.TestCase):
                 self.cahandler._parse_cert("dummy")
                 mock_print.assert_any_call("\nKey Usage:")
 
-    def test_037_parse_cert_no_key_usage(self):
+    def test_039_parse_cert_no_key_usage(self):
         # Simulate missing KeyUsage extension using the real ExtensionNotFound exception
         from cryptography import x509
 
@@ -703,7 +730,7 @@ class TestCAhandler(unittest.TestCase):
                 self.cahandler._parse_cert("dummy")
                 mock_print.assert_any_call("No Key Usage extension found.")
 
-    def test_038_parse_cert_no_eku(self):
+    def test_040_parse_cert_no_eku(self):
         # Simulate KeyUsage present, ExtendedKeyUsage missing using real ExtensionNotFound
         from cryptography import x509
 
@@ -734,7 +761,7 @@ class TestCAhandler(unittest.TestCase):
                 self.cahandler._parse_cert("dummy")
                 mock_print.assert_any_call("No Extended Key Usage extension found.")
 
-    def test_039_certrequest_send_success(self):
+    def test_041_certrequest_send_success(self):
         self.cahandler.REST_CERTREQUESTS = "/certreqs"
         mock_response = {
             "entries": [{"requestId": "req123", "requestStatus": "pending"}]
@@ -751,7 +778,7 @@ class TestCAhandler(unittest.TestCase):
                     "Request ID: %s, Request Status: %s", "req123", "pending"
                 )
 
-    def test_040_certrequest_send_unexpected_response_format_logs_error(self):
+    def test_042_certrequest_send_unexpected_response_format_logs_error(self):
         self.cahandler.REST_CERTREQUESTS = "/certreqs"
         # Simulate code 200 but response missing 'entries'
         mock_response = {"foo": "bar"}
@@ -767,7 +794,7 @@ class TestCAhandler(unittest.TestCase):
                     mock_response,
                 )
 
-    def test_041_certrequest_send_failed_logs_error(self):
+    def test_043_certrequest_send_failed_logs_error(self):
         self.cahandler.REST_CERTREQUESTS = "/certreqs"
         # Simulate non-200 code
         mock_response = {"error": "fail"}
@@ -784,7 +811,7 @@ class TestCAhandler(unittest.TestCase):
                     mock_response,
                 )
 
-    def test_042_config_passphrase_load_env_error_logs(self):
+    def test_044_config_passphrase_load_env_error_logs(self):
         # Simulate missing env var, should log error
         config_dic = {"CAhandler": {"cert_passphrase_variable": "MISSING_ENV_VAR"}}
         with patch.dict(os.environ, {}, clear=True):
@@ -795,7 +822,7 @@ class TestCAhandler(unittest.TestCase):
                     unittest.mock.ANY,
                 )
 
-    def test_043_config_passphrase_load_overwrite_logs_info(self):
+    def test_045_config_passphrase_load_overwrite_logs_info(self):
         # Simulate env var present, then config value overwrites, should log info
         config_dic = {
             "CAhandler": {
@@ -811,14 +838,14 @@ class TestCAhandler(unittest.TestCase):
                     "CAhandler._config_load() overwrite cert_passphrase"
                 )
 
-    def test_044_config_passphrase_load_direct(self):
+    def test_046_config_passphrase_load_direct(self):
         # Only cert_passphrase in config, should set directly
         config_dic = {"CAhandler": {"cert_passphrase": "direct_value"}}
         self.cahandler.cert_passphrase = None
         self.cahandler._config_passphrase_load(config_dic)
         self.assertEqual(self.cahandler.cert_passphrase, "direct_value")
 
-    def test_045_login_pkcs12_auth(self):
+    def test_047_login_pkcs12_auth(self):
         """Test _login with PKCS12 client authentication (client_cert and cert_passphrase set)"""
         self.cahandler.session = None
         self.cahandler.client_cert = "dummy_cert.p12"
@@ -849,7 +876,7 @@ class TestCAhandler(unittest.TestCase):
                 "CAhandler._login() using PKCS12 client authentication"
             )
 
-    def test_046_login_pem_auth(self):
+    def test_048_login_pem_auth(self):
         """Test _login with PEM client authentication (client_cert and client_key set, no passphrase)"""
         self.cahandler.session = None
         self.cahandler.client_cert = "dummy_cert.pem"
@@ -872,7 +899,7 @@ class TestCAhandler(unittest.TestCase):
             )
             mock_log.assert_any_call("CAhandler._login()")
 
-    def test_047_login_session_already_set(self):
+    def test_049_login_session_already_set(self):
         """Test _login does nothing if session is already set"""
         mock_session = Mock()
         self.cahandler.session = mock_session
@@ -884,7 +911,7 @@ class TestCAhandler(unittest.TestCase):
             mock_requests_session.assert_not_called()
             mock_log.assert_any_call("CAhandler._login()")
 
-    def test_048_revoke_success_logs_info(self):
+    def test_050_revoke_success_logs_info(self):
         """Test _revoke logs info on successful revocation (line 673)"""
         serial = "0x1234"
         response = {"Nonce": "nonce", "Status": "valid"}
@@ -900,7 +927,7 @@ class TestCAhandler(unittest.TestCase):
                 "Certificate with serial %s revoked successfully", serial
             )
 
-    def test_049_revoke_failed_revoke_logs_error(self):
+    def test_051_revoke_failed_revoke_logs_error(self):
         """Test _revoke logs error on failed revocation (line 676)"""
         serial = "0x1234"
         response = {"Nonce": "nonce", "Status": "valid"}
@@ -921,7 +948,7 @@ class TestCAhandler(unittest.TestCase):
                 {"error": "fail"},
             )
 
-    def test_050_revoke_already_revoked_logs_info(self):
+    def test_052_revoke_already_revoked_logs_info(self):
         """Test _revoke logs info if already revoked (line 684)"""
         serial = "0x1234"
         response = {"Nonce": "nonce", "Status": "revoked"}
@@ -936,7 +963,7 @@ class TestCAhandler(unittest.TestCase):
                 "Certificate with serial %s is already revoked", serial
             )
 
-    def test_051_revoke_status_fail_logs_error(self):
+    def test_053_revoke_status_fail_logs_error(self):
         """Test _revoke logs error if status fetch fails (line 687)"""
         serial = "0x1234"
         with (
@@ -957,7 +984,41 @@ class TestCAhandler(unittest.TestCase):
                 {"error": "fail"},
             )
 
-    def test_052_revoke_prepends_0x_to_serial(self):
+    def test_054_revoke_missing_nonce_uses_status_error(self):
+        """Test _revoke handles missing Nonce via status error helper."""
+        serial = "0x1234"
+        response = {"Status": "valid"}
+        expected = (500, "status error", "missing nonce")
+        with (
+            patch.object(self.cahandler, "_api_get", return_value=(200, response)),
+            patch.object(
+                self.cahandler,
+                "_revoke_status_error",
+                return_value=expected,
+            ) as mock_status_error,
+        ):
+            result = self.cahandler._revoke(serial)
+            self.assertEqual(result, expected)
+            mock_status_error.assert_called_once_with(serial, 200, response)
+
+    def test_055_revoke_unknown_status_uses_status_error(self):
+        """Test _revoke handles unknown status via status error helper."""
+        serial = "0x1234"
+        response = {"Nonce": "nonce", "Status": "pending"}
+        expected = (500, "status error", "unexpected status")
+        with (
+            patch.object(self.cahandler, "_api_get", return_value=(200, response)),
+            patch.object(
+                self.cahandler,
+                "_revoke_status_error",
+                return_value=expected,
+            ) as mock_status_error,
+        ):
+            result = self.cahandler._revoke(serial)
+            self.assertEqual(result, expected)
+            mock_status_error.assert_called_once_with(serial, 200, response)
+
+    def test_056_revoke_prepends_0x_to_serial(self):
         """Test _revoke prepends '0x' to serial if missing (lines 654-655)"""
         serial = "1234"  # No '0x' prefix
         expected_serial = "0x1234"
@@ -982,7 +1043,7 @@ class TestCAhandler(unittest.TestCase):
                 "Certificate with serial %s revoked successfully", expected_serial
             )
 
-    def test_053_enroll_error_from_eab_profile_header_info_check(self):
+    def test_057_enroll_error_from_eab_profile_header_info_check(self):
         """Test enroll returns error from eab_profile_header_info_check and does not proceed"""
         with (
             patch(
@@ -1000,7 +1061,7 @@ class TestCAhandler(unittest.TestCase):
             mock_ver.assert_not_called()
             mock_send.assert_not_called()
 
-    def test_054_enroll_success_pending_certrequest_approve(self):
+    def test_058_enroll_success_pending_certrequest_approve(self):
         """Test enroll with pending status and certrequest_approve True calls _certrequest_approve"""
         self.cahandler.certrequest_approve = True
         with (
@@ -1025,7 +1086,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertIsNone(poll_identifier)
             mock_approve.assert_called_once_with("reqid")
 
-    def test_055_enroll_success_pending_no_certrequest_approve(self):
+    def test_059_enroll_success_pending_no_certrequest_approve(self):
         """Test enroll with pending status and certrequest_approve False sets poll_identifier"""
         self.cahandler.certrequest_approve = False
         with (
@@ -1044,7 +1105,7 @@ class TestCAhandler(unittest.TestCase):
             self.assertIsNone(cert_raw)
             self.assertEqual(poll_identifier, "reqid")
 
-    def test_056_enroll_success_not_pending(self):
+    def test_060_enroll_success_not_pending(self):
         """Test enroll with non-pending status returns all None except error"""
         self.cahandler.certrequest_approve = False
         with (
@@ -1063,7 +1124,33 @@ class TestCAhandler(unittest.TestCase):
             self.assertIsNone(cert_raw)
             self.assertIsNone(poll_identifier)
 
-    def test_057_enroll_enrollment_config_log_called(self):
+    def test_061_handle_enroll_status_complete_and_rejected(self):
+        """Test _handle_enroll_status for complete and rejected request states."""
+        with patch.object(
+            self.cahandler,
+            "_handle_enroll_complete",
+            return_value=(None, "bundle", "raw"),
+        ) as mock_complete:
+            error, cert_bundle, cert_raw, poll_identifier = (
+                self.cahandler._handle_enroll_status("reqid", "complete")
+            )
+            self.assertIsNone(error)
+            self.assertEqual(cert_bundle, "bundle")
+            self.assertEqual(cert_raw, "raw")
+            self.assertIsNone(poll_identifier)
+            mock_complete.assert_called_once_with("reqid")
+
+        with patch.object(self.cahandler.logger, "error") as mock_error:
+            error, cert_bundle, cert_raw, poll_identifier = (
+                self.cahandler._handle_enroll_status("reqid", "rejected")
+            )
+            self.assertEqual(error, "Certificate request was rejected by CA.")
+            self.assertIsNone(cert_bundle)
+            self.assertIsNone(cert_raw)
+            self.assertIsNone(poll_identifier)
+            mock_error.assert_called_once_with("Certificate request was rejected by CA")
+
+    def test_062_enroll_enrollment_config_log_called(self):
         """Test enroll calls enrollment_config_log if enrollment_config_log is True"""
         self.cahandler.certrequest_approve = False
         self.cahandler.enrollment_config_log = True
@@ -1086,7 +1173,7 @@ class TestCAhandler(unittest.TestCase):
                 self.cahandler.logger, self.cahandler, ["foo"]
             )
 
-    def test_058_handler_check_success(self):
+    def test_063_handler_check_success(self):
         """Test handler_check returns None for valid config and logs debug"""
         with (
             patch(
@@ -1103,7 +1190,7 @@ class TestCAhandler(unittest.TestCase):
             mock_log.assert_any_call("CAhandler.check()")
             mock_log.assert_any_call("CAhandler.check() ended with %s", None)
 
-    def test_059_handler_check_error(self):
+    def test_064_handler_check_error(self):
         """Test handler_check returns error string and logs debug"""
         with (
             patch(
@@ -1120,14 +1207,14 @@ class TestCAhandler(unittest.TestCase):
             mock_log.assert_any_call("CAhandler.check()")
             mock_log.assert_any_call("CAhandler.check() ended with %s", "error")
 
-    def test_060_poll_returns_expected_tuple(self):
+    def test_065_poll_returns_expected_tuple(self):
         """Test poll returns expected tuple and logs debug"""
         with patch.object(self.cahandler.logger, "debug") as mock_log:
             result = self.cahandler.poll("certname", "pollid", "csr")
             self.assertEqual(result, (None, None, None, "pollid", False))
             mock_log.assert_any_call("CAhandler.poll()")
 
-    def test_061_trigger_returns_expected_tuple(self):
+    def test_066_trigger_returns_expected_tuple(self):
         """Test trigger returns expected tuple and logs debug messages"""
         with patch.object(self.cahandler.logger, "debug") as mock_log:
             result = self.cahandler.trigger("payload")
@@ -1135,7 +1222,7 @@ class TestCAhandler(unittest.TestCase):
             mock_log.assert_any_call("CAhandler.trigger()")
             mock_log.assert_any_call("CAhandler.trigger() ended with error: %s", None)
 
-    def test_062_revoke_success(self):
+    def test_067_revoke_success(self):
         """Test revoke calls _revoke with extracted serial and returns its result"""
         with (
             patch(
@@ -1156,7 +1243,7 @@ class TestCAhandler(unittest.TestCase):
             mock_debug.assert_any_call("CAhandler.revoke()")
             mock_debug.assert_any_call("Certificate.revoke() ended")
 
-    def test_063_revoke_serial_extraction_fails(self):
+    def test_068_revoke_serial_extraction_fails(self):
         """Test revoke logs error and returns malformed if serial extraction fails"""
         with (
             patch(
@@ -1178,7 +1265,7 @@ class TestCAhandler(unittest.TestCase):
             mock_debug.assert_any_call("CAhandler.revoke()")
             mock_debug.assert_any_call("Certificate.revoke() ended")
 
-    def test_064_revoke_no_cert_provided(self):
+    def test_069_revoke_no_cert_provided(self):
         """Test revoke logs error and returns malformed if no cert is provided"""
         with (
             patch.object(self.cahandler.logger, "error") as mock_error,
@@ -1192,7 +1279,7 @@ class TestCAhandler(unittest.TestCase):
             mock_debug.assert_any_call("CAhandler.revoke()")
             mock_debug.assert_any_call("Certificate.revoke() ended")
 
-    def test_065_revoke_logs_debug(self):
+    def test_070_revoke_logs_debug(self):
         """Test revoke logs debug at entry and exit"""
         with (
             patch(
@@ -1206,7 +1293,7 @@ class TestCAhandler(unittest.TestCase):
             mock_debug.assert_any_call("CAhandler.revoke()")
             mock_debug.assert_any_call("Certificate.revoke() ended")
 
-    def test_066_enter_calls_config_load_and_login_if_no_api_host(self):
+    def test_071_enter_calls_config_load_and_login_if_no_api_host(self):
         """Test __enter__ calls _config_load and _login if api_host is not set"""
         self.cahandler.api_host = None
         with (
@@ -1218,7 +1305,7 @@ class TestCAhandler(unittest.TestCase):
             mock_login.assert_called_once()
             self.assertIs(result, self.cahandler)
 
-    def test_067_enter_skips_config_load_and_login_if_api_host_set(self):
+    def test_072_enter_skips_config_load_and_login_if_api_host_set(self):
         """Test __enter__ does not call _config_load or _login if api_host is set"""
         self.cahandler.api_host = "somehost"
         with (
@@ -1230,7 +1317,7 @@ class TestCAhandler(unittest.TestCase):
             mock_login.assert_not_called()
             self.assertIs(result, self.cahandler)
 
-    def test_068_exit_closes_session_if_set(self):
+    def test_073_exit_closes_session_if_set(self):
         """Test __exit__ calls session.close and sets session to None if session is set"""
         mock_session = Mock()
         self.cahandler.session = mock_session
@@ -1238,13 +1325,13 @@ class TestCAhandler(unittest.TestCase):
         mock_session.close.assert_called_once()
         self.assertIsNone(self.cahandler.session)
 
-    def test_069_exit_does_nothing_if_session_none(self):
+    def test_074_exit_does_nothing_if_session_none(self):
         """Test __exit__ does nothing if session is None"""
         self.cahandler.session = None
         # Should not raise
         self.cahandler.__exit__(None, None, None)
 
-    def test_070_update_validity_attributes_sets_notbefore_and_notafter(self):
+    def test_075_update_validity_attributes_sets_notbefore_and_notafter(self):
         """Test update_validity_attributes sets notBefore and notAfter and logs debug"""
         data = {
             "ProfilePolicySet": [
@@ -1272,7 +1359,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertTrue(any("Setting notBefore" in msg for msg in calls))
         self.assertIn("update_validity_attributes() ended", calls[-1])
 
-    def test_071_update_validity_attributes_only_notbefore(self):
+    def test_076_update_validity_attributes_only_notbefore(self):
         """Test update_validity_attributes sets only notBefore if notAfter missing"""
         data = {
             "ProfilePolicySet": [
@@ -1297,7 +1384,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertTrue(any("Setting notBefore" in msg for msg in calls))
         self.assertIn("update_validity_attributes() ended", calls[-1])
 
-    def test_072_update_validity_attributes_only_notafter(self):
+    def test_077_update_validity_attributes_only_notafter(self):
         """Test update_validity_attributes sets only notAfter if notBefore missing"""
         data = {
             "ProfilePolicySet": [
@@ -1322,7 +1409,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertTrue(any("Setting notAfter" in msg for msg in calls))
         self.assertIn("update_validity_attributes() ended", calls[-1])
 
-    def test_073_update_validity_attributes_no_attributes(self):
+    def test_078_update_validity_attributes_no_attributes(self):
         """Test update_validity_attributes does nothing if neither attribute present"""
         data = {
             "ProfilePolicySet": [
@@ -1347,7 +1434,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertIn("update_validity_attributes()", calls[0])
         self.assertIn("update_validity_attributes() ended", calls[-1])
 
-    def test_074_approve_profile_get_default(self):
+    def test_079_approve_profile_get_default(self):
         """Test approve_profile_get returns correct structure and logs for default call"""
         mock_logger = Mock()
         result = self.approve_profile_get(mock_logger)
@@ -1375,7 +1462,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertIn("approve_profile_get() called with request_id: %s", calls[0])
         self.assertIn("approve_profile_get() ended", calls[-1])
 
-    def test_075_approve_profile_get_with_nonce_and_request_id(self):
+    def test_080_approve_profile_get_with_nonce_and_request_id(self):
         """Test approve_profile_get sets nonce and requestId and logs correctly"""
         mock_logger = Mock()
         result = self.approve_profile_get(
@@ -1387,7 +1474,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertIn("approve_profile_get() called with request_id: %s", calls[0])
         self.assertIn("approve_profile_get() ended", calls[-1])
 
-    def test_076_approve_profile_get_notbefore_notafter_values(self):
+    def test_081_approve_profile_get_notbefore_notafter_values(self):
         """Test approve_profile_get sets notBefore and notAfter values via update_validity_attributes"""
         mock_logger = Mock()
         # Patch uts_now and uts_to_date_utc to control output
@@ -1407,7 +1494,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertEqual(nb["Value"], "NB")
         self.assertEqual(na["Value"], "NA")
 
-    def test_077_approve_profile_get_does_not_log_nonce(self):
+    def test_082_approve_profile_get_does_not_log_nonce(self):
         """Test approve_profile_get does not log nonce value (sensitive)"""
         mock_logger = Mock()
         self.approve_profile_get(
