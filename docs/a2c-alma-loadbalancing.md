@@ -4,7 +4,7 @@
 
 # How to build an acme2certifier cluster on Alma Linux 9
 
-This tutorial describes the configuration of a two-node acme2certifier cluster running in active/active configuration. Although both nodes are active at the same time and provide proxy services via different IP addresses, the database, configuration and and runtime objects will be replicated among the nodes.
+This tutorial describes the configuration of a two-node acme2certifier cluster running in active/active configuration. Although both nodes are active at the same time and provide proxy services via different IP addresses, the database, configuration, and runtime objects will be replicated among the nodes.
 
 This setup requires the switch to a different database engine as SQLite, which is the default a2c backend, is not designed to handle concurrent write access, which can happen in an active/active setup. Thus, [MariaDB](https://mariadb.org/) will be used. Configuration files and runtime objects will be replicated using [Lsyncd](https://github.com/lsyncd/lsyncd). The following diagram depicts the application stack to be used.
 
@@ -497,7 +497,7 @@ sudo cp /opt/acme2certifier/examples/db_handler/django_handler.py /opt/acme2cert
 sudo cp -r /opt/acme2certifier/examples/django/* /opt/acme2certifier/
 ```
 
-- move the acme2certifier configuration file `acme_srv.cfg` into the mirrored diectory and create a symbolic link
+- move the acme2certifier configuration file `acme_srv.cfg` into the mirrored directory and create a symbolic link
 
 ```bash
 sudo mv /opt/acme2certifier/acme_srv/acme_srv.cfg /opt/acme2certifier/volume/
@@ -601,7 +601,7 @@ sudo python3 /opt/acme2certifier/tools/django_update.py
 sudo systemctl restart acme2certifier.service
 ```
 
-- Test the server by accessing the directory ressource
+- Test the server by accessing the directory resource
 
 ```bash
 curl http://alma9-c1.bar.local/directory
@@ -653,7 +653,7 @@ DATABASES = {
 sudo systemctl restart acme2certifier.service
 ```
 
-- Test the server by accessing the directory ressource
+- Test the server by accessing the directory resource
 
 ```bash
 curl http://alma9-c2.bar.local/directory

@@ -32,7 +32,7 @@ dns_update_script_variables: {"CF_Token": "your_cf_token", "CF_Zone_ID": "your_c
 dns_validation_timeout: 10
 ```
 
-In case you are planning to use HTTP Challenge validaton:
+In case you are planning to use HTTP Challenge validation:
 
 - Your `acme2certifier` server must be able to reach the CA.
 - Your `acme2certifier` server needs to be accessible from the internet.
@@ -76,7 +76,7 @@ The handler must be configured via `acme_srv`.
 | acme_account_email              | Email address used to register a new account                                                                                                                   |    No     | None         |
 | acme_sh_script                  | path to the acme_sh.sh script to be used for DNS challenge provisioning                                                                                        |    No     | None         |
 | acme_sh_shell                   | shell to be used to execute acme_sh                                                                                                                            |    No     | /bin/bash    |
-| profiles_sync                   | Enable periodic synchronization of profiles information from ACME server to be shown as meta-information in Directory ressource                                |    No     | False        |
+| profiles_sync                   | Enable periodic synchronization of profiles information from ACME server to be shown as meta-information in Directory resource                                 |    No     | False        |
 | profiles_sync_interval          | Interval in seconds for profile synchronization when enabled.                                                                                                  |    No     | 604800       |
 | allowed_domainlist              | List of domain names allowed for enrollment in JSON format, e.g., `["bar.local", "bar.foo.local"]`                                                             |    No     | `[]`         |
 | directory_path                  | Path to directory resource on CA server                                                                                                                        |    No     | `/directory` |

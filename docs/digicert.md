@@ -16,7 +16,7 @@ This handler can be used to enroll certificates from [DigiCert CertCentral](http
 
 ## Configuration
 
-- modify the server configuration (`acme_srv.cfg`) and add the first thre of the below mentioned parameters
+- modify the server configuration (`acme_srv.cfg`) and add the first three of the below mentioned parameters
 
 ```confag
 [CAhandler]
@@ -40,7 +40,7 @@ request_timeout: <seconds>
 - organization_id - optional - organization id - configuration prevents additional rest-lookups
 - cert_type - optional - [certificte type](https://dev.digicert.com/en/certcentral-apis/services-api/orders.html) to be isused. (default: ssl_basic)
 - signature_hash - optional - hash algorithm used for certificate signing - (default: sha256)
-- order_validity - optional - oder validity (default: 1 year)
+- order_validity - optional - order validity (default: 1 year)
 - request_timeout - optional - requests timeout in seconds for requests (default: 5s)
 - allowed_domainlist - optional - list of domain-names allowed for enrollment in json format example: \["bar.local$, bar.foo.local\] (default: \[\])
 - enrollment_config_log - optional - log enrollment parameters (default False)
@@ -48,7 +48,7 @@ request_timeout: <seconds>
 
 Use your favorite acme client for certificate enrollment. A list of clients used in our regression can be found in the [disclaimer section of our README file](../README.md)
 
-*Important:* the DigiCert API expectes a CommonName to be set. Hence, certbot cannot be used for certificate enrollment.
+*Important:* the DigiCert API expects a CommonName to be set. Hence, certbot cannot be used for certificate enrollment.
 
 ## Passing a cert_type from client to server
 
@@ -91,7 +91,7 @@ docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-v
 
 # eab profiling
 
-This handler can use the [eab profiling feture](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activated in `acme_srv.cfg`
+This handler can use the [eab profiling feature](eab_profiling.md) to allow individual enrollment configuration per acme-account as well as restriction of CN and SANs to be submitted within the CSR. The feature is disabled by default and must be activated in `acme_srv.cfg`
 
 ```cfg
 [EABhandler]
