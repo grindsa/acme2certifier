@@ -45,7 +45,7 @@ request_timeout: <seconds>
 - ca_bundle - optional - ca certificate chain in pem format needed to validate the EJBCA server certificate - can be True/False or a filename (default: True)
 - username - EJBCA username
 - username_variable - *optional* - name of the environment variable containing the EJBCA username (a configured `username` parameter in acme_srv.cfg takes precedence)
-- username_append_cn - *optional* - add common-name (or 1st SAN) to EJBCA username to allow a better differenciation in the EJBCA-UI
+- username_append_cn - *optional* - add common-name (or 1st SAN) to EJBCA username to allow a better differentiation in the EJBCA-UI
 - enrollment_code - enrollment code
 - enrollment_code_variable - *optional* - name of the environment variable containing the enrollment_code for the EJBCA user (a configured `enrollment_code` parameter in acme_srv.cfg takes precedence)
 - cert_profile_name - name of the certificate profile
@@ -76,7 +76,7 @@ Use your favorite acme client for certificate enrollment. A list of clients used
 
 ## Passing a profile_id from client to server
 
-acme2certifier supports the the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a `cert_profile_name` parameter to be submitted to the CA server.
+acme2certifier supports the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md), allowing an acme-client to specify a `cert_profile_name` parameter to be submitted to the CA server.
 
 The list of supported profiles must be configured in `acme_srv.cfg`
 

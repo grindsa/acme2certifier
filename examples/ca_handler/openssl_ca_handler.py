@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """handler for an openssl ca"""
+
 from __future__ import print_function
 import os
 import datetime
@@ -515,7 +516,7 @@ class CAhandler(object):
             for san in _san_list:
                 try:
                     # SAN list must be modified/filtered)
-                    (_san_type, san_value) = san.lower().split(":")
+                    _san_type, san_value = san.lower().split(":")
                     san_list.append(san_value)
                 except Exception:
                     # force check to fail as something went wrong during parsing
@@ -555,8 +556,8 @@ class CAhandler(object):
         """check CSR against definied allowed_domainlists"""
         self.logger.debug("CAhandler._csr_check()")
 
-        (san_list, check_list) = self._chk_san_lists_get(csr)
-        (san_list, enforced_cn) = self._cn_add(csr, san_list)
+        san_list, check_list = self._chk_san_lists_get(csr)
+        san_list, enforced_cn = self._cn_add(csr, san_list)
 
         if self.allowed_domainlist or self.blocked_domainlist:
             result = False
@@ -740,7 +741,7 @@ class CAhandler(object):
         if self.cert_validity_adjust:
             # adjust validity to match the validity of the issuing CA
 
-            (ca_cert_validity, cert) = self._cacert_expiry_get()
+            ca_cert_validity, cert = self._cacert_expiry_get()
             if ca_cert_validity < self.cert_validity_days:
                 self.logger.info(
                     "Adjust validity to %s days.",
@@ -862,7 +863,7 @@ class CAhandler(object):
         if not error:
             try:
                 # check CN and SAN against black/whitlist
-                (result, enforce_cn) = self._csr_check(csr)
+                result, enforce_cn = self._csr_check(csr)
 
                 if result:
                     # prepare the CSR
@@ -871,7 +872,7 @@ class CAhandler(object):
                     )
 
                     # load ca cert and key
-                    (ca_key, ca_cert) = self._ca_load()
+                    ca_key, ca_cert = self._ca_load()
 
                     # creating a rest from CSR
                     req = x509.load_pem_x509_csr(
@@ -989,7 +990,7 @@ class CAhandler(object):
 
         if "issuing_ca_crl" in self.issuer_dict and self.issuer_dict["issuing_ca_crl"]:
             # load ca cert and key
-            (ca_key, ca_cert) = self._ca_load()
+            ca_key, ca_cert = self._ca_load()
 
             # turn of chain_check due to issues in pyopenssl (check is not working if key-usage is set)
             # result = self._certificate_chain_verify(cert, ca_cert)
@@ -1000,7 +1001,7 @@ class CAhandler(object):
             if ca_key and ca_cert and serial:
 
                 # build crl object
-                (builder, ret) = self._crlobject_build(ca_cert, serial)
+                builder, ret = self._crlobject_build(ca_cert, serial)
 
                 if not isinstance(ret, x509.RevokedCertificate):
                     # this is the revocation operation

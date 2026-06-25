@@ -1,0 +1,269 @@
+name: "eab_enroll_lego_profile_matrix"
+description: "Lego EAB profile and wildcard matrix checks"
+inputs:
+  NAME_SPACE:
+    description: "namespace"
+    required: false
+    default: "acme"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  HTTPS_PORT:
+    description: "ACME server HTTPS port"
+    required: false
+    default: "443"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.4
+    with:
+      time: 10s
+
+  - name: "Test https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network "$NAME_SPACE" curlimages/curl --insecure -f "https://$ACME_SERVER:$HTTPS_PORT/directory"
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Cleanup lego workspace (no EAB)"
+    run: |
+      sudo rm -rf "$PWD/lego"
+      mkdir -p "$PWD/lego"
+    shell: bash
+
+  - name: "Register lego without EAB - should succeed"
+    run: |
+      docker run -i -v "$PWD/lego:/.lego/" --network "$NAME_SPACE" --rm --name lego goacme/lego accounts register \
+        --server "https://$ACME_SERVER:$HTTPS_PORT" \
+        --email "lego-no-eab@example.com" \
+        --accept-tos \
+        --tls-skip-verify
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Enroll lego.acme without EAB - should succeed"
+    run: |
+      docker run -i -v "$PWD/lego:/.lego/" --network "$NAME_SPACE" --rm --name lego goacme/lego run \
+        --server "https://$ACME_SERVER:$HTTPS_PORT" \
+        --accept-tos \
+        --email "lego-no-eab@example.com" \
+        -d "lego.acme" \
+        --tls-skip-verify \
+        --tls
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Enroll *.wc.acme without EAB - should fail"
+    continue-on-error: true
+    id: noeab_wildcard_fail
+    run: |
+      docker run -i -v "$PWD/lego:/.lego/" --network "$NAME_SPACE" --rm --name lego goacme/lego run \
+        --server "https://$ACME_SERVER:$HTTPS_PORT" \
+        --accept-tos \
+        --email "lego-no-eab@example.com" \
+        -d "*.wc.acme" \
+        --tls-skip-verify \
+        --tls
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Validate *.wc.acme failure without EAB"
+    if: ${{ steps.noeab_wildcard_fail.outcome != 'failure' }}
+    run: |
+      echo "Expected wildcard enrollment to fail, got: ${{ steps.noeab_wildcard_fail.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Cleanup lego workspace for keyid_00"
+    run: |
+      sudo rm -rf "$PWD/lego"
+      mkdir -p "$PWD/lego"
+    shell: bash
+
+  - name: "Register lego with keyid_00 - should succeed"
+    run: |
+      docker run -i -v "$PWD/lego:/.lego/" --network "$NAME_SPACE" --rm --name lego goacme/lego accounts register \
+        --server "https://$ACME_SERVER:$HTTPS_PORT" \
+        --email "lego-keyid00@example.com" \
+        --accept-tos \
+        --tls-skip-verify \
+        --eab \
+        --eab.kid "keyid_00" \
+        --eab.hmac "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw"
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Enroll lego-00.acme with keyid_00 - should succeed"
+    run: |
+      docker run -i -v "$PWD/lego:/.lego/" --network "$NAME_SPACE" --rm --name lego goacme/lego run \
+        --server "https://$ACME_SERVER:$HTTPS_PORT" \
+        --accept-tos \
+        --email "lego-keyid00@example.com" \
+        -d "lego-00.acme" \
+        --tls-skip-verify \
+        --tls
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Enroll lego-00-1.acme with keyid_00 - should succeed"
+    run: |
+      docker run -i -v "$PWD/lego:/.lego/" --network "$NAME_SPACE" --rm --name lego-00-1 goacme/lego run \
+        --server "https://$ACME_SERVER:$HTTPS_PORT" \
+        --accept-tos \
+        --email "lego-keyid00@example.com" \
+        -d "lego-00-1.acme" \
+        --tls-skip-verify \
+        --http
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Enroll *.wc.acme with keyid_00 - should succeed"
+    run: |
+      docker run -i -v "$PWD/lego:/.lego/" --network "$NAME_SPACE" --rm --name lego goacme/lego run \
+        --server "https://$ACME_SERVER:$HTTPS_PORT" \
+        --accept-tos \
+        --email "lego-keyid00@example.com" \
+        -d "*.wc.acme" \
+        --tls-skip-verify \
+        --tls
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Cleanup lego workspace for keyid_01"
+    run: |
+      sudo rm -rf "$PWD/lego"
+      mkdir -p "$PWD/lego"
+    shell: bash
+
+  - name: "Register lego with keyid_01 - should succeed"
+    run: |
+      docker run -i -v "$PWD/lego:/.lego/" --network "$NAME_SPACE" --rm --name lego goacme/lego accounts register \
+        --server "https://$ACME_SERVER:$HTTPS_PORT" \
+        --email "lego-keyid01@example.com" \
+        --accept-tos \
+        --tls-skip-verify \
+        --eab \
+        --eab.kid "keyid_01" \
+        --eab.hmac "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg"
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Enroll lego-01.foo.bar with keyid_01 - should succeed"
+    run: |
+      docker run -i -v "$PWD/lego:/.lego/" --network "$NAME_SPACE" --rm --name lego goacme/lego run \
+        --server "https://$ACME_SERVER:$HTTPS_PORT" \
+        --accept-tos \
+        --email "lego-keyid01@example.com" \
+        -d "lego-01.foo.bar" \
+        --tls-skip-verify \
+        --tls
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Enroll *.wc.foo.bar with keyid_01 - should succeed"
+    run: |
+      docker run -i -v "$PWD/lego:/.lego/" --network "$NAME_SPACE" --rm --name lego goacme/lego run \
+        --server "https://$ACME_SERVER:$HTTPS_PORT" \
+        --accept-tos \
+        --email "lego-keyid01@example.com" \
+        -d "*.wc.foo.bar" \
+        --tls-skip-verify \
+        --tls
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Cleanup lego workspace for keyid_02"
+    run: |
+      sudo rm -rf "$PWD/lego"
+      mkdir -p "$PWD/lego"
+    shell: bash
+
+  - name: "Register lego with keyid_02 - should succeed"
+    run: |
+      docker run -i -v "$PWD/lego:/.lego/" --network "$NAME_SPACE" --rm --name lego goacme/lego accounts register \
+        --server "https://$ACME_SERVER:$HTTPS_PORT" \
+        --email "lego-keyid02@example.com" \
+        --accept-tos \
+        --tls-skip-verify \
+        --eab \
+        --eab.kid "keyid_02" \
+        --eab.hmac "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Enroll lego-02.acme with keyid_02 - should succeed"
+    run: |
+      docker run -i -v "$PWD/lego:/.lego/" --network "$NAME_SPACE" --rm --name lego-02 goacme/lego run \
+        --server "https://$ACME_SERVER:$HTTPS_PORT" \
+        --accept-tos \
+        --email "lego-keyid02@example.com" \
+        -d "lego-02.acme" \
+        --tls-skip-verify \
+        --http
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Enroll *.wc.foo.bar with keyid_02 - should fail"
+    continue-on-error: true
+    id: keyid02_wildcard_fail
+    run: |
+      docker run -i -v "$PWD/lego:/.lego/" --network "$NAME_SPACE" --rm --name lego goacme/lego run \
+        --server "https://$ACME_SERVER:$HTTPS_PORT" \
+        --accept-tos \
+        --email "lego-keyid02@example.com" \
+        -d "*.wc.foo.bar" \
+        --tls-skip-verify \
+        --tls
+    shell: bash
+    env:
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+
+  - name: "Validate *.wc.foo.bar failure with keyid_02"
+    if: ${{ steps.keyid02_wildcard_fail.outcome != 'failure' }}
+    run: |
+      echo "Expected wildcard enrollment to fail, got: ${{ steps.keyid02_wildcard_fail.outcome }}"
+      exit 1
+    shell: bash

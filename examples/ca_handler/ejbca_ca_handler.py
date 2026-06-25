@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """ejbca rest ca handler"""
+
 import os
 from typing import Tuple, Dict
 import requests
@@ -52,6 +53,7 @@ class CAhandler(object):
         self.session = None
         self.username = None
         self.username_append_cn = False
+        self.profile_mapping_field = "cert_profile_name"
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -264,7 +266,7 @@ class CAhandler(object):
         if "CAhandler" in config_dic:
             self.ca_name = config_dic.get("CAhandler", "ca_name", fallback=self.ca_name)
             self.cert_profile_name = config_dic.get(
-                "CAhandler", "cert_profile_name", fallback=self.cert_profile_name
+                "CAhandler", self.profile_mapping_field, fallback=self.cert_profile_name
             )
             self.ee_profile_name = config_dic.get(
                 "CAhandler", "ee_profile_name", fallback=self.ee_profile_name
@@ -296,7 +298,7 @@ class CAhandler(object):
         variable_dic = self.__dict__
         for ele in [
             "api_host",
-            "cert_profile_name",
+            self.profile_mapping_field,
             "ee_profile_name",
             "ca_name",
             "username",
@@ -343,7 +345,7 @@ class CAhandler(object):
             self.logger.info("CN not found in CSR")
             san_list = csr_san_get(self.logger, csr)
             if san_list:
-                (_type, san_value) = san_list[0].split(":")
+                _type, san_value = san_list[0].split(":")
                 cn = san_value
                 self.logger.info(
                     "CN not found in CSR. Using first SAN entry as CN: %s",
@@ -464,12 +466,12 @@ class CAhandler(object):
 
             # check for eab profiling and header_info
             error = eab_profile_header_info_check(
-                self.logger, self, csr, "cert_profile_name"
+                self.logger, self, csr, self.profile_mapping_field
             )
 
             if not error:
                 # cnroll certificate
-                (error, cert_bundle, cert_raw) = self._enroll(csr)
+                error, cert_bundle, cert_raw = self._enroll(csr)
             else:
                 self.logger.error(
                     "Enrollment error. CSR got rejected with error: %s", error
@@ -493,7 +495,7 @@ class CAhandler(object):
             self,
             [
                 "api_host",
-                "cert_profile_name",
+                self.profile_mapping_field,
                 "ee_profile_name",
                 "ca_name",
                 "username",

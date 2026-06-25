@@ -45,7 +45,7 @@ jobs:
   instance_start:
     needs: guard
     runs-on: ubuntu-latest
-    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'msca')) }}
+    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'certifier')) }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
@@ -71,7 +71,7 @@ jobs:
           IGNORE_CURRENT_STATUS: "false"
 
       - name: "Sleep for 60s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 60s
 
@@ -161,8 +161,13 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "No profile - Enrollmnet"
+      - name: "No profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_no_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Profile 101 - Setup a2c with certifier_ca_handler with profile 101"
         run: |
@@ -180,8 +185,13 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
-      - name: "Profile 101 - Enrollmnet"
+      - name: "Profile 101 - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_101_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Profile 102 - Setup a2c with certifier_ca_handler with Profile 102"
         run: |
@@ -199,8 +209,13 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
-      - name: "Profile 102 - Enrollmnet"
+      - name: "Profile 102 - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_102_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Header-info - Setup a2c with certifier_ca_handler with header-info"
         run: |
@@ -218,8 +233,13 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
-      - name: "Header-info - Enrollmnet"
+      - name: "Header-info - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB without headerinfo - Setup a2c with certifier_ca_handler"
         run: |
@@ -256,6 +276,11 @@ jobs:
 
       - name: "EAB without headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_wo_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB with headerinfo - Setup a2c with certifier_ca_handler"
         run: |
@@ -295,6 +320,11 @@ jobs:
       - name: "EAB with headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "EAB with headerinfo - Reconfigure key_file without restarting"
         run: |
           sudo sed -i "s/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\"\]/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\", \"*.acme\"\]/g" examples/Docker/data/kid_profiles.json
@@ -305,6 +335,11 @@ jobs:
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
         with:
           RECONFIGURE: true
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "kid-file in yaml format - Reconfiguration"
         run: |
@@ -320,6 +355,11 @@ jobs:
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
         with:
           RECONFIGURE: true
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "ACME Profile - Setup a2c with certifier_ca_handler"
         run: |
@@ -338,8 +378,13 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
-      - name: "ACME Profile - Enrollmnet"
+      - name: "ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB ACME Profile - Setup a2c with certifier_ca_handler"
         run: |
@@ -388,6 +433,11 @@ jobs:
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -480,8 +530,13 @@ jobs:
         env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
-      - name: "No profile - Enrollmnet"
+      - name: "No profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_no_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Profile 101 - Setup a2c with certifier_ca_handler with profile 101"
         run: |
@@ -503,8 +558,13 @@ jobs:
         env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
-      - name: "Profile 101 - Enrollmnet"
+      - name: "Profile 101 - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_101_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Profile 102 - Setup a2c with certifier_ca_handler with profile 101"
         run: |
@@ -526,8 +586,13 @@ jobs:
         env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
-      - name: "Profile 102 - Enrollmnet"
+      - name: "Profile 102 - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_102_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Header-info - Setup a2c with certifier_ca_handler"
         run: |
@@ -549,8 +614,13 @@ jobs:
         env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
-      - name: "Header-info - Enrollmnet"
+      - name: "Header-info - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB without headerinfo - Setup a2c with certifier_ca_handler"
         run: |
@@ -590,6 +660,11 @@ jobs:
 
       - name: "EAB without headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_wo_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB with headerinfo - Setup a2c with certifier_ca_handler"
         run: |
@@ -631,6 +706,11 @@ jobs:
       - name: "EAB with headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "EAB with headerinfo - Reconfigure key_file without restarting"
         run: |
           sudo sed -i "s/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\"\]/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\", \"*.acme\"\]/g" data/volume/acme_ca/kid_profiles.json
@@ -647,6 +727,11 @@ jobs:
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
         with:
           RECONFIGURE: true
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "kid-file in yaml format - Reconfiguration"
         run: |
@@ -668,6 +753,11 @@ jobs:
         with:
           RECONFIGURE: true
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "ACME Profile - Setup a2c with certifier_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
@@ -688,8 +778,13 @@ jobs:
         env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
-      - name: "ACME Profile - Enrollmnet"
+      - name: "ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB ACME Profile - Setup a2c with certifier_ca_handler"
         run: |
@@ -731,6 +826,11 @@ jobs:
 
       - name: "EAB ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
         with:
           DEPLOYMENT_TYPE: rpm
 
@@ -841,6 +941,14 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           EXECSCRIPT: ${{ matrix.execscript }}
 
+      - name: "No profile - Enrollment"
+        uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_no_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "Profile 101 - Setup a2c with certifier_ca_handler with profile 101"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
@@ -862,8 +970,13 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           EXECSCRIPT: ${{ matrix.execscript }}
 
-      - name: "Profile 101 - Enrollmnet"
+      - name: "Profile 101 - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_101_profile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "EAB with headerinfo - Setup a2c with certifier_ca_handler"
         run: |
@@ -906,6 +1019,11 @@ jobs:
       - name: "EAB with headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "ACME Profile - Setup a2c with certifier_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
@@ -927,8 +1045,13 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           EXECSCRIPT: ${{ matrix.execscript }}
 
-      - name: "ACME Profile - Enrollmnet"
+      - name: "ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "EAB ACME Profile - Setup a2c with certifier_ca_handler"
         run: |
@@ -1095,7 +1218,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -1163,12 +1286,7 @@ jobs:
           CMP_SECRET: ${{ env.CMP_SECRET }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
-        with:
-          time: 10s
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -1293,7 +1411,7 @@ jobs:
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 5s
 
@@ -1338,7 +1456,7 @@ jobs:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -1367,7 +1485,7 @@ jobs:
           exit 1
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -1416,7 +1534,7 @@ jobs:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -1443,11 +1561,6 @@ jobs:
         run: |
           echo "legofail outcome is ${{steps.legofail02.outcome }}"
           exit 1
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
-        with:
-          time: 10s
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -1534,7 +1647,7 @@ jobs:
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 5s
 
@@ -1580,7 +1693,7 @@ jobs:
           EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -1650,7 +1763,7 @@ jobs:
           EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -1679,7 +1792,7 @@ jobs:
           exit 1
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -1711,7 +1824,7 @@ jobs:
   instance_stop:
     needs: [guard, instance_start, test-containers, test-deb, test-rpm, test-cmpv2-containers, test-cmpv2-deb, test-cmpv2-rpm]
     runs-on: ubuntu-latest
-    if: github.repository == 'grindsa/acme2certifier'
+    if: ${{ always() && github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'certifier')) }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6

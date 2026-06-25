@@ -1,5 +1,6 @@
 #!/usr/bin/python3
 """signing script to create a signed pkcs7 structure out of a pkcs7 csr"""
+
 # -*- coding: utf-8 -*-
 # pylint: disable=C0413, E0401, E0611, W0212
 from __future__ import print_function
@@ -25,6 +26,25 @@ from examples.ca_handler.pkcs7_soap_ca_handler import (
 )  # nopep8
 
 
+def _validate_input_path(path_value):
+    """validate input path before filesystem access"""
+    if not path_value:
+        raise ValueError("Path is empty")
+
+    base_dir = os.path.realpath(os.getcwd())
+    candidate = os.path.realpath(os.path.abspath(path_value))
+
+    if candidate != base_dir and not candidate.startswith(base_dir + os.sep):
+        raise ValueError(
+            f"Invalid path '{path_value}'. Path must be within '{base_dir}'."
+        )
+
+    if not os.path.isfile(candidate):
+        raise ValueError(f"Invalid path '{path_value}'. File does not exist.")
+
+    return candidate
+
+
 if __name__ == "__main__":
 
     DEBUG = True
@@ -42,6 +62,14 @@ if __name__ == "__main__":
     CONFIG_VARIANT = sys.argv[4]
 
     if IN_FILE and OUT_FILE and SIGNER_ALIAS and CONFIG_VARIANT:
+
+        try:
+            IN_FILE = _validate_input_path(IN_FILE)
+            SIGNER_ALIAS = _validate_input_path(SIGNER_ALIAS)
+            CONFIG_VARIANT = _validate_input_path(CONFIG_VARIANT)
+        except ValueError as err:
+            LOGGER.error("Input validation failed: %s", err)
+            sys.exit(1)
 
         # load CSR
         csr_der = binary_read(LOGGER, IN_FILE)
@@ -64,7 +92,7 @@ if __name__ == "__main__":
         decoded_cert = ca_handler._cert_decode(signing_cert)
 
         # create pkcs7 bundle and dump it to file
-        (_error, pkcs7_bundle) = ca_handler._pkcs7_create(
+        _error, pkcs7_bundle = ca_handler._pkcs7_create(
             decoded_cert, csr_der, signing_key
         )
         binary_write(LOGGER, OUT_FILE, pkcs7_bundle)

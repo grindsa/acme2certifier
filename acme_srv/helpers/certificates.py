@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
 """Certificate utilities for acme2certifier"""
+
 import base64
 import logging
 from typing import List, Tuple
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.serialization.pkcs7 import (
+    load_pem_pkcs7_certificates,
+    load_der_pkcs7_certificates,
+)
 from cryptography.x509 import load_pem_x509_certificate, ocsp
 from OpenSSL import crypto
 from .encoding import (
@@ -27,7 +32,10 @@ def cert_aki_get(logger: logging.Logger, certificate: str) -> str:
         aki = cert.extensions.get_extension_for_oid(x509.OID_AUTHORITY_KEY_IDENTIFIER)
         aki_value = aki.value.key_identifier.hex()
     except Exception as _err:
-        logger.error("Error while getting AKI from certificate: %s. Fallback to pyOpenSSL method", _err)
+        logger.error(
+            "Error while getting AKI from certificate: %s. Fallback to pyOpenSSL method",
+            _err,
+        )
         aki_value = _cert_aki_pyopenssl_get(logger, certificate)
 
     logger.debug("cert_aki_get() ended with: %s", aki_value)
@@ -198,11 +206,35 @@ def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
         ski = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_KEY_IDENTIFIER)
         ski_value = ski.value.digest.hex()
     except Exception as err:
-        logger.error("Error while getting the SKI: %s", err)
-        ski_value = None
+        logger.error("Error while getting the SKI: %s. Fallback to pyopenssl", err)
+        ski_value = _cert_ski_pyopenssl_get(logger, certificate)
 
     logger.debug("Helper.cert_ski_get() ended with: %s", ski_value)
     return ski_value
+
+
+def _cert_ski_pyopenssl_get(logger: logging.Logger, certificate: str) -> str:
+    """Get Subject Key Identifier from a certificate as a hex string."""
+    logger.debug("Helper.cert_ski_pyopenssl_cert()")
+
+    pem_data = convert_string_to_byte(
+        build_pem_file(logger, None, b64_url_recode(logger, certificate), True)
+    )
+    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_data)
+    # Get the SKI extension
+    ski = None
+    for i in range(cert.get_extension_count()):
+        ext = cert.get_extension(i)
+        if "subjectKeyIdentifier" in str(ext.get_short_name()):
+            ski = ext
+    if ski:
+        # Get the SKI value and convert it to hex
+        ski_hex = ski.get_data()[2:].hex()
+    else:
+        logger.warning("No SKI found in certificate")
+        ski_hex = None
+    logger.debug("Helper.cert_ski_pyopenssl_cert() ended with: %s", ski_hex)
+    return ski_hex
 
 
 def cryptography_version_get(logger: logging.Logger) -> int:
@@ -346,4 +378,58 @@ def certid_check(
     result = certid_renewal == certid_database
 
     logger.debug("Helper.certid_check() ended with: %s", result)
+    return result
+
+
+def pkcs7_to_pem(logger, pkcs7_content: str, outform: str = "string") -> List[str]:
+    """convert pkcs7 to pem"""
+    logger.debug("CAhandler._pkcs7_to_pem()")
+
+    # Define loading strategies in order of preference
+    loading_strategies = [
+        # Strategy 1: Load as PEM directly
+        lambda content: load_pem_pkcs7_certificates(convert_string_to_byte(content)),
+        # Strategy 2: Replace CERTIFICATE with PKCS7 tag and load as PEM
+        lambda content: load_pem_pkcs7_certificates(
+            convert_string_to_byte(content.replace("CERTIFICATE", "PKCS7"))
+        ),
+        # Strategy 3: Load as DER
+        lambda content: load_der_pkcs7_certificates(content),
+    ]
+
+    pkcs7_obj = None
+    last_error = None
+
+    for i, strategy in enumerate(loading_strategies):
+        try:
+            pkcs7_obj = strategy(pkcs7_content)
+            if i == 1:  # Log only for the tag replacement strategy
+                logger.error("PKCS7-TAG not found, updated content successfully")
+            break
+        except Exception as err:
+            last_error = err
+            if i == 0:
+                logger.error("PKCS7-TAG not found updating content...")
+            elif i == 1:
+                logger.debug("CAhandler._pkcs7_to_pem(): load pem failed. Try der...")
+
+    if pkcs7_obj is None:
+        logger.error("All PKCS7 loading strategies failed. Last error: %s", last_error)
+        raise last_error
+
+    # Convert certificates to PEM format
+    cert_pem_list = [
+        convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM))
+        for cert in pkcs7_obj
+    ]
+
+    # Define output format
+    output_formats = {
+        "string": lambda certs: "".join(certs),
+        "list": lambda certs: certs,
+    }
+
+    result = output_formats.get(outform, lambda _: None)(cert_pem_list)
+
+    logger.debug("Certificate._pkcs7_to_pem() ended")
     return result

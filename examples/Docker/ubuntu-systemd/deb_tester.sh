@@ -21,9 +21,9 @@ case "${1}" in
     apt-get update
     apt-get -y upgrade
     if [[ "${2}" = "apache2" ]]; then
-      apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3 rsyslog
+      apt-get install -y apache2  apache2-data  libapache2-mod-wsgi-py3 rsyslog krb5-user
     elif [[ "${2}" = "nginx" ]]; then
-      apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 rsyslog
+      apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3 rsyslog krb5-user
     fi
 
     systemctl enable rsyslog
@@ -60,7 +60,7 @@ case "${1}" in
     sed -i "s/# activate = 1/activate = 1/g" /etc/ssl/openssl.cnf
 
     echo "copy data"
-    mkdir -p /var/www/acme2certifier/volume/
+    mkdir -p /var/www/acme2certifier/volume/acme_ca
     cp -R /tmp/acme2certifier/volume/* /var/www/acme2certifier/volume/
 
     if [[ -f /var/www/acme2certifier/acme_srv/acme_srv.cfg ]]; then

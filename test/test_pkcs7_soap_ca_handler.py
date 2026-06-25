@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """unittests for acme2certifier"""
+
 # pylint: disable= C0415, W0212
 import unittest
 import sys
@@ -10,7 +11,6 @@ import base64
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 from cryptography import x509
-
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
@@ -632,14 +632,18 @@ class TestACMEHandler(unittest.TestCase):
 </soapenv:Envelope>\n"""
         self.assertEqual(result, self.cahandler._soaprequest_build(pkcs7))
 
+    @patch("os.path.isfile")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_028_binary_read(self):
+    def test_028_binary_read(self, mock_isfile):
         """test read binary file"""
+        mock_isfile.return_value = True
         self.assertEqual("foo", self.binary_read(self.logger, "filename"))
 
+    @patch("os.path.isdir")
     @patch("builtins.open", mock_open(read_data="foo"), create=True)
-    def test_029_binary_write(self):
+    def test_029_binary_write(self, mock_isdir):
         """test wrote binary file"""
+        mock_isdir.return_value = True
         self.assertFalse(self.binary_write(self.logger, "filename", "content"))
 
     def test_030_sign(self):
@@ -698,7 +702,7 @@ class TestACMEHandler(unittest.TestCase):
 
         decoded_cert = self.cahandler._cert_decode(signing_cert)
         expected_result = b"MIIKNwYJKoZIhvcNAQcCoIIKKDCCCiQCAQExDTALBglghkgBZQMEAgEwggKdBgkqhkiG9w0BBwGgggKOBIICijCCAoYwggFuAgEAMBcxFTATBgNVBAMMDGFjbWUtc2guYWNtZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMX1XO9sh74B1Vb8IrO4mmrue76dos2Ata2STI+zQjo+ZJVb76pLF6s5SayPtlwZIIetFbeMRhfTatDRn78LTGZBrKKGJbxw2x1oMDQAESqvq5tpbgAxRrbS9V/NDyCDFfjO3YFKsTv2TLY1MDpO7CbypfdsBWImOZKe1pNfyXGDCwQzmVo8Orf69vvVA8b+FFJeg2rxWEvTJdnYpOb5VhblZ8voexo/6pxgZWm6iGJ77pytfDQDHBT29/rdOMXN19nZYBEO9iK1P0xoRJfZ/LSGQSTo0EgFdtIVWgp1ebYelUyF5in2pstPKpdUSV0RIZFalBO88PZM5Q2v+uaTfOsCAwEAAaAqMCgGCSqGSIb3DQEJDjEbMBkwFwYDVR0RBBAwDoIMYWNtZS1zaC5hY21lMA0GCSqGSIb3DQEBCwUAA4IBAQCEmZyZpsuSQAjGirts9HgmIZZT1LMenGjwqcUILEAdP0TCrczTftT59ZIWfIvNjx7APGTdhIjYHLv46IJMZA3BAGI57vBmQUJg0KCOlKub9KIsx4ydjMXbNkIZBVEFo37IaXvXyVv32gQVvkxl7ZCrpNfyntT1+6Sb4T7uaho3HBHZ+Hharwlwudq6N+WC8XoLROWoD0mTVg5c/kG9nT+17LKs8BMvfBlReYRUEJZsT5a9xEwhDqODyL7oibucyOH7kU8/G2qplh5YKKhM32CkXXk5DAejiBI1wnlOcR5RElt7QnjzJEazNe+Q7DcQjXp0cHT1pjVFDresthfd6StPoIIFIjCCBR4wggMGoAMCAQICCHBVGGSyAlB6MA0GCSqGSIb3DQEBCwUAMBIxEDAOBgNVBAMTB3Jvb3QtY2EwHhcNMjAwNjA5MTcxODAwWhcNMzAwNjA5MTcxNzAwWjARMQ8wDQYDVQQDEwZzdWItY2EwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAwggIKAoICAQDtsQlyE4FXBSbqoeYm3QVMGjSYCN5QZhtmi47yGgV2x96HB+lrFztXeYt+z3qQK5k6Rn3fhMNxb1Jsoj8xTt1iUsIJNPesqC1UB8AHMcrstXQV3phhQZt7+aH0yvjMiDcSTz5EVmyS4UhE6H8wqP72xZAaiJBaGq4fLhMH8c4aQ6t3Fo0TmiYR4U/uhrGwzBqLi82vSdR1bOBZ+X5JhcQfYO7LeWdfU1SCgorDz+FUDZm4WlrhyTJGlw5GlQFHMOkEMqrsH3Ze/I53YdeA/LRbqC2XEcU/3H0D5qoXI45JE3pTJP+Tn2JZPtcI6ABE6Fw8xh05F0v85BjHWXmRbLVwBYctEx5UjDuUU7isEl8SDm7yijNlnTVaZ2Dg+V2mZ7xSceX0Ltdx4ja6a0CkALLIoSqs/YgnidMbsLiMnZK5o10lNCrcs0mVwYGmjEnkWMfnRoVX79X+lPjEIwavkBG5Lmn3BbN057kXG21gOB/k+HCSt5K4PZvbNT9rUwBWLjQwEQ3+iIDz8nkoJXDKSj6oO7mVkeXv9MEI9vVy1IK5BaCD7CxDC+mikzDnYglHHQHZ3ppMHAeySLYfhwHkozaVtZUW9eEDcW3+dqsTdF/B7AzWJoPvq8cTjsBDM2LqOwodQpcyNERmkRx25Fspo/naMl71cJ1eGWcEV16XiZoZkwIDAQABo3kwdzASBgNVHRMBAf8ECDAGAQH/AgEBMB0GA1UdDgQWBBSDJ855iatD1k7LCUzmM5yhe4IzeDAfBgNVHSMEGDAWgBS/zoiPYe7Wln8qrB80MMIqtzQbzjAOBgNVHQ8BAf8EBAMCAQYwEQYJYIZIAYb4QgEBBAQDAgAHMA0GCSqGSIb3DQEBCwUAA4ICAQCTMEN9/rS9sjvrXj2w2W+WYgEngCOhZh1i7U6cd2HgwV0dTRbTBkdY2IljuTHOgQJiwtij3r17flTO0VnkFD5TCn3G8V+V3a4TFsgtB0rxkLYNPxbXOnaPDI98DiK5pbJCTw1/bOFU9Hq7Gm0XWdg45HMrm+T4qTHCXD0eyKZ3yyS3Ctf0MawB2bXbHlLjsr13pQKD1kzy5OLjMRMxpJUw4aows1XN/rESTsFfUEKKTl97Qeb4owMwveo60Y/dFDQ2QbfSCbtLASGK6P2vTgKsRW0F3LK+q1GYL5LVoIIaiTmov4onUwgNEzOEqiVLmqJOILiZjExnPJiWfhH5lfCTyf/Dmj9ilNlXDA86jePynmbe/rXxuxgd4epdw+zP6vKpEmGKNp80ONORAfylWKIYcPOUXCcN86p84hbk5k00qruMzi5RhcEq4u1YB9yX5oBlpo0OgfMD91dIysnRWyWiDODyz0WXgh33sSdyLtmte+LGkocQcAbHwlWofvY+jyfD78fC8z1vlnsluejaRRWpsLCSSqmn7wTLmT4wkfm7qwzyYfWOyKz2TQ7IJgXFMwfQQsQdUJY+H3ZInrhyTOZuo2jnlJZxAqa5MrrcoeZRGNAVcOUTvr/UqrSP+nGxa3JTHG9UqReVtLJRF98UxtNgbwZQjiq2Zap6f40nZgGfbDGCAkcwggJDAgEBMB4wEjEQMA4GA1UEAxMHcm9vdC1jYQIIcFUYZLICUHowCwYJYIZIAWUDBAIBMA0GCSqGSIb3DQEBAQUABIICAFavMaudlAWiY6+4IspRR6RplBde2LeAB/F0ZDrq8c+IxTJhfiU2mayw6ToQUBs0KngLP1TSsCVUZDOr6Q+uQktvsP2K7rMkackVcXr43DI+QxeVZtGBYhWSdFC5KofW5Bx0u38b8uIQ1sa2FulZtaiEDJ+aXVDZPRDdxxWQ6zXq0zyEblVGuJwPhGGdHeOdG16yma7gY742g5dpRodi4FJ6oblHZ1LDTuWLMcQnyd3935c8vzKjf0IWrBWW0ShR6UAFnbVSbK2cyqq8T/aVdl0Wc8Ld76KsJgO8i4w5ooLBn7ws/YnZhohVx0mhrmUuItiLSkx4veInVBZfMTf92vL9iUWUZDFycTMIwDZAax1DTpbSVNm0isJkrH9Vj5TohEfimcGim7cyHydefq/ldjHRvN2b5VWp3o3S+6TYUriPsQgmk+oW8Ew+hv2wmXkP+Kg8gA72D80+g9BgptrcdvNvUYBx5o8WA1Nhqsy2eZyFLz5uzYvO5i4aI9e1wf8Pdykdge4803YZkktA/ORXct4CYINCDWaa5FT4NAS9TOOONZsGxugKWtArZCAiBCnGEjD+P5rJp/CechMNZmNQvnd7s/JtRrRKdKMxqViXT8Xqk2GQdWmxaHYU/Xh62TWhfD4Vyac2kDkd2QntHnACexdmoLyk6H5GP3mC9+9ym2Qx"
-        (_error, result) = self.cahandler._pkcs7_create(
+        _error, result = self.cahandler._pkcs7_create(
             decoded_cert, csr_der, signing_key
         )
         self.assertEqual(expected_result, base64.b64encode(result))

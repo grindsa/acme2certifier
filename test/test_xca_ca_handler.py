@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """unittests for openssl_ca_handler"""
+
 # pylint: disable=C0302, C0415, R0904, R0913, W0212
 import sys
 import os

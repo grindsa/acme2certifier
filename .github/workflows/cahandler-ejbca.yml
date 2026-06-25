@@ -126,6 +126,11 @@ jobs:
           cd examples/Docker
           docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
@@ -164,6 +169,11 @@ jobs:
 
       - name: "EAB without headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_wo_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
         run: |
@@ -205,6 +215,11 @@ jobs:
       - name: "EAB with headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_w_headerinfo
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
@@ -226,6 +241,11 @@ jobs:
 
       - name: "ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
@@ -380,6 +400,11 @@ jobs:
         run: |
           docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
@@ -421,6 +446,11 @@ jobs:
 
       - name: "EAB without headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_wo_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
         run: |
@@ -465,6 +495,11 @@ jobs:
       - name: "EAB with headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_w_headerinfo
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
@@ -490,6 +525,11 @@ jobs:
 
       - name: "ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
@@ -640,6 +680,11 @@ jobs:
         with:
           TEST_ADL: "true"
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
@@ -675,13 +720,18 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB without headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_wo_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
         run: |
@@ -719,13 +769,18 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB with headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_w_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
@@ -746,13 +801,18 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
@@ -790,13 +850,18 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/ejbca_ca_handler/enroll_eab_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}

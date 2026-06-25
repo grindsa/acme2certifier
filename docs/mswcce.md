@@ -66,6 +66,12 @@ handler_file: examples/ca_handler/mswcce_ca_handler.py
 host: <hostname>
 user: <username>
 password: <password>
+krb5_auth_backend: impacket
+krb5_principal: <principal@REALM>
+krb5_keytab: </path/to/keytab>
+krb5_cache: </path/to/ccache>
+krb5_config: </path/to/krb5.conf>
+krb5_kinit_path: </path/to/kinit>
 target_domain: <domain_name>
 domain_controller: <IP_of_domain_controller>
 ca_name: <ca_name>
@@ -85,8 +91,19 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 - **user_variable** *(optional)* – Environment variable containing the username (overridden if `user` is set in `acme_srv.cfg`).
 - **password** – Password for authentication.
 - **password_variable** *(optional)* – Environment variable containing the password (overridden if `password` is set in `acme_srv.cfg`).
+- **krb5_auth_backend** *(optional)* – Kerberos backend selection. Supported values are `impacket` and `python`. Default is `impacket`. If `use_kerberos=True` and both `krb5_principal` and `krb5_keytab` are configured, the handler auto-selects `python` when `krb5_auth_backend` is not explicitly set.
+- **krb5_principal** *(optional, required for keytab mode)* – Kerberos principal, for example `svc-a2c-enroll@EXAMPLE.COM`.
+- **krb5_principal_variable** *(optional)* – Environment variable containing the Kerberos principal (overridden if `krb5_principal` is set in `acme_srv.cfg`).
+- **krb5_keytab** *(optional, required for keytab mode)* – Path to the Kerberos keytab file used by the service account.
+- **krb5_keytab_variable** *(optional)* – Environment variable containing the keytab path (overridden if `krb5_keytab` is set in `acme_srv.cfg`).
+- **krb5_cache** *(optional)* – Path to the Kerberos credential cache (ccache). Required when using `krb5_auth_backend=impacket` together with keytab mode. For `krb5_auth_backend=python`, a temporary ccache is created automatically if not configured.
+- **krb5_cache_variable** *(optional)* – Environment variable containing the ccache path (overridden if `krb5_cache` is set in `acme_srv.cfg`).
+- **krb5_config** *(optional)* – Path to a custom `krb5.conf` file. Used by the kinit fallback path.
+- **krb5_config_variable** *(optional)* – Environment variable containing the `krb5.conf` path (overridden if `krb5_config` is set in `acme_srv.cfg`).
+- **krb5_kinit_path** *(optional)* – Full path to the `kinit` binary used by the kinit fallback path. Defaults to `kinit` resolved from `PATH`.
+- **krb5_kinit_path_variable** *(optional)* – Environment variable containing the `kinit` binary path (overridden if `krb5_kinit_path` is set in `acme_srv.cfg`).
 - **target_domain** *(optional)* – Active Directory domain name.
-- **domain_controller** *(optional)* – IP address of the domain controller/DNS server.
+- **domain_controller** *(optional)* – Domain controller endpoint. You can provide either an IP address or an FQDN. If an FQDN is configured, acme2certifier resolves it via DNS and uses the first returned IP address.
 - **dns_server** *(optional)* – IP address of the DNS server.
 - **ca_bundle** – CA certificate chain in PEM format, provided along with the client certificate.
 - **template** – Certificate template used for enrollment.
@@ -96,9 +113,76 @@ allowed_domainlist: ["example.com", "*.example2.com"]
 - **enrollment_config_log** *(optional)* – Log enrollment parameters (default: `False`).
 - **enrollment_config_log_skip_list** *(optional)* – List of enrollment parameters to exclude from logs (JSON format).
 
+## Keytab Support
+
+Keytab-based Kerberos authentication allows the CA handler to authenticate without storing a reusable plaintext password in `acme_srv.cfg`. This reduces credential exposure risk in configuration management systems, log archives, and backup snapshots as
+
+- Passwords no longer need to be kept in clear text in the CA handler configuration.
+- Service-account credentials can be rotated and scoped following AD operational controls.
+- Keytab files can be protected with strict filesystem ACLs and isolated runtime identities.
+
+### Generate a Keytab on the Domain Controller
+
+The usual approach is to create or reuse a dedicated service account and generate a keytab with `ktpass`.
+
+1. Open an elevated command prompt or PowerShell on a domain controller.
+1. Generate the keytab (example):
+
+```powershell
+ktpass /princ svc-a2c-enroll@EXAMPLE.COM /mapuser EXAMPLE\svc-a2c-enroll /crypto AES256-SHA1 /ptype KRB5_NT_PRINCIPAL /out C:\Temp\svc-a2c-enroll.keytab /pass *
+```
+
+1. Securely copy the keytab to the acme2certifier host (for example `/etc/acme2certifier/svc-a2c-enroll.keytab`).
+1. Restrict file permissions so only the service user can read it.
+
+Notes:
+
+- `ktpass` can reset or affect account password/key material depending on options and AD state. Validate your AD policy and coordinate with AD administrators before running it in production.
+- Prefer modern encryption types (for example AES256) and avoid legacy ciphers.
+
+### Configure acme2certifier for Keytab Mode
+
+```ini
+[CAhandler]
+handler_file: examples/ca_handler/mswcce_ca_handler.py
+host: <ca-hostname>
+target_domain: EXAMPLE.COM
+domain_controller: <dc-ip-or-name>
+ca_name: <ca-name>
+ca_bundle: <ca-bundle-path>
+template: <template-name>
+use_kerberos: True
+krb5_principal: svc-a2c-enroll@EXAMPLE.COM
+krb5_keytab: /etc/acme2certifier/svc-a2c-enroll.keytab
+
+# Optional
+krb5_auth_backend: python
+krb5_cache: /var/lib/acme2certifier/krb5cc_a2c
+krb5_config: /etc/krb5.conf
+krb5_kinit_path: /usr/bin/kinit
+```
+
+### Validate with kinit and klist
+
+Before starting production enrollment, verify Kerberos ticket acquisition from the acme2certifier host:
+
+```bash
+kdestroy || true
+export KRB5CCNAME=/tmp/krb5cc_a2c_test
+kinit -k -t /etc/acme2certifier/svc-a2c-enroll.keytab svc-a2c-enroll@EXAMPLE.COM
+klist
+klist -k /etc/acme2certifier/svc-a2c-enroll.keytab
+```
+
+Expected result:
+
+- `kinit` exits successfully.
+- `klist` shows a valid TGT for the service principal.
+- Keytab entries are visible with `klist -k`.
+
 ## Passing a Template from Client to Server
 
-acme2certifier supports the the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a `template` parameter to be submitted to the CA server.
+acme2certifier supports the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md), allowing an acme-client to specify a `template` parameter to be submitted to the CA server.
 
 The list of supported profiles must be configured in `acme_srv.cfg`
 

@@ -1,4 +1,5 @@
 """Test cases for EmailHandler class"""
+
 import unittest
 from unittest.mock import MagicMock, Mock, patch, call
 import threading
@@ -719,6 +720,7 @@ class TestEmailHandler(unittest.TestCase):
 
     def test_emails_fetch_with_callback_returns_result(self):
         mail = self._mock_mail()
+
         # Only return a result for the first email
         def callback(email):
             return email if email["subject"] == "Test" else None

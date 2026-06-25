@@ -99,11 +99,10 @@ jobs:
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
 
-      - name: "Bring up a2c container"
-        uses: ./.github/actions/container_up
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
         with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
+          DEPLOYMENT_TYPE: container
 
       - name: "Setup a2c with openssl_ca_handler - with template"
         run: |
@@ -120,6 +119,11 @@ jobs:
       - name: "With Tempßlate -  enrollment"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_teamplate
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Setup a2c with openssl_ca_handler - cn_enforce"
         run: |
           sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
@@ -130,6 +134,11 @@ jobs:
 
       - name: "With CN enforce - enrollment"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_cn_enforce
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Setup a2c with openssl_ca_handler - adjust cert_validity"
         run: |
@@ -224,6 +233,11 @@ jobs:
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "Setup a2c with openssl_ca_handler - with template"
         run: |
           sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
@@ -243,6 +257,11 @@ jobs:
       - name: "With Template -  enrollment"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_teamplate
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "Setup a2c with openssl_ca_handler for django - cn_enforce"
         run: |
           sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
@@ -258,6 +277,11 @@ jobs:
       - name: "With CN enforce - enrollment"
         if: matrix.execscript == 'rpm_tester.sh'
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_cn_enforce
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Setup a2c with openssl_ca_handler for django - adjust cert_validity"
         run: |
@@ -362,6 +386,11 @@ jobs:
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "Setup a2c with openssl_ca_handler - with template"
         run: |
           sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
@@ -376,13 +405,18 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "With Template -  enrollment"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_teamplate
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Setup a2c with openssl_ca_handler for django - cn_enforce"
         run: |
@@ -394,14 +428,19 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "With CN enforce - enrollment"
         if: matrix.execscript == 'rpm_tester.sh'
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_cn_enforce
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Setup a2c with openssl_ca_handler for django - adjust cert_validity"
         run: |
@@ -413,10 +452,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "With cert_validity - enrollment"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_adjust_cert_validity

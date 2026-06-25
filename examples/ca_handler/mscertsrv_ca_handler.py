@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 """ca handler for  Microsoft Webenrollment service (certsrv)"""
+
 from __future__ import print_function
 import os
 import textwrap
 import json
-from typing import List, Tuple, Dict
+import tempfile
+import importlib
+import subprocess
+from contextlib import contextmanager
+from typing import List, Tuple, Dict, Optional
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.serialization.pkcs7 import (
     load_pem_pkcs7_certificates,
@@ -26,6 +31,7 @@ from acme_srv.helper import (
     header_info_get,
     load_config,
     proxy_check,
+    pkcs7_to_pem,
 )  # pylint: disable=e0401
 
 
@@ -41,7 +47,11 @@ class CAhandler(object):
         self.auth_method = "basic"
         self.ca_bundle = False
         self.template = None
+        self.krb5_principal = None
+        self.krb5_keytab = None
+        self.krb5_cache = None
         self.krb5_config = None
+        self.krb5_kinit_path = "kinit"
         self.proxy = None
         self.header_info_field = False
         self.verify = True
@@ -50,6 +60,10 @@ class CAhandler(object):
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
+        self._krb5_cache_is_temporary = False
+        self.profile_mapping_field = "template"
+
+    KINIT_TIMEOUT_SECONDS = 30
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -184,17 +198,37 @@ class CAhandler(object):
         """load hostname"""
         self.logger.debug("CAhandler._config_parameters_load()")
 
-        self.template = config_dic.get("CAhandler", "template", fallback=self.template)
+        self.template = config_dic.get(
+            "CAhandler", self.profile_mapping_field, fallback=self.template
+        )
         if "auth_method" in config_dic["CAhandler"] and config_dic["CAhandler"][
             "auth_method"
         ] in ["basic", "ntlm", "gssapi"]:
             self.auth_method = config_dic.get("CAhandler", "auth_method")
+            if self.auth_method in ["basic", "ntlm"]:
+                self.logger.warning(
+                    "Auth method '%s' is deprecated and will be removed in a future release. "
+                    "Please migrate to 'gssapi' (Kerberos).",
+                    self.auth_method,
+                )
         # check if we get a ca bundle for verification
         self.ca_bundle = config_dic.get(
             "CAhandler", "ca_bundle", fallback=self.ca_bundle
         )
+        self.krb5_principal = config_dic.get(
+            "CAhandler", "krb5_principal", fallback=self.krb5_principal
+        )
+        self.krb5_keytab = config_dic.get(
+            "CAhandler", "krb5_keytab", fallback=self.krb5_keytab
+        )
+        self.krb5_cache = config_dic.get(
+            "CAhandler", "krb5_cache", fallback=self.krb5_cache
+        )
         self.krb5_config = config_dic.get(
             "CAhandler", "krb5_config", fallback=self.krb5_config
+        )
+        self.krb5_kinit_path = config_dic.get(
+            "CAhandler", "krb5_kinit_path", fallback=self.krb5_kinit_path
         )
         self.verify = config_dic.getboolean("CAhandler", "verify", fallback=True)
 
@@ -234,6 +268,7 @@ class CAhandler(object):
             self._config_url_load(config_dic)
             self._config_user_load(config_dic)
             self._config_password_load(config_dic)
+            self._config_kerberos_parameters_load(config_dic)
             self._config_parameters_load(config_dic)
             # load profiling
             self.eab_profiling, self.eab_handler = config_eab_profile_load(
@@ -248,63 +283,345 @@ class CAhandler(object):
 
         self.logger.debug("CAhandler._config_load() ended")
 
+    def _config_kerberos_parameter_item_load(
+        self,
+        config_dic: Dict[str, str],
+        current_value: Optional[str],
+        cfg_key: str,
+        cfg_var_key: str,
+        env_load_error_msg: str,
+    ) -> Optional[str]:
+        """load one kerberos parameter from env variable and/or config"""
+        loaded_value = current_value
+        cahandler_cfg = config_dic["CAhandler"]
+
+        if cfg_var_key in cahandler_cfg:
+            try:
+                loaded_value = os.environ[config_dic.get("CAhandler", cfg_var_key)]
+            except Exception as err:
+                self.logger.error(env_load_error_msg, err)
+
+        if cfg_key in cahandler_cfg:
+            loaded_value = config_dic.get("CAhandler", cfg_key)
+
+        return loaded_value
+
+    def _config_kerberos_parameters_load(self, config_dic: Dict[str, str]):
+        """load kerberos related parameters from env or config"""
+        self.logger.debug("CAhandler._config_kerberos_parameters_load()")
+        if "CAhandler" not in config_dic:
+            return
+
+        self.krb5_principal = self._config_kerberos_parameter_item_load(
+            config_dic,
+            self.krb5_principal,
+            "krb5_principal",
+            "krb5_principal_variable",
+            "Could not load krb5_principal_variable from environment: %s",
+        )
+        self.krb5_keytab = self._config_kerberos_parameter_item_load(
+            config_dic,
+            self.krb5_keytab,
+            "krb5_keytab",
+            "krb5_keytab_variable",
+            "Could not load krb5_keytab_variable from environment: %s",
+        )
+        self.krb5_cache = self._config_kerberos_parameter_item_load(
+            config_dic,
+            self.krb5_cache,
+            "krb5_cache",
+            "krb5_cache_variable",
+            "Could not load krb5_cache_variable from environment: %s",
+        )
+        self.krb5_config = self._config_kerberos_parameter_item_load(
+            config_dic,
+            self.krb5_config,
+            "krb5_config",
+            "krb5_config_variable",
+            "Could not load krb5_config_variable from environment: %s",
+        )
+        self.krb5_kinit_path = self._config_kerberos_parameter_item_load(
+            config_dic,
+            self.krb5_kinit_path,
+            "krb5_kinit_path",
+            "krb5_kinit_path_variable",
+            "Could not load krb5_kinit_path_variable from environment: %s",
+        )
+        self.logger.debug("CAhandler._config_kerberos_parameters_load() ended")
+
+    def _kerberos_keytab_is_configured(self) -> bool:
+        """check if keytab flow can be used"""
+        self.logger.debug("CAhandler._kerberos_keytab_is_configured()")
+        result = bool(self.krb5_principal and self.krb5_keytab)
+        self.logger.debug("CAhandler._kerberos_keytab_is_configured() = %s", result)
+        return result
+
+    @contextmanager
+    def _kerberos_runtime_environment(self):
+        """scope kerberos env vars to the current enrollment operation"""
+        self.logger.debug("CAhandler._kerberos_runtime_environment()")
+        env_backup = {
+            "KRB5CCNAME": os.environ.get("KRB5CCNAME"),
+            "KRB5_CONFIG": os.environ.get("KRB5_CONFIG"),
+        }
+
+        if self.krb5_cache:
+            os.environ["KRB5CCNAME"] = self.krb5_cache
+
+        if self.krb5_config:
+            os.environ["KRB5_CONFIG"] = self.krb5_config
+
+        try:
+            yield
+        finally:
+            for env_key, env_value in env_backup.items():
+                if env_value is None:
+                    os.environ.pop(env_key, None)
+                else:
+                    os.environ[env_key] = env_value
+        self.logger.debug("CAhandler._kerberos_runtime_environment() ended")
+
+    def _kerberos_cleanup_temporary_ccache(self):
+        """remove temporary kerberos ccache if it was created by this handler"""
+        if not self._krb5_cache_is_temporary or not self.krb5_cache:
+            return
+
+        try:
+            os.unlink(self.krb5_cache)
+            self.logger.debug(
+                "Removed temporary kerberos ccache file: %s",
+                self.krb5_cache,
+            )
+        except FileNotFoundError:
+            self.logger.debug(
+                "Temporary kerberos ccache file already removed: %s",
+                self.krb5_cache,
+            )
+        except Exception as err:
+            self.logger.warning(
+                "Failed to remove temporary kerberos ccache file '%s': %s",
+                self.krb5_cache,
+                err,
+            )
+        finally:
+            self._krb5_cache_is_temporary = False
+            self.krb5_cache = None
+
+    def _kerberos_acquire_with_gssapi_raw(
+        self,
+        gssapi: object,
+        principal: object,
+        ccache_file: str,
+    ) -> bool:
+        """acquire kerberos credentials using gssapi.raw.acquire_cred_from"""
+        self.logger.debug("CAhandler._kerberos_acquire_with_gssapi_raw()")
+        try:
+            gssapi_raw = getattr(gssapi, "raw", None)
+            raw_acquire = getattr(gssapi_raw, "acquire_cred_from", None)
+            if not raw_acquire:
+                self.logger.debug(
+                    "gssapi.raw.acquire_cred_from is not available in this gssapi build"
+                )
+                return False
+
+            store = {
+                b"client_keytab": self.krb5_keytab.encode("utf-8"),
+                b"ccache": ccache_file.encode("utf-8"),
+            }
+            raw_acquire(
+                store=store,
+                desired_name=principal,
+                cred_usage="initiate",
+            )
+            self.logger.debug(
+                "Kerberos credentials acquired using gssapi.raw.acquire_cred_from"
+            )
+            return True
+        except Exception as err:
+            self.logger.warning(
+                "Failed to acquire kerberos credentials via gssapi.raw.acquire_cred_from: %s",
+                err,
+            )
+            return False
+
+    def _kerberos_acquire_with_gssapi_highlevel(
+        self,
+        gssapi: object,
+        principal: object,
+        ccache_file: str,
+    ) -> bool:
+        """acquire kerberos credentials using gssapi.Credentials.acquire"""
+        self.logger.debug("CAhandler._kerberos_acquire_with_gssapi_highlevel()")
+        try:
+            credentials_class = getattr(gssapi, "Credentials", None)
+            credentials_acquire = getattr(credentials_class, "acquire", None)
+            if not credentials_acquire:
+                self.logger.debug(
+                    "gssapi.Credentials.acquire is not available in this gssapi build"
+                )
+                return False
+
+            credentials_acquire(
+                name=principal,
+                usage="initiate",
+                store={
+                    "client_keytab": self.krb5_keytab,
+                    "ccache": ccache_file,
+                },
+            )
+            self.logger.debug(
+                "Kerberos credentials acquired using gssapi.Credentials.acquire"
+            )
+            return True
+        except Exception as err:
+            self.logger.warning(
+                "Failed to acquire kerberos credentials via gssapi.Credentials.acquire: %s",
+                err,
+            )
+            return False
+
+    def _kerberos_acquire_with_kinit(self, ccache_file: str) -> bool:
+        """acquire kerberos credentials using kinit fallback"""
+        self.logger.debug("CAhandler._kerberos_acquire_with_kinit()")
+        kinit_cmd = self.krb5_kinit_path or "kinit"
+        try:
+            kinit_env = dict(os.environ)
+            kinit_env["KRB5CCNAME"] = ccache_file
+            if self.krb5_config:
+                kinit_env["KRB5_CONFIG"] = self.krb5_config
+
+            subprocess.run(
+                [
+                    kinit_cmd,
+                    "-k",
+                    "-t",
+                    self.krb5_keytab,
+                    self.krb5_principal,
+                ],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                env=kinit_env,
+                timeout=self.KINIT_TIMEOUT_SECONDS,
+            )
+            self.logger.debug("Kerberos credentials acquired using kinit fallback")
+            return True
+        except subprocess.TimeoutExpired:
+            self.logger.error(
+                "kinit timed out after %s seconds while acquiring kerberos credentials",
+                self.KINIT_TIMEOUT_SECONDS,
+            )
+            return False
+        except FileNotFoundError as err:
+            self.logger.error("%s command not found: %s", kinit_cmd, err)
+            return False
+        except Exception as err:
+            stderr = None
+            if hasattr(err, "stderr") and err.stderr:
+                stderr = err.stderr.decode("utf-8", errors="replace").strip()
+
+            if stderr:
+                self.logger.error(
+                    "Failed to acquire kerberos credentials via kinit: %s",
+                    stderr,
+                )
+            else:
+                self.logger.error(
+                    "Failed to acquire kerberos credentials via kinit: %s",
+                    err,
+                )
+            return False
+
+    def _kerberos_prepare_gssapi_backend(self) -> Optional[str]:
+        """prepare kerberos credentials in python using gssapi/keytab"""
+        self.logger.debug("CAhandler._kerberos_prepare_gssapi_backend()")
+        if self.auth_method != "gssapi" or not self._kerberos_keytab_is_configured():
+            return None
+
+        if not os.path.isfile(self.krb5_keytab):
+            self.logger.error(
+                "Kerberos keytab file does not exist: %s", self.krb5_keytab
+            )
+            return "Kerberos keytab file does not exist."
+
+        try:
+            gssapi = importlib.import_module("gssapi")
+        except Exception as err:
+            self.logger.error("Failed to import gssapi module: %s", err)
+            return "gssapi module is required for gssapi keytab authentication."
+
+        ccache_file = self.krb5_cache
+        self._krb5_cache_is_temporary = False
+        if not ccache_file:
+            ccache_fd, ccache_file = tempfile.mkstemp(prefix="acme2certifier_krb5cc_")
+            os.close(ccache_fd)
+            self.logger.debug(
+                "No kerberos ccache configured, created temporary ccache file: %s",
+                ccache_file,
+            )
+            self.krb5_cache = ccache_file
+            self._krb5_cache_is_temporary = True
+
+        if ccache_file.startswith("FILE:"):
+            ccache_file = ccache_file.split("FILE:", maxsplit=1)[1]
+            self.logger.debug(
+                "Normalized kerberos ccache path from FILE: prefix: %s", ccache_file
+            )
+            self.krb5_cache = ccache_file
+
+        if not os.path.exists(ccache_file):
+            with open(ccache_file, "a", encoding="utf-8") as ccache_handle:
+                ccache_handle.write("")
+
+        self.logger.debug("Using kerberos ccache file: %s", ccache_file)
+
+        try:
+            principal = gssapi.Name(
+                self.krb5_principal,
+                gssapi.NameType.kerberos_principal,
+            )
+        except Exception as err:
+            self.logger.error(
+                "Failed to build kerberos principal from '%s': %s",
+                self.krb5_principal,
+                err,
+            )
+            return (
+                "Failed to build kerberos principal for kerberos keytab authentication."
+            )
+
+        self.logger.debug(
+            "Acquiring kerberos credentials for principal '%s' using keytab '%s'",
+            self.krb5_principal,
+            self.krb5_keytab,
+        )
+
+        if self._kerberos_acquire_with_gssapi_raw(gssapi, principal, ccache_file):
+            return None
+
+        if self._kerberos_acquire_with_gssapi_highlevel(gssapi, principal, ccache_file):
+            return None
+
+        if self._kerberos_acquire_with_kinit(ccache_file):
+            return None
+
+        return "Failed to acquire kerberos credentials via gssapi/keytab."
+
+    def _credentials_are_configured(self) -> bool:
+        """check credential completeness based on selected auth mode"""
+        self.logger.debug("CAhandler._credentials_are_configured()")
+        if self.auth_method == "gssapi" and self._kerberos_keytab_is_configured():
+            return True
+        self.logger.debug(
+            "CAhandler._credentials_are_configured() ended with user/password check"
+        )
+        return bool(self.user and self.password)
+
     def _pkcs7_to_pem(self, pkcs7_content: str, outform: str = "string") -> List[str]:
         """convert pkcs7 to pem"""
         self.logger.debug("CAhandler._pkcs7_to_pem()")
 
-        # Define loading strategies in order of preference
-        loading_strategies = [
-            # Strategy 1: Load as PEM directly
-            lambda content: load_pem_pkcs7_certificates(
-                convert_string_to_byte(content)
-            ),
-            # Strategy 2: Replace CERTIFICATE with PKCS7 tag and load as PEM
-            lambda content: load_pem_pkcs7_certificates(
-                convert_string_to_byte(content.replace("CERTIFICATE", "PKCS7"))
-            ),
-            # Strategy 3: Load as DER
-            lambda content: load_der_pkcs7_certificates(content),
-        ]
-
-        pkcs7_obj = None
-        last_error = None
-
-        for i, strategy in enumerate(loading_strategies):
-            try:
-                pkcs7_obj = strategy(pkcs7_content)
-                if i == 1:  # Log only for the tag replacement strategy
-                    self.logger.error(
-                        "PKCS7-TAG not found, updated content successfully"
-                    )
-                break
-            except Exception as err:
-                last_error = err
-                if i == 0:
-                    self.logger.error("PKCS7-TAG not found updating content...")
-                elif i == 1:
-                    self.logger.debug(
-                        "CAhandler._pkcs7_to_pem(): load pem failed. Try der..."
-                    )
-
-        if pkcs7_obj is None:
-            self.logger.error(
-                "All PKCS7 loading strategies failed. Last error: %s", last_error
-            )
-            raise last_error
-
-        # Convert certificates to PEM format
-        cert_pem_list = [
-            convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM))
-            for cert in pkcs7_obj
-        ]
-
-        # Define output format
-        output_formats = {
-            "string": lambda certs: "".join(certs),
-            "list": lambda certs: certs,
-        }
-
-        result = output_formats.get(outform, lambda _: None)(cert_pem_list)
+        result = pkcs7_to_pem(self.logger, pkcs7_content, outform)
 
         self.logger.debug("Certificate._pkcs7_to_pem() ended")
         return result
@@ -321,7 +638,7 @@ class CAhandler(object):
                 header_info_dic = json.loads(header_info[-1]["header_info"])
                 if self.header_info_field in header_info_dic:
                     for ele in header_info_dic[self.header_info_field].split(" "):
-                        if "template" in ele.lower():
+                        if self.profile_mapping_field in ele.lower():
                             template_name = ele.split("=")[1]
                             break
             except Exception as err:
@@ -359,7 +676,7 @@ class CAhandler(object):
 
         # create bundle
         if cert_raw:
-            (error, cert_bundle, cert_raw) = self._cert_bundle_create(ca_pem, cert_raw)
+            error, cert_bundle, cert_raw = self._cert_bundle_create(ca_pem, cert_raw)
         else:
             cert_bundle = None
 
@@ -369,7 +686,6 @@ class CAhandler(object):
         """overwrite overwrite krb5.conf or user-template"""
         if self.krb5_config:
             self.logger.info("Load krb5config from %s", self.krb5_config)
-            os.environ["KRB5_CONFIG"] = self.krb5_config
 
     def _enroll(self, csr: str) -> Tuple[str, str, str]:
         """enroll certificate"""
@@ -400,7 +716,7 @@ class CAhandler(object):
 
         if auth_check:
             # enroll certificate
-            (error, cert_bundle, cert_raw) = self._csr_process(ca_server, csr)
+            error, cert_bundle, cert_raw = self._csr_process(ca_server, csr)
         else:
             self.logger.error("Connection or credential check failed for CA server.")
             error = "Connection or Credentialcheck failed."
@@ -417,29 +733,45 @@ class CAhandler(object):
 
         self._parameter_overwrite(csr)
 
-        if (self.host or self.url) and self.user and self.password and self.template:
-
-            # check for eab profiling and header_info
-            error = eab_profile_header_info_check(self.logger, self, csr, "template")
-            if not error:
-                # enroll certificate
-                (error, cert_bundle, cert_raw) = self._enroll(csr)
-            else:
-                self.logger.error("EAB profile check failed: %s", error)
-
-        else:
+        if not (
+            (self.host or self.url)
+            and self._credentials_are_configured()
+            and self.template
+        ):
             self.logger.error("Configuration incomplete")
             error = "Config incomplete"
+            self.logger.debug("Certificate.enroll() ended")
+            return (error, cert_bundle, cert_raw, None)
 
+        kerberos_error = self._kerberos_prepare_gssapi_backend()
+        if kerberos_error:
+            self.logger.error("Kerberos backend setup failed: %s", kerberos_error)
+            self._kerberos_cleanup_temporary_ccache()
+            return (kerberos_error, None, None, None)
+
+        # check for eab profiling and header_info
+        error = eab_profile_header_info_check(
+            self.logger, self, csr, self.profile_mapping_field
+        )
+        if not error:
+            # enroll certificate
+            with self._kerberos_runtime_environment():
+                error, cert_bundle, cert_raw = self._enroll(csr)
+        else:
+            self.logger.error("EAB profile check failed: %s", error)
+
+        self._kerberos_cleanup_temporary_ccache()
         self.logger.debug("Certificate.enroll() ended")
         return (error, cert_bundle, cert_raw, None)
 
     def handler_check(self):
         """check if handler is ready"""
         self.logger.debug("CAhandler.check()")
-        error = handler_config_check(
-            self.logger, self, ["host", "user", "password", "template"]
-        )
+        required = ["host", self.profile_mapping_field]
+        if not self._kerberos_keytab_is_configured():
+            required.extend(["user", "password"])
+
+        error = handler_config_check(self.logger, self, required)
         self.logger.debug("CAhandler.check() ended with %s", error)
         return error
 

@@ -91,7 +91,7 @@ jobs:
         run: |
           sudo cp examples/ca_handler/xca_ca_handler.py examples/Docker/data/ca_handler.py
           sudo chmod 777 examples/Docker/data/ca_handler.py
-          sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, \"template_name\")/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" examples/Docker/data/ca_handler.py
+          sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" examples/Docker/data/ca_handler.py
           sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" examples/Docker/data/ca_handler.py
           sudo mkdir -p examples/Docker/data/xca
           sudo chmod -R 777 examples/Docker/data/xca
@@ -116,7 +116,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -133,7 +133,7 @@ jobs:
           sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
       - name: "Sleep for 15s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 15s
 
@@ -156,7 +156,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: hcontainer-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          name: container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
@@ -215,7 +215,7 @@ jobs:
 
           sudo cp examples/ca_handler/xca_ca_handler.py data/volume/ca_handler.py
           sudo chmod 777 data/volume/ca_handler.py
-          sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, \"template_name\")/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
+          sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
           sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" data/volume/ca_handler.py
 
           sudo touch data/volume/acme_srv.cfg
@@ -236,7 +236,7 @@ jobs:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -253,7 +253,7 @@ jobs:
           sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
       - name: "Sleep for 15s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 15s
 
@@ -345,7 +345,7 @@ jobs:
 
           sudo cp examples/ca_handler/xca_ca_handler.py data/volume/ca_handler.py
           sudo chmod 777 data/volume/ca_handler.py
-          sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, \"template_name\")/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
+          sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
           sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" data/volume/ca_handler.py
 
           sudo touch data/volume/acme_srv.cfg
@@ -367,7 +367,7 @@ jobs:
           EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -384,7 +384,7 @@ jobs:
           sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
 
       - name: "Sleep for 15s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 15s
 

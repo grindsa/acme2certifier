@@ -1,0 +1,104 @@
+name: "enroll_persistent01 "
+description: "enroll_persistent01"
+
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: true
+    default: "rpm"
+  CA_PATH:
+    description: "Path to CA certificates"
+    required: false
+    default: "data/volume/acme_ca/"
+  ACME_SERVER:
+    description: "ACME server URL"
+    required: false
+    default: "acme-srv"
+  NAME_SPACE:
+    description: "Kubernetes namespace"
+    required: false
+    default: "acme"
+  TO_FAIL:
+    description: "Enrollment is expected to fail"
+    required: true
+    default: "false"
+  CHECK_JIT:
+    description: "Check JIT provisioning result"
+    required: true
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.4
+    with:
+      time: 10s
+
+  - name: "Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://$ACME_SERVER.$NAME_SPACE/directory
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SERVER.$NAME_SPACE/directory
+    shell: bash
+    env:
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll lego using persistent challenge - single domain"
+    run: |
+      echo "foo" | docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego run --tls-skip-verify -s https://$ACME_SERVER.$NAME_SPACE -a --email "lego@example.com" -d lego-01.$NAME_SPACE --dns-persist --dns-persist.propagation.wait 2s --no-random-sleep --renew-force
+      sudo openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem $PWD/lego/certificates/lego-01.$NAME_SPACE.crt
+    shell: bash
+    env:
+      CA_PATH: ${{ inputs.CA_PATH }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll wildcard certificate (to fail)"
+    if: ${{ inputs.TO_FAIL  == 'true' }}
+    id: lego01
+    continue-on-error: true
+    run: |
+      echo "foo" | docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego run --tls-skip-verify -s https://$ACME_SERVER.$NAME_SPACE -a --email "lego@example.com" -d *.wc.$NAME_SPACE --dns-persist --dns-persist.propagation.wait 2s --no-random-sleep --renew-force
+    shell: bash
+    env:
+      CA_PATH: ${{ inputs.CA_PATH }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Check  result "
+    if: ${{ (inputs.TO_FAIL  == 'true' ) && (steps.lego01.outcome != 'failure') }}
+    run: |
+      echo "acmefail outcome is ${{steps.lego01.outcome }}"
+      exit 1
+    shell: bash
+
+  - name: "Enroll wildcard certificate"
+    if: ${{ inputs.TO_FAIL  == 'false' }}
+    run: |
+      echo "foo" | docker run -i --rm -v $PWD/lego:/.lego/ --name lego --network acme goacme/lego run --tls-skip-verify -s https://$ACME_SERVER.$NAME_SPACE -a --email "lego@example.com" -d *.wc.$NAME_SPACE --dns-persist --dns-persist.propagation.wait 2s --no-random-sleep --renew-force
+    shell: bash
+    env:
+      CA_PATH: ${{ inputs.CA_PATH }}
+      ACME_SERVER: ${{ inputs.ACME_SERVER }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Check logs for JIT authorization message"
+    if: ${{ inputs.CHECK_JIT == 'true' }}
+    working-directory: examples/Docker/
+    run: |
+      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+        echo "container deployment"
+        docker compose logs | grep "JIT dns-persist-01 validation succeeded"
+        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+        docker exec -i acme-srv tail -n 700 /var/log/messages | grep "JIT dns-persist-01 validation succeeded"
+      fi
+    shell: bash
+    env:
+      DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}

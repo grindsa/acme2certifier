@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """acme app main view"""
+
 from __future__ import unicode_literals, print_function
 from django.http import HttpResponse, HttpResponseNotFound
 from django.utils.html import escape
@@ -51,8 +52,9 @@ ERR_RESPONSE_HEAD_GET = JsonResponse(
 # check configuration for parameters masked in ""
 config_check(LOGGER, CONFIG)
 
-with Housekeeping(DEBUG, LOGGER) as version_check:
-    version_check.dbversion_check(__dbversion__)
+with Housekeeping(DEBUG, LOGGER) as housekeeping:
+    housekeeping.dbversion_check(__dbversion__)
+    housekeeping.nonce_cleanup()
 
 
 def handle_exception(exc_type, exc_value, exc_traceback):
@@ -133,6 +135,10 @@ def newnonce(request):
                 response = HttpResponse("")
             else:
                 response = HttpResponse(status=204)
+
+            # do housekeeping and expire old nonces
+            nonce.expire_nonces()
+
             # generate nonce
             response["Replay-Nonce"] = nonce.generate_and_add()
 

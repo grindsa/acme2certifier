@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=r0902, r0912, r0913, r0915, r1705
 """Challenge class - refactored version"""
+
 import json
 import time
+from configparser import ConfigParser
 from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
 from threading import Thread
@@ -16,6 +18,7 @@ from acme_srv.helper import (
     error_dic_get,
     config_eab_profile_load,
     config_async_mode_load,
+    config_dns_server_list_load,
 )
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
@@ -43,6 +46,8 @@ from acme_srv.challenge_error_handling import (
     UnsupportedChallengeTypeError,
 )
 
+ACCOUNT_URI_PREFIX = "/acme/acct/"
+
 
 @dataclass
 class ChallengeConfiguration:
@@ -57,6 +62,10 @@ class ChallengeConfiguration:
     tnauthlist_support: bool = False
     email_identifier_support: bool = False
     email_address: Optional[str] = None
+    dns_persist_01_support: bool = False
+    dns_persist_allow_policy_wildcard: bool = False
+    dns_persist_jit_validation: bool = False
+    caaidentities: Optional[List[str]] = None
     forward_address_check: bool = False
     reverse_address_check: bool = False
     source_address: Optional[str] = None
@@ -181,12 +190,16 @@ class DatabaseChallengeRepository(ChallengeRepository):
                 authorization_type=challenge_dic.get("authorization__type", ""),
                 authorization_value=challenge_dic.get("authorization__value", ""),
                 url="",  # Will be constructed later
-                validated=uts_to_date_utc(challenge_dic.get("validated"))
-                if challenge_dic.get("status") == "valid"
-                else None,
-                validation_error=challenge_dic.get("validation_error", None)
-                if "validation_error" in challenge_dic
-                else None,
+                validated=(
+                    uts_to_date_utc(challenge_dic.get("validated"))
+                    if challenge_dic.get("status") == "valid"
+                    else None
+                ),
+                validation_error=(
+                    challenge_dic.get("validation_error", None)
+                    if "validation_error" in challenge_dic
+                    else None
+                ),
             )
         except Exception as err:
             self.logger.critical("Database error: failed to lookup challenge: %s", err)
@@ -313,6 +326,31 @@ class DatabaseChallengeRepository(ChallengeRepository):
             self.logger.critical("Database error: failed to get account JWK: %s", err)
             raise DatabaseError(f"Failed to get account JWK: {err}") from err
 
+    def get_authorization_account_name(self, authorization_name: str) -> Optional[str]:
+        """Get account name for an authorization."""
+        self.logger.debug(
+            "DatabaseChallengeRepository.get_authorization_account_name(%s)",
+            authorization_name,
+        )
+        try:
+            authorization_list = self.dbstore.authorization_lookup(
+                "name", authorization_name, ["order__account__name"]
+            )
+            if (
+                authorization_list
+                and isinstance(authorization_list, list)
+                and "order__account__name" in authorization_list[0]
+            ):
+                return authorization_list[0]["order__account__name"]
+            return None
+        except Exception as err:
+            self.logger.critical(
+                "Database error: failed to get authorization account name: %s", err
+            )
+            raise DatabaseError(
+                f"Failed to get authorization account name: {err}"
+            ) from err
+
 
 class Challenge:
     """Challenge Class"""
@@ -330,7 +368,11 @@ class Challenge:
         self.config = ChallengeConfiguration()
         self.expiry = expiry
         self.server_name = srv_name
-        self.path_dic = {"chall_path": "/acme/chall/", "authz_path": "/acme/authz/"}
+        self.path_dic = {
+            "chall_path": "/acme/chall/",
+            "authz_path": "/acme/authz/",
+            "acct_path": ACCOUNT_URI_PREFIX,
+        }
         self.source_address = source
 
         # Initialize core components
@@ -408,6 +450,11 @@ class Challenge:
             dns_servers=self.config.dns_server_list,
             proxy_servers=self.config.proxy_server_list,
             timeout=self.config.validation_timeout,
+            options={
+                "accounturi": challenge_details.get("accounturi"),
+                "issuer_domain_names": self.config.caaidentities or [],
+                "allow_policy_wildcard": self.config.dns_persist_allow_policy_wildcard,
+            },
         )
 
         # Perform validation with retry logic for DNS challenges
@@ -419,7 +466,7 @@ class Challenge:
         url_dic = parse_url(self.logger, url)
         challenge_name = url_dic["path"].replace(self.path_dic["chall_path"], "")
         if "/" in challenge_name:
-            (challenge_name, _suffix) = challenge_name.split("/", 1)
+            challenge_name, _suffix = challenge_name.split("/", 1)
         return challenge_name
 
     def _get_challenge_validation_details(
@@ -454,7 +501,30 @@ class Challenge:
             if not pub_key:
                 return None
 
+            required_fields = (
+                "type",
+                "token",
+                "authorization__type",
+                "authorization__value",
+                "keyauthorization",
+            )
+            missing_fields = [
+                field for field in required_fields if field not in challenge_dic
+            ]
+            if missing_fields:
+                self.logger.error(
+                    "Challenge data incomplete for validation (%s), missing fields: %s",
+                    challenge_name,
+                    ", ".join(missing_fields),
+                )
+                return None
+
             jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
+            acct_path = self.path_dic.get("acct_path", ACCOUNT_URI_PREFIX)
+            account_name = challenge_dic.get("authorization__order__account__name")
+            accounturi = (
+                f"{self.server_name}{acct_path}{account_name}" if account_name else None
+            )
             self.logger.debug("Challenge._get_challenge_validation_details() ended")
             return {
                 "type": challenge_dic["type"],
@@ -463,6 +533,7 @@ class Challenge:
                 "authorization_value": challenge_dic["authorization__value"],
                 "jwk_thumbprint": jwk_thumbprint,
                 "keyauthorization": challenge_dic["keyauthorization"],
+                "accounturi": accounturi,
             }
 
         except Exception as err:
@@ -499,49 +570,84 @@ class Challenge:
         # Get updated challenge info
         updated_challenge_info = self.repository.get_challenge_by_name(challenge_name)
 
-        # Prepare response
-        response_dic = {
-            "data": {
-                "type": updated_challenge_info.type,
-                "status": updated_challenge_info.status,
-                "token": updated_challenge_info.token,
-                "url": protected["url"],
-            },
-            "header": {
-                "Link": f'<{self.server_name}{self.path_dic["authz_path"]}{updated_challenge_info.authorization_name}>;rel="up"'
-            },
-        }
-
-        # address a few cornercases
-        if updated_challenge_info.validation_error:
-            # add validation error in response for failed challenges
-            try:
-                response_dic["data"]["error"] = json.loads(
-                    updated_challenge_info.validation_error
-                )
-            except Exception:
-                response_dic["data"]["error"] = {
-                    "status": 400,
-                    "type": "urn:ietf:params:acme:error:unknown",
-                    "detail": updated_challenge_info.validation_error,
-                }
-
-        if (
-            updated_challenge_info.type == "email-reply-00"
-            and self.config.email_address
-        ):
-            # add from address in response for email challenges
-            response_dic["data"]["from"] = self.config.email_address
-
-        if (
-            updated_challenge_info.validated
-            and updated_challenge_info.status == "valid"
-        ):
-            # add validated flag if challenge is valid
-            response_dic["data"]["validated"] = updated_challenge_info.validated
+        response_dic = self._build_challenge_validation_response(
+            updated_challenge_info, protected
+        )
 
         self.logger.debug("Challenge._handle_challenge_validation_request() ended")
         return self._create_success_response(response_dic)
+
+    def _build_challenge_validation_response(
+        self, challenge_info: ChallengeInfo, protected: Dict[str, str]
+    ) -> Dict[str, Any]:
+        """Build response payload for challenge validation requests."""
+        response_dic = {
+            "data": {
+                "type": challenge_info.type,
+                "status": challenge_info.status,
+                "token": challenge_info.token,
+                "url": protected["url"],
+            },
+            "header": {
+                "Link": f'<{self.server_name}{self.path_dic["authz_path"]}{challenge_info.authorization_name}>;rel="up"'
+            },
+        }
+
+        self._append_challenge_validation_error(response_dic, challenge_info)
+        self._append_email_reply_from(response_dic, challenge_info)
+        self._append_dns_persist_fields(response_dic, challenge_info)
+        self._append_validated_timestamp(response_dic, challenge_info)
+        return response_dic
+
+    def _append_challenge_validation_error(
+        self, response_dic: Dict[str, Any], challenge_info: ChallengeInfo
+    ):
+        """Append validation error details for failed challenges."""
+        if not challenge_info.validation_error:
+            return
+
+        try:
+            response_dic["data"]["error"] = json.loads(challenge_info.validation_error)
+        except Exception:
+            response_dic["data"]["error"] = {
+                "status": 400,
+                "type": "urn:ietf:params:acme:error:unknown",
+                "detail": challenge_info.validation_error,
+            }
+
+    def _append_email_reply_from(
+        self, response_dic: Dict[str, Any], challenge_info: ChallengeInfo
+    ):
+        """Append sender address for email-reply challenges."""
+        if challenge_info.type == "email-reply-00" and self.config.email_address:
+            response_dic["data"]["from"] = self.config.email_address
+
+    def _append_dns_persist_fields(
+        self, response_dic: Dict[str, Any], challenge_info: ChallengeInfo
+    ):
+        """Append dns-persist-01 specific response fields."""
+        if challenge_info.type != "dns-persist-01":
+            return
+
+        try:
+            account_name = self.repository.get_authorization_account_name(
+                challenge_info.authorization_name
+            )
+        except DatabaseError:
+            account_name = None
+
+        if account_name:
+            response_dic["data"][
+                "accounturi"
+            ] = f"{self.server_name}{self.path_dic['acct_path']}{account_name}"
+        response_dic["data"]["issuer-domain-names"] = self.config.caaidentities or []
+
+    def _append_validated_timestamp(
+        self, response_dic: Dict[str, Any], challenge_info: ChallengeInfo
+    ):
+        """Append validated timestamp for valid challenges."""
+        if challenge_info.validated and challenge_info.status == "valid":
+            response_dic["data"]["validated"] = challenge_info.validated
 
     def _handle_validation_disabled(self, challenge_name: str) -> bool:
         """Handle validation when it's disabled."""
@@ -575,7 +681,7 @@ class Challenge:
         )
         return challenge_check
 
-    def _load_address_check_configuration(self, config_dic: Dict[str, str]):
+    def _load_address_check_configuration(self, config_dic: ConfigParser):
         """Load address check configuration."""
         self.logger.debug("Challenge._load_address_check_configuration()")
 
@@ -598,37 +704,17 @@ class Challenge:
         )
         self.logger.debug("Challenge._load_address_check_configuration() ended")
 
-    def _load_dns_configuration(self, config_dic: Dict[str, str]):
-        """load dns config"""
+    def _load_dns_configuration(self, config_dic: ConfigParser):
+        """Load DNS challenge configuration."""
         self.logger.debug("Challenge._load_dns_configuration()")
 
-        if "Challenge" in config_dic and "dns_server_list" in config_dic["Challenge"]:
-            try:
-                self.config.dns_server_list = json.loads(
-                    config_dic["Challenge"]["dns_server_list"]
-                )
-            except Exception as err_:
-                self.logger.warning(
-                    "Failed to load dns_server_list from configuration: %s",
-                    err_,
-                )
-        if (
-            "Challenge" in config_dic
-            and "dns_validation_pause_timer" in config_dic["Challenge"]
-        ):
-            try:
-                self.config.dns_validation_pause_timer = int(
-                    config_dic["Challenge"]["dns_validation_pause_timer"]
-                )
-            except Exception as err_:
-                self.logger.warning(
-                    "Failed to parse dns_validation_pause_timer from configuration: %s",
-                    err_,
-                )
+        self.config.dns_server_list, self.config.dns_validation_pause_timer = (
+            config_dns_server_list_load(self.logger, config_dic)
+        )
 
         self.logger.debug("Challenge._load_dns_configuration() ended")
 
-    def _load_proxy_configuration(self, config_dic: Dict[str, str]):
+    def _load_proxy_configuration(self, config_dic: ConfigParser):
         """load proxy config"""
         self.logger.debug("Challenge._load_proxy_configuration()")
 
@@ -644,6 +730,42 @@ class Challenge:
                 )
 
         self.logger.debug("Challenge._load_proxy_configuration() ended")
+
+    def _load_dns_persist_configuration(self, config_dic: ConfigParser):
+        """Load dns-persist challenge configuration."""
+        self.config.dns_persist_01_support = config_dic.getboolean(
+            "Challenge", "dns_persist_01_support", fallback=False
+        )
+        self.config.dns_persist_allow_policy_wildcard = config_dic.getboolean(
+            "Challenge", "dns_persist_allow_policy_wildcard", fallback=False
+        )
+        self.config.dns_persist_jit_validation = config_dic.getboolean(
+            "Challenge", "dns_persist_jit_validation", fallback=False
+        )
+
+        self.config.caaidentities = self._load_directory_caa_identities(config_dic)
+
+    def _load_directory_caa_identities(self, config_dic: ConfigParser) -> List[str]:
+        """Load caaIdentities from Directory section as fallback issuer list."""
+        tmp_caaidentities = config_dic.get("Directory", "caaidentities", fallback=None)
+        if not tmp_caaidentities:
+            return []
+
+        try:
+            parsed = json.loads(tmp_caaidentities)
+            if isinstance(parsed, list):
+                return parsed
+            self.logger.warning(
+                "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
+                tmp_caaidentities,
+            )
+            return [tmp_caaidentities]
+        except Exception:
+            self.logger.warning(
+                "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
+                tmp_caaidentities,
+            )
+            return [tmp_caaidentities]
 
     def _load_configuration(self):
         """Load configuration from file."""
@@ -676,6 +798,8 @@ class Challenge:
             self.config.sectigo_sim = config_dic.getboolean(
                 "Challenge", "sectigo_sim", fallback=False
             )
+            self._load_dns_persist_configuration(config_dic)
+
             self.config.tnauthlist_support = config_dic.getboolean(
                 "Order", "tnauthlist_support", fallback=False
             )
@@ -717,6 +841,7 @@ class Challenge:
     def _initialize_business_logic_components(self):
         """Initialize factory and service components that depend on configuration."""
         self.logger.debug("Challenge._initialize_business_logic_components()")
+        acct_path = self.path_dic.get("acct_path", ACCOUNT_URI_PREFIX)
 
         # class creating and managing the different challenges
         self.factory = ChallengeFactory(
@@ -725,6 +850,9 @@ class Challenge:
             self.server_name,
             self.path_dic["chall_path"],
             self.config.email_address,
+            self.config.dns_persist_01_support,
+            self.config.caaidentities,
+            acct_path,
         )
         self.service = ChallengeService(
             self.repository, self.state_manager, self.factory, self.logger
@@ -986,7 +1114,7 @@ class Challenge:
     ) -> ValidationResult:
         """Perform validation with retry logic for certain challenge types."""
 
-        retry_challenge_types = ["dns-01", "email-reply-00"]
+        retry_challenge_types = ["dns-01", "dns-persist-01", "email-reply-00"]
         max_attempts = 5 if challenge_type in retry_challenge_types else 1
 
         for attempt in range(max_attempts):
@@ -1148,6 +1276,7 @@ class Challenge:
         _tnauth: bool,
         id_type: str = "dns",
         id_value: str = None,
+        is_wildcard: bool = False,
     ) -> List[Dict[str, str]]:
         """Retrieve existing or create new challenge set (replaces challengeset_get)."""
         self.logger.debug(
@@ -1163,6 +1292,7 @@ class Challenge:
                 token=token,
                 id_type=id_type,
                 id_value=id_value,
+                is_wildcard=is_wildcard,
                 config=self.config,
                 url=f"{self.server_name}{self.path_dic['chall_path']}",
             )

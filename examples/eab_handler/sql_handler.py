@@ -66,7 +66,7 @@ class EABhandler(object):
             for san in _san_list:
                 try:
                     # SAN list must be modified/filtered)
-                    (_san_type, san_value) = san.lower().split(":")
+                    _san_type, san_value = san.lower().split(":")
                     san_list.append(san_value)
                 except Exception:
                     # force check to fail as something went wrong during parsing
@@ -141,8 +141,8 @@ class EABhandler(object):
         """Check allowed domains"""
         self.logger.debug("EABhandler.allowed_domains_check()")
 
-        (san_list, check_list) = self._chk_san_lists_get(csr)
-        (san_list) = self._cn_add(csr, san_list)
+        san_list, check_list = self._chk_san_lists_get(csr)
+        san_list = self._cn_add(csr, san_list)
 
         # go over the san list and check each entry
         for san in san_list:

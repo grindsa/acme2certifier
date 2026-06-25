@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 """Domain utilities for acme2certifier"""
+
 import logging
 from typing import List, Tuple
 import idna
 from .csr import csr_san_get, csr_cn_get
+from .validation import validate_ip, validate_network
 
 
 def encode_domain(logger, domain: str) -> bytes:
@@ -67,6 +69,45 @@ def pattern_check(logger, domain, pattern):
     return result
 
 
+def is_ip_whitelisted(logger, ip_address, ip_network_list):
+    """check if an ip address is in a list of ip networks"""
+    logger.debug("Helper.is_ip_whitelisted(%s, %s)", ip_address, ip_network_list)
+    try:
+        ip = validate_ip(logger, ip_address, raw=True)
+    except ValueError:
+        return False
+
+    for net_str in ip_network_list:
+        try:
+            network = validate_network(logger, net_str)
+        except ValueError:
+            logger.error(f"Invalid network entry in allowed_iplist: {net_str}")
+            continue  # Ignore invalid network entries
+        if ip in network:
+            return True
+
+    return False
+
+
+def is_email_whitelisted(logger, email_address, email_list):
+    """Check if an email address is in a list of allowed email addresses or wildcard patterns.
+
+    Supports exact matches and wildcard patterns like *@example.com.
+    """
+    logger.debug("Helper.is_email_whitelisted(%s, %s)", email_address, email_list)
+    email_address = email_address.lower().strip()
+    for pattern in email_list:
+        pattern = pattern.lower().strip()
+        if pattern == email_address:
+            return True
+        # Support wildcard pattern: *@example.com
+        if pattern.startswith("*@"):
+            domain_part = pattern[2:]
+            if email_address.endswith("@" + domain_part):
+                return True
+    return False
+
+
 def is_domain_whitelisted(
     logger: logging.Logger, domain: str, whitelist: List[str]
 ) -> bool:
@@ -99,7 +140,7 @@ def allowed_domainlist_check(
 
     error = None
     if allowed_domain_list:
-        (san_list, check_list) = sancheck_lists_create(logger, csr)
+        san_list, check_list = sancheck_lists_create(logger, csr)
 
         # clean email addresses
         tmp_san_list = []
@@ -142,7 +183,7 @@ def sancheck_lists_create(logger, csr: str) -> Tuple[List[str], List[str]]:
         for san in _san_list:
             try:
                 # SAN list must be modified/filtered)
-                (_san_type, san_value) = san.lower().split(":")
+                _san_type, san_value = san.lower().split(":")
                 san_list.append(san_value)
             except Exception:
                 # force check to fail as something went wrong during parsing

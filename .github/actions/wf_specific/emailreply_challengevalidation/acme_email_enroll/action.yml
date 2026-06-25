@@ -14,7 +14,7 @@ runs:
   using: "composite"
   steps:
   - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 5s
 
@@ -26,11 +26,8 @@ runs:
     if: ${{ inputs.INSTALL  == 'true' }}
     run: |
       echo "### Install acme-email"
-      git clone https://github.com/grindsa/acme_email.git
+      git clone -b mymain https://github.com/grindsa/acme_email.git
       cd acme_email
-      # fallback to the last working commit
-      git checkout 7591c7835061e66dfcdb4b4ddc31147d6e6614c3
-      sed -i "s/'cryptography>=3.3',/'cryptography>=3.3',\n    'pyOpenSSL==26.1.0',/g" setup.py
       python3 -m venv venv
       source venv/bin/activate
       pip3 install .
@@ -41,7 +38,7 @@ runs:
       echo "### Enroll certificate"
       cd acme_email
       source venv/bin/activate
-      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e jum@mailserver.acme --contact joern.mewes@gmx.net --imap --login jum@mailserver.acme --password jumstarter --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
+      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e $JUM_ADDR --contact $EMAIL --imap --login $JUM_ADDR --password $JUM_PASSWORD --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
     shell: bash
 
   - name: "Enroll certificate with wrong email (to fail)"
@@ -53,7 +50,7 @@ runs:
       cd acme_email
       sudo rm -rf ./live/*
       source venv/bin/activate
-      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e ulme@mailserver.acme --contact joern.mewes@gmx.net --imap --login jum@mailserver.acme --password jumstarter --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
+      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e $ULME_ADDR --contact $EMAIL --imap --login $JUM_ADDR --password $JUM_PASSWORD --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
     shell: bash
 
   - name: "Check  result "
@@ -70,5 +67,5 @@ runs:
       cd acme_email
       sudo rm -rf ./live/*
       source venv/bin/activate
-      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e ulme@mailserver.acme --contact joern.mewes@gmx.net --imap --login jum@mailserver.acme --password jumstarter --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
+      python3 cli.py cert --server http://127.0.0.1:22280 --no-verify-ssl --config-dir . --work-dir . --logs-dir . -e $ULME_ADDR --contact $EMAIL --imap --login $JUM_ADDR --password $JUM_PASSWORD --host 127.0.0.1 --ssl --smtp-method STARTTLS --smtp-port 587 --smtp-host 127.0.0.1 --no-passphrase
     shell: bash

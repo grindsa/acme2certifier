@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """unittests for django_update.py"""
+
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 import sys

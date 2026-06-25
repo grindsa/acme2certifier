@@ -103,76 +103,204 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+      - name: "Assert strict EAB mode via directory metadata"
+        uses: ./.github/actions/wf_specific/eab/assert_directory_eab_required
         with:
-          time: 10s
-
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Test if https://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+          EXPECTED_VALUE: "true"
 
       - name: "Register without eab-credentials - should fail"
         uses: ./.github/actions/wf_specific/eab/enroll_wo_credentials
+        with:
+          DEPLOYMENT_TYPE: "container"
 
       - name: "Register with unknown eab-credentials - should fail"
         uses: ./.github/actions/wf_specific/eab/enroll_unknown_credentials
         with:
           EAB_KEY_ID: "unknown_key_id"
           EAB_KEY_SECRET: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+          DEPLOYMENT_TYPE: "container"
 
       - name: "Register with wrong eab-credentials - should fail"
         uses: ./.github/actions/wf_specific/eab/enroll_wrong_credentials
         with:
           EAB_KEY_ID: "keyid_01"
           EAB_KEY_SECRET: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+          DEPLOYMENT_TYPE: "container"
 
-      - name: "Enroll lego"
-        run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_02 --eab.hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http
-          sudo cat lego/certificates/lego.acme.issuer.crt |  awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
-          sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+      - name: "Enroll tests"
+        uses: ./.github/actions/wf_specific/eab/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: "container"
+          DATA_DIR: "examples/Docker/data"
 
-      - name: "Register acme.sh with eab-credentials"
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
-      - name: "Enroll acme.sh"
+      - name: "Switch to non-strict mode"
         run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
-          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+          sudo echo "eab_strict_mode: False" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_profiling: False" >> examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/eabkid_check_disable/unknown/g" examples/Docker/data/acme_srv.cfg
+          sudo cp examples/eab_handler/key_file.json examples/Docker/data/acme_ca
 
-      - name: "Rename eab-kid"
+      - name: "Restart services after non-strict config change"
         run: |
-          sudo sed -i "s/keyid_02/keyid_12/g" examples/Docker/data/acme_ca/key_file.json
-          cd examples/Docker/
+          cd examples/Docker
           docker compose restart
 
-      - name: "Enroll acme.sh with unknown kid - should fail"
-        id: acmekidfail
-        continue-on-error: true
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+      - name: "Assert non-strict EAB mode via directory metadata"
+        uses: ./.github/actions/wf_specific/eab/assert_directory_eab_required
+        with:
+          EXPECTED_VALUE: "false"
 
-      - name: "Check result "
-        if: steps.acmekidfail.outcome != 'failure'
-        run: |
-          echo "certbot outcome is ${{steps.acmekidfail.outcome }}"
-          exit 1
+      - name: "Register without eab-credentials - should succeed"
+        uses: ./.github/actions/wf_specific/eab/enroll_wo_credentials_success
 
-      - name: "Disable eab-kid checking"
+      - name: "Register with unknown eab-credentials in non-strict mode - should fail"
+        uses: ./.github/actions/wf_specific/eab/enroll_unknown_credentials
+        with:
+          EAB_KEY_ID: "unknown_key_id"
+          EAB_KEY_SECRET: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+          DEPLOYMENT_TYPE: "container"
+
+      - name: "Register with wrong eab-credentials in non-strict mode - should fail"
+        uses: ./.github/actions/wf_specific/eab/enroll_wrong_credentials
+        with:
+          EAB_KEY_ID: "keyid_01"
+          EAB_KEY_SECRET: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+          DEPLOYMENT_TYPE: "container"
+
+      - name: "Enroll tests"
+        uses: ./.github/actions/wf_specific/eab/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: "container"
+          DATA_DIR: "examples/Docker/data"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Switch back to strict mode (no EAB profiling)"
         run: |
-          sudo echo "eabkid_check_disable: True" >> examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
+          sudo sed -i "s/eab_strict_mode: False/eab_strict_mode: True/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/eabkid_check_disable/unknown-2/g" examples/Docker/data/acme_srv.cfg
+          sudo cp examples/eab_handler/key_file.json examples/Docker/data/acme_ca
+
+      - name: "Restart services after strict-mode config change"
+        run: |
+          cd examples/Docker
           docker compose restart
 
-      - name: "Enroll acme.sh with unknown kid - should work"
-        # id: acmekidfail
-        # continue-on-error: true
+      - name: "Assert strict EAB mode via directory metadata"
+        uses: ./.github/actions/wf_specific/eab/assert_directory_eab_required
+        with:
+          EXPECTED_VALUE: "true"
+
+      - name: "Register without eab-credentials in strict mode - should fail"
+        uses: ./.github/actions/wf_specific/eab/enroll_wo_credentials
+        with:
+           DEPLOYMENT_TYPE: "container"
+
+      - name: "Register with unknown eab-credentials in strict mode - should fail"
+        uses: ./.github/actions/wf_specific/eab/enroll_unknown_credentials
+        with:
+          EAB_KEY_ID: "unknown_key_id"
+          EAB_KEY_SECRET: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+          DEPLOYMENT_TYPE: "container"
+
+      - name: "Register with wrong eab-credentials in strict mode - should fail"
+        uses: ./.github/actions/wf_specific/eab/enroll_wrong_credentials
+        with:
+          EAB_KEY_ID: "keyid_01"
+          EAB_KEY_SECRET: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+          DEPLOYMENT_TYPE: "container"
+
+      - name: "Enroll tests"
+        uses: ./.github/actions/wf_specific/eab/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: "container"
+          DATA_DIR: "examples/Docker/data"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Switch to non-strict mode with EAB profiling and wildcard disabled"
         run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+          sudo sed -i "s/eab_strict_mode: True/eab_strict_mode: False/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/eab_profiling: False/eab_profiling: True/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s#eab_handler_file: .*json_handler.py#eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py#g" examples/Docker/data/acme_srv.cfg
+          sudo chmod a+rw examples/Docker/data/acme_ca/key_file.json
+          sudo cat > examples/Docker/data/acme_ca/key_file.json << 'EOF'
+          {
+            "keyid_00": {
+              "hmac": "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw",
+              "order": {
+                "wildcard_certificate_disable": false
+              },
+              "authorization": {
+                "prevalidated_domainlist": ["lego-00.acme", "*.wc.acme"]
+              }
+            },
+            "keyid_01": {
+              "hmac": "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg",
+              "order": {
+                "wildcard_certificate_disable": false
+              },
+              "authorization": {
+                "prevalidated_domainlist": ["*.foo.bar"]
+              }
+            },
+            "keyid_02": {
+              "hmac": "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+            }
+          }
+          EOF
+          sudo awk '
+          BEGIN { in_order = 0; has_wildcard = 0 }
+          /^\[Order\]$/ {
+            in_order = 1
+            print
+            next
+          }
+          /^\[/ && in_order {
+            if (!has_wildcard) {
+              print "wildcard_certificate_disable: True"
+              has_wildcard = 1
+            }
+            in_order = 0
+          }
+          {
+            if (in_order && /^wildcard_certificate_disable[[:space:]]*:/) {
+              sub(/:.*/, ": True")
+              has_wildcard = 1
+            }
+            print
+          }
+          END {
+            if (in_order && !has_wildcard) {
+              print "wildcard_certificate_disable: True"
+            }
+          }
+          ' examples/Docker/data/acme_srv.cfg | sudo tee examples/Docker/data/acme_srv.cfg.tmp > /dev/null
+          sudo mv examples/Docker/data/acme_srv.cfg.tmp examples/Docker/data/acme_srv.cfg
+
+      - name: "Restart services after profile and wildcard config change"
+        run: |
+          cd examples/Docker
+          docker compose restart
+
+      - name: "Assert non-strict mode via directory metadata (with profiling)"
+        uses: ./.github/actions/wf_specific/eab/assert_directory_eab_required
+        with:
+          EXPECTED_VALUE: "false"
+
+      - name: "Lego profile and wildcard matrix tests"
+        uses: ./.github/actions/wf_specific/eab/enroll_lego_profile_matrix
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -257,115 +385,111 @@ jobs:
         env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+      - name: "Register without eab-credentials - should fail"
+        uses: ./.github/actions/wf_specific/eab/enroll_wo_credentials
         with:
-          time: 10s
+          DEPLOYMENT_TYPE: "rpm"
 
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Register with unknown eab-credentials - should fail"
+        uses: ./.github/actions/wf_specific/eab/enroll_unknown_credentials
+        with:
+          EAB_KEY_ID: "unknown_key_id"
+          EAB_KEY_SECRET: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+          DEPLOYMENT_TYPE: "rpm"
 
-      - name: "Test if https://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Register with wrong eab-credentials - should fail"
+        uses: ./.github/actions/wf_specific/eab/enroll_wrong_credentials
+        with:
+          EAB_KEY_ID: "keyid_01"
+          EAB_KEY_SECRET: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+          DEPLOYMENT_TYPE: "rpm"
 
-      - name: "Fail - Register lego"
-        id: legofail
-        continue-on-error: true
+      - name: "Enroll tests"
+        uses: ./.github/actions/wf_specific/eab/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: "rpm"
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+          DATA_DIR: "data/volume"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Switch to non-strict mode with EAB profiling and wildcard disabled (rpm)"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http
+          sudo echo "eab_strict_mode: False" >> data/volume/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+          sudo sed -i "s#json_handler.py#kid_profile_handler.py#g" data/volume/acme_srv.cfg
 
-      - name: "Check lego result"
-        if: steps.legofail.outcome != 'failure'
-        run: |
-          echo "legofail outcome is ${{steps.legofail.outcome }}"
-          exit 1
+          cat << 'EOF' | sudo tee data/volume/acme_ca/key_file.json > /dev/null
+          {
+            "keyid_00": {
+              "hmac": "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw",
+              "order": {
+                "wildcard_certificate_disable": false
+              },
+              "authorization": {
+                "prevalidated_domainlist": ["lego-00.acme", "*.wc.acme"]
+              }
+            },
+            "keyid_01": {
+              "hmac": "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg",
+              "order": {
+                "wildcard_certificate_disable": false
+              },
+              "authorization": {
+                "prevalidated_domainlist": ["*.foo.bar"]
+              }
+            },
+            "keyid_02": {
+              "hmac": "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+            }
+          }
+          EOF
 
-      - name: "Enroll lego"
-        run: |
-          sudo rm -rf $PWD/lego
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_02 --eab.hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http
-          sudo cat lego/certificates/lego.acme.issuer.crt |  awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
-          sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+          sudo awk '
+          BEGIN { in_order = 0; has_wildcard = 0 }
+          /^\[Order\]$/ {
+            in_order = 1
+            print
+            next
+          }
+          /^\[/ && in_order {
+            if (!has_wildcard) {
+              print "wildcard_certificate_disable: True"
+              has_wildcard = 1
+            }
+            in_order = 0
+          }
+          {
+            if (in_order && /^wildcard_certificate_disable[[:space:]]*:/) {
+              sub(/:.*/, ": True")
+              has_wildcard = 1
+            }
+            print
+          }
+          END {
+            if (in_order && !has_wildcard) {
+              print "wildcard_certificate_disable: True"
+            }
+          }
+          ' data/volume/acme_srv.cfg | sudo tee data/volume/acme_srv.cfg.tmp > /dev/null
+          sudo mv data/volume/acme_srv.cfg.tmp data/volume/acme_srv.cfg
 
-      - name: "Fail - Registercertbot without eab-credentials"
-        id: certbotfail
-        continue-on-error: true
-        run: |
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-      - name: "check certbot result "
-        if: steps.certbotfail.outcome != 'failure'
-        run: |
-          echo "certbot outcome is ${{steps.certbotfail.outcome }}"
-          exit 1
-
-      - name: "Register certbot using eab-credentials"
-        run: |
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM
-
-      - name: "Enroll HTTP-01 single domain certbot"
-        run: |
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-          sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
-
-      - name: "Fail - Register acme.sh"
-        id: acmeshfail
-        continue-on-error: true
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --debug 3
-
-      - name: "Check acme.sh result "
-        if: steps.acmeshfail.outcome != 'failure'
-        run: |
-          echo "acmeshfail outcome is ${{steps.acmeshfail.outcome }}"
-          exit 1
-
-      - name: "Register acme.sh with eab-credentials"
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
-
-      - name: "Enroll acme.sh"
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
-          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-      - name: "Rename eab-kid"
-        run: |
-          sudo sed -i "s/keyid_02/keyid_12/g" data/volume/acme_ca/key_file.json
-
-      - name: "Execute install scipt"
+      - name: "Restart services after profile and wildcard config change (rpm)"
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
         env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
-      - name: "Enroll acme.sh with unknown kid - should fail"
-        id: acmekidfail
-        continue-on-error: true
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+      - name: "Assert non-strict mode via directory metadata (rpm with profiling)"
+        uses: ./.github/actions/wf_specific/eab/assert_directory_eab_required
+        with:
+          EXPECTED_VALUE: "false"
 
-      - name: "Check result "
-        if: steps.acmekidfail.outcome != 'failure'
-        run: |
-          echo "certbot outcome is ${{steps.acmekidfail.outcome }}"
-          exit 1
-
-      - name: "Disable eab-kid checking"
-        run: |
-          sudo echo "eabkid_check_disable: True" >> data/volume/acme_srv.cfg
-
-      - name: "Execute install scipt"
-        run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
-        env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
-
-      - name: "Enroll acme.sh with unknown kid - should work"
-        # id: acmekidfail
-        # continue-on-error: true
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+      - name: "Lego profile and wildcard matrix tests (rpm)"
+        uses: ./.github/actions/wf_specific/eab/enroll_lego_profile_matrix
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -457,122 +581,113 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           EXECSCRIPT: ${{ matrix.execscript }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+      - name: "Register without eab-credentials - should fail"
+        uses: ./.github/actions/wf_specific/eab/enroll_wo_credentials
         with:
-          time: 10s
+          DEPLOYMENT_TYPE: "deb"
 
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Register with unknown eab-credentials - should fail"
+        uses: ./.github/actions/wf_specific/eab/enroll_unknown_credentials
+        with:
+          EAB_KEY_ID: "unknown_key_id"
+          EAB_KEY_SECRET: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+          DEPLOYMENT_TYPE: "deb"
 
-      - name: "Test if https://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Register with wrong eab-credentials - should fail"
+        uses: ./.github/actions/wf_specific/eab/enroll_wrong_credentials
+        with:
+          EAB_KEY_ID: "keyid_01"
+          EAB_KEY_SECRET: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+          DEPLOYMENT_TYPE: "deb"
 
-      - name: "Fail - Register lego"
-        id: legofail
-        continue-on-error: true
+      - name: "Enroll tests"
+        uses: ./.github/actions/wf_specific/eab/enroll_eab
+        with:
+          DEPLOYMENT_TYPE: "deb"
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+          WEBSRV: ${{ matrix.websrv }}
+          DATA_DIR: "data/volume"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Switch to non-strict mode with EAB profiling and wildcard disabled (deb)"
         run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http
+          sudo echo "eab_strict_mode: False" >> data/volume/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+          sudo sed -i "s#json_handler.py#kid_profile_handler.py#g" data/volume/acme_srv.cfg
 
-      - name: "Check lego result"
-        if: steps.legofail.outcome != 'failure'
-        run: |
-          echo "legofail outcome is ${{steps.legofail.outcome }}"
-          exit 1
+          cat << 'EOF' | sudo tee data/volume/acme_ca/key_file.json > /dev/null
+          {
+            "keyid_00": {
+              "hmac": "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw",
+              "order": {
+                "wildcard_certificate_disable": false
+              },
+              "authorization": {
+                "prevalidated_domainlist": ["lego-00.acme", "*.wc.acme"]
+              }
+            },
+            "keyid_01": {
+              "hmac": "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg",
+              "order": {
+                "wildcard_certificate_disable": false
+              },
+              "authorization": {
+                "prevalidated_domainlist": ["*.foo.bar"]
+              }
+            },
+            "keyid_02": {
+              "hmac": "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
+            }
+          }
+          EOF
 
-      - name: "Enroll lego"
-        run: |
-          sudo rm -rf $PWD/lego
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --eab --eab.kid keyid_02 --eab.hmac dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM -d lego.acme --http
-          sudo cat lego/certificates/lego.acme.issuer.crt |  awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
-          sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
+          sudo awk '
+          BEGIN { in_order = 0; has_wildcard = 0 }
+          /^\[Order\]$/ {
+            in_order = 1
+            print
+            next
+          }
+          /^\[/ && in_order {
+            if (!has_wildcard) {
+              print "wildcard_certificate_disable: True"
+              has_wildcard = 1
+            }
+            in_order = 0
+          }
+          {
+            if (in_order && /^wildcard_certificate_disable[[:space:]]*:/) {
+              sub(/:.*/, ": True")
+              has_wildcard = 1
+            }
+            print
+          }
+          END {
+            if (in_order && !has_wildcard) {
+              print "wildcard_certificate_disable: True"
+            }
+          }
+          ' data/volume/acme_srv.cfg | sudo tee data/volume/acme_srv.cfg.tmp > /dev/null
+          sudo mv data/volume/acme_srv.cfg.tmp data/volume/acme_srv.cfg
 
-      - name: "Fail - Registercertbot without eab-credentials"
-        id: certbotfail
-        continue-on-error: true
+      - name: "Restart services after profile and wildcard config change (deb)"
         run: |
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-      - name: "check certbot result "
-        if: steps.certbotfail.outcome != 'failure'
-        run: |
-          echo "certbot outcome is ${{steps.certbotfail.outcome }}"
-          exit 1
-
-      - name: "Register certbot using eab-credentials"
-        run: |
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email --eab-kid keyid_02 --eab-hmac-key=dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM
-
-      - name: "Enroll HTTP-01 single domain certbot"
-        run: |
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-          sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
-
-      - name: "Fail - Register acme.sh"
-        id: acmeshfail
-        continue-on-error: true
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --debug 3
-
-      - name: "Check acme.sh result "
-        if: steps.acmeshfail.outcome != 'failure'
-        run: |
-          echo "acmeshfail outcome is ${{steps.acmeshfail.outcome }}"
-          exit 1
-
-      - name: "Register acme.sh with eab-credentials"
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --register-account --server http://acme-srv --accountemail 'acme-sh@example.com' --eab-kid keyid_02 --eab-hmac-key dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM --debug 3
-
-      - name: "Enroll acme.sh"
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
-          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem  acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-      - name: "Rename eab-kid"
-        run: |
-          sudo sed -i "s/keyid_02/keyid_12/g" data/volume/acme_ca/key_file.json
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
-      - name: "Enroll acme.sh with unknown kid - should fail"
-        id: acmekidfail
-        continue-on-error: true
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+      - name: "Assert non-strict mode via directory metadata (deb with profiling)"
+        uses: ./.github/actions/wf_specific/eab/assert_directory_eab_required
+        with:
+          EXPECTED_VALUE: "false"
 
-      - name: "Check result "
-        if: steps.acmekidfail.outcome != 'failure'
-        run: |
-          echo "certbot outcome is ${{steps.acmekidfail.outcome }}"
-          exit 1
-
-      - name: "Disable eab-kid checking"
-        run: |
-          sudo echo "eabkid_check_disable: True" >> data/volume/acme_srv.cfg
-
-      - name: "Rename eab-kid"
-        run: |
-          sudo sed -i "s/keyid_02/keyid_12/g" data/volume/acme_ca/key_file.json
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
-        env:
-          WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
-
-
-      - name: "Enroll acme.sh with unknown kid - should work"
-        # id: acmekidfail
-        # continue-on-error: true
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv -d acme-sh.acme --standalone --force --debug 3 --output-insecure
+      - name: "Lego profile and wildcard matrix tests (deb)"
+        uses: ./.github/actions/wf_specific/eab/enroll_lego_profile_matrix
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}

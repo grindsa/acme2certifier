@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Cryptographic operations for acme2certifier"""
+
 import hashlib
 import json
 import logging

@@ -114,6 +114,11 @@ jobs:
           cd examples/Docker
           docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "No Template - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_no_template
 
@@ -136,11 +141,13 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-
       - name: "Template - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_template
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Header-info - Setup a2c with xca_ca_handler"
         run: |
@@ -164,6 +171,11 @@ jobs:
 
       - name: "Header-info - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB - Setup a2c with xca_ca_handler - profiling"
         run: |
@@ -205,6 +217,11 @@ jobs:
 
       - name: "EAB - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB subject profiling - Setup a2c with xca_ca_handler "
         run: |
@@ -249,6 +266,11 @@ jobs:
       - name: "EAB subject profiling - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_sp
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "ACME Profile - Setup a2c with xca_ca_handler"
         run: |
           sudo mkdir -p examples/Docker/data/xca
@@ -271,6 +293,11 @@ jobs:
 
       - name: "ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB ACME Profile - Setup a2c with xca_ca_handler"
         run: |
@@ -399,7 +426,6 @@ jobs:
         env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
-
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
         with:
@@ -411,6 +437,11 @@ jobs:
 
       - name: "No Template - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_no_template
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Template - Setup a2c with xca_ca_handler"
         run: |
@@ -428,7 +459,6 @@ jobs:
           sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
           sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
 
-
       - name: "Execute install script"
         run: |
           docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
@@ -437,6 +467,11 @@ jobs:
 
       - name: "Template - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_template
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Header-info - Setup a2c with xca_ca_handler"
         run: |
@@ -465,6 +500,11 @@ jobs:
 
       - name: "Header-info - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB - Setup a2c with xca_ca_handler"
         run: |
@@ -509,6 +549,11 @@ jobs:
 
       - name: "EAB - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB subject profiling - Setup a2c with xca_ca_handler"
         run: |
@@ -558,6 +603,11 @@ jobs:
         with:
           DEPLOYMENT_TYPE: "rpm"
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "ACME Profile - Setup a2c with xca_ca_handler"
         run: |
           mkdir -p data/volume/acme_ca
@@ -583,6 +633,11 @@ jobs:
 
       - name: "ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB ACME Profile - Setup a2c with xca_ca_handler"
         run: |
@@ -719,6 +774,11 @@ jobs:
         with:
           TEST_ADL: "true"
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "No Template - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_no_template
 
@@ -740,13 +800,18 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Template - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_template
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Header-info - Setup a2c with xca_ca_handler"
         run: |
@@ -769,13 +834,18 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Header-info - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_headerinfo
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "EAB - Setup a2c with xca_ca_handler"
         run: |
@@ -814,13 +884,18 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "EAB subject profiling - Setup a2c with xca_ca_handler"
         run: |
@@ -860,15 +935,20 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB subject profiling - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_sp
         with:
           DEPLOYMENT_TYPE: "rpm"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "ACME Profile - Setup a2c with xca_ca_handler"
         run: |
@@ -889,13 +969,18 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "EAB ACME Profile - Setup a2c with xca_ca_handler"
         run: |
@@ -932,10 +1017,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_acmeprofile

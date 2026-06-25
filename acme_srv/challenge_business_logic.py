@@ -3,6 +3,7 @@ Separation of challenge validation logic and database/state management
 operations for challenge processing.
 
 """
+
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass
 import logging
@@ -88,6 +89,11 @@ class ChallengeRepository(ABC):
     @abstractmethod
     def get_account_jwk(self, challenge_name: str) -> Optional[Dict[str, Any]]:
         """Get JWK for the account associated with the challenge."""
+        pass  # pragma: no cover
+
+    @abstractmethod
+    def get_authorization_account_name(self, authorization_name: str) -> Optional[str]:
+        """Get account name for an authorization."""
         pass  # pragma: no cover
 
 
@@ -205,28 +211,53 @@ class ChallengeFactory:
         server_name: str,
         challenge_path: str,
         email_address: Optional[str] = None,
+        dns_persist_01_support: bool = False,
+        issuer_domain_names: Optional[List[str]] = None,
+        account_path: str = "/acme/acct/",
     ):
         self.repository = repository
         self.logger = logger
         self.server_name = server_name
         self.challenge_path = challenge_path
         self.email_address = email_address
+        self.dns_persist_01_support = dns_persist_01_support
+        self.issuer_domain_names = issuer_domain_names or []
+        self.account_path = account_path
 
     def create_standard_challenge_set(
-        self, authorization_name: str, token: str, id_type: str, value: str
+        self,
+        authorization_name: str,
+        token: str,
+        id_type: str,
+        value: str,
+        is_wildcard: bool = False,
     ) -> List[Dict[str, Any]]:
         """Create standard ACME challenge set (http-01, dns-01, tls-alpn-01)."""
         self.logger.debug(
             "ChallengeFactory.create_standard_challenge_set(%s)", authorization_name
         )
 
-        challenge_types = ["http-01", "dns-01", "tls-alpn-01"]
-        # Skip DNS challenge for IP identifiers
-        if id_type == "ip":
+        is_dns = bool(id_type and id_type.lower() == "dns")
+        is_wildcard_identifier = bool(
+            is_dns and (is_wildcard or (value and value.startswith("*.")))
+        )
+
+        if is_wildcard_identifier:
             self.logger.debug(
-                "ChallengeFactory.create_standard_challenge_set(): Skipping dns-01 challenge for IP identifier"
+                "ChallengeFactory.create_standard_challenge_set(): Detected wildcard identifier, only creating dns-01 challenge"
             )
-            challenge_types.remove("dns-01")
+            challenge_types = ["dns-01"]
+        else:
+            challenge_types = ["http-01", "dns-01", "tls-alpn-01"]
+            # Skip DNS challenge for IP identifiers
+            if id_type and id_type.lower() == "ip" and "dns-01" in challenge_types:
+                self.logger.debug(
+                    "ChallengeFactory.create_standard_challenge_set(): Skipping dns-01 challenge for IP identifier"
+                )
+                challenge_types.remove("dns-01")
+
+        if self.dns_persist_01_support and id_type and id_type.lower() == "dns":
+            challenge_types.append("dns-persist-01")
 
         challenges = []
         for challenge_type in challenge_types:
@@ -332,6 +363,16 @@ class ChallengeFactory:
 
         elif challenge_type == "tkauth-01":
             challenge_dict["tkauth-type"] = "atc"
+        elif challenge_type == "dns-persist-01":
+            account_name = self.repository.get_authorization_account_name(
+                authorization_name
+            )
+            if account_name:
+                challenge_dict["accounturi"] = (
+                    f"{self.server_name}{self.account_path}{account_name}"
+                )
+            challenge_dict["issuer-domain-names"] = self.issuer_domain_names
+            challenge_dict.pop("token", None)
         elif challenge_type == "sectigo-email-01":
             challenge_dict["status"] = "valid"
             challenge_dict.pop("token", None)
@@ -366,6 +407,7 @@ class ChallengeService:
         id_type: str,
         id_value: str,
         config: Dict[str, Any],
+        is_wildcard: bool = False,
         url: str = "",
     ) -> List[Dict[str, Any]]:
         """Get challenge set for an authorization."""
@@ -399,6 +441,7 @@ class ChallengeService:
             id_type,
             id_value,
             config,
+            is_wildcard,
         )
 
     def _format_existing_challenges(
@@ -434,6 +477,17 @@ class ChallengeService:
             if challenge.type == "email-reply-00" and config.email_address:
                 challenge_dict["from"] = config.email_address
 
+            if challenge.type == "dns-persist-01":
+                account_name = self.repository.get_authorization_account_name(
+                    challenge.authorization_name
+                )
+                if account_name:
+                    challenge_dict["accounturi"] = (
+                        f"{self.factory.server_name}{self.factory.account_path}{account_name}"
+                    )
+                challenge_dict["issuer-domain-names"] = self.factory.issuer_domain_names
+                challenge_dict.pop("token", None)
+
             challenge_list.append(challenge_dict)
 
         self.logger.debug(
@@ -449,6 +503,7 @@ class ChallengeService:
         id_type: str,
         id_value: str,
         config: Dict[str, Any],
+        is_wildcard: bool = False,
     ) -> List[Dict[str, Any]]:
         """Create a new challenge set based on configuration."""
         self.logger.debug(
@@ -484,7 +539,11 @@ class ChallengeService:
 
         challenge_list.extend(
             self.factory.create_standard_challenge_set(
-                authorization_name, token, id_type, id_value
+                authorization_name,
+                token,
+                id_type,
+                id_value,
+                is_wildcard,
             )
         )
 

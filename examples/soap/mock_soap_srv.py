@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """soap-server mock providing endpoint for soap ca handler"""
+
 # pylint: disable=c0413, e0401
 import os
 import sys
@@ -294,7 +295,7 @@ def request_process(logger, csr: str) -> bytes:
     logger.debug("csr: %s", csr)
 
     # enroll certificate
-    (error, cert_bundle, _cert_raw, _unused) = ca_handler.enroll(csr)
+    error, cert_bundle, _cert_raw, _unused = ca_handler.enroll(csr)
 
     if not error:
         pkcs7 = _pem2pkcs7_convert(logger, tmp_dir, cert_bundle)
@@ -353,7 +354,7 @@ def soap_srv(environ, start_response) -> List[str]:
 
 if __name__ == "__main__":
 
-    (DEBUG, CONFIG_FILE, HTTP_STATUS_CODE, ERROR) = arg_parse()
+    DEBUG, CONFIG_FILE, HTTP_STATUS_CODE, ERROR = arg_parse()
 
     # initialize logger
     LOGGER = logger_setup(DEBUG)

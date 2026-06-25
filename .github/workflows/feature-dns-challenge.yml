@@ -89,73 +89,139 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+      - name: "Prepare acme.sh container and set DNS server in acme_srv.cfg"
+        uses: ./.github/actions/wf_specific/dns/acmesh_prep
         with:
-          time: 10s
+          DEPLOYMENT_TYPE: container
+          ACME_SRV_CFG: data/acme_srv.cfg
 
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Enroll by using dns-01 challenges"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
+        with:
+          CA_PATH: examples/Docker/data/acme_ca/
+          DEPLOYMENT_TYPE: container
 
-      - name: "Test if https://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
-      - name: "Prepare acme.sh container"
+      - name: "Set wildcard_certificate_disable to True"
         run: |
-          docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-          sudo cp .github/dns_test.sh acme-sh/
-          docker exec -i acme-sh apk add dnsmasq
-          docker exec -i acme-sh dnsmasq
-          docker exec -i acme-sh mv /acme.sh/dns_test.sh /acmebin/dnsapi/
-          docker exec -i acme-sh chmod +x /acmebin/dnsapi/dns_test.sh
-
-      - name: "Set DNS server"
-        run: |
+          sudo awk '
+          BEGIN { in_order = 0; has_param = 0 }
+          /^\[Order\]$/ {
+            in_order = 1
+            print
+            next
+          }
+          /^\[/ && in_order {
+            if (!has_param) {
+              print "wildcard_certificate_disable: True"
+              has_param = 1
+            }
+            in_order = 0
+          }
+          {
+            if (in_order && /^wildcard_certificate_disable[[:space:]]*:/) {
+              sub(/:.*/, ": True")
+              has_param = 1
+            }
+            print
+          }
+          END {
+            if (in_order && !has_param) {
+              print "wildcard_certificate_disable: True"
+            }
+          }
+          ' examples/Docker/data/acme_srv.cfg | sudo tee examples/Docker/data/acme_srv.cfg.tmp > /dev/null
+          sudo mv examples/Docker/data/acme_srv.cfg.tmp examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          docker compose stop
-          docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh
-          sudo sed -i "s/DNS-IP/$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)/g" data/acme_srv.cfg
-          docker compose start
-          docker compose logs
+          docker compose restart
 
-      - name: "Enroll acme.sh - single domain"
-        run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.single --standalone --debug 3 --output-insecure --force
-          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.single_ecc/acme-sh.single.cer
+      - name: "Enroll by using dns-01 challenges with wildcard disabled (wildcard expected to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
+        with:
+          CA_PATH: examples/Docker/data/acme_ca/
+          DEPLOYMENT_TYPE: container
+          WILDCARD_EXPECT_FAIL: 'true'
 
-      - name: "Enroll acme.sh - two domains"
-        run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.first --dns dns_test -d acme-sh.second --standalone --debug 3 --output-insecure --force
-          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.first_ecc/acme-sh.first.cer
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
-      - name: "Enroll acme.sh - single wildcard domain"
+      - name: "Set wildcard_certificate_disable to False"
         run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/*acme-sh.wildcard_ecc/*acme-sh.wildcard.cer
-
-      - name: "Enroll acme.sh - double wildcard domain"
-        run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.first-wildcard --dns dns_test -d *.acme-sh.second-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/*.acme-sh.first-wildcard_ecc/*.acme-sh.first-wildcard.cer
-
-      - name: "Enroll acme.sh - domain and wildcard domain"
-        run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.fqdn-wildcard --dns dns_test -d *.acme-sh.fqdn-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.fqdn-wildcard_ecc/acme-sh.fqdn-wildcard.cer
-
-      - name: "Check TXT record exists"
-        if: ${{ failure() }}
-        run: |
-          docker exec -i acme-sh ps -a
-          docker exec -i acme-sh netstat -anu
+          sudo sed -i "s/^wildcard_certificate_disable:.*/wildcard_certificate_disable: False/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          docker compose logs
-          dig -t TXT _acme-challenge.acme-sh.single @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.first @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.second @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.first-wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.second-wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+          docker compose restart
+
+      - name: "Enroll by using dns-01 challenges with wildcard enabled (wildcard expected to succeed)"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
+        with:
+          CA_PATH: examples/Docker/data/acme_ca/
+          DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Setup openssl ca_handler for persistent-01 challenge support"
+        run: |
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          echo -e "[Directory]\ncaaidentities: [\"acme.local\", \"acme-srv.acme\"]" >> examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: False\ndns_persist_01_support: True/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Register lego container and create dns records for persistent-01 challenges"
+        uses: ./.github/actions/wf_specific/dns/persistent_prep
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Enroll by using persistent-01 dns challenges (to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_persistent01
+        with:
+          CA_PATH: examples/Docker/data/acme_ca/
+          DEPLOYMENT_TYPE: container
+          TO_FAIL: 'true'
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Enable Wildcard support"
+        run: |
+          sudo sed -i "s/dns_persist_01_support: True/dns_persist_01_support: True\ndns_persist_allow_policy_wildcard: True/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Enroll by using persistent-01 dns challenges (not to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_persistent01
+        with:
+          CA_PATH: examples/Docker/data/acme_ca/
+          DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Enable JIT support"
+        run: |
+          sudo sed -i "s/dns_persist_allow_policy_wildcard: True/dns_persist_allow_policy_wildcard: True\ndns_persist_jit_validation: True/g" examples/Docker/data/acme_srv.cfg
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "Enroll by using persistent-01 dns challenges (not to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_persistent01
+        with:
+          CA_PATH: examples/Docker/data/acme_ca/
+          DEPLOYMENT_TYPE: container
+          CHECK_JIT: 'true'
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -218,22 +284,12 @@ jobs:
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
           sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: False\ndns_server_list: [\"DNS-IP\"]/g" data/volume/acme_srv.cfg
           sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_file: \/opt\/acme2certifier\/examples\/ca_handler\/openssl_ca_handler.py/g" data/volume/acme_srv.cfg
 
-      - name: "Prepare acme.sh container"
-        run: |
-          docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-          sudo cp .github/dns_test.sh acme-sh/
-          docker exec -i acme-sh apk add dnsmasq
-          docker exec -i acme-sh dnsmasq
-          docker exec -i acme-sh mv /acme.sh/dns_test.sh /acmebin/dnsapi/
-          docker exec -i acme-sh chmod +x /acmebin/dnsapi/dns_test.sh
-
-      - name: "set DNS server"
-        run: |
-          docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh
-          sudo sed -i "s/DNS-IP/$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)/g" data/volume/acme_srv.cfg
+      - name: "Prepare acme.sh container and set DNS server in acme_srv.cfg"
+        uses: ./.github/actions/wf_specific/dns/acmesh_prep
 
       - name: "Execute install scipt"
         run: |
@@ -241,47 +297,145 @@ jobs:
         env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Enroll by using dns-01 challenges"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
 
-      - name: "Enroll acme.sh - single domain"
-        run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.single --standalone --debug 3 --output-insecure --force
-          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.single_ecc/acme-sh.single.cer
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
-      - name: "Enroll acme.sh - two domains"
+      - name: "Set wildcard_certificate_disable to True"
         run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.first --dns dns_test -d acme-sh.second --standalone --debug 3 --output-insecure --force
-          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.first_ecc/acme-sh.first.cer
+          sudo awk '
+          BEGIN { in_order = 0; has_param = 0 }
+          /^\[Order\]$/ {
+            in_order = 1
+            print
+            next
+          }
+          /^\[/ && in_order {
+            if (!has_param) {
+              print "wildcard_certificate_disable: True"
+              has_param = 1
+            }
+            in_order = 0
+          }
+          {
+            if (in_order && /^wildcard_certificate_disable[[:space:]]*:/) {
+              sub(/:.*/, ": True")
+              has_param = 1
+            }
+            print
+          }
+          END {
+            if (in_order && !has_param) {
+              print "wildcard_certificate_disable: True"
+            }
+          }
+          ' data/volume/acme_srv.cfg | sudo tee data/volume/acme_srv.cfg.tmp > /dev/null
+          sudo mv data/volume/acme_srv.cfg.tmp data/volume/acme_srv.cfg
 
-      - name: "Enroll acme.sh - single wildcard domain"
+      - name: "Reconfigure a2c"
         run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/*acme-sh.wildcard_ecc/*acme-sh.wildcard.cer
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
 
-      - name: "Enroll acme.sh - double wildcard domain"
-        run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.first-wildcard --dns dns_test -d *.acme-sh.second-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/*.acme-sh.first-wildcard_ecc/*.acme-sh.first-wildcard.cer
+      - name: "Enroll by using dns-01 challenges with wildcard disabled (wildcard expected to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
+        with:
+          WILDCARD_EXPECT_FAIL: 'true'
 
-      - name: "Enroll acme.sh - domain and wildcard domain"
-        run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.fqdn-wildcard --dns dns_test -d *.acme-sh.fqdn-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.fqdn-wildcard_ecc/acme-sh.fqdn-wildcard.cer
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
-      - name: "Check TXT record exists"
-        if: ${{ failure() }}
+      - name: "Set wildcard_certificate_disable to False"
         run: |
-          docker exec -i acme-sh ps -a
-          docker exec -i acme-sh netstat -anu
-          cd examples/Docker/
-          docker compose logs
-          dig -t TXT _acme-challenge.acme-sh.single @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.first @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.second @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.first-wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.second-wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+          sudo sed -i "s/^wildcard_certificate_disable:.*/wildcard_certificate_disable: False/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "Enroll by using dns-01 challenges with wildcard enabled (wildcard expected to succeed)"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Setup openssl ca_handler for persistent-01 challenge support"
+        run: |
+          sudo chmod 777 data/volume/acme_srv.cfg
+          echo -e "[Directory]\ncaaidentities: [\"acme.local\", \"acme-srv.acme\"]" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: False\ndns_persist_01_support: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "Register lego container and create dns records for persistent-01 challenges"
+        uses: ./.github/actions/wf_specific/dns/persistent_prep
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Enroll by using persistent-01 dns challenges (to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_persistent01
+        with:
+          CA_PATH: data/volume/acme_ca/
+          DEPLOYMENT_TYPE: container
+          TO_FAIL: 'true'
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Enable Wildcard support"
+        run: |
+          sudo sed -i "s/dns_persist_01_support: True/dns_persist_01_support: True\ndns_persist_allow_policy_wildcard: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "Enroll by using persistent-01 dns challenges (not to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_persistent01
+        with:
+          CA_PATH: data/volume/acme_ca/
+          DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "Enable JIT support"
+        run: |
+          sudo sed -i "s/dns_persist_allow_policy_wildcard: True/dns_persist_allow_policy_wildcard: True\ndns_persist_jit_validation: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "Enroll by using persistent-01 dns challenges (not to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_persistent01
+        with:
+          CA_PATH: data/volume/acme_ca/
+          DEPLOYMENT_TYPE: rpm
+          CHECK_JIT: 'true'
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -353,23 +507,13 @@ jobs:
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
           sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: False\ndns_server_list: [\"DNS-IP\"]/g" data/volume/acme_srv.cfg
           sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_file: \/var\/www\/acme2certifier\/examples\/ca_handler\/openssl_ca_handler.py/g" data/volume/acme_srv.cfg
           sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
 
-      - name: "Prepare acme.sh container"
-        run: |
-          docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
-          sudo cp .github/dns_test.sh acme-sh/
-          docker exec -i acme-sh apk add dnsmasq
-          docker exec -i acme-sh dnsmasq
-          docker exec -i acme-sh mv /acme.sh/dns_test.sh /acmebin/dnsapi/
-          docker exec -i acme-sh chmod +x /acmebin/dnsapi/dns_test.sh
-
-      - name: "set DNS server"
-        run: |
-          docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh
-          sudo sed -i "s/DNS-IP/$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)/g" data/volume/acme_srv.cfg
+      - name: "Prepare acme.sh container and set DNS server in acme_srv.cfg"
+        uses: ./.github/actions/wf_specific/dns/acmesh_prep
 
       - name: "Execute install script"
         run: |
@@ -378,47 +522,150 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           EXECSCRIPT: ${{ matrix.execscript }}
 
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Enroll by using dns-01 challenges"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
 
-      - name: "Enroll acme.sh - single domain"
-        run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.single --standalone --debug 3 --output-insecure --force
-          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.single_ecc/acme-sh.single.cer
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
-      - name: "Enroll acme.sh - two domains"
+      - name: "Set wildcard_certificate_disable to True"
         run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.first --dns dns_test -d acme-sh.second --standalone --debug 3 --output-insecure --force
-          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.first_ecc/acme-sh.first.cer
+          sudo awk '
+          BEGIN { in_order = 0; has_param = 0 }
+          /^\[Order\]$/ {
+            in_order = 1
+            print
+            next
+          }
+          /^\[/ && in_order {
+            if (!has_param) {
+              print "wildcard_certificate_disable: True"
+              has_param = 1
+            }
+            in_order = 0
+          }
+          {
+            if (in_order && /^wildcard_certificate_disable[[:space:]]*:/) {
+              sub(/:.*/, ": True")
+              has_param = 1
+            }
+            print
+          }
+          END {
+            if (in_order && !has_param) {
+              print "wildcard_certificate_disable: True"
+            }
+          }
+          ' data/volume/acme_srv.cfg | sudo tee data/volume/acme_srv.cfg.tmp > /dev/null
+          sudo mv data/volume/acme_srv.cfg.tmp data/volume/acme_srv.cfg
 
-      - name: "Enroll acme.sh - single wildcard domain"
+      - name: "Reconfigure a2c "
         run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/*acme-sh.wildcard_ecc/*acme-sh.wildcard.cer
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
-      - name: "Enroll acme.sh - double wildcard domain"
-        run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.first-wildcard --dns dns_test -d *.acme-sh.second-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/*.acme-sh.first-wildcard_ecc/*.acme-sh.first-wildcard.cer
+      - name: "Enroll by using dns-01 challenges with wildcard disabled (wildcard expected to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
+        with:
+          WILDCARD_EXPECT_FAIL: 'true'
 
-      - name: "Enroll acme.sh - domain and wildcard domain"
-        run: |
-          docker exec -i acme-sh acme.sh --dnssleep 10 --server http://acme-srv --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.fqdn-wildcard --dns dns_test -d *.acme-sh.fqdn-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-          openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.fqdn-wildcard_ecc/acme-sh.fqdn-wildcard.cer
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
-      - name: "Check TXT record exists"
-        if: ${{ failure() }}
+      - name: "Set wildcard_certificate_disable to False"
         run: |
-          docker exec -i acme-sh ps -a
-          docker exec -i acme-sh netstat -anu
-          cd examples/Docker/
-          docker compose logs
-          dig -t TXT _acme-challenge.acme-sh.single @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.first @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.second @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.first-wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
-          dig -t TXT _acme-challenge.acme-sh.second-wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+          sudo sed -i "s/^wildcard_certificate_disable:.*/wildcard_certificate_disable: False/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "Enroll by using dns-01 challenges with wildcard enabled (wildcard expected to succeed)"
+        uses: ./.github/actions/wf_specific/dns/enroll_dns01
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Setup openssl ca_handler for persistent-01 challenge support"
+        run: |
+          sudo chmod 777 data/volume/acme_srv.cfg
+          echo -e "[Directory]\ncaaidentities: [\"acme.local\", \"acme-srv.acme\"]" >> data/volume/acme_srv.cfg
+          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: False\ndns_persist_01_support: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "Register lego container and create dns records for persistent-01 challenges"
+        uses: ./.github/actions/wf_specific/dns/persistent_prep
+        with:
+          DEPLOYMENT_TYPE: container
+
+      - name: "Enroll by using persistent-01 dns challenges (to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_persistent01
+        with:
+          CA_PATH: data/volume/acme_ca/
+          DEPLOYMENT_TYPE: container
+          TO_FAIL: 'true'
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Enable Wildcard support"
+        run: |
+          sudo sed -i "s/dns_persist_01_support: True/dns_persist_01_support: True\ndns_persist_allow_policy_wildcard: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "Enroll by using persistent-01 dns challenges (not to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_persistent01
+        with:
+          CA_PATH: data/volume/acme_ca/
+          DEPLOYMENT_TYPE: container
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
+      - name: "Enable JIT support"
+        run: |
+          sudo sed -i "s/dns_persist_allow_policy_wildcard: True/dns_persist_allow_policy_wildcard: True\ndns_persist_jit_validation: True/g" data/volume/acme_srv.cfg
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "Enroll by using persistent-01 dns challenges (not to fail)"
+        uses: ./.github/actions/wf_specific/dns/enroll_persistent01
+        with:
+          CA_PATH: data/volume/acme_ca/
+          DEPLOYMENT_TYPE: deb
+          CHECK_JIT: 'true'
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}

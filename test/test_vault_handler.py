@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """unittests for vault_ca_handler"""
+
 # pylint: disable=C0415, R0904, W0212
 import sys
 import os

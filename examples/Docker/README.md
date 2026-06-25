@@ -107,6 +107,43 @@ services:
 
 ______________________________________________________________________
 
+## Mounting acme.sh
+
+If you plan to use the ACME CA Handler to issue certificates using the DNS-01 challenge, a copy of [acme.sh](https://github.com/acmesh-official/acme.sh) needs to be present in the container. One can utilize the OCI volume driver in docker. This saves you from downloading and keeping acme.sh up-to-date outside of your container definition.
+
+```yaml
+version: '3.2'
+services:
+  acme-srv:
+    volumes:
+      - type: image
+        source: docker.io/neilpang/acme.sh:latest
+        target: /var/www/acme2certifier/volume/acmesh
+        volume:
+          subpath: acmebin
+```
+
+You can then tell acme_srv.cfg about these files like:
+
+```ini
+[CAhandler]
+acme_sh_script: /var/www/acme2certifier/volume/acmesh/acme.sh
+acme_sh_shell: /bin/bash
+dns_update_script: /var/www/acme2certifier/volume/acmesh/dnsapi/dns_cf.sh
+```
+
+**Note:**
+
+- Acme.sh is by default running with the HOME directory of the root user, and therefore wants to write files in a `/root/.acme.sh` directory inside the container. We can utilize `dns_update_script_variables` to override this location in acme_srv.cfg like so:
+
+  ```ini
+  dns_update_script_variables: {"LE_WORKING_DIR": "/var/www/acme2certifier/volume/acmehome"}
+  ```
+
+  The `acmehome` directory must already exist in your bind-mount for the volume
+
+______________________________________________________________________
+
 ## Starting acme2certifier
 
 ```bash

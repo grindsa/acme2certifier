@@ -27,15 +27,15 @@ runs:
   using: "composite"
   steps:
 
-    - name: "install awccli"
+    - name: "install awscli"
       run: |
         sudo apt-get update
         pip3 install awscli --upgrade --user
         pip3 install boto3 --upgrade --user
-        export PATH=$PATH:$HOME/.local/bin
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
       shell: bash
 
-    - name: "configure awccli"
+    - name: "configure awscli"
       run: |
         aws --version
         aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
@@ -70,7 +70,7 @@ runs:
 
     - name: "[ WAIT ] Sleep for 10s"
       if: ${{ inputs.ACTION == 'start' }}
-      uses: juliangruber/sleep-action@v2.0.3
+      uses: juliangruber/sleep-action@v2.0.4
       with:
         time: 10s
 
@@ -104,7 +104,6 @@ runs:
 
     - name: "[ WAIT ] Sleep for 10s"
       if: ${{ inputs.ACTION == 'stop' }}
-      uses: juliangruber/sleep-action@v2.0.3
+      uses: juliangruber/sleep-action@v2.0.4
       with:
         time: 10s
-

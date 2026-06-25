@@ -54,7 +54,7 @@ Adjust the values to match your email server settings.
 | Parameter                | Description                                                                                   |
 |--------------------------|-----------------------------------------------------------------------------------------------|
 | `email_identifier_support` | Set to `true` to allow email identifiers for end-user certificates.                         |
-| `email_identifier_rewrite` | Set to `true` to send email addresses as part of DNS indentifiers. You need to enable this option when [acme_email test client](https://github.com/polhenarejos/acme_email) as the client is not fully rfc compliant.  [Further details](https://github.com/polhenarejos/acme_email/issues/4)                       |
+| `email_identifier_rewrite` | Set to `true` to send email addresses as part of DNS identifiers. You need to enable this option when using the [acme_email test client](https://github.com/polhenarejos/acme_email), as the client is not fully RFC compliant. [Further details](https://github.com/polhenarejos/acme_email/issues/4) |
 | `imap_server`            | IMAP server address for receiving challenge emails.                                          |
 | `imap_port`              | IMAP server port (usually 993 for SSL).                                                      |
 | `imap_use_ssl`           | Set to `true` to use SSL for IMAP connections.                                               |

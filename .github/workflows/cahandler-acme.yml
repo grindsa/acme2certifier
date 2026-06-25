@@ -325,7 +325,7 @@ jobs:
           XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -384,6 +384,11 @@ jobs:
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB ACME Profiling - Setup acme ca_handler"
         run: |
@@ -571,6 +576,11 @@ jobs:
         with:
           json_secret: ${{ secrets.CF_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: "Download and import container"
         uses: ./.github/actions/container_load
         with:
@@ -601,7 +611,7 @@ jobs:
           sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
           sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "acme_url: https://acme-staging-v02.api.letsencrypt.org" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_account_email: grindelsack@gmail.com" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "acme_account_email: $EMAIL" >> examples/Docker/data/acme_srv.cfg
           sudo echo "acme_sh_script: volume/acme/acme.sh" >> examples/Docker/data/acme_srv.cfg
           sudo echo "dns_update_script: volume/acme/dns_cf.sh" >> examples/Docker/data/acme_srv.cfg
           sudo echo "dns_update_script_variables: {\"CF_Token\": \"$CF_TOKEN\", \"CF_Zone_ID\": \"$CF_ZONE_ID\"}" >> examples/Docker/data/acme_srv.cfg
@@ -667,7 +677,7 @@ jobs:
           sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
           sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "acme_url: https://acme-staging-v02.api.letsencrypt.org" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_account_email: grindelsack@gmail.com" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "acme_account_email: $EMAIL" >> examples/Docker/data/acme_srv.cfg
           sudo echo "acme_sh_script: volume/acme/acme.sh" >> examples/Docker/data/acme_srv.cfg
           sudo echo "dns_update_script: volume/acme/dns_acmedns.sh" >> examples/Docker/data/acme_srv.cfg
           sudo echo "dns_update_script_variables: {\"ACMEDNS_USERNAME\": \"$ACMEDNS_USERNAME\", \"ACMEDNS_PASSWORD\": \"$ACMEDNS_PASSWORD\", \"ACMEDNS_BASE_URL\": \"https://auth.acme-dns.io\", \"ACMEDNS_SUBDOMAIN\": \"$ACMEDNS_SUBDOMAIN\"}" >> examples/Docker/data/acme_srv.cfg
@@ -795,6 +805,11 @@ jobs:
         run: |
           # docker exec acme-srv grep -i "found in keyfile" /var/log/messages
           docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "ACME Profile - Setup acme ca_handler"
         run: |
@@ -1011,7 +1026,7 @@ jobs:
           XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -1063,7 +1078,7 @@ jobs:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB Profiling - Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -1072,6 +1087,11 @@ jobs:
 
       - name: "EAB Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB ACME Profiling - Setup acme_ca_handler"
         run: |
@@ -1270,6 +1290,11 @@ jobs:
         with:
           json_secret: ${{ secrets.CF_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: "Prepare Alma environment"
         uses: ./.github/actions/rpm_prep
         with:
@@ -1301,7 +1326,7 @@ jobs:
           sudo echo "handler_file: examples/ca_handler/acme_ca_handler.py" >> data/volume/acme_srv.cfg
           sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/volume/acme_srv.cfg
           sudo echo "acme_url: https://acme-staging-v02.api.letsencrypt.org" >> data/volume/acme_srv.cfg
-          sudo echo "acme_account_email: grindelsack@gmail.com" >> data/volume/acme_srv.cfg
+          sudo echo "acme_account_email: $EMAIL" >> data/volume/acme_srv.cfg
           sudo echo "acme_sh_script: /opt/acme2certifier/volume/acme_ca/acme.sh" >> data/volume/acme_srv.cfg
           sudo echo "dns_update_script: /opt/acme2certifier/volume/acme_ca/dns_cf.sh" >> data/volume/acme_srv.cfg
           sudo echo "dns_update_script_variables: {\"CF_Token\": \"$CF_TOKEN\", \"CF_Zone_ID\": \"$CF_ZONE_ID\"}" >> data/volume/acme_srv.cfg

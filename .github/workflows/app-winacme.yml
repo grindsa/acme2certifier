@@ -58,17 +58,82 @@ jobs:
 
       - name: "Get RunnerIP"
         run: |
-          Get-NetIPAddress -AddressFamily IPv4
-          # $runner_ip=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet').IPAddress
-          $runner_ip=(Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'vEthernet (nat)').IPAddress
-          echo RUNNER_IP=$runner_ip >> $env:GITHUB_ENV
+          $ErrorActionPreference = "Stop"
+
+          Write-Host "Enumerating IPv4 addresses..."
+          Get-NetIPAddress -AddressFamily IPv4 | Format-Table -AutoSize
+
+          $runner_ip = $null
+
+          $default_route_ifindex = (Get-NetRoute -AddressFamily IPv4 -DestinationPrefix "0.0.0.0/0" -ErrorAction SilentlyContinue |
+            Sort-Object -Property RouteMetric, InterfaceMetric |
+            Select-Object -First 1 -ExpandProperty InterfaceIndex)
+
+          $candidates = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+            Where-Object {
+              $_.IPAddress -ne "127.0.0.1" -and
+              $_.IPAddress -notlike "169.254.*" -and
+              -not $_.SkipAsSource
+            }
+
+          # Prioritize addresses used by local virtual NAT adapters for this workflow.
+          $runner_ip = $candidates |
+            Sort-Object -Property @(
+              @{Expression = {
+                if ($_.IPAddress -like "172.*") { return 0 }
+                if ($_.InterfaceAlias -like "vEthernet*") { return 1 }
+                if ($_.PrefixOrigin -eq "Manual") { return 2 }
+                if ($default_route_ifindex -and $_.InterfaceIndex -eq $default_route_ifindex) { return 3 }
+                return 4
+              }}
+            ) |
+            Select-Object -First 1 -ExpandProperty IPAddress
+
+          # Fallback: first non-loopback, non-link-local IPv4 address.
+          if (-not $runner_ip) {
+            $runner_ip = Get-NetIPAddress -AddressFamily IPv4 -ErrorAction SilentlyContinue |
+              Where-Object {
+                $_.IPAddress -ne "127.0.0.1" -and
+                $_.IPAddress -notlike "169.254.*"
+              } |
+              Select-Object -First 1 -ExpandProperty IPAddress
+          }
+
+          if (-not $runner_ip) {
+            throw "Could not determine a usable runner IPv4 address"
+          }
+
+          Write-Host "Using runner IPv4: $runner_ip"
+          "RUNNER_IP=$runner_ip" >> $env:GITHUB_ENV
 
       - name: "Echo RunnerIP"
         run:  echo $env:RUNNER_IP
 
       - name: "[ PREPARE ] Create DNS entries "
         run: |
-          Invoke-RestMethod -ContentType "application/json" -Method PUT -Uri "${{ env.CF_DYNAMOP_URL }}" -Headers @{Authorization="Bearer ${{ env.CF_TOKEN }}" } -UseBasicParsing -Body '{"type":"A","name":"${{ env.CF_WINACME1_NAME }}","content":"${{ env.RUNNER_IP }}","ttl":120,"proxied":false}'
+          $ErrorActionPreference = "Stop"
+
+          if (-not [System.Uri]::IsWellFormedUriString($env:CF_DYNAMOP_URL, [System.UriKind]::Absolute)) {
+            throw "CF_DYNAMOP_URL is not a valid absolute URI: $env:CF_DYNAMOP_URL"
+          }
+
+          $payload = @{
+            type = "A"
+            name = "$env:CF_WINACME1_NAME"
+            content = "$env:RUNNER_IP"
+            ttl = 120
+            proxied = $false
+          } | ConvertTo-Json -Compress
+
+          $request = @{
+            ContentType = "application/json"
+            Method = "PUT"
+            Uri = "$env:CF_DYNAMOP_URL"
+            Headers = @{ Authorization = "Bearer $env:CF_TOKEN" }
+            Body = $payload
+          }
+
+          Invoke-RestMethod @request
         shell: pwsh
         env:
           CF_DYNAMOP_URL: ${{ env.CF_DYNAMOP_URL }}
@@ -94,6 +159,7 @@ jobs:
           (Get-Content acme2certifier/settings.py) -replace 'django.contrib.staticfiles', 'sslserver' | Set-Content acme2certifier/settings.py
           cp examples/ca_handler/openssl_ca_handler.py acme2certifier/ca_handler.py
           cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg acme_srv/acme_srv.cfg
+          (Get-Content acme_srv/acme_srv.cfg) -replace 'challenge_validation_disable: False', 'challenge_validation_disable: True' | Set-Content acme_srv/acme_srv.cfg
           cp .github/acme2certifier_cert.pem acme2certifier/acme2certifier_cert.pem
           cp .github/acme2certifier_key.pem acme2certifier/acme2certifier_key.pem
           mkdir .\volume/acme_ca/certs
@@ -112,7 +178,7 @@ jobs:
           Start-Process powershell {python .\manage.py runserver 0.0.0.0:8080 3>&1 2>&1 > volume\redirection.log}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 5s
 
@@ -125,7 +191,7 @@ jobs:
 
       - name: "Download win-acme"
         run: |
-          Invoke-RestMethod -Uri https://github.com/win-acme/win-acme/releases/download/v2.2.8.1635/win-acme.v2.2.8.1635.x64.trimmed.zip -OutFile win-acme.zip
+          Invoke-RestMethod -Uri https://github.com/win-acme/win-acme/releases/download/v2.2.9.1701/win-acme.v2.2.9.1701.x64.trimmed.zip -OutFile win-acme.zip
           Expand-Archive .\win-acme.zip
           mkdir win-acme\certs
           dir win-acme\*
@@ -138,12 +204,27 @@ jobs:
           CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
           CF_WINACME2_NAME: ${{ env.CF_WINACME2_NAME }}
 
+      - name: "Download simple-acme"
+        run: |
+          Invoke-RestMethod -Uri https://github.com/simple-acme/simple-acme/releases/download/v2.3.6/simple-acme.v2.3.6.2257.win-x64.pluggable.zip -OutFile simple-acme.zip
+          Expand-Archive .\simple-acme.zip
+          mkdir simple-acme\certs
+          dir simple-acme\*
+
+      - name: "Enroll certificate via simple-acme"
+        run: |
+          .\simple-acme\wacs.exe --baseuri http://127.0.0.1:8080 --emailaddress=grindsa@bar.local --pemfilespath simple-acme\certs --source manual --host "%CF_SIMPLEACME1_NAME%","%CF_SIMPLEACME2_NAME%" --store pemfiles --force
+        shell: cmd
+        env:
+          CF_SIMPLEACME1_NAME: ${{ env.CF_WINACME1_NAME }}
+          CF_SIMPLEACME2_NAME: ${{ env.CF_WINACME2_NAME }}
+
       - name: "Try to get up the sslserver"
         run: |
           Start-Process powershell {python .\manage.py runsslserver 0.0.0.0:443 --certificate acme2certifier/acme2certifier_cert.pem --key acme2certifier/acme2certifier_key.pem 3>&1 2>&1 > volume\redirection_ssl.log}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 5s
 

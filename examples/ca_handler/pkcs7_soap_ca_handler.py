@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """propritary soap_ca_handler"""
+
 from __future__ import print_function
 import subprocess
 
@@ -28,12 +29,62 @@ from acme_srv.helper import (
     generate_random_string,
 )
 
+INVALID_FILE_PATH_ERROR = "Invalid file path"
+
+
+def _validate_binary_path(file_name, for_write=False):
+    """validate path before filesystem access"""
+    if not file_name or not isinstance(file_name, str):
+        raise ValueError(INVALID_FILE_PATH_ERROR)
+
+    if "\x00" in file_name:
+        raise ValueError(INVALID_FILE_PATH_ERROR)
+
+    normalized = os.path.normpath(file_name)
+    if not os.path.isabs(file_name) and (
+        normalized == os.pardir or normalized.startswith(os.pardir + os.sep)
+    ):
+        raise ValueError("Path traversal detected")
+
+    candidate = os.path.realpath(os.path.abspath(file_name))
+
+    if for_write:
+        target_dir = os.path.dirname(candidate) or os.getcwd()
+        if not os.path.isdir(target_dir):
+            raise ValueError("Target directory does not exist")
+    else:
+        file_exists = os.path.isfile(candidate) or (
+            os.path.exists(candidate) and not os.path.isdir(candidate)
+        )
+        if not file_exists:
+            raise ValueError("Input file does not exist")
+
+    return candidate
+
+
+def _sanitize_config_file_path(file_name):
+    """sanitize configured file path before filesystem access"""
+    if not file_name or not isinstance(file_name, str):
+        raise ValueError(INVALID_FILE_PATH_ERROR)
+
+    if "\x00" in file_name:
+        raise ValueError(INVALID_FILE_PATH_ERROR)
+
+    normalized = os.path.normpath(file_name)
+    if not os.path.isabs(file_name) and (
+        normalized == os.pardir or normalized.startswith(os.pardir + os.sep)
+    ):
+        raise ValueError("Path traversal detected")
+
+    return os.path.realpath(os.path.abspath(file_name))
+
 
 def binary_read(logger, file_name):
     """dump filename in binary format"""
     logger.debug("read_binary(%s)", file_name)
+    safe_file_name = _validate_binary_path(file_name)
     # dump csr into file
-    with open(file_name, "rb") as reader:
+    with open(safe_file_name, "rb") as reader:
         content = reader.read()
 
     return content
@@ -42,9 +93,10 @@ def binary_read(logger, file_name):
 def binary_write(logger, file_name, content):
     """dump filename in binary format"""
     logger.debug("write_binary(%s)", file_name)
+    safe_file_name = _validate_binary_path(file_name, for_write=True)
 
     # dump csr into file
-    with open(file_name, "wb") as writer:
+    with open(safe_file_name, "wb") as writer:
         writer.write(content)
 
 
@@ -94,44 +146,85 @@ class CAhandler(object):
                         ele,
                     )
 
+    def _sanitize_signing_path(self, path_value, err_msg):
+        """sanitize configured signing path and log validation issues"""
+        try:
+            return _sanitize_config_file_path(path_value)
+        except ValueError as err:
+            self.logger.error(err_msg, err)
+            return None
+
+    def _validated_signing_file_path(
+        self, path_value, invalid_err_msg, missing_err_msg
+    ):
+        """sanitize and validate a configured file path before read access"""
+        sanitized_path = self._sanitize_signing_path(path_value, invalid_err_msg)
+        if not sanitized_path:
+            return None
+
+        try:
+            return _validate_binary_path(sanitized_path)
+        except ValueError as err:
+            if str(err) == "Input file does not exist":
+                self.logger.error(missing_err_msg, path_value)
+            else:
+                self.logger.error(invalid_err_msg, err)
+            return None
+
+    def _signing_cert_load(self, config_dic):
+        """load signing certificate from configured path"""
+        if "signing_cert" not in config_dic["CAhandler"]:
+            self.logger.error(
+                "Signing certificate option is missing in configuration file."
+            )
+            return
+
+        cert_path_raw = config_dic["CAhandler"]["signing_cert"]
+        cert_path = self._validated_signing_file_path(
+            cert_path_raw,
+            "Invalid signing certificate path: %s",
+            "Signing certificate file not found: %s",
+        )
+        if not cert_path:
+            return
+
+        with open(cert_path, "rb") as open_file:
+            self.signing_cert = x509.load_pem_x509_certificate(
+                open_file.read(), default_backend()
+            )
+
+    def _signing_key_load(self, config_dic):
+        """load signing key from configured path"""
+        if "signing_key" not in config_dic["CAhandler"]:
+            self.logger.error("Signing key option is missing in configuration file.")
+            return
+
+        key_path_raw = config_dic["CAhandler"]["signing_key"]
+        key_path = self._validated_signing_file_path(
+            key_path_raw,
+            "Invalid signing key path: %s",
+            "Signing key file not found: %s",
+        )
+        if not key_path:
+            return
+
+        with open(key_path, "rb") as open_file:
+            self.signing_key = serialization.load_pem_private_key(
+                open_file.read(),
+                password=self.password,
+                backend=default_backend(),
+            )
+
     def _self_signing_config_load(self, config_dic):
         """load configuriation options for self signing"""
         self.logger.debug("CAhandler._self_signing_config_load()")
 
-        if "signing_cert" in config_dic["CAhandler"]:
-            if os.path.exists(config_dic["CAhandler"]["signing_cert"]):
-                with open(config_dic["CAhandler"]["signing_cert"], "rb") as open_file:
-                    self.signing_cert = x509.load_pem_x509_certificate(
-                        open_file.read(), default_backend()
-                    )
-            else:
-                self.logger.error(
-                    "Signing certificate file not found: %s",
-                    config_dic["CAhandler"]["signing_cert"],
-                )
-        else:
-            self.logger.error(
-                "Signing certificate option is missing in configuration file."
-            )
+        self._signing_cert_load(config_dic)
 
         if "password" in config_dic["CAhandler"]:
             self.password = convert_string_to_byte(config_dic["CAhandler"]["password"])
 
-        if "signing_key" in config_dic["CAhandler"]:
-            if os.path.exists(config_dic["CAhandler"]["signing_key"]):
-                with open(config_dic["CAhandler"]["signing_key"], "rb") as open_file:
-                    self.signing_key = serialization.load_pem_private_key(
-                        open_file.read(),
-                        password=self.password,
-                        backend=default_backend(),
-                    )
-            else:
-                self.logger.error(
-                    "Signing key file not found: %s",
-                    config_dic["CAhandler"]["signing_key"],
-                )
-        else:
-            self.logger.error("Signing key option is missing in configuration file.")
+        self._signing_key_load(config_dic)
 
     def _global_config_load(self, config_dic):
         """load configuriation options for external signing script"""
@@ -550,19 +643,19 @@ class CAhandler(object):
 
         if self.signing_script_dic:
             # signing by external script
-            (error, pkcs7_bundle) = self._pkcs7_sign_external(csr_der)
+            error, pkcs7_bundle = self._pkcs7_sign_external(csr_der)
         else:
             # create pkcs7 bundle
             decoded_cert = self._cert_decode(self.signing_cert)
             # signing by handler
-            (error, pkcs7_bundle) = self._pkcs7_create(
+            error, pkcs7_bundle = self._pkcs7_create(
                 decoded_cert, csr_der, self.signing_key
             )
 
         if not error:
             # build and soap request to be send to ca server
             payload = self._soaprequest_build(b64_encode(self.logger, pkcs7_bundle))
-            (error, b64_cert_bundle) = self._soaprequest_send(payload)
+            error, b64_cert_bundle = self._soaprequest_send(payload)
         else:
             self.logger.error("CAhandler.enroll() aborted with error: %s", error)
             b64_cert_bundle = None  # lgtm [py/unused-local-variable]
