@@ -155,7 +155,7 @@ jobs:
     name: instance_start
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'devel' || contains(inputs.branch, 'arm')) }}
+    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || contains(inputs.branch, 'push')) }}
     steps:
 
     - name: "checkout GIT"
