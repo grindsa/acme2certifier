@@ -801,7 +801,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     needs: arm64_pull_and_test
-    if: ${{ always() && github.repository == 'grindsa/acme2certifier' && inputs.branch == 'master' }}
+    if: ${{ github.repository == 'grindsa/acme2certifier' && (github.ref_name == 'master' || contains(github.ref_name, 'push')) }}
     steps:
 
     - name: "checkout GIT"
