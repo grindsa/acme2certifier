@@ -363,6 +363,7 @@ jobs:
         uses: docker/build-push-action@v5
         if: ${{ env.BUILD_NAME == 'apache2-wsgi'}}
         with:
+          context: .
           push: true
           tags: grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }}, grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}, grindsa/acme2certifier:latest
           file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
@@ -372,6 +373,7 @@ jobs:
         uses: docker/build-push-action@v5
         if: ${{ env.BUILD_NAME != 'apache2-wsgi'}}
         with:
+          context: .
           push: true
           tags: grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }}, grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
           file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
