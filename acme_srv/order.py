@@ -410,7 +410,7 @@ class Order(object):
                 self.logger.debug(
                     "Order._apply_eab_profile() - enabling profile validation because EAB profile mapping is present"
                 )
-            self.config.profiles_check_disable = False
+                self.config.profiles_check_disable = False
 
     def _profile_mapping_to_dict(self, profile_value) -> Dict[str, bool]:
         """Normalize profile mapping value to dict keys."""
