@@ -196,6 +196,8 @@ jobs:
           version: latest
           buildkitd-flags: --debug
 
+
+
       - name: Build with latest tag
         uses: docker/build-push-action@v5
         if: ${{ env.BUILD_NAME == 'apache2-wsgi'}}
@@ -268,6 +270,32 @@ jobs:
           echo "Latest tag is $TAG_NAME"
         env:
           ACME2CERTIFIER_VERSION: ${{ steps.acme2certifier_ver.outputs.tag }}
+          TAG_NAME: ${{ env.TAG_NAME }}
+
+      - name: "Download Debian package for release tag"
+        run: |
+          set -euo pipefail
+
+          REPO="${GITHUB_REPOSITORY}"
+          TAG="${TAG_NAME}"
+          API_URL="https://api.github.com/repos/${REPO}/releases/tags/${TAG}"
+
+          if ! RELEASE_JSON=$(curl -fsSL "$API_URL"); then
+            API_URL="https://api.github.com/repos/${REPO}/releases/tags/v${TAG}"
+            RELEASE_JSON=$(curl -fsSL "$API_URL")
+          fi
+
+          DEB_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
+
+          if [[ -z "${DEB_URL}" || "${DEB_URL}" == "null" ]]; then
+            echo "No .deb asset found for release tag ${TAG}" >&2
+            exit 1
+          fi
+          DEB_NAME=$(basename "$DEB_URL")
+          curl -fL "$DEB_URL" -o "$DEB_NAME"
+          ls -la "$DEB_NAME"
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
           TAG_NAME: ${{ env.TAG_NAME }}
 
       - name: "Prepare environment"
@@ -461,6 +489,33 @@ jobs:
         env:
           ACME2CERTIFIER_VERSION: ${{ steps.acme2certifier_ver.outputs.tag }}
           UUID: ${{ env.UUID }}
+
+      - name: "Download Debian package for release tag"
+        run: |
+          set -euo pipefail
+
+          REPO="${GITHUB_REPOSITORY}"
+          TAG="${TAG_NAME}"
+          API_URL="https://api.github.com/repos/${REPO}/releases/tags/${TAG}"
+
+          if ! RELEASE_JSON=$(curl -fsSL "$API_URL"); then
+            API_URL="https://api.github.com/repos/${REPO}/releases/tags/v${TAG}"
+            RELEASE_JSON=$(curl -fsSL "$API_URL")
+          fi
+
+          DEB_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
+
+          if [[ -z "${DEB_URL}" || "${DEB_URL}" == "null" ]]; then
+            echo "No .deb asset found for release tag ${TAG}" >&2
+            exit 1
+          fi
+
+          DEB_NAME=$(basename "$DEB_URL")
+          curl -fL "$DEB_URL" -o "$DEB_NAME"
+          ls -la "$DEB_NAME"
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          TAG_NAME: ${{ env.TAG_NAME }}
 
       - name: "Prepare ssh environment in ramdisk"
         run: |
