@@ -26,7 +26,7 @@ jobs:
           releases-only: true  # We know that all relevant tags have a GitHub release for them.
         id: acme2certifier_ver  # The step ID to refer to later.
 
-      - name: "Parse EMAIL configuration from JSO secret"
+      - name: "Parse EMAIL configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
