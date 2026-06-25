@@ -24,6 +24,7 @@ and pick the appropriate release branch.
 - [313](https://github.com/grindsa/acme2certifier/pull/313) - Replace lstrip in WSGI path lookup
 - Restrict challenges for wildcard certificate requests to `dns-01` and `dns-persist-01`
 - Improved wildcard matching as part of allowed_domain_list and domain_prevalidation checks
+- Validation of submitted ACME-profile against EAB profile values will be done as part of order processing
 
 ## Changes in 0.42.1
 
