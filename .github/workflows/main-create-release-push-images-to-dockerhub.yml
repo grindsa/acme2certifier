@@ -153,64 +153,38 @@ jobs:
 
   instance_start:
     name: instance_start
-    needs: build
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
+    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'devel' || contains(inputs.branch, 'arm')) }}
     steps:
-    - name: Checkout code
+
+    - name: "checkout GIT"
       uses: actions/checkout@v6
 
-    - name: Parse AWS secrets from JSON
+    - name: "Parse AWS_CFG JSON secret"
       uses: ./.github/actions/parse-json-secret
       with:
         json_secret: ${{ secrets.AWS_CFG }}
 
-    - name: "install awccli"
-      run: |
-        sudo apt-get update
-        pip3 install awscli --upgrade --user
-        pip3 install boto3 --upgrade --user
-        export PATH=$PATH:$HOME/.local/bin
+    - name: "Parse ARM64_CFG secrets"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.ARM64_CFG }}
 
-    - name: "configure awccli"
-      run: |
-        aws --version
-        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-        aws configure set default.region $AWS_REGION
-      env:
+    - name: "Start AWS instance for testing"
+      uses: ./.github/actions/aws_instance_manage
+      with:
         AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
         AWS_REGION: ${{ env.AWS_REGION }}
-
-    - name: "check instance status"
-      run: |
-        wget https://raw.githubusercontent.com/grindsa/aws_ec2_mgr/main/aws_ec_mgr.py
-        chmod a+rx ./aws_ec_mgr.py
-        INSTANCE_ID="$(printenv 'AWS_ARM64-UB-01_INSTANCE_ID')"
-        python3 ./aws_ec_mgr.py -a state -r "$AWS_REGION" -i "$INSTANCE_ID" | grep -i "stopped"
-      env:
-        AWS_REGION: ${{ env.AWS_REGION }}
-
-    - name: "start instance"
-      run: |
-        INSTANCE_ID="$(printenv 'AWS_ARM64-UB-01_INSTANCE_ID')"
-        python3 ./aws_ec_mgr.py -a start -r "$AWS_REGION" -i "$INSTANCE_ID"
-      env:
-        AWS_REGION: ${{ env.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ env.AWS_ARM64-UB-01_INSTANCE_ID }}
+        ACTION: "start"
+        IGNORE_CURRENT_STATUS: "false"
 
     - name: "[ WAIT ] Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.4
       with:
         time: 10s
-
-    - name: "check instance status"
-      run: |
-        INSTANCE_ID="$(printenv 'AWS_ARM64-UB-01_INSTANCE_ID')"
-        python3 ./aws_ec_mgr.py -a state -r "$AWS_REGION" -i "$INSTANCE_ID" | grep -i "running"
-      env:
-        AWS_REGION: ${{ env.AWS_REGION }}
 
   build_and_upload_images_to_hub:
     name: Push images to dockerhub and github
@@ -822,43 +796,32 @@ jobs:
           UUID: ${{ env.UUID }}
 
   instance_stop:
+    name: instance_stop
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
     needs: arm64_pull_and_test
+    if: ${{ always() && github.repository == 'grindsa/acme2certifier' && inputs.branch == 'master' }}
     steps:
-    - name: Checkout code
+
+    - name: "checkout GIT"
       uses: actions/checkout@v6
 
-    - name: Parse AWS secrets from JSON
+    - name: "Parse AWS_CFG JSON secret"
       uses: ./.github/actions/parse-json-secret
       with:
         json_secret: ${{ secrets.AWS_CFG }}
 
-    - name: "install awccli"
-      run: |
-        sudo apt-get update
-        pip3 install awscli --upgrade --user
-        pip3 install boto3 --upgrade --user
-        export PATH=$PATH:$HOME/.local/bin
+    - name: "Parse AWS_CFG JSON secret"
+      uses: ./.github/actions/parse-json-secret
+      with:
+        json_secret: ${{ secrets.AWS_CFG }}
 
-    - name: "configure awccli"
-      run: |
-        aws --version
-        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
-        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
-        aws configure set default.region $AWS_REGION
-      env:
+    - name: "Stop AWS instance for testing"
+      uses: ./.github/actions/aws_instance_manage
+      with:
         AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
         AWS_REGION: ${{ env.AWS_REGION }}
-
-    - name: "stop instance"
-      run: |
-        wget https://raw.githubusercontent.com/grindsa/aws_ec2_mgr/main/aws_ec_mgr.py
-        chmod a+rx ./aws_ec_mgr.py
-        INSTANCE_ID="$(printenv 'AWS_ARM64-UB-01_INSTANCE_ID')"
-        python3 ./aws_ec_mgr.py -a stop -r "$AWS_REGION" -i "$INSTANCE_ID"
-        python3 ./aws_ec_mgr.py -a state -r "$AWS_REGION" -i "$INSTANCE_ID"
-      env:
-        AWS_REGION: ${{ env.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ env.AWS_ARM64-UB-01_INSTANCE_ID }}
+        ACTION: "stop"
+        IGNORE_CURRENT_STATUS: "false"
