@@ -696,18 +696,32 @@ class Order(object):
         if not ca_handler_class:
             return None
 
-        # Attempt to instantiate the CAhandler class with logger, fallback to no-arg constructor if it fails
+        # Best effort: try instance attributes, but never fail startup on constructor issues.
+        ca_handler_obj = None
         try:
             ca_handler_obj = ca_handler_class(logger=self.logger)
         except TypeError:
-            ca_handler_obj = ca_handler_class()
-        mapping_field = getattr(ca_handler_obj, "profile_mapping_field", None)
-        if mapping_field:
-            self.logger.debug(
-                "Order._load_profile_mapping_field() - profile_mapping_field '%s' loaded from CAhandler instance",
-                mapping_field,
+            try:
+                ca_handler_obj = ca_handler_class()
+            except Exception as err_:
+                self.logger.warning(
+                    "Order._load_profile_mapping_field() - failed to instantiate CAhandler without logger: %s",
+                    err_,
+                )
+        except Exception as err_:
+            self.logger.warning(
+                "Order._load_profile_mapping_field() - failed to instantiate CAhandler with logger: %s",
+                err_,
             )
-            return mapping_field
+
+        if ca_handler_obj:
+            mapping_field = getattr(ca_handler_obj, "profile_mapping_field", None)
+            if mapping_field:
+                self.logger.debug(
+                    "Order._load_profile_mapping_field() - profile_mapping_field '%s' loaded from CAhandler instance",
+                    mapping_field,
+                )
+                return mapping_field
 
         # Check for class-level attribute if instance attribute is not found
         mapping_field = getattr(ca_handler_class, "profile_mapping_field", None)
