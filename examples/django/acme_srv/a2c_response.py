@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """customized class for django json response"""
+
 import json
 from django.http import HttpResponse
 from django.core.serializers.json import DjangoJSONEncoder
@@ -18,7 +19,7 @@ class JsonResponse(HttpResponse):
         encoder=DjangoJSONEncoder,
         safe=True,
         json_dumps_params=None,
-        **kwargs
+        **kwargs,
     ):
         if safe and not isinstance(data, dict):
             raise TypeError(

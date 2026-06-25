@@ -399,7 +399,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -467,6 +467,11 @@ jobs:
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: Retrieve Version from version.py
         run: |
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
@@ -479,7 +484,7 @@ jobs:
         run: |
           sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
-          git config --global user.email "grindelsack@gmail.com"
+          git config --global user.email "$EMAIL"
           git config --global user.name "rpm update"
           git add examples/nginx
           git commit -a -m "rpm update"
@@ -566,7 +571,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -634,6 +639,11 @@ jobs:
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: Retrieve Version from version.py
         run: |
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
@@ -646,7 +656,7 @@ jobs:
         run: |
           sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
-          git config --global user.email "grindelsack@gmail.com"
+          git config --global user.email "$EMAIL"
           git config --global user.name "rpm update"
           git add examples/nginx
           git commit -a -m "rpm update"
@@ -730,7 +740,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -798,6 +808,11 @@ jobs:
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: Retrieve Version from version.py
         run: |
           echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
@@ -810,7 +825,7 @@ jobs:
         run: |
           sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
-          git config --global user.email "grindelsack@gmail.com"
+          git config --global user.email "$EMAIL"
           git config --global user.name "rpm update"
           git add examples/nginx
           git commit -a -m "rpm update"
@@ -898,7 +913,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -995,12 +1010,12 @@ jobs:
       - name: List files
         run: ls -la data/
 
-      - name: "Instanciate Ubuntu 22.04"
+      - name: "Instanciate Ubuntu 24.04"
         run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:22.04
+          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:24.04
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 5s
 
@@ -1063,7 +1078,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 5s
 
@@ -1156,12 +1171,12 @@ jobs:
       - name: List files
         run: ls -la data/
 
-      - name: "Instanciate Ubuntu 22.04"
+      - name: "Instanciate Ubuntu 24.04"
         run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:22.04
+          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:24.04
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 5s
 
@@ -1205,11 +1220,18 @@ jobs:
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
           docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
           docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
+
+          # fix for django 4.0 upgrade
+          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
+          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
+          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+
           docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
           docker exec acme-srv systemctl restart apache2
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 5s
 
@@ -1232,7 +1254,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 5s
 
@@ -1308,7 +1330,7 @@ jobs:
           docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -1343,12 +1365,12 @@ jobs:
       - name: List files
         run: ls -la data/
 
-      - name: "Instanciate Ubuntu 22.04"
+      - name: "Instanciate Ubuntu 24.04"
         run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:22.04
+          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:24.04
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 5s
 
@@ -1393,6 +1415,13 @@ jobs:
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
           docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
           docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
+
+          # fix for django 4.0 upgrade
+          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
+          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
+          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+
           docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
           docker exec acme-srv systemctl restart apache2
 
@@ -1415,7 +1444,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 5s
 
@@ -1499,7 +1528,7 @@ jobs:
           docker run --name postgresdbsrv --network acme -e POSTGRES_PASSWORD=foobar -d postgres
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -1509,7 +1538,7 @@ jobs:
           docker run -v "$(pwd)/data/pgsql/a2c.psql":/tmp/a2c.psql -v "$(pwd)/data/pgsql/pgpass:/root/.pgpass" --rm --network acme postgres psql -U postgres -h postgresdbsrv -f /tmp/a2c.psql
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -1537,12 +1566,12 @@ jobs:
       - name: List files
         run: ls -la data/
 
-      - name: "Instanciate Ubuntu 22.04"
+      - name: "Instanciate Ubuntu 24.04"
         run: |
-          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier grindsa/systemd-ubuntu:22.04
+          docker run -d --name acme-srv --network acme --privileged -v /sys/fs/cgroup:/sys/fs/cgroup:rw --cgroupns=host -v "$(pwd)/data":/tmp/acme2certifier jrei/systemd-ubuntu:24.04
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 5s
 
@@ -1587,6 +1616,13 @@ jobs:
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
           docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
           docker exec -w /var/www/acme2certifier acme-srv python3 tools/django_update.py
+
+          # fix for django 4.0 upgrade
+          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
+          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
+          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+
           docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
           docker exec acme-srv systemctl restart apache2
 
@@ -1609,7 +1645,7 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
       - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 5s
 

@@ -104,7 +104,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -362,7 +362,7 @@ jobs:
           TO_FAIL: "true"
 
       - name: "Sleep for 15s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 15s
 
@@ -388,7 +388,7 @@ jobs:
           TO_FAIL: "true"
 
       - name: "Sleep for 15s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 15s
 
@@ -575,10 +575,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -589,10 +589,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -600,7 +600,7 @@ jobs:
           TO_FAIL: "true"
 
       - name: "Sleep for 15s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 15s
 
@@ -610,10 +610,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -621,7 +621,7 @@ jobs:
           TO_FAIL: "true"
 
       - name: "Sleep for 15s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 15s
 
@@ -665,10 +665,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB - forward address check enabled"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile

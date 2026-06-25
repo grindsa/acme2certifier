@@ -88,7 +88,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.3
+        uses: juliangruber/sleep-action@v2.0.4
         with:
           time: 10s
 
@@ -118,6 +118,7 @@ jobs:
 
       - name: "Enroll HTTP-01 2x domain lego"
         run: |
+          sudo rm -rf lego/*
           docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --key-type ${{ matrix.keylength }} --email "lego@example.com" -d lego.acme -d lego --http
           sudo openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem lego/certificates/lego.acme.crt
 

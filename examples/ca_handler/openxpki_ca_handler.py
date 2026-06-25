@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """openxpki rpc ca handler"""
+
 import math
 import time
 import os
@@ -51,6 +52,7 @@ class CAhandler(object):
         self.eab_profiling = False
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
+        self.profile_mapping_field = "cert_profile_name"
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -139,7 +141,7 @@ class CAhandler(object):
 
         if "CAhandler" in config_dic:
             self.cert_profile_name = config_dic.get(
-                "CAhandler", "cert_profile_name", fallback=self.cert_profile_name
+                "CAhandler", self.profile_mapping_field, fallback=self.cert_profile_name
             )
             if "ca_bundle" in config_dic["CAhandler"]:
                 try:
@@ -269,7 +271,7 @@ class CAhandler(object):
             self.profiles = config_profile_load(self.logger, config_dic)
         # check configuration for completeness
         variable_dic = self.__dict__
-        for ele in ["host", "cert_profile_name", "endpoint_name"]:
+        for ele in ["host", self.profile_mapping_field, "endpoint_name"]:
             if not variable_dic[ele]:
                 self.logger.error(
                     'Configuration incomplete: parameter "%s" is missing in configuration file.',
@@ -304,7 +306,7 @@ class CAhandler(object):
                 and sign_response["result"]["state"].upper() == "SUCCESS"
             ):
                 # successful enrollment
-                (error, cert_bundle, cert_raw) = self._cert_bundle_create(
+                error, cert_bundle, cert_raw = self._cert_bundle_create(
                     sign_response["result"]
                 )
                 poll_indentifier = sign_response["result"]["data"]["cert_identifier"]
@@ -413,7 +415,7 @@ class CAhandler(object):
 
             # check for eab profiling and header_info
             error = eab_profile_header_info_check(
-                self.logger, self, csr, "cert_profile_name"
+                self.logger, self, csr, self.profile_mapping_field
             )
 
             if not error:
@@ -430,7 +432,7 @@ class CAhandler(object):
                 }
                 if self.session:
                     # enroll via RPC
-                    (error, cert_bundle, cert_raw, poll_indentifier) = self._enroll(
+                    error, cert_bundle, cert_raw, poll_indentifier = self._enroll(
                         data_dic
                     )
                 else:
@@ -449,7 +451,7 @@ class CAhandler(object):
         """check if handler is ready"""
         self.logger.debug("CAhandler.check()")
         error = handler_config_check(
-            self.logger, self, ["host", "cert_profile_name", "endpoint_name"]
+            self.logger, self, ["host", self.profile_mapping_field, "endpoint_name"]
         )
         self.logger.debug("CAhandler.check() ended with %s", error)
         return error
@@ -485,7 +487,7 @@ class CAhandler(object):
         cert_identifier = self._cert_identifier_get(cert_raw)
 
         if cert_identifier:
-            (code, message, detail) = self._revoke(cert_identifier, rev_reason)
+            code, message, detail = self._revoke(cert_identifier, rev_reason)
         else:
             code = 400
             message = self.err_msg_dic["serverinternal"]

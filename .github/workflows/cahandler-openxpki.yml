@@ -123,6 +123,11 @@ jobs:
           sudo rm -rf  acme-sh/*
           sudo rm -rf  certbot/*
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Setup a2c with est_ca_handler using pksc12"
         run: |
           sudo touch examples/Docker/data/acme_srv.cfg
@@ -152,6 +157,11 @@ jobs:
           sudo rm -rf  acme-sh/*
           sudo rm -rf  certbot/*
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Setup a2c with openxpki_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
@@ -174,7 +184,7 @@ jobs:
         uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
-          REVOCATION: "false"
+          # REVOCATION: "false"
 
       - name: "Verify allowed_domainlist error"
         run: |
@@ -186,6 +196,11 @@ jobs:
           sudo rm -rf  lego/*
           sudo rm -rf  acme-sh/*
           sudo rm -rf  certbot/*
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Reconfigure a2c (pkcs12 support)"
         run: |
@@ -211,12 +226,17 @@ jobs:
         uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
-          REVOCATION: "false"
+          # REVOCATION: "false"
 
       - name: "Verify allowed_domainlist error"
         run: |
           cd examples/Docker
           docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
@@ -243,6 +263,11 @@ jobs:
         uses: ./.github/actions/wf_specific/openxpki_ca_handler/enroll_acmeprofile
         with:
           DEPLOYMENT_TYPE: "container"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
@@ -286,7 +311,7 @@ jobs:
         uses: ./.github/actions/wf_specific/openxpki_ca_handler/enroll_eab_acmeprofile
         with:
           DEPLOYMENT_TYPE: "container"
-          REVOCATION: "false"
+          # REVOCATION: "false"
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -398,6 +423,11 @@ jobs:
           sudo rm -rf  lego/*
           sudo rm -rf  acme-sh/*
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "Setup a2c with est_ca_handler (pkcs12)"
         run: |
           sudo touch data/volume/acme_srv.cfg
@@ -430,6 +460,11 @@ jobs:
           sudo rm -rf  lego/*
           sudo rm -rf  acme-sh/*
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "Setup a2c with openxpki_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
@@ -456,13 +491,18 @@ jobs:
         uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
-          REVOCATION: "false"
+          # REVOCATION: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
           sudo rm -rf  certbot/*
           sudo rm -rf  lego/*
           sudo rm -rf  acme-sh/*
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Reconfigure a2c (pkcs12 support)"
         run: |
@@ -490,7 +530,12 @@ jobs:
         uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
-          REVOCATION: "false"
+          # REVOCATION: "false"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
@@ -519,6 +564,11 @@ jobs:
         uses: ./.github/actions/wf_specific/openxpki_ca_handler/enroll_acmeprofile
         with:
           DEPLOYMENT_TYPE: "rpm"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
@@ -564,7 +614,7 @@ jobs:
         uses: ./.github/actions/wf_specific/openxpki_ca_handler/enroll_eab_acmeprofile
         with:
           DEPLOYMENT_TYPE: "rpm"
-          REVOCATION: "false"
+          # REVOCATION: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
@@ -683,6 +733,11 @@ jobs:
           sudo rm -rf  lego/*
           sudo rm -rf  acme-sh/*
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "Setup a2c with est_ca_handler (pkcs12)"
         run: |
           sudo touch data/volume/acme_srv.cfg
@@ -698,10 +753,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
@@ -715,6 +770,11 @@ jobs:
           sudo rm -rf  certbot/*
           sudo rm -rf  lego/*
           sudo rm -rf  acme-sh/*
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Setup a2c with openxpki_ca_handler"
         run: |
@@ -734,22 +794,27 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
-          REVOCATION: "false"
+          # REVOCATION: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
           sudo rm -rf  certbot/*
           sudo rm -rf  lego/*
           sudo rm -rf  acme-sh/*
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Reconfigure a2c (pkcs12 support)"
         run: |
@@ -770,16 +835,21 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
-          REVOCATION: "false"
+          # REVOCATION: "false"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
@@ -800,15 +870,20 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "ACME Profile - Test enrollment"
         uses: ./.github/actions/wf_specific/openxpki_ca_handler/enroll_acmeprofile
         with:
           DEPLOYMENT_TYPE: "deb"
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "EAB ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
@@ -846,22 +921,27 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "EAB ACME Profile - Test enrollment"
         uses: ./.github/actions/wf_specific/openxpki_ca_handler/enroll_eab_acmeprofile
         with:
           DEPLOYMENT_TYPE: "deb"
-          REVOCATION: "false"
+          # REVOCATION: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
           sudo rm -rf  certbot/*
           sudo rm -rf  lego/*
           sudo rm -rf  acme-sh/*
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}

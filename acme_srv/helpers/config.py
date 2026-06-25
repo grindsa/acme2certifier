@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Configuration utilities for acme2certifier"""
+
 import configparser
 import json
 import logging
@@ -146,6 +147,51 @@ def config_enroll_config_log_load(logger: logging.Logger, config_dic: Dict[str, 
     return enrollment_cfg_log, enrollment_cfg_log_skip_list
 
 
+def config_dns_server_list_load(
+    logger: logging.Logger, config_dic: Dict[str, str]
+) -> Tuple[List[str], int]:
+    """load parameters"""
+    logger.debug("Helper.config_dns_server_list_load()")
+
+    dns_server_list = []
+    dns_validation_pause_timer = 0.5
+
+    if "DEFAULT" in config_dic and "dns_server_list" in config_dic["DEFAULT"]:
+        try:
+            dns_server_list = json.loads(config_dic["DEFAULT"]["dns_server_list"])
+        except Exception as err_:
+            logger.warning(
+                "Failed to load dns_server_list from configuration: %s", err_
+            )
+    elif "Challenge" in config_dic and "dns_server_list" in config_dic["Challenge"]:
+        logger.warning(
+            "dns_server_list parameter found in Challenge section - this is deprecated, please use DEFAULT section"
+        )
+        try:
+            dns_server_list = json.loads(config_dic["Challenge"]["dns_server_list"])
+        except Exception as err_:
+            logger.warning(
+                "Failed to load dns_server_list from configuration: %s", err_
+            )
+
+        if (
+            "Challenge" in config_dic
+            and "dns_validation_pause_timer" in config_dic["Challenge"]
+        ):
+            try:
+                dns_validation_pause_timer = int(
+                    config_dic["Challenge"]["dns_validation_pause_timer"]
+                )
+            except Exception as err_:
+                logger.warning(
+                    "Failed to parse dns_validation_pause_timer from configuration: %s",
+                    err_,
+                )
+
+    logger.debug("Helper.config_dns_server_list_load() ended with: %s", dns_server_list)
+    return dns_server_list, dns_validation_pause_timer
+
+
 def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str, str]):
     """load parameters"""
     logger.debug("Helper.config_allowed_domainlist_load()")
@@ -185,6 +231,23 @@ def config_allowed_domainlist_load(logger: logging.Logger, config_dic: Dict[str,
     return allowed_domainlist
 
 
+def config_allowed_iplist_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """load parameters"""
+    logger.debug("Helper.config_allowed_iplist_load()")
+
+    allowed_iplist = []
+
+    if "Order" in config_dic and "allowed_iplist" in config_dic["Order"]:
+        try:
+            allowed_iplist = json.loads(config_dic["Order"]["allowed_iplist"])
+        except Exception as err_:
+            logger.warning("Failed to load allowed_iplist from configuration: %s", err_)
+            allowed_iplist = PARSING_ERR_MSG
+
+    logger.debug("Helper.config_allowed_iplist_load() ended with: %s", allowed_iplist)
+    return allowed_iplist
+
+
 def config_async_mode_load(
     logger: logging.Logger, config_dic: Dict[str, str], db_type: str
 ):
@@ -219,7 +282,7 @@ def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
             url_dic = parse_url(logger, host_name)
             if "host" in url_dic:
                 # check if we need to set the proxy
-                (fqdn, _port) = url_dic["host"].split(":")
+                fqdn, _port = url_dic["host"].split(":")
                 proxy_server = proxy_check(logger, fqdn, proxy_list)
                 proxy = {"http": proxy_server, "https": proxy_server}
         except Exception as err_:
@@ -351,3 +414,27 @@ def client_parameter_validate(
         error,
     )
     return value_to_set, error
+
+
+def config_dryrun_load(logger: logging.Logger, config_dic: Dict[str, str]):
+    """load dryrun configuration"""
+    logger.debug("Helper.config_dryrun_load()")
+
+    dryrun = False
+    dryrun_profilename = None
+
+    if "DEFAULT" in config_dic and "dryrun" in config_dic["DEFAULT"]:
+        if config_dic["DEFAULT"]["dryrun"].lower() in ["true", "false"]:
+            dryrun = config_dic.getboolean("DEFAULT", "dryrun", fallback=False)
+        elif config_dic["DEFAULT"]["dryrun"].lower() == "profile":
+            if config_dic.get("DEFAULT", "dryrun_profile", fallback=None):
+                dryrun_profilename = config_dic["DEFAULT"]["dryrun_profile"]
+            else:
+                logger.warning(
+                    "Dryrun profile name not set in configuration, please set dryrun_profile parameter"
+                )
+
+    logger.debug(
+        "Helper.config_dryrun_load() ended with: %s/%s", dryrun, dryrun_profilename
+    )
+    return dryrun, dryrun_profilename

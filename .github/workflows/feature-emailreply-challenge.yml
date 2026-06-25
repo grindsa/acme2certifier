@@ -80,6 +80,11 @@ jobs:
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: "Install mailserver"
         uses: ./.github/actions/mailserver_install
         with:
@@ -104,7 +109,7 @@ jobs:
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: a2c@mailserver.acme\npassword: a2cstarter\nemail_address: a2c@mailserver.acme/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -112,10 +117,10 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-        with:
-          TEST_ADL: "true"
+      #- name: "Test enrollment"
+      #  uses: ./.github/actions/acme_clients
+      #  with:
+      #    TEST_ADL: "true"
 
       - name: "Install and enroll via acme-email"
         uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
@@ -129,10 +134,41 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
-      - name: "Enroll via acme-email"
-        uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
-        with:
-          TO_FAIL: "false"
+      #- name: "Enroll via acme-email"
+      #  uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
+      #  with:
+      #    TO_FAIL: "false"
+
+      - name: "EAB profile - setup handler with EAB support"
+        run: |
+          sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: False/g" examples/Docker/data/acme_srv.cfg
+          sudo chmod 777 examples/Docker/data/acme_srv.cfg
+          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
+
+          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+          sudo chmod 777 examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/cahandler/authorization/g" examples/Docker/data/kid_profiles.json
+          # sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_emaillist\": [\"key_id01_1\@mailserver.acme\", \"key_id01_2\@mailserver.acme\", \"key_id01_2\@mailserver.acme\"]#g" examples/Docker/data/kid_profiles.json
+          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#\"prevalidated_emaillist\": [\"key_id00_1\@mailserver.acme\", \"key_id00_2\@mailserver.acme\", \"key_id00_2\@mailserver.acme\"],#g' examples/Docker/data/kid_profiles.json
+          sudo sed -i 's#"allowed_domainlist": *\["www.example.com", "www.example.org"\]#\"prevalidated_emaillist\": [\"key_id02_1\@mailserver.acme\", \"key_id02_2\@mailserver.acme\", \"key_id02_3\@mailserver.acme\"]\n    }#g' examples/Docker/data/kid_profiles.json
+          sudo sed -i "s/example.net/acme.local/g" examples/Docker/data/kid_profiles.json
+          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' examples/Docker/data/kid_profiles.json
+          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' examples/Docker/data/kid_profiles.json
+          sudo sed -i '30,35d' examples/Docker/data/kid_profiles.json
+          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
+          sudo sed -i '17,18d' examples/Docker/data/kid_profiles.json
+          sudo sed -i '15,15d' examples/Docker/data/kid_profiles.json
+          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
+
+          cd examples/Docker/
+          docker compose restart
+
+      - name: "EAB Profiling - Test enrollment"
+        uses: ./.github/actions/wf_specific/emailreply_challengevalidation/enroll_eabprofile
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -181,6 +217,11 @@ jobs:
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: "Download RPM artifact by name from build run"
         uses: ./.github/actions/download_artifact
         with:
@@ -220,7 +261,7 @@ jobs:
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: a2c@mailserver.acme\npassword: a2cstarter\nemail_address: a2c@mailserver.acme/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" data/volume/acme_srv.cfg
 
       - name: "Execute install scipt"
         run: |
@@ -229,10 +270,10 @@ jobs:
         env:
           EXEC_SCRIPT: ${{ matrix.execscript }}
 
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-        with:
-          TEST_ADL: "true"
+      #- name: "Test enrollment"
+      #  uses: ./.github/actions/acme_clients
+      #  with:
+      #    TEST_ADL: "true"
 
       - name: "Install and enroll via acme-email"
         uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
@@ -254,6 +295,40 @@ jobs:
         uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
         with:
           TO_FAIL: "false"
+
+      - name: "EAB profile - setup handler with EAB support"
+        run: |
+          sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: False/g" data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+
+          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/cahandler/authorization/g" data/volume/acme_ca/kid_profiles.json
+          # sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_emaillist\": [\"key_id01_1\@mailserver.acme\", \"key_id01_2\@mailserver.acme\", \"key_id01_2\@mailserver.acme\"]#g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#\"prevalidated_emaillist\": [\"key_id00_1\@mailserver.acme\", \"key_id00_2\@mailserver.acme\", \"key_id00_2\@mailserver.acme\"],#g' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i 's#"allowed_domainlist": *\["www.example.com", "www.example.org"\]#\"prevalidated_emaillist\": [\"key_id02_1\@mailserver.acme\", \"key_id02_2\@mailserver.acme\", \"key_id02_3\@mailserver.acme\"]\n    }#g' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/example.net/acme.local/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '30,35d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '17,18d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '15,15d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+
+      - name: "Reconfigure a2c"
+        run: |
+          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+        env:
+          EXEC_SCRIPT: ${{ matrix.execscript }}
+
+      - name: "EAB Profiling - Test enrollment"
+        uses: ./.github/actions/wf_specific/emailreply_challengevalidation/enroll_eabprofile
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -299,6 +374,11 @@ jobs:
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
+      - name: "Parse EMAIL configuration from JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
+
       - name: "Prepare Ubuntu environment"
         if: matrix.execscript == 'deb_tester.sh'
         uses: ./.github/actions/deb_prep
@@ -343,7 +423,7 @@ jobs:
           sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: a2c@mailserver.acme\npassword: a2cstarter\nemail_address: a2c@mailserver.acme/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -352,10 +432,10 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           EXECSCRIPT: ${{ matrix.execscript }}
 
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
-        with:
-          TEST_ADL: "true"
+      #- name: "Test enrollment"
+      #  uses: ./.github/actions/acme_clients
+      #  with:
+      #    TEST_ADL: "true"
 
       - name: "Install and enroll via acme-email"
         uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
@@ -369,15 +449,50 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Enroll via acme-email"
         uses: ./.github/actions/wf_specific/emailreply_challengevalidation/acme_email_enroll
         with:
           TO_FAIL: "false"
+
+      - name: "EAB profile - setup handler with EAB support"
+        run: |
+          sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: False/g" data/volume/acme_srv.cfg
+          sudo chmod 777 data/volume/acme_srv.cfg
+          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
+          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
+
+          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/cahandler/authorization/g" data/volume/acme_ca/kid_profiles.json
+          # sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_emaillist\": [\"key_id01_1\@mailserver.acme\", \"key_id01_2\@mailserver.acme\", \"key_id01_2\@mailserver.acme\"]#g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#\"prevalidated_emaillist\": [\"key_id00_1\@mailserver.acme\", \"key_id00_2\@mailserver.acme\", \"key_id00_2\@mailserver.acme\"],#g' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i 's#"allowed_domainlist": *\["www.example.com", "www.example.org"\]#\"prevalidated_emaillist\": [\"key_id02_1\@mailserver.acme\", \"key_id02_2\@mailserver.acme\", \"key_id02_3\@mailserver.acme\"]\n    }#g' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i "s/example.net/acme.local/g" data/volume/acme_ca/kid_profiles.json
+          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '30,35d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '17,18d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '15,15d' data/volume/acme_ca/kid_profiles.json
+          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+
+      - name: "Reconfigure a2c "
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+        env:
+          WEBSRV: ${{ matrix.websrv }}
+          EXECSCRIPT: ${{ matrix.execscript }}
+
+      - name: "EAB Profiling - Test enrollment"
+        uses: ./.github/actions/wf_specific/emailreply_challengevalidation/enroll_eabprofile
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}

@@ -303,10 +303,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "Enroll via acmeshell"
         uses: ./.github/actions/acmeshell

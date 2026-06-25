@@ -25,7 +25,6 @@ from acme_srv.signature import Signature
 import json
 from acme_srv.helper import b64decode_pad
 
-
 DB_ERROR_MSG = "Database error"
 
 
@@ -80,7 +79,7 @@ class ExternalAccountBinding:
         if content and mac_key:
             signature = Signature(None, self.server_name, self.logger)
             jwk_ = json.dumps({"k": mac_key, "kty": "oct"})
-            (sig_check, error) = signature.eab_check(json.dumps(content), jwk_)
+            sig_check, error = signature.eab_check(json.dumps(content), jwk_)
         else:
             sig_check = False
             error = None
@@ -101,7 +100,7 @@ class ExternalAccountBinding:
         else:
             eab_mac_key = None
         if eab_mac_key:
-            (result, error) = self.verify_signature(
+            result, error = self.verify_signature(
                 payload["externalaccountbinding"], eab_mac_key
             )
             if result:
@@ -212,6 +211,7 @@ class AccountConfiguration:
     inner_header_nonce_allow: bool = False
     tos_url: Optional[str] = None
     eab_check: bool = False
+    eab_strict_mode: bool = True
     eab_handler: Optional[object] = None
     path_dic: Dict[str, str] = field(
         default_factory=lambda: {"acct_path": "/acme/acct/"}
@@ -274,6 +274,10 @@ class Account:
         if "EABhandler" in config_dic:
             self.logger.debug("Account._load_configuration(): loading eab_handler")
             self.config.eab_check = True
+
+            self.config.eab_strict_mode = config_dic.getboolean(
+                "EABhandler", "eab_strict_mode", fallback=True
+            )
             if "eab_handler_file" in config_dic["EABhandler"]:
                 eab_handler_module = eab_handler_load(self.logger, config_dic)
                 if eab_handler_module:
@@ -350,6 +354,49 @@ class Account:
         self.logger.debug("Account._check_tos() ended with:%s", code)
         return (code, message, detail)
 
+    def _skip_eab_for_non_strict_mode(self, payload: Dict[str, str]) -> bool:
+        """Return True if EAB checks should be skipped in non-strict mode."""
+        return not self.config.eab_strict_mode and not payload.get(
+            "externalaccountbinding"
+        )
+
+    def _run_eab_check(
+        self, protected: Dict[str, str], payload: Dict[str, str]
+    ) -> Tuple[int, Optional[str], Optional[str]]:
+        """Run EAB validation when required by current configuration."""
+        if not self.config.eab_check:
+            return 200, None, None
+
+        if self._skip_eab_for_non_strict_mode(payload):
+            self.logger.debug(
+                "Account._create_account() EAB check skipped due to non-strict mode and missing EAB payload"
+            )
+            return 200, None, None
+
+        eab_handler = ExternalAccountBinding(
+            self.logger, self.config.eab_handler, self.server_name
+        )
+        return eab_handler.check(protected, payload, self.err_msg_dic)
+
+    def _get_eab_kid_for_account(
+        self, account_name: str, payload: Dict[str, str]
+    ) -> Optional[str]:
+        """Extract EAB kid for account data when EAB data is provided/required."""
+        if not self.config.eab_check:
+            return None
+
+        if self._skip_eab_for_non_strict_mode(payload):
+            self.logger.debug(
+                "Account._create_account() EAB binding skipped for account %s due to non-strict mode and missing EAB payload",
+                account_name,
+            )
+            return None
+
+        eab_handler = ExternalAccountBinding(
+            self.logger, self.config.eab_handler, self.server_name
+        )
+        return eab_handler.get_kid(payload["externalaccountbinding"]["protected"])
+
     def _create_account(
         self, payload: Dict[str, str], protected: Dict[str, str]
     ) -> Tuple[int, str, str]:
@@ -360,20 +407,13 @@ class Account:
 
         # tos check
         if self.config.tos_url and not self.config.tos_check_disable:
-            (code, message, detail) = self._check_tos(payload)
+            code, message, detail = self._check_tos(payload)
             if code != 200:
                 return code, message, detail
 
-        # EAB check
-        if self.config.eab_check:
-            eab_handler = ExternalAccountBinding(
-                self.logger, self.config.eab_handler, self.server_name
-            )
-            code, message, detail = eab_handler.check(
-                protected, payload, self.err_msg_dic
-            )
-            if code != 200:
-                return code, message, detail
+        code, message, detail = self._run_eab_check(protected, payload)
+        if code != 200:
+            return code, message, detail
 
         # Validate contact information
         if not self.config.contact_check_disable:
@@ -389,15 +429,9 @@ class Account:
             contact=contact_list,
             created_at=date_to_datestr(uts_now()),
         )
-        if self.config.eab_check:
-            eab_handler = ExternalAccountBinding(
-                self.logger, self.config.eab_handler, self.server_name
-            )
-            eab_kid = eab_handler.get_kid(
-                payload["externalaccountbinding"]["protected"]
-            )
-            if eab_kid:
-                account_data.eab_kid = eab_kid
+        eab_kid = self._get_eab_kid_for_account(account_name, payload)
+        if eab_kid:
+            account_data.eab_kid = eab_kid
 
         # Add account to database
         return self._add_account_to_db(account_data)

@@ -1,0 +1,250 @@
+name: "prevalidation tests"
+description: "Test prevalidation feature - enroll acme clients against acme-srv using lego"
+inputs:
+  ACME_SERVER:
+    description: "ACME server URL"
+    required: true
+    default: "acme-srv"
+  CA_PATH:
+    description: "Path to CA certificates"
+    required: false
+    default: "examples/Docker/data/acme_ca/"
+  NAME_SPACE:
+    description: "Namespace where acme-srv is deployed"
+    required: false
+    default: "acme"
+  PREVALIDATED:
+    description: "Whether to use prevalidation or not"
+    required: false
+    default: "both"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: true
+    default: "container"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.4
+      with:
+        time: 10s
+
+    - name: "Create lego folder"
+      run: |
+        mkdir -p lego
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Test http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl -f http://$ACME_SERVER/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Test if https://acme-srv/directory is accessible"
+      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://$ACME_SERVER/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Enroll lego with both ip and domain prevalidation"
+      if: ${{ inputs.PREVALIDATED == 'both' }}
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme -d lego-01.foo.local -d 172.0.0.1 -d 10.0.0.1 --http
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Sleep for 20s"
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'rpm' }}
+      uses: juliangruber/sleep-action@v2.0.4
+      with:
+        time: 20s
+
+    - name: "Check logs "
+      if: ${{ inputs.PREVALIDATED == 'both' }}
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          echo "container deployment"
+          docker compose logs | grep "Domain lego-01.foo.local is preauthorized, setting authorization status to 'valid'"
+          docker compose logs | grep "IP 10.0.0.1 is preauthorized, setting authorization status to 'valid'"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 1500 /var/log/messages
+          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "Domain lego-01.foo.local is preauthorized, setting authorization status to 'valid'"
+          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "IP 10.0.0.1 is preauthorized, setting authorization status to 'valid'"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Enroll lego with both ip and domain prevalidation (to fail)"
+      if: ${{ inputs.PREVALIDATED == 'both' }}
+      id: lego-both-fail01
+      continue-on-error: true
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego-01.acme -d lego-01.foo.local -d 172.0.0.2 -d 10.0.0.1 --http
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.4
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'rpm' }}
+      with:
+        time: 10s
+
+    - name: "Check  result "
+      if: ${{ (inputs.PREVALIDATED == 'both') && steps.lego-both-fail01.outcome != 'failure' }}
+      run: |
+        echo "lego-both-fail01 outcome is ${{steps.lego-both-fail01.outcome }}"
+        exit 1
+      shell: bash
+
+    - name: "Enroll lego with domain prevalidation and resolvable domain"
+      if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego.acme -d lego-02.foo.local --http
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.4
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'rpm' }}
+      with:
+        time: 10s
+
+    - name: "Check logs "
+      if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          echo "container deployment"
+          docker compose logs | grep "Domain lego-02.foo.local is preauthorized, setting authorization status to 'valid'"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "Domain lego-02.foo.local is preauthorized, setting authorization status to 'valid'"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Enroll lego with only domain prevalidation"
+      if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego-03.foo.local --http
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.4
+      if: ${{ inputs.DEPLOYMENT_TYPE == 'rpm' }}
+      with:
+        time: 10s
+
+    - name: "Check logs "
+      if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          echo "container deployment"
+          docker compose logs | grep "Domain lego-03.foo.local is preauthorized, setting authorization status to 'valid'"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "Domain lego-03.foo.local is preauthorized, setting authorization status to 'valid'"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Enroll lego with both ip and domain prevalidation (to fail)"
+      if: ${{ inputs.PREVALIDATED == 'both' || inputs.PREVALIDATED == 'domain' }}
+      id: lego-domain-fail01
+      continue-on-error: true
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d lego-04.acme -d lego-04.foo.local --http
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check  result "
+      if: ${{ (inputs.PREVALIDATED == 'both' || inputs.PREVALIDATED == 'domain') && steps.lego-domain-fail01.outcome != 'failure' }}
+      run: |
+        echo "lego-domain-fail01 outcome is ${{steps.lego-domain-fail01.outcome }}"
+        exit 1
+      shell: bash
+
+    - name: "Enroll lego with ip"
+      if: ${{ inputs.PREVALIDATED == 'both' || inputs.PREVALIDATED == 'ip' }}
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d 10.0.0.2 --http
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Sleep for 10s"
+      uses: juliangruber/sleep-action@v2.0.4
+      with:
+        time: 10s
+
+    - name: "Check logs "
+      if: ${{ inputs.PREVALIDATED == 'both'  || inputs.PREVALIDATED == 'ip' }}
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          echo "container deployment"
+          docker compose logs | grep "IP 10.0.0.2 is preauthorized, setting authorization status to 'valid'"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "IP 10.0.0.2 is preauthorized, setting authorization status to 'valid'"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+
+    - name: "Enroll lego with both ip and domain prevalidation (to fail)"
+      if: ${{ inputs.PREVALIDATED == 'both' || inputs.PREVALIDATED == 'ip' }}
+      id: lego-ip-fail01
+      continue-on-error: true
+      run: |
+        sudo rm -rf lego/*
+        docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER -a --email "lego@example.com" -d 172.0.0.2 -d 10.0.0.1 --http
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CA_PATH: ${{ inputs.CA_PATH }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Check  result "
+      if: ${{ (inputs.PREVALIDATED == 'both' || inputs.PREVALIDATED == 'ip') && steps.lego-ip-fail01.outcome != 'failure' }}
+      run: |
+        echo "lego-ip-fail01 outcome is ${{steps.lego-ip-fail01.outcome }}"
+        exit 1
+      shell: bash

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """ca handler for "NetGuard Certificate Lifecycle Manager" via REST-API class"""
+
 from __future__ import print_function
 import os
 import time
@@ -55,6 +56,7 @@ class CAhandler(object):
         self.enrollment_config_log = False
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
+        self.profile_mapping_field = "template_name"
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -151,7 +153,7 @@ class CAhandler(object):
         if job_id:
             cert_id = self._cert_id_get(job_id)
             if cert_id:
-                (error, cert_bundle, cert_raw) = self._cert_bundle_build(cert_id)
+                error, cert_bundle, cert_raw = self._cert_bundle_build(cert_id)
             else:
                 self.logger.error("Certificate ID lookup failed for job: %s", job_id)
                 error = "Certifcate_id lookup failed"
@@ -477,7 +479,7 @@ class CAhandler(object):
         self.api_host = config_dic.get("CAhandler", "api_host", fallback=self.api_host)
         self.ca_name = config_dic.get("CAhandler", "ca_name", fallback=self.ca_name)
         self.template_info_dic["name"] = config_dic.get(
-            "CAhandler", "template_name", fallback=None
+            "CAhandler", self.profile_mapping_field, fallback=None
         )
         if "container_name" in config_dic["CAhandler"]:
             self.container_info_dic["name"] = config_dic.get(
@@ -503,7 +505,7 @@ class CAhandler(object):
                 proxy_list = json.loads(config_dic.get("DEFAULT", "proxy_server_list"))
                 url_dic = parse_url(self.logger, self.api_host)
                 if "host" in url_dic:
-                    (fqdn, _port) = url_dic["host"].split(":")
+                    fqdn, _port = url_dic["host"].split(":")
                     proxy_server = proxy_check(self.logger, fqdn, proxy_list)
                     self.proxy = {"http": proxy_server, "https": proxy_server}
             except Exception as err_:
@@ -611,7 +613,9 @@ class CAhandler(object):
         self.logger.debug("CAhandler._csr_check()")
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, "template_name")
+        error = eab_profile_header_info_check(
+            self.logger, self, csr, self.profile_mapping_field
+        )
 
         self.logger.debug("CAhandler._csr_check() ended with: %s", error)
         return error
@@ -633,7 +637,7 @@ class CAhandler(object):
 
         if ca_id and self.container_info_dic["id"]:
             # enroll operation
-            (error, cert_bundle, cert_raw, cert_id) = self._cert_enroll(csr, ca_id)
+            error, cert_bundle, cert_raw, cert_id = self._cert_enroll(csr, ca_id)
         else:
             error = f'Enrollment aborted. ca: {ca_id}, tsg_id: {self.container_info_dic["id"]}'
             self.logger.info(
@@ -833,7 +837,7 @@ class CAhandler(object):
                 error = self._csr_check(csr)
 
                 if not error:
-                    (error, cert_bundle, cert_raw, cert_id) = self._enroll(csr, ca_id)
+                    error, cert_bundle, cert_raw, cert_id = self._enroll(csr, ca_id)
                 else:
                     self.logger.error(
                         "EAB profile lookup failed with error: %s",
@@ -908,7 +912,7 @@ class CAhandler(object):
                 )
 
         if job_id:
-            (code, message, detail) = self._revocation_status_poll(job_id, err_dic)
+            code, message, detail = self._revocation_status_poll(job_id, err_dic)
 
         self.logger.debug("CAhandler.revoke() ended with: %s", code)
         return (code, message, detail)

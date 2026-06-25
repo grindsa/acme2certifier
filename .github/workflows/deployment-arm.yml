@@ -55,7 +55,7 @@ jobs:
         IGNORE_CURRENT_STATUS: "false"
 
     - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.3
+      uses: juliangruber/sleep-action@v2.0.4
       with:
         time: 10s
 
@@ -93,6 +93,15 @@ jobs:
     - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
     - run: echo "UUID ${{ env.UUID }}"
 
+    - name: "Download DEB artifact by name from build run"
+      uses: ./.github/actions/download_artifact
+      with:
+        RUN_ID: ${{ inputs.run_id }}
+        ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+        DESTINATION_PATH: ./
+        TOKEN: ${{ secrets.GH_WF_TOKEN }}
+        REPO: ${{ github.repository }}
+
     - name: "Prepare ssh environment in ramdisk"
       run: |
         sudo mkdir -p /tmp/rd
@@ -118,6 +127,7 @@ jobs:
       uses: docker/build-push-action@v5
       with:
         load: true
+        context: .
         tags: grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ env.UUID }}
         file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
         platforms: linux/arm64
@@ -213,7 +223,7 @@ jobs:
         UUID: ${{ env.UUID }}
 
     - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.3
+      uses: juliangruber/sleep-action@v2.0.4
       with:
         time: 5s
 
@@ -271,7 +281,7 @@ jobs:
 
     - name: "Lego enroll"
       run: |
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker pull goacme/lego run"
+        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker pull goacme/lego"
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "mkdir -p /tmp/a2c/$UUID/lego"
         sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID --network $UUID goacme/lego run -s https://acme-srv-$UUID/directory --tls-skip-verify -a --email lego@example.com -d lego-$UUID --http"
       env:
@@ -305,7 +315,7 @@ jobs:
     name: instance_stop
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier' && inputs.branch == 'devel'
+    if: ${{ always() && github.repository == 'grindsa/acme2certifier' && inputs.branch == 'devel' }}
     needs: build_test
     steps:
 

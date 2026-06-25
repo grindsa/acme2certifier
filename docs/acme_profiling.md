@@ -8,7 +8,7 @@ The [Automated Certificate Management Environment (ACME) Profiles Extension draf
 
 acme2certifier supports acme profiling starting from version v0.38.
 
-ACME profiling must be must be specified in `acme_srv.cfg`:
+ACME profiling must be specified in `acme_srv.cfg`:
 
 ```config
 [Order]
@@ -21,7 +21,7 @@ Below an example for lego submitting a profile "profile2":
 docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http --profile profile2
 ```
 
-acme2certifier will check a submitted profile-name against the list of advertised profiles. If a client submits an order for an unknown profile the order the order will get refused with an "invalidProfile" error. acme2certifier can be configured to skip this check and accept any profile name as long as profiling gets enabled in the config.
+acme2certifier will check a submitted profile-name against the list of advertised profiles. If a client submits an order for an unknown profile, the order will be refused with an "invalidProfile" error. acme2certifier can be configured to skip this check and accept any profile name as long as profiling gets enabled in the config.
 
 ```config
 [Order]
@@ -29,7 +29,7 @@ profiles: {"profile1": "http://foo.bar/profile1", "profile2": "http://foo.bar/pr
 profiles_check_disable: True
 ```
 
-Depending on the CA-handler the profile value replaces a certain value in the CA-handler configuration. The below table provides an overview about the individual paramters:
+Depending on the CA-handler the profile value replaces a certain value in the CA-handler configuration. The table below provides an overview of the individual parameters:
 
 | CA-handler                                                                      | configuration parameter |
 | ------------------------------------------------------------------------------- | ----------------------- |

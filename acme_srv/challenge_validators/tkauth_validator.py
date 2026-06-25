@@ -3,6 +3,7 @@ TKAuth Challenge Validator.
 
 Implements validation logic for tkauth-01 challenges.
 """
+
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 
 

@@ -38,7 +38,7 @@ Other configuration options (domain lists, profiles, proxies, etc.) are loaded a
 
 ## Passing a vault-role from client to server
 
-acme2certifier supports the the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a `vault-role` parameter to be submitted to the CA server.
+acme2certifier supports the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md), allowing an acme-client to specify a `vault-role` parameter to be submitted to the CA server.
 
 The list of supported profiles must be configured in `acme_srv.cfg`
 
@@ -72,7 +72,7 @@ Below is an example key file used during regression testing:
 - ACME clients using `keyid_00` can submit vault-role parameters "clientauth" or "serverauth" as part of an enrollmnet request (see above section)
 - ACME clients using `keyid_01` enroll certificates from a different CA (pki-path `pki_alternate`) with the vault-role `vault-alternate`
 - ACME clients using `keyid_03` are using a specific list of allowed domains
-- ACME clients using `keyid_04` are using the paramters configured in `acme_srv_cfg`
+- ACME clients using `keyid_04` are using the parameters configured in `acme_srv_cfg`
 
 ```json
 {

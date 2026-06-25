@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """generic ca handler for CAs supporting acme protocol"""
+
 from __future__ import print_function
 
 # pylint: disable= e0401, w0105, w0212
@@ -27,7 +28,6 @@ from acme_srv.helper import (
     b64_url_decode,
     cert_pem2der,
     client_parameter_validate,
-    config_allowed_domainlist_load,
     config_eab_profile_load,
     config_headerinfo_load,
     config_enroll_config_log_load,
@@ -58,7 +58,6 @@ class CAhandler(object):
         self.acme_sh_shell = None
         self.acme_url = None
         self.acme_url_dic = {}
-        self.allowed_domainlist = []
         self.dbstore = DBstore(None, self.logger)
         self.dns_update_script = None
         self.dns_update_script_variables = None
@@ -77,6 +76,7 @@ class CAhandler(object):
         self.profile = None
         self.profiles = {}
         self.ssl_verify = True
+        self.profile_mapping_field = "profile"
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -130,7 +130,9 @@ class CAhandler(object):
         self.eab_hmac_key = config_dic.get("CAhandler", "eab_hmac_key", fallback=None)
         self.acme_keypath = config_dic.get("CAhandler", "acme_keypath", fallback=None)
         # load profile from config file if set
-        self.profile = config_dic.get("CAhandler", "profile", fallback=None)
+        self.profile = config_dic.get(
+            "CAhandler", self.profile_mapping_field, fallback=None
+        )
 
         self.logger.debug("CAhandler._config_eab_load() ended")
 
@@ -233,10 +235,6 @@ class CAhandler(object):
                 'Configuration incomplete: "CAhandler" section is missing in config file'
             )
 
-        # load allowed domainlist
-        self.allowed_domainlist = config_allowed_domainlist_load(
-            self.logger, config_dic
-        )
         # load profiling
         self.eab_profiling, self.eab_handler = config_eab_profile_load(
             self.logger, config_dic
@@ -500,7 +498,7 @@ class CAhandler(object):
         if challenge:
             chall_content = challenge.chall.validation(user_key)
             try:
-                (chall_name, _token) = chall_content.split(".", 2)
+                chall_name, _token = chall_content.split(".", 2)
             except Exception:
                 self.logger.error(
                     "Challenge split failed: %s",
@@ -1005,13 +1003,13 @@ class CAhandler(object):
 
         if regr.body.status == "valid":
             self.logger.debug("CAhandler._enroll(): Valid ACME account: %s", regr.uri)
-            (error, cert_bundle, cert_raw) = self._order_issue(
+            error, cert_bundle, cert_raw = self._order_issue(
                 acmeclient, user_key, csr_pem
             )
         elif not regr.body.status and regr.uri:
             # this is an exisitng but not configured account. Throw error but continue enrolling
             self.logger.info("Existing but not configured ACME account: %s", regr.uri)
-            (error, cert_bundle, cert_raw) = self._order_issue(
+            error, cert_bundle, cert_raw = self._order_issue(
                 acmeclient, user_key, csr_pem
             )
         else:
@@ -1100,19 +1098,17 @@ class CAhandler(object):
         poll_indentifier = None
         user_key = None
 
-        error = allowed_domainlist_check(self.logger, csr, self.allowed_domainlist)
-
         # check for eab profiling and header_info
+        error = eab_profile_header_info_check(
+            self.logger, self, csr, self.profile_mapping_field
+        )
         if not error:
-            error = eab_profile_header_info_check(self.logger, self, csr, "profile")
+            if self.enrollment_config_log:
+                self.enrollment_config_log_skip_list.extend(["dbstore", "eab_mac_key"])
+                enrollment_config_log(
+                    self.logger, self, self.enrollment_config_log_skip_list
+                )
 
-        if self.enrollment_config_log:
-            self.enrollment_config_log_skip_list.extend(["dbstore", "eab_mac_key"])
-            enrollment_config_log(
-                self.logger, self, self.enrollment_config_log_skip_list
-            )
-
-        if not error:
             try:
                 user_key = self._user_key_load()
                 net = client.ClientNetwork(user_key, verify_ssl=self.ssl_verify)

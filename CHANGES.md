@@ -6,6 +6,26 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.43
+
+**Features and Improvements**:
+
+- [EAB strict mode](docs/eab.md) to allow registration of EAB and non-EAB clients at the same a2c instance
+- [Experimental support for dns-persist-01 challenges](docs/dns-persist-01.md)
+- [Prevalidation](docs/identifier_prevalidation.md) of IP and Email identifiers
+- [FreeIPA CA Handler](docs/freeipa.md)
+- [Dogtag CA Handler](docs/dogtag_ca_handler.md)
+- [Dryrun Mode](docs/dryrun.md)
+- Option `wildcard_certificate_disable` to prevent the ernollment of wildcard certificates globally. Can be overridden via [eab-profiling](docs/eab_profiling.md)
+- Kerberos keytab support in [mswcce_ca_handler.py](docs/mswcce.md#keytab-support) and [mscertserv_ca_handler.py](docs/mscertsrv.md#gssapi-keytab-mode)
+
+**Bug Fixes**:
+
+- [313](https://github.com/grindsa/acme2certifier/pull/313) - Replace lstrip in WSGI path lookup
+- Restrict challenges for wildcard certificate requests to `dns-01` and `dns-persist-01`
+- Improved wildcard matching as part of allowed_domain_list and domain_prevalidation checks
+- Validation of submitted ACME-profile against EAB profile values will be done as part of order processing
+
 ## Changes in 0.42.1
 
 **Bug Fixes**:
@@ -50,7 +70,7 @@ and pick the appropriate release branch.
 
 - [**Asynchronous Mode**](docs/async_mode.md)
 - **EAB Profiling**:
-  - Support of [domain prevalidation](docs/prevalidated_domainlist.md)
+  - Support of [domain prevalidation](docs/identifier_prevalidation.md)
   - challenge_validation_disable, forward_address_check and reverse_address_check parameters can be configured via[EAB-Profiling feature](docs/eab_profiling.md)
   - eab_pofiling to be enabled in the `[EABhandler]` section of `acme_srv.cfg`
 - **Challenge Error Reporting**: Challange validation error status will be reported to ACME-client
@@ -223,7 +243,7 @@ and pick the appropriate release branch.
 - new [tool to validate eab-files](docs/eab_profiling.md#profile-verification)
 - [#165](https://github.com/grindsa/acme2certifier/issues/165) [EAB profiling](docs/eab_profiling.md#enrollment-profiling-via-external-account-binding) for ejbca_handler
 - [#166](https://github.com/grindsa/acme2certifier/issues/166) [EAB profiling](docs/acme_ca.md#eab-profiling) for acme_ca_handler
-- documentation for active/active setup on [Alma9](docs/a2c-alma-loadbalancing.md) and [Ubuntu 22.04](docs/a2c-ubuntu-loadbalancing.md)
+- documentation for active/active setup on [Alma9](docs/a2c-alma-loadbalancing.md) and [Ubuntu 24.04](docs/a2c-ubuntu-loadbalancing.md)
 - [#165](https://github.com/grindsa/acme2certifier/issues/165) documentation of [external database support](docs/external_database_support.md) via django_handler
 
 **Bugfixes**:

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Logging utilities for acme2certifier"""
+
 import logging
 import sys
 import copy

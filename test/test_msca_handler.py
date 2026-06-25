@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """unittests for acme2certifier"""
+
 # pylint: disable= C0415, W0212
 import unittest
 import sys
@@ -181,6 +182,36 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.krb5_config)
 
     @patch("examples.ca_handler.mscertsrv_ca_handler.load_config")
+    def test_013a_config_load_warn_deprecated_basic(self, mock_load_cfg):
+        """test warning when auth_method basic is explicitly configured"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"auth_method": "basic"}
+        mock_load_cfg.return_value = parser
+
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_load()
+
+        self.assertIn(
+            "WARNING:test_a2c:Auth method 'basic' is deprecated and will be removed in a future release. Please migrate to 'gssapi' (Kerberos).",
+            lcm.output,
+        )
+
+    @patch("examples.ca_handler.mscertsrv_ca_handler.load_config")
+    def test_013b_config_load_warn_deprecated_ntlm(self, mock_load_cfg):
+        """test warning when auth_method ntlm is explicitly configured"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {"auth_method": "ntlm"}
+        mock_load_cfg.return_value = parser
+
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.cahandler._config_load()
+
+        self.assertIn(
+            "WARNING:test_a2c:Auth method 'ntlm' is deprecated and will be removed in a future release. Please migrate to 'gssapi' (Kerberos).",
+            lcm.output,
+        )
+
+    @patch("examples.ca_handler.mscertsrv_ca_handler.load_config")
     def test_014_config_load(self, mock_load_cfg):
         """test _config_load cahandler section with authmethod unknown"""
         parser = configparser.ConfigParser()
@@ -239,6 +270,29 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.ca_bundle)
         self.assertFalse(self.cahandler.template)
         self.assertEqual("krb5_config", self.cahandler.krb5_config)
+
+    @patch("examples.ca_handler.mscertsrv_ca_handler.load_config")
+    def test_017a_config_load_kerberos_keytab_options(self, mock_load_cfg):
+        """test _config_load with kerberos keytab related options"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "auth_method": "gssapi",
+            "krb5_principal": "svc-a2c-enroll@EXAMPLE.COM",
+            "krb5_keytab": "/tmp/svc.keytab",
+            "krb5_cache": "/tmp/krb5cc_svc",
+            "krb5_config": "/tmp/krb5.conf",
+            "krb5_kinit_path": "/usr/local/bin/kinit",
+        }
+        mock_load_cfg.return_value = parser
+
+        self.cahandler._config_load()
+
+        self.assertEqual("gssapi", self.cahandler.auth_method)
+        self.assertEqual("svc-a2c-enroll@EXAMPLE.COM", self.cahandler.krb5_principal)
+        self.assertEqual("/tmp/svc.keytab", self.cahandler.krb5_keytab)
+        self.assertEqual("/tmp/krb5cc_svc", self.cahandler.krb5_cache)
+        self.assertEqual("/tmp/krb5.conf", self.cahandler.krb5_config)
+        self.assertEqual("/usr/local/bin/kinit", self.cahandler.krb5_kinit_path)
 
     @patch.dict("os.environ", {"host_variable": "host"})
     @patch("examples.ca_handler.mscertsrv_ca_handler.load_config")
@@ -659,6 +713,47 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_eab.called)
         self.assertEqual("template", self.cahandler.template)
+
+    @patch("examples.ca_handler.mscertsrv_ca_handler.subprocess.run")
+    @patch("examples.ca_handler.mscertsrv_ca_handler.os.path.isfile")
+    def test_061a_kerberos_acquire_with_kinit_custom_path(
+        self,
+        mock_isfile,
+        mock_subprocess_run,
+    ):
+        """test kinit fallback uses custom kinit binary and krb5 config"""
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+        self.cahandler.krb5_principal = "svc-a2c-enroll@EXAMPLE.COM"
+        self.cahandler.krb5_config = "/tmp/krb5.conf"
+        self.cahandler.krb5_kinit_path = "/usr/local/bin/kinit"
+
+        mock_isfile.return_value = True
+        result = self.cahandler._kerberos_acquire_with_kinit("/tmp/krb5cc_svc")
+
+        self.assertTrue(result)
+        run_args, run_kwargs = mock_subprocess_run.call_args
+        self.assertEqual("/usr/local/bin/kinit", run_args[0][0])
+        self.assertEqual("/tmp/krb5cc_svc", run_kwargs["env"]["KRB5CCNAME"])
+        self.assertEqual("/tmp/krb5.conf", run_kwargs["env"]["KRB5_CONFIG"])
+
+    def test_061b_credentials_are_configured_gssapi_keytab(self):
+        """test gssapi keytab mode does not require user/password"""
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc-a2c-enroll@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+
+        self.assertTrue(self.cahandler._credentials_are_configured())
+
+    def test_061c_enroll_gssapi_keytab_missing_template(self):
+        """test enroll in gssapi keytab mode still needs template"""
+        self.cahandler.host = "host"
+        self.cahandler.auth_method = "gssapi"
+        self.cahandler.krb5_principal = "svc-a2c-enroll@EXAMPLE.COM"
+        self.cahandler.krb5_keytab = "/tmp/svc.keytab"
+
+        self.assertEqual(
+            ("Config incomplete", None, None, None), self.cahandler.enroll("csr")
+        )
 
     @patch("examples.ca_handler.mscertsrv_ca_handler.eab_profile_header_info_check")
     @patch("examples.ca_handler.mscertsrv_ca_handler.CAhandler._pkcs7_to_pem")

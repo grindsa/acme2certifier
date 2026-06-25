@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """CA handler using HashiCorp Vault"""
+
 from __future__ import print_function
 from typing import Tuple, Dict, List
 import datetime
@@ -30,7 +31,6 @@ from acme_srv.helper import (
     request_operation,
 )
 
-
 CONTENT_TYPE = "application/json"
 
 
@@ -55,6 +55,7 @@ class CAhandler(object):
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
         self.proxy = {}
+        self.profile_mapping_field = "vault_role"
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -122,7 +123,12 @@ class CAhandler(object):
         error = None
 
         error = None
-        for ele in ["vault_url", "vault_path", "vault_role", "vault_token"]:
+        for ele in [
+            "vault_url",
+            "vault_path",
+            self.profile_mapping_field,
+            "vault_token",
+        ]:
             if not getattr(self, ele):
 
                 error = f"{ele} parameter is missing in config file"
@@ -140,7 +146,9 @@ class CAhandler(object):
         if "CAhandler" in config_dic:
             self.vault_url = config_dic.get("CAhandler", "vault_url", fallback=None)
             self.vault_path = config_dic.get("CAhandler", "vault_path", fallback=None)
-            self.vault_role = config_dic.get("CAhandler", "vault_role", fallback=None)
+            self.vault_role = config_dic.get(
+                "CAhandler", self.profile_mapping_field, fallback=None
+            )
             self.vault_token = config_dic.get("CAhandler", "vault_token", fallback=None)
             self.issuer_ref = config_dic.get("CAhandler", "issuer_ref", fallback=None)
             try:
@@ -197,7 +205,9 @@ class CAhandler(object):
         """check csr"""
         self.logger.debug("CAhandler._csr_check()")
 
-        error = eab_profile_header_info_check(self.logger, self, csr, "vault_role")
+        error = eab_profile_header_info_check(
+            self.logger, self, csr, self.profile_mapping_field
+        )
 
         self.logger.debug("CAhandler._csr_check() ended with: %s", error)
         return error

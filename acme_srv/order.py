@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Order class"""
+
 from __future__ import print_function
 import json
 import copy
@@ -7,7 +8,9 @@ from typing import Any, List, Tuple, Dict, Optional
 from dataclasses import dataclass, field
 from acme_srv.helper import (
     b64_url_recode,
+    ca_handler_load,
     config_allowed_domainlist_load,
+    config_allowed_iplist_load,
     config_profile_load,
     error_dic_get,
     generate_random_string,
@@ -18,6 +21,8 @@ from acme_srv.helper import (
     validate_identifier,
     is_domain_whitelisted,
     config_eab_profile_load,
+    config_dryrun_load,
+    is_ip_whitelisted,
 )
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
@@ -157,8 +162,12 @@ class OrderConfiguration:
     profiles_check_disable: bool = True
     idempotent_finalize: bool = False
     allowed_domainlist: List[str] = field(default_factory=list)
+    allowed_iplist: List[str] = field(default_factory=list)
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
+    profile_mapping_field: Optional[str] = None
+    dryrun_profilename: Optional[str] = None
+    wildcard_certificate_disable: bool = False
 
 
 class Order(object):
@@ -229,6 +238,14 @@ class Order(object):
         if self.config.profiles_check_disable:
             self.logger.debug("Order.is_profile_valid(): profile check disabled")
             error = None
+        elif (
+            self.config.dryrun_profilename and profile == self.config.dryrun_profilename
+        ):
+            self.logger.info(
+                "Order.is_profile_valid(): dryrun profile '%s' submitted",
+                profile,
+            )
+            error = None
         else:
             if profile in self.config.profiles:
                 error = None
@@ -236,6 +253,16 @@ class Order(object):
                 self.logger.warning(
                     "Profile '%s' is not valid. Ignoring submitted profile.", profile
                 )
+                # cover cornercase, where we have only one profile configured, and the submitted profile is not valid
+                # in this case we overwrite the submitted profile silently
+                if len(self.config.profiles.keys()) == 1:
+                    self.logger.info(
+                        "Only one profile configured. Overwriting submitted profile '%s' with '%s'.",
+                        profile,
+                        list(self.config.profiles.keys())[0],
+                    )
+                    error = None
+
         self.logger.debug("Order.is_profile_valid() ended with %s", error)
         return error
 
@@ -269,6 +296,31 @@ class Order(object):
         error = self.is_profile_valid(payload["profile"])
         if not error:
             if self.config.profiles:
+                profile = payload["profile"]
+                if (
+                    not self.config.profiles_check_disable
+                    and profile not in self.config.profiles
+                    and not (
+                        self.config.dryrun_profilename
+                        and self.config.dryrun_profilename == profile
+                    )
+                    and len(self.config.profiles.keys()) == 1
+                ):
+                    profile = list(self.config.profiles.keys())[0]
+                    self.logger.info(
+                        "Order.add_profile_to_order(): overwriting submitted profile '%s' with '%s'.",
+                        payload["profile"],
+                        profile,
+                    )
+
+                data_dic["profile"] = profile
+            elif (
+                self.config.dryrun_profilename
+                and self.config.dryrun_profilename == payload["profile"]
+            ):
+                self.logger.debug(
+                    "Order.add_profile_to_order(): adding dryrun profile to order"
+                )
                 data_dic["profile"] = payload["profile"]
             else:
                 self.logger.warning(
@@ -304,26 +356,26 @@ class Order(object):
         try:
             with self.config.eab_handler(self.logger) as eab_handler:
                 profile_dic = eab_handler.key_file_load()
-                allowed_domainlist = (
-                    profile_dic.get(eab_kid, {})
-                    .get("order", {})
-                    .get("allowed_domainlist")
+                # load allowed_iplist and allowed_domainlist from eab profile if specified
+                self.config.allowed_iplist = self._load_eab_profile_param(
+                    profile_dic, eab_kid, "allowed_iplist", self.config.allowed_iplist
                 )
-                if not allowed_domainlist:
-                    allowed_domainlist = (
-                        profile_dic.get(eab_kid, {})
-                        .get("cahandler", {})
-                        .get("allowed_domainlist")
-                    )
-                    if allowed_domainlist:
-                        self.logger.warning(
-                            "allowed_domainlist parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section"
-                        )
-                if allowed_domainlist:
-                    self.logger.debug(
-                        "Order._apply_eab_profile() - apply allowed_domainlist from eab profile."
-                    )
-                    self.config.allowed_domainlist = allowed_domainlist
+                self.config.allowed_domainlist = self._load_eab_profile_param(
+                    profile_dic,
+                    eab_kid,
+                    "allowed_domainlist",
+                    self.config.allowed_domainlist,
+                )
+                self.config.wildcard_certificate_disable = self._load_eab_profile_param(
+                    profile_dic,
+                    eab_kid,
+                    "wildcard_certificate_disable",
+                    self.config.wildcard_certificate_disable,
+                )
+
+                eab_profile_dic = self._load_eab_profile_mapping(profile_dic, eab_kid)
+                self._apply_eab_profile_mapping(account_name, eab_profile_dic)
+
         except Exception as err:
             self.logger.error(
                 "Failed to process EAB profile for Account %s (kid: %s): %s",
@@ -331,6 +383,61 @@ class Order(object):
                 eab_kid,
                 err,
             )
+
+    def _load_eab_profile_mapping(self, profile_dic, eab_kid) -> Dict[str, bool]:
+        """Load and normalize profile mapping from EAB profile."""
+        if not self.config.profile_mapping_field:
+            return {}
+
+        eab_profile = self._load_eab_profile_param(
+            profile_dic,
+            eab_kid,
+            self.config.profile_mapping_field,
+            None,
+        )
+        return self._profile_mapping_to_dict(eab_profile)
+
+    def _apply_eab_profile_mapping(
+        self, account_name: str, eab_profile_dic: Dict[str, bool]
+    ) -> None:
+        """Overwrite configured profiles with EAB profile mapping if provided."""
+        if eab_profile_dic:
+            self.logger.debug(
+                "Order._apply_eab_profile() - overwrite profile information from eab profile for account %s",
+                account_name,
+            )
+            self.config.profiles = eab_profile_dic
+            if self.config.profiles_check_disable:
+                self.logger.debug(
+                    "Order._apply_eab_profile() - enabling profile validation because EAB profile mapping is present"
+                )
+                self.config.profiles_check_disable = False
+
+    def _profile_mapping_to_dict(self, profile_value) -> Dict[str, bool]:
+        """Normalize profile mapping value to dict keys."""
+        if profile_value is None:
+            return {}
+
+        if isinstance(profile_value, str):
+            key = profile_value.strip()
+            return {key: True} if key else {}
+
+        if isinstance(profile_value, list):
+            return {
+                str(item).strip(): True
+                for item in profile_value
+                if item is not None and str(item).strip()
+            }
+
+        if isinstance(profile_value, dict):
+            # already in target format
+            return profile_value
+
+        self.logger.warning(
+            "Unsupported profile mapping type: %s",
+            type(profile_value).__name__,
+        )
+        return {}
 
     def create_order(
         self, payload: Dict[str, str], account_name: str
@@ -357,7 +464,7 @@ class Order(object):
                 data_dic["status"] = 1
             else:
                 if "profile" in payload:
-                    (error, data_dic) = self.add_profile_to_order(data_dic, payload)
+                    error, data_dic = self.add_profile_to_order(data_dic, payload)
                     if error == self.error_msg_dic["invalidprofile"]:
                         detail = "Invalid profile specified"
             error = self._add_order_and_authorizations(
@@ -368,6 +475,35 @@ class Order(object):
 
         self.logger.debug("Order.create_order() ended")
         return (error, detail, order_name, auth_dic, uts_to_date_utc(expires))
+
+    def _load_eab_profile_param(self, profile_dic, eab_kid, param_name, default=None):
+        """Helper to load allowed_iplist or allowed_domainlist from EAB profile."""
+        profile_entry = profile_dic.get(eab_kid, {})
+        order_cfg = profile_entry.get("order", {})
+
+        # Prefer order section and honor explicit falsy values like False or []
+        if param_name in order_cfg:
+            value = order_cfg.get(param_name)
+            self.logger.debug(
+                "Order._apply_eab_profile() - apply %s from eab profile.", param_name
+            )
+            return value
+
+        # Backward compatibility for deprecated cahandler section
+        cahandler_cfg = profile_entry.get("cahandler", {})
+        if param_name in cahandler_cfg:
+            value = cahandler_cfg.get(param_name)
+            if param_name != self.config.profile_mapping_field:
+                self.logger.warning(
+                    "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
+                    param_name,
+                )
+            self.logger.debug(
+                "Order._apply_eab_profile() - apply %s from eab profile.", param_name
+            )
+            return value
+
+        return default
 
     def _load_header_info_config(self, config_dic: Dict[str, str]):
         """Load header info list from config file."""
@@ -407,6 +543,9 @@ class Order(object):
             self.config.idempotent_finalize = config_dic.getboolean(
                 "Order", "idempotent_finalize", fallback=False
             )
+            self.config.wildcard_certificate_disable = config_dic.getboolean(
+                "Order", "wildcard_certificate_disable", fallback=False
+            )
             try:
                 self.config.retry_after = int(
                     config_dic.get(
@@ -436,6 +575,10 @@ class Order(object):
                     "Failed to parse identifier_limit from configuration: %s",
                     config_dic["Order"].get("identifier_limit", None),
                 )
+            _not_used, self.config.dryrun_profilename = config_dryrun_load(
+                self.logger, config_dic
+            )
+
         self.logger.debug("Order._load_order_config() ended")
 
     def _load_profile_config(self, config_dic: Dict[str, str]):
@@ -520,13 +663,76 @@ class Order(object):
         self.config.allowed_domainlist = config_allowed_domainlist_load(
             self.logger, config_dic
         )
+        # load allowed iplist
+        self.config.allowed_iplist = config_allowed_iplist_load(self.logger, config_dic)
         # load profiling
         (
             self.config.eab_profiling,
             self.config.eab_handler,
         ) = config_eab_profile_load(self.logger, config_dic)
 
-        self.logger.debug("Order._config_load() ended.")
+        self.config.profile_mapping_field = self._load_profile_mapping_field(config_dic)
+
+        self.logger.debug("Order._load_configuration() ended.")
+
+    def _load_profile_mapping_field(self, config_dic: Dict[str, str]) -> Optional[str]:
+        """Load profile mapping field from configuration."""
+        self.logger.debug("Order._load_profile_mapping_field()")
+        ca_handler_module = ca_handler_load(self.logger, config_dic)
+
+        if not ca_handler_module:
+            return None
+
+        # Backward compatibility: allow module-level definition.
+        if hasattr(ca_handler_module, "profile_mapping_field"):
+            mapping_field = getattr(ca_handler_module, "profile_mapping_field")
+            self.logger.debug(
+                "Order._load_profile_mapping_field() - profile_mapping_field '%s' loaded from CA handler module",
+                mapping_field,
+            )
+            return mapping_field
+
+        ca_handler_class = getattr(ca_handler_module, "CAhandler", None)
+        if not ca_handler_class:
+            return None
+
+        # Best effort: try instance attributes, but never fail startup on constructor issues.
+        ca_handler_obj = None
+        try:
+            ca_handler_obj = ca_handler_class(logger=self.logger)
+        except TypeError:
+            try:
+                ca_handler_obj = ca_handler_class()
+            except Exception as err_:
+                self.logger.warning(
+                    "Order._load_profile_mapping_field() - failed to instantiate CAhandler without logger: %s",
+                    err_,
+                )
+        except Exception as err_:
+            self.logger.warning(
+                "Order._load_profile_mapping_field() - failed to instantiate CAhandler with logger: %s",
+                err_,
+            )
+
+        if ca_handler_obj:
+            mapping_field = getattr(ca_handler_obj, "profile_mapping_field", None)
+            if mapping_field:
+                self.logger.debug(
+                    "Order._load_profile_mapping_field() - profile_mapping_field '%s' loaded from CAhandler instance",
+                    mapping_field,
+                )
+                return mapping_field
+
+        # Check for class-level attribute if instance attribute is not found
+        mapping_field = getattr(ca_handler_class, "profile_mapping_field", None)
+        if mapping_field:
+            self.logger.debug(
+                "Order._load_profile_mapping_field() - profile_mapping_field '%s' loaded from CAhandler class",
+                mapping_field,
+            )
+            return mapping_field
+
+        return None
 
     def _name_get(self, url: str) -> str:
         """get ordername"""
@@ -535,7 +741,7 @@ class Order(object):
         url_dic = parse_url(self.logger, url)
         order_name = url_dic["path"].replace(self.path_dic["order_path"], "")
         if "/" in order_name:
-            (order_name, _sinin) = order_name.split("/", 1)
+            order_name, _sinin = order_name.split("/", 1)
         self.logger.debug("Order._name_get() ended")
         return order_name
 
@@ -568,61 +774,189 @@ class Order(object):
         """Check if a single identifier is allowed."""
         self.logger.debug("Order._check_single_identifier(%s)", identifier)
 
-        # check if type is present
+        error = self._validate_identifier_structure(identifier)
+        if error:
+            return error
+
+        id_type = identifier["type"].lower()
+
+        error = self._validate_identifier_type_supported(
+            identifier["type"], id_type, allowed_identifiers
+        )
+        if error:
+            return error
+
+        error = self._validate_identifier_value(identifier, id_type)
+        if error:
+            return error
+
+        if id_type == "dns":
+            return self._validate_dns_identifier_policy(identifier)
+
+        if id_type == "ip":
+            return self._validate_ip_identifier_policy(identifier)
+
+        return None, None
+
+    def _validate_identifier_structure(
+        self, identifier: dict
+    ) -> Optional[Tuple[str, str]]:
+        """Validate mandatory identifier fields are present."""
         if "type" not in identifier:
             self.logger.error("Identifier type is missing")
             return self.error_msg_dic["malformed"], "Identifier type is missing"
 
-        # check if value is present
         if "value" not in identifier:
             self.logger.error("Identifier value is missing")
             return self.error_msg_dic["malformed"], "Identifier value is missing"
 
-        # check if type is allowd
-        id_type = identifier["type"].lower()
-        if id_type not in allowed_identifiers:
-            self.logger.error("Identifier type %s not supported", identifier["type"])
-            return (
-                self.error_msg_dic["unsupportedidentifier"],
-                f'Identifier type {identifier["type"]} not supported',
-            )
+        return None
 
-        # check if value is valid
-        if not validate_identifier(
+    def _validate_identifier_type_supported(
+        self, identifier_type: str, id_type: str, allowed_identifiers: List[str]
+    ) -> Optional[Tuple[str, str]]:
+        """Validate identifier type is supported."""
+        if id_type in allowed_identifiers:
+            return None
+
+        self.logger.error("Identifier type %s not supported", identifier_type)
+        return (
+            self.error_msg_dic["unsupportedidentifier"],
+            f"Identifier type {identifier_type} not supported",
+        )
+
+    def _validate_identifier_value(
+        self, identifier: dict, id_type: str
+    ) -> Optional[Tuple[str, str]]:
+        """Validate identifier value format."""
+        if validate_identifier(
             self.logger,
             id_type,
             identifier["value"],
             self.config.tnauthlist_support,
         ):
-            self.logger.error(
-                "Identifier value %s not allowed for type %s",
-                identifier["value"],
-                identifier["type"],
-            )
-            return (
-                self.error_msg_dic["rejectedidentifier"],
-                f'identifier value {identifier["value"]} not allowed',
-            )
+            return None
 
-        # check allowed domainlist for dns identifiers
-        if (
-            id_type == "dns"
-            and self.config.allowed_domainlist
-            and not is_domain_whitelisted(
-                self.logger,
-                identifier["value"],
-                self.config.allowed_domainlist,
-            )
+        self.logger.error(
+            "Identifier value %s not allowed for type %s",
+            identifier["value"],
+            identifier["type"],
+        )
+        return (
+            self.error_msg_dic["rejectedidentifier"],
+            f'identifier value {identifier["value"]} not allowed',
+        )
+
+    def _validate_dns_identifier_policy(
+        self, identifier: dict
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Validate DNS-specific policy constraints."""
+        if self.config.wildcard_certificate_disable and identifier["value"].startswith(
+            "*."
         ):
             self.logger.error(
-                "FQDN/SAN %s not allowed by configuration",
+                "Wildcard identifier %s not allowed by configuration",
                 identifier["value"],
             )
             return (
                 self.error_msg_dic["rejectedidentifier"],
-                f'FQDN/SAN {identifier["value"]} not allowed by configuration',
+                f'Wildcard identifier {identifier["value"]} not allowed',
             )
-        return None, None
+
+        if not self.config.allowed_domainlist:
+            return None, None
+
+        domain_allowed = self._is_domain_allowed_for_identifier(identifier)
+        if domain_allowed:
+            return None, None
+
+        self.logger.error(
+            "FQDN/SAN %s not allowed by configuration",
+            identifier["value"],
+        )
+        return (
+            self.error_msg_dic["rejectedidentifier"],
+            f'FQDN/SAN {identifier["value"]} not allowed by configuration',
+        )
+
+    def _is_domain_allowed_for_identifier(self, identifier: dict) -> bool:
+        """Check allowlist for DNS identifiers with wildcard fallback handling."""
+        domain_value = identifier["value"]
+        wildcard_requested = bool(identifier.get("wildcard"))
+
+        self.logger.debug(
+            "Order._check_single_identifier() - Evaluating allowed_domainlist for value='%s' (wildcard flag: %s)",
+            domain_value,
+            wildcard_requested,
+        )
+
+        domain_allowed = is_domain_whitelisted(
+            self.logger,
+            domain_value,
+            self.config.allowed_domainlist,
+        )
+
+        self.logger.debug(
+            "Order._check_single_identifier() - allowed_domainlist check result for value='%s': %s",
+            domain_value,
+            domain_allowed,
+        )
+
+        if (
+            not domain_allowed
+            and wildcard_requested
+            and domain_value
+            and not domain_value.startswith("*.")
+        ):
+            wildcard_value = f"*.{domain_value}"
+            self.logger.debug(
+                "Order._check_single_identifier() - Reconstructed wildcard value for allowed_domainlist check: '%s' -> '%s'",
+                domain_value,
+                wildcard_value,
+            )
+            domain_allowed = is_domain_whitelisted(
+                self.logger,
+                wildcard_value,
+                self.config.allowed_domainlist,
+            )
+            self.logger.debug(
+                "Order._check_single_identifier() - allowed_domainlist check result for reconstructed wildcard value='%s': %s",
+                wildcard_value,
+                domain_allowed,
+            )
+        else:
+            self.logger.debug(
+                "Order._check_single_identifier() - Skipping reconstructed wildcard allowed_domainlist check (domain_allowed=%s, wildcard=%s, value_present=%s, value_has_wildcard_prefix=%s)",
+                domain_allowed,
+                wildcard_requested,
+                bool(domain_value),
+                bool(domain_value and domain_value.startswith("*.")),
+            )
+
+        return domain_allowed
+
+    def _validate_ip_identifier_policy(
+        self, identifier: dict
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Validate IP-specific policy constraints."""
+        if not self.config.allowed_iplist:
+            return None, None
+
+        if is_ip_whitelisted(
+            self.logger,
+            identifier["value"],
+            self.config.allowed_iplist,
+        ):
+            return None, None
+
+        self.logger.error(
+            "IP address %s not allowed by configuration",
+            identifier["value"],
+        )
+        return (
+            self.error_msg_dic["rejectedidentifier"],
+            f'IP address {identifier["value"]} not allowed by configuration',
+        )
 
     def _rewrite_email_identifiers(
         self, identifiers_list: List[Dict[str, str]]
@@ -743,7 +1077,7 @@ class Order(object):
         # lookup header information
         header_info = self._header_info_lookup(header)
         # this is a new request
-        (code, certificate_name, detail) = self._process_csr(
+        code, certificate_name, detail = self._process_csr(
             order_name, payload["csr"], header_info
         )
         # change status only if we do not have a poll_identifier (stored in detail variable)
@@ -757,6 +1091,8 @@ class Order(object):
         elif certificate_name == "urn:ietf:params:acme:error:rejectedIdentifier":
             code = 401
             message = certificate_name
+        elif detail in ["Dry run mode - enrollment skipped"]:
+            message = "urn:ietf:params:acme:error:unauthorized"
         else:
             message = certificate_name
             detail = "enrollment failed"
@@ -780,7 +1116,7 @@ class Order(object):
             # update order_status / set to processing
             self.repository.order_update({"name": order_name, "status": "processing"})
             if "csr" in payload:
-                (code, message, detail, certificate_name) = self._finalize_csr(
+                code, message, detail, certificate_name = self._finalize_csr(
                     order_name, payload, header
                 )
             else:
@@ -829,7 +1165,7 @@ class Order(object):
 
         if "url" in protected:
             if "finalize" in protected["url"]:
-                (code, message, detail, certificate_name) = self._finalize_order(
+                code, message, detail, certificate_name = self._finalize_order(
                     order_name, payload, header
                 )
             else:
@@ -874,15 +1210,18 @@ class Order(object):
             with Certificate(self.debug, self.server_name, self.logger) as certificate:
                 certificate_name = certificate.store_csr(order_name, csr, header_info)
                 if certificate_name:
-                    (error, detail) = certificate.enroll_and_store(
+                    error, detail = certificate.enroll_and_store(
                         certificate_name, csr, order_name
                     )
-                    if not error:
-                        code = 200
-                        message = certificate_name
-                    elif error == "urn:ietf:params:acme:error:rejectedIdentifier":
+                    if (
+                        error == "urn:ietf:params:acme:error:rejectedIdentifier"
+                        or detail in ["Dry run mode - enrollment skipped"]
+                    ):
                         code = 401
                         message = error
+                    elif not error:
+                        code = 200
+                        message = certificate_name
                     else:
                         code = 400
                         message = error
@@ -1051,12 +1390,12 @@ class Order(object):
 
         response_dic = {}
         # check message
-        (code, message, detail, _protected, payload, account_name) = self.message.check(
+        code, message, detail, _protected, payload, account_name = self.message.check(
             content
         )
 
         if code == 200:
-            (error, detail, order_name, auth_dic, expires) = self.create_order(
+            error, detail, order_name, auth_dic, expires = self.create_order(
                 payload, account_name
             )
             if not error:
@@ -1152,7 +1491,7 @@ class Order(object):
 
         response_dic = {}
         # check message
-        (code, message, detail, protected, payload, _account_name) = self.message.check(
+        code, message, detail, protected, payload, _account_name = self.message.check(
             content
         )
 

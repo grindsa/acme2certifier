@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """ca handler for generic cmpv2 ca handler"""
+
 from __future__ import print_function
 import os
 import shutil
@@ -262,7 +263,7 @@ class CAhandler(object):
 
             # generate certificates we need to return
             if os.path.isfile(f"{self.tmp_dir}/cert.pem"):
-                (cert_bundle, cert_raw) = self._certs_bundle()
+                cert_bundle, cert_raw = self._certs_bundle()
             else:
                 error = "Enrollment failed"
 

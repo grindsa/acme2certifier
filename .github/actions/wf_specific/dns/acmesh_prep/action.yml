@@ -1,0 +1,48 @@
+name: "acmesh_prep"
+description: "Prepare acme.sh container and set DNS server"
+
+inputs:
+  ACME_SRV_CFG:
+    description: "ACME server configuration"
+    required: true
+    default: "data/volume/acme_srv.cfg"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: true
+    default: "rpm"
+
+runs:
+  using: "composite"
+  steps:
+
+  - name: "Prepare acme.sh container"
+    run: |
+      docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+      sudo cp .github/dns_test.sh acme-sh/
+      docker exec -i acme-sh apk add dnsmasq
+      docker exec -i acme-sh dnsmasq
+      docker exec -i acme-sh mv /acme.sh/dns_test.sh /acmebin/dnsapi/
+      docker exec -i acme-sh chmod +x /acmebin/dnsapi/dns_test.sh
+    shell: bash
+
+  - name: "Set DNS server"
+    if: ${{ inputs.DEPLOYMENT_TYPE == 'container' }}
+    run: |
+      cd examples/Docker/
+      docker compose stop
+      docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh
+      sudo sed -i "s/DNS-IP/$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)/g" $ACME_SRV_CFG
+      docker compose start
+      docker compose logs
+    shell: bash
+    env:
+      ACME_SRV_CFG: ${{ inputs.ACME_SRV_CFG }}
+
+  - name: "set DNS server"
+    if: ${{ inputs.DEPLOYMENT_TYPE != 'container' }}
+    run: |
+      docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh
+      sudo sed -i "s/DNS-IP/$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)/g" $ACME_SRV_CFG
+    shell: bash
+    env:
+      ACME_SRV_CFG: ${{ inputs.ACME_SRV_CFG }}

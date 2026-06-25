@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Validation utilities for acme2certifier"""
+
 import re
 import logging
 import ipaddress
@@ -25,7 +26,7 @@ def fqdn_in_san_check(logger: logging.Logger, san_list: List[str], fqdn: str) ->
     if fqdn and san_list:
         for san in san_list:
             try:
-                (_type, value) = san.lower().split(":", 1)
+                _type, value = san.lower().split(":", 1)
                 if fqdn == value:
                     result = True
                     break
@@ -90,9 +91,12 @@ def validate_identifier(
     return result
 
 
-def validate_ip(logger: logging.Logger, ip: str) -> bool:
+def validate_ip(logger: logging.Logger, ip: str, raw=False) -> ipaddress._BaseAddress:
     """validate ip address"""
     logger.debug("Helper.validate_ip()")
+    if raw:
+        return ipaddress.ip_address(ip)
+    result = False
     try:
         ipaddress.ip_address(ip)
         result = True
@@ -123,6 +127,12 @@ def validate_fqdn(logger: logging.Logger, fqdn: str) -> bool:
 
     logger.debug("Helper.validate_fqdn() ended with: %s", result)
     return result
+
+
+def validate_network(logger: logging.Logger, ip_network: str) -> ipaddress._BaseNetwork:
+    """check if an ip address is in a list of ip networks"""
+    logger.debug("Helper.validate_network(%s)", ip_network)
+    return ipaddress.ip_network(ip_network, strict=False)
 
 
 def ip_validate(logger: logging.Logger, ip_addr: str) -> Tuple[str, bool]:

@@ -112,7 +112,6 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
         with:
@@ -124,6 +123,11 @@ jobs:
           cd examples/Docker
           docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "ACME Profiling - setup a2c with vault_ca_handler"
         run: |
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"serverauth\": \"http:\/\/foo.bar\/serverauth\", \"clientauth\": \"http:\/\/foo.bar\/clientauth\", \"bar-dot-local\": \"http:\/\/foo.bar\/bar-dot-local\"}/g" examples/Docker/data/acme_srv.cfg
@@ -134,6 +138,11 @@ jobs:
 
       - name: "ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/vault_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "EAB ACME Profiling - setup a2c with vault_ca_handler"
         run: |
@@ -267,6 +276,11 @@ jobs:
           USE_CERTBOT: "true"
           TEST_ADL: "true"
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
       - name: "ACME Profiling - setup a2c with vault_ca_handler"
         run: |
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"serverauth\": \"http:\/\/foo.bar\/serverauth\", \"clientauth\": \"http:\/\/foo.bar\/clientauth\", \"bar-dot-local\": \"http:\/\/foo.bar\/bar-dot-local\"}/g" data/volume/acme_srv.cfg
@@ -281,6 +295,11 @@ jobs:
 
       - name: "ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/vault_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "EAB ACME Profiling - setup a2c with vault_ca_handler"
         run: |
@@ -406,6 +425,11 @@ jobs:
           USE_CERTBOT: "true"
           TEST_ADL: "true"
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
+
       - name: "ACME Profiling - setup a2c with vault_ca_handler"
         run: |
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"serverauth\": \"http:\/\/foo.bar\/serverauth\", \"clientauth\": \"http:\/\/foo.bar\/clientauth\", \"bar-dot-local\": \"http:\/\/foo.bar\/bar-dot-local\"}/g" data/volume/acme_srv.cfg
@@ -414,13 +438,18 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/vault_ca_handler/enroll_acmeprofile
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "EAB ACME Profiling - setup a2c with vault_ca_handler"
         run: |
@@ -443,10 +472,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSRIPT: ${{ matrix.execscript }}
+          EXECSCRIPT: ${{ matrix.execscript }}
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}

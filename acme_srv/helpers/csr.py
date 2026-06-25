@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """CSR utilities for acme2certifier"""
+
 import base64
 import logging
 from typing import List, Dict

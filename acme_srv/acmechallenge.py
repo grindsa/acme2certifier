@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """acmechallenge class"""
+
 from __future__ import print_function
 from acme_srv.db_handler import DBstore
 

@@ -4,7 +4,7 @@ runs:
   using: "composite"
   steps:
   - name: "Profile 1 - Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 10s
 
@@ -28,24 +28,6 @@ runs:
     run: |
       docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --revoke --server http://acme-srv -d acme-sh.acme --standalone --debug 3 --output-insecure
     shell: bash
-
-  #- name: "Profile 1 - Register certbot"
-  #  run: |
-  #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-  #  shell: bash
-
-  #- name: "Profile 1 - Enroll HTTP-01 single domain certbot"
-  #  run: |
-  #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot  --key-type rsa --rsa-key-size 2048
-  #    sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
-  #    sudo openssl x509 -in certbot/live/certbot/cert.pem -ext keyUsage -noout | grep "Digital Signature"
-  #    # sudo openssl x509 -in certbot/live/certbot/cert.pem -text -noout
-  #  shell: bash
-
-  #- name: "Profile 1 - Revoke HTTP-01 single domain certbot"
-  #  run: |
-  #    docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  --cert.name certbot.acme --cert-name certbot
-  #  shell: bash
 
   - name: "Profile 1 - Enroll lego"
     run: |
@@ -82,6 +64,6 @@ runs:
     shell: bash
 
   - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 5s

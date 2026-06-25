@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """ca handler for generic EST server"""
+
 from __future__ import print_function
 import os
 import textwrap
@@ -24,6 +25,7 @@ from acme_srv.helper import (
     parse_url,
     proxy_check,
     handler_config_check,
+    pkcs7_to_pem,
 )
 
 
@@ -264,7 +266,7 @@ class CAhandler(object):
                 proxy_list = json.loads(config_dic.get("DEFAULT", "proxy_server_list"))
                 url_dic = parse_url(self.logger, self.est_host)
                 if "host" in url_dic:
-                    (fqdn, _port) = url_dic["host"].split(":")
+                    fqdn, _port = url_dic["host"].split(":")
                     proxy_server = proxy_check(self.logger, fqdn, proxy_list)
                     self.proxy = {"http": proxy_server, "https": proxy_server}
             except Exception as err_:
@@ -317,27 +319,7 @@ class CAhandler(object):
         """convert pkcs7 to pem"""
         self.logger.debug("CAhandler._pkcs7_to_pem()")
 
-        try:
-            pkcs7_obj = load_pem_pkcs7_certificates(
-                convert_string_to_byte(pkcs7_content)
-            )
-        except Exception:
-            self.logger.debug("CAhandler._pkcs7_to_pem(): load pem failed. Try der...")
-            pkcs7_obj = load_der_pkcs7_certificates(pkcs7_content)
-
-        cert_pem_list = []
-        for cert in pkcs7_obj:
-            cert_pem_list.append(
-                convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM))
-            )
-
-        # define output format
-        if outform == "string":
-            result = "".join(cert_pem_list)
-        elif outform == "list":
-            result = cert_pem_list
-        else:
-            result = None
+        result = pkcs7_to_pem(self.logger, pkcs7_content, outform)
 
         self.logger.debug("Certificate._pkcs7_to_pem() ended")
         return result
@@ -389,13 +371,13 @@ class CAhandler(object):
         csr = textwrap.fill(b64_url_recode(self.logger, csr), 64) + "\n"
 
         if self.est_host:
-            (error, ca_pem) = self._cacerts_get()
+            error, ca_pem = self._cacerts_get()
 
         if not error:
             if ca_pem:
-                (error, cert_raw) = self._simpleenroll(csr)
+                error, cert_raw = self._simpleenroll(csr)
                 # build certificate bundle
-                (error, cert_bundle, cert_raw) = self._cert_bundle_create(
+                error, cert_bundle, cert_raw = self._cert_bundle_create(
                     error, ca_pem, cert_raw
                 )
             else:

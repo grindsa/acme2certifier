@@ -29,6 +29,7 @@ from .registry import ChallengeValidatorRegistry
 # Import all validator implementations
 from .http_validator import HttpChallengeValidator
 from .dns_validator import DnsChallengeValidator
+from .dns_persist_validator import DnsPersistChallengeValidator
 from .tls_alpn_validator import TlsAlpnChallengeValidator
 from .email_reply_validator import EmailReplyChallengeValidator
 from .tkauth_validator import TkauthChallengeValidator
@@ -47,6 +48,7 @@ __all__ = [
     # Validators
     "HttpChallengeValidator",
     "DnsChallengeValidator",
+    "DnsPersistChallengeValidator",
     "TlsAlpnChallengeValidator",
     "EmailReplyChallengeValidator",
     "TkauthChallengeValidator",
