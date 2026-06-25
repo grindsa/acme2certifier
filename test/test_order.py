@@ -337,7 +337,7 @@ class TestOrderClass(unittest.TestCase):
             log_cm.output,
         )
         self.assertIn(
-            "INFO:test_a2c:Only one profile configured. Overwriting submitted profile 'foo' with 'bar'.",
+            "WARNING:test_a2c:Profile 'foo' is not valid. Ignoring submitted profile.",
             log_cm.output,
         )
 
@@ -1114,32 +1114,28 @@ class TestOrderClass(unittest.TestCase):
                 )
 
     def test_070_load_profile_config_all_paths(self):
-        with (
-            patch.object(self.order, "_load_profiles_from_config") as m1,
-            patch.object(self.order, "_load_profiles_from_db_if_sync") as m2,
-            patch.object(self.order, "_maybe_disable_profile_check") as m3,
-        ):
-            with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
-                self.order._load_profile_config({"Order": {}, "CAhandler": {}})
-                m1.assert_called_once()
-                m2.assert_called_once()
-                m3.assert_called_once()
+        with patch.object(self.order, "_load_profiles_from_config") as m1:
+            with patch.object(self.order, "_load_profiles_from_db_if_sync") as m2:
+                with patch.object(self.order, "_maybe_disable_profile_check") as m3:
+                    with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
+                        self.order._load_profile_config({"Order": {}, "CAhandler": {}})
+                        m1.assert_called_once()
+                        m2.assert_called_once()
+                        m3.assert_called_once()
         self.assertIn("DEBUG:test_a2c:Order._load_profile_config()", log_cm.output)
         self.assertIn(
             "DEBUG:test_a2c:Order._load_profile_config() ended", log_cm.output
         )
 
     def test_071_load_profile_config_all_paths(self):
-        with (
-            patch.object(self.order, "_load_profiles_from_config") as m1,
-            patch.object(self.order, "_load_profiles_from_db_if_sync") as m2,
-            patch.object(self.order, "_maybe_disable_profile_check") as m3,
-        ):
-            with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
-                self.order._load_profile_config({"Order": {}, "CAhandler": {}})
-                m1.assert_called_once()
-                m2.assert_called_once()
-                m3.assert_called_once()
+        with patch.object(self.order, "_load_profiles_from_config") as m1:
+            with patch.object(self.order, "_load_profiles_from_db_if_sync") as m2:
+                with patch.object(self.order, "_maybe_disable_profile_check") as m3:
+                    with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
+                        self.order._load_profile_config({"Order": {}, "CAhandler": {}})
+                        m1.assert_called_once()
+                        m2.assert_called_once()
+                        m3.assert_called_once()
 
         self.assertIn("DEBUG:test_a2c:Order._load_profile_config()", log_cm.output)
         self.assertIn(
