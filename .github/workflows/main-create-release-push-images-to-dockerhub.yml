@@ -180,7 +180,7 @@ jobs:
         AWS_REGION: ${{ env.AWS_REGION }}
         AWS_INSTANCE_ID: ${{ env.AWS_ARM64-UB-01_INSTANCE_ID }}
         ACTION: "start"
-        IGNORE_CURRENT_STATUS: "false"
+        IGNORE_CURRENT_STATUS: "true^"
 
     - name: "[ WAIT ] Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.4
