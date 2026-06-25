@@ -4,7 +4,7 @@
 
 # How to build an acme2certifier cluster on Ubuntu 24.04
 
-This tutorial describes the configuration of a two-node acme2certifier cluster running in active/active configuration. Although both nodes are active at the same time and provide proxy services via different IP addresses, database, configuration and and runtime objects will be replicated among the nodes.
+This tutorial describes the configuration of a two-node acme2certifier cluster running in active/active configuration. Although both nodes are active at the same time and provide proxy services via different IP addresses, database, configuration, and runtime objects will be replicated among the nodes.
 
 This setup requires the switch to a different database engine as SQLite, which is the default a2c backend, is not designed to handle concurrent write access, which can happen in an active/active setup. Thus, [MariaDB](https://mariadb.org/) will be used. Configuration files and runtime objects will be replicated using [Lsyncd](https://github.com/lsyncd/lsyncd). The following diagram depicts the application stack to be used.
 
@@ -600,7 +600,7 @@ sudo python3 /var/www/acme2certifier/tools/django_update.py
 sudo systemctl restart apache2.service
 ```
 
-- Test the server by accessing the directory ressource
+- Test the server by accessing the directory resource
 
 ```bash
 curl http://ub2204-c1.bar.local/directory
@@ -652,7 +652,7 @@ DATABASES = {
 sudo systemctl restart apache2.service
 ```
 
-- Test the server by accessing the directory ressource
+- Test the server by accessing the directory resource
 
 ```bash
 curl http://ub2204-c2.bar.local/directory
