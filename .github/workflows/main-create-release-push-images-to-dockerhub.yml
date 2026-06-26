@@ -268,24 +268,24 @@ jobs:
           OLD_TAG_NAME: ${{ env.OLD_TAG_NAME }}
           BUILD_NAME: ${{ env.BUILD_NAME }}
 
-      #- name: Checkout code for 2nd last release
-      #  uses: actions/checkout@v6
-      #  with:
-      #    ref: ${{ env.OLD_TAG_NAME }}
+      - name: Checkout code for 2nd last release
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.OLD_TAG_NAME }}
 
-      #- name: "show version from version.py"
-      #  run: |
-      #    cat acme_srv/version.py
+      - name: "show version from version.py"
+        run: |
+          cat acme_srv/version.py
 
-      #- name: Set up QEMU
-      #  uses: docker/setup-qemu-action@v3
-      #  with:
-      #    platforms: all
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
 
-      #- uses: docker/setup-buildx-action@v3
-      #  with:
-      #    version: latest
-      #    buildkitd-flags: --debug
+      - uses: docker/setup-buildx-action@v3
+        with:
+          version: latest
+          buildkitd-flags: --debug
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -300,24 +300,24 @@ jobs:
           username: ${{ env.GHCR_USER }}
           password: ${{ env.GHCR_TOKEN }}
 
-      #- name: Build with 2nd latest release tag
-      #  uses: docker/build-push-action@v5
-      #  with:
-      #    context: .
-      #    push: true
-      #    tags: grindsa/acme2certifier:${{ env.OLD_TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
-      #    file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
-      #    platforms: linux/arm64, linux/amd64
+      - name: Build with 2nd latest release tag
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: grindsa/acme2certifier:${{ env.OLD_TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+          file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
+          platforms: linux/arm64, linux/amd64
 
-      #- name: Push image to GHCR
-      #  run: |
-      #    docker buildx imagetools create \
-      #      --tag ghcr.io/grindsa/acme2certifier:${{ env.OLD_TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }} \
-      #      grindsa/acme2certifier:${{ env.OLD_TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+      - name: Push image to GHCR
+        run: |
+          docker buildx imagetools create \
+            --tag ghcr.io/grindsa/acme2certifier:${{ env.OLD_TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }} \
+            grindsa/acme2certifier:${{ env.OLD_TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
 
-      #- name: Delete image from registry
-      #  run: |
-      #    docker images
+      - name: Delete image from registry
+        run: |
+          docker images
 
       - name: Checkout code for latest release
         uses: actions/checkout@v6
