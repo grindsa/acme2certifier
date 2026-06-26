@@ -79,8 +79,9 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 # initialize logger
 LOGGER = logger_setup(DEBUG)
 
-with Housekeeping(DEBUG, LOGGER) as db_check:
-    db_check.dbversion_check(__dbversion__)
+with Housekeeping(DEBUG, LOGGER) as housekeeping:
+    housekeeping.dbversion_check(__dbversion__)
+    housekeeping.nonce_cleanup()
 
 # examption handling via logger
 sys.excepthook = handle_exception
@@ -321,6 +322,8 @@ def newnonce(environ, start_response):
     """generate a new nonce"""
     if environ["REQUEST_METHOD"] in ["HEAD", "GET"]:
         nonce = Nonce(DEBUG, LOGGER)
+        # do housekeeping and expire old nonces
+        nonce.expire_nonces()
         headers = [
             ("Content-Type", "text/plain"),
             ("Replay-Nonce", f"{nonce.generate_and_add()}"),

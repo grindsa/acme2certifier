@@ -26,6 +26,7 @@ from acme_srv.helper import (
     uts_now,
     uts_to_date_utc,
     config_async_mode_load,
+    config_dryrun_load,
 )
 from acme_srv.db_handler import DBstore
 from acme_srv.message import Message
@@ -74,7 +75,6 @@ class CertificateLogger:
                     "account__name",
                     "account__eab_kid",
                     "profile",
-                    "expires",
                     "account__contact",
                 ],
             )
@@ -92,6 +92,7 @@ class CertificateLogger:
             "serial_number": cert_serial_get(self.logger, certificate, hexformat=True),
             "common_name": cert_cn_get(self.logger, certificate),
             "san_list": cert_san_get(self.logger, certificate),
+            "expires": "",
         }
 
         if cert_reusage:
@@ -106,9 +107,10 @@ class CertificateLogger:
             # Add profile if existing
             data_dic["profile"] = order_dic.get("profile", "")
 
-        if order_dic.get("expires", ""):
-            # add expires if existing
-            data_dic["expires"] = uts_to_date_utc(order_dic.get("expires", ""))
+        (_, expire_uts) = cert_dates_get(self.logger, certificate)
+        if expire_uts:
+            # Add expires from cert if existing
+            data_dic["expires"] = uts_to_date_utc(expire_uts)
 
         if self.cert_operations_log == "json":
             # Log in json format
@@ -235,6 +237,8 @@ class CertificateConfiguration:
     cert_operations_log: Optional[Any] = None
     cert_reusage_timeframe: int = 0
     cn2san_add: bool = False
+    dryrun: bool = False
+    dryrun_profilename: str = None
     enrollment_timeout: int = 5
     retry_after: int = 600
     tnauthlist_support: bool = False
@@ -602,6 +606,11 @@ class Certificate(object):
         # Update CertificateLogger with the loaded configuration
         self.certificate_logger.cert_operations_log = self.config.cert_operations_log
 
+        # load dryrun configuration
+        self.config.dryrun, self.config.dryrun_profilename = config_dryrun_load(
+            self.logger, config_dic
+        )
+
         self.logger.debug("ca_handler: %s", ca_handler_module)
         self.logger.debug("Certificate._load_configuration() ended.")
 
@@ -667,7 +676,7 @@ class Certificate(object):
             # get identifiers for order
             try:
                 identifier_dic = self.repository.order_lookup(
-                    "name", certificate_dic["order"], ["identifiers"]
+                    "name", certificate_dic["order"], ["identifiers", "profile"]
                 )
             except Exception as err_:
                 self.logger.critical(
@@ -680,6 +689,22 @@ class Certificate(object):
                 identifier_status = self._load_and_validate_identifiers(
                     identifier_dic, csr
                 )
+
+            # additional profile checks can be implemented here based on identifier_dic["profile"]
+            if identifier_dic.get("profile", None):
+                self.logger.debug(
+                    "Certificate._validate_csr_against_order(): additional profile checks can be implemented here based on profile: %s",
+                    identifier_dic["profile"],
+                )
+                if (
+                    identifier_dic.get("profile", None)
+                    == self.config.dryrun_profilename
+                ):
+                    self.logger.debug(
+                        "Certificate._validate_csr_against_order(): enabling dryrun mode for profile: %s",
+                        identifier_dic["profile"],
+                    )
+                    self.config.dryrun = True
 
         csr_check_result = False
 
@@ -1381,6 +1406,15 @@ class Certificate(object):
 
             if not csr_check_result:
                 return self.err_msg_dic["badcsr"], "CSR validation failed"
+
+            if self.config.dryrun:
+                self.logger.info(
+                    "Dry run mode enabled - skipping enrollment and database storage"
+                )
+                return (
+                    self.err_msg_dic["unauthorized"],
+                    "Dry run mode - enrollment skipped",
+                )
 
             # Process enrollment
             error, detail = self._handle_enrollment_thread_execution(
