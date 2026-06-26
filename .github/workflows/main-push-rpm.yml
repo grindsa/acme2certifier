@@ -186,7 +186,8 @@ jobs:
           git reset --hard HEAD~1
           mkdir -p examples/install_scripts/rpm/packages
           cp ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-min-${{ env.TAG_NAME }}-1.0.noarch.rpm examples/install_scripts/rpm/packages
-          cp ${{ steps.rpm_build.outputs.source_rpm_path }} examples/install_scripts/rpm/packages
+          # the source package is not needed for the installation, so we will not copy it to the repo
+          # cp ${{ steps.rpm_build.outputs.source_rpm_path }} examples/install_scripts/rpm/packages
           ls -la examples/install_scripts/rpm/packages
 
       - name: "[ FINALIZE ] cleanup before commit"
