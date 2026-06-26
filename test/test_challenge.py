@@ -162,18 +162,20 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
 
     def test_008_create_challenge_success(self):
         self.dbstore.challenge_add.return_value = 1
-        with patch(
-            "acme_srv.challenge.generate_random_string", return_value="c1"
-        ), patch("acme_srv.challenge.uts_now", return_value=1000):
+        with (
+            patch("acme_srv.challenge.generate_random_string", return_value="c1"),
+            patch("acme_srv.challenge.uts_now", return_value=1000),
+        ):
             req = self.ChallengeCreationRequest("dns-01", "tok", "authz", "val")
             name = self.repo.create_challenge(req)
             self.assertEqual(name, "c1")
 
     def test_009_create_challenge_db_error(self):
         self.dbstore.challenge_add.side_effect = Exception("db fail")
-        with patch(
-            "acme_srv.challenge.generate_random_string", return_value="c1"
-        ), patch("acme_srv.challenge.uts_now", return_value=1000):
+        with (
+            patch("acme_srv.challenge.generate_random_string", return_value="c1"),
+            patch("acme_srv.challenge.uts_now", return_value=1000),
+        ):
             req = self.ChallengeCreationRequest("dns-01", "tok", "authz", "val")
             with self.assertLogs("test_a2c", level="DEBUG") as log_context:
                 with self.assertRaises(self.DatabaseError):
@@ -537,17 +539,16 @@ class TestChallenge(unittest.TestCase):
         config_obj.add_section("Challenge")
         config_obj.set("Challenge", "sectigo_sim", "False")
 
-        with patch(
-            "acme_srv.challenge.load_config", return_value=config_obj
-        ), patch.object(self.challenge, "_load_dns_configuration"), patch.object(
-            self.challenge, "_load_proxy_configuration"
-        ), patch.object(
-            self.challenge, "_load_address_check_configuration"
-        ), patch(
-            "acme_srv.challenge.create_challenge_validator_registry",
-            return_value=Mock(),
-        ), patch.object(
-            self.challenge, "_initialize_business_logic_components"
+        with (
+            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch.object(self.challenge, "_load_dns_configuration"),
+            patch.object(self.challenge, "_load_proxy_configuration"),
+            patch.object(self.challenge, "_load_address_check_configuration"),
+            patch(
+                "acme_srv.challenge.create_challenge_validator_registry",
+                return_value=Mock(),
+            ),
+            patch.object(self.challenge, "_initialize_business_logic_components"),
         ):
             self.challenge._load_configuration()
             self.assertFalse(self.challenge.config.sectigo_sim)
@@ -1104,20 +1105,18 @@ class TestChallenge(unittest.TestCase):
         config_obj.add_section("Challenge")
         config_obj.set("Challenge", "challenge_validation_timeout", "invalid")
 
-        with patch(
-            "acme_srv.challenge.load_config", return_value=config_obj
-        ), patch.object(self.challenge, "_load_dns_configuration"), patch.object(
-            self.challenge, "_load_proxy_configuration"
-        ), patch.object(
-            self.challenge, "_load_address_check_configuration"
-        ), patch(
-            "acme_srv.challenge.create_challenge_validator_registry",
-            return_value=Mock(),
-        ), patch.object(
-            self.challenge, "_initialize_business_logic_components"
-        ), patch.object(
-            self.challenge.logger, "warning"
-        ) as mock_warning:
+        with (
+            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch.object(self.challenge, "_load_dns_configuration"),
+            patch.object(self.challenge, "_load_proxy_configuration"),
+            patch.object(self.challenge, "_load_address_check_configuration"),
+            patch(
+                "acme_srv.challenge.create_challenge_validator_registry",
+                return_value=Mock(),
+            ),
+            patch.object(self.challenge, "_initialize_business_logic_components"),
+            patch.object(self.challenge.logger, "warning") as mock_warning,
+        ):
 
             self.challenge._load_configuration()
             mock_warning.assert_called_once()
@@ -1130,20 +1129,18 @@ class TestChallenge(unittest.TestCase):
         config_obj.add_section("Order")
         config_obj.set("Order", "email_identifier_support", "True")
 
-        with patch(
-            "acme_srv.challenge.load_config", return_value=config_obj
-        ), patch.object(self.challenge, "_load_dns_configuration"), patch.object(
-            self.challenge, "_load_proxy_configuration"
-        ), patch.object(
-            self.challenge, "_load_address_check_configuration"
-        ), patch(
-            "acme_srv.challenge.create_challenge_validator_registry",
-            return_value=Mock(),
-        ), patch.object(
-            self.challenge, "_initialize_business_logic_components"
-        ), patch.object(
-            self.challenge.logger, "warning"
-        ) as mock_warning:
+        with (
+            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch.object(self.challenge, "_load_dns_configuration"),
+            patch.object(self.challenge, "_load_proxy_configuration"),
+            patch.object(self.challenge, "_load_address_check_configuration"),
+            patch(
+                "acme_srv.challenge.create_challenge_validator_registry",
+                return_value=Mock(),
+            ),
+            patch.object(self.challenge, "_initialize_business_logic_components"),
+            patch.object(self.challenge.logger, "warning") as mock_warning,
+        ):
 
             self.challenge._load_configuration()
             mock_warning.assert_called_once()
@@ -1159,17 +1156,16 @@ class TestChallenge(unittest.TestCase):
 
         original_path_dic = self.challenge.path_dic.copy()
 
-        with patch(
-            "acme_srv.challenge.load_config", return_value=config_obj
-        ), patch.object(self.challenge, "_load_dns_configuration"), patch.object(
-            self.challenge, "_load_proxy_configuration"
-        ), patch.object(
-            self.challenge, "_load_address_check_configuration"
-        ), patch(
-            "acme_srv.challenge.create_challenge_validator_registry",
-            return_value=Mock(),
-        ), patch.object(
-            self.challenge, "_initialize_business_logic_components"
+        with (
+            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch.object(self.challenge, "_load_dns_configuration"),
+            patch.object(self.challenge, "_load_proxy_configuration"),
+            patch.object(self.challenge, "_load_address_check_configuration"),
+            patch(
+                "acme_srv.challenge.create_challenge_validator_registry",
+                return_value=Mock(),
+            ),
+            patch.object(self.challenge, "_initialize_business_logic_components"),
         ):
 
             self.challenge._load_configuration()
@@ -1311,17 +1307,16 @@ class TestChallenge(unittest.TestCase):
             "email_address"
         ] = "test@example.com"  # Use dict-style access for DEFAULT
 
-        with patch(
-            "acme_srv.challenge.load_config", return_value=config_obj
-        ), patch.object(self.challenge, "_load_dns_configuration"), patch.object(
-            self.challenge, "_load_proxy_configuration"
-        ), patch.object(
-            self.challenge, "_load_address_check_configuration"
-        ), patch(
-            "acme_srv.challenge.create_challenge_validator_registry",
-            return_value=Mock(),
-        ), patch.object(
-            self.challenge, "_initialize_business_logic_components"
+        with (
+            patch("acme_srv.challenge.load_config", return_value=config_obj),
+            patch.object(self.challenge, "_load_dns_configuration"),
+            patch.object(self.challenge, "_load_proxy_configuration"),
+            patch.object(self.challenge, "_load_address_check_configuration"),
+            patch(
+                "acme_srv.challenge.create_challenge_validator_registry",
+                return_value=Mock(),
+            ),
+            patch.object(self.challenge, "_initialize_business_logic_components"),
         ):
 
             self.challenge._load_configuration()
@@ -1331,9 +1326,10 @@ class TestChallenge(unittest.TestCase):
     # Test for remaining uncovered lines
     def test_088_initialize_business_logic_components(self):
         """Test _initialize_business_logic_components method"""
-        with patch("acme_srv.challenge.ChallengeFactory") as mock_factory, patch(
-            "acme_srv.challenge.ChallengeService"
-        ) as mock_service:
+        with (
+            patch("acme_srv.challenge.ChallengeFactory") as mock_factory,
+            patch("acme_srv.challenge.ChallengeService") as mock_service,
+        ):
             self.challenge.path_dic = {"chall_path": "/chall/"}
             self.challenge.config.email_address = "test@example.com"
             self.challenge.repository = Mock()
@@ -1425,11 +1421,14 @@ class TestChallenge(unittest.TestCase):
         )
 
         # Mock the extract method to return empty string (extraction failure)
-        with patch.object(
-            self.challenge, "_extract_challenge_name_from_url", return_value=""
-        ), patch.object(
-            self.challenge, "_create_error_response"
-        ) as mock_error_response:
+        with (
+            patch.object(
+                self.challenge, "_extract_challenge_name_from_url", return_value=""
+            ),
+            patch.object(
+                self.challenge, "_create_error_response"
+            ) as mock_error_response,
+        ):
             mock_error_response.return_value = {
                 "code": 400,
                 "type": "malformed",
@@ -1462,13 +1461,16 @@ class TestChallenge(unittest.TestCase):
         )
 
         # Mock the extract method to return valid challenge name
-        with patch.object(
-            self.challenge,
-            "_extract_challenge_name_from_url",
-            return_value="nonexistent_challenge",
-        ), patch.object(
-            self.challenge, "_create_error_response"
-        ) as mock_error_response:
+        with (
+            patch.object(
+                self.challenge,
+                "_extract_challenge_name_from_url",
+                return_value="nonexistent_challenge",
+            ),
+            patch.object(
+                self.challenge, "_create_error_response"
+            ) as mock_error_response,
+        ):
             mock_error_response.return_value = {
                 "code": 400,
                 "type": "malformed",
@@ -1660,7 +1662,9 @@ class TestChallenge(unittest.TestCase):
         )
 
         self.challenge.repository.get_challenge_by_name = Mock(return_value=info)
-        self.challenge.repository.get_authorization_account_name = Mock(return_value=None)
+        self.challenge.repository.get_authorization_account_name = Mock(
+            return_value=None
+        )
         self.challenge._start_async_validation = Mock()
 
         def capture_response_dic(response_dict):

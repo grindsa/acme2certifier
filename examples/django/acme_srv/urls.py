@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """urls for acme django database"""
+
 from django.urls import re_path
 from acme_srv import views
 

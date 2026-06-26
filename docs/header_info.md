@@ -42,5 +42,5 @@ class CAHandler(object):
 The output from the above configuration example would be:
 
 ```log
-2023-11-03 16:52:14 - acme2certifier - INFO - Header info: {"HTTP_USER_AGENT": "CertbotACMEClient/1.21.0 (certbot; Ubuntu 22.04.3 LTS) Authenticator/standalone Installer/None (certonly; flags: ) Py/3.10.12", "CONTENT_TYPE": "application/jose+json", "REMOTE_ADDR": "192.168.14.131"}
+2023-11-03 16:52:14 - acme2certifier - INFO - Header info: {"HTTP_USER_AGENT": "CertbotACMEClient/1.21.0 (certbot; Ubuntu 24.04.3 LTS) Authenticator/standalone Installer/None (certonly; flags: ) Py/3.10.12", "CONTENT_TYPE": "application/jose+json", "REMOTE_ADDR": "192.168.14.131"}
 ```

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """ThreadWithReturnValue class"""
+
 # pylint: disable=r0913
 from threading import Thread
 

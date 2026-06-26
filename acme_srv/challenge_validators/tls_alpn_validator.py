@@ -3,6 +3,7 @@ TLS-ALPN-01 Challenge Validator.
 
 Implements validation logic for TLS-ALPN-01 challenges according to RFC 8737.
 """
+
 import json
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 
@@ -46,9 +47,11 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
                         {
                             "status": 400,
                             "type": "urn:ietf:params:acme:error:dns",
-                            "detail": f"DNS resolution failed: {error_msg}"
-                            if error_msg
-                            else "DNS resolution failed",
+                            "detail": (
+                                f"DNS resolution failed: {error_msg}"
+                                if error_msg
+                                else "DNS resolution failed"
+                            ),
                         }
                     ),
                 )
@@ -126,14 +129,16 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         return ValidationResult(
             success=success,
             invalid=not success,
-            error_message=None
-            if success
-            else json.dumps(
-                {
-                    "status": 403,
-                    "type": "urn:ietf:params:acme:error:incorrectResponse",
-                    "detail": "Certificate extension validation failed",
-                }
+            error_message=(
+                None
+                if success
+                else json.dumps(
+                    {
+                        "status": 403,
+                        "type": "urn:ietf:params:acme:error:incorrectResponse",
+                        "detail": "Certificate extension validation failed",
+                    }
+                )
             ),
             details={"expected_extension": extension_value, "sni": sni},
         )

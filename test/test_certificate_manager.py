@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Unit tests for CertificateManager coordination layer"""
+
 import os
 import unittest
 from unittest.mock import MagicMock, Mock, patch

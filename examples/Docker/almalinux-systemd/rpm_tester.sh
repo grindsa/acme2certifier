@@ -24,7 +24,7 @@ case "${1}" in
   *)
     echo "install missing packages"
     yum -y install epel-release
-    yum install -y procps syslog-ng
+    yum install -y procps syslog-ng krb5-workstation krb5-libs
     systemctl start syslog-ng.service
 
     yum -y localinstall /tmp/acme2certifier/*.rpm

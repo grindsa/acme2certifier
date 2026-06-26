@@ -148,7 +148,7 @@ class Hooks:
             return fallback
         try:
             return int(value)
-        except (TypeError, ValueError):
+        except Exception:
             return fallback
 
     def _get_config_boolean(self, key: str, fallback=None):

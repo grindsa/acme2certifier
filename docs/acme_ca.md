@@ -32,7 +32,7 @@ dns_update_script_variables: {"CF_Token": "your_cf_token", "CF_Zone_ID": "your_c
 dns_validation_timeout: 10
 ```
 
-In case you are planning to use HTTP Challenge validaton:
+In case you are planning to use HTTP Challenge validation:
 
 - Your `acme2certifier` server must be able to reach the CA.
 - Your `acme2certifier` server needs to be accessible from the internet.
@@ -53,8 +53,9 @@ As of today, the `acme_ca_handler` supports the following operations:
 ## Supported CAs
 
 - [Let's Encrypt](https://letsencrypt.org/)
-- [BuyPass](https://www.buypass.com/)
 - [ZeroSSL](https://zerossl.com/)
+- [Harica](https://harica.gr/en/)
+- Any other CertificateAuthority providing an ACME interface
 
 ## Prerequisites
 
@@ -75,7 +76,7 @@ The handler must be configured via `acme_srv`.
 | acme_account_email              | Email address used to register a new account                                                                                                                   |    No     | None         |
 | acme_sh_script                  | path to the acme_sh.sh script to be used for DNS challenge provisioning                                                                                        |    No     | None         |
 | acme_sh_shell                   | shell to be used to execute acme_sh                                                                                                                            |    No     | /bin/bash    |
-| profiles_sync                   | Enable periodic synchronization of profiles information from ACME server to be shown as meta-information in Directory ressource                                |    No     | False        |
+| profiles_sync                   | Enable periodic synchronization of profiles information from ACME server to be shown as meta-information in Directory resource                                 |    No     | False        |
 | profiles_sync_interval          | Interval in seconds for profile synchronization when enabled.                                                                                                  |    No     | 604800       |
 | allowed_domainlist              | List of domain names allowed for enrollment in JSON format, e.g., `["bar.local", "bar.foo.local"]`                                                             |    No     | `[]`         |
 | directory_path                  | Path to directory resource on CA server                                                                                                                        |    No     | `/directory` |
@@ -113,22 +114,6 @@ For production:
 ```cfg
 acme_url: https://acme-v02.api.letsencrypt.org
 acme_keyfile: /var/www/acme2certifier/volume/acme/le_private_key.json
-```
-
-### BuyPass
-
-```cfg
-acme_keyfile: acme_srv/acme/buypass_test_private_key.json
-acme_url: https://api.test4.buypass.no/acme
-acme_account_email: email@example.com
-```
-
-For production:
-
-```cfg
-acme_keyfile: acme_srv/acme/buypass_prod_private_key.json
-acme_url: https://api.buypass.com/acme
-acme_account_email: email@example.com
 ```
 
 ### ZeroSSL
@@ -179,7 +164,7 @@ docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --st
 Example for `lego`:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent acme_url=<acme-server url> -d <fqdn> --http run
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent acme_url=<acme-server url> -d <fqdn> --http
 ```
 
 # EAB Profiling

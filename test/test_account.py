@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """unittests for account.py"""
+
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 import importlib
@@ -960,16 +961,17 @@ class TestAccount(unittest.TestCase):
             ("Directory", "url_prefix"): "/prefix",
         }.get((section, key), fallback)
         config_mock.__contains__.side_effect = lambda k: k in ["EABhandler"]
-        config_mock.__getitem__.side_effect = (
-            lambda k: {"eab_handler_file": "handler.py"} if k == "EABhandler" else {}
+        config_mock.__getitem__.side_effect = lambda k: (
+            {"eab_handler_file": "handler.py"} if k == "EABhandler" else {}
         )
 
         # Patch eab_handler_load to return a module with EABhandler
         eab_handler_module = MagicMock()
         eab_handler_module.EABhandler = "EABhandlerClass"
 
-        with patch("acme_srv.account.load_config", return_value=config_mock), patch(
-            "acme_srv.account.eab_handler_load", return_value=eab_handler_module
+        with (
+            patch("acme_srv.account.load_config", return_value=config_mock),
+            patch("acme_srv.account.eab_handler_load", return_value=eab_handler_module),
         ):
             account = Account(False, "http://tester.local", self.logger)
             account._load_configuration()
@@ -989,8 +991,9 @@ class TestAccount(unittest.TestCase):
         config_mock2.get.return_value = None
         config_mock2.__contains__.side_effect = lambda k: k in ["EABhandler"]
         config_mock2.__getitem__.side_effect = lambda k: {} if k == "EABhandler" else {}
-        with patch("acme_srv.account.load_config", return_value=config_mock2), patch(
-            "acme_srv.account.eab_handler_load", return_value=None
+        with (
+            patch("acme_srv.account.load_config", return_value=config_mock2),
+            patch("acme_srv.account.eab_handler_load", return_value=None),
         ):
             account = Account(False, "http://tester.local", self.logger)
             with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
@@ -1004,11 +1007,12 @@ class TestAccount(unittest.TestCase):
         config_mock3.getboolean.return_value = False
         config_mock3.get.return_value = None
         config_mock3.__contains__.side_effect = lambda k: k in ["EABhandler"]
-        config_mock3.__getitem__.side_effect = (
-            lambda k: {"eab_handler_file": "handler.py"} if k == "EABhandler" else {}
+        config_mock3.__getitem__.side_effect = lambda k: (
+            {"eab_handler_file": "handler.py"} if k == "EABhandler" else {}
         )
-        with patch("acme_srv.account.load_config", return_value=config_mock3), patch(
-            "acme_srv.account.eab_handler_load", return_value=None
+        with (
+            patch("acme_srv.account.load_config", return_value=config_mock3),
+            patch("acme_srv.account.eab_handler_load", return_value=None),
         ):
             account = Account(False, "http://tester.local", self.logger)
             with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
@@ -1029,15 +1033,18 @@ class TestAccount(unittest.TestCase):
         eab_handler_module = MagicMock()
         eab_handler_module.EABhandler = "EABhandlerClass"
 
-        with patch("acme_srv.account.load_config", return_value=config_mock), patch(
-            "acme_srv.account.eab_handler_load", return_value=eab_handler_module
+        with (
+            patch("acme_srv.account.load_config", return_value=config_mock),
+            patch("acme_srv.account.eab_handler_load", return_value=eab_handler_module),
         ):
             account = Account(False, "http://tester.local", self.logger)
             account._load_configuration()
             self.assertFalse(
                 account.config.tos_check_disable
             )  # Default value should be used
-            self.assertTrue(account.config.eab_strict_mode)  # Default value should be used
+            self.assertTrue(
+                account.config.eab_strict_mode
+            )  # Default value should be used
             self.assertFalse(
                 account.config.inner_header_nonce_allow
             )  # Default value should be used
@@ -1051,11 +1058,16 @@ class TestAccount(unittest.TestCase):
         self.account.config.contact_check_disable = False
         payload = {"contact": ["test@example.com"]}
         protected = {"alg": "RS256", "jwk": {"kty": "RSA", "n": "abc", "e": "AQAB"}}
-        with patch.object(
-            self.account, "_validate_contact", return_value=(200, None, None)
-        ), patch.object(
-            self.account, "_add_account_to_db", return_value=(201, "test_account", None)
-        ) as mock_add_db:
+        with (
+            patch.object(
+                self.account, "_validate_contact", return_value=(200, None, None)
+            ),
+            patch.object(
+                self.account,
+                "_add_account_to_db",
+                return_value=(201, "test_account", None),
+            ) as mock_add_db,
+        ):
             code, message, detail = self.account._create_account(payload, protected)
             self.assertEqual(code, 201)
             self.assertEqual(message, "test_account")
@@ -1098,11 +1110,17 @@ class TestAccount(unittest.TestCase):
         self.account.config.eab_handler = MagicMock()
         payload = {"contact": ["test@example.com"]}
         protected = {"alg": "RS256", "jwk": {}}
-        with patch("acme_srv.account.ExternalAccountBinding") as mock_eab, patch(
-            "acme_srv.account.generate_random_string", return_value="testaccount123"
-        ), patch.object(
-            self.account, "_add_account_to_db", return_value=(201, "test_account", None)
-        ) as mock_add_db:
+        with (
+            patch("acme_srv.account.ExternalAccountBinding") as mock_eab,
+            patch(
+                "acme_srv.account.generate_random_string", return_value="testaccount123"
+            ),
+            patch.object(
+                self.account,
+                "_add_account_to_db",
+                return_value=(201, "test_account", None),
+            ) as mock_add_db,
+        ):
             with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                 code, message, detail = self.account._create_account(payload, protected)
             self.assertEqual(code, 201)
@@ -1146,11 +1164,17 @@ class TestAccount(unittest.TestCase):
             "externalaccountbinding": {"protected": "protectedval"},
         }
         protected = {"alg": "RS256", "jwk": {}}
-        with patch("acme_srv.account.ExternalAccountBinding") as mock_eab, patch.object(
-            self.account, "_validate_contact", return_value=(200, None, None)
-        ), patch.object(
-            self.account, "_add_account_to_db", return_value=(201, "test_account", None)
-        ) as mock_add_db:
+        with (
+            patch("acme_srv.account.ExternalAccountBinding") as mock_eab,
+            patch.object(
+                self.account, "_validate_contact", return_value=(200, None, None)
+            ),
+            patch.object(
+                self.account,
+                "_add_account_to_db",
+                return_value=(201, "test_account", None),
+            ) as mock_add_db,
+        ):
             mock_eab.return_value.check.return_value = (200, None, None)
             mock_eab.return_value.get_kid.return_value = "eabkid123"
             code, message, detail = self.account._create_account(payload, protected)
@@ -1166,11 +1190,15 @@ class TestAccount(unittest.TestCase):
         account_name = "test_account"
         payload = {"foo": "bar"}
         protected = {"url": "key-change/123"}
-        with patch.object(self.account, "message") as mock_message, patch.object(
-            self.account, "_rollover_account_key", return_value=(200, None, None)
-        ) as mock_rollover, patch.object(
-            self.account, "_build_response", return_value={"data": {}}
-        ) as mock_build_response:
+        with (
+            patch.object(self.account, "message") as mock_message,
+            patch.object(
+                self.account, "_rollover_account_key", return_value=(200, None, None)
+            ) as mock_rollover,
+            patch.object(
+                self.account, "_build_response", return_value={"data": {}}
+            ) as mock_build_response,
+        ):
             mock_message.check.return_value = (
                 200,
                 None,
@@ -1189,11 +1217,13 @@ class TestAccount(unittest.TestCase):
         account_name = "test_account"
         payload = {"foo": "bar"}
         protected = {"url": "key-change/123"}
-        with patch.object(self.account, "message") as mock_message, patch.object(
-            self.account, "_rollover_account_key"
-        ) as mock_rollover, patch.object(
-            self.account, "_build_response", return_value={"data": {}}
-        ) as mock_build_response:
+        with (
+            patch.object(self.account, "message") as mock_message,
+            patch.object(self.account, "_rollover_account_key") as mock_rollover,
+            patch.object(
+                self.account, "_build_response", return_value={"data": {}}
+            ) as mock_build_response,
+        ):
             mock_message.check.return_value = (400, "err", "fail", {}, {}, None)
             result = self.account._handle_key_change(account_name, payload, protected)
             self.assertIn("data", result)
@@ -1205,11 +1235,15 @@ class TestAccount(unittest.TestCase):
         account_name = "test_account"
         payload = {"foo": "bar"}
         protected = {"url": "key-change/123"}
-        with patch.object(self.account, "message") as mock_message, patch.object(
-            self.account, "_rollover_account_key", return_value=(500, "err", "fail")
-        ) as mock_rollover, patch.object(
-            self.account, "_build_response", return_value={"data": {}}
-        ) as mock_build_response:
+        with (
+            patch.object(self.account, "message") as mock_message,
+            patch.object(
+                self.account, "_rollover_account_key", return_value=(500, "err", "fail")
+            ) as mock_rollover,
+            patch.object(
+                self.account, "_build_response", return_value={"data": {}}
+            ) as mock_build_response,
+        ):
             mock_message.check.return_value = (
                 200,
                 None,
@@ -1244,13 +1278,17 @@ class TestAccount(unittest.TestCase):
             "contact": "[]",
             "created_at": "2026-02-08",
         }
-        with patch.object(
-            self.account, "_lookup_account_by_name", return_value=account_obj
-        ), patch.object(
-            self.account, "_build_account_info", return_value={"status": "valid"}
-        ), patch.object(
-            self.account, "_build_response", return_value={"data": {}}
-        ) as mock_build_response:
+        with (
+            patch.object(
+                self.account, "_lookup_account_by_name", return_value=account_obj
+            ),
+            patch.object(
+                self.account, "_build_account_info", return_value={"status": "valid"}
+            ),
+            patch.object(
+                self.account, "_build_response", return_value={"data": {}}
+            ) as mock_build_response,
+        ):
             result = self.account._handle_account_query(account_name)
             self.assertIn("data", result)
             mock_build_response.assert_called_once()
@@ -1264,10 +1302,13 @@ class TestAccount(unittest.TestCase):
             "contact": "[]",
             "created_at": "2026-02-08",
         }
-        with patch.object(
-            self.account, "_lookup_account_by_name", return_value=account_obj
-        ), patch.object(
-            self.account, "_build_account_info", return_value={"status": "valid"}
+        with (
+            patch.object(
+                self.account, "_lookup_account_by_name", return_value=account_obj
+            ),
+            patch.object(
+                self.account, "_build_account_info", return_value={"status": "valid"}
+            ),
         ):
             result = self.account._handle_account_query(account_name)
             self.assertEqual(
@@ -1278,13 +1319,15 @@ class TestAccount(unittest.TestCase):
     def test_051__handle_account_query_invalid(self):
         """test _handle_account_query with invalid account (not found)"""
         account_name = "test_account"
-        with patch.object(
-            self.account, "_lookup_account_by_name", return_value=None
-        ), patch.object(
-            self.account, "_build_account_info", return_value={"status": "valid"}
-        ) as mock_build_account_info, patch.object(
-            self.account, "_build_response", return_value={"data": {}}
-        ) as mock_build_response:
+        with (
+            patch.object(self.account, "_lookup_account_by_name", return_value=None),
+            patch.object(
+                self.account, "_build_account_info", return_value={"status": "valid"}
+            ) as mock_build_account_info,
+            patch.object(
+                self.account, "_build_response", return_value={"data": {}}
+            ) as mock_build_response,
+        ):
             result = self.account._handle_account_query(account_name)
             self.assertIn("data", result)
             mock_build_response.assert_called_once()
@@ -1472,13 +1515,16 @@ class TestAccount(unittest.TestCase):
     def test_063_parse_request_error(self):
         """test parse_request returns error response when message.check fails"""
         content = {"foo": "bar"}
-        with patch.object(
-            self.account.message,
-            "check",
-            return_value=(400, "error", "fail", {}, {}, None),
-        ), patch.object(
-            self.account, "_build_response", return_value={"error": "fail"}
-        ) as mock_build_response:
+        with (
+            patch.object(
+                self.account.message,
+                "check",
+                return_value=(400, "error", "fail", {}, {}, None),
+            ),
+            patch.object(
+                self.account, "_build_response", return_value={"error": "fail"}
+            ) as mock_build_response,
+        ):
             result = self.account.parse_request(content)
             self.assertEqual(result, {"error": "fail"})
             mock_build_response.assert_called_once()
@@ -1487,15 +1533,18 @@ class TestAccount(unittest.TestCase):
         """test parse_request handles deactivation branch"""
         content = {"foo": "bar"}
         payload = {"status": "deactivated"}
-        with patch.object(
-            self.account.message,
-            "check",
-            return_value=(200, None, None, {}, payload, "test_account"),
-        ), patch.object(
-            self.account,
-            "_handle_deactivation",
-            return_value={"data": {"status": "deactivated"}},
-        ) as mock_handle:
+        with (
+            patch.object(
+                self.account.message,
+                "check",
+                return_value=(200, None, None, {}, payload, "test_account"),
+            ),
+            patch.object(
+                self.account,
+                "_handle_deactivation",
+                return_value={"data": {"status": "deactivated"}},
+            ) as mock_handle,
+        ):
             result = self.account.parse_request(content)
             self.assertIn("data", result)
             mock_handle.assert_called_once_with("test_account", payload)
@@ -1504,15 +1553,18 @@ class TestAccount(unittest.TestCase):
         """test parse_request handles contact update branch"""
         content = {"foo": "bar"}
         payload = {"contact": ["mailto:test@example.com"]}
-        with patch.object(
-            self.account.message,
-            "check",
-            return_value=(200, None, None, {}, payload, "test_account"),
-        ), patch.object(
-            self.account,
-            "_handle_contact_update",
-            return_value={"data": {"contact": ["mailto:test@example.com"]}},
-        ) as mock_handle:
+        with (
+            patch.object(
+                self.account.message,
+                "check",
+                return_value=(200, None, None, {}, payload, "test_account"),
+            ),
+            patch.object(
+                self.account,
+                "_handle_contact_update",
+                return_value={"data": {"contact": ["mailto:test@example.com"]}},
+            ) as mock_handle,
+        ):
             result = self.account.parse_request(content)
             self.assertIn("data", result)
             mock_handle.assert_called_once_with("test_account", payload)
@@ -1522,15 +1574,18 @@ class TestAccount(unittest.TestCase):
         content = {"foo": "bar"}
         payload = {"payload": {}}
         protected = {"protected": {}}
-        with patch.object(
-            self.account.message,
-            "check",
-            return_value=(200, None, None, protected, payload, "test_account"),
-        ), patch.object(
-            self.account,
-            "_handle_key_change",
-            return_value={"data": {"keychange": True}},
-        ) as mock_handle:
+        with (
+            patch.object(
+                self.account.message,
+                "check",
+                return_value=(200, None, None, protected, payload, "test_account"),
+            ),
+            patch.object(
+                self.account,
+                "_handle_key_change",
+                return_value={"data": {"keychange": True}},
+            ) as mock_handle,
+        ):
             result = self.account.parse_request(content)
             self.assertIn("data", result)
             mock_handle.assert_called_once_with("test_account", payload, protected)
@@ -1538,15 +1593,18 @@ class TestAccount(unittest.TestCase):
     def test_067_parse_request_account_query(self):
         """test parse_request handles account query branch (empty payload)"""
         content = {"foo": "bar"}
-        with patch.object(
-            self.account.message,
-            "check",
-            return_value=(200, None, None, {}, {}, "test_account"),
-        ), patch.object(
-            self.account,
-            "_handle_account_query",
-            return_value={"data": {"status": "valid"}},
-        ) as mock_handle:
+        with (
+            patch.object(
+                self.account.message,
+                "check",
+                return_value=(200, None, None, {}, {}, "test_account"),
+            ),
+            patch.object(
+                self.account,
+                "_handle_account_query",
+                return_value={"data": {"status": "valid"}},
+            ) as mock_handle,
+        ):
             result = self.account.parse_request(content)
             self.assertIn("data", result)
             mock_handle.assert_called_once_with("test_account")
@@ -1555,13 +1613,18 @@ class TestAccount(unittest.TestCase):
         """test parse_request handles unknown request branch"""
         content = {"foo": "bar"}
         payload = {"unknown": True}
-        with patch.object(
-            self.account.message,
-            "check",
-            return_value=(200, None, None, {}, payload, "test_account"),
-        ), patch.object(
-            self.account, "_build_response", return_value={"error": "Unknown request"}
-        ) as mock_build_response:
+        with (
+            patch.object(
+                self.account.message,
+                "check",
+                return_value=(200, None, None, {}, payload, "test_account"),
+            ),
+            patch.object(
+                self.account,
+                "_build_response",
+                return_value={"error": "Unknown request"},
+            ) as mock_build_response,
+        ):
             result = self.account.parse_request(content)
             self.assertEqual(result, {"error": "Unknown request"})
             mock_build_response.assert_called_once_with(

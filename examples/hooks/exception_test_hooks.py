@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=e0401, r0913, w0613
 """exception hook class for testing only"""
+
 from acme_srv.helper import load_config
 
 

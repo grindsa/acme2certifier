@@ -1,5 +1,6 @@
 #!/usr/bin/python
 """database updater"""
+
 # pylint: disable=E0401, C0413
 import sys
 import json
@@ -77,24 +78,45 @@ def arg_parse():
     if args.email:
         config_dic["email"] = args.email
     if args.keyfile:
-        if os.path.exists(args.keyfile):
-            config_dic["jwk"] = json.loads(file_load(args.keyfile))
-        else:
-            print(f'Error: keyfile "{args.keyfile}" does not exist')
+        try:
+            keyfile = validate_keyfile_path(args.keyfile)
+            config_dic["jwk"] = json.loads(file_load(keyfile))
+        except ValueError as err:
+            print(f"Error: {err}")
 
     return (debug, config_dic)
 
 
+def validate_keyfile_path(filename):
+    """validate keyfile path before reading from disk"""
+    if not filename:
+        raise ValueError("keyfile path is empty")
+
+    base_dir = os.path.realpath(os.getcwd())
+    candidate = os.path.realpath(os.path.abspath(filename))
+
+    if candidate != base_dir and not candidate.startswith(base_dir + os.sep):
+        raise ValueError(
+            f'Invalid keyfile path "{filename}". Path must be within "{base_dir}".'
+        )
+
+    if not os.path.isfile(candidate):
+        raise ValueError(f'keyfile "{filename}" does not exist')
+
+    return candidate
+
+
 def file_load(filename):
     """load file at once"""
-    with open(filename, encoding="utf8") as _file:
+    safe_filename = validate_keyfile_path(filename)
+    with open(safe_filename, encoding="utf8") as _file:
         lines = _file.read()
     return lines
 
 
 if __name__ == "__main__":
 
-    (DEBUG, CONFIG_DIC) = arg_parse()
+    DEBUG, CONFIG_DIC = arg_parse()
 
     # the cli program needs ot be chatty
     CONFIG_DIC["silent"] = False

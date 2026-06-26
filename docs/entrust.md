@@ -52,7 +52,7 @@ Use your favorite acme client for certificate enrollment. A list of clients used
 
 ## Passing a cert_type from client to server
 
-acme2certifier supports the the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a `cert_type` parameter to be submitted to the CA server.
+acme2certifier supports the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md), allowing an acme-client to specify a `cert_type` parameter to be submitted to the CA server.
 
 The list of supported profiles must be configured in `acme_srv.cfg`
 
@@ -64,7 +64,7 @@ profiles: {"STANDARD_SSL": "http://foo.bar/STANDARD_SSL", "ADVANTAGE_SSL": "http
 Once enabled, a client can specify the cert_type to be used as part of an order request. Below an example for lego:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile ADVANTAGE_SSL
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http --profile ADVANTAGE_SSL
 ```
 
 Further, this handler makes use of the [header_info_list feature](header_info.md) allowing an acme-client to specify a certificate type to be used during certificate enrollment. This feature is disabled by default and must be activated in `acme_srv.cfg` as shown below
@@ -86,7 +86,7 @@ docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --st
 Example for lego:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent cert_type=ADVANTAGE_SSL -d <fqdn> --http run
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent cert_type=ADVANTAGE_SSL -d <fqdn> --http
 ```
 
 ## eab profiling

@@ -142,10 +142,10 @@ class Trigger(object):
         self.logger.debug("Trigger._payload_process()")
         with self.cahandler(self.debug, self.logger) as ca_handler:
             if payload:
-                (error, cert_bundle, cert_raw) = ca_handler.trigger(payload)
+                error, cert_bundle, cert_raw = ca_handler.trigger(payload)
                 if cert_bundle and cert_raw:
                     # store certificate and create responses
-                    (code, message, detail) = self._cert_store(cert_bundle, cert_raw)
+                    code, message, detail = self._cert_store(cert_bundle, cert_raw)
                 else:
                     code = 400
                     message = error
@@ -170,7 +170,7 @@ class Trigger(object):
 
         if "payload" in payload:
             if payload["payload"]:
-                (code, message, detail) = self._payload_process(payload["payload"])
+                code, message, detail = self._payload_process(payload["payload"])
             else:
                 code = 400
                 message = "malformed"

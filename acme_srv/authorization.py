@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Authorization class - refactored version"""
+
 # pylint: disable=R0913, R1705
 from __future__ import print_function
 import json
@@ -7,14 +8,21 @@ from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
 from acme_srv.db_handler import DBstore
 from acme_srv.challenge import Challenge
-from acme_srv.challenge_validators.dns_persist_validator import DnsPersistChallengeValidator, ChallengeContext
+from acme_srv.challenge_validators.dns_persist_validator import (
+    DnsPersistChallengeValidator,
+    ChallengeContext,
+)
 from acme_srv.helper import (
     generate_random_string,
     uts_now,
     uts_to_date_utc,
     string_sanitize,
 )
-from acme_srv.helpers.config import load_config, config_eab_profile_load, config_dns_server_list_load
+from acme_srv.helpers.config import (
+    load_config,
+    config_eab_profile_load,
+    config_dns_server_list_load,
+)
 from acme_srv.helpers.domain_utils import (
     is_domain_whitelisted,
     is_ip_whitelisted,
@@ -22,6 +30,8 @@ from acme_srv.helpers.domain_utils import (
 )
 from acme_srv.message import Message
 from acme_srv.nonce import Nonce
+
+NO_ORDER_INFO_LOG = "No order information found for authorization %s"
 
 
 # Custom Exceptions
@@ -72,6 +82,7 @@ class AuthorizationConfiguration:
     prevalidated_domainlist: Optional[List[str]] = None
     prevalidated_iplist: Optional[List[str]] = None
     prevalidated_emaillist: Optional[List[str]] = None
+
 
 @dataclass
 class AuthorizationData:
@@ -490,29 +501,31 @@ class Authorization(object):
             self.config.dns_persist_jit_validation = config_dic.getboolean(
                 "Challenge", "dns_persist_jit_validation", fallback=False
             )
-            self.config.dns_server_list, self.config.dns_validation_pause_timer = config_dns_server_list_load(self.logger, config_dic)
+            self.config.dns_server_list, self.config.dns_validation_pause_timer = (
+                config_dns_server_list_load(self.logger, config_dic)
+            )
 
             # Load caaidentities from Directory section as JSON array or comma-separated string
             caaidentities_raw = config_dic.get(
-                 "Directory", "caaidentities", fallback=None
-             )
+                "Directory", "caaidentities", fallback=None
+            )
             caaidentities: Optional[List[str]] = None
 
             if caaidentities_raw:
                 try:
-                     parsed = json.loads(caaidentities_raw)
-                     if isinstance(parsed, list):
-                         caaidentities = parsed
-                     else:
-                         self.logger.warning(
-                             "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
-                             caaidentities_raw,
-                         )
-                         caaidentities = [caaidentities_raw]
+                    parsed = json.loads(caaidentities_raw)
+                    if isinstance(parsed, list):
+                        caaidentities = parsed
+                    else:
+                        self.logger.warning(
+                            "Failed to parse caaidentities from configuration, expected JSON array. Got: %s",
+                            caaidentities_raw,
+                        )
+                        caaidentities = [caaidentities_raw]
                 except Exception:
                     # fallback: try comma-separated string
                     caaidentities = [
-                         x.strip() for x in caaidentities_raw.split(",") if x.strip()
+                        x.strip() for x in caaidentities_raw.split(",") if x.strip()
                     ]
             self.config.caaidentities = caaidentities
 
@@ -525,6 +538,9 @@ class Authorization(object):
             )
             self.config.prevalidated_iplist = self._load_json_config_param(
                 config_dic, "prevalidated_iplist"
+            )
+            self.config.prevalidated_emaillist = self._load_json_config_param(
+                config_dic, "prevalidated_emaillist"
             )
             # load profiling
             (
@@ -542,12 +558,14 @@ class Authorization(object):
         auth_details: Optional[Dict[str, str]],
     ) -> ChallengeContext:
         """Build context object used by the dns-persist JIT validator."""
-        account_name = auth_details.get("order__account__name") if auth_details else None
+        account_name = (
+            auth_details.get("order__account__name") if auth_details else None
+        )
 
         acct_path = self.config.authz_path.replace("/acme/authz/", "/acme/acct/")
         accounturi = (
-             f"{self.server_name}{acct_path}{account_name}" if account_name else None
-         )
+            f"{self.server_name}{acct_path}{account_name}" if account_name else None
+        )
 
         caaidentities = getattr(self.config, "caaidentities", None)
 
@@ -664,7 +682,6 @@ class Authorization(object):
             authz_info["status"] = "pending"
             is_tnauth = False
 
-
         # Extract identifier type and value
         id_type, id_value, is_wildcard = (
             self.business_logic.extract_identifier_info_for_challenge(authz_info)
@@ -691,17 +708,17 @@ class Authorization(object):
                 )
             # Get challenge set
             try:
-                authz_info[
-                    "challenges"
-                ] = self.challenge_manager.get_challenge_set_for_authorization(
-                    authz_name,
-                    authz_info["status"],
-                    token,
-                    is_tnauth,
-                    expires,
-                    id_type,
-                    id_value,
-                    is_wildcard,
+                authz_info["challenges"] = (
+                    self.challenge_manager.get_challenge_set_for_authorization(
+                        authz_name,
+                        authz_info["status"],
+                        token,
+                        is_tnauth,
+                        expires,
+                        id_type,
+                        id_value,
+                        is_wildcard,
+                    )
                 )
             except Exception as err:
                 self.logger.error(
@@ -738,29 +755,19 @@ class Authorization(object):
         try:
             with self.config.eab_handler(self.logger) as eab_handler:
                 profile_dic = eab_handler.key_file_load()
-                # load prevalidated_domainlist from eab profile if it exists and override global config
-                prevalidated_domainlist = (
-                    profile_dic.get(eab_kid, {})
-                    .get("authorization", {})
-                    .get("prevalidated_domainlist")
-                )
-                if prevalidated_domainlist:
-                    self.logger.debug(
-                        "Authorization._apply_eab_and_domain_whitelist() - apply prevalidated_domainlist from eab profile."
+                for key, attr in [
+                    ("prevalidated_domainlist", "prevalidated_domainlist"),
+                    ("prevalidated_iplist", "prevalidated_iplist"),
+                    ("prevalidated_emaillist", "prevalidated_emaillist"),
+                ]:
+                    value = (
+                        profile_dic.get(eab_kid, {}).get("authorization", {}).get(key)
                     )
-                    self.config.prevalidated_domainlist = prevalidated_domainlist
-                # load prevalidated_iplist from eab profile if it exists and override global config
-                prevalidated_iplist = (
-                    profile_dic.get(eab_kid, {})
-                    .get("authorization", {})
-                    .get("prevalidated_iplist")
-                )
-                if prevalidated_iplist:
-                    self.logger.debug(
-                        "Authorization._apply_eab_and_domain_whitelist() - apply prevalidated_iplist from eab profile."
-                    )
-                    self.config.prevalidated_iplist = prevalidated_iplist
-
+                    if value:
+                        self.logger.debug(
+                            f"Authorization._apply_eab_and_domain_whitelist() - apply {key} from eab profile."
+                        )
+                        setattr(self.config, attr, value)
         except Exception as err:
             self.logger.error(
                 "Failed to process EAB profile for challenge %s (kid: %s): %s",
@@ -788,18 +795,66 @@ class Authorization(object):
             self._handle_domain_prevalidation(
                 authz_name, auth_details, id_value, authz_info
             )
-            return
-        if id_type == "ip":
+        elif id_type == "ip":
             self._handle_ip_prevalidation(
                 authz_name, auth_details, id_value, authz_info
             )
+
+    def _handle_email_prevalidation(
+        self, authz_name, auth_details, id_value, authz_info
+    ):
+        """Handle email identifier prevalidation based on whitelist configuration. If the email is whitelisted, mark the authorization as valid and the order as ready."""
+        self.logger.debug(
+            "Authorization._handle_email_prevalidation() - Checking email identifier rewrite setting for email prevalidation"
+        )
+        emaillist = getattr(self.config, "prevalidated_emaillist", None)
+        if not emaillist:
             return
+        self.logger.debug(
+            "Authorization.get_authorization_details() - Checking preauthorized email list for email identifier"
+        )
+        if is_email_whitelisted(self.logger, id_value, emaillist):
+            self.logger.debug(
+                "Email %s is preauthorized, setting authorization status to 'valid'",
+                id_value,
+            )
+            authz_info["status"] = "valid"
+            self.repository.mark_authorization_as_valid(authz_name)
+            if auth_details is not None:
+                self.repository.mark_order_as_ready(auth_details.get("order__name"))
+            else:
+                self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
 
     def _handle_domain_prevalidation(
         self, authz_name, auth_details, id_value, authz_info
     ):
+        """Handle domain identifier prevalidation based on whitelist configuration. If the domain is whitelisted, mark the authorization as valid and the order as ready."""
+        self.logger.debug(
+            "Authorization._handle_domain_prevalidation() - Checking email identifier rewrite setting for domain prevalidation"
+        )
         domainlist = getattr(self.config, "prevalidated_domainlist", None)
         if not domainlist:
+            return
+
+        wildcard_all = (
+            len(self.config.prevalidated_domainlist) == 1
+            and isinstance(self.config.prevalidated_domainlist[0], str)
+            and self.config.prevalidated_domainlist[0].strip() == "*"
+        )
+
+        if wildcard_all:
+            self.logger.warning(
+                "Global wildcard prevalidation is active (prevalidated_domainlist contains '*'). Marking authorization %s as valid without challenge validation.",
+                authz_name,
+            )
+            authz_info["status"] = "valid"
+            self.repository.mark_authorization_as_valid(authz_name)
+            if auth_details is not None:
+                self.repository.mark_order_as_ready(auth_details.get("order__name"))
+            else:
+                self.logger.debug(
+                    "No order information found for authorization %s", authz_name
+                )
             return
 
         self.logger.debug(
@@ -807,6 +862,7 @@ class Authorization(object):
             id_value,
             bool(authz_info.get("wildcard")),
         )
+
         is_whitelisted = is_domain_whitelisted(self.logger, id_value, domainlist)
         self.logger.debug(
             "Authorization._handle_domain_prevalidation() - Whitelist check result for id_value='%s': %s",
@@ -855,16 +911,18 @@ class Authorization(object):
             if auth_details is not None:
                 self.repository.mark_order_as_ready(auth_details.get("order__name"))
             else:
-                self.logger.debug(
-                    "No order information found for authorization %s", authz_name
-                )
+                self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
 
     def _handle_ip_prevalidation(self, authz_name, auth_details, id_value, authz_info):
+        """Handle IP identifier prevalidation based on whitelist configuration. If the IP is whitelisted, mark the authorization as valid and the order as ready."""
+        self.logger.debug(
+            "Authorization._handle_ip_prevalidation() - Checking email identifier rewrite setting for IP prevalidation"
+        )
         iplist = getattr(self.config, "prevalidated_iplist", None)
         if not iplist:
             return
         self.logger.debug(
-            "Authorization.get_authorization_details() - Checking preauthorized IP list for IP identifier"
+            "Authorization._handle_ip_prevalidation() - Checking preauthorized IP list for IP identifier"
         )
         if is_ip_whitelisted(self.logger, id_value, iplist):
             self.logger.debug(
@@ -876,9 +934,12 @@ class Authorization(object):
             if auth_details is not None:
                 self.repository.mark_order_as_ready(auth_details.get("order__name"))
             else:
-                self.logger.debug(
-                    "No order information found for authorization %s", authz_name
-                )
+                self.logger.debug(NO_ORDER_INFO_LOG, authz_name)
+        else:
+            self.logger.debug(
+                "IP %s is not preauthorized, leaving authorization status unchanged",
+                id_value,
+            )
 
     def expire_invalid_authorizations(
         self, timestamp: int = None

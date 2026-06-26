@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Directory class"""
+
 # pylint: disable=e0401, r0913, r1705
 
 from __future__ import print_function
@@ -190,8 +191,11 @@ class Directory:
                 fallback=self.config.eab_strict_mode,
             )
         except Exception:
-            eab_cfg = config_dic.get("EABhandler", {})
-            raw_value = eab_cfg.get("eab_strict_mode", None)
+            try:
+                eab_cfg = config_dic["EABhandler"] if "EABhandler" in config_dic else {}
+                raw_value = eab_cfg.get("eab_strict_mode", None)
+            except Exception:
+                raw_value = None
             if raw_value is None:
                 return self.config.eab_strict_mode
             if isinstance(raw_value, bool):
@@ -323,9 +327,9 @@ class Directory:
                 )
                 d_dic["meta"]["db_check"] = "NOK"
         # generate random key in json as recommended by LE
-        d_dic[
-            uuid.uuid4().hex
-        ] = "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417"
+        d_dic[uuid.uuid4().hex] = (
+            "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417"
+        )
         self.logger.debug("Directory._build_directory_response() ended")
         return d_dic
 

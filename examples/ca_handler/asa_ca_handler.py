@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Insta Active Security API  handler"""
+
 from __future__ import print_function
 from typing import Tuple, Dict
 import os
@@ -302,7 +303,7 @@ class CAhandler(object):
             self.logger.info("CN not found in CSR")
             san_list = csr_san_get(self.logger, csr)
             if san_list:
-                (_type, san_value) = san_list[0].split(":")
+                _type, san_value = san_list[0].split(":")
                 cn = san_value
                 self.logger.info(
                     "CN not found in CSR. Using first SAN entry as CN: %s",
@@ -484,7 +485,9 @@ class CAhandler(object):
         poll_indentifier = None
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
+        error = eab_profile_header_info_check(
+            self.logger, self, csr, self.profile_mapping_field
+        )
 
         if self.enrollment_config_log:
             self.enrollment_config_log_skip_list.extend(["api_password", "auth"])
@@ -573,7 +576,6 @@ class CAhandler(object):
         cert_ski = cert_ski_get(
             self.logger, cert
         )  # get subjectKeyIdentifier from certificate
-
         url = f"{self.api_host}/revoke_certificate?issuerName={encode_url(self.logger, self.ca_name)}&certificateId={cert_ski}"
         data_dic = {}
         code, content_dic = self._api_post(url, data_dic)
@@ -586,7 +588,12 @@ class CAhandler(object):
             else:
                 detail = "Unknown error"
 
-        self.logger.debug("Certificate.revoke() ended")
+        self.logger.debug(
+            "Certificate.revoke() ended with code: %s, message: %s, detail: %s",
+            code,
+            message,
+            detail,
+        )
         return (code, message, detail)
 
     def trigger(self, _payload: str) -> Tuple[str, str, str]:

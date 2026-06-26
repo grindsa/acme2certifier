@@ -45,7 +45,7 @@ request_timeout: <seconds>
 - ca_bundle - optional - ca certificate chain in pem format needed to validate the EJBCA server certificate - can be True/False or a filename (default: True)
 - username - EJBCA username
 - username_variable - *optional* - name of the environment variable containing the EJBCA username (a configured `username` parameter in acme_srv.cfg takes precedence)
-- username_append_cn - *optional* - add common-name (or 1st SAN) to EJBCA username to allow a better differenciation in the EJBCA-UI
+- username_append_cn - *optional* - add common-name (or 1st SAN) to EJBCA username to allow a better differentiation in the EJBCA-UI
 - enrollment_code - enrollment code
 - enrollment_code_variable - *optional* - name of the environment variable containing the enrollment_code for the EJBCA user (a configured `enrollment_code` parameter in acme_srv.cfg takes precedence)
 - cert_profile_name - name of the certificate profile
@@ -76,7 +76,7 @@ Use your favorite acme client for certificate enrollment. A list of clients used
 
 ## Passing a profile_id from client to server
 
-acme2certifier supports the the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a `cert_profile_name` parameter to be submitted to the CA server.
+acme2certifier supports the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md), allowing an acme-client to specify a `cert_profile_name` parameter to be submitted to the CA server.
 
 The list of supported profiles must be configured in `acme_srv.cfg`
 
@@ -88,7 +88,7 @@ profiles: {"profile1": "http://foo.bar/profile1", "profile2": "http://foo.bar/pr
 Once enabled, a client can specify the cert_profile_name to be used as part of an order request. Below an example for lego:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile profile2
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http --profile profile2
 ```
 
 Further, this handler makes use of the [header_info_list feature](header_info.md) allowing an ACME client to specify a certificate profile to be used during certificate enrollment. This feature is disabled by default and must be activated in `acme_srv.cfg` as shown below
@@ -110,7 +110,7 @@ docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --st
 Example for lego:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent cert_profile_name=acme_clt -d <fqdn> --http run
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent cert_profile_name=acme_clt -d <fqdn> --http
 ```
 
 ## eab profiling
