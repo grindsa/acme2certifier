@@ -43,7 +43,7 @@ curl -I --user <user>:<password> -k https://<host>/certsrv/
 ```bash
 export KRB5_CONFIG=<path>/krb5.conf
 kinit <username>
-curl --negotiate -u: <user>:<password> -k https://<host>/certsrv/
+curl --negotiate -u <user>:<password> -k https://<host>/certsrv/
 ```
 
 If the service is accessible, the response should return status code **200**:
@@ -80,7 +80,7 @@ For detailed information about Extended Protection for Authentication, refer to 
 
 ## Installation
 
-- Allow the MD4 algorithm in `openssl.cnf`:
+- Allow the MD4 algorithm in `openssl.cnf` (not necessary for Kerberos Auth):
 
 ```bash
 sudo sed -i "s/default = default_sect/\default = default_sect
