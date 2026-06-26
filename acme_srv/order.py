@@ -7,6 +7,7 @@ from typing import Any, List, Tuple, Dict, Optional
 from dataclasses import dataclass, field
 from acme_srv.helper import (
     b64_url_recode,
+    ca_handler_load,
     config_allowed_domainlist_load,
     config_allowed_iplist_load,
     config_profile_load,
@@ -163,6 +164,7 @@ class OrderConfiguration:
     allowed_iplist: List[str] = field(default_factory=list)
     eab_profiling: bool = False
     eab_handler: Optional[Any] = None
+    profile_mapping_field: Optional[str] = None
     dryrun_profilename: Optional[str] = None
     wildcard_certificate_disable: bool = False
 
@@ -250,6 +252,16 @@ class Order(object):
                 self.logger.warning(
                     "Profile '%s' is not valid. Ignoring submitted profile.", profile
                 )
+                # cover cornercase, where we have only one profile configured, and the submitted profile is not valid
+                # in this case we overwrite the submitted profile silently
+                if len(self.config.profiles.keys()) == 1:
+                    self.logger.info(
+                        "Only one profile configured. Overwriting submitted profile '%s' with '%s'.",
+                        profile,
+                        list(self.config.profiles.keys())[0],
+                    )
+                    error = None
+
         self.logger.debug("Order.is_profile_valid() ended with %s", error)
         return error
 
@@ -283,7 +295,24 @@ class Order(object):
         error = self.is_profile_valid(payload["profile"])
         if not error:
             if self.config.profiles:
-                data_dic["profile"] = payload["profile"]
+                profile = payload["profile"]
+                if (
+                    not self.config.profiles_check_disable
+                    and profile not in self.config.profiles
+                    and not (
+                        self.config.dryrun_profilename
+                        and self.config.dryrun_profilename == profile
+                    )
+                    and len(self.config.profiles.keys()) == 1
+                ):
+                    profile = list(self.config.profiles.keys())[0]
+                    self.logger.info(
+                        "Order.add_profile_to_order(): overwriting submitted profile '%s' with '%s'.",
+                        payload["profile"],
+                        profile,
+                    )
+
+                data_dic["profile"] = profile
             elif (
                 self.config.dryrun_profilename
                 and self.config.dryrun_profilename == payload["profile"]
@@ -342,7 +371,10 @@ class Order(object):
                     "wildcard_certificate_disable",
                     self.config.wildcard_certificate_disable,
                 )
-                raise NotImplementedError('foo')
+
+                eab_profile_dic = self._load_eab_profile_mapping(profile_dic, eab_kid)
+                self._apply_eab_profile_mapping(account_name, eab_profile_dic)
+
         except Exception as err:
             self.logger.error(
                 "Failed to process EAB profile for Account %s (kid: %s): %s",
@@ -350,6 +382,61 @@ class Order(object):
                 eab_kid,
                 err,
             )
+
+    def _load_eab_profile_mapping(self, profile_dic, eab_kid) -> Dict[str, bool]:
+        """Load and normalize profile mapping from EAB profile."""
+        if not self.config.profile_mapping_field:
+            return {}
+
+        eab_profile = self._load_eab_profile_param(
+            profile_dic,
+            eab_kid,
+            self.config.profile_mapping_field,
+            None,
+        )
+        return self._profile_mapping_to_dict(eab_profile)
+
+    def _apply_eab_profile_mapping(
+        self, account_name: str, eab_profile_dic: Dict[str, bool]
+    ) -> None:
+        """Overwrite configured profiles with EAB profile mapping if provided."""
+        if eab_profile_dic:
+            self.logger.debug(
+                "Order._apply_eab_profile() - overwrite profile information from eab profile for account %s",
+                account_name,
+            )
+            self.config.profiles = eab_profile_dic
+            if self.config.profiles_check_disable:
+                self.logger.debug(
+                    "Order._apply_eab_profile() - enabling profile validation because EAB profile mapping is present"
+                )
+                self.config.profiles_check_disable = False
+
+    def _profile_mapping_to_dict(self, profile_value) -> Dict[str, bool]:
+        """Normalize profile mapping value to dict keys."""
+        if profile_value is None:
+            return {}
+
+        if isinstance(profile_value, str):
+            key = profile_value.strip()
+            return {key: True} if key else {}
+
+        if isinstance(profile_value, list):
+            return {
+                str(item).strip(): True
+                for item in profile_value
+                if item is not None and str(item).strip()
+            }
+
+        if isinstance(profile_value, dict):
+            # already in target format
+            return profile_value
+
+        self.logger.warning(
+            "Unsupported profile mapping type: %s",
+            type(profile_value).__name__,
+        )
+        return {}
 
     def create_order(
         self, payload: Dict[str, str], account_name: str
@@ -405,10 +492,11 @@ class Order(object):
         cahandler_cfg = profile_entry.get("cahandler", {})
         if param_name in cahandler_cfg:
             value = cahandler_cfg.get(param_name)
-            self.logger.warning(
-                "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
-                param_name,
-            )
+            if param_name != self.config.profile_mapping_field:
+                self.logger.warning(
+                    "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
+                    param_name,
+                )
             self.logger.debug(
                 "Order._apply_eab_profile() - apply %s from eab profile.", param_name
             )
@@ -582,7 +670,68 @@ class Order(object):
             self.config.eab_handler,
         ) = config_eab_profile_load(self.logger, config_dic)
 
-        self.logger.debug("Order._config_load() ended.")
+        self.config.profile_mapping_field = self._load_profile_mapping_field(config_dic)
+
+        self.logger.debug("Order._load_configuration() ended.")
+
+    def _load_profile_mapping_field(self, config_dic: Dict[str, str]) -> Optional[str]:
+        """Load profile mapping field from configuration."""
+        self.logger.debug("Order._load_profile_mapping_field()")
+        ca_handler_module = ca_handler_load(self.logger, config_dic)
+
+        if not ca_handler_module:
+            return None
+
+        # Backward compatibility: allow module-level definition.
+        if hasattr(ca_handler_module, "profile_mapping_field"):
+            mapping_field = getattr(ca_handler_module, "profile_mapping_field")
+            self.logger.debug(
+                "Order._load_profile_mapping_field() - profile_mapping_field '%s' loaded from CA handler module",
+                mapping_field,
+            )
+            return mapping_field
+
+        ca_handler_class = getattr(ca_handler_module, "CAhandler", None)
+        if not ca_handler_class:
+            return None
+
+        # Best effort: try instance attributes, but never fail startup on constructor issues.
+        ca_handler_obj = None
+        try:
+            ca_handler_obj = ca_handler_class(logger=self.logger)
+        except TypeError:
+            try:
+                ca_handler_obj = ca_handler_class()
+            except Exception as err_:
+                self.logger.warning(
+                    "Order._load_profile_mapping_field() - failed to instantiate CAhandler without logger: %s",
+                    err_,
+                )
+        except Exception as err_:
+            self.logger.warning(
+                "Order._load_profile_mapping_field() - failed to instantiate CAhandler with logger: %s",
+                err_,
+            )
+
+        if ca_handler_obj:
+            mapping_field = getattr(ca_handler_obj, "profile_mapping_field", None)
+            if mapping_field:
+                self.logger.debug(
+                    "Order._load_profile_mapping_field() - profile_mapping_field '%s' loaded from CAhandler instance",
+                    mapping_field,
+                )
+                return mapping_field
+
+        # Check for class-level attribute if instance attribute is not found
+        mapping_field = getattr(ca_handler_class, "profile_mapping_field", None)
+        if mapping_field:
+            self.logger.debug(
+                "Order._load_profile_mapping_field() - profile_mapping_field '%s' loaded from CAhandler class",
+                mapping_field,
+            )
+            return mapping_field
+
+        return None
 
     def _name_get(self, url: str) -> str:
         """get ordername"""
