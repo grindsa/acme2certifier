@@ -52,6 +52,7 @@ RUN apt-get update  && \
     sed -i "s/acme2certifier_wsgi/acme2certifier.wsgi/g" /var/www/acme2certifier/acme2certifier.ini && \
     sed -i "s/nginx/www-data/g" /var/www/acme2certifier/acme2certifier.ini && \
     ln -sf /dev/stdout /var/log/nginx/access.log && ln -sf /dev/stderr /var/log/nginx/error.log && \
+    sed -i "s/\/etc\/nginx/\/var\/www\/acme2certifier\/volume/g" /var/www/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf && \
     sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
     sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf && \
     rm /etc/nginx/sites-enabled/default && \
