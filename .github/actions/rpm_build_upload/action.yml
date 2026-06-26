@@ -19,7 +19,7 @@ runs:
     shell: bash
 
   - name: "Upload RPM package"
-    uses: actions/upload-artifact@master
+    uses: actions/upload-artifact@v7
     with:
       name: acme2certifier-${{ github.run_id }}.noarch.rpm
       path: ${{ steps.rpm_build.outputs.rpm_dir_path }}/noarch/

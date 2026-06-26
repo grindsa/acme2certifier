@@ -1,0 +1,109 @@
+name: "aws_instance_manage"
+description: "Manage AWS Instances"
+inputs:
+  AWS_ACCESS_KEY_ID:
+    description: "AWS Access Key ID"
+    required: true
+  AWS_SECRET_ACCESS_KEY:
+    description: "AWS Secret Access Key"
+    required: true
+  AWS_REGION:
+    description: "AWS Region"
+    required: true
+    default: "us-east-1"
+  AWS_INSTANCE_ID:
+    description: "ID of the AWS instance to manage"
+    required: true
+  ACTION:
+    description: "Action to perform on the instance (start, stop, reboot)"
+    required: true
+    default: "stop"
+  IGNORE_CURRENT_STATUS:
+    description: "Whether to abort the action if the instance is different than expected"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "install awscli"
+      run: |
+        sudo apt-get update
+        pip3 install awscli --upgrade --user
+        pip3 install boto3 --upgrade --user
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+      shell: bash
+
+    - name: "configure awscli"
+      run: |
+        aws --version
+        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+        aws configure set default.region $AWS_REGION
+        wget https://raw.githubusercontent.com/grindsa/aws_ec2_mgr/main/aws_ec_mgr.py
+        chmod a+rx ./aws_ec_mgr.py
+      env:
+        AWS_ACCESS_KEY_ID: ${{ inputs.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ inputs.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION: ${{ inputs.AWS_REGION }}
+      shell: bash
+
+    # sequence to start an instance
+    - name: "check if instance is stopped"
+      if: ${{ inputs.ACTION == 'start' && inputs.IGNORE_CURRENT_STATUS == 'false' }}
+      run: |
+        python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_INSTANCE_ID | grep -i "stopped"
+      env:
+        AWS_REGION: ${{ inputs.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ inputs.AWS_INSTANCE_ID }}
+      shell: bash
+
+    - name: "start instance"
+      if: ${{ inputs.ACTION == 'start' }}
+      run: |
+        python3 ./aws_ec_mgr.py -a start -r $AWS_REGION -i $AWS_INSTANCE_ID
+      env:
+        AWS_REGION: ${{ inputs.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ inputs.AWS_INSTANCE_ID }}
+      shell: bash
+
+    - name: "[ WAIT ] Sleep for 10s"
+      if: ${{ inputs.ACTION == 'start' }}
+      uses: juliangruber/sleep-action@v2.0.4
+      with:
+        time: 10s
+
+    - name: "check instance status"
+      if: ${{ inputs.ACTION == 'start' }}
+      run: |
+        python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_INSTANCE_ID | grep -Eiq "running|pending"
+      env:
+        AWS_REGION: ${{ inputs.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ inputs.AWS_INSTANCE_ID }}
+      shell: bash
+
+    # sequence to stop an instance
+    - name: "check instance status"
+      if: ${{ inputs.ACTION == 'stop' && inputs.IGNORE_CURRENT_STATUS == 'false' }}
+      run: |
+        python3 ./aws_ec_mgr.py -a state -r $AWS_REGION -i $AWS_INSTANCE_ID | grep -i "running"
+      env:
+        AWS_REGION: ${{ inputs.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ inputs.AWS_INSTANCE_ID }}
+      shell: bash
+
+    - name: "stop instance"
+      if: ${{ inputs.ACTION == 'stop' }}
+      run: |
+        python3 ./aws_ec_mgr.py -a stop -r $AWS_REGION -i $AWS_INSTANCE_ID
+      env:
+        AWS_REGION: ${{ inputs.AWS_REGION }}
+        AWS_INSTANCE_ID: ${{ inputs.AWS_INSTANCE_ID }}
+      shell: bash
+
+    - name: "[ WAIT ] Sleep for 10s"
+      if: ${{ inputs.ACTION == 'stop' }}
+      uses: juliangruber/sleep-action@v2.0.4
+      with:
+        time: 10s

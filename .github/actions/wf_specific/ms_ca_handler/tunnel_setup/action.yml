@@ -34,7 +34,7 @@ runs:
   using: "composite"
   steps:
   - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 10s
 
@@ -63,11 +63,11 @@ runs:
     shell: bash
 
   - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 10s
 
-  - name: "Test conection to mscertsrv via ssh tunnel"
+  - name: "Test connection to mscertsrv via ssh tunnel"
     run: |
       docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$MSCA_FQDN
     env:

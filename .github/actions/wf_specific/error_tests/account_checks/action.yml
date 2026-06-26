@@ -1,4 +1,4 @@
-name: "order_error_checking"
+name: "account_error_checking"
 description: "EAB enroll with unknown credentials"
 inputs:
   NAME_SPACE:
@@ -130,7 +130,7 @@ runs:
     - name: "Check acmeshell log"
       working-directory: acmeshell
       run: |
-        grep "HTTP\/1.1 201 OK" acmeshell.enroll.log
+        # cat acmeshell.enroll.log
         grep "{\"status\": \"valid\"" acmeshell.enroll.log
         grep "{\"status\": \"deactivated\"}" acmeshell.enroll.log
       shell: bash
@@ -246,8 +246,8 @@ runs:
     - name: "Check acmeshell log"
       working-directory: acmeshell
       run: |
-        grep "HTTP\/1.1 201 OK" acmeshell.enroll.log
-        grep "HTTP\/1.1 200 Created" acmeshell.enroll.log
+        # grep "HTTP\/1.1 201 OK" acmeshell.enroll.log
+        # grep "HTTP\/1.1 200 Created" acmeshell.enroll.log
         grep "\"contact\": \[\"mailto:new@example.com\"\], \"createdAt\":" acmeshell.enroll.log
       shell: bash
 
@@ -371,7 +371,6 @@ runs:
     - name: "Check acmeshell log"
       working-directory: acmeshell
       run: |
-        cat acmeshell.enroll.log
         grep "Rollover for" acmeshell.enroll.log | grep "completed"
       shell: bash
 

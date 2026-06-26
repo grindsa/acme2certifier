@@ -1,5 +1,5 @@
-name: "enroll_102_profile"
-description: "wf enrollment 102 profile"
+name: "enroll timeout"
+description: test enrollment timeout handling for various ACME clients"
 inputs:
   DEPLOYMENT_TYPE:
     description: "Deployment type"
@@ -11,7 +11,7 @@ runs:
   steps:
 
   - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 10s
 
@@ -32,17 +32,17 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        docker compose logs | grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec acme-srv grep "Certificate.enroll_and_store() ended with: None:timeout" /var/log/messages
+        docker exec acme-srv grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out" /var/log/messages
       fi
     shell: bash
     env:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 10s
 
@@ -52,7 +52,7 @@ runs:
     shell: bash
 
   - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.3
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 10s
 
@@ -72,14 +72,15 @@ runs:
 
   - name: "Enroll Lego"
     run: |
-      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 180 --http run
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme  --cert.timeout 180 --http
     shell: bash
 
   - name: "Check timeout"
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        docker compose logs | grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash
@@ -100,7 +101,7 @@ runs:
     working-directory: examples/Docker/
     run: |
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Certificate.enroll_and_store() ended with: None:timeout"
+        docker compose logs | grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash
