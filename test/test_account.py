@@ -946,12 +946,14 @@ class TestAccount(unittest.TestCase):
         from acme_srv.account import Account
 
         # Patch load_config to return a configparser-like mock
+        # eab_strict_mode defaults to True in AccountConfig; here we explicitly test False.
         config_mock = MagicMock()
         config_mock.getboolean.side_effect = lambda section, key, fallback=False: {
             ("Account", "inner_header_nonce_allow"): True,
             ("Account", "ecc_only"): True,
             ("Account", "tos_check_disable"): True,
             ("Account", "contact_check_disable"): True,
+            ("EABhandler", "eab_strict_mode"): False,
         }.get((section, key), fallback)
         config_mock.get.side_effect = lambda section, key, fallback=None: {
             ("Directory", "tos_url"): "http://tos.url",
@@ -977,6 +979,7 @@ class TestAccount(unittest.TestCase):
             self.assertTrue(account.config.contact_check_disable)
             self.assertEqual(account.config.tos_url, "http://tos.url")
             self.assertTrue(account.config.eab_check)
+            self.assertFalse(account.config.eab_strict_mode)
             self.assertEqual(account.config.eab_handler, "EABhandlerClass")
             self.assertTrue(account.config.path_dic["acct_path"].startswith("/prefix"))
 
@@ -1034,6 +1037,7 @@ class TestAccount(unittest.TestCase):
             self.assertFalse(
                 account.config.tos_check_disable
             )  # Default value should be used
+            self.assertTrue(account.config.eab_strict_mode)  # Default value should be used
             self.assertFalse(
                 account.config.inner_header_nonce_allow
             )  # Default value should be used
@@ -1084,6 +1088,35 @@ class TestAccount(unittest.TestCase):
             code, message, detail = self.account._create_account(payload, protected)
             self.assertEqual(code, 403)
             self.assertEqual(message, "eab_error")
+
+    def test_044__create_account_eab_check_strict_mode_off(self):
+        """test _create_account skips EAB check in non-strict mode without EAB payload"""
+        self.account.config.tos_url = None
+        self.account.config.tos_check_disable = False
+        self.account.config.eab_check = True
+        self.account.config.eab_strict_mode = False
+        self.account.config.eab_handler = MagicMock()
+        payload = {"contact": ["test@example.com"]}
+        protected = {"alg": "RS256", "jwk": {}}
+        with patch("acme_srv.account.ExternalAccountBinding") as mock_eab, patch(
+            "acme_srv.account.generate_random_string", return_value="testaccount123"
+        ), patch.object(
+            self.account, "_add_account_to_db", return_value=(201, "test_account", None)
+        ) as mock_add_db:
+            with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
+                code, message, detail = self.account._create_account(payload, protected)
+            self.assertEqual(code, 201)
+            self.assertEqual(message, "test_account")
+            mock_eab.assert_not_called()
+            mock_add_db.assert_called_once()
+            self.assertIn(
+                "DEBUG:test_a2c:Account._create_account() EAB check skipped due to non-strict mode and missing EAB payload",
+                log_cm.output,
+            )
+            self.assertIn(
+                "DEBUG:test_a2c:Account._create_account() EAB binding skipped for account testaccount123 due to non-strict mode and missing EAB payload",
+                log_cm.output,
+            )
 
     def test_044__create_account_contact_check_fail(self):
         """test _create_account fails contact validation"""
@@ -1221,6 +1254,26 @@ class TestAccount(unittest.TestCase):
             result = self.account._handle_account_query(account_name)
             self.assertIn("data", result)
             mock_build_response.assert_called_once()
+
+    def test_051__handle_account_query_valid(self):
+        """test _handle_account_query with valid account"""
+        account_name = "test_account"
+        account_obj = {
+            "status": "valid",
+            "jwk": "{}",
+            "contact": "[]",
+            "created_at": "2026-02-08",
+        }
+        with patch.object(
+            self.account, "_lookup_account_by_name", return_value=account_obj
+        ), patch.object(
+            self.account, "_build_account_info", return_value={"status": "valid"}
+        ):
+            result = self.account._handle_account_query(account_name)
+            self.assertEqual(
+                "http://tester.local/acme/acct/test_account",
+                result["header"]["Location"],
+            )
 
     def test_051__handle_account_query_invalid(self):
         """test _handle_account_query with invalid account (not found)"""

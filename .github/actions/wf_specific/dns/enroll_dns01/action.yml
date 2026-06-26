@@ -1,0 +1,105 @@
+name: "enroll_dns01 "
+description: "enroll_dns01"
+
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: true
+    default: "rpm"
+  CA_PATH:
+    description: "Path to CA certificates"
+    required: false
+    default: "data/volume/acme_ca/"
+  ACME_SRV:
+    description: "ACME server URL"
+    required: false
+    default: "acme-srv"
+  NAME_SPACE:
+    description: "Kubernetes namespace"
+    required: false
+    default: "acme"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 10s"
+    uses: grindsa/sleep-action@master
+    with:
+      time: 10s
+
+  - name: "Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://$ACME_SRV.$NAME_SPACE/directory
+    shell: bash
+    env:
+      ACME_SRV: ${{ inputs.ACME_SRV }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SRV.$NAME_SPACE/directory
+    shell: bash
+    env:
+      ACME_SRV: ${{ inputs.ACME_SRV }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll acme.sh - single domain"
+    run: |
+      docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.single --standalone --debug 3 --output-insecure --force
+      openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/acme-sh.single_ecc/acme-sh.single.cer
+    shell: bash
+    env:
+      CA_PATH: ${{ inputs.CA_PATH }}
+      ACME_SRV: ${{ inputs.ACME_SRV }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll acme.sh - two domains"
+    run: |
+      docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.first --dns dns_test -d acme-sh.second --standalone --debug 3 --output-insecure --force
+      openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/acme-sh.first_ecc/acme-sh.first.cer
+    shell: bash
+    env:
+      CA_PATH: ${{ inputs.CA_PATH }}
+      ACME_SRV: ${{ inputs.ACME_SRV }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll acme.sh - single wildcard domain"
+    run: |
+      docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
+      openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/*acme-sh.wildcard_ecc/*acme-sh.wildcard.cer
+    shell: bash
+    env:
+      CA_PATH: ${{ inputs.CA_PATH }}
+      ACME_SRV: ${{ inputs.ACME_SRV }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll acme.sh - double wildcard domain"
+    run: |
+      docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.first-wildcard --dns dns_test -d *.acme-sh.second-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
+      openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/*.acme-sh.first-wildcard_ecc/*.acme-sh.first-wildcard.cer
+    shell: bash
+    env:
+      CA_PATH: ${{ inputs.CA_PATH }}
+      ACME_SRV: ${{ inputs.ACME_SRV }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Enroll acme.sh - domain and wildcard domain"
+    run: |
+      docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.fqdn-wildcard --dns dns_test -d *.acme-sh.fqdn-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
+      openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/acme-sh.fqdn-wildcard_ecc/acme-sh.fqdn-wildcard.cer
+    shell: bash
+    env:
+      CA_PATH: ${{ inputs.CA_PATH }}
+      ACME_SRV: ${{ inputs.ACME_SRV }}
+      NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+  - name: "Check TXT record exists"
+    if: ${{ failure() }}
+    run: |
+      docker exec -i acme-sh ps -a
+      docker exec -i acme-sh netstat -anu
+      dig -t TXT _acme-challenge.acme-sh.single @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+      dig -t TXT _acme-challenge.acme-sh.first @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+      dig -t TXT _acme-challenge.acme-sh.second @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+      dig -t TXT _acme-challenge.acme-sh.wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+      dig -t TXT _acme-challenge.acme-sh.first-wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+      dig -t TXT _acme-challenge.acme-sh.second-wildcard @$(docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' acme-sh)
+    shell: bash

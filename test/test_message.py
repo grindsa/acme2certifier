@@ -873,6 +873,24 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:Account lookup for account_name failed.", lcm.output
         )
 
+    def test_048b_invalid_eab_check_non_strict_no_eab_kid(self):
+        """test _invalid_eab_check allows missing eab_kid in non-strict mode"""
+        self.message.repo = MagicMock()
+        self.message.repo.account_lookup.side_effect = None
+        self.message.repo.account_lookup.return_value = {"foo": "bar"}
+        self.message.config.eab_strict_mode = False
+        self.message.config.eab_handler = None
+
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm:
+            self.assertEqual(
+                "account_name",
+                self.message._check_and_handle_invalid_eab_credentials("account_name"),
+            )
+        self.assertIn(
+            "DEBUG:test_a2c:Message._check_and_handle_invalid_eab_credentials() eab credentials validated or not required for account_name: account_name",
+            lcm.output,
+        )
+
     def test_049__safe_account_lookup_db_error(self):
         """test _safe_account_lookup - dbstore.account_lookup raises an exception"""
         self.message.repo = MagicMock()
