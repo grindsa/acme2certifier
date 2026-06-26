@@ -45,7 +45,7 @@ jobs:
   instance_start:
     needs: guard
     runs-on: ubuntu-latest
-    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'certifier')) }}
+    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || inputs.branch == 'min' || inputs.branch == 'min-devel' || contains(inputs.branch, 'certifier')) }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
