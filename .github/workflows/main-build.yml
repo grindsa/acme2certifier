@@ -5,7 +5,7 @@ on:
     branches: [ "**" ]       # build on any branch
   workflow_dispatch: {}
   schedule:
-    - cron: '0 01 * * 6'  # Every Saturday morning
+    - cron: '0 01 * * 6'  # Every Saturday early morning
 
 
 jobs:
