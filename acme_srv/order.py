@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Order class"""
+
 from __future__ import print_function
 import json
 import copy
@@ -258,7 +259,7 @@ class Order(object):
                     self.logger.info(
                         "Only one profile configured. Overwriting submitted profile '%s' with '%s'.",
                         profile,
-                        list(self.config.profiles.keys())[0],
+                        next(iter(self.config.profiles.keys())),
                     )
                     error = None
 
@@ -305,7 +306,7 @@ class Order(object):
                     )
                     and len(self.config.profiles.keys()) == 1
                 ):
-                    profile = list(self.config.profiles.keys())[0]
+                    profile = next(iter(self.config.profiles.keys()))
                     self.logger.info(
                         "Order.add_profile_to_order(): overwriting submitted profile '%s' with '%s'.",
                         payload["profile"],
@@ -463,7 +464,7 @@ class Order(object):
                 data_dic["status"] = 1
             else:
                 if "profile" in payload:
-                    (error, data_dic) = self.add_profile_to_order(data_dic, payload)
+                    error, data_dic = self.add_profile_to_order(data_dic, payload)
                     if error == self.error_msg_dic["invalidprofile"]:
                         detail = "Invalid profile specified"
             error = self._add_order_and_authorizations(
@@ -740,7 +741,7 @@ class Order(object):
         url_dic = parse_url(self.logger, url)
         order_name = url_dic["path"].replace(self.path_dic["order_path"], "")
         if "/" in order_name:
-            (order_name, _sinin) = order_name.split("/", 1)
+            order_name, _sinin = order_name.split("/", 1)
         self.logger.debug("Order._name_get() ended")
         return order_name
 
@@ -773,147 +774,189 @@ class Order(object):
         """Check if a single identifier is allowed."""
         self.logger.debug("Order._check_single_identifier(%s)", identifier)
 
-        # check if type is present
+        error = self._validate_identifier_structure(identifier)
+        if error:
+            return error
+
+        id_type = identifier["type"].lower()
+
+        error = self._validate_identifier_type_supported(
+            identifier["type"], id_type, allowed_identifiers
+        )
+        if error:
+            return error
+
+        error = self._validate_identifier_value(identifier, id_type)
+        if error:
+            return error
+
+        if id_type == "dns":
+            return self._validate_dns_identifier_policy(identifier)
+
+        if id_type == "ip":
+            return self._validate_ip_identifier_policy(identifier)
+
+        return None, None
+
+    def _validate_identifier_structure(
+        self, identifier: dict
+    ) -> Optional[Tuple[str, str]]:
+        """Validate mandatory identifier fields are present."""
         if "type" not in identifier:
             self.logger.error("Identifier type is missing")
             return self.error_msg_dic["malformed"], "Identifier type is missing"
 
-        # check if value is present
         if "value" not in identifier:
             self.logger.error("Identifier value is missing")
             return self.error_msg_dic["malformed"], "Identifier value is missing"
 
-        # check if type is allowd
-        id_type = identifier["type"].lower()
-        if id_type not in allowed_identifiers:
-            self.logger.error("Identifier type %s not supported", identifier["type"])
-            return (
-                self.error_msg_dic["unsupportedidentifier"],
-                f'Identifier type {identifier["type"]} not supported',
-            )
+        return None
 
-        # check if value is valid
-        if not validate_identifier(
+    def _validate_identifier_type_supported(
+        self, identifier_type: str, id_type: str, allowed_identifiers: List[str]
+    ) -> Optional[Tuple[str, str]]:
+        """Validate identifier type is supported."""
+        if id_type in allowed_identifiers:
+            return None
+
+        self.logger.error("Identifier type %s not supported", identifier_type)
+        return (
+            self.error_msg_dic["unsupportedidentifier"],
+            f"Identifier type {identifier_type} not supported",
+        )
+
+    def _validate_identifier_value(
+        self, identifier: dict, id_type: str
+    ) -> Optional[Tuple[str, str]]:
+        """Validate identifier value format."""
+        if validate_identifier(
             self.logger,
             id_type,
             identifier["value"],
             self.config.tnauthlist_support,
         ):
-            self.logger.error(
-                "Identifier value %s not allowed for type %s",
-                identifier["value"],
-                identifier["type"],
-            )
-            return (
-                self.error_msg_dic["rejectedidentifier"],
-                f'identifier value {identifier["value"]} not allowed',
-            )
+            return None
 
-        # check wildcard certificate disable for dns identifiers
-        if self.config.wildcard_certificate_disable and id_type == "dns" and identifier["value"].startswith("*."):
+        self.logger.error(
+            "Identifier value %s not allowed for type %s",
+            identifier["value"],
+            identifier["type"],
+        )
+        return (
+            self.error_msg_dic["rejectedidentifier"],
+            f'identifier value {identifier["value"]} not allowed',
+        )
+
+    def _validate_dns_identifier_policy(
+        self, identifier: dict
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Validate DNS-specific policy constraints."""
+        if self.config.wildcard_certificate_disable and identifier["value"].startswith(
+            "*."
+        ):
             self.logger.error(
                 "Wildcard identifier %s not allowed by configuration",
                 identifier["value"],
             )
             return (
                 self.error_msg_dic["rejectedidentifier"],
-                f'Wildcard identifier {identifier["value"]} are not allowed',
+                f'Wildcard identifier {identifier["value"]} not allowed',
             )
 
-        # check allowed domainlist for dns identifiers
-        if id_type == "dns" and self.config.allowed_domainlist:
-            domain_value = identifier["value"]
-            wildcard_requested = bool(identifier.get("wildcard"))
+        if not self.config.allowed_domainlist:
+            return None, None
 
+        domain_allowed = self._is_domain_allowed_for_identifier(identifier)
+        if domain_allowed:
+            return None, None
+
+        self.logger.error(
+            "FQDN/SAN %s not allowed by configuration",
+            identifier["value"],
+        )
+        return (
+            self.error_msg_dic["rejectedidentifier"],
+            f'FQDN/SAN {identifier["value"]} not allowed by configuration',
+        )
+
+    def _is_domain_allowed_for_identifier(self, identifier: dict) -> bool:
+        """Check allowlist for DNS identifiers with wildcard fallback handling."""
+        domain_value = identifier["value"]
+        wildcard_requested = bool(identifier.get("wildcard"))
+
+        self.logger.debug(
+            "Order._check_single_identifier() - Evaluating allowed_domainlist for value='%s' (wildcard flag: %s)",
+            domain_value,
+            wildcard_requested,
+        )
+
+        domain_allowed = is_domain_whitelisted(
+            self.logger,
+            domain_value,
+            self.config.allowed_domainlist,
+        )
+
+        self.logger.debug(
+            "Order._check_single_identifier() - allowed_domainlist check result for value='%s': %s",
+            domain_value,
+            domain_allowed,
+        )
+
+        if (
+            not domain_allowed
+            and wildcard_requested
+            and domain_value
+            and not domain_value.startswith("*.")
+        ):
+            wildcard_value = f"*.{domain_value}"
             self.logger.debug(
-                "Order._check_single_identifier() - Evaluating allowed_domainlist for value='%s' (wildcard flag: %s)",
+                "Order._check_single_identifier() - Reconstructed wildcard value for allowed_domainlist check: '%s' -> '%s'",
                 domain_value,
-                wildcard_requested,
+                wildcard_value,
             )
-
-        # check allowed domainlist for dns identifiers
-        if id_type == "dns" and self.config.allowed_domainlist:
-            domain_value = identifier["value"]
-            wildcard_requested = bool(identifier.get("wildcard"))
-
-            self.logger.debug(
-                "Order._check_single_identifier() - Evaluating allowed_domainlist for value='%s' (wildcard flag: %s)",
-                domain_value,
-                wildcard_requested,
-            )
-
             domain_allowed = is_domain_whitelisted(
                 self.logger,
-                domain_value,
+                wildcard_value,
                 self.config.allowed_domainlist,
             )
-
             self.logger.debug(
-                "Order._check_single_identifier() - allowed_domainlist check result for value='%s': %s",
-                domain_value,
+                "Order._check_single_identifier() - allowed_domainlist check result for reconstructed wildcard value='%s': %s",
+                wildcard_value,
                 domain_allowed,
             )
-
-            # Defensive fallback for flows where wildcard identifiers were normalized
-            # before reaching order validation but wildcard intent is still provided.
-            if (
-                not domain_allowed
-                and wildcard_requested
-                and domain_value
-                and not domain_value.startswith("*.")
-            ):
-                wildcard_value = f"*.{domain_value}"
-                self.logger.debug(
-                    "Order._check_single_identifier() - Reconstructed wildcard value for allowed_domainlist check: '%s' -> '%s'",
-                    domain_value,
-                    wildcard_value,
-                )
-                domain_allowed = is_domain_whitelisted(
-                    self.logger,
-                    wildcard_value,
-                    self.config.allowed_domainlist,
-                )
-                self.logger.debug(
-                    "Order._check_single_identifier() - allowed_domainlist check result for reconstructed wildcard value='%s': %s",
-                    wildcard_value,
-                    domain_allowed,
-                )
-            else:
-                self.logger.debug(
-                    "Order._check_single_identifier() - Skipping reconstructed wildcard allowed_domainlist check (domain_allowed=%s, wildcard=%s, value_present=%s, value_has_wildcard_prefix=%s)",
-                    domain_allowed,
-                    wildcard_requested,
-                    bool(domain_value),
-                    bool(domain_value and domain_value.startswith("*.")),
-                )
-
-            if not domain_allowed:
-                self.logger.error(
-                    "FQDN/SAN %s not allowed by configuration",
-                    identifier["value"],
-                )
-                return (
-                    self.error_msg_dic["rejectedidentifier"],
-                    f'FQDN/SAN {identifier["value"]} not allowed by configuration',
-                )
-        elif (
-            id_type == "ip"
-            and self.config.allowed_iplist
-            and not is_ip_whitelisted(
-                self.logger,
-                identifier["value"],
-                self.config.allowed_iplist,
+        else:
+            self.logger.debug(
+                "Order._check_single_identifier() - Skipping reconstructed wildcard allowed_domainlist check (domain_allowed=%s, wildcard=%s, value_present=%s, value_has_wildcard_prefix=%s)",
+                domain_allowed,
+                wildcard_requested,
+                bool(domain_value),
+                bool(domain_value and domain_value.startswith("*.")),
             )
+
+        return domain_allowed
+
+    def _validate_ip_identifier_policy(
+        self, identifier: dict
+    ) -> Tuple[Optional[str], Optional[str]]:
+        """Validate IP-specific policy constraints."""
+        if not self.config.allowed_iplist:
+            return None, None
+
+        if is_ip_whitelisted(
+            self.logger,
+            identifier["value"],
+            self.config.allowed_iplist,
         ):
-            self.logger.error(
-                "IP address %s not allowed by configuration",
-                identifier["value"],
-            )
-            return (
-                self.error_msg_dic["rejectedidentifier"],
-                f'IP address {identifier["value"]} not allowed by configuration',
-            )
-        return None, None
+            return None, None
+
+        self.logger.error(
+            "IP address %s not allowed by configuration",
+            identifier["value"],
+        )
+        return (
+            self.error_msg_dic["rejectedidentifier"],
+            f'IP address {identifier["value"]} not allowed by configuration',
+        )
 
     def _rewrite_email_identifiers(
         self, identifiers_list: List[Dict[str, str]]
@@ -1034,7 +1077,7 @@ class Order(object):
         # lookup header information
         header_info = self._header_info_lookup(header)
         # this is a new request
-        (code, certificate_name, detail) = self._process_csr(
+        code, certificate_name, detail = self._process_csr(
             order_name, payload["csr"], header_info
         )
         # change status only if we do not have a poll_identifier (stored in detail variable)
@@ -1073,7 +1116,7 @@ class Order(object):
             # update order_status / set to processing
             self.repository.order_update({"name": order_name, "status": "processing"})
             if "csr" in payload:
-                (code, message, detail, certificate_name) = self._finalize_csr(
+                code, message, detail, certificate_name = self._finalize_csr(
                     order_name, payload, header
                 )
             else:
@@ -1122,7 +1165,7 @@ class Order(object):
 
         if "url" in protected:
             if "finalize" in protected["url"]:
-                (code, message, detail, certificate_name) = self._finalize_order(
+                code, message, detail, certificate_name = self._finalize_order(
                     order_name, payload, header
                 )
             else:
@@ -1167,19 +1210,18 @@ class Order(object):
             with Certificate(self.debug, self.server_name, self.logger) as certificate:
                 certificate_name = certificate.store_csr(order_name, csr, header_info)
                 if certificate_name:
-                    (error, detail) = certificate.enroll_and_store(
+                    error, detail = certificate.enroll_and_store(
                         certificate_name, csr, order_name
                     )
-                    if detail in ["Dry run mode - enrollment skipped"]:
+                    if (
+                        error == "urn:ietf:params:acme:error:rejectedIdentifier"
+                        or detail in ["Dry run mode - enrollment skipped"]
+                    ):
                         code = 401
                         message = error
-                        detail = detail
                     elif not error:
                         code = 200
                         message = certificate_name
-                    elif error == "urn:ietf:params:acme:error:rejectedIdentifier":
-                        code = 401
-                        message = error
                     else:
                         code = 400
                         message = error
@@ -1348,12 +1390,12 @@ class Order(object):
 
         response_dic = {}
         # check message
-        (code, message, detail, _protected, payload, account_name) = self.message.check(
+        code, message, detail, _protected, payload, account_name = self.message.check(
             content
         )
 
         if code == 200:
-            (error, detail, order_name, auth_dic, expires) = self.create_order(
+            error, detail, order_name, auth_dic, expires = self.create_order(
                 payload, account_name
             )
             if not error:
@@ -1449,7 +1491,7 @@ class Order(object):
 
         response_dic = {}
         # check message
-        (code, message, detail, protected, payload, _account_name) = self.message.check(
+        code, message, detail, protected, payload, _account_name = self.message.check(
             content
         )
 

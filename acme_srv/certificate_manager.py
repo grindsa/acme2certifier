@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Certificate Manager - Coordination Layer for Certificate Operations"""
+
 # pylint: disable=R0913, R1705
 from typing import Dict, List, Tuple, Union, Optional
 from acme_srv.certificate_business_logic import CertificateBusinessLogic
@@ -437,7 +438,7 @@ class CertificateManager:
         if cert["expire_uts"] == 0:
             if "cert_raw" in cert and cert["cert_raw"]:
                 # get expiration from certificate
-                (issue_uts, expire_uts) = cert_dates_get(self.logger, cert["cert_raw"])
+                issue_uts, expire_uts = cert_dates_get(self.logger, cert["cert_raw"])
                 if 0 < expire_uts < timestamp:
                     # returned date is other than 0 and lower than given timestamp
                     cert["issue_uts"] = issue_uts
@@ -586,7 +587,7 @@ class CertificateManager:
 
         try:
             # Validate CSR
-            (code, error, _detail) = self.business_logic.validate_csr(csr)
+            code, error, _detail = self.business_logic.validate_csr(csr)
             if code != 200:
                 self.logger.error(f"CSR validation failed: {error}")
                 return (False, "")
@@ -595,7 +596,7 @@ class CertificateManager:
             certificate_name = self.business_logic.generate_certificate_name()
 
             # Store certificate with CSR
-            (success, error_msg) = self.store_certificate(
+            success, error_msg = self.store_certificate(
                 certificate_name, csr, order_name, header_info=header_info
             )
 

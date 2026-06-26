@@ -1,8 +1,8 @@
 <!-- markdownlint-disable MD013 MD014 MD029 -->
 
-<!-- wiki-title: DEB Installation on Ubuntu 22.04 -->
+<!-- wiki-title: DEB Installation on Ubuntu 24.04 -->
 
-# DEB Installation on Ubuntu 22.04
+# DEB Installation on Ubuntu 24.04
 
 The Debian package is generic and supports running `acme2certifier` with either Apache2 or Nginx.
 
@@ -78,7 +78,7 @@ sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3
 sudo apt-get install -y ../acme2certifier_<version>-1_all.deb
 ```
 
-3. Adapt the Nginx configuration file for Ubuntu 22.04 and activate the configuration:
+3. Adapt the Nginx configuration file for Ubuntu 24.04 and activate the configuration:
 
 ```bash
 sudo sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv.conf

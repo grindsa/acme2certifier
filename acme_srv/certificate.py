@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=r0902, r0912, r0913, r0915, r1705
 """certificate class"""
+
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict, Union, Optional, Any
@@ -107,7 +108,7 @@ class CertificateLogger:
             # Add profile if existing
             data_dic["profile"] = order_dic.get("profile", "")
 
-        (_, expire_uts) = cert_dates_get(self.logger, certificate)
+        _, expire_uts = cert_dates_get(self.logger, certificate)
         if expire_uts:
             # Add expires from cert if existing
             data_dic["expires"] = uts_to_date_utc(expire_uts)
@@ -238,7 +239,7 @@ class CertificateConfiguration:
     cert_reusage_timeframe: int = 0
     cn2san_add: bool = False
     dryrun: bool = False
-    dryrun_profilename: str = None
+    dryrun_profilename: Optional[str] = None
     enrollment_timeout: int = 5
     retry_after: int = 600
     tnauthlist_support: bool = False
@@ -779,7 +780,7 @@ class Certificate(object):
         self.logger.debug("Certificate._store_certificate_and_update_order()")
 
         error = None
-        (issue_uts, expire_uts) = cert_dates_get(self.logger, certificate_raw)
+        issue_uts, expire_uts = cert_dates_get(self.logger, certificate_raw)
         try:
             result = self._store_certificate_in_database(
                 certificate_name,
@@ -936,7 +937,7 @@ class Certificate(object):
             cert_reusage,
         ) = self._process_certificate_enrollment(csr)
         if certificate:
-            (result, error) = self._store_certificate_and_update_order(
+            result, error = self._store_certificate_and_update_order(
                 certificate,
                 certificate_raw,
                 poll_identifier,
@@ -958,7 +959,7 @@ class Certificate(object):
 
         else:
             self.logger.error("Enrollment error: %s", error)
-            (result, error, detail) = self._handle_enrollment_error(
+            result, error, detail = self._handle_enrollment_error(
                 error, poll_identifier, order_name, certificate_name
             )
 
@@ -1006,7 +1007,7 @@ class Certificate(object):
         for san in san_list:
             san_is_in = False
             try:
-                (cert_type, cert_value) = san.lower().split(":", 1)
+                cert_type, cert_value = san.lower().split(":", 1)
             except Exception as err_:
                 self.logger.error("Error while splitting san %s: %s", san, err_)
                 cert_type = None
@@ -1133,47 +1134,69 @@ class Certificate(object):
     ) -> Tuple[int, str]:
         """Validate revocation request for consistency"""
         self.logger.debug("Certificate._validate_revocation_request(%s)", account_name)
+        log_msg = "Certificate._validate_revocation_request() ended with: %s, %s"
 
-        # set a value to avoid that we are returning none by accident
-        code = 400
-        error = None
         if "reason" in payload:
-            # check revocatoin reason if we get one
+            # check revocation reason if we get one
             rev_reason = self._validate_revocation_reason(payload["reason"])
-            # successful
             if not rev_reason:
+                code = 400
                 error = self.err_msg_dic["badrevocationreason"]
+                self.logger.debug(
+                    log_msg,
+                    code,
+                    error,
+                )
+                return (code, error)
         else:
             # set revocation reason to unspecified
             rev_reason = "unspecified"
 
-        if rev_reason:
-            # check if the account issued the certificate and return the order name
-            if "certificate" in payload:
-                order_name = self._validate_certificate_account_ownership(
-                    account_name, payload["certificate"]
-                )
-            else:
-                self.logger.debug(
-                    "Certificate._validate_revocation_request(): Revocation request missing 'certificate' field"
-                )
-                order_name = None
+        if "certificate" not in payload:
+            self.logger.debug(
+                "Certificate._validate_revocation_request(): Revocation request missing 'certificate' field"
+            )
+            code = 400
+            error = self.err_msg_dic["malformed"]
+            self.logger.debug(
+                log_msg,
+                code,
+                error,
+            )
+            return (code, error)
 
-            error = rev_reason
-            if order_name:
-                # check if the account holds the authorization for the identifiers
-                auth_chk = self._validate_order_authorization(
-                    order_name, payload["certificate"]
-                )
-                if auth_chk:
-                    # all good set code to 200
-                    code = 200
-                else:
-                    error = self.err_msg_dic["unauthorized"]
-
-        self.logger.debug(
-            "Certificate._validate_revocation_request() ended with: %s, %s", code, error
+        # check if the account issued the certificate and return the order name
+        order_name = self._validate_certificate_account_ownership(
+            account_name, payload["certificate"]
         )
+        if not order_name:
+            code = 403
+            error = self.err_msg_dic["unauthorized"]
+            self.logger.debug(
+                log_msg,
+                code,
+                error,
+            )
+            return (code, error)
+
+        # check if the account holds the authorization for the identifiers
+        auth_chk = self._validate_order_authorization(
+            order_name, payload["certificate"]
+        )
+        if not auth_chk:
+            code = 403
+            error = self.err_msg_dic["unauthorized"]
+            self.logger.debug(
+                log_msg,
+                code,
+                error,
+            )
+            return (code, error)
+
+        code = 200
+        error = rev_reason
+
+        self.logger.debug(log_msg, code, error)
         return (code, error)
 
     def _store_certificate_in_database(
@@ -1282,7 +1305,7 @@ class Certificate(object):
             timestamp = uts_now()
 
         # Delegate to certificate manager
-        (field_list, report_list) = self.certificate_manager.cleanup_certificates(
+        field_list, report_list = self.certificate_manager.cleanup_certificates(
             timestamp, purge
         )
 
@@ -1298,7 +1321,7 @@ class Certificate(object):
         if "issue_uts" in cert and "expire_uts" in cert:
             if cert["issue_uts"] == 0 and cert["expire_uts"] == 0:
                 if cert["cert_raw"]:
-                    (issue_uts, expire_uts) = cert_dates_get(
+                    issue_uts, expire_uts = cert_dates_get(
                         self.logger, cert["cert_raw"]
                     )
                     if issue_uts or expire_uts:
@@ -1409,11 +1432,11 @@ class Certificate(object):
 
             if self.config.dryrun:
                 self.logger.info(
-                    "Dry run mode enabled - skipping enrollment and database storage"
+                    "Dry run mode enabled - skipping enrollment and certificate issuance"
                 )
                 return (
                     self.err_msg_dic["unauthorized"],
-                    "Dry run mode - enrollment skipped",
+                    "Dry run mode - enrollment and certificate issuance skipped",
                 )
 
             # Process enrollment
@@ -1637,14 +1660,14 @@ class Certificate(object):
     ) -> Tuple[int, str, str]:
         """Process the actual certificate revocation"""
         try:
-            (code, error) = self._validate_revocation_request(account_name, payload)
+            code, error = self._validate_revocation_request(account_name, payload)
             if code != 200:
                 return code, error, None
 
             # Perform revocation
             rev_date = uts_to_date_utc(uts_now())
             with self.cahandler(self.debug, self.logger) as ca_handler:
-                (code, message, detail) = ca_handler.revoke(
+                code, message, detail = ca_handler.revoke(
                     payload["certificate"], error, rev_date
                 )
 
@@ -1699,7 +1722,7 @@ class Certificate(object):
 
             if code == 200:
                 if "certificate" in payload:
-                    (code, message, detail) = self._process_certificate_revocation(
+                    code, message, detail = self._process_certificate_revocation(
                         account_name, payload
                     )
                 else:
@@ -1735,7 +1758,7 @@ class Certificate(object):
         """Handle successful certificate polling result"""
         try:
             # Get issuing and expiration date
-            (issue_uts, expire_uts) = cert_dates_get(self.logger, certificate_raw)
+            issue_uts, expire_uts = cert_dates_get(self.logger, certificate_raw)
 
             # Update certificate record in database
             result = self._store_certificate_in_database(

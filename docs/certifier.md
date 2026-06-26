@@ -79,7 +79,7 @@ The response to this call will return a dictionary containing the list of CAs in
 
 ## Passing a profile_id from client to server
 
-acme2certifier supports the the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a `profile_id` parameter to be submitted to the CA server.
+acme2certifier supports the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md), allowing an acme-client to specify a `profile_id` parameter to be submitted to the CA server.
 
 The list of supported profiles must be configured in `acme_srv.cfg`
 
@@ -91,7 +91,7 @@ profiles: {"101": "http://foo.bar/profile101", "102": "http://foo.bar/profile102
 Once enabled, a client can specify the profile_id to be used as part of an order request. Below an example for lego:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile 102
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http --profile 102
 ```
 
 Further, this handler makes use of the [header_info_list feature](header_info.md) allowing an ACME client to specify a profile_id to be used during certificate enrollment. This feature is disabled by default and must be activated in `acme_srv.cfg` as shown below
@@ -113,7 +113,7 @@ docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --st
 Example for lego:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent profile_id=101 -d <fqdn> --http run
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent profile_id=101 -d <fqdn> --http
 ```
 
 # eab profiling

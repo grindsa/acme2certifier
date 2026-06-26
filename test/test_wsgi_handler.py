@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 """unittests for acme2certifier"""
+
 import unittest
 import sys
 import os
@@ -2144,7 +2145,7 @@ class TestACMEHandler(unittest.TestCase):
             "order__authorization__challenge__status__id": 2,
             "order__authorization__challenge__status__name": "pending",
         }
-        (result_vlist, result_account_list) = self.dbstore.accountlist_get()
+        result_vlist, result_account_list = self.dbstore.accountlist_get()
         self.assertEqual(vlist, result_vlist)
         self.assertTrue(
             set(account_list.items()).issubset(set(result_account_list[0].items()))
@@ -2333,7 +2334,7 @@ class TestACMEHandler(unittest.TestCase):
             "order__account__alg": "alg1",
             "order__account__eab_kid": "",
         }
-        (result_vlist, result_certifcate_list) = self.dbstore.certificatelist_get()
+        result_vlist, result_certifcate_list = self.dbstore.certificatelist_get()
         self.assertEqual(vlist, result_vlist)
         self.assertTrue(
             set(certlist.items()).issubset(set(result_certifcate_list[0].items()))

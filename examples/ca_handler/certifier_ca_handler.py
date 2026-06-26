@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """ca handler for Insta Certifier via REST-API class"""
+
 from __future__ import print_function
 import textwrap
 import math
@@ -387,7 +388,9 @@ class CAhandler(object):
         ) = config_enroll_config_log_load(self.logger, config_dic)
 
         # load profile_id
-        self.profile_id = config_dic.get("CAhandler", self.profile_mapping_field, fallback=None)
+        self.profile_id = config_dic.get(
+            "CAhandler", self.profile_mapping_field, fallback=None
+        )
 
         # check if we get a ca bundle for verification
         if "ca_bundle" in config_dic["CAhandler"]:
@@ -409,7 +412,7 @@ class CAhandler(object):
                 proxy_list = json.loads(config_dic["DEFAULT"]["proxy_server_list"])
                 url_dic = parse_url(self.logger, self.api_host)
                 if "host" in url_dic:
-                    (fqdn, _port) = url_dic["host"].split(":")
+                    fqdn, _port = url_dic["host"].split(":")
                     proxy_server = proxy_check(self.logger, fqdn, proxy_list)
                     self.proxy = {"http": proxy_server, "https": proxy_server}
             except Exception as err_:
@@ -461,7 +464,9 @@ class CAhandler(object):
         self.logger.debug("CAhandler._csr_check()")
 
         # check for eab profiling and header_info
-        error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)
+        error = eab_profile_header_info_check(
+            self.logger, self, csr, self.profile_mapping_field
+        )
 
         self.logger.debug("CAhandler._csr_check() ended with: %s", error)
         return error
@@ -650,7 +655,7 @@ class CAhandler(object):
         # check response
         if "status" in request_dic:
             if request_dic["status"] == "accepted":
-                (error, cert_bundle, cert_raw) = self._api_poll(request_dic)
+                error, cert_bundle, cert_raw = self._api_poll(request_dic)
             elif request_dic["status"] == "rejected":
                 error = "Request rejected by operator"
                 rejected = True
@@ -715,7 +720,7 @@ class CAhandler(object):
                 cert_raw = cert_dic["certificateBase64"]
             elif "href" in cert_dic:
                 # request is pending
-                (error, cert_bundle, cert_raw, poll_identifier) = self._loop_poll(
+                error, cert_bundle, cert_raw, poll_identifier = self._loop_poll(
                     cert_dic["href"]
                 )
             else:
@@ -786,7 +791,7 @@ class CAhandler(object):
             # get serial from pem file
             serial = cert_serial_get(self.logger, cert)
             if serial:
-                (code, message, detail) = self._certificate_revoke(
+                code, message, detail = self._certificate_revoke(
                     serial, ca_dic, rev_reason, rev_date
                 )
             else:
@@ -821,7 +826,7 @@ class CAhandler(object):
             # lookup REST-PATH of issuing CA
             ca_dic = self._ca_get_properties("name", self.ca_name)
             if "href" in ca_dic:
-                (error, cert_bundle) = self._trigger_bundle_build(cert_raw, ca_dic)
+                error, cert_bundle = self._trigger_bundle_build(cert_raw, ca_dic)
             else:
                 error = "Cannot find CA"
         else:

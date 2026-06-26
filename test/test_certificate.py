@@ -34,7 +34,9 @@ class TestCertificateLogger(unittest.TestCase):
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
     @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
     @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
-    def test_001_log_issuance_success_json(self, mock_san, mock_cn, mock_serial, mock_dates):
+    def test_001_log_issuance_success_json(
+        self, mock_san, mock_cn, mock_serial, mock_dates
+    ):
         self.mock_repository.order_lookup.return_value = {
             "account__name": "acc",
             "account__contact": "contact",
@@ -54,7 +56,9 @@ class TestCertificateLogger(unittest.TestCase):
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
     @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
     @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
-    def test_001_log_issuance_success_text(self, mock_san, mock_cn, mock_serial, mock_dates):
+    def test_001_log_issuance_success_text(
+        self, mock_san, mock_cn, mock_serial, mock_dates
+    ):
         self.mock_repository.order_lookup.return_value = {
             "account__name": "acc",
             "account__contact": "contact",
@@ -138,7 +142,9 @@ class TestCertificateLogger(unittest.TestCase):
     @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
     @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
     @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
-    def test_005_log_issuance_json_format(self, mock_san, mock_cn, mock_serial, mock_dates):
+    def test_005_log_issuance_json_format(
+        self, mock_san, mock_cn, mock_serial, mock_dates
+    ):
         self.mock_repository.order_lookup.return_value = {
             "account__name": "acc",
             "account__contact": "contact",
@@ -308,8 +314,9 @@ class TestCertificate(unittest.TestCase):
     def test_014_load_configuration(self):
         parser = configparser.ConfigParser()
         parser["foo1"] = {"foo": "bar"}
-        with patch("acme_srv.certificate.load_config", return_value=parser), patch(
-            "acme_srv.certificate.ca_handler_load", return_value=MagicMock()
+        with (
+            patch("acme_srv.certificate.load_config", return_value=parser),
+            patch("acme_srv.certificate.ca_handler_load", return_value=MagicMock()),
         ):
             with self.assertLogs("test_a2c", level="DEBUG") as lcm:
                 self.cert._load_configuration()
@@ -329,8 +336,9 @@ class TestCertificate(unittest.TestCase):
         """Test that logger.critical is called if ca_handler_load returns None in _load_configuration."""
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"foo": "bar"}
-        with patch("acme_srv.certificate.load_config", return_value=parser), patch(
-            "acme_srv.certificate.ca_handler_load", return_value=None
+        with (
+            patch("acme_srv.certificate.load_config", return_value=parser),
+            patch("acme_srv.certificate.ca_handler_load", return_value=None),
         ):
             with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
                 self.cert._load_configuration()
@@ -338,12 +346,14 @@ class TestCertificate(unittest.TestCase):
 
     def test_016_load_and_validate_identifiers_tnauth(self):
         self.cert.config.tnauthlist_support = True
-        with patch.object(
-            self.cert, "_check_for_tnauth_identifiers", return_value=True
-        ), patch(
-            "acme_srv.certificate.csr_extensions_get", return_value=["tnauth"]
-        ), patch.object(
-            self.cert, "_validate_identifiers_against_tnauthlist", return_value=["ok"]
+        with (
+            patch.object(self.cert, "_check_for_tnauth_identifiers", return_value=True),
+            patch("acme_srv.certificate.csr_extensions_get", return_value=["tnauth"]),
+            patch.object(
+                self.cert,
+                "_validate_identifiers_against_tnauthlist",
+                return_value=["ok"],
+            ),
         ):
             result = self.cert._load_and_validate_identifiers(
                 {"identifiers": "[]"}, "csr"
@@ -352,10 +362,11 @@ class TestCertificate(unittest.TestCase):
 
     def test_017_load_and_validate_identifiers_sans(self):
         self.cert.config.tnauthlist_support = False
-        with patch(
-            "acme_srv.certificate.csr_san_get", return_value=["DNS:foo"]
-        ), patch.object(
-            self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
+        with (
+            patch("acme_srv.certificate.csr_san_get", return_value=["DNS:foo"]),
+            patch.object(
+                self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
+            ),
         ):
             result = self.cert._load_and_validate_identifiers(
                 {"identifiers": "[]"}, "csr"
@@ -363,22 +374,30 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, ["ok"])
 
     def test_018_validate_csr_against_order_success(self):
-        with patch.object(
-            self.cert, "_get_certificate_info", return_value={"order": "order"}
-        ), patch.object(
-            self.cert.repository, "order_lookup", return_value={"identifiers": "[]"}
-        ), patch.object(
-            self.cert, "_load_and_validate_identifiers", return_value=[True]
+        with (
+            patch.object(
+                self.cert, "_get_certificate_info", return_value={"order": "order"}
+            ),
+            patch.object(
+                self.cert.repository, "order_lookup", return_value={"identifiers": "[]"}
+            ),
+            patch.object(
+                self.cert, "_load_and_validate_identifiers", return_value=[True]
+            ),
         ):
             self.assertTrue(self.cert._validate_csr_against_order("cert", "csr"))
 
     def test_019_validate_csr_against_order_failure(self):
-        with patch.object(
-            self.cert, "_get_certificate_info", return_value={"order": "order"}
-        ), patch.object(
-            self.cert.repository, "order_lookup", return_value={"identifiers": "[]"}
-        ), patch.object(
-            self.cert, "_load_and_validate_identifiers", return_value=[False]
+        with (
+            patch.object(
+                self.cert, "_get_certificate_info", return_value={"order": "order"}
+            ),
+            patch.object(
+                self.cert.repository, "order_lookup", return_value={"identifiers": "[]"}
+            ),
+            patch.object(
+                self.cert, "_load_and_validate_identifiers", return_value=[False]
+            ),
         ):
             self.assertFalse(self.cert._validate_csr_against_order("cert", "csr"))
 
@@ -404,17 +423,18 @@ class TestCertificate(unittest.TestCase):
         self.assertEqual(result, (None, "cert", "raw", "poll", False))
 
     def test_022_get_certificate_renewal_info(self):
-        with patch(
-            "acme_srv.certificate.pembundle_to_list", return_value=["a", "b"]
-        ), patch("acme_srv.certificate.certid_asn1_get", return_value="hex"):
+        with (
+            patch("acme_srv.certificate.pembundle_to_list", return_value=["a", "b"]),
+            patch("acme_srv.certificate.certid_asn1_get", return_value="hex"),
+        ):
             result = self.cert._get_certificate_renewal_info("cert")
             self.assertEqual(result, "hex")
 
     def test_023_store_certificate_and_update_order_success(self):
-        with patch.object(
-            self.cert, "_store_certificate_in_database", return_value=1
-        ), patch.object(self.cert, "_update_order_status"), patch.object(
-            self.cert, "hooks", create=True, new=None
+        with (
+            patch.object(self.cert, "_store_certificate_in_database", return_value=1),
+            patch.object(self.cert, "_update_order_status"),
+            patch.object(self.cert, "hooks", create=True, new=None),
         ):
             result, error = self.cert._store_certificate_and_update_order(
                 "cert", "raw", "poll", "cert_name", "order", "csr"
@@ -456,9 +476,12 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(result, [True])
 
     def test_027_validate_identifiers_against_sans_unknown(self):
-        with patch.object(
-            self.cert, "_check_identifier_match", return_value=True
-        ) as mock_check, patch.object(self.cert.logger, "error") as mock_logger_error:
+        with (
+            patch.object(
+                self.cert, "_check_identifier_match", return_value=True
+            ) as mock_check,
+            patch.object(self.cert.logger, "error") as mock_logger_error,
+        ):
             result = self.cert._validate_identifiers_against_sans(
                 [{"type": "dns", "value": "foo"}], ["unkownsan"]
             )
@@ -470,9 +493,10 @@ class TestCertificate(unittest.TestCase):
             self.assertIsInstance(args[2], ValueError)
 
     def test_028_validate_identifiers_against_nosans(self):
-        with patch.object(
-            self.cert, "_check_identifier_match"
-        ) as mock_check, patch.object(self.cert.logger, "error") as mock_logger_error:
+        with (
+            patch.object(self.cert, "_check_identifier_match") as mock_check,
+            patch.object(self.cert.logger, "error") as mock_logger_error,
+        ):
             result = self.cert._validate_identifiers_against_sans(
                 [{"type": "dns", "value": "foo"}], []
             )
@@ -562,12 +586,13 @@ class TestCertificate(unittest.TestCase):
             self.assertEqual(code, 200)
 
     def test_039_store_certificate_in_database_success(self):
-        with patch(
-            "acme_srv.certificate.cert_serial_get", return_value="serial"
-        ), patch("acme_srv.certificate.cert_aki_get", return_value="aki"), patch.object(
-            self.mock_repository, "certificate_add", return_value=1
-        ), patch.object(
-            self.cert, "_get_certificate_renewal_info", return_value="renewal"
+        with (
+            patch("acme_srv.certificate.cert_serial_get", return_value="serial"),
+            patch("acme_srv.certificate.cert_aki_get", return_value="aki"),
+            patch.object(self.mock_repository, "certificate_add", return_value=1),
+            patch.object(
+                self.cert, "_get_certificate_renewal_info", return_value="renewal"
+            ),
         ):
             result = self.cert._store_certificate_in_database(
                 "cert", "cert", "raw", 1, 2, "poll"
@@ -617,9 +642,10 @@ class TestCertificate(unittest.TestCase):
             "issue_uts": 0,
             "expire_uts": 0,
         }
-        with patch(
-            "acme_srv.certificate.cert_dates_get", return_value=(1, 2)
-        ), patch.object(self.cert, "_store_certificate_in_database", return_value=1):
+        with (
+            patch("acme_srv.certificate.cert_dates_get", return_value=(1, 2)),
+            patch.object(self.cert, "_store_certificate_in_database", return_value=1),
+        ):
             with self.assertLogs("test_a2c", level="DEBUG") as lcm:
                 self.cert._update_certificate_dates(cert)
             self.assertIn(
@@ -628,19 +654,22 @@ class TestCertificate(unittest.TestCase):
             )
 
     def test_046_dates_update(self):
-        with patch.object(
-            self.cert,
-            "certlist_search",
-            return_value=[
-                {
-                    "name": "cert",
-                    "cert": "cert",
-                    "cert_raw": "raw",
-                    "issue_uts": 0,
-                    "expire_uts": 0,
-                }
-            ],
-        ), patch.object(self.cert, "_update_certificate_dates") as mock_update:
+        with (
+            patch.object(
+                self.cert,
+                "certlist_search",
+                return_value=[
+                    {
+                        "name": "cert",
+                        "cert": "cert",
+                        "cert_raw": "raw",
+                        "issue_uts": 0,
+                        "expire_uts": 0,
+                    }
+                ],
+            ),
+            patch.object(self.cert, "_update_certificate_dates") as mock_update,
+        ):
             self.cert.dates_update()
             mock_update.assert_called()
 
@@ -679,12 +708,16 @@ class TestCertificate(unittest.TestCase):
 
     def test_052_validate_certificate_authorization_tnauthlist(self):
         self.cert.config.tnauthlist_support = True
-        with patch.object(
-            self.cert, "_check_for_tnauth_identifiers", return_value=True
-        ), patch(
-            "acme_srv.certificate.cert_extensions_get", return_value="tnauthlist"
-        ), patch.object(
-            self.cert, "_validate_identifiers_against_tnauthlist", return_value=["ok"]
+        with (
+            patch.object(self.cert, "_check_for_tnauth_identifiers", return_value=True),
+            patch(
+                "acme_srv.certificate.cert_extensions_get", return_value="tnauthlist"
+            ),
+            patch.object(
+                self.cert,
+                "_validate_identifiers_against_tnauthlist",
+                return_value=["ok"],
+            ),
         ):
             result = self.cert._validate_certificate_authorization(
                 {"identifiers": "[]"}, "cert"
@@ -693,10 +726,12 @@ class TestCertificate(unittest.TestCase):
 
     def test_053_validate_certificate_authorization_sans(self):
         self.cert.config.tnauthlist_support = False
-        with patch(
-            "acme_srv.certificate.cert_san_get", return_value=["DNS:foo"]
-        ), patch("acme_srv.certificate.cert_cn_get", return_value="foo"), patch.object(
-            self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
+        with (
+            patch("acme_srv.certificate.cert_san_get", return_value=["DNS:foo"]),
+            patch("acme_srv.certificate.cert_cn_get", return_value="foo"),
+            patch.object(
+                self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
+            ),
         ):
             result = self.cert._validate_certificate_authorization(
                 {"identifiers": "[]"}, "cert"
@@ -706,12 +741,15 @@ class TestCertificate(unittest.TestCase):
     def test_054_certificate_authorization_json_decode_error(self):
         # Covers exception in json.loads(identifier_dic["identifiers"].lower()) (lines 454-455)
         self.cert.config.tnauthlist_support = False
-        with patch(
-            "acme_srv.certificate.cert_san_get", return_value=["DNS:foo"]
-        ), patch("acme_srv.certificate.cert_cn_get", return_value="foo"), patch.object(
-            self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
-        ), patch(
-            "acme_srv.certificate.json.loads", side_effect=Exception("json error")
+        with (
+            patch("acme_srv.certificate.cert_san_get", return_value=["DNS:foo"]),
+            patch("acme_srv.certificate.cert_cn_get", return_value="foo"),
+            patch.object(
+                self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
+            ),
+            patch(
+                "acme_srv.certificate.json.loads", side_effect=Exception("json error")
+            ),
         ):
             result = self.cert._validate_certificate_authorization(
                 {"identifiers": "[]"}, "cert"
@@ -723,15 +761,19 @@ class TestCertificate(unittest.TestCase):
     ):
         # Covers exception in cert_extensions_get (lines 466-469)
         self.cert.config.tnauthlist_support = True
-        with patch.object(
-            self.cert, "_check_for_tnauth_identifiers", return_value=True
-        ), patch(
-            "acme_srv.certificate.cert_extensions_get", side_effect=Exception("fail")
-        ), patch.object(
-            self.cert, "_validate_identifiers_against_tnauthlist", return_value=["ok"]
-        ), patch.object(
-            self.cert.logger, "warning"
-        ) as mock_warning:
+        with (
+            patch.object(self.cert, "_check_for_tnauth_identifiers", return_value=True),
+            patch(
+                "acme_srv.certificate.cert_extensions_get",
+                side_effect=Exception("fail"),
+            ),
+            patch.object(
+                self.cert,
+                "_validate_identifiers_against_tnauthlist",
+                return_value=["ok"],
+            ),
+            patch.object(self.cert.logger, "warning") as mock_warning,
+        ):
             result = self.cert._validate_certificate_authorization(
                 {"identifiers": "[]"}, "cert"
             )
@@ -744,10 +786,12 @@ class TestCertificate(unittest.TestCase):
     def test_056_certificate_authorization_debug_log(self):
         # Covers the debug log at the end (lines 479-481)
         self.cert.config.tnauthlist_support = False
-        with patch(
-            "acme_srv.certificate.cert_san_get", return_value=["DNS:foo"]
-        ), patch("acme_srv.certificate.cert_cn_get", return_value="foo"), patch.object(
-            self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
+        with (
+            patch("acme_srv.certificate.cert_san_get", return_value=["DNS:foo"]),
+            patch("acme_srv.certificate.cert_cn_get", return_value="foo"),
+            patch.object(
+                self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
+            ),
         ):
             result = self.cert._validate_certificate_authorization(
                 {"identifiers": "[]"}, "cert"
@@ -941,11 +985,13 @@ class TestCertificate(unittest.TestCase):
             )
 
     def test_076_poll_certificate_status_success(self):
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value=None
-        ), patch.object(self.cert, "cahandler") as mock_cahandler, patch.object(
-            self.cert, "_handle_successful_certificate_poll", return_value=123
-        ) as mock_success:
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value=None),
+            patch.object(self.cert, "cahandler") as mock_cahandler,
+            patch.object(
+                self.cert, "_handle_successful_certificate_poll", return_value=123
+            ) as mock_success,
+        ):
             mock_ca = MagicMock()
             mock_ca.poll.return_value = (None, "cert", "raw", "poll", False)
             mock_cahandler.return_value.__enter__.return_value = mock_ca
@@ -954,11 +1000,11 @@ class TestCertificate(unittest.TestCase):
             mock_success.assert_called()
 
     def test_077_poll_certificate_status_failure(self):
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value=None
-        ), patch.object(self.cert, "cahandler") as mock_cahandler, patch.object(
-            self.cert, "_handle_failed_certificate_poll"
-        ) as mock_failed:
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value=None),
+            patch.object(self.cert, "cahandler") as mock_cahandler,
+            patch.object(self.cert, "_handle_failed_certificate_poll") as mock_failed,
+        ):
             mock_ca = MagicMock()
             mock_ca.poll.return_value = ("error", None, None, "poll", True)
             mock_cahandler.return_value.__enter__.return_value = mock_ca
@@ -968,13 +1014,12 @@ class TestCertificate(unittest.TestCase):
 
     def test_078_poll_certificate_status_failure(self):
         # Patch logger.error to check the error message from line 1819
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value=None
-        ), patch.object(self.cert, "cahandler") as mock_cahandler, patch.object(
-            self.cert, "_handle_failed_certificate_poll"
-        ) as mock_failed, patch.object(
-            self.cert.logger, "error"
-        ) as mock_logger_error:
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value=None),
+            patch.object(self.cert, "cahandler") as mock_cahandler,
+            patch.object(self.cert, "_handle_failed_certificate_poll") as mock_failed,
+            patch.object(self.cert.logger, "error") as mock_logger_error,
+        ):
             mock_ca = MagicMock()
             mock_ca.poll.side_effect = Exception("poll_fail")
             mock_cahandler.return_value.__enter__.return_value = mock_ca
@@ -1184,19 +1229,22 @@ class TestCertificate(unittest.TestCase):
     # Tests for missing methods
     def test_097_dates_update(self):
         """Test dates_update method"""
-        with patch.object(
-            self.cert,
-            "certlist_search",
-            return_value=[
-                {
-                    "name": "cert",
-                    "cert": "cert",
-                    "cert_raw": "raw",
-                    "issue_uts": 0,
-                    "expire_uts": 0,
-                }
-            ],
-        ), patch.object(self.cert, "_update_certificate_dates") as mock_update:
+        with (
+            patch.object(
+                self.cert,
+                "certlist_search",
+                return_value=[
+                    {
+                        "name": "cert",
+                        "cert": "cert",
+                        "cert_raw": "raw",
+                        "issue_uts": 0,
+                        "expire_uts": 0,
+                    }
+                ],
+            ),
+            patch.object(self.cert, "_update_certificate_dates") as mock_update,
+        ):
             self.cert.dates_update()
             mock_update.assert_called()
 
@@ -1225,9 +1273,13 @@ class TestCertificate(unittest.TestCase):
             "issue_uts": 0,
             "expire_uts": 0,
         }
-        with patch(
-            "acme_srv.certificate.cert_dates_get", return_value=(1234567890, 1234567890)
-        ), patch.object(self.cert, "_store_certificate_in_database", return_value=1):
+        with (
+            patch(
+                "acme_srv.certificate.cert_dates_get",
+                return_value=(1234567890, 1234567890),
+            ),
+            patch.object(self.cert, "_store_certificate_in_database", return_value=1),
+        ):
             with self.assertLogs(self.cert.logger, level="DEBUG") as lcm:
                 self.cert._update_certificate_dates(cert)
             self.assertIn(
@@ -1297,10 +1349,13 @@ class TestCertificate(unittest.TestCase):
 
     def test_106_process_certificate_enrollment_request_csr_validation_error(self):
         """Test process_certificate_enrollment_request with CSR validation error"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert, "_validate_csr_against_order", side_effect=Exception("CSR error")
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(
+                self.cert,
+                "_validate_csr_against_order",
+                side_effect=Exception("CSR error"),
+            ),
         ):
             with self.assertLogs(self.cert.logger, level="ERROR") as log:
                 result = self.cert.process_certificate_enrollment_request("cert", "csr")
@@ -1312,9 +1367,10 @@ class TestCertificate(unittest.TestCase):
 
     def test_107_process_certificate_enrollment_request_csr_validation_failed(self):
         """Test process_certificate_enrollment_request with failed CSR validation"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(self.cert, "_validate_csr_against_order", return_value=False):
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(self.cert, "_validate_csr_against_order", return_value=False),
+        ):
             with self.assertLogs(self.cert.logger, level="ERROR") as log:
                 result = self.cert.process_certificate_enrollment_request("cert", "csr")
                 self.assertEqual(result[0], "serverinternal")
@@ -1325,14 +1381,14 @@ class TestCertificate(unittest.TestCase):
 
     def test_108_process_certificate_enrollment_request_enrollment_success(self):
         """Test process_certificate_enrollment_request successful enrollment"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert, "_validate_csr_against_order", return_value=True
-        ), patch.object(
-            self.cert,
-            "_handle_enrollment_thread_execution",
-            return_value=(None, "detail"),
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(self.cert, "_validate_csr_against_order", return_value=True),
+            patch.object(
+                self.cert,
+                "_handle_enrollment_thread_execution",
+                return_value=(None, "detail"),
+            ),
         ):
             result = self.cert.process_certificate_enrollment_request("cert", "csr")
             self.assertEqual(result, (None, "detail"))
@@ -1407,10 +1463,11 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.tnauthlist_support = True
         identifier_dic = {"identifiers": '[{"type": "tnauthlist", "value": "foo"}]'}
         csr = "irrelevant"
-        with patch.object(
-            self.cert, "_check_for_tnauth_identifiers", return_value=True
-        ), patch(
-            "acme_srv.certificate.csr_extensions_get", side_effect=Exception("fail")
+        with (
+            patch.object(self.cert, "_check_for_tnauth_identifiers", return_value=True),
+            patch(
+                "acme_srv.certificate.csr_extensions_get", side_effect=Exception("fail")
+            ),
         ):
             with self.assertLogs(self.cert.logger, level="WARNING") as lcm:
                 result = self.cert._load_and_validate_identifiers(identifier_dic, csr)
@@ -1425,9 +1482,12 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.tnauthlist_support = False
         identifier_dic = {"identifiers": '[{"type": "dns", "value": "example.com"}]'}
         csr = "irrelevant"
-        with patch.object(
-            self.cert, "_check_for_tnauth_identifiers", return_value=False
-        ), patch("acme_srv.certificate.csr_san_get", side_effect=Exception("fail")):
+        with (
+            patch.object(
+                self.cert, "_check_for_tnauth_identifiers", return_value=False
+            ),
+            patch("acme_srv.certificate.csr_san_get", side_effect=Exception("fail")),
+        ):
             with self.assertLogs(self.cert.logger, level="WARNING") as lcm:
                 result = self.cert._load_and_validate_identifiers(identifier_dic, csr)
                 self.assertEqual(result, [])
@@ -1460,27 +1520,30 @@ class TestCertificate(unittest.TestCase):
 
     def test_121_get_certificate_details_manager_error(self):
         """Test get_certificate_details with manager error"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert.certificate_manager,
-            "get_certificate_info",
-            side_effect=Exception("Manager error"),
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(
+                self.cert.certificate_manager,
+                "get_certificate_info",
+                side_effect=Exception("Manager error"),
+            ),
         ):
             result = self.cert.get_certificate_details("http://test.com/cert/123")
             self.assertEqual(result["code"], 500)
 
     def test_122_get_certificate_details_success(self):
         """Test get_certificate_details success case"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert.certificate_manager,
-            "get_certificate_info",
-            return_value={"order__status_id": 5, "cert": "cert"},
-        ), patch.object(
-            self.cert, "_determine_certificate_response", return_value={"code": 200}
-        ) as mock_determine:
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(
+                self.cert.certificate_manager,
+                "get_certificate_info",
+                return_value={"order__status_id": 5, "cert": "cert"},
+            ),
+            patch.object(
+                self.cert, "_determine_certificate_response", return_value={"code": 200}
+            ) as mock_determine,
+        ):
             result = self.cert.get_certificate_details("http://test.com/cert/123")
             mock_determine.assert_called()
 
@@ -1553,61 +1616,74 @@ class TestCertificate(unittest.TestCase):
 
     def test_129_process_certificate_request_invalid_content(self):
         """Test process_certificate_request with invalid content"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={"content": "error"}
-        ), patch.object(
-            self.cert, "_prepare_certificate_response", return_value={"code": 400}
+        with (
+            patch.object(
+                self.cert,
+                "_validate_input_parameters",
+                return_value={"content": "error"},
+            ),
+            patch.object(
+                self.cert, "_prepare_certificate_response", return_value={"code": 400}
+            ),
         ):
             result = self.cert.process_certificate_request("")
             self.assertEqual(result["code"], 400)
 
     def test_130_process_certificate_request_message_validation_error(self):
         """Test process_certificate_request with message validation error"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert,
-            "_validate_certificate_request_message",
-            return_value=(400, "error", "detail", {}, {}, ""),
-        ), patch.object(
-            self.cert, "_prepare_certificate_response", return_value={"code": 400}
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(
+                self.cert,
+                "_validate_certificate_request_message",
+                return_value=(400, "error", "detail", {}, {}, ""),
+            ),
+            patch.object(
+                self.cert, "_prepare_certificate_response", return_value={"code": 400}
+            ),
         ):
             result = self.cert.process_certificate_request("content")
             self.assertIn("code", result)
 
     def test_131_process_certificate_request_success_with_url(self):
         """Test process_certificate_request success with URL in protected header"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert,
-            "_validate_certificate_request_message",
-            return_value=(200, "ok", "", {"url": "http://test.com"}, {}, ""),
-        ), patch.object(
-            self.cert,
-            "get_certificate_details",
-            return_value={"code": 200, "data": "cert"},
-        ), patch.object(
-            self.cert, "_prepare_certificate_response", return_value={"code": 200}
-        ) as mock_prepare:
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(
+                self.cert,
+                "_validate_certificate_request_message",
+                return_value=(200, "ok", "", {"url": "http://test.com"}, {}, ""),
+            ),
+            patch.object(
+                self.cert,
+                "get_certificate_details",
+                return_value={"code": 200, "data": "cert"},
+            ),
+            patch.object(
+                self.cert, "_prepare_certificate_response", return_value={"code": 200}
+            ) as mock_prepare,
+        ):
             result = self.cert.process_certificate_request("content")
             mock_prepare.assert_called()
 
     def test_132_process_certificate_request_success_with_url(self):
         """Test process_certificate_request success with URL in protected header"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert,
-            "_validate_certificate_request_message",
-            return_value=(200, "ok", "", {"url": "http://test.com"}, {}, ""),
-        ), patch.object(
-            self.cert,
-            "get_certificate_details",
-            return_value={"code": 400, "data": "data", "detail": "error"},
-        ), patch.object(
-            self.cert, "_prepare_certificate_response", return_value={"code": 109}
-        ) as mock_prepare:
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(
+                self.cert,
+                "_validate_certificate_request_message",
+                return_value=(200, "ok", "", {"url": "http://test.com"}, {}, ""),
+            ),
+            patch.object(
+                self.cert,
+                "get_certificate_details",
+                return_value={"code": 400, "data": "data", "detail": "error"},
+            ),
+            patch.object(
+                self.cert, "_prepare_certificate_response", return_value={"code": 109}
+            ) as mock_prepare,
+        ):
             result = self.cert.process_certificate_request("content")
             mock_prepare.assert_called_with(
                 {"code": 400, "data": "data", "detail": "error"}, 400, "data", "error"
@@ -1615,33 +1691,38 @@ class TestCertificate(unittest.TestCase):
 
     def test_133_process_certificate_request_missing_url(self):
         """Test process_certificate_request with missing URL in protected header"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert,
-            "_validate_certificate_request_message",
-            return_value=(200, "ok", "", {}, {}, ""),
-        ), patch.object(
-            self.cert, "_prepare_certificate_response", return_value={"code": 400}
-        ) as mock_prepare:
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(
+                self.cert,
+                "_validate_certificate_request_message",
+                return_value=(200, "ok", "", {}, {}, ""),
+            ),
+            patch.object(
+                self.cert, "_prepare_certificate_response", return_value={"code": 400}
+            ) as mock_prepare,
+        ):
             result = self.cert.process_certificate_request("content")
             mock_prepare.assert_called()
 
     def test_134_process_certificate_request_get_details_error(self):
         """Test process_certificate_request with get_certificate_details error"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert,
-            "_validate_certificate_request_message",
-            return_value=(200, "ok", "", {"url": "http://test.com"}, {}, ""),
-        ), patch.object(
-            self.cert,
-            "get_certificate_details",
-            side_effect=Exception("Get details error"),
-        ), patch.object(
-            self.cert, "_prepare_certificate_response", return_value={"code": 500}
-        ) as mock_prepare:
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(
+                self.cert,
+                "_validate_certificate_request_message",
+                return_value=(200, "ok", "", {"url": "http://test.com"}, {}, ""),
+            ),
+            patch.object(
+                self.cert,
+                "get_certificate_details",
+                side_effect=Exception("Get details error"),
+            ),
+            patch.object(
+                self.cert, "_prepare_certificate_response", return_value={"code": 500}
+            ) as mock_prepare,
+        ):
             with self.assertLogs(self.cert.logger, level="ERROR") as log:
                 result = self.cert.process_certificate_request("content")
                 self.assertEqual(result["code"], 500)
@@ -1653,10 +1734,15 @@ class TestCertificate(unittest.TestCase):
 
     def test_135_process_certificate_request_unexpected_error(self):
         """Test process_certificate_request with unexpected error"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", side_effect=Exception("Unexpected")
-        ), patch.object(
-            self.cert, "_prepare_certificate_response", return_value={"code": 500}
+        with (
+            patch.object(
+                self.cert,
+                "_validate_input_parameters",
+                side_effect=Exception("Unexpected"),
+            ),
+            patch.object(
+                self.cert, "_prepare_certificate_response", return_value={"code": 500}
+            ),
         ):
             with self.assertLogs(self.cert.logger, level="ERROR") as log:
                 result = self.cert.process_certificate_request("content")
@@ -1695,9 +1781,14 @@ class TestCertificate(unittest.TestCase):
     def test_139_process_certificate_revocation_success(self):
         """Test _process_certificate_revocation success"""
         payload = {"certificate": "cert"}
-        with patch.object(
-            self.cert, "_validate_revocation_request", return_value=(200, "unspecified")
-        ), patch.object(self.cert, "cahandler") as mock_cahandler:
+        with (
+            patch.object(
+                self.cert,
+                "_validate_revocation_request",
+                return_value=(200, "unspecified"),
+            ),
+            patch.object(self.cert, "cahandler") as mock_cahandler,
+        ):
             mock_ca = MagicMock()
             mock_ca.revoke.return_value = (200, "revoked", "detail")
             mock_cahandler.return_value.__enter__.return_value = mock_ca
@@ -1709,11 +1800,17 @@ class TestCertificate(unittest.TestCase):
         """Test _process_certificate_revocation with operations logging"""
         payload = {"certificate": "cert"}
         self.cert.config.cert_operations_log = "json"
-        with patch.object(
-            self.cert, "_validate_revocation_request", return_value=(200, "unspecified")
-        ), patch.object(self.cert, "cahandler") as mock_cahandler, patch.object(
-            self.cert.certificate_logger, "log_certificate_revocation"
-        ) as mock_log:
+        with (
+            patch.object(
+                self.cert,
+                "_validate_revocation_request",
+                return_value=(200, "unspecified"),
+            ),
+            patch.object(self.cert, "cahandler") as mock_cahandler,
+            patch.object(
+                self.cert.certificate_logger, "log_certificate_revocation"
+            ) as mock_log,
+        ):
             mock_ca = MagicMock()
             mock_ca.revoke.return_value = (200, "revoked", "detail")
             mock_cahandler.return_value.__enter__.return_value = mock_ca
@@ -1725,12 +1822,18 @@ class TestCertificate(unittest.TestCase):
         """Test _process_certificate_revocation with logging error"""
         payload = {"certificate": "cert"}
         self.cert.config.cert_operations_log = "json"
-        with patch.object(
-            self.cert, "_validate_revocation_request", return_value=(200, "unspecified")
-        ), patch.object(self.cert, "cahandler") as mock_cahandler, patch.object(
-            self.cert.certificate_logger,
-            "log_certificate_revocation",
-            side_effect=Exception("Log error"),
+        with (
+            patch.object(
+                self.cert,
+                "_validate_revocation_request",
+                return_value=(200, "unspecified"),
+            ),
+            patch.object(self.cert, "cahandler") as mock_cahandler,
+            patch.object(
+                self.cert.certificate_logger,
+                "log_certificate_revocation",
+                side_effect=Exception("Log error"),
+            ),
         ):
             mock_ca = MagicMock()
             mock_ca.revoke.return_value = (200, "revoked", "detail")
@@ -1753,52 +1856,67 @@ class TestCertificate(unittest.TestCase):
 
     def test_143_revoke_certificate_invalid_content(self):
         """Test revoke_certificate with invalid content"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={"content": "error"}
-        ), patch.object(
-            self.cert.message, "prepare_response", return_value={"code": 400}
+        with (
+            patch.object(
+                self.cert,
+                "_validate_input_parameters",
+                return_value={"content": "error"},
+            ),
+            patch.object(
+                self.cert.message, "prepare_response", return_value={"code": 400}
+            ),
         ):
             result = self.cert.revoke_certificate("")
             self.assertIn("code", result)
 
     def test_144_revoke_certificate_message_validation_error(self):
         """Test revoke_certificate with message validation error"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert,
-            "_validate_revocation_message",
-            return_value=(400, "error", "detail", "", {}, ""),
-        ), patch.object(
-            self.cert.message, "prepare_response", return_value={"code": 400}
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(
+                self.cert,
+                "_validate_revocation_message",
+                return_value=(400, "error", "detail", "", {}, ""),
+            ),
+            patch.object(
+                self.cert.message, "prepare_response", return_value={"code": 400}
+            ),
         ):
             result = self.cert.revoke_certificate("content")
             self.assertIn("code", result)
 
     def test_145_revoke_certificate_success(self):
         """Test revoke_certificate success"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert,
-            "_validate_revocation_message",
-            return_value=(200, "ok", "", "", {"certificate": "cert"}, "account"),
-        ), patch.object(
-            self.cert,
-            "_process_certificate_revocation",
-            return_value=(200, "revoked", "detail"),
-        ), patch.object(
-            self.cert.message, "prepare_response", return_value={"code": 200}
-        ) as mock_prepare:
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(
+                self.cert,
+                "_validate_revocation_message",
+                return_value=(200, "ok", "", "", {"certificate": "cert"}, "account"),
+            ),
+            patch.object(
+                self.cert,
+                "_process_certificate_revocation",
+                return_value=(200, "revoked", "detail"),
+            ),
+            patch.object(
+                self.cert.message, "prepare_response", return_value={"code": 200}
+            ) as mock_prepare,
+        ):
             result = self.cert.revoke_certificate("content")
             mock_prepare.assert_called()
 
     def test_146_revoke_certificate_unexpected_error(self):
         """Test revoke_certificate with unexpected error"""
-        with patch.object(
-            self.cert, "_validate_input_parameters", side_effect=Exception("Unexpected")
-        ), patch.object(
-            self.cert.message, "prepare_response", return_value={"code": 500}
+        with (
+            patch.object(
+                self.cert,
+                "_validate_input_parameters",
+                side_effect=Exception("Unexpected"),
+            ),
+            patch.object(
+                self.cert.message, "prepare_response", return_value={"code": 500}
+            ),
         ):
             with self.assertLogs(self.cert.logger, level="ERROR") as log:
                 result = self.cert.revoke_certificate("content")
@@ -1810,20 +1928,22 @@ class TestCertificate(unittest.TestCase):
 
     def test_147_process_enrollment_and_store_certificate_success(self):
         # Pre-enrollment hooks return empty (no error)
-        with patch.object(
-            self.cert, "_execute_pre_enrollment_hooks", return_value=[]
-        ), patch.object(
-            self.cert,
-            "_process_certificate_enrollment",
-            return_value=(None, "cert", "raw", "poll", False),
-        ), patch.object(
-            self.cert,
-            "_store_certificate_and_update_order",
-            return_value=("result", None),
-        ), patch.object(
-            self.cert.certificate_logger, "log_certificate_issuance"
-        ) as mock_log, patch.object(
-            self.cert, "_execute_post_enrollment_hooks", return_value=[]
+        with (
+            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=[]),
+            patch.object(
+                self.cert,
+                "_process_certificate_enrollment",
+                return_value=(None, "cert", "raw", "poll", False),
+            ),
+            patch.object(
+                self.cert,
+                "_store_certificate_and_update_order",
+                return_value=("result", None),
+            ),
+            patch.object(
+                self.cert.certificate_logger, "log_certificate_issuance"
+            ) as mock_log,
+            patch.object(self.cert, "_execute_post_enrollment_hooks", return_value=[]),
         ):
             self.cert.config.cert_operations_log = "json"
             result = self.cert._process_enrollment_and_store_certificate(
@@ -1834,18 +1954,19 @@ class TestCertificate(unittest.TestCase):
 
     def test_148_process_enrollment_and_store_certificate_enrollment_error(self):
         # Enrollment returns no certificate, triggers error handling
-        with patch.object(
-            self.cert, "_execute_pre_enrollment_hooks", return_value=[]
-        ), patch.object(
-            self.cert,
-            "_process_certificate_enrollment",
-            return_value=("error", None, None, "poll", False),
-        ), patch.object(
-            self.cert,
-            "_handle_enrollment_error",
-            return_value=("result", "error", "detail"),
-        ) as mock_handle, patch.object(
-            self.cert, "_execute_post_enrollment_hooks", return_value=[]
+        with (
+            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=[]),
+            patch.object(
+                self.cert,
+                "_process_certificate_enrollment",
+                return_value=("error", None, None, "poll", False),
+            ),
+            patch.object(
+                self.cert,
+                "_handle_enrollment_error",
+                return_value=("result", "error", "detail"),
+            ) as mock_handle,
+            patch.object(self.cert, "_execute_post_enrollment_hooks", return_value=[]),
         ):
             result = self.cert._process_enrollment_and_store_certificate(
                 "cert_name", "csr", "order_name"
@@ -1865,22 +1986,24 @@ class TestCertificate(unittest.TestCase):
 
     def test_150_process_enrollment_and_store_certificate_post_hook_error(self):
         # Post-enrollment hook returns error, should return early
-        with patch.object(
-            self.cert, "_execute_pre_enrollment_hooks", return_value=[]
-        ), patch.object(
-            self.cert,
-            "_process_certificate_enrollment",
-            return_value=(None, "cert", "raw", "poll", False),
-        ), patch.object(
-            self.cert,
-            "_store_certificate_and_update_order",
-            return_value=("result", None),
-        ), patch.object(
-            self.cert.certificate_logger, "log_certificate_issuance"
-        ), patch.object(
-            self.cert,
-            "_execute_post_enrollment_hooks",
-            return_value=["post_hook_error"],
+        with (
+            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=[]),
+            patch.object(
+                self.cert,
+                "_process_certificate_enrollment",
+                return_value=(None, "cert", "raw", "poll", False),
+            ),
+            patch.object(
+                self.cert,
+                "_store_certificate_and_update_order",
+                return_value=("result", None),
+            ),
+            patch.object(self.cert.certificate_logger, "log_certificate_issuance"),
+            patch.object(
+                self.cert,
+                "_execute_post_enrollment_hooks",
+                return_value=["post_hook_error"],
+            ),
         ):
             result = self.cert._process_enrollment_and_store_certificate(
                 "cert_name", "csr", "order_name"
@@ -1889,16 +2012,18 @@ class TestCertificate(unittest.TestCase):
 
     def test_151_process_enrollment_and_store_certificate_store_error(self):
         # _store_certificate_and_update_order returns error, should return error
-        with patch.object(
-            self.cert, "_execute_pre_enrollment_hooks", return_value=[]
-        ), patch.object(
-            self.cert,
-            "_process_certificate_enrollment",
-            return_value=(None, "cert", "raw", "poll", False),
-        ), patch.object(
-            self.cert,
-            "_store_certificate_and_update_order",
-            return_value=("result", "error"),
+        with (
+            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=[]),
+            patch.object(
+                self.cert,
+                "_process_certificate_enrollment",
+                return_value=(None, "cert", "raw", "poll", False),
+            ),
+            patch.object(
+                self.cert,
+                "_store_certificate_and_update_order",
+                return_value=("result", "error"),
+            ),
         ):
             result = self.cert._process_enrollment_and_store_certificate(
                 "cert_name", "csr", "order_name"
@@ -1907,22 +2032,24 @@ class TestCertificate(unittest.TestCase):
 
     def test_152_process_enrollment_and_store_certificate_logger_exception(self):
         # Exception in logger should not crash method
-        with patch.object(
-            self.cert, "_execute_pre_enrollment_hooks", return_value=[]
-        ), patch.object(
-            self.cert,
-            "_process_certificate_enrollment",
-            return_value=(None, "cert", "raw", "poll", False),
-        ), patch.object(
-            self.cert,
-            "_store_certificate_and_update_order",
-            return_value=("result", None),
-        ), patch.object(
-            self.cert.certificate_logger,
-            "log_certificate_issuance",
-            side_effect=Exception("log error"),
-        ), patch.object(
-            self.cert, "_execute_post_enrollment_hooks", return_value=[]
+        with (
+            patch.object(self.cert, "_execute_pre_enrollment_hooks", return_value=[]),
+            patch.object(
+                self.cert,
+                "_process_certificate_enrollment",
+                return_value=(None, "cert", "raw", "poll", False),
+            ),
+            patch.object(
+                self.cert,
+                "_store_certificate_and_update_order",
+                return_value=("result", None),
+            ),
+            patch.object(
+                self.cert.certificate_logger,
+                "log_certificate_issuance",
+                side_effect=Exception("log error"),
+            ),
+            patch.object(self.cert, "_execute_post_enrollment_hooks", return_value=[]),
         ):
             result = self.cert._process_enrollment_and_store_certificate(
                 "cert_name", "csr", "order_name"
@@ -2000,9 +2127,12 @@ class TestCertificate(unittest.TestCase):
 
     def test_157_poll_certificate_status_unexpected_exception(self):
         # Covers: poll_certificate_status except branch for unexpected exception
-        with patch.object(
-            self.cert, "_validate_input_parameters", side_effect=Exception("fail")
-        ), patch.object(self.cert.logger, "critical") as mock_critical:
+        with (
+            patch.object(
+                self.cert, "_validate_input_parameters", side_effect=Exception("fail")
+            ),
+            patch.object(self.cert.logger, "critical") as mock_critical,
+        ):
             result = self.cert.poll_certificate_status("cert", "poll", "csr", "order")
             self.assertIsNone(result)
             mock_critical.assert_called_with(
@@ -2011,13 +2141,13 @@ class TestCertificate(unittest.TestCase):
 
     def test_158_handle_successful_certificate_poll_order_update_exception(self):
         # Covers: _handle_successful_certificate_poll except branch for order_update
-        with patch.object(
-            self.cert, "_store_certificate_in_database", return_value=123
-        ), patch.object(
-            self.cert.repository, "order_update", side_effect=Exception("fail")
-        ), patch.object(
-            self.cert.logger, "critical"
-        ) as mock_critical:
+        with (
+            patch.object(self.cert, "_store_certificate_in_database", return_value=123),
+            patch.object(
+                self.cert.repository, "order_update", side_effect=Exception("fail")
+            ),
+            patch.object(self.cert.logger, "critical") as mock_critical,
+        ):
             result = self.cert._handle_successful_certificate_poll(
                 "cert", "cert", "raw", "order"
             )
@@ -2029,27 +2159,33 @@ class TestCertificate(unittest.TestCase):
 
     def test_159_process_certificate_request_get_certificate_details_exception(self):
         # Covers: process_certificate_request except block for get_certificate_details
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert,
-            "_validate_certificate_request_message",
-            return_value=(200, "ok", "", {"url": "http://test.com"}, {}, ""),
-        ), patch.object(
-            self.cert, "get_certificate_details", side_effect=Exception("fail")
-        ), patch.object(
-            self.cert, "_prepare_certificate_response", return_value={"code": 500}
-        ) as mock_prepare:
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(
+                self.cert,
+                "_validate_certificate_request_message",
+                return_value=(200, "ok", "", {"url": "http://test.com"}, {}, ""),
+            ),
+            patch.object(
+                self.cert, "get_certificate_details", side_effect=Exception("fail")
+            ),
+            patch.object(
+                self.cert, "_prepare_certificate_response", return_value={"code": 500}
+            ) as mock_prepare,
+        ):
             result = self.cert.process_certificate_request("content")
             mock_prepare.assert_called()
             self.assertEqual(result["code"], 500)
 
     def test_160_process_certificate_request_outer_exception(self):
         # Covers: process_certificate_request outer except block
-        with patch.object(
-            self.cert, "_validate_input_parameters", side_effect=Exception("fail")
-        ), patch.object(
-            self.cert, "_prepare_certificate_response", return_value={"code": 500}
+        with (
+            patch.object(
+                self.cert, "_validate_input_parameters", side_effect=Exception("fail")
+            ),
+            patch.object(
+                self.cert, "_prepare_certificate_response", return_value={"code": 500}
+            ),
         ):
             with self.assertLogs(self.cert.logger, level="ERROR") as log:
                 result = self.cert.process_certificate_request("content")
@@ -2061,15 +2197,17 @@ class TestCertificate(unittest.TestCase):
 
     def test_161_process_certificate_request_url_missing(self):
         # Covers: process_certificate_request else branch for missing url in protected
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert,
-            "_validate_certificate_request_message",
-            return_value=(200, "ok", "", {}, {}, ""),
-        ), patch.object(
-            self.cert, "_prepare_certificate_response", return_value={"code": 400}
-        ) as mock_prepare:
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(
+                self.cert,
+                "_validate_certificate_request_message",
+                return_value=(200, "ok", "", {}, {}, ""),
+            ),
+            patch.object(
+                self.cert, "_prepare_certificate_response", return_value={"code": 400}
+            ) as mock_prepare,
+        ):
             result = self.cert.process_certificate_request("content")
             mock_prepare.assert_called()
             self.assertEqual(result["code"], 400)
@@ -2078,12 +2216,18 @@ class TestCertificate(unittest.TestCase):
         # Covers: _process_certificate_revocation logger.warning branch
         payload = {"certificate": "cert"}
         self.cert.config.cert_operations_log = "json"
-        with patch.object(
-            self.cert, "_validate_revocation_request", return_value=(200, "unspecified")
-        ), patch.object(self.cert, "cahandler") as mock_cahandler, patch.object(
-            self.cert.certificate_logger,
-            "log_certificate_revocation",
-            side_effect=Exception("fail"),
+        with (
+            patch.object(
+                self.cert,
+                "_validate_revocation_request",
+                return_value=(200, "unspecified"),
+            ),
+            patch.object(self.cert, "cahandler") as mock_cahandler,
+            patch.object(
+                self.cert.certificate_logger,
+                "log_certificate_revocation",
+                side_effect=Exception("fail"),
+            ),
         ):
             mock_ca = MagicMock()
             mock_ca.revoke.return_value = (200, "revoked", "detail")
@@ -2098,25 +2242,30 @@ class TestCertificate(unittest.TestCase):
 
     def test_163_revoke_certificate_payload_missing_certificate(self):
         # Covers: revoke_certificate branch where payload is missing 'certificate'
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value={}
-        ), patch.object(
-            self.cert,
-            "_validate_revocation_message",
-            return_value=(200, "ok", "", "", {}, ""),
-        ), patch.object(
-            self.cert.message, "prepare_response", return_value={"code": 400}
-        ) as mock_prepare:
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value={}),
+            patch.object(
+                self.cert,
+                "_validate_revocation_message",
+                return_value=(200, "ok", "", "", {}, ""),
+            ),
+            patch.object(
+                self.cert.message, "prepare_response", return_value={"code": 400}
+            ) as mock_prepare,
+        ):
             result = self.cert.revoke_certificate("content")
             mock_prepare.assert_called()
             self.assertEqual(result["code"], 400)
 
     def test_164_revoke_certificate_outer_exception(self):
         # Covers: revoke_certificate outer except block
-        with patch.object(
-            self.cert, "_validate_input_parameters", side_effect=Exception("fail")
-        ), patch.object(
-            self.cert.message, "prepare_response", return_value={"code": 500}
+        with (
+            patch.object(
+                self.cert, "_validate_input_parameters", side_effect=Exception("fail")
+            ),
+            patch.object(
+                self.cert.message, "prepare_response", return_value={"code": 500}
+            ),
         ):
             with self.assertLogs(self.cert.logger, level="ERROR") as log:
                 result = self.cert.revoke_certificate("content")
@@ -2230,15 +2379,22 @@ class TestCertificate(unittest.TestCase):
         }
 
         payload = {"reason": 0, "certificate": "cert"}
-        with patch.object(
-            self.cert, "_validate_certificate_account_ownership", return_value="order"
-        ), patch.object(self.cert, "_validate_order_authorization", return_value=False):
+        with (
+            patch.object(
+                self.cert,
+                "_validate_certificate_account_ownership",
+                return_value="order",
+            ),
+            patch.object(
+                self.cert, "_validate_order_authorization", return_value=False
+            ),
+        ):
             with self.assertLogs(self.cert.logger, level="DEBUG") as log:
                 code, error = self.cert._validate_revocation_request("acc", payload)
-                self.assertEqual(code, 400)
+                self.assertEqual(code, 403)
                 self.assertEqual(error, "unauth")
             self.assertIn(
-                "DEBUG:test_a2c:Certificate._validate_revocation_request() ended with: 400, unauth",
+                "DEBUG:test_a2c:Certificate._validate_revocation_request() ended with: 403, unauth",
                 log.output,
             )
 
@@ -2251,11 +2407,18 @@ class TestCertificate(unittest.TestCase):
         }
         payload = {"reason": 0, "certificate": "cert"}
         # Patch only the necessary methods
-        with patch.object(
-            self.cert, "_validate_certificate_account_ownership", return_value="order"
-        ), patch.object(self.cert, "_validate_order_authorization", return_value=False):
+        with (
+            patch.object(
+                self.cert,
+                "_validate_certificate_account_ownership",
+                return_value="order",
+            ),
+            patch.object(
+                self.cert, "_validate_order_authorization", return_value=False
+            ),
+        ):
             code, error = self.cert._validate_revocation_request("acc", payload)
-            self.assertEqual(code, 400)
+            self.assertEqual(code, 403)
             self.assertEqual(error, "unauth")
 
     def test_175_validate_revocation_request_bad_reason(self):
@@ -2282,8 +2445,8 @@ class TestCertificate(unittest.TestCase):
             self.cert, "_validate_certificate_account_ownership", return_value=None
         ):
             code, error = self.cert._validate_revocation_request("acc", payload)
-            self.assertEqual(code, 400)
-            self.assertEqual(error, "unspecified")
+            self.assertEqual(code, 403)
+            self.assertEqual(error, "unauth")
 
     def test_177_validate_revocation_request_unauthorized(self):
         # Explicitly cover line 1171: error = self.err_msg_dic["unauthorized"]
@@ -2295,13 +2458,18 @@ class TestCertificate(unittest.TestCase):
         }
         # Patch _validate_certificate_account_ownership to return a non-None value (order_name)
         # Patch _validate_order_authorization to return False (unauthorized)
-        with patch.object(
-            self.cert, "_validate_certificate_account_ownership", return_value="order"
-        ) as mock_own, patch.object(
-            self.cert, "_validate_order_authorization", return_value=False
-        ) as mock_auth:
+        with (
+            patch.object(
+                self.cert,
+                "_validate_certificate_account_ownership",
+                return_value="order",
+            ) as mock_own,
+            patch.object(
+                self.cert, "_validate_order_authorization", return_value=False
+            ) as mock_auth,
+        ):
             code, error = self.cert._validate_revocation_request("acc", payload)
-            self.assertEqual(code, 400)
+            self.assertEqual(code, 403)
             self.assertEqual(error, "unauth")
             mock_own.assert_called_once_with("acc", "cert")
             mock_auth.assert_called_once_with("order", "cert")
@@ -2314,9 +2482,14 @@ class TestCertificate(unittest.TestCase):
             "unauthorized": "unauth",
             "serverinternal": "internal",
         }
-        with patch.object(
-            self.cert, "_validate_certificate_account_ownership", return_value="order"
-        ), patch.object(self.cert, "_validate_order_authorization", return_value=True):
+        with (
+            patch.object(
+                self.cert,
+                "_validate_certificate_account_ownership",
+                return_value="order",
+            ),
+            patch.object(self.cert, "_validate_order_authorization", return_value=True),
+        ):
             code, error = self.cert._validate_revocation_request("acc", payload)
             self.assertEqual(code, 200)
             self.assertEqual(error, "unspecified")
@@ -2328,14 +2501,19 @@ class TestCertificate(unittest.TestCase):
             "badrevocationreason": "badreason",
             "unauthorized": "unauth",
             "serverinternal": "internal",
+            "malformed": "malformed",
         }
-        with patch.object(
-            self.cert, "_validate_certificate_account_ownership", return_value="order"
-        ) as mock_own, patch.object(
-            self.cert, "_validate_order_authorization", return_value=False
-        ) as mock_auth, patch.object(
-            self.cert.logger, "debug"
-        ) as mock_logger_debug:
+        with (
+            patch.object(
+                self.cert,
+                "_validate_certificate_account_ownership",
+                return_value="order",
+            ) as mock_own,
+            patch.object(
+                self.cert, "_validate_order_authorization", return_value=False
+            ) as mock_auth,
+            patch.object(self.cert.logger, "debug") as mock_logger_debug,
+        ):
             code, error = self.cert._validate_revocation_request("acc", payload)
             self.assertEqual(code, 400)
             # self.assertEqual(error, 'unauth')
@@ -2348,13 +2526,15 @@ class TestCertificate(unittest.TestCase):
     def test_180_validate_csr_against_order_order_lookup_exception(self):
         # Covers exception branch at line 720 in _validate_csr_against_order
         cert_dic = {"order": "order1"}
-        with patch.object(
-            self.cert, "_get_certificate_info", return_value=cert_dic
-        ), patch.object(
-            self.cert.repository, "order_lookup", side_effect=Exception("lookup failed")
-        ), patch.object(
-            self.cert.logger, "critical"
-        ) as mock_critical:
+        with (
+            patch.object(self.cert, "_get_certificate_info", return_value=cert_dic),
+            patch.object(
+                self.cert.repository,
+                "order_lookup",
+                side_effect=Exception("lookup failed"),
+            ),
+            patch.object(self.cert.logger, "critical") as mock_critical,
+        ):
             result = self.cert._validate_csr_against_order("cert_name", "csr")
             mock_critical.assert_called_with(
                 "Database error in Certificate when checking the CSR identifiers: %s",
@@ -2366,11 +2546,11 @@ class TestCertificate(unittest.TestCase):
         # Covers success_hook execution and debug log
         self.cert.hooks = MagicMock()
         self.cert.hooks.success_hook.return_value = None
-        with patch.object(
-            self.cert, "_store_certificate_in_database", return_value=1
-        ), patch.object(self.cert, "_update_order_status") as mock_update, patch.object(
-            self.cert.logger, "debug"
-        ) as mock_debug:
+        with (
+            patch.object(self.cert, "_store_certificate_in_database", return_value=1),
+            patch.object(self.cert, "_update_order_status") as mock_update,
+            patch.object(self.cert.logger, "debug") as mock_debug,
+        ):
             result, error = self.cert._store_certificate_and_update_order(
                 "cert", "raw", "poll", "cert_name", "order", "csr"
             )
@@ -2388,11 +2568,11 @@ class TestCertificate(unittest.TestCase):
         self.cert.hooks = MagicMock()
         self.cert.hooks.success_hook.side_effect = Exception("success_hook failed")
         self.cert.config.ignore_success_hook_failure = False
-        with patch.object(
-            self.cert, "_store_certificate_in_database", return_value=1
-        ), patch.object(self.cert, "_update_order_status"), patch.object(
-            self.cert.logger, "error"
-        ) as mock_logger_error:
+        with (
+            patch.object(self.cert, "_store_certificate_in_database", return_value=1),
+            patch.object(self.cert, "_update_order_status"),
+            patch.object(self.cert.logger, "error") as mock_logger_error,
+        ):
             result, error = self.cert._store_certificate_and_update_order(
                 "cert", "raw", "poll", "cert_name", "order", "csr"
             )
@@ -2406,11 +2586,11 @@ class TestCertificate(unittest.TestCase):
         self.cert.hooks = MagicMock()
         self.cert.hooks.success_hook.side_effect = Exception("success_hook failed")
         self.cert.config.ignore_success_hook_failure = True
-        with patch.object(
-            self.cert, "_store_certificate_in_database", return_value=1
-        ), patch.object(self.cert, "_update_order_status"), patch.object(
-            self.cert.logger, "error"
-        ) as mock_logger_error:
+        with (
+            patch.object(self.cert, "_store_certificate_in_database", return_value=1),
+            patch.object(self.cert, "_update_order_status"),
+            patch.object(self.cert.logger, "error") as mock_logger_error,
+        ):
             result, error = self.cert._store_certificate_and_update_order(
                 "cert", "raw", "poll", "cert_name", "order", "csr"
             )
@@ -2441,11 +2621,10 @@ class TestCertificate(unittest.TestCase):
             "serverinternal": "serverinternal",
             "rejectedidentifier": "rejectedidentifier",
         }
-        with patch.object(
-            self.cert, "_update_order_status"
-        ) as mock_update, patch.object(
-            self.cert, "_store_certificate_error"
-        ) as mock_store:
+        with (
+            patch.object(self.cert, "_update_order_status") as mock_update,
+            patch.object(self.cert, "_store_certificate_error") as mock_store,
+        ):
             result = self.cert._handle_enrollment_error(
                 "some_error", None, "order1", "cert1"
             )
@@ -2455,11 +2634,10 @@ class TestCertificate(unittest.TestCase):
 
     def test_186_handle_enrollment_error_with_poll_identifier(self):
         # Covers branch where poll_identifier is set
-        with patch.object(
-            self.cert, "_update_order_status"
-        ) as mock_update, patch.object(
-            self.cert, "_store_certificate_error"
-        ) as mock_store:
+        with (
+            patch.object(self.cert, "_update_order_status") as mock_update,
+            patch.object(self.cert, "_store_certificate_error") as mock_store,
+        ):
             result = self.cert._handle_enrollment_error(
                 "some_error", "pollid", "order1", "cert1"
             )
@@ -2474,11 +2652,10 @@ class TestCertificate(unittest.TestCase):
             "serverinternal": "serverinternal",
             "rejectedidentifier": "rejectedidentifier",
         }
-        with patch.object(
-            self.cert, "_update_order_status"
-        ) as mock_update, patch.object(
-            self.cert, "_store_certificate_error"
-        ) as mock_store:
+        with (
+            patch.object(self.cert, "_update_order_status") as mock_update,
+            patch.object(self.cert, "_store_certificate_error") as mock_store,
+        ):
             result = self.cert._handle_enrollment_error(
                 "Either CN or SANs are not allowed by configuration",
                 None,
@@ -2504,13 +2681,15 @@ class TestCertificate(unittest.TestCase):
             "serverinternal": "serverinternal",
             "rejectedidentifier": "rejectedidentifier",
         }
-        with patch.object(
-            self.cert, "_update_order_status", side_effect=Exception("fail")
-        ), patch.object(
-            self.cert, "_store_certificate_error", side_effect=Exception("fail")
-        ), patch.object(
-            self.cert.logger, "critical"
-        ) as mock_critical:
+        with (
+            patch.object(
+                self.cert, "_update_order_status", side_effect=Exception("fail")
+            ),
+            patch.object(
+                self.cert, "_store_certificate_error", side_effect=Exception("fail")
+            ),
+            patch.object(self.cert.logger, "critical") as mock_critical,
+        ):
             result = self.cert._handle_enrollment_error(
                 "some_error", None, "order1", "cert1"
             )
@@ -2520,11 +2699,11 @@ class TestCertificate(unittest.TestCase):
     def test_189_validate_certificate_authorization_sans_exception(self):
         # Explicitly covers lines 477-481: exception in cert_san_get triggers warning and returns []
         self.cert.config.tnauthlist_support = False
-        with patch(
-            "acme_srv.certificate.cert_san_get", side_effect=Exception("fail")
-        ), patch.object(self.cert.logger, "warning") as mock_warning, patch.object(
-            self.cert.logger, "debug"
-        ) as mock_debug:
+        with (
+            patch("acme_srv.certificate.cert_san_get", side_effect=Exception("fail")),
+            patch.object(self.cert.logger, "warning") as mock_warning,
+            patch.object(self.cert.logger, "debug") as mock_debug,
+        ):
             result = self.cert._validate_certificate_authorization(
                 {"identifiers": "[]"}, "cert"
             )
@@ -2549,11 +2728,15 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.tnauthlist_support = False
         self.cert.config.cn2san_add = True
         # Simulate no SANs returned, but CN is present
-        with patch("acme_srv.certificate.cert_san_get", return_value=[]), patch(
-            "acme_srv.certificate.cert_cn_get", return_value="mycn"
-        ) as mock_cn_get, patch.object(
-            self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
-        ) as mock_validate:
+        with (
+            patch("acme_srv.certificate.cert_san_get", return_value=[]),
+            patch(
+                "acme_srv.certificate.cert_cn_get", return_value="mycn"
+            ) as mock_cn_get,
+            patch.object(
+                self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
+            ) as mock_validate,
+        ):
             result = self.cert._validate_certificate_authorization(
                 {"identifiers": "[]"}, "cert"
             )
@@ -2565,11 +2748,11 @@ class TestCertificate(unittest.TestCase):
     def test_192_validate_certificate_authorization_sans_exception(self):
         # Covers lines 477-481: exception in cert_san_get triggers warning and returns []
         self.cert.config.tnauthlist_support = False
-        with patch(
-            "acme_srv.certificate.cert_san_get", side_effect=Exception("fail")
-        ), patch.object(self.cert.logger, "warning") as mock_warning, patch.object(
-            self.cert.logger, "debug"
-        ) as mock_debug:
+        with (
+            patch("acme_srv.certificate.cert_san_get", side_effect=Exception("fail")),
+            patch.object(self.cert.logger, "warning") as mock_warning,
+            patch.object(self.cert.logger, "debug") as mock_debug,
+        ):
             result = self.cert._validate_certificate_authorization(
                 {"identifiers": "[]"}, "cert"
             )
@@ -2792,15 +2975,18 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.dryrun_profilename = "dryrun-profile"
         self.cert.config.dryrun = False
         identifier_dic = {"identifiers": "[]", "profile": "dryrun-profile"}
-        with patch.object(
-            self.cert, "_get_certificate_info", return_value={"order": "order"}
-        ), patch.object(
-            self.cert.repository, "order_lookup", return_value=identifier_dic
-        ), patch.object(
-            self.cert, "_load_and_validate_identifiers", return_value=[True]
-        ), self.assertLogs(
-            self.logger, level="DEBUG"
-        ) as log:
+        with (
+            patch.object(
+                self.cert, "_get_certificate_info", return_value={"order": "order"}
+            ),
+            patch.object(
+                self.cert.repository, "order_lookup", return_value=identifier_dic
+            ),
+            patch.object(
+                self.cert, "_load_and_validate_identifiers", return_value=[True]
+            ),
+            self.assertLogs(self.logger, level="DEBUG") as log,
+        ):
             self.cert._validate_csr_against_order("cert", "csr")
         # Check both debug log messages
         debug_msgs = [
@@ -2819,15 +3005,18 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.dryrun_profilename = "dryrun-profile"
         self.cert.config.dryrun = False
         identifier_dic = {"identifiers": "[]", "profile": "other-profile"}
-        with patch.object(
-            self.cert, "_get_certificate_info", return_value={"order": "order"}
-        ), patch.object(
-            self.cert.repository, "order_lookup", return_value=identifier_dic
-        ), patch.object(
-            self.cert, "_load_and_validate_identifiers", return_value=[True]
-        ), self.assertLogs(
-            self.logger, level="DEBUG"
-        ) as log:
+        with (
+            patch.object(
+                self.cert, "_get_certificate_info", return_value={"order": "order"}
+            ),
+            patch.object(
+                self.cert.repository, "order_lookup", return_value=identifier_dic
+            ),
+            patch.object(
+                self.cert, "_load_and_validate_identifiers", return_value=[True]
+            ),
+            self.assertLogs(self.logger, level="DEBUG") as log,
+        ):
             self.cert._validate_csr_against_order("cert", "csr")
         # Check debug log for profile check
         debug_msgs = [
@@ -2846,21 +3035,25 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.dryrun = True
         self.cert.err_msg_dic["unauthorized"] = "unauthorized"
         # Patch dependencies so validation passes
-        with patch.object(
-            self.cert, "_validate_input_parameters", return_value=None
-        ), patch.object(
-            self.cert, "_validate_csr_against_order", return_value=True
-        ), self.assertLogs(
-            self.logger, level="INFO"
-        ) as log:
+        with (
+            patch.object(self.cert, "_validate_input_parameters", return_value=None),
+            patch.object(self.cert, "_validate_csr_against_order", return_value=True),
+            self.assertLogs(self.logger, level="INFO") as log,
+        ):
             result = self.cert.process_certificate_enrollment_request(
                 "cert", "csr", "order"
             )
         self.assertIn(
-            "Dry run mode enabled - skipping enrollment and database storage",
+            "Dry run mode enabled - skipping enrollment and certificate issuance",
             " ".join(log.output),
         )
-        self.assertEqual(result, ("unauthorized", "Dry run mode - enrollment skipped"))
+        self.assertEqual(
+            result,
+            (
+                "unauthorized",
+                "Dry run mode - enrollment and certificate issuance skipped",
+            ),
+        )
 
 
 if __name__ == "__main__":

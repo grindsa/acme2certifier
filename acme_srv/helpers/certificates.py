@@ -1,11 +1,16 @@
 # -*- coding: utf-8 -*-
 """Certificate utilities for acme2certifier"""
+
 import base64
 import logging
 from typing import List, Tuple
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization, hashes
+from cryptography.hazmat.primitives.serialization.pkcs7 import (
+    load_pem_pkcs7_certificates,
+    load_der_pkcs7_certificates,
+)
 from cryptography.x509 import load_pem_x509_certificate, ocsp
 from OpenSSL import crypto
 from .encoding import (
@@ -27,12 +32,17 @@ def cert_aki_get(logger: logging.Logger, certificate: str) -> str:
         aki = cert.extensions.get_extension_for_oid(x509.OID_AUTHORITY_KEY_IDENTIFIER)
         aki_value = aki.value.key_identifier.hex()
     except Exception as _err:
-        aki_value = cert_aki_pyopenssl_get(logger, certificate)
+        logger.error(
+            "Error while getting AKI from certificate: %s. Fallback to pyOpenSSL method",
+            _err,
+        )
+        aki_value = _cert_aki_pyopenssl_get(logger, certificate)
+
     logger.debug("cert_aki_get() ended with: %s", aki_value)
     return aki_value
 
 
-def cert_aki_pyopenssl_get(logger, certificate: str) -> str:
+def _cert_aki_pyopenssl_get(logger, certificate: str) -> str:
     """Get Authority Key Identifier from a certificate as a hex string."""
     logger.debug("Helper.cert_aki_pyopenssl_cert()")
 
@@ -41,11 +51,14 @@ def cert_aki_pyopenssl_get(logger, certificate: str) -> str:
     )
     cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_data)
     # Get the AKI extension
-    aki = None
+    aki = ""
     for i in range(cert.get_extension_count()):
-        ext = cert.get_extension(i)
-        if "authorityKeyIdentifier" in str(ext.get_short_name()):
-            aki = ext
+        try:
+            ext = cert.get_extension(i)
+            if "authorityKeyIdentifier" in str(ext.get_short_name()):
+                aki = ext
+        except Exception as _err:
+            logger.error("Error while getting AKI from certificate extension: %s", _err)
     if aki:
         # Get the SKI value and convert it to hex
         aki_hex = aki.get_data()[4:].hex()
@@ -161,33 +174,6 @@ def cert_pubkey_get(logger: logging.Logger, certificate=str) -> str:
     return convert_byte_to_string(pubkey_str)
 
 
-def cert_san_pyopenssl_get(logger, certificate, recode=True):
-    """get subject alternate names from certificate"""
-    logger.debug("Helper.cert_san_pyopenssl_get()")
-    if recode:
-        pem_file = build_pem_file(
-            logger, None, b64_url_recode(logger, certificate), True
-        )
-    else:
-        pem_file = certificate
-
-    cert = crypto.load_certificate(crypto.FILETYPE_PEM, pem_file)
-    san = []
-    ext_count = cert.get_extension_count()
-    for i in range(0, ext_count):
-        ext = cert.get_extension(i)
-        if "subjectAltName" in str(ext.get_short_name()):
-            # pylint: disable=c2801
-            san_list = ext.__str__().split(",")
-            for san_name in san_list:
-                san_name = san_name.rstrip()
-                san_name = san_name.lstrip()
-                san.append(san_name)
-
-    logger.debug("Helper.cert_san_pyopenssl_get() ended")
-    return san
-
-
 def cert_san_get(
     logger: logging.Logger, certificate: str, recode: bool = True
 ) -> List[str]:
@@ -206,14 +192,28 @@ def cert_san_get(
             sans.append(f"IP:{san}")
     except Exception as err:
         logger.error("Error while getting SANs from certificate: %s", err)
-        # fallback to pyopenssl method if there is an error (e.g. SAN extension not found)
-        # sans = cert_san_pyopenssl_get(logger, certificate, recode=recode)
 
     logger.debug("Helper.cert_san_get() ended")
     return sans
 
 
-def cert_ski_pyopenssl_get(logger, certificate: str) -> str:
+def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
+    """get subject key identifier from certificate"""
+    logger.debug("Helper.cert_ski_get()")
+
+    cert = cert_load(logger, certificate, recode=True)
+    try:
+        ski = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_KEY_IDENTIFIER)
+        ski_value = ski.value.digest.hex()
+    except Exception as err:
+        logger.error("Error while getting the SKI: %s. Fallback to pyopenssl", err)
+        ski_value = _cert_ski_pyopenssl_get(logger, certificate)
+
+    logger.debug("Helper.cert_ski_get() ended with: %s", ski_value)
+    return ski_value
+
+
+def _cert_ski_pyopenssl_get(logger: logging.Logger, certificate: str) -> str:
     """Get Subject Key Identifier from a certificate as a hex string."""
     logger.debug("Helper.cert_ski_pyopenssl_cert()")
 
@@ -235,21 +235,6 @@ def cert_ski_pyopenssl_get(logger, certificate: str) -> str:
         ski_hex = None
     logger.debug("Helper.cert_ski_pyopenssl_cert() ended with: %s", ski_hex)
     return ski_hex
-
-
-def cert_ski_get(logger: logging.Logger, certificate: str) -> str:
-    """get subject key identifier from certificate"""
-    logger.debug("Helper.cert_ski_get()")
-
-    cert = cert_load(logger, certificate, recode=True)
-    try:
-        ski = cert.extensions.get_extension_for_oid(x509.OID_SUBJECT_KEY_IDENTIFIER)
-        ski_value = ski.value.digest.hex()
-    except Exception as err:
-        logger.error("Error while getting the SKI fallback to Openssl method: %s", err)
-        ski_value = cert_ski_pyopenssl_get(logger, certificate)
-    logger.debug("Helper.cert_ski_get() ended with: %s", ski_value)
-    return ski_value
 
 
 def cryptography_version_get(logger: logging.Logger) -> int:
@@ -280,7 +265,7 @@ def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool =
     crypto_module_version = cryptography_version_get(logger)
     if crypto_module_version < 36:
         logger.debug("Helper.cert_extensions_get(): using pyopenssl")
-        extension_list = cert_extensions_py_openssl_get(logger, certificate, recode)
+        extension_list = _cert_extensions_py_openssl_get(logger, certificate, recode)
     else:
         cert = cert_load(logger, certificate, recode=recode)
         extension_list = []
@@ -293,7 +278,7 @@ def cert_extensions_get(logger: logging.Logger, certificate: str, recode: bool =
     return extension_list
 
 
-def cert_extensions_py_openssl_get(logger, certificate, recode=True):
+def _cert_extensions_py_openssl_get(logger, certificate, recode=True):
     """get extenstions from certificate certificate"""
     logger.debug("cert_extensions_py_openssl_get()")
     if recode:
@@ -393,4 +378,58 @@ def certid_check(
     result = certid_renewal == certid_database
 
     logger.debug("Helper.certid_check() ended with: %s", result)
+    return result
+
+
+def pkcs7_to_pem(logger, pkcs7_content: str, outform: str = "string") -> List[str]:
+    """convert pkcs7 to pem"""
+    logger.debug("CAhandler._pkcs7_to_pem()")
+
+    # Define loading strategies in order of preference
+    loading_strategies = [
+        # Strategy 1: Load as PEM directly
+        lambda content: load_pem_pkcs7_certificates(convert_string_to_byte(content)),
+        # Strategy 2: Replace CERTIFICATE with PKCS7 tag and load as PEM
+        lambda content: load_pem_pkcs7_certificates(
+            convert_string_to_byte(content.replace("CERTIFICATE", "PKCS7"))
+        ),
+        # Strategy 3: Load as DER
+        lambda content: load_der_pkcs7_certificates(content),
+    ]
+
+    pkcs7_obj = None
+    last_error = None
+
+    for i, strategy in enumerate(loading_strategies):
+        try:
+            pkcs7_obj = strategy(pkcs7_content)
+            if i == 1:  # Log only for the tag replacement strategy
+                logger.error("PKCS7-TAG not found, updated content successfully")
+            break
+        except Exception as err:
+            last_error = err
+            if i == 0:
+                logger.error("PKCS7-TAG not found updating content...")
+            elif i == 1:
+                logger.debug("CAhandler._pkcs7_to_pem(): load pem failed. Try der...")
+
+    if pkcs7_obj is None:
+        logger.error("All PKCS7 loading strategies failed. Last error: %s", last_error)
+        raise last_error
+
+    # Convert certificates to PEM format
+    cert_pem_list = [
+        convert_byte_to_string(cert.public_bytes(serialization.Encoding.PEM))
+        for cert in pkcs7_obj
+    ]
+
+    # Define output format
+    output_formats = {
+        "string": lambda certs: "".join(certs),
+        "list": lambda certs: certs,
+    }
+
+    result = output_formats.get(outform, lambda _: None)(cert_pem_list)
+
+    logger.debug("Certificate._pkcs7_to_pem() ended")
     return result

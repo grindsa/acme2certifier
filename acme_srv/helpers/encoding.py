@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 """Encoding and base64 utilities for acme2certifier"""
+
 import base64
 import textwrap
 import logging

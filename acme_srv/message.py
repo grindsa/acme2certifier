@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=r0913
 """message class"""
+
 from __future__ import print_function
 import json
 from typing import Tuple, Dict, Optional
@@ -284,7 +285,7 @@ class Message(object):
             message = None
             detail = None
         else:
-            (code, message, detail) = self.nonce.check(protected)
+            code, message, detail = self.nonce.check(protected)
 
         self.logger.debug(
             "Message._check_nonce_for_replay_protection() ended with: %s", code
@@ -302,7 +303,7 @@ class Message(object):
         """Decoding successful - check nonce for anti replay protection and signature."""
         self.logger.debug("Message._validate_message_and_check_signature()")
 
-        (code, message, detail) = self._check_nonce_for_replay_protection(
+        code, message, detail = self._check_nonce_for_replay_protection(
             skip_nonce_check, protected
         )
         account_name = None
@@ -322,7 +323,7 @@ class Message(object):
 
         if code == 200 and not skip_signature_check:
             signature = Signature(self.debug, self.server_name, self.logger)
-            (sig_check, error, error_detail) = signature.check(
+            sig_check, error, error_detail = signature.check(
                 account_name, content, use_emb_key, protected
             )
             if sig_check:
@@ -356,7 +357,7 @@ class Message(object):
             skip_signature_check = False
 
         # decode message
-        (result, error_detail, protected, payload, _signature) = decode_message(
+        result, error_detail, protected, payload, _signature = decode_message(
             self.logger, content
         )
         account_name = None
@@ -384,7 +385,7 @@ class Message(object):
         self.logger.debug("Message.cli_check()")
 
         # decode message
-        (result, error_detail, protected, payload, _signature) = decode_message(
+        result, error_detail, protected, payload, _signature = decode_message(
             self.logger, content
         )
         account_name = None
@@ -393,9 +394,7 @@ class Message(object):
             # check signature
             account_name = self._extract_account_name_from_content(protected)
             signature = Signature(self.debug, self.server_name, self.logger)
-            (sig_check, error, error_detail) = signature.cli_check(
-                account_name, content
-            )
+            sig_check, error, error_detail = signature.cli_check(account_name, content)
             if sig_check:
                 code = 200
                 message = None

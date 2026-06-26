@@ -71,7 +71,7 @@ The CA handler will verify the `ca_name` and `profile_name` parameters before en
 
 ## Passing a Profile ID from Client to Server
 
-acme2certifier supports the the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md) allowing an acme-client to specify a `profile_name` parameter to be submitted to the CA server.
+acme2certifier supports the [Automated Certificate Management Environment (ACME) Profiles Extension draft](acme_profiling.md), allowing an acme-client to specify a `profile_name` parameter to be submitted to the CA server.
 
 The list of supported profiles must be configured in `acme_srv.cfg`
 
@@ -83,7 +83,7 @@ profiles: {"profile1": "http://foo.bar/profile1", "profile2": "http://foo.bar/pr
 Once enabled, a client can specify the profile_name to be used as part of an order request. Below an example for lego:
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http run --profile profile2
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" -d <fqdn> --http --profile profile2
 ```
 
 Further, this handler makes use of the [header_info_list feature](header_info.md), allowing an ACME client to specify a `profile_name` to be used during certificate enrollment. This feature is disabled by default and must be activated in `acme_srv.cfg` as shown below:
@@ -105,5 +105,5 @@ docker exec -i acme-sh acme.sh --server http://<acme-srv> --issue -d <fqdn> --st
 ### Example for Lego
 
 ```bash
-docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent profile_name=<profile_name> -d <fqdn> --http run
+docker run -i -v $PWD/lego:/.lego/ --rm --name lego goacme/lego run --tls-skip-verify -s https://<acme-srv> -a --email "lego@example.com" --user-agent profile_name=<profile_name> -d <fqdn> --http
 ```

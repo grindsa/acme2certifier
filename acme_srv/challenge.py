@@ -4,6 +4,7 @@
 
 import json
 import time
+from configparser import ConfigParser
 from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
 from threading import Thread
@@ -44,6 +45,8 @@ from acme_srv.challenge_error_handling import (
     DatabaseError,
     UnsupportedChallengeTypeError,
 )
+
+ACCOUNT_URI_PREFIX = "/acme/acct/"
 
 
 @dataclass
@@ -368,7 +371,7 @@ class Challenge:
         self.path_dic = {
             "chall_path": "/acme/chall/",
             "authz_path": "/acme/authz/",
-            "acct_path": "/acme/acct/",
+            "acct_path": ACCOUNT_URI_PREFIX,
         }
         self.source_address = source
 
@@ -498,13 +501,29 @@ class Challenge:
             if not pub_key:
                 return None
 
+            required_fields = (
+                "type",
+                "token",
+                "authorization__type",
+                "authorization__value",
+                "keyauthorization",
+            )
+            missing_fields = [
+                field for field in required_fields if field not in challenge_dic
+            ]
+            if missing_fields:
+                self.logger.error(
+                    "Challenge data incomplete for validation (%s), missing fields: %s",
+                    challenge_name,
+                    ", ".join(missing_fields),
+                )
+                return None
+
             jwk_thumbprint = jwk_thumbprint_get(self.logger, pub_key)
-            acct_path = self.path_dic.get("acct_path", "/acme/acct/")
+            acct_path = self.path_dic.get("acct_path", ACCOUNT_URI_PREFIX)
             account_name = challenge_dic.get("authorization__order__account__name")
             accounturi = (
-                f"{self.server_name}{acct_path}{account_name}"
-                if account_name
-                else None
+                f"{self.server_name}{acct_path}{account_name}" if account_name else None
             )
             self.logger.debug("Challenge._get_challenge_validation_details() ended")
             return {
@@ -551,65 +570,84 @@ class Challenge:
         # Get updated challenge info
         updated_challenge_info = self.repository.get_challenge_by_name(challenge_name)
 
-        # Prepare response
-        response_dic = {
-            "data": {
-                "type": updated_challenge_info.type,
-                "status": updated_challenge_info.status,
-                "token": updated_challenge_info.token,
-                "url": protected["url"],
-            },
-            "header": {
-                "Link": f'<{self.server_name}{self.path_dic["authz_path"]}{updated_challenge_info.authorization_name}>;rel="up"'
-            },
-        }
-
-        # address a few cornercases
-        if updated_challenge_info.validation_error:
-            # add validation error in response for failed challenges
-            try:
-                response_dic["data"]["error"] = json.loads(
-                    updated_challenge_info.validation_error
-                )
-            except Exception:
-                response_dic["data"]["error"] = {
-                    "status": 400,
-                    "type": "urn:ietf:params:acme:error:unknown",
-                    "detail": updated_challenge_info.validation_error,
-                }
-
-        if (
-            updated_challenge_info.type == "email-reply-00"
-            and self.config.email_address
-        ):
-            # add from address in response for email challenges
-            response_dic["data"]["from"] = self.config.email_address
-
-        if updated_challenge_info.type == "dns-persist-01":
-            try:
-                account_name = self.repository.get_authorization_account_name(
-                    updated_challenge_info.authorization_name
-                )
-            except DatabaseError:
-                account_name = None
-
-            if account_name:
-                response_dic["data"]["accounturi"] = (
-                    f"{self.server_name}{self.path_dic['acct_path']}{account_name}"
-                )
-            response_dic["data"]["issuer-domain-names"] = (
-                self.config.caaidentities or []
-            )
-
-        if (
-            updated_challenge_info.validated
-            and updated_challenge_info.status == "valid"
-        ):
-            # add validated flag if challenge is valid
-            response_dic["data"]["validated"] = updated_challenge_info.validated
+        response_dic = self._build_challenge_validation_response(
+            updated_challenge_info, protected
+        )
 
         self.logger.debug("Challenge._handle_challenge_validation_request() ended")
         return self._create_success_response(response_dic)
+
+    def _build_challenge_validation_response(
+        self, challenge_info: ChallengeInfo, protected: Dict[str, str]
+    ) -> Dict[str, Any]:
+        """Build response payload for challenge validation requests."""
+        response_dic = {
+            "data": {
+                "type": challenge_info.type,
+                "status": challenge_info.status,
+                "token": challenge_info.token,
+                "url": protected["url"],
+            },
+            "header": {
+                "Link": f'<{self.server_name}{self.path_dic["authz_path"]}{challenge_info.authorization_name}>;rel="up"'
+            },
+        }
+
+        self._append_challenge_validation_error(response_dic, challenge_info)
+        self._append_email_reply_from(response_dic, challenge_info)
+        self._append_dns_persist_fields(response_dic, challenge_info)
+        self._append_validated_timestamp(response_dic, challenge_info)
+        return response_dic
+
+    def _append_challenge_validation_error(
+        self, response_dic: Dict[str, Any], challenge_info: ChallengeInfo
+    ):
+        """Append validation error details for failed challenges."""
+        if not challenge_info.validation_error:
+            return
+
+        try:
+            response_dic["data"]["error"] = json.loads(challenge_info.validation_error)
+        except Exception:
+            response_dic["data"]["error"] = {
+                "status": 400,
+                "type": "urn:ietf:params:acme:error:unknown",
+                "detail": challenge_info.validation_error,
+            }
+
+    def _append_email_reply_from(
+        self, response_dic: Dict[str, Any], challenge_info: ChallengeInfo
+    ):
+        """Append sender address for email-reply challenges."""
+        if challenge_info.type == "email-reply-00" and self.config.email_address:
+            response_dic["data"]["from"] = self.config.email_address
+
+    def _append_dns_persist_fields(
+        self, response_dic: Dict[str, Any], challenge_info: ChallengeInfo
+    ):
+        """Append dns-persist-01 specific response fields."""
+        if challenge_info.type != "dns-persist-01":
+            return
+
+        try:
+            account_name = self.repository.get_authorization_account_name(
+                challenge_info.authorization_name
+            )
+        except DatabaseError:
+            account_name = None
+
+        if account_name:
+            response_dic["data"][
+                "accounturi"
+            ] = f"{self.server_name}{self.path_dic['acct_path']}{account_name}"
+        response_dic["data"]["issuer-domain-names"] = self.config.caaidentities or []
+
+    def _append_validated_timestamp(
+        self, response_dic: Dict[str, Any], challenge_info: ChallengeInfo
+    ):
+        """Append validated timestamp for valid challenges."""
+        if challenge_info.validated and challenge_info.status == "valid":
+            response_dic["data"]["validated"] = challenge_info.validated
 
     def _handle_validation_disabled(self, challenge_name: str) -> bool:
         """Handle validation when it's disabled."""
@@ -643,7 +681,7 @@ class Challenge:
         )
         return challenge_check
 
-    def _load_address_check_configuration(self, config_dic: Dict[str, str]):
+    def _load_address_check_configuration(self, config_dic: ConfigParser):
         """Load address check configuration."""
         self.logger.debug("Challenge._load_address_check_configuration()")
 
@@ -670,7 +708,9 @@ class Challenge:
         """Load DNS challenge configuration."""
         self.logger.debug("Challenge._load_dns_configuration()")
 
-        self.config.dns_server_list, self.config.dns_validation_pause_timer = config_dns_server_list_load(self.logger, config_dic)
+        self.config.dns_server_list, self.config.dns_validation_pause_timer = (
+            config_dns_server_list_load(self.logger, config_dic)
+        )
 
         self.logger.debug("Challenge._load_dns_configuration() ended")
 
@@ -691,7 +731,7 @@ class Challenge:
 
         self.logger.debug("Challenge._load_proxy_configuration() ended")
 
-    def _load_dns_persist_configuration(self, config_dic: Dict[str, str]):
+    def _load_dns_persist_configuration(self, config_dic: ConfigParser):
         """Load dns-persist challenge configuration."""
         self.config.dns_persist_01_support = config_dic.getboolean(
             "Challenge", "dns_persist_01_support", fallback=False
@@ -705,7 +745,7 @@ class Challenge:
 
         self.config.caaidentities = self._load_directory_caa_identities(config_dic)
 
-    def _load_directory_caa_identities(self, config_dic: Dict[str, str]) -> List[str]:
+    def _load_directory_caa_identities(self, config_dic: ConfigParser) -> List[str]:
         """Load caaIdentities from Directory section as fallback issuer list."""
         tmp_caaidentities = config_dic.get("Directory", "caaidentities", fallback=None)
         if not tmp_caaidentities:
@@ -801,7 +841,7 @@ class Challenge:
     def _initialize_business_logic_components(self):
         """Initialize factory and service components that depend on configuration."""
         self.logger.debug("Challenge._initialize_business_logic_components()")
-        acct_path = self.path_dic.get("acct_path", "/acme/acct/")
+        acct_path = self.path_dic.get("acct_path", ACCOUNT_URI_PREFIX)
 
         # class creating and managing the different challenges
         self.factory = ChallengeFactory(

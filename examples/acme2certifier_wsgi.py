@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=E0401, R1705
 """wsgi based acme server"""
+
 from __future__ import print_function
 import re
 import json
@@ -26,7 +27,6 @@ from acme_srv.helper import (
     config_check,
 )
 from acme_srv.version import __dbversion__, __version__
-
 
 # We address a cpdesmells
 HTTP_CODE_DIC = {
@@ -555,6 +555,26 @@ URLS = [
 ]
 
 
+# Helper to extract path with prefix
+def get_path_with_prefix(environ, config):
+    path = environ.get("PATH_INFO") or ""
+    # Collapse multiple leading slashes to one
+    while path.startswith("//"):
+        path = path[1:]
+    prefix = ""
+    if "Directory" in config and "url_prefix" in config["Directory"]:
+        prefix = str(config["Directory"]["url_prefix"]).strip("/")
+    if prefix:
+        path_ = path.lstrip("/")
+        if path_ == prefix:
+            return ""
+        if path_.startswith(prefix + "/"):
+            # Remove the prefix and any leading slashes after
+            return path_[len(prefix) :].lstrip("/")
+        return path_
+    return path.lstrip("/")
+
+
 def application(environ, start_response):
     """The main WSGI application if nothing matches call the not_found function."""
 
@@ -562,10 +582,7 @@ def application(environ, start_response):
     if "CAhandler" in CONFIG and "acme_url" in CONFIG["CAhandler"]:
         URLS.append((r"^.well-known/acme-challenge/", acmechallenge_serve))
 
-    prefix = "/"
-    if "Directory" in CONFIG and "url_prefix" in CONFIG["Directory"]:
-        prefix = CONFIG["Directory"]["url_prefix"] + "/"
-    path = environ.get("PATH_INFO", "").lstrip(prefix)
+    path = get_path_with_prefix(environ, CONFIG)
 
     for regex, callback in URLS:
         match = re.search(regex, path)
