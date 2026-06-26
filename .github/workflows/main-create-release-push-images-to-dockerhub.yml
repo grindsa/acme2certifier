@@ -154,8 +154,9 @@ jobs:
   instance_start:
     name: instance_start
     runs-on: ubuntu-latest
+    needs: build
     # Prevent workflows from running in forks
-    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'devel' || contains(inputs.branch, 'arm')) }}
+    if: ${{ github.repository == 'grindsa/acme2certifier' && (github.ref_name == 'master' || contains(github.ref_name, 'push')) }}
     steps:
 
     - name: "checkout GIT"
@@ -179,7 +180,7 @@ jobs:
         AWS_REGION: ${{ env.AWS_REGION }}
         AWS_INSTANCE_ID: ${{ env.AWS_ARM64-UB-01_INSTANCE_ID }}
         ACTION: "start"
-        IGNORE_CURRENT_STATUS: "false"
+        IGNORE_CURRENT_STATUS: "true^"
 
     - name: "[ WAIT ] Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.4
@@ -317,7 +318,6 @@ jobs:
       - name: Delete image from registry
         run: |
           docker images
-      #    docker rmi $(docker images grindsa/acme2certifier -q) --force
 
       - name: Checkout code for latest release
         uses: actions/checkout@v6
@@ -344,6 +344,7 @@ jobs:
           DEB_NAME=$(basename "$DEB_URL")
           curl -fL "$DEB_URL" -o "$DEB_NAME"
           ls -la "$DEB_NAME"
+          ls -la
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
           TAG_NAME: ${{ env.TAG_NAME }}
@@ -362,6 +363,7 @@ jobs:
         uses: docker/build-push-action@v5
         if: ${{ env.BUILD_NAME == 'apache2-wsgi'}}
         with:
+          context: .
           push: true
           tags: grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }}, grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}, grindsa/acme2certifier:latest
           file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
@@ -371,6 +373,7 @@ jobs:
         uses: docker/build-push-action@v5
         if: ${{ env.BUILD_NAME != 'apache2-wsgi'}}
         with:
+          context: .
           push: true
           tags: grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }}, grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
           file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
@@ -800,7 +803,7 @@ jobs:
     runs-on: ubuntu-latest
     # Prevent workflows from running in forks
     needs: arm64_pull_and_test
-    if: ${{ always() && github.repository == 'grindsa/acme2certifier' && inputs.branch == 'master' }}
+    if: ${{ github.repository == 'grindsa/acme2certifier' && (github.ref_name == 'master' || contains(github.ref_name, 'push')) }}
     steps:
 
     - name: "checkout GIT"

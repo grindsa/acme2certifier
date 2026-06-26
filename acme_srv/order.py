@@ -259,7 +259,7 @@ class Order(object):
                     self.logger.info(
                         "Only one profile configured. Overwriting submitted profile '%s' with '%s'.",
                         profile,
-                        list(self.config.profiles.keys())[0],
+                        next(iter(self.config.profiles.keys())),
                     )
                     error = None
 
@@ -306,7 +306,7 @@ class Order(object):
                     )
                     and len(self.config.profiles.keys()) == 1
                 ):
-                    profile = list(self.config.profiles.keys())[0]
+                    profile = next(iter(self.config.profiles.keys()))
                     self.logger.info(
                         "Order.add_profile_to_order(): overwriting submitted profile '%s' with '%s'.",
                         payload["profile"],
