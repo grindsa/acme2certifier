@@ -5,7 +5,17 @@ import typing as t
 from setuptools import setup
 import shutil
 from glob import glob
+
+import sys
+from pathlib import Path
+ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    # Adding current folder into the build path to allow
+    # the acme_srv import
+    sys.path.insert(0, str(ROOT))
+
 from acme_srv.version import __version__
+
 
 
 def glob_files(pattern: str) -> t.List[str]:
