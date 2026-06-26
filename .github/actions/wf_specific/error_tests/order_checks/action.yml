@@ -57,10 +57,10 @@ runs:
       working-directory: examples/Docker/
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'identifier limit exceeded'}"
+          docker compose logs | grep -E "\{(['\"]status['\"]: 403, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:rejectedIdentifier['\"], ['\"]detail['\"]: ['\"]identifier limit exceeded['\"])}"
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'identifier limit exceeded'}"
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep -E "\{(['\"]status['\"]: 403, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:rejectedIdentifier['\"], ['\"]detail['\"]: ['\"]identifier limit exceeded['\"])}"
         fi
       shell: bash
       env:
@@ -94,10 +94,10 @@ runs:
       working-directory: examples/Docker/
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'identifier value foo@bar.local not allowed'}"
+          docker compose logs | grep -E "\{(['\"]status['\"]: 403, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:rejectedIdentifier['\"], ['\"]detail['\"]: ['\"]identifier value foo@bar.local not allowed['\"])}"
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'identifier value foo@bar.local not allowed'}"
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep -E "\{(['\"]status['\"]: 403, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:rejectedIdentifier['\"], ['\"]detail['\"]: ['\"]identifier value foo@bar.local not allowed['\"])}"
         fi
       shell: bash
       env:
@@ -131,10 +131,10 @@ runs:
       working-directory: examples/Docker/
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'identifier value unknown.bar.local not allowed'}"
+          docker compose logs | grep -E "\{(['\"]status['\"]: 403, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:rejectedIdentifier['\"], ['\"]detail['\"]: ['\"]identifier value unknown.bar.local not allowed['\"])}"
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'identifier value unknown.bar.local not allowed'}"
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep -E "\{(['\"]status['\"]: 403, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:rejectedIdentifier['\"], ['\"]detail['\"]: ['\"]identifier value unknown.bar.local not allowed['\"])}"
         fi
       shell: bash
       env:
@@ -168,10 +168,10 @@ runs:
       working-directory: examples/Docker/
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:unsupportedIdentifier', 'detail': 'Could not process order'}"
+          docker compose logs | grep -E "\{(['\"]status['\"]: 400, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:unsupportedIdentifier['\"], ['\"]detail['\"]: ['\"]Could not process order['\"])}"
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:unsupportedIdentifier', 'detail': 'Could not process order'}"
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep -E "\{(['\"]status['\"]: 400, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:unsupportedIdentifier['\"], ['\"]detail['\"]: ['\"]Could not process order['\"])}"
         fi
       shell: bash
       env:
@@ -205,10 +205,10 @@ runs:
       working-directory: examples/Docker/
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Identifier type is missing'}"
+          docker compose logs | grep -E "\{(['\"]status['\"]: 400, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:malformed['\"], ['\"]detail['\"]: ['\"]Identifier type is missing['\"])}"
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Identifier type is missing'}"
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep -E "\{(['\"]status['\"]: 400, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:malformed['\"], ['\"]detail['\"]: ['\"]Identifier type is missing['\"])}"
         fi
       shell: bash
       env:
@@ -242,10 +242,10 @@ runs:
       working-directory: examples/Docker/
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Identifier value is missing'}"
+          docker compose logs | grep -E "\{(['\"]status['\"]: 400, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:malformed['\"], ['\"]detail['\"]: ['\"]Identifier value is missing['\"])}"
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 400, 'type': 'urn:ietf:params:acme:error:malformed', 'detail': 'Identifier value is missing'}"
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep -E "\{(['\"]status['\"]: 400, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:malformed['\"], ['\"]detail['\"]: ['\"]Identifier value is missing['\"])}"
         fi
       shell: bash
       env:
@@ -280,10 +280,10 @@ runs:
       working-directory: examples/Docker/
       run: |
         if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'FQDN/SAN foo-01.bar1.local not allowed by configuration'}"
+          docker compose logs | grep -E "\{(['\"]status['\"]: 403, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:rejectedIdentifier['\"], ['\"]detail['\"]: ['\"]FQDN/SAN foo-01.bar1.local not allowed by configuration['\"])}"
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
         elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 500 /var/log/messages | grep "{'status': 403, 'type': 'urn:ietf:params:acme:error:rejectedIdentifier', 'detail': 'FQDN/SAN foo-01.bar1.local not allowed by configuration'}"
+          docker exec -i acme-srv tail -n 500 /var/log/messages | grep -E "\{(['\"]status['\"]: 403, ['\"]type['\"]: ['\"]urn:ietf:params:acme:error:rejectedIdentifier['\"], ['\"]detail['\"]: ['\"]FQDN/SAN foo-01.bar1.local not allowed by configuration['\"])}"
         fi
       shell: bash
       env:

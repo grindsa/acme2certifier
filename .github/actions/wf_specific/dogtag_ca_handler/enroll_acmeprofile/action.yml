@@ -1,0 +1,52 @@
+name: "enroll_acmeprofile"
+description: "enroll_acmeprofile"
+
+runs:
+  using: "composite"
+  steps:
+  - name: "Sleep for 10s"
+    uses: juliangruber/sleep-action@v2.0.4
+    with:
+      time: 10s
+
+  - name: "ACME Profile - Test http://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+    shell: bash
+
+  - name: "EAB - Test if https://acme-srv/directory is accessible"
+    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+    shell: bash
+
+  - name: "ACME Profile - 01 - enrollment with allowed profile"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.acme --http --profile WebserverSanOnlyTLSClient
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage --noout 2>&1 | grep -i "TLS Web Client Authentication"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage --noout 2>&1 | grep -iv "TLS Web Server Authentication"
+    shell: bash
+
+  - name: "ACME Profile - 02 - enrollment with allowed profile"
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.acme --http --profile WebserverSanOnlyTLSServer
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -text -noout
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage --noout 2>&1 | grep -i "TLS Web Server Authentication"
+      sudo openssl x509 -in lego/certificates/lego.acme.crt -ext extendedKeyUsage --noout 2>&1 | grep -iv "TLS Web Client Authentication"
+
+    shell: bash
+
+  - name: "ACME Profile - 03 - enrollment with unknown profile (to fail)"
+    id: legofail02
+    continue-on-error: true
+    run: |
+      sudo rm -rf lego/*
+      docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" --key-type=rsa2048 -d lego.acme --http --profile unknown
+    shell: bash
+
+  - name: ACME Profile 03 - check  result "
+    if: steps.legofail02.outcome != 'failure'
+    run: |
+      echo "legofail outcome is ${{steps.legofail02.outcome }}"
+      exit 1
+    shell: bash

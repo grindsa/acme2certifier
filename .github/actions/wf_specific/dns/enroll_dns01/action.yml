@@ -18,12 +18,16 @@ inputs:
     description: "Kubernetes namespace"
     required: false
     default: "acme"
+  WILDCARD_EXPECT_FAIL:
+    description: "Whether wildcard enrollments are expected to fail"
+    required: false
+    default: "false"
 
 runs:
   using: "composite"
   steps:
   - name: "Sleep for 10s"
-    uses: grindsa/sleep-action@master
+    uses: juliangruber/sleep-action@v2.0.4
     with:
       time: 10s
 
@@ -63,33 +67,69 @@ runs:
 
   - name: "Enroll acme.sh - single wildcard domain"
     run: |
-      docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-      openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/*acme-sh.wildcard_ecc/*acme-sh.wildcard.cer
+      if [ "$WILDCARD_EXPECT_FAIL" = "true" ]; then
+        set +e
+        docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d '*.acme-sh.wildcard' --standalone --debug 3 --output-insecure --force  # NOSONAR
+        exit_code=$?
+        set -e
+        if [ "$exit_code" -eq 0 ]; then
+          echo "Expected wildcard enrollment to fail, but it succeeded"
+          exit 1
+        fi
+      else
+        docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d '*.acme-sh.wildcard' --standalone --debug 3 --output-insecure --force  # NOSONAR
+        openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/*acme-sh.wildcard_ecc/*acme-sh.wildcard.cer
+      fi
     shell: bash
     env:
       CA_PATH: ${{ inputs.CA_PATH }}
       ACME_SRV: ${{ inputs.ACME_SRV }}
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      WILDCARD_EXPECT_FAIL: ${{ inputs.WILDCARD_EXPECT_FAIL }}
 
   - name: "Enroll acme.sh - double wildcard domain"
     run: |
-      docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d *.acme-sh.first-wildcard --dns dns_test -d *.acme-sh.second-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-      openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/*.acme-sh.first-wildcard_ecc/*.acme-sh.first-wildcard.cer
+      if [ "$WILDCARD_EXPECT_FAIL" = "true" ]; then
+        set +e
+        docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d '*.acme-sh.first-wildcard' --dns dns_test -d '*.acme-sh.second-wildcard' --standalone --debug 3 --output-insecure --force  # NOSONAR
+        exit_code=$?
+        set -e
+        if [ "$exit_code" -eq 0 ]; then
+          echo "Expected wildcard enrollment to fail, but it succeeded"
+          exit 1
+        fi
+      else
+        docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d '*.acme-sh.first-wildcard' --dns dns_test -d '*.acme-sh.second-wildcard' --standalone --debug 3 --output-insecure --force  # NOSONAR
+        openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/*.acme-sh.first-wildcard_ecc/*.acme-sh.first-wildcard.cer
+      fi
     shell: bash
     env:
       CA_PATH: ${{ inputs.CA_PATH }}
       ACME_SRV: ${{ inputs.ACME_SRV }}
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      WILDCARD_EXPECT_FAIL: ${{ inputs.WILDCARD_EXPECT_FAIL }}
 
   - name: "Enroll acme.sh - domain and wildcard domain"
     run: |
-      docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.fqdn-wildcard --dns dns_test -d *.acme-sh.fqdn-wildcard --standalone --debug 3 --output-insecure --force  # NOSONAR
-      openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/acme-sh.fqdn-wildcard_ecc/acme-sh.fqdn-wildcard.cer
+      if [ "$WILDCARD_EXPECT_FAIL" = "true" ]; then
+        set +e
+        docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.fqdn-wildcard --dns dns_test -d '*.acme-sh.fqdn-wildcard' --standalone --debug 3 --output-insecure --force  # NOSONAR
+        exit_code=$?
+        set -e
+        if [ "$exit_code" -eq 0 ]; then
+          echo "Expected wildcard enrollment to fail, but it succeeded"
+          exit 1
+        fi
+      else
+        docker exec -i acme-sh acme.sh --dnssleep 10 --server http://$ACME_SRV.$NAME_SPACE --accountemail 'acme-sh@example.com' --issue --dns dns_test -d acme-sh.fqdn-wildcard --dns dns_test -d '*.acme-sh.fqdn-wildcard' --standalone --debug 3 --output-insecure --force  # NOSONAR
+        openssl verify -CAfile $CA_PATH/root-ca-cert.pem -untrusted $CA_PATH/sub-ca-cert.pem acme-sh/acme-sh.fqdn-wildcard_ecc/acme-sh.fqdn-wildcard.cer
+      fi
     shell: bash
     env:
       CA_PATH: ${{ inputs.CA_PATH }}
       ACME_SRV: ${{ inputs.ACME_SRV }}
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      WILDCARD_EXPECT_FAIL: ${{ inputs.WILDCARD_EXPECT_FAIL }}
 
   - name: "Check TXT record exists"
     if: ${{ failure() }}

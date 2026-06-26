@@ -1,10 +1,11 @@
 name: build
 on:
+
   push:
     branches: [ "**" ]       # build on any branch
   workflow_dispatch: {}
-
-
+  schedule:
+    - cron: '0 01 * * 6'  # Every Saturday morning
 
 
 jobs:
@@ -13,6 +14,7 @@ jobs:
   # ---------------------------------------------------------
   build-containers:
     runs-on: ubuntu-latest
+    needs: [ build-deb ]
     permissions:
       pull-requests: write
       contents: write
@@ -24,6 +26,16 @@ jobs:
         dbhandler: ['wsgi', 'django']
     steps:
       - uses: actions/checkout@v6
+
+      - name: "Download DEB artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ github.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ github.run_id }}-1_all.deb
+          DESTINATION_PATH: ./
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
       - name: "Build container"
         uses: ./.github/actions/container_build_upload
         with:
