@@ -58,16 +58,22 @@ class ExternalAccountBinding:
         result = False
         if "jwk" in protected:
             jwk_outer = protected["jwk"]
-            jwk_inner = b64decode_pad(self.logger, payload)
-            jwk_inner = json.loads(jwk_inner)
-            if json.dumps(jwk_outer, sort_keys=True) == json.dumps(
-                jwk_inner, sort_keys=True
-            ):
-                result = True
+            try:
+                jwk_inner = json.loads(b64decode_pad(self.logger, payload))
+            except Exception as err:
+                self.logger.error("Failed to decode EAB JWK payload: %s", err)
             else:
-                self.logger.error("JWK from outer and inner JWS do not match")
-                self.logger.debug("outer: %s", jwk_outer)
-                self.logger.debug("inner: %s", jwk_inner)
+                if isinstance(jwk_inner, dict):
+                    if json.dumps(jwk_outer, sort_keys=True) == json.dumps(
+                        jwk_inner, sort_keys=True
+                    ):
+                        result = True
+                    else:
+                        self.logger.error("JWK from outer and inner JWS do not match")
+                        self.logger.debug("outer: %s", jwk_outer)
+                        self.logger.debug("inner: %s", jwk_inner)
+                else:
+                    self.logger.error("EAB JWK payload is not a JSON object")
         else:
             self.logger.error("No JWK in protected header")
         self.logger.debug("ExternalAccountBinding.compare_jwk() ended with: %s", result)

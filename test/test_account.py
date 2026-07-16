@@ -205,6 +205,29 @@ class TestExternalAccountBinding(unittest.TestCase):
         """test compare_jwk no jwk in protected"""
         self.assertFalse(self.eab.compare_jwk({}, "payload"))
 
+    def test_005b_compare_jwk_invalid_payload(self):
+        """test compare_jwk with invalid base64 or JSON payload"""
+        protected = {"jwk": {"kty": "oct", "k": "abc"}}
+        with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+            self.assertFalse(self.eab.compare_jwk(protected, "invalid_base64"))
+        self.assertIn(
+            "ERROR:test_a2c:Failed to decode EAB JWK payload:",
+            log_cm.output[0],
+        )
+
+    def test_005c_compare_jwk_non_json_payload(self):
+        """test compare_jwk with base64 payload that is not JSON"""
+        import base64
+
+        protected = {"jwk": {"kty": "oct", "k": "abc"}}
+        payload = base64.b64encode(b"not json").decode()
+        with self.assertLogs("test_a2c", level="ERROR") as log_cm:
+            self.assertFalse(self.eab.compare_jwk(protected, payload))
+        self.assertIn(
+            "ERROR:test_a2c:Failed to decode EAB JWK payload:",
+            log_cm.output[0],
+        )
+
     def test_006_verify_signature_success(self):
         """test verify_signature success"""
         content = {"foo": "bar"}
