@@ -1098,7 +1098,11 @@ class Order(object):
             message = "urn:ietf:params:acme:error:unauthorized"
         else:
             message = certificate_name
-            detail = "enrollment failed"
+            # Preserve the CA handler's real failure detail (e.g. the upstream
+            # ACME server's problem "detail") so it reaches the client; only fall
+            # back to the generic string when the handler provided none.
+            if not detail:
+                detail = "enrollment failed"
 
         self.logger.debug("Order._finalize_csr() ended")
         return (code, message, detail, certificate_name)
