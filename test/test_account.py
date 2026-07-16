@@ -648,28 +648,66 @@ class TestAccount(unittest.TestCase):
     def test_018__handle_deactivation_success(self):
         """test _handle_deactivation success"""
         payload = {"status": "deactivated"}
+        account_obj = {
+            "status": "valid",
+            "jwk": '{"kty": "RSA", "n": "abc", "e": "AQAB"}',
+            "contact": '["mailto:test@example.com"]',
+            "created_at": "2026-02-08 12:00:00",
+        }
         with patch.object(
-            self.account, "_deactivate_account", return_value=(200, None, None)
+            self.account, "_lookup_account_by_name", return_value=account_obj
         ):
-            result = self.account._handle_deactivation("test_account", payload)
-            self.assertIn("data", result)
-            self.assertEqual(result["code"], 200)
-            self.assertEqual(result["data"]["status"], "deactivated")
+            with patch.object(
+                self.account, "_deactivate_account", return_value=(200, None, None)
+            ):
+                result = self.account._handle_deactivation("test_account", payload)
+                self.assertIn("data", result)
+                self.assertEqual(result["code"], 200)
+                self.assertEqual(result["data"]["status"], "deactivated")
+                self.assertEqual(
+                    result["data"]["contact"], ["mailto:test@example.com"]
+                )
+                self.assertEqual(
+                    result["data"]["key"], {"kty": "RSA", "n": "abc", "e": "AQAB"}
+                )
 
     def test_018__handle_deactivation_fail(self):
-        """test _handle_deactivation success"""
+        """test _handle_deactivation failure"""
+        payload = {"status": "deactivated"}
+        account_obj = {
+            "status": "valid",
+            "jwk": "{}",
+            "contact": "[]",
+            "created_at": "2026-02-08",
+        }
+        with patch.object(
+            self.account, "_lookup_account_by_name", return_value=account_obj
+        ):
+            with patch.object(
+                self.account,
+                "_deactivate_account",
+                return_value=(400, "deact_message", "deact_detail"),
+            ):
+                result = self.account._handle_deactivation("test_account", payload)
+                self.assertIn("data", result)
+                self.assertEqual(result["data"]["status"], 400)
+                self.assertEqual(result["data"]["type"], "deact_message")
+                self.assertEqual(result["data"]["detail"], "deact_detail")
+
+    def test_018b__handle_deactivation_account_not_found(self):
+        """test _handle_deactivation when account lookup fails"""
         payload = {"status": "deactivated"}
         with patch.object(
-            self.account,
-            "_deactivate_account",
-            return_value=(400, "deact_message", "deact_detail"),
+            self.account, "_lookup_account_by_name", return_value=None
         ):
-            # with patch.object(self.account, "_build_response", return_value={"data": {}}):
-            result = self.account._handle_deactivation("test_account", payload)
-            self.assertIn("data", result)
-            self.assertEqual(result["data"]["status"], 400)
-            self.assertEqual(result["data"]["type"], "deact_message")
-            self.assertEqual(result["data"]["detail"], "deact_detail")
+            with patch.object(self.account, "_deactivate_account") as mock_deactivate:
+                result = self.account._handle_deactivation("test_account", payload)
+                mock_deactivate.assert_not_called()
+                self.assertEqual(result["data"]["status"], 400)
+                self.assertEqual(
+                    result["data"]["type"],
+                    self.account.err_msg_dic["accountdoesnotexist"],
+                )
 
     def test_019__handle_deactivation_status_invalid(self):
         """test _handle_deactivation invalid status"""

@@ -501,11 +501,19 @@ class Account:
         """Handle account deactivation."""
         self.logger.debug("Account._handle_deactivation(%s)", account_name)
         if payload.get("status", "").lower() == "deactivated":
+            account_obj = self._lookup_account_by_name(account_name)
+            if not account_obj:
+                return self._build_response(
+                    400,
+                    self.err_msg_dic["accountdoesnotexist"],
+                    "Deactivation failed",
+                )
             code, message, detail = self._deactivate_account(account_name)
             if code == 200:
-                return self._build_response(code, message, payload)
-            else:
-                return self._build_response(code, message, detail)
+                data = self._build_account_info(account_obj)
+                data["status"] = "deactivated"
+                return self._build_response(code, account_name, data)
+            return self._build_response(code, message, detail)
         else:
             return self._build_response(
                 400, self.err_msg_dic["malformed"], "Invalid status for deactivation"
