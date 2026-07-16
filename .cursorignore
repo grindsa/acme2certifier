@@ -1,0 +1,14 @@
+# Python Caches & Virtual Environments
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.coverage
+.mypy_cache/
+.ruff_cache/
+
+# GitHub Workflow Caches (Lokale Test-Tools wie act)
+.act/

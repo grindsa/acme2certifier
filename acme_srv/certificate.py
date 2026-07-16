@@ -1890,10 +1890,10 @@ class Certificate(object):
         if not success:
             error_msg = f"Failed to store CSR for order {order_name}"
             self.logger.error(error_msg)
-
-        self.logger.debug(
-            "Certificate.store_certificate_signing_request() ended successfully"
-        )
+        else:
+            self.logger.debug(
+                "Certificate.store_certificate_signing_request() ended successfully"
+            )
         return certificate_name
 
     # === Legacy API Compatibility ===

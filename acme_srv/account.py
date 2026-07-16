@@ -21,10 +21,6 @@ from acme_srv.message import Message
 
 from acme_srv.signature import Signature
 
-# --- ExternalAccountBinding class integrated here ---
-import json
-from acme_srv.helper import b64decode_pad
-
 DB_ERROR_MSG = "Database error"
 
 
@@ -249,7 +245,7 @@ class Account:
         self.config = AccountConfiguration()
         self.err_msg_dic = error_dic_get(self.logger)
 
-    def __enter__(self) -> "Order":
+    def __enter__(self) -> Account:
         """Enter the context manager, loading configuration."""
         self._load_configuration()
         return self
@@ -461,7 +457,7 @@ class Account:
         self, protected: Dict[str, str], payload: Dict[str, str]
     ) -> Tuple[int, str, str]:
         """check onlyreturnexisting"""
-        self.logger.debug("Account._onlyreturnexisting(}")
+        self.logger.debug("Account._onlyreturnexisting()")
 
         if "onlyreturnexisting" in payload:
             if payload["onlyreturnexisting"]:

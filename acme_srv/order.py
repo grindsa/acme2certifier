@@ -444,7 +444,7 @@ class Order(object):
 
     def create_order(
         self, payload: Dict[str, str], account_name: str
-    ) -> Tuple[str, str, Dict[str, str], int]:
+    ) -> Tuple[str, str, str, Dict[str, str], str]:
         """Create a new order and add it to the database."""
         self.logger.debug("Order.create_order(%s)", account_name)
 

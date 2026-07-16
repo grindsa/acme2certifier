@@ -664,9 +664,7 @@ class TestAccount(unittest.TestCase):
                 self.assertIn("data", result)
                 self.assertEqual(result["code"], 200)
                 self.assertEqual(result["data"]["status"], "deactivated")
-                self.assertEqual(
-                    result["data"]["contact"], ["mailto:test@example.com"]
-                )
+                self.assertEqual(result["data"]["contact"], ["mailto:test@example.com"])
                 self.assertEqual(
                     result["data"]["key"], {"kty": "RSA", "n": "abc", "e": "AQAB"}
                 )
@@ -697,9 +695,7 @@ class TestAccount(unittest.TestCase):
     def test_018b__handle_deactivation_account_not_found(self):
         """test _handle_deactivation when account lookup fails"""
         payload = {"status": "deactivated"}
-        with patch.object(
-            self.account, "_lookup_account_by_name", return_value=None
-        ):
+        with patch.object(self.account, "_lookup_account_by_name", return_value=None):
             with patch.object(self.account, "_deactivate_account") as mock_deactivate:
                 result = self.account._handle_deactivation("test_account", payload)
                 mock_deactivate.assert_not_called()
