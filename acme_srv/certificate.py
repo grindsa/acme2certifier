@@ -34,6 +34,7 @@ from acme_srv.message import Message
 from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
 from acme_srv.certificate_manager import CertificateManager
 from acme_srv.certificate_repository import DatabaseCertificateRepository
+from acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
 
 
 # CertificateLogger moved from certificate_logger.py
@@ -1436,7 +1437,7 @@ class Certificate(object):
                 )
                 return (
                     self.err_msg_dic["unauthorized"],
-                    "Dry run mode - enrollment and certificate issuance skipped",
+                    DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
                 )
 
             # Process enrollment

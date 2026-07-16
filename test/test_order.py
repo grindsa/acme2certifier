@@ -249,26 +249,29 @@ class TestOrderRepository(unittest.TestCase):
 class TestOrderClass(unittest.TestCase):
     def test_021_process_csr_dryrun_skipped(self):
         # Covers: enroll_and_store returns dryrun skipped, triggers code=401, message=error, detail preserved
+        from acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
+
         with patch("acme_srv.helper.b64_url_recode", return_value="csrval"):
             self.order._get_order_info = MagicMock(return_value={"name": "order1"})
             cert_mock = MagicMock()
             cert_mock.store_csr.return_value = "cert1"
             cert_mock.enroll_and_store.return_value = (
                 "some_error",
-                "Dry run mode - enrollment skipped",
+                DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
             )
             with patch("acme_srv.order.Certificate") as cert_class:
                 cert_class.return_value.__enter__.return_value = cert_mock
                 with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                     result = self.order._process_csr("order1", "csr", "header")
                     self.assertEqual(
-                        result, (401, "some_error", "Dry run mode - enrollment skipped")
+                        result,
+                        (401, "some_error", DRYRUN_ENROLLMENT_SKIPPED_DETAIL),
                     )
                 self.assertIn(
                     "DEBUG:test_a2c:Order._process_csr(order1)", log_cm.output
                 )
                 self.assertIn(
-                    "DEBUG:test_a2c:Order._process_csr() ended with order:order1 401:{some_error:Dry run mode - enrollment skipped",
+                    f"DEBUG:test_a2c:Order._process_csr() ended with order:order1 401:{{some_error:{DRYRUN_ENROLLMENT_SKIPPED_DETAIL}",
                     log_cm.output,
                 )
 
@@ -2628,10 +2631,12 @@ class TestOrderClass(unittest.TestCase):
         self.assertEqual(updated_dic["profile"], "dryrun-profile")
 
     def test_165_finalize_csr_handles_dryrun_skipped(self):
-        # When detail is 'Dry run mode - enrollment skipped', message should be unauthorized error
+        # When detail is DRYRUN_ENROLLMENT_SKIPPED_DETAIL, message should be unauthorized error
+        from acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
+
         self.order._header_info_lookup = MagicMock(return_value={})
         self.order._process_csr = MagicMock(
-            return_value=(400, "certX", "Dry run mode - enrollment skipped")
+            return_value=(400, "certX", DRYRUN_ENROLLMENT_SKIPPED_DETAIL)
         )
         result = self.order._finalize_csr("order1", {"csr": "csrval"})
         self.assertEqual(
@@ -2639,7 +2644,7 @@ class TestOrderClass(unittest.TestCase):
             (
                 400,
                 "urn:ietf:params:acme:error:unauthorized",
-                "Dry run mode - enrollment skipped",
+                DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
                 "certX",
             ),
         )
