@@ -245,7 +245,7 @@ class Account:
         self.config = AccountConfiguration()
         self.err_msg_dic = error_dic_get(self.logger)
 
-    def __enter__(self) -> Account:
+    def __enter__(self):
         """Enter the context manager, loading configuration."""
         self._load_configuration()
         return self
