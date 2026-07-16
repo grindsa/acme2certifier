@@ -861,13 +861,13 @@ class TestOrderClass(unittest.TestCase):
                 result = self.order._add_order_and_authorizations(
                     data_dic, auth_dic, payload, error
                 )
-                self.assertIsNone(result)  # error is None, but DB error is logged
+                self.assertEqual(result, self.order.error_msg_dic["serverinternal"])
             self.assertIn(
                 "CRITICAL:test_a2c:Database error: failed to add authorization: fail",
                 log_cm.output,
             )
             self.assertIn(
-                "DEBUG:test_a2c:Order._add_order_and_authorizations() ended with None",
+                f"DEBUG:test_a2c:Order._add_order_and_authorizations() ended with {self.order.error_msg_dic['serverinternal']}",
                 log_cm.output,
             )
             mock_add_authz.assert_called_once()
@@ -2504,7 +2504,7 @@ class TestOrderClass(unittest.TestCase):
         auth_dic = {}
         with self.assertLogs("test_a2c", level="CRITICAL") as log_cm:
             error = self.order._add_authorizations_to_db(oid, payload, auth_dic)
-            self.assertIsNone(error)  # error is not set in DB error, just logged
+            self.assertEqual(error, self.order.error_msg_dic["serverinternal"])
         self.assertIn(
             "CRITICAL:test_a2c:Database error: failed to add authorization: fail",
             log_cm.output,

@@ -226,6 +226,8 @@ class Order(object):
                     self.logger.critical(
                         "Database error: failed to add authorization: %s", err_
                     )
+                    error = self.error_msg_dic["serverinternal"]
+                    break
         else:
             error = self.error_msg_dic["malformed"]
 
