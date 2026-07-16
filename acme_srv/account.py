@@ -753,7 +753,11 @@ class Account:
             ] = f'{self.server_name}{self.config.path_dic["acct_path"]}{message}'
 
             # add exernal account binding
-            if self.config.eab_check and "externalaccountbinding" in payload:
+            if (
+                self.config.eab_check
+                and payload
+                and "externalaccountbinding" in payload
+            ):
                 response_dic["data"]["externalaccountbinding"] = payload[
                     "externalaccountbinding"
                 ]

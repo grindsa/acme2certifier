@@ -1512,6 +1512,23 @@ class TestAccount(unittest.TestCase):
             self.assertIn("externalaccountbinding", result["data"])
             mock_prepare.assert_called_once()
 
+    def test_062b__build_response_200_eab_check_no_payload(self):
+        """test _build_response with eab_check and no payload (e.g. key rollover)"""
+        self.account.server_name = "http://tester.local"
+        self.account.config.path_dic = {"acct_path": "/acme/acct/"}
+        self.account.config.eab_check = True
+        with patch.object(
+            self.account.message,
+            "prepare_response",
+            side_effect=lambda response_dic, status_dic: response_dic,
+        ):
+            result = self.account._build_response(200, "test_account", None)
+        self.assertEqual(
+            result["header"]["Location"],
+            "http://tester.local/acme/acct/test_account",
+        )
+        self.assertNotIn("externalaccountbinding", result.get("data", {}))
+
     def test_063_parse_request_error(self):
         """test parse_request returns error response when message.check fails"""
         content = {"foo": "bar"}
