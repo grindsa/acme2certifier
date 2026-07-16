@@ -863,13 +863,13 @@ class Certificate(object):
 
     def _execute_pre_enrollment_hooks(
         self, certificate_name: str, order_name: str, csr: str
-    ) -> List[str]:
+    ) -> Optional[Tuple[Optional[str], str, str]]:
         self.logger.debug(
             "Certificate._execute_pre_enrollment_hooks(%s, %s)",
             certificate_name,
             order_name,
         )
-        hook_error = []
+        hook_error = None
         if self.hooks:
             try:
                 self.hooks.pre_hook(certificate_name, order_name, csr)
