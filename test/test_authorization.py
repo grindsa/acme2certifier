@@ -431,6 +431,45 @@ class TestAuthorizationBusinessLogic(unittest.TestCase):
         self.assertEqual(expires, 1000003600)  # 1000000000 + 3600
         mock_generate_string.assert_called_once_with(self.mock_logger, 32)
 
+    @patch("acme_srv.authorization.generate_random_string")
+    @patch("acme_srv.authorization.uts_now")
+    def test_028b_resolve_authorization_token_and_expiry_reuse(
+        self, mock_uts_now, mock_generate_string
+    ):
+        """Test resolve reuses existing authorization token and expiry"""
+        auth_record = {"token": "existing_token", "expires": 1234567890}
+
+        token, expires, persist = (
+            self.business_logic.resolve_authorization_token_and_expiry(auth_record)
+        )
+
+        self.assertEqual(token, "existing_token")
+        self.assertEqual(expires, 1234567890)
+        self.assertFalse(persist)
+        mock_generate_string.assert_not_called()
+        mock_uts_now.assert_not_called()
+
+    @patch("acme_srv.authorization.generate_random_string")
+    @patch("acme_srv.authorization.uts_now")
+    def test_028c_resolve_authorization_token_and_expiry_generate(
+        self, mock_uts_now, mock_generate_string
+    ):
+        """Test resolve generates token when authorization has none yet"""
+        mock_uts_now.return_value = 1000000000
+        mock_generate_string.return_value = "random_token"
+        self.config.validity = 3600
+
+        token, expires, persist = (
+            self.business_logic.resolve_authorization_token_and_expiry(
+                {"name": "authz1"}
+            )
+        )
+
+        self.assertEqual(token, "random_token")
+        self.assertEqual(expires, 1000003600)
+        self.assertTrue(persist)
+        mock_generate_string.assert_called_once_with(self.mock_logger, 32)
+
     def test_029_enrich_authorization_with_identifier_info_empty(self):
         """Test enrichment with empty auth info"""
         (
@@ -922,9 +961,10 @@ class TestAuthorization(unittest.TestCase):
         mock_business_logic.extract_authorization_name_from_url.return_value = (
             "test_authz"
         )
-        mock_business_logic.generate_authorization_token_and_expiry.return_value = (
+        mock_business_logic.resolve_authorization_token_and_expiry.return_value = (
             "token",
             1234567890,
+            True,
         )
         mock_business_logic.extract_identifier_info_for_challenge.return_value = (
             None,
@@ -952,6 +992,53 @@ class TestAuthorization(unittest.TestCase):
         )
 
     @patch("acme_srv.authorization.uts_to_date_utc")
+    def test_059b_get_authorization_details_reuses_existing_token(
+        self, mock_uts_to_date
+    ):
+        """Test get_authorization_details reuses stored token on subsequent fetch"""
+        mock_uts_to_date.return_value = "2021-01-01T00:00:00Z"
+
+        mock_repository = Mock()
+        mock_challenge_manager = Mock()
+
+        mock_repository.find_authorization_by_name.side_effect = [
+            {
+                "name": "test_authz",
+                "token": "existing_token",
+                "expires": 1234567890,
+            },
+            None,
+        ]
+        mock_challenge_manager.get_challenge_set_for_authorization.return_value = []
+
+        self.authorization.server_name = "http://example.com"
+        self.authorization.config.authz_path = "/authz/"
+        self.authorization.repository = mock_repository
+        self.authorization.challenge_manager = mock_challenge_manager
+
+        result = self.authorization.get_authorization_details(
+            "http://example.com/authz/test_authz"
+        )
+
+        expected = {
+            "expires": "2021-01-01T00:00:00Z",
+            "status": "pending",
+            "challenges": [],
+        }
+        self.assertEqual(result, expected)
+        mock_repository.update_authorization_expiry.assert_not_called()
+        mock_challenge_manager.get_challenge_set_for_authorization.assert_called_once_with(
+            "test_authz",
+            "pending",
+            "existing_token",
+            False,
+            1234567890,
+            None,
+            None,
+            False,
+        )
+
+    @patch("acme_srv.authorization.uts_to_date_utc")
     def test_060_get_authorization_details_success_with_details(self, mock_uts_to_date):
         """Test get_authorization_details with full details"""
         mock_uts_to_date.return_value = "2021-01-01T00:00:00Z"
@@ -969,9 +1056,10 @@ class TestAuthorization(unittest.TestCase):
         mock_business_logic.extract_authorization_name_from_url.return_value = (
             "test_authz"
         )
-        mock_business_logic.generate_authorization_token_and_expiry.return_value = (
+        mock_business_logic.resolve_authorization_token_and_expiry.return_value = (
             "token",
             1234567890,
+            True,
         )
         mock_business_logic.enrich_authorization_with_identifier_info.return_value = (
             {"status": "valid", "identifier": {"type": "dns", "value": "example.com"}},
@@ -1016,9 +1104,10 @@ class TestAuthorization(unittest.TestCase):
         mock_business_logic.extract_authorization_name_from_url.return_value = (
             "test_authz"
         )
-        mock_business_logic.generate_authorization_token_and_expiry.return_value = (
+        mock_business_logic.resolve_authorization_token_and_expiry.return_value = (
             "token",
             1234567890,
+            True,
         )
         mock_business_logic.extract_identifier_info_for_challenge.return_value = (
             "dns",
@@ -1071,9 +1160,10 @@ class TestAuthorization(unittest.TestCase):
         mock_business_logic.extract_authorization_name_from_url.return_value = (
             "test_authz"
         )
-        mock_business_logic.generate_authorization_token_and_expiry.return_value = (
+        mock_business_logic.resolve_authorization_token_and_expiry.return_value = (
             "token",
             1234567890,
+            True,
         )
         mock_business_logic.enrich_authorization_with_identifier_info.return_value = (
             {
@@ -1158,9 +1248,10 @@ class TestAuthorization(unittest.TestCase):
         mock_business_logic.extract_authorization_name_from_url.return_value = (
             "test_authz"
         )
-        mock_business_logic.generate_authorization_token_and_expiry.return_value = (
+        mock_business_logic.resolve_authorization_token_and_expiry.return_value = (
             "token",
             1234567890,
+            True,
         )
         mock_business_logic.enrich_authorization_with_identifier_info.return_value = (
             {
@@ -1233,9 +1324,10 @@ class TestAuthorization(unittest.TestCase):
         mock_business_logic.extract_authorization_name_from_url.return_value = (
             "test_authz"
         )
-        mock_business_logic.generate_authorization_token_and_expiry.return_value = (
+        mock_business_logic.resolve_authorization_token_and_expiry.return_value = (
             "token",
             1234567890,
+            True,
         )
         mock_business_logic.enrich_authorization_with_identifier_info.return_value = (
             {

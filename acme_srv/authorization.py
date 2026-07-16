@@ -285,6 +285,33 @@ class AuthorizationBusinessLogic:
         )
         return token, expires
 
+    def resolve_authorization_token_and_expiry(
+        self, auth_record: Optional[Dict[str, str]]
+    ) -> Tuple[str, int, bool]:
+        """Return token and expiry, persisting to DB only when no token exists yet."""
+        self.logger.debug(
+            "AuthorizationBusinessLogic.resolve_authorization_token_and_expiry()"
+        )
+
+        existing_token = auth_record.get("token") if auth_record else None
+        if isinstance(existing_token, str):
+            existing_token = existing_token.strip() or None
+
+        if existing_token:
+            expires = auth_record.get("expires")
+            if not expires:
+                expires = uts_now() + self.config.validity
+            self.logger.debug(
+                "AuthorizationBusinessLogic.resolve_authorization_token_and_expiry() reusing existing token"
+            )
+            return existing_token, expires, False
+
+        token, expires = self.generate_authorization_token_and_expiry()
+        self.logger.debug(
+            "AuthorizationBusinessLogic.resolve_authorization_token_and_expiry() generated new token"
+        )
+        return token, expires, True
+
     def enrich_authorization_with_identifier_info(
         self, auth_db_info: Dict[str, str]
     ) -> Tuple[Dict[str, str], bool]:
@@ -642,15 +669,18 @@ class Authorization(object):
         self.logger.debug("Authorization name: %s", authz_name)
 
         # Check if authorization exists
-        authz = self.repository.find_authorization_by_name(authz_name)
+        authz = self.repository.find_authorization_by_name(
+            authz_name, ["name", "token", "expires"]
+        )
         if not authz:
             self.logger.debug("Authorization not found: %s", authz_name)
             return {}
 
-        # Generate new token and expiry
-        token, expires = self.business_logic.generate_authorization_token_and_expiry()
-        # Update authorization with new expiry and token (if there is no token yet)
-        self.repository.update_authorization_expiry(authz_name, token, expires)
+        token, expires, persist_token = (
+            self.business_logic.resolve_authorization_token_and_expiry(authz)
+        )
+        if persist_token:
+            self.repository.update_authorization_expiry(authz_name, token, expires)
 
         # Create base authorization info
         authz_info = {
