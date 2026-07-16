@@ -1897,6 +1897,26 @@ class TestAuthorization(unittest.TestCase):
         # Clean up
         domain_utils.is_domain_whitelisted = orig_is_domain_whitelisted
 
+    def test_087b_apply_prevalidation_whitelist_missing_id_value(self):
+        """Test _apply_prevalidation_whitelist skips email branch when id_value is None."""
+        self.authorization.config.email_identifier_rewrite = True
+        self.authorization.config.prevalidated_emaillist = ["user@example.com"]
+        self.authorization.repository = Mock()
+
+        authz_info = {"status": "pending"}
+        self.authorization._apply_prevalidation_whitelist(
+            "authz1", {}, "email", None, authz_info
+        )
+
+        self.assertEqual(authz_info["status"], "pending")
+        self.authorization.repository.mark_authorization_as_valid.assert_not_called()
+
+        self.authorization._apply_prevalidation_whitelist(
+            "authz2", {}, "dns", None, {"status": "pending"}
+        )
+
+        self.authorization.repository.mark_authorization_as_valid.assert_not_called()
+
     def test_088_handle_domain_prevalidation_wildcard_identifier_matches_policy(self):
         """Wildcard identifiers normalized to base domain should still match wildcard whitelist entries."""
         self.authorization.config.prevalidated_domainlist = ["*.bar.local"]
