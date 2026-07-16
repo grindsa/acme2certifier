@@ -785,9 +785,13 @@ class Authorization(object):
             id_value,
         )
         if (
-            (id_type == "dns" and self.config.email_identifier_rewrite)
-            or id_type == "email"
-        ) and "@" in id_value:
+            id_value
+            and (
+                (id_type == "dns" and self.config.email_identifier_rewrite)
+                or id_type == "email"
+            )
+            and "@" in id_value
+        ):
             self._handle_email_prevalidation(
                 authz_name, auth_details, id_value, authz_info
             )
