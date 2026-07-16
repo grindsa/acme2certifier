@@ -1005,7 +1005,7 @@ class Authorization(object):
             )
         except AuthorizationError as err:
             self.logger.warning("Failed to search for expired authorizations: %s", err)
-            return field_list, []
+            return [], []
 
         # Process expired authorizations
         expired_output = []

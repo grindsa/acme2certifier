@@ -1428,6 +1428,7 @@ class TestAuthorization(unittest.TestCase):
 
         field_list, output_list = self.authorization.expire_invalid_authorizations()
 
+        self.assertEqual(field_list, [])
         self.assertEqual(len(output_list), 0)
         # Check that warning was called with the right pattern and message
         self.assertTrue(self.mock_logger.warning.called)
