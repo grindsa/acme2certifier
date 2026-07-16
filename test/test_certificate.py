@@ -3035,6 +3035,8 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.dryrun = True
         self.cert.err_msg_dic["unauthorized"] = "unauthorized"
         # Patch dependencies so validation passes
+        from acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
+
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value=None),
             patch.object(self.cert, "_validate_csr_against_order", return_value=True),
@@ -3051,7 +3053,7 @@ class TestCertificate(unittest.TestCase):
             result,
             (
                 "unauthorized",
-                "Dry run mode - enrollment and certificate issuance skipped",
+                DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
             ),
         )
 
