@@ -211,7 +211,7 @@ class TestACMEHandler(unittest.TestCase):
         environ = {"foo": "bar", "wsgi.input": StringIO("""foo""")}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.authz(environ, Mock()),
         )
@@ -466,7 +466,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_new.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.newaccount(environ, Mock()),
         )
@@ -484,7 +484,7 @@ class TestACMEHandler(unittest.TestCase):
         environ = {"REMOTE_ADDR": "REMOTE_ADDR", "PATH_INFO": "PATH_INFO"}
         mock_get.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
-            [b'{"code": 200, "data": "data"}'], self.directory(environ, Mock())
+            [b'{\n  "code": 200,\n  "data": "data"\n}'], self.directory(environ, Mock())
         )
         self.assertFalse(mock_body.called)
         self.assertTrue(mock_get.called)
@@ -500,7 +500,7 @@ class TestACMEHandler(unittest.TestCase):
         environ = {"REMOTE_ADDR": "REMOTE_ADDR", "PATH_INFO": "PATH_INFO"}
         mock_get.return_value = {"code": 500, "error": "error"}
         self.assertEqual(
-            [b'{"status": 403, "message": "Forbidden", "detail": "error"}'],
+            [b'{\n  "status": 403,\n  "message": "Forbidden",\n  "detail": "error"\n}'],
             self.directory(environ, Mock()),
         )
         self.assertFalse(mock_body.called)
@@ -524,7 +524,7 @@ class TestACMEHandler(unittest.TestCase):
         # mock_post.return_value = {'code': 200, 'data': 'data'}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.cert(environ, Mock()),
         )
@@ -592,7 +592,7 @@ class TestACMEHandler(unittest.TestCase):
         # mock_post.return_value = {'code': 200, 'data': 'data'}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.chall(environ, Mock()),
         )
@@ -678,7 +678,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.neworders(environ, Mock()),
         )
@@ -727,7 +727,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_gen.return_value = "foo"
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected HEAD or GET."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected HEAD or GET."\n}'
             ],
             self.newnonce(environ, Mock()),
         )
@@ -767,7 +767,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.order(environ, Mock()),
         )
@@ -829,7 +829,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.revokecert(environ, Mock()),
         )
@@ -891,7 +891,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.trigger(environ, Mock()),
         )
@@ -908,7 +908,7 @@ class TestACMEHandler(unittest.TestCase):
             "PATH_INFO": "PATH_INFO",
         }
         self.assertEqual(
-            [b'{"status": 404, "message": "Not Found", "detail": "Not Found"}'],
+            [b'{\n  "status": 404,\n  "message": "Not Found",\n  "detail": "Not Found"\n}'],
             self.not_found(environ, Mock()),
         )
 
@@ -1022,7 +1022,7 @@ class TestACMEHandler(unittest.TestCase):
         mock_post.return_value = {"code": 200, "data": "data"}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.housekeeping(environ, Mock()),
         )
@@ -1065,7 +1065,7 @@ class TestACMEHandler(unittest.TestCase):
         # mock_post.return_value = {'code': 200, 'data': 'data'}
         self.assertEqual(
             [
-                b'{"status": 405, "message": "Method Not Allowed", "detail": "Wrong request type. Expected POST."}'
+                b'{\n  "status": 405,\n  "message": "Method Not Allowed",\n  "detail": "Wrong request type. Expected POST."\n}'
             ],
             self.renewalinfo(environ, Mock()),
         )
