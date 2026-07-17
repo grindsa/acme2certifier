@@ -386,7 +386,7 @@ class Order(object):
                     eab_kid,
                     "ca_error_details_forward",
                     self.config.ca_error_details_forward,
-                    section="cahandler"
+                    section="cahandler",
                 )
 
                 eab_profile_dic = self._load_eab_profile_mapping(profile_dic, eab_kid)
@@ -492,7 +492,9 @@ class Order(object):
         self.logger.debug("Order.create_order() ended")
         return (error, detail, order_name, auth_dic, uts_to_date_utc(expires))
 
-    def _load_eab_profile_param(self, profile_dic, eab_kid, param_name, default=None, section="order"):
+    def _load_eab_profile_param(
+        self, profile_dic, eab_kid, param_name, default=None, section="order"
+    ):
         """Helper to load allowed_iplist or allowed_domainlist from EAB profile."""
         profile_entry = profile_dic.get(eab_kid, {})
         order_cfg = profile_entry.get(section, {})
@@ -501,7 +503,8 @@ class Order(object):
         if param_name in order_cfg:
             value = order_cfg.get(param_name)
             self.logger.debug(
-                "Order._load_eab_profile_param() - apply %s from eab profile.", param_name
+                "Order._load_eab_profile_param() - apply %s from eab profile.",
+                param_name,
             )
             return value
 
@@ -516,7 +519,8 @@ class Order(object):
                         param_name,
                     )
                 self.logger.debug(
-                    "Order._load_eab_profile_param() - apply %s from eab profile.", param_name
+                    "Order._load_eab_profile_param() - apply %s from eab profile.",
+                    param_name,
                 )
                 return value
 
@@ -1278,7 +1282,9 @@ class Order(object):
                     "CSR processing failed",
                 )
 
-            error, detail = certificate.enroll_and_store(certificate_name, csr, order_name)
+            error, detail = certificate.enroll_and_store(
+                certificate_name, csr, order_name
+            )
             return self._map_csr_enrollment_result(certificate_name, error, detail)
 
     def _process_csr(

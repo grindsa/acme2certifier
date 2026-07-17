@@ -1705,7 +1705,12 @@ class TestOrderClass(unittest.TestCase):
             result = self.order._finalize_csr("order1", {"csr": "csrval"})
             self.assertEqual(
                 result,
-                (500, "urn:ietf:params:acme:error:serverInternal", "ca_detail", "urn:ietf:params:acme:error:serverInternal"),
+                (
+                    500,
+                    "urn:ietf:params:acme:error:serverInternal",
+                    "ca_detail",
+                    "urn:ietf:params:acme:error:serverInternal",
+                ),
             )
             self.order.repository.order_update.assert_not_called()
         self.assertIn("DEBUG:test_a2c:Order._finalize_csr(order1)", log_cm.output)

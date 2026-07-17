@@ -45,7 +45,8 @@ WRT_ERROR_MSG = json.dumps(
         "status": 405,
         "message": HTTP_CODE_DIC[405],
         "detail": "Wrong request type. Expected POST.",
-    }
+    },
+    indent=2,
 ).encode("utf-8")
 CONTENT_TYPE_JSON = "application/json"
 WSGI_INPUT = "wsgi.input"
@@ -133,7 +134,7 @@ def acct(environ, start_response):
         start_response(
             f'{response_dic["code"]} {HTTP_CODE_DIC[response_dic["code"]]}', headers
         )
-        return [json.dumps(response_dic["data"]).encode("utf-8")]
+        return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
 
 
 def acmechallenge_serve(environ, start_response):
@@ -174,7 +175,7 @@ def authz(environ, start_response):
             logger_info(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
-            return [json.dumps(response_dic["data"]).encode("utf-8")]
+            return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
     else:
         err_wrong_request_method(start_response)
         return [WRT_ERROR_MSG]
@@ -198,7 +199,7 @@ def newaccount(environ, start_response):
             logger_info(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
-            return [json.dumps(response_dic["data"]).encode("utf-8")]
+            return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
 
     else:
         err_wrong_request_method(start_response)
@@ -219,7 +220,8 @@ def directory(environ, start_response):
                         "status": 403,
                         "message": HTTP_CODE_DIC[403],
                         "detail": response_dic["error"],
-                    }
+                    },
+                    indent=2,
                 ).encode("utf-8")
             ]
         else:
@@ -227,7 +229,7 @@ def directory(environ, start_response):
             start_response("200 OK", headers)
             # logging
             logger_info(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], "")
-            return [json.dumps(response_dic).encode("utf-8")]
+            return [json.dumps(response_dic, indent=2).encode("utf-8")]
 
 
 def cert(environ, start_response):
@@ -293,7 +295,7 @@ def chall(environ, start_response):
             logger_info(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
-            return [json.dumps(response_dic["data"]).encode("utf-8")]
+            return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
 
         elif environ["REQUEST_METHOD"] == "GET":
 
@@ -311,7 +313,7 @@ def chall(environ, start_response):
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             # send response
-            return [json.dumps(response_dic["data"]).encode("utf-8")]
+            return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
 
         else:
             err_wrong_request_method(start_response)
@@ -339,7 +341,8 @@ def newnonce(environ, start_response):
                     "status": 405,
                     "message": HTTP_CODE_DIC[405],
                     "detail": "Wrong request type. Expected HEAD or GET.",
-                }
+                },
+                indent=2,
             ).encode("utf-8")
         ]
 
@@ -361,7 +364,7 @@ def neworders(environ, start_response):
             logger_info(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
-            return [json.dumps(response_dic["data"]).encode("utf-8")]
+            return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
 
     else:
         err_wrong_request_method(start_response)
@@ -385,7 +388,7 @@ def order(environ, start_response):
             logger_info(
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
-            return [json.dumps(response_dic["data"]).encode("utf-8")]
+            return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
 
     else:
         err_wrong_request_method(start_response)
@@ -427,7 +430,7 @@ def renewalinfo(environ, start_response):
 
             # send response
             if "data" in response_dic:
-                return [json.dumps(response_dic["data"]).encode("utf-8")]
+                return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
             else:
                 return []
 
@@ -454,7 +457,7 @@ def revokecert(environ, start_response):
                 LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], response_dic
             )
             if "data" in response_dic:
-                return [json.dumps(response_dic["data"]).encode("utf-8")]
+                return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
             else:
                 return []
     else:
@@ -481,7 +484,7 @@ def trigger(environ, start_response):
             )
 
             if "data" in response_dic:
-                return [json.dumps(response_dic["data"]).encode("utf-8")]
+                return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
             else:
                 return []
     else:
@@ -506,7 +509,7 @@ def housekeeping(environ, start_response):
             logger_info(LOGGER, environ["REMOTE_ADDR"], environ["PATH_INFO"], "****")
 
             if "data" in response_dic:
-                return [json.dumps(response_dic["data"]).encode("utf-8")]
+                return [json.dumps(response_dic["data"], indent=2).encode("utf-8")]
             else:
                 return []
     else:
@@ -519,7 +522,8 @@ def not_found(_environ, start_response):
     start_response("404 NOT FOUND", [("Content-Type", "text/plain")])
     return [
         json.dumps(
-            {"status": 404, "message": HTTP_CODE_DIC[404], "detail": "Not Found"}
+            {"status": 404, "message": HTTP_CODE_DIC[404], "detail": "Not Found"},
+            indent=2,
         ).encode("utf-8")
     ]
 
