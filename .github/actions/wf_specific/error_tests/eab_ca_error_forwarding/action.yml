@@ -1,0 +1,103 @@
+name: "global_ca_error_forwarding"
+description: "EEnroll certificate without error forwarding - to fail"
+inputs:
+  NAME_SPACE:
+    description: "namespace"
+    required: false
+    default: "acme"
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: false
+    default: "container"
+  ACME_SERVER:
+    description: "ACME server hostname"
+    required: false
+    default: "acme-srv"
+  HTTP_PORT:
+    description: "ACME server HTTP port"
+    required: false
+    default: "80"
+  HTTPS_PORT:
+    description: "ACME server HTTPS port"
+    required: false
+    default: "443"
+  CA_ERROR_FORWARDING:
+    description: "Enable CA error forwarding"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+
+    - name: "Sleep for 5s"
+      uses: juliangruber/sleep-action@v2.0.4
+      with:
+        time: 5s
+
+    - name: "Test if http://acme-srv/directory is accessible"
+      run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://$ACME_SERVER:$HTTP_PORT/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Test if https://acme-srv/directory is accessible"
+      run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SERVER:$HTTPS_PORT/directory
+      shell: bash
+      env:
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTP_PORT: ${{ inputs.HTTP_PORT }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Enroll certificate without error forwarding - to fail"
+      continue-on-error: true
+      run: |
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE --name acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER --accountemail 'acme-sh@example.com' --eab-kid keyid_01 --eab-hmac-key YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg -d acme-sh.$NAME_SPACE --alpn --standalone --debug 1 --output-insecure --insecure
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+      shell: bash
+
+    - name: "Check a2c logs"
+      working-directory: examples/Docker/
+      if: ${{ inputs.CA_ERROR_FORWARDING == 'false'}}
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          docker compose logs | grep "enrollment failed"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "enrollment failed"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+
+    - name: "Enroll certificate without error forwarding - to fail"
+      continue-on-error: true
+      run: |
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE --name acme-sh neilpang/acme.sh:latest --issue --server http://$ACME_SERVER --accountemail 'acme-sh@example.com' --eab-kid keyid_00 --eab-hmac-key V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw -d acme-sh.$NAME_SPACE --alpn --standalone --debug 1 --output-insecure --insecure
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
+      shell: bash
+
+    - name: "Check a2c logs"
+      working-directory: examples/Docker/
+      run: |
+        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
+          docker compose logs | grep "ca lookup failed"
+          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
+        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
+          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "ca lookup failed"
+        fi
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
