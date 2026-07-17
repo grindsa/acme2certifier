@@ -27,7 +27,7 @@ class JsonResponse(HttpResponse):
                 "safe parameter to False."
             )
         if json_dumps_params is None:
-            json_dumps_params = {}
+            json_dumps_params = {"indent": 2}
 
         if "status" in kwargs and kwargs["status"] > 201:
             kwargs.setdefault("content_type", "application/problem+json")

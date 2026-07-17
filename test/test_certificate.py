@@ -2632,9 +2632,7 @@ class TestCertificate(unittest.TestCase):
             )
             mock_update.assert_called_with({"name": "order1", "status": "invalid"})
             mock_store.assert_called_with("cert1", "some_error", None)
-            self.assertEqual(
-                result, (None, "serverinternal", ENROLLMENT_FAILED_DETAIL)
-            )
+            self.assertEqual(result, (None, "serverinternal", ENROLLMENT_FAILED_DETAIL))
 
     def test_188_handle_enrollment_error_with_poll_identifier(self):
         # Covers branch where poll_identifier is set
@@ -2721,9 +2719,7 @@ class TestCertificate(unittest.TestCase):
                 "upstream CAA policy rejected", None, "order1", "cert1"
             )
             mock_update.assert_called_with({"name": "order1", "status": "invalid"})
-            mock_store.assert_called_with(
-                "cert1", "upstream CAA policy rejected", None
-            )
+            mock_store.assert_called_with("cert1", "upstream CAA policy rejected", None)
             self.assertEqual(
                 result,
                 (None, "serverinternal", "upstream CAA policy rejected"),

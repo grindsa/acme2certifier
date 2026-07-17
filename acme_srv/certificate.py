@@ -253,6 +253,7 @@ class CertificateConfiguration:
     ignore_success_hook_failure: bool = False
     ca_error_details_forward: bool = False
 
+
 class Certificate(object):
     """CA  handler"""
 
