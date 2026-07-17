@@ -7,6 +7,7 @@ from __future__ import print_function
 import os
 import sys
 import json
+from datetime import datetime, timezone
 from typing import List, Tuple, Dict
 
 
@@ -587,6 +588,24 @@ class DBstore(object):
         in: nonce"""
         self.logger.debug("DBStore.nonce_delete(%s)", nonce)
         Nonce.objects.filter(nonce=nonce).delete()
+
+    def nonce_delete_bulk(self, nonce_list: List[str]) -> int:
+        """Delete a list of nonces in a single cleanup run."""
+        self.logger.debug(
+            "DBStore.nonce_delete_bulk with %s entries", len(nonce_list))
+        if not nonce_list:
+            return 0
+        result, _ = Nonce.objects.filter(nonce__in=nonce_list).delete()
+        return result
+
+    def nonce_search_by_timestamp(self, timestamp: int) -> List[str]:
+        """search nonce table for a certain timestamp"""
+        dt = datetime.fromtimestamp(timestamp, tz=timezone.utc)
+        self.logger.debug("DBStore.nonce_search_by_timestamp(%s)", timestamp)
+        nonce_list = Nonce.objects.filter(created_at__lte=dt).values_list(
+            "nonce", flat=True
+        )
+        return list(nonce_list)
 
     def order_add(self, data_dic: Dict[str, str]) -> int:
         """add order to database"""
