@@ -26,6 +26,10 @@ from acme_srv.helper import (
 )
 from acme_srv.certificate import Certificate
 from acme_srv.db_handler import DBstore
+from acme_srv.helpers.global_variables import (
+    DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
+    ENROLLMENT_FAILED_DETAIL,
+)
 from acme_srv.message import Message
 
 
@@ -76,9 +80,11 @@ class OrderRepository:
             )
             raise OrderDatabaseError(f"Failed to update authorization: {err}") from err
 
-    def order_lookup(self, key, value):
+    def order_lookup(self, key, value, vlist=None):
         """Look up an order in the database."""
         try:
+            if vlist:
+                return self.dbstore.order_lookup(key, value, vlist)
             return self.dbstore.order_lookup(key, value)
         except Exception as err:
             self.logger.critical("Database error: failed to look up order: %s", err)
@@ -1060,6 +1066,22 @@ class Order(object):
             result = None
         return result
 
+    def _get_order_account_name(self, order_name: str) -> Optional[str]:
+        """Lookup account name for an order (needed for EAB profile at finalize)."""
+        self.logger.debug("Order._get_order_account_name(%s)", order_name)
+        try:
+            order_dic = self.repository.order_lookup(
+                "name", order_name, vlist=["account__name"]
+            )
+        except Exception as err_:
+            self.logger.critical(
+                "Database error: failed to look up order account: %s", err_
+            )
+            return None
+        if not order_dic:
+            return None
+        return order_dic.get("account__name") or order_dic.get("account")
+
     def _header_info_lookup(self, header: Optional[Dict[str, Any]]) -> str:
         """lookup header information and serialize them in a string"""
         self.logger.debug("Order._header_info_lookup()")
@@ -1109,8 +1131,8 @@ class Order(object):
             message = "urn:ietf:params:acme:error:unauthorized"
         else:
             message = certificate_name
-            if not (self.config.ca_error_details_forward and detail):
-                detail = "enrollment failed"
+            if not detail:
+                detail = ENROLLMENT_FAILED_DETAIL
 
         self.logger.debug("Order._finalize_csr() ended")
         return (code, message, detail, certificate_name)
@@ -1211,6 +1233,52 @@ class Order(object):
         )
         return (code, message, detail, certificate_name)
 
+    def _apply_finalize_eab_profile(self, order_name: str) -> None:
+        """Apply EAB profile for finalize flow when enabled."""
+        if not (self.config.eab_profiling and self.config.eab_handler):
+            return
+
+        account_name = self._get_order_account_name(order_name)
+        if account_name:
+            self._apply_eab_profile(account_name)
+
+    def _map_csr_enrollment_result(
+        self, certificate_name: str, error: str, detail: str
+    ) -> Tuple[int, str, str]:
+        """Map CA enrollment result to ACME response tuple."""
+        if (
+            error == "urn:ietf:params:acme:error:rejectedIdentifier"
+            or detail == DRYRUN_ENROLLMENT_SKIPPED_DETAIL
+        ):
+            return 401, error, detail
+
+        if not error:
+            return 200, certificate_name, detail
+
+        if error == self.error_msg_dic["serverinternal"]:
+            return 500, error, detail
+
+        return 400, error, detail
+
+    def _enroll_certificate_for_order(
+        self, order_name: str, csr: str, header_info: str
+    ) -> Tuple[int, str, str]:
+        """Store CSR and perform enrollment for an order."""
+        with Certificate(self.debug, self.server_name, self.logger) as certificate:
+            certificate.config.ca_error_details_forward = (
+                self.config.ca_error_details_forward
+            )
+            certificate_name = certificate.store_csr(order_name, csr, header_info)
+            if not certificate_name:
+                return (
+                    500,
+                    self.error_msg_dic["serverinternal"],
+                    "CSR processing failed",
+                )
+
+            error, detail = certificate.enroll_and_store(certificate_name, csr, order_name)
+            return self._map_csr_enrollment_result(certificate_name, error, detail)
+
     def _process_csr(
         self, order_name: str, csr: str, header_info: str
     ) -> Tuple[int, str, str]:
@@ -1218,38 +1286,16 @@ class Order(object):
         self.logger.debug("Order._process_csr(%s)", order_name)
 
         order_dic = self._get_order_info(order_name)
-        if order_dic:
-            # change decoding from b64url to b64
-            csr = b64_url_recode(self.logger, csr)
-
-            with Certificate(self.debug, self.server_name, self.logger) as certificate:
-                certificate_name = certificate.store_csr(order_name, csr, header_info)
-                if certificate_name:
-                    error, detail = certificate.enroll_and_store(
-                        certificate_name, csr, order_name
-                    )
-                    if (
-                        error == "urn:ietf:params:acme:error:rejectedIdentifier"
-                        or detail in ["Dry run mode - enrollment skipped"]
-                    ):
-                        code = 401
-                        message = error
-                    elif not error:
-                        code = 200
-                        message = certificate_name
-                    else:
-                        code = 400
-                        message = error
-                        if message == self.error_msg_dic["serverinternal"]:
-                            code = 500
-                else:
-                    code = 500
-                    message = self.error_msg_dic["serverinternal"]
-                    detail = "CSR processing failed"
-        else:
+        if not order_dic:
             code = 400
             message = self.error_msg_dic["unauthorized"]
             detail = f"order: {order_name} not found"
+        else:
+            self._apply_finalize_eab_profile(order_name)
+            csr = b64_url_recode(self.logger, csr)
+            code, message, detail = self._enroll_certificate_for_order(
+                order_name, csr, header_info
+            )
 
         self.logger.debug(
             "Order._process_csr() ended with order:%s %s:{%s:%s",
