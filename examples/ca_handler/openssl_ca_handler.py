@@ -921,7 +921,10 @@ class CAhandler(object):
                     "Certificate enrollment failed due to exception: %s", err
                 )
                 error = "Unknown exception"
-
+        error = 'foo'  # This line seems to be a placeholder or a mistake, as it overwrites the previous error handling.
+        cert_bundle = None
+        cert_raw = None
+        print("##### Enrollment process completed with error:", error)
         self.logger.debug("CAhandler.enroll() ended")
         return (error, cert_bundle, cert_raw, None)
 
