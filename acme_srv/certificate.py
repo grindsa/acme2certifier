@@ -247,7 +247,7 @@ class CertificateConfiguration:
     ignore_pre_hook_failure: bool = False
     ignore_post_hook_failure: bool = True
     ignore_success_hook_failure: bool = False
-
+    ca_error_details_forward: bool = False
 
 class Certificate(object):
     """CA  handler"""
@@ -571,6 +571,10 @@ class Certificate(object):
                 )
                 self.config.cn2san_add = True
 
+            self.config.ca_error_details_forward = config_dic.getboolean(
+                "CAhandler", "ca_error_details_forward", fallback=False
+            )
+
         # Directory section
         if "Directory" in config_dic and "url_prefix" in config_dic["Directory"]:
             self.path_dic = {
@@ -853,6 +857,9 @@ class Certificate(object):
         elif error == "Either CN or SANs are not allowed by configuration":
             error = self.err_msg_dic["rejectedidentifier"]
             detail = "CN or SANs are not allowed by configuration"
+        elif error and self.config.ca_error_details_forward:
+            detail = error
+            error = self.err_msg_dic["serverinternal"]
         else:
             error = self.err_msg_dic["serverinternal"]
         self.logger.debug(

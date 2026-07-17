@@ -1678,23 +1678,34 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn("DEBUG:test_a2c:Order._finalize_csr() ended", log_cm.output)
 
     def test_109_finalize_csr_else_branch_preserves_ca_detail(self):
-        # Else branch: the CA handler's real failure detail is preserved and
-        # reaches the client instead of being replaced by a generic string.
-
+        #  CA handler's real failure detail gets forwarded as config.ca_error_details_forward is True
+        self.order.config.ca_error_details_forward = True
         self.order.repository.order_update = MagicMock()
         self.order._header_info_lookup = MagicMock(return_value={})
-        self.order._process_csr = MagicMock(return_value=(400, "error", "d"))
+        self.order._process_csr = MagicMock(return_value=(400, "error", "ca_detail"))
         with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
             result = self.order._finalize_csr("order1", {"csr": "csrval"})
-            self.assertEqual(result, (400, "error", "d", "error"))
+            self.assertEqual(result, (400, "error", "ca_detail", "error"))
             self.order.repository.order_update.assert_not_called()
         self.assertIn("DEBUG:test_a2c:Order._finalize_csr(order1)", log_cm.output)
         self.assertIn("DEBUG:test_a2c:Order._finalize_csr() ended", log_cm.output)
 
-    def test_109a_finalize_csr_else_branch_generic_fallback(self):
-        # Else branch: fall back to the generic detail only when the handler
-        # provided none.
+    def test_109a_finalize_csr_else_branch_overwrite_ca_error(self):
+        # CA handler's real failure detail gets overwritten with generic fallback
+        self.order.repository.order_update = MagicMock()
+        self.order._header_info_lookup = MagicMock(return_value={})
+        self.order._process_csr = MagicMock(return_value=(400, "error", "ca_detail"))
+        with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
+            result = self.order._finalize_csr("order1", {"csr": "csrval"})
+            self.assertEqual(result, (400, "error", "enrollment failed", "error"))
+            self.order.repository.order_update.assert_not_called()
+        self.assertIn("DEBUG:test_a2c:Order._finalize_csr(order1)", log_cm.output)
+        self.assertIn("DEBUG:test_a2c:Order._finalize_csr() ended", log_cm.output)
 
+    def test_109b_finalize_csr_else_branch_generic_fallback(self):
+        # back to the generic detail only when the handler
+        # provided none.
+        self.order.config.ca_error_details_forward = True
         self.order.repository.order_update = MagicMock()
         self.order._header_info_lookup = MagicMock(return_value={})
         self.order._process_csr = MagicMock(return_value=(400, "error", None))

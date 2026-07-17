@@ -168,6 +168,7 @@ class OrderConfiguration:
     profile_mapping_field: Optional[str] = None
     dryrun_profilename: Optional[str] = None
     wildcard_certificate_disable: bool = False
+    ca_error_details_forward: bool = False
 
 
 class Order(object):
@@ -372,6 +373,13 @@ class Order(object):
                     "wildcard_certificate_disable",
                     self.config.wildcard_certificate_disable,
                 )
+                self.config.ca_error_details_forward = self._load_eab_profile_param(
+                    profile_dic,
+                    eab_kid,
+                    "ca_error_details_forward",
+                    self.config.ca_error_details_forward,
+                    section="cahandler"
+                )
 
                 eab_profile_dic = self._load_eab_profile_mapping(profile_dic, eab_kid)
                 self._apply_eab_profile_mapping(account_name, eab_profile_dic)
@@ -476,32 +484,33 @@ class Order(object):
         self.logger.debug("Order.create_order() ended")
         return (error, detail, order_name, auth_dic, uts_to_date_utc(expires))
 
-    def _load_eab_profile_param(self, profile_dic, eab_kid, param_name, default=None):
+    def _load_eab_profile_param(self, profile_dic, eab_kid, param_name, default=None, section="order"):
         """Helper to load allowed_iplist or allowed_domainlist from EAB profile."""
         profile_entry = profile_dic.get(eab_kid, {})
-        order_cfg = profile_entry.get("order", {})
+        order_cfg = profile_entry.get(section, {})
 
         # Prefer order section and honor explicit falsy values like False or []
         if param_name in order_cfg:
             value = order_cfg.get(param_name)
             self.logger.debug(
-                "Order._apply_eab_profile() - apply %s from eab profile.", param_name
+                "Order._load_eab_profile_param() - apply %s from eab profile.", param_name
             )
             return value
 
         # Backward compatibility for deprecated cahandler section
-        cahandler_cfg = profile_entry.get("cahandler", {})
-        if param_name in cahandler_cfg:
-            value = cahandler_cfg.get(param_name)
-            if param_name != self.config.profile_mapping_field:
-                self.logger.warning(
-                    "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
-                    param_name,
+        if section == "order":
+            cahandler_cfg = profile_entry.get("cahandler", {})
+            if param_name in cahandler_cfg:
+                value = cahandler_cfg.get(param_name)
+                if param_name != self.config.profile_mapping_field:
+                    self.logger.warning(
+                        "%s parameter found in cahandler section of the eab-profile - this is deprecated, please use the order section",
+                        param_name,
+                    )
+                self.logger.debug(
+                    "Order._load_eab_profile_param() - apply %s from eab profile.", param_name
                 )
-            self.logger.debug(
-                "Order._apply_eab_profile() - apply %s from eab profile.", param_name
-            )
-            return value
+                return value
 
         return default
 
@@ -546,6 +555,10 @@ class Order(object):
             self.config.wildcard_certificate_disable = config_dic.getboolean(
                 "Order", "wildcard_certificate_disable", fallback=False
             )
+            self.config.ca_error_details_forward = config_dic.getboolean(
+                "CAhandler", "ca_error_details_forward", fallback=False
+            )
+
             try:
                 self.config.retry_after = int(
                     config_dic.get(
@@ -1080,6 +1093,7 @@ class Order(object):
         code, certificate_name, detail = self._process_csr(
             order_name, payload["csr"], header_info
         )
+
         # change status only if we do not have a poll_identifier (stored in detail variable)
         if code == 200:
             if not detail:
@@ -1095,10 +1109,7 @@ class Order(object):
             message = "urn:ietf:params:acme:error:unauthorized"
         else:
             message = certificate_name
-            # Preserve the CA handler's real failure detail (e.g. the upstream
-            # ACME server's problem "detail") so it reaches the client; only fall
-            # back to the generic string when the handler provided none.
-            if not detail:
+            if not (self.config.ca_error_details_forward and detail):
                 detail = "enrollment failed"
 
         self.logger.debug("Order._finalize_csr() ended")
