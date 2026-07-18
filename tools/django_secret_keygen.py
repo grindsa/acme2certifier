@@ -1,7 +1,13 @@
-#!/usr/bin/python3
-"""secret key generator for django project"""
+"""Temporary compatibility layer.
 
-# pylint: disable=E0401
-from django.core.management.utils import get_random_secret_key
+Real implementation: acme2certifier.tools
+Do not add logic here.
+"""
+import runpy
+import sys
 
-print(get_random_secret_key())  # lgtm [py/clear-text-logging-sensitive-data]
+if __name__ == "__main__":
+    runpy.run_module("acme2certifier.tools.django_secret_keygen", run_name="__main__")
+else:
+    from acme2certifier.tools import django_secret_keygen as _impl
+    sys.modules[__name__] = _impl

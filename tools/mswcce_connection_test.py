@@ -1,27 +1,13 @@
-#!/usr/bin/python3
-# -*- coding: utf-8 -*-
-"""CA handler for Microsoft Windows Client Certificate Enrollment Protocol (MS-WCCE)"""
+"""Temporary compatibility layer.
 
-from __future__ import print_function
+Real implementation: acme2certifier.tools
+Do not add logic here.
+"""
+import runpy
 import sys
-import os
-
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
-)
-sys.path.append(
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)
-    )
-)
-# pylint: disable=E0401, E0611, C0209, C0413
-from acme_srv.helper import logger_setup  # nopep8
-from examples.ca_handler.mswcce_ca_handler import CAhandler  # nopep8
 
 if __name__ == "__main__":
-
-    # initialize logger
-    LOGGER = logger_setup(True)
-
-    with CAhandler(True, LOGGER) as ca_handler:
-        request = ca_handler.request_create()
+    runpy.run_module("acme2certifier.tools.mswcce_connection_test", run_name="__main__")
+else:
+    from acme2certifier.tools import mswcce_connection_test as _impl
+    sys.modules[__name__] = _impl

@@ -132,6 +132,31 @@ setup(
             "/var/lib/acme2certifier/examples/hooks",
             glob_files("examples/hooks/*.py"),
         ),
+        # Packaged handlers and tools
+        (
+            "/var/lib/acme2certifier/acme2certifier/cahandlers",
+            glob_files("acme2certifier/cahandlers/*.py"),
+        ),
+        (
+            "/var/lib/acme2certifier/acme2certifier/cahandlers/ms_wcce",
+            glob_files("acme2certifier/cahandlers/ms_wcce/*.py"),
+        ),
+        (
+            "/var/lib/acme2certifier/acme2certifier/eabhandlers",
+            glob_files("acme2certifier/eabhandlers/*.py"),
+        ),
+        (
+            "/var/lib/acme2certifier/acme2certifier/hookhandlers",
+            glob_files("acme2certifier/hookhandlers/*.py"),
+        ),
+        (
+            "/var/lib/acme2certifier/acme2certifier/tools",
+            glob_files("acme2certifier/tools/*.py"),
+        ),
+        (
+            "/var/lib/acme2certifier/tools",
+            glob_files("tools/*.py"),
+        ),
         ("/var/lib/acme2certifier/examples/django", glob_files("examples/django/*.py")),
         (
             "/var/lib/acme2certifier/examples/django/acme2certifier",

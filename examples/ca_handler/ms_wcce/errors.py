@@ -1,19 +1,8 @@
-"""error.py"""
+"""Temporary compatibility layer.
 
-# pylint: disable=C0209, R1705
-from impacket import hresult_errors
-
-
-def translate_error_code(error_code: int) -> str:
-    """translate error code in something readable"""
-    error_code &= 0xFFFFFFFF
-    if error_code in hresult_errors.ERROR_MESSAGES:
-        error_msg_short = hresult_errors.ERROR_MESSAGES[error_code][0]
-        error_msg_verbose = hresult_errors.ERROR_MESSAGES[error_code][1]
-        return "code: 0x%x - %s - %s" % (
-            error_code,
-            error_msg_short,
-            error_msg_verbose,
-        )
-    else:
-        return "unknown error code: 0x%x" % error_code
+Real implementation lives under the acme2certifier package.
+Do not add logic here.
+"""
+import sys
+from acme2certifier.cahandlers.ms_wcce import errors as _impl
+sys.modules[__name__] = _impl

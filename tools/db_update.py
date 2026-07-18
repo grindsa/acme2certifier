@@ -1,21 +1,13 @@
-#!/usr/bin/python
-"""database updater"""
+"""Temporary compatibility layer.
 
-# pylint: disable=E0401, C0413
+Real implementation: acme2certifier.tools
+Do not add logic here.
+"""
+import runpy
 import sys
 
-sys.path.insert(0, "..")
-sys.path.insert(1, ".")
-from acme_srv.helper import logger_setup  # nopep8
-from acme_srv.db_handler import DBstore  # nopep8
-
 if __name__ == "__main__":
-
-    DEBUG = True
-
-    # initialize logger
-    LOGGER = logger_setup(DEBUG)
-
-    # connect to database and do the upgrade
-    DBSTORE = DBstore(DEBUG, LOGGER)
-    DBSTORE.db_update()
+    runpy.run_module("acme2certifier.tools.db_update", run_name="__main__")
+else:
+    from acme2certifier.tools import db_update as _impl
+    sys.modules[__name__] = _impl
