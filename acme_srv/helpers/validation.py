@@ -47,7 +47,10 @@ def validate_email(logger: logging.Logger, contact_list: List[str]) -> bool:
     """validate contact against RFC608"""
     logger.debug("Helper.validate_email()")
     result = True
-    pattern = r"^[A-Za-z0-9\.\+_-]+@[A-Za-z]+[A-Za-z0-9\._-]+[A-Za-z0-9]+\.[a-zA-Z\.]+[a-zA-Z]+$"
+    pattern = (
+        r"^[A-Za-z0-9.+_-]+@[A-Za-z][A-Za-z0-9._-]+[A-Za-z0-9]"
+        r"\.[A-Za-z]+(?:\.[A-Za-z]+)*$"
+    )
     # check if we got a list or single address
     if isinstance(contact_list, list):
         for contact in contact_list:
