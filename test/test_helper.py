@@ -2814,6 +2814,61 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
             lcm.output,
         )
 
+    @patch("importlib.import_module")
+    def test_261b_ca_handler_load_module(self, mock_imp):
+        """test ca_handler_load via handler_module"""
+        config_dic = {"CAhandler": {"handler_module": "pkg.ca_handler"}}
+        mock_imp.return_value = "mod"
+        self.assertEqual("mod", self.ca_handler_load(self.logger, config_dic))
+        mock_imp.assert_called_with("pkg.ca_handler")
+
+    @patch("importlib.import_module")
+    def test_261c_eab_handler_load_module(self, mock_imp):
+        """test eab_handler_load via eab_handler_module"""
+        config_dic = {"EABhandler": {"eab_handler_module": "pkg.eab_handler"}}
+        mock_imp.return_value = "mod"
+        self.assertEqual("mod", self.eab_handler_load(self.logger, config_dic))
+        mock_imp.assert_called_with("pkg.eab_handler")
+
+    @patch("importlib.import_module")
+    def test_261d_hooks_load_module(self, mock_imp):
+        """test hooks_load via hooks_module"""
+        config_dic = {"Hooks": {"hooks_module": "pkg.hooks"}}
+        mock_imp.return_value = "mod"
+        self.assertEqual("mod", self.hooks_load(self.logger, config_dic))
+        mock_imp.assert_called_with("pkg.hooks")
+
+    @patch("importlib.util")
+    def test_261e_ca_handler_load_file_deprecated(self, mock_util):
+        """file-based CA handler load emits deprecation warning"""
+        config_dic = {"CAhandler": {"handler_file": "foo"}}
+        mock_util.module_from_spec = Mock(return_value="foo")
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual("foo", self.ca_handler_load(self.logger, config_dic))
+        self.assertTrue(
+            any("handler_file is deprecated" in line for line in lcm.output)
+        )
+
+    @patch("importlib.import_module")
+    @patch("importlib.util")
+    def test_261f_ca_handler_module_preferred_over_file(self, mock_util, mock_imp):
+        """handler_module takes precedence when both keys are set"""
+        config_dic = {
+            "CAhandler": {
+                "handler_module": "pkg.ca_handler",
+                "handler_file": "foo.py",
+            }
+        }
+        mock_imp.return_value = "from_module"
+        with self.assertLogs("test_a2c", level="WARNING") as lcm:
+            self.assertEqual(
+                "from_module", self.ca_handler_load(self.logger, config_dic)
+            )
+        self.assertFalse(mock_util.spec_from_file_location.called)
+        self.assertTrue(
+            any("ignoring handler_file" in line for line in lcm.output)
+        )
+
     def test_262_error_dic_get(self):
         """test error_dic_get"""
         result = {

@@ -4,6 +4,8 @@
 
 # Upgrading acme2certifier
 
+For the package-layout restructuring (`acme2certifier.acme_srv`, module-based handler loading, and deprecation of `*_file` config keys), see [Package layout migration](migration_package_layout.md).
+
 ## Upgrade to Version 0.17
 
 In **acme2certifier v0.17**, the `acme` module (which implements ACME server functionality) has been **renamed** to `acme_srv`.

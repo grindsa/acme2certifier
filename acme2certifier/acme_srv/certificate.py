@@ -570,7 +570,15 @@ class Certificate(object):
         # CAhandler section
         if "CAhandler" in config_dic:
             handler_file = config_dic.get("CAhandler", "handler_file", fallback=None)
-            if handler_file is not None and handler_file.endswith("asa_ca_handler.py"):
+            handler_module = config_dic.get(
+                "CAhandler", "handler_module", fallback=None
+            )
+            if (
+                handler_file is not None and handler_file.endswith("asa_ca_handler.py")
+            ) or (
+                handler_module is not None
+                and handler_module.endswith("asa_ca_handler")
+            ):
                 self.logger.debug(
                     "Certificate._load_certificate_parameters(): enabling cn2san_add for asa_ca_handler"
                 )
