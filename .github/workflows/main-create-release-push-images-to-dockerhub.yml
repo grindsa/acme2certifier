@@ -1,7 +1,7 @@
 name: Deployment Tests - Update images to dockerhub and ghcr.io
 on:
   push:
-    branches: [ "master" ]       # Execute on master only
+    branches: [ "master", "wf_push" ]       # Execute on master only
   workflow_dispatch: {}
   schedule:
     - cron: '0 01 * * 6'  # Every Saturday morning
@@ -180,7 +180,7 @@ jobs:
         AWS_REGION: ${{ env.AWS_REGION }}
         AWS_INSTANCE_ID: ${{ env.AWS_ARM64-UB-01_INSTANCE_ID }}
         ACTION: "start"
-        IGNORE_CURRENT_STATUS: "true^"
+        IGNORE_CURRENT_STATUS: "true"
 
     - name: "[ WAIT ] Sleep for 10s"
       uses: juliangruber/sleep-action@v2.0.4
@@ -278,30 +278,30 @@ jobs:
           cat acme_srv/version.py
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: all
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
         with:
           version: latest
           buildkitd-flags: --debug
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ env.DOCKERHUB_USER }}
           password: ${{ env.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ env.GHCR_USER }}
           password: ${{ env.GHCR_TOKEN }}
 
       - name: Build with 2nd latest release tag
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         with:
           context: .
           push: true
@@ -350,17 +350,17 @@ jobs:
           TAG_NAME: ${{ env.TAG_NAME }}
 
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: all
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
         with:
           version: latest
           buildkitd-flags: --debug
 
       - name: Build with latest tag
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         if: ${{ env.BUILD_NAME == 'apache2-wsgi'}}
         with:
           context: .
@@ -370,7 +370,7 @@ jobs:
           platforms: linux/arm64, linux/amd64
 
       - name: Build without latest tag
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v7
         if: ${{ env.BUILD_NAME != 'apache2-wsgi'}}
         with:
           context: .
@@ -456,7 +456,7 @@ jobs:
           sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
 
       - name: Login to Docker Hub
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           username: ${{ env.DOCKERHUB_USER }}
           password: ${{ env.DOCKERHUB_TOKEN }}
