@@ -5,7 +5,7 @@ import configparser
 import json
 import logging
 import os
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from .plugin_loader import eab_handler_load
 from .global_variables import PARSING_ERR_MSG
 
@@ -295,21 +295,115 @@ def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
     return proxy
 
 
+def _default_acme_srv_cfg_file(
+    logger: Optional[logging.Logger] = None,
+) -> str:
+    """Resolve default acme_srv.cfg after the package move.
+
+    Candidates (first existing file wins):
+    1. Next to the real package: ``acme2certifier/acme_srv/acme_srv.cfg``
+    2. Legacy layout: ``<repo>/acme_srv/acme_srv.cfg``
+    """
+    log = logger or logging.getLogger(__name__)
+    log.debug("Helper._default_acme_srv_cfg_file() start")
+
+    helpers_dir = os.path.dirname(os.path.abspath(__file__))
+    pkg_dir = os.path.dirname(helpers_dir)  # .../acme_srv (new or install tree)
+    install_or_repo_root = os.path.dirname(os.path.dirname(pkg_dir))
+    log.info(
+        "Helper._default_acme_srv_cfg_file(): helpers_dir=%s pkg_dir=%s "
+        "install_or_repo_root=%s",
+        helpers_dir,
+        pkg_dir,
+        install_or_repo_root,
+    )
+
+    candidates = [
+        os.path.join(pkg_dir, "acme_srv.cfg"),
+        os.path.join(install_or_repo_root, "acme_srv", "acme_srv.cfg"),
+    ]
+    log.info(
+        "Helper._default_acme_srv_cfg_file(): candidates=%s",
+        candidates,
+    )
+
+    for candidate in candidates:
+        if os.path.isfile(candidate):
+            log.info(
+                "Helper._default_acme_srv_cfg_file(): using existing file %s",
+                candidate,
+            )
+            log.debug(
+                "Helper._default_acme_srv_cfg_file() ended with %s",
+                candidate,
+            )
+            return candidate
+        log.info(
+            "Helper._default_acme_srv_cfg_file(): candidate not found: %s",
+            candidate,
+        )
+
+    log.info(
+        "Helper._default_acme_srv_cfg_file(): no candidate exists; "
+        "falling back to first candidate %s",
+        candidates[0],
+    )
+    log.debug(
+        "Helper._default_acme_srv_cfg_file() ended with fallback %s",
+        candidates[0],
+    )
+    return candidates[0]
+
+
 def load_config(
     logger: logging.Logger = None, mfilter: str = None, cfg_file: str = None
 ) -> configparser.ConfigParser:
     """small configparser wrappter to load a config file"""
+    log = logger or logging.getLogger(__name__)
+    log.debug(
+        "Helper.load_config() start mfilter=%r cfg_file=%r",
+        mfilter,
+        cfg_file,
+    )
+
     if not cfg_file:
+        log.info("Helper.load_config(): cfg_file not provided")
         if "ACME_SRV_CONFIGFILE" in os.environ:
             cfg_file = os.environ["ACME_SRV_CONFIGFILE"]
+            log.info(
+                "Helper.load_config(): using ACME_SRV_CONFIGFILE=%s",
+                cfg_file,
+            )
         else:
-            # go up one directory from helpers/ to acme_srv/ to find config file
-            cfg_file = os.path.dirname(os.path.dirname(__file__)) + "/" + "acme_srv.cfg"
-    if logger:
-        logger.debug("load_config(%s:%s)", mfilter, cfg_file)
+            log.info(
+                "Helper.load_config(): ACME_SRV_CONFIGFILE unset; "
+                "resolving default path"
+            )
+            cfg_file = _default_acme_srv_cfg_file(log)
+    else:
+        log.info("Helper.load_config(): using explicit cfg_file=%s", cfg_file)
+
+    log.info("Helper.load_config(): reading config from %s", cfg_file)
+    log.debug("load_config(%s:%s)", mfilter, cfg_file)
     config = configparser.ConfigParser(interpolation=None)
     config.optionxform = str
-    config.read(cfg_file, encoding="utf8")
+    read_ok = config.read(cfg_file, encoding="utf8")
+    if read_ok:
+        log.info(
+            "Helper.load_config(): successfully read %s (sections=%s)",
+            read_ok,
+            list(config.sections()),
+        )
+    else:
+        log.info(
+            "Helper.load_config(): config.read() returned empty list "
+            "(file missing or unreadable): %s",
+            cfg_file,
+        )
+    log.debug(
+        "Helper.load_config() ended sections=%s",
+        list(config.sections()),
+    )
     return config
 
 
