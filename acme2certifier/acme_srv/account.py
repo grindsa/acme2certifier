@@ -280,7 +280,10 @@ class Account:
             self.config.eab_strict_mode = config_dic.getboolean(
                 "EABhandler", "eab_strict_mode", fallback=True
             )
-            if "eab_handler_file" in config_dic["EABhandler"]:
+            if (
+                "eab_handler_file" in config_dic["EABhandler"]
+                or "eab_handler_module" in config_dic["EABhandler"]
+            ):
                 eab_handler_module = eab_handler_load(self.logger, config_dic)
                 if eab_handler_module:
                     self.config.eab_handler = eab_handler_module.EABhandler

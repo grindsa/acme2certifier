@@ -174,9 +174,9 @@ class Directory:
 
     def _parse_eab_and_profiles(self, config_dic: object) -> None:
         """Parse EAB handler and profile configuration."""
-        if (
-            "EABhandler" in config_dic
-            and "eab_handler_file" in config_dic["EABhandler"]
+        if "EABhandler" in config_dic and (
+            "eab_handler_file" in config_dic["EABhandler"]
+            or "eab_handler_module" in config_dic["EABhandler"]
         ):
             self.config.eab = True
             self.config.eab_strict_mode = self._parse_eab_strict_mode(config_dic)

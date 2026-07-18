@@ -74,9 +74,9 @@ def config_eab_profile_load(logger: logging.Logger, config_dic: Dict[str, str]):
             eab_profiling = False
 
     if eab_profiling:
-        if (
-            "EABhandler" in config_dic
-            and "eab_handler_file" in config_dic["EABhandler"]
+        if "EABhandler" in config_dic and (
+            "eab_handler_file" in config_dic["EABhandler"]
+            or "eab_handler_module" in config_dic["EABhandler"]
         ):
             # load eab_handler according to configuration
             eab_handler_module = eab_handler_load(logger, config_dic)

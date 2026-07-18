@@ -90,7 +90,10 @@ class Message(object):
                 "EABhandler", "eabkid_check_disable", fallback=False
             ):
                 msg_config.eabkid_check_disable = True
-            elif "eab_handler_file" in config_dic["EABhandler"]:
+            elif (
+                "eab_handler_file" in config_dic["EABhandler"]
+                or "eab_handler_module" in config_dic["EABhandler"]
+            ):
                 eab_handler_module = eab_handler_load(self.logger, config_dic)
                 if eab_handler_module:
                     msg_config.invalid_eabkid_deactivate = config_dic.getboolean(
