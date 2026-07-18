@@ -8,7 +8,9 @@ Acme2certifier supports external databases by using the [Django Python framework
 
 All [databases supported by Django](https://docs.djangoproject.com/en/5.0/ref/databases/) should work in theory; MariaDB and PostgreSQL will be tested during [release regression](https://github.com/grindsa/acme2certifier/blob/master/.github/workflows/django_tests..yml).
 
-This guide is written for **Ubuntu 24.04**; however, adapting it to other Linux distributions should not be difficult.
+The following documentation explains how to configure Django-based database access depending on your installation method.
+
+This guide focusses on docker and **Ubuntu 24.04** based deb-deployments; however, adapting it to other Linux distributions should not be difficult.
 
 ## Preparation
 
@@ -97,6 +99,8 @@ sudo dnf install unixODBC
 
 ## Install and Configure acme2certifier
 
+### debian based deployment
+
 - Download the [latest deb package](https://github.com/grindsa/acme2certifier/releases)
 - Install the package locally
 
@@ -156,9 +160,21 @@ ALLOWED_HOSTS = ["192.168.14.132", "ub2204-c1.bar.local"]
 (...)
 ```
 
+### 2. Docker Deployments (apache2-django / nginx-django)
+
+**No manual file copying is required.**
+
+The official Docker images already contain:
+
+- the Django project under `/var/www/acme2certifier/acme2certifier/`
+- a ready-made Django settings file (`/var/www/acme2certifier/acme2certifier/settings.py`) to be updated
+- the Django database handler at `/var/www/acme2certifier/acme_srv/db_handler.py`
+
+I generally recommend mounting a volume or directory from docker-host into /var/www/acme2certifier/volume. When this volume is present, acme2certifier automatically writes `settings.py`, `acme_srv.cfg`, and all django migration-sets into it and then maps them back into the appropriate internal locations during container startup.
+
 ### Connecting to MariaDB
 
-- Modify `/var/www/acme2certifier/acme2certifier/settings.py` and configure your database connection as below:
+- Modify `settings.py` and configure your database connection as below:
 
 ```python
 DATABASES = {
@@ -179,7 +195,7 @@ DATABASES = {
 
 ### Connecting to PostGres
 
-- Modify `/var/www/acme2certifier/acme2certifier/settings.py` and configure your database connection as below:
+- Modify `settings.py` and configure your database connection as below:
 
 ```python
 DATABASES = {
@@ -196,7 +212,7 @@ DATABASES = {
 
 ### Connecting to SQL Server
 
-- Modify `/var/www/acme2certifier/acme2certifier/settings.py` and configure your database connection as below:
+- Modify `settings.py` and configure your database connection as below:
 
 ```python
 DATABASES = {
@@ -216,7 +232,7 @@ DATABASES = {
 
 ## Finalize acme2cerifier configuration
 
-- Create a Django migration set, apply the migrations, and load fixtures: Modify the [configuration file](acme_srv.md) `/var/www/acme2certifier/volume/acme_srv.cfg`according to your needs. If your CA handler needs runtime information (configuration files, keys, certificate bundles, etc.) to be shared between the nodes, ensure they are loaded from `/var/www/acme2certifier/volume`. Below is an example for the `[CAhandler]` section of the openssl-handler I use during my tests:
+- Create a Django migration set, apply the migrations, and load fixtures: Modify the [configuration file](acme_srv.md) `/var/www/acme2certifier/volume/acme_srv.cfg`according to your needs. If your CA handler needs runtime information (configuration files, keys, certificate bundles, etc.) to be shared between (cluster) nodes, ensure they are loaded from `/var/www/acme2certifier/volume`. Below is an example for the `[CAhandler]` section of the openssl-handler I use during my tests:
 
 ```cfg
 [CAhandler]
@@ -232,6 +248,8 @@ cert_save_path: /var/www/acme2certifier/volume/ca/certs
 save_cert_as_hex: True
 cn_enforce: True
 ```
+
+**The below steps are not required for container deployments, as the container automatically performs them during startup.**
 
 - Create a Django migration set, apply the migrations, and load fixtures:
 
@@ -254,6 +272,8 @@ sudo python3 /var/www/acme2certifier/tools/django_update.py
 sudo systemctl restart apache2.service
 ```
 
+## Test enrollment
+
 - Test the server by accessing the directory resource
 
 ```bash
@@ -263,8 +283,6 @@ curl http://ub2204-c1.bar.local/directory
 ```bash
 {"newAccount": "http://ub2204-c1.bar.local/acme_srv/newaccount", "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417", "keyChange": "http://ub2204-c1.bar.local/acme_srv/key-change", "newNonce": "http://ub2204-c1.bar.local/acme_srv/newnonce", "meta": {"home": "https://github.com/grindsa/acme2certifier", "author": "grindsa <grindelsack@gmail.com>"}, "newOrder": "http://ub2204-c1.bar.local/acme_srv/neworders", "revokeCert": "http://ub2204-c1.bar.local/acme_srv/revokecert"}
 ```
-
-## Test enrollment
 
 - Try to enroll certificates by using your favorite ACME client. I am using [lego](https://github.com/go-acme/lego).
 
