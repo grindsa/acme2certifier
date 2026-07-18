@@ -22,6 +22,12 @@ and pick the appropriate release branch.
 - Handle TypeError exceptions in \_apply_prevalidation_whitelist()
 - Cover JSON parsing errors in compare_jwk()
 
+## Changes in 0.43.2
+
+**Bug Fixes**:
+
+- [#345 Missing function in django_handler.py](https://github.com/grindsa/acme2certifier/issues/345)
+
 ## Changes in 0.43.1
 
 **Bug Fixes**:
