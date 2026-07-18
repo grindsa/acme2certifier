@@ -135,6 +135,8 @@ hooks_module: acme2certifier.hookhandlers.skeleton_hooks
 
 Shims under the top-level `acme_srv/` package re-export the new modules. Prefer updating application and test code to the new namespace when convenient; shims are temporary.
 
+`load_config()` looks for `acme_srv.cfg` next to the new package first, then falls back to the legacy path `<repo>/acme_srv/acme_srv.cfg`. You can also set `ACME_SRV_CONFIGFILE`.
+
 ### CA handlers (`examples/ca_handler` → `acme2certifier.cahandlers`)
 
 | Legacy file | Import today | Target module |
