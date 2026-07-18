@@ -6,6 +6,22 @@ This is a high-level summary of the most important changes. For a full list of
 changes, see the [git commit log](https://github.com/grindsa/acme2certifier/commits)
 and pick the appropriate release branch.
 
+## Changes in 0.44
+
+**Features and Improvements**:
+
+- Option `ca_error_details_forward` allowing to pass error messages from CA to acme-client
+- Align account deactivation responses with the relevant RFC requirements
+- Harmonize the formatting of JSON responses across project
+
+**Bug Fixes**:
+
+- [#345 Add missing functions for nonce cleanup to django handler](https://github.com/grindsa/acme2certifier/issues/345)
+- Align the dry‑run messages between the Certificate and Order classes
+- Raise an exception when a database error occurs during Authorization creation
+- Skip prevalidation when identifier value is missing in \_apply_prevalidation_whitelist()
+- Cover JSON parsing errors in compare_jwk()
+
 ## Changes in 0.43.2
 
 **Bug Fixes**:
