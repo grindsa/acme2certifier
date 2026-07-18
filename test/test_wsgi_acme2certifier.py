@@ -908,7 +908,9 @@ class TestACMEHandler(unittest.TestCase):
             "PATH_INFO": "PATH_INFO",
         }
         self.assertEqual(
-            [b'{\n  "status": 404,\n  "message": "Not Found",\n  "detail": "Not Found"\n}'],
+            [
+                b'{\n  "status": 404,\n  "message": "Not Found",\n  "detail": "Not Found"\n}'
+            ],
             self.not_found(environ, Mock()),
         )
 

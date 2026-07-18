@@ -17,7 +17,7 @@ and pick the appropriate release branch.
 - Harmonize the formatting of JSON responsesa across project
 - Align the dry‑run messages between the Certificate and Order classes
 - Raise an exception when a database error occurs during Authorization creation
-- Handle TypeError exceptions in _apply_prevalidation_whitelist()
+- Handle TypeError exceptions in \_apply_prevalidation_whitelist()
 - Cover JSON parsing errors in compare_jwk()
 - Align account deactivation responses with the relevant RFC requirements
 

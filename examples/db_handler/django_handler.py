@@ -591,8 +591,7 @@ class DBstore(object):
 
     def nonce_delete_bulk(self, nonce_list: List[str]) -> int:
         """Delete a list of nonces in a single cleanup run."""
-        self.logger.debug(
-            "DBStore.nonce_delete_bulk with %s entries", len(nonce_list))
+        self.logger.debug("DBStore.nonce_delete_bulk with %s entries", len(nonce_list))
         if not nonce_list:
             return 0
         result, _ = Nonce.objects.filter(nonce__in=nonce_list).delete()
