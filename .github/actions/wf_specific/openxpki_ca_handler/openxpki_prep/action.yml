@@ -73,6 +73,12 @@ runs:
       # disable healthcheck for now, as it is not working in our setup and we have to wait for the server to be up before we can do any configuration changes
       sed -i "s/test\: wget -q http:\/\/localhost\/healthcheck\/ping/test: echo \"foo\"/g" docker-compose.yml
 
+      # use the old version of the image, as the new version is not working in our setup
+      sed -i \
+        -e 's|whiterabbitsecurity/openxpki3:3.34|whiterabbitsecurity/openxpki3:3.32.16|g' \
+        -e 's|image: whiterabbitsecurity/openxpki3$|image: whiterabbitsecurity/openxpki3:3.32.16|g' \
+        docker-compose.yml
+
       docker compose up -d web --wait
     shell: bash
     env:
