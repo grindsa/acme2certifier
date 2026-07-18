@@ -1,7 +1,7 @@
 name: Deployment Tests - Update images to dockerhub and ghcr.io
 on:
   push:
-    branches: [ "master" ]       # Execute on master only
+    branches: [ "master", "wf_push" ]       # Execute on master only
   workflow_dispatch: {}
   schedule:
     - cron: '0 01 * * 6'  # Every Saturday morning
@@ -268,24 +268,24 @@ jobs:
           OLD_TAG_NAME: ${{ env.OLD_TAG_NAME }}
           BUILD_NAME: ${{ env.BUILD_NAME }}
 
-      - name: Checkout code for 2nd last release
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ env.OLD_TAG_NAME }}
+      #- name: Checkout code for 2nd last release
+      #  uses: actions/checkout@v6
+      #  with:
+      #    ref: ${{ env.OLD_TAG_NAME }}
 
-      - name: "show version from version.py"
-        run: |
-          cat acme_srv/version.py
+      #- name: "show version from version.py"
+      #  run: |
+      #    cat acme_srv/version.py
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: all
+      #- name: Set up QEMU
+      #  uses: docker/setup-qemu-action@v3
+      #  with:
+      #    platforms: all
 
-      - uses: docker/setup-buildx-action@v3
-        with:
-          version: latest
-          buildkitd-flags: --debug
+      #- uses: docker/setup-buildx-action@v3
+      #  with:
+      #    version: latest
+      #    buildkitd-flags: --debug
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
