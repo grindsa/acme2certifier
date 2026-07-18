@@ -19,8 +19,10 @@ This guide describes the restructuring of `acme2certifier` into a proper Python 
 **Current status**
 
 - Core modules live under `acme2certifier.acme_srv`. Legacy imports `acme_srv.*` continue to work via temporary compatibility shims.
-- Handler **loading** supports both file paths and dotted module names (dual loader).
-- Handler **implementations** may still reside under `examples/` until they are moved into the package namespaces above. Until then, use `examples.ca_handler.*` (and equivalents) with `*_module`, or keep using `*_file`.
+- CA / EAB / hook **implementations** live under `acme2certifier.cahandlers`, `acme2certifier.eabhandlers`, and `acme2certifier.hookhandlers`.
+- Paths under `examples/ca_handler/`, `examples/eab_handler/`, and `examples/hooks/` are compatibility shims (except **skeleton** templates, which remain full example sources).
+- Tools live under `acme2certifier.tools`; `tools/*.py` are compatibility wrappers (`python tools/…` still works).
+- Handler loading supports both file paths (`*_file`, deprecated) and dotted module names (`*_module`).
 
 ## Backwards compatibility
 
@@ -73,10 +75,13 @@ Preferred (module-based):
 
 ```ini
 [CAhandler]
-# After handlers are packaged:
-# handler_module: acme2certifier.cahandlers.openssl_ca_handler
+handler_module: acme2certifier.cahandlers.openssl_ca_handler
+```
 
-# Works today while handlers still live under examples/:
+Legacy module path (still works via shim):
+
+```ini
+[CAhandler]
 handler_module: examples.ca_handler.openssl_ca_handler
 ```
 
@@ -93,8 +98,7 @@ Preferred:
 
 ```ini
 [EABhandler]
-# eab_handler_module: acme2certifier.eabhandlers.file_handler
-eab_handler_module: examples.eab_handler.file_handler
+eab_handler_module: acme2certifier.eabhandlers.file_handler
 ```
 
 ### Hooks
@@ -110,8 +114,7 @@ Preferred:
 
 ```ini
 [Hooks]
-# hooks_module: acme2certifier.hookhandlers.skeleton_hooks
-hooks_module: examples.hooks.skeleton_hooks
+hooks_module: acme2certifier.hookhandlers.skeleton_hooks
 ```
 
 ## Old path → new module mapping
@@ -197,7 +200,7 @@ If you maintain a custom handler outside this repository:
 ## Migration checklist
 
 1. Confirm the server starts with your existing `*_file` configuration (no change required).
-2. Switch `acme_srv.cfg` to `*_module` keys when ready (use `examples.*` modules until packaged namespaces are populated).
+2. Switch `acme_srv.cfg` to `*_module` keys when ready (prefer `acme2certifier.cahandlers.*` / `eabhandlers.*` / `hookhandlers.*`).
 3. Watch logs for deprecation warnings related to `*_file`.
 4. Update in-house scripts and tests from `acme_srv.*` to `acme2certifier.acme_srv.*` when practical.
 5. After handlers/tools are relocated into `acme2certifier.*`, update `*_module` values to the target names in the tables above.
