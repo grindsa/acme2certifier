@@ -4,8 +4,7 @@ Email Reply Challenge Validator.
 Implements validation logic for email-reply-00 challenges.
 """
 
-from typing import Tuple
-import re
+from typing import Optional, Tuple
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
 from acme_srv.helper import b64_url_encode, convert_byte_to_string, sha256_hash
 
@@ -113,19 +112,19 @@ class EmailReplyChallengeValidator(ChallengeValidator):
             )
             return None
 
-    def _extract_email_keyauth(self, email_body: str) -> str:
-        """Extract keyauthorization from email body - placeholder for actual implementation."""
+    def _extract_email_keyauth(self, email_body: Optional[str]) -> Optional[str]:
+        """Extract keyauthorization from email body between PEM-style delimiters."""
         self.logger.debug("EmailReplyChallengeValidator._extract_email_keyauth()")
+        begin = "-----BEGIN ACME RESPONSE-----"
+        end = "-----END ACME RESPONSE-----"
         email_keyauthorization = None
         if email_body:
-            # extract keyauthorization from email body
-            match = re.search(
-                r"-+BEGIN ACME RESPONSE-+\s*([\w=+/ -]+)\s*-+END ACME RESPONSE-+",
-                email_body,
-                re.DOTALL,
-            )
-            if match:
-                email_keyauthorization = match.group(1).strip()
+            start = email_body.find(begin)
+            if start >= 0:
+                start += len(begin)
+                stop = email_body.find(end, start)
+                if stop >= 0:
+                    email_keyauthorization = email_body[start:stop].strip() or None
 
         self.logger.debug(
             "Challenge._emailchallenge_keyauth_extract() ended with: %s",
