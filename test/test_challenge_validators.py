@@ -1686,7 +1686,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
         self.assertEqual(result, "test_keyauth_value")
 
     def test_012_extract_email_keyauth_multiline_response(self):
-        """Test _extract_email_keyauth with multiline response - current limitation"""
+        """Test _extract_email_keyauth with multiline response"""
         email_body = """
         Some email content
         -----BEGIN ACME RESPONSE-----
@@ -1698,9 +1698,7 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
 
         result = self.validator._extract_email_keyauth(email_body)
 
-        # Current implementation limitation: regex pattern [\w=+/ -]+ doesn't match newlines
-        # so multiline ACME responses return None instead of the expected content
-        self.assertIsNone(result)
+        self.assertEqual(result, "test_keyauth_value\n        with multiple lines")
 
     def test_013_extract_email_keyauth_no_match(self):
         """Test _extract_email_keyauth with no match"""
@@ -1720,6 +1718,25 @@ class TestEmailReplyChallengeValidator(unittest.TestCase):
         """Test _extract_email_keyauth with None body"""
         result = self.validator._extract_email_keyauth(None)
 
+        self.assertIsNone(result)
+
+    def test_016_extract_email_keyauth_base64url(self):
+        """Test _extract_email_keyauth with base64url characters (.-_)"""
+        email_body = """
+-----BEGIN ACME RESPONSE-----
+abc-DEF_123.xyz==
+-----END ACME RESPONSE-----
+"""
+        result = self.validator._extract_email_keyauth(email_body)
+        self.assertEqual(result, "abc-DEF_123.xyz==")
+
+    def test_017_extract_email_keyauth_empty_block(self):
+        """Test _extract_email_keyauth with empty ACME response block"""
+        email_body = """
+-----BEGIN ACME RESPONSE-----
+-----END ACME RESPONSE-----
+"""
+        result = self.validator._extract_email_keyauth(email_body)
         self.assertIsNone(result)
 
 
