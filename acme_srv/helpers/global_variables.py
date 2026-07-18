@@ -1,13 +1,8 @@
-# -*- coding: utf-8 -*-
-"""Global Variables for acme2certifier"""
+"""Temporary compatibility layer.
 
-PARSING_ERR_MSG = "failed to parse"
-USER_AGENT = "acme2certifier"
-
-# Returned as enrollment detail when dry-run mode skips certificate issuance.
-DRYRUN_ENROLLMENT_SKIPPED_DETAIL = (
-    "Dry run mode - enrollment and certificate issuance skipped"
-)
-
-# Generic client-visible detail for enrollment failures when CA errors are not forwarded.
-ENROLLMENT_FAILED_DETAIL = "enrollment failed"
+Real implementation: acme2certifier.acme_srv
+Do not add logic here.
+"""
+import sys
+from acme2certifier.acme_srv.helpers import global_variables as _impl
+sys.modules[__name__] = _impl
