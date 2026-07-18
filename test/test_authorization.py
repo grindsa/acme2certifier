@@ -1991,24 +1991,21 @@ class TestAuthorization(unittest.TestCase):
         domain_utils.is_domain_whitelisted = orig_is_domain_whitelisted
 
     def test_087b_apply_prevalidation_whitelist_missing_id_value(self):
-        """Test _apply_prevalidation_whitelist skips email branch when id_value is None."""
+        """Test _apply_prevalidation_whitelist skips all branches when id_value is None."""
         self.authorization.config.email_identifier_rewrite = True
         self.authorization.config.prevalidated_emaillist = ["user@example.com"]
+        self.authorization.config.prevalidated_domainlist = ["*"]
+        self.authorization.config.prevalidated_iplist = ["0.0.0.0/0"]
         self.authorization.repository = Mock()
 
-        authz_info = {"status": "pending"}
-        self.authorization._apply_prevalidation_whitelist(
-            "authz1", {}, "email", None, authz_info
-        )
-
-        self.assertEqual(authz_info["status"], "pending")
-        self.authorization.repository.mark_authorization_as_valid.assert_not_called()
-
-        self.authorization._apply_prevalidation_whitelist(
-            "authz2", {}, "dns", None, {"status": "pending"}
-        )
-
-        self.authorization.repository.mark_authorization_as_valid.assert_not_called()
+        for id_type in ("email", "dns", "ip"):
+            authz_info = {"status": "pending"}
+            self.authorization._apply_prevalidation_whitelist(
+                f"authz_{id_type}", {"order__name": "order_1"}, id_type, None, authz_info
+            )
+            self.assertEqual(authz_info["status"], "pending")
+            self.authorization.repository.mark_authorization_as_valid.assert_not_called()
+            self.authorization.repository.mark_order_as_ready.assert_not_called()
 
     def test_088_handle_domain_prevalidation_wildcard_identifier_matches_policy(self):
         """Wildcard identifiers normalized to base domain should still match wildcard whitelist entries."""

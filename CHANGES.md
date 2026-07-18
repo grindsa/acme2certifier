@@ -19,7 +19,7 @@ and pick the appropriate release branch.
 - [#345 Add missing functions for nonce cleanup to django handler](https://github.com/grindsa/acme2certifier/issues/345)
 - Align the dry‑run messages between the Certificate and Order classes
 - Raise an exception when a database error occurs during Authorization creation
-- Handle TypeError exceptions in \_apply_prevalidation_whitelist()
+- Skip prevalidation when identifier value is missing in \_apply_prevalidation_whitelist()
 - Cover JSON parsing errors in compare_jwk()
 
 ## Changes in 0.43.2
