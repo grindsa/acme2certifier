@@ -88,6 +88,7 @@ setup(
             "/usr/share/doc/acme2certifier/architecture",
             glob_files("docs/architecture/*"),
         ),
+        # Compatibility shims (legacy import path: acme_srv.*)
         ("/var/lib/acme2certifier/acme_srv/", glob_files("acme_srv/*.py")),
         (
             "/var/lib/acme2certifier/acme_srv/helpers",
@@ -96,6 +97,23 @@ setup(
         (
             "/var/lib/acme2certifier/acme_srv/challenge_validators",
             glob_files("acme_srv/challenge_validators/*.py"),
+        ),
+        # Real implementation (acme2certifier.acme_srv.*)
+        (
+            "/var/lib/acme2certifier/acme2certifier/",
+            glob_files("acme2certifier/__init__.py"),
+        ),
+        (
+            "/var/lib/acme2certifier/acme2certifier/acme_srv/",
+            glob_files("acme2certifier/acme_srv/*.py"),
+        ),
+        (
+            "/var/lib/acme2certifier/acme2certifier/acme_srv/helpers",
+            glob_files("acme2certifier/acme_srv/helpers/*.py"),
+        ),
+        (
+            "/var/lib/acme2certifier/acme2certifier/acme_srv/challenge_validators",
+            glob_files("acme2certifier/acme_srv/challenge_validators/*.py"),
         ),
         ("/var/lib/acme2certifier/examples", glob_files("examples/*.*")),
         (

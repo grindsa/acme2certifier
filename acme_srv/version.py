@@ -1,8 +1,8 @@
-"""version file"""
+"""Temporary compatibility layer.
 
-# Store the version here so:
-# 1) we don't load dependencies by storing it in __init__.py
-# 2) we can import it in setup.py for the same reason
-# 3) we can import it into your module module
-__version__ = "0.44"
-__dbversion__ = "0.41"
+Real implementation: acme2certifier.acme_srv
+Do not add logic here.
+"""
+import sys
+from acme2certifier.acme_srv import version as _impl
+sys.modules[__name__] = _impl
