@@ -163,16 +163,16 @@ The below example configuration will only allow CSR matching the following crite
 
 ## Profile verification
 
-The key file can be checked for consistency with `python3 -m acme2certifier.tools.eab_chk` (legacy: `tools/eab_chk.py`).
+The key file can be checked for consistency with `python3 -m acme2certifier.tools.a2c_eab_chk` .
 
 ```bash
- python3 -m acme2certifier.tools.eab_chk --help
+ python3 -m acme2certifier.tools.a2c_eab_chk --help
 ```
 
 ```bash
-usage: eab_chk.py [-h] -c CONFIGFILE [-d] [-v] [-vv] [-k KEYID | -s]
+usage: a2c-eab-chk [-h] -c CONFIGFILE [-d] [-v] [-vv] [-k KEYID | -s]
 
-eab_chk.py - verify eab keyfile
+a2c-eab-chk - verify eab keyfile
 
 options:
   -h, --help            show this help message and exit
@@ -191,7 +191,7 @@ Below is an example output by using the above mentioned keyfile
 - show a summary only
 
 ```bash
-python3 -m acme2certifier.tools.eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg
+python3 -m acme2certifier.tools.a2c_eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg
 ```
 
 ```bash
@@ -201,7 +201,7 @@ Summary: 4 entries in kid_file
 - show keyids and hmac
 
 ```bash
- python3 -m acme2certifier.tools.eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -v
+ python3 -m acme2certifier.tools.a2c_eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -v
 ```
 
 ```bash
@@ -215,7 +215,7 @@ keyid_03: YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMj
 - show profiles
 
 ```bash
-python3 -m acme2certifier.tools.eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -vv
+python3 -m acme2certifier.tools.a2c_eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -vv
 ```
 
 ```bash
@@ -258,7 +258,7 @@ keyid_03:
 - filter output to a single keyid
 
 ```bash
-python3 -m acme2certifier.tools.eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -k keyid_01
+python3 -m acme2certifier.tools.a2c_eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -k keyid_01
 ```
 
 ```bash

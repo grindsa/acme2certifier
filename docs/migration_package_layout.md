@@ -211,8 +211,8 @@ Sample key/profile data files remain under `examples/eab_handler/`.
 | Preferred invocation |
 | --- |
 | `python3 -m acme2certifier.tools.a2c_cli` |
-| `python3 -m acme2certifier.tools.cert_poll` |
-| `python3 -m acme2certifier.tools.db_update` |
+| `python3 -m acme2certifier.tools.a2c_cert_poll` |
+| `python3 -m acme2certifier.tools.a2c_db_update` |
 | `python3 -m acme2certifier.tools.…` |
 
 ## Custom handlers

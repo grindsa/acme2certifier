@@ -1,29 +1,29 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-"""unittests for django_update.py"""
+"""unittests for a2c_django_update.py"""
 
 # pylint: disable=C0302, C0415, R0904, R0913, R0914, R0915, W0212
 import unittest
 import sys
-import importlib
 from unittest.mock import patch, MagicMock, Mock, call
 from io import StringIO
 
 class TestDjangoUpdate(unittest.TestCase):
-    """test class for django_update.py"""
+    """test class for a2c_django_update.py"""
 
-    MODULE = "acme2certifier.tools.django_update"
+    MODULE = "acme2certifier.tools.a2c_django_update"
 
     def setUp(self):
         """setup unittest"""
-        # Always work against the real package module (not tools/ shim).
-        sys.modules.pop("django_update", None)
-        if self.MODULE in sys.modules:
-            importlib.reload(sys.modules[self.MODULE])
+        # Always work against a freshly imported package module.
+        sys.modules.pop(self.MODULE, None)
+        import acme2certifier.tools as tools_pkg
+
+        if hasattr(tools_pkg, "a2c_django_update"):
+            delattr(tools_pkg, "a2c_django_update")
 
     def tearDown(self):
         """cleanup after tests"""
-        sys.modules.pop("django_update", None)
         if self.MODULE in sys.modules:
             mod = sys.modules[self.MODULE]
             mod.django = None
@@ -31,10 +31,15 @@ class TestDjangoUpdate(unittest.TestCase):
             mod.Status = None
             mod.Housekeeping = None
             mod.__dbversion__ = None
+        sys.modules.pop(self.MODULE, None)
+        import acme2certifier.tools as tools_pkg
+
+        if hasattr(tools_pkg, "a2c_django_update"):
+            delattr(tools_pkg, "a2c_django_update")
 
     def test_001_imports_and_setup(self):
         """test that imports and environment setup work"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         # Check STATUS_LIST is defined
         self.assertEqual(len(django_update.STATUS_LIST), 8)
@@ -44,7 +49,7 @@ class TestDjangoUpdate(unittest.TestCase):
     @patch("builtins.print")
     def test_002_setup_django_success(self, mock_print):
         """test successful Django setup"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_django = MagicMock()
         mock_call_command = MagicMock()
@@ -63,7 +68,7 @@ class TestDjangoUpdate(unittest.TestCase):
                 "acme2certifier.acme_srv.version": MagicMock(__dbversion__=mock_dbversion),
             },
         ):
-            with patch("acme2certifier.tools.django_update.django", mock_django):
+            with patch("acme2certifier.tools.a2c_django_update.django", mock_django):
                 result = django_update.setup_django()
 
         self.assertTrue(result)
@@ -72,7 +77,7 @@ class TestDjangoUpdate(unittest.TestCase):
     @patch("builtins.print")
     def test_003_setup_django_import_error(self, mock_print):
         """test Django setup with import error"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         with patch("builtins.__import__", side_effect=ImportError("Django not found")):
             result = django_update.setup_django()
@@ -88,13 +93,13 @@ class TestDjangoUpdate(unittest.TestCase):
     @patch("builtins.print")
     def test_004_setup_django_general_error(self, mock_print):
         """test Django setup with general error"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_django = MagicMock()
         mock_django.setup.side_effect = Exception("Setup failed")
 
         with patch.dict("sys.modules", {"django": mock_django}):
-            with patch("acme2certifier.tools.django_update.django", mock_django):
+            with patch("acme2certifier.tools.a2c_django_update.django", mock_django):
                 result = django_update.setup_django()
 
         self.assertFalse(result)
@@ -108,7 +113,7 @@ class TestDjangoUpdate(unittest.TestCase):
     @patch("builtins.print")
     def test_005_run_migrations_success(self, mock_print):
         """test successful migration run"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_call_command = MagicMock()
         django_update.call_command = mock_call_command
@@ -131,7 +136,7 @@ class TestDjangoUpdate(unittest.TestCase):
     @patch("builtins.print")
     def test_006_run_migrations_error(self, mock_print):
         """test migration run with error"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_call_command = MagicMock()
         mock_call_command.side_effect = Exception("Migration failed")
@@ -150,7 +155,7 @@ class TestDjangoUpdate(unittest.TestCase):
     @patch("builtins.print")
     def test_007_update_status_fields_success(self, mock_print):
         """test successful status fields update"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_status = MagicMock()
         mock_status.objects.update_or_create.return_value = (MagicMock(), True)
@@ -174,7 +179,7 @@ class TestDjangoUpdate(unittest.TestCase):
     @patch("builtins.print")
     def test_008_update_status_fields_partial_error(self, mock_print):
         """test status fields update with partial errors"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_status = MagicMock()
         # Make the third call fail
@@ -203,7 +208,7 @@ class TestDjangoUpdate(unittest.TestCase):
     @patch("builtins.print")
     def test_009_update_db_version_success(self, mock_print):
         """test successful database version update"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_housekeeping = MagicMock()
         mock_housekeeping.objects.update_or_create.return_value = (MagicMock(), True)
@@ -220,7 +225,7 @@ class TestDjangoUpdate(unittest.TestCase):
     @patch("builtins.print")
     def test_010_update_db_version_error(self, mock_print):
         """test database version update with error"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_housekeeping = MagicMock()
         mock_housekeeping.objects.update_or_create.side_effect = Exception("DB error")
@@ -237,16 +242,16 @@ class TestDjangoUpdate(unittest.TestCase):
         )
         self.assertTrue(error_found)
 
-    @patch("acme2certifier.tools.django_update.update_db_version")
-    @patch("acme2certifier.tools.django_update.update_status_fields")
-    @patch("acme2certifier.tools.django_update.run_migrations")
-    @patch("acme2certifier.tools.django_update.setup_django")
+    @patch("acme2certifier.tools.a2c_django_update.update_db_version")
+    @patch("acme2certifier.tools.a2c_django_update.update_status_fields")
+    @patch("acme2certifier.tools.a2c_django_update.run_migrations")
+    @patch("acme2certifier.tools.a2c_django_update.setup_django")
     @patch("builtins.print")
     def test_011_main_all_success(
         self, mock_print, mock_setup, mock_migrations, mock_status, mock_dbversion
     ):
         """test main function with all operations successful"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_setup.return_value = True
         mock_migrations.return_value = True
@@ -264,16 +269,16 @@ class TestDjangoUpdate(unittest.TestCase):
         print_calls = [call[0][0] for call in mock_print.call_args_list]
         self.assertIn("Django database update completed successfully.", print_calls)
 
-    @patch("acme2certifier.tools.django_update.update_db_version")
-    @patch("acme2certifier.tools.django_update.update_status_fields")
-    @patch("acme2certifier.tools.django_update.run_migrations")
-    @patch("acme2certifier.tools.django_update.setup_django")
+    @patch("acme2certifier.tools.a2c_django_update.update_db_version")
+    @patch("acme2certifier.tools.a2c_django_update.update_status_fields")
+    @patch("acme2certifier.tools.a2c_django_update.run_migrations")
+    @patch("acme2certifier.tools.a2c_django_update.setup_django")
     @patch("builtins.print")
     def test_012_main_setup_failure(
         self, mock_print, mock_setup, mock_migrations, mock_status, mock_dbversion
     ):
         """test main function with Django setup failure"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_setup.return_value = False
 
@@ -285,16 +290,16 @@ class TestDjangoUpdate(unittest.TestCase):
         mock_status.assert_not_called()
         mock_dbversion.assert_not_called()
 
-    @patch("acme2certifier.tools.django_update.update_db_version")
-    @patch("acme2certifier.tools.django_update.update_status_fields")
-    @patch("acme2certifier.tools.django_update.run_migrations")
-    @patch("acme2certifier.tools.django_update.setup_django")
+    @patch("acme2certifier.tools.a2c_django_update.update_db_version")
+    @patch("acme2certifier.tools.a2c_django_update.update_status_fields")
+    @patch("acme2certifier.tools.a2c_django_update.run_migrations")
+    @patch("acme2certifier.tools.a2c_django_update.setup_django")
     @patch("builtins.print")
     def test_013_main_partial_failures(
         self, mock_print, mock_setup, mock_migrations, mock_status, mock_dbversion
     ):
         """test main function with partial failures"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_setup.return_value = True
         mock_migrations.return_value = False  # Migration fails
@@ -312,14 +317,14 @@ class TestDjangoUpdate(unittest.TestCase):
         print_calls = [call[0][0] for call in mock_print.call_args_list]
         self.assertIn("Django database update completed with errors.", print_calls)
 
-    @patch("acme2certifier.tools.django_update.main")
-    @patch("acme2certifier.tools.django_update.sys.exit")
+    @patch("acme2certifier.tools.a2c_django_update.main")
+    @patch("acme2certifier.tools.a2c_django_update.sys.exit")
     def test_014_main_entry_point(self, mock_exit, mock_main):
         """test main entry point when script is run directly"""
         mock_main.return_value = 0
 
         # Simulate running the script directly
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         # Manually trigger the if __name__ == "__main__" block
         if True:  # Simulating __name__ == "__main__"
@@ -328,14 +333,14 @@ class TestDjangoUpdate(unittest.TestCase):
         mock_main.assert_called_once()
         mock_exit.assert_called_once_with(0)
 
-    @patch("acme2certifier.tools.django_update.main")
-    @patch("acme2certifier.tools.django_update.sys.exit")
+    @patch("acme2certifier.tools.a2c_django_update.main")
+    @patch("acme2certifier.tools.a2c_django_update.sys.exit")
     def test_015_main_entry_point_with_error(self, mock_exit, mock_main):
         """test main entry point when script encounters error"""
         mock_main.return_value = 1
 
         # Simulate running the script directly with error
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         # Manually trigger the if __name__ == "__main__" block
         if True:  # Simulating __name__ == "__main__"
@@ -346,7 +351,7 @@ class TestDjangoUpdate(unittest.TestCase):
 
     def test_016_status_list_completeness(self):
         """test that STATUS_LIST contains all expected status values"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         expected_statuses = [
             "invalid",
@@ -365,7 +370,7 @@ class TestDjangoUpdate(unittest.TestCase):
     @patch("builtins.print")
     def test_017_update_status_fields_print_messages(self, mock_print):
         """test that update_status_fields prints the correct messages"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_status = MagicMock()
         mock_status.objects.update_or_create.return_value = (MagicMock(), True)
@@ -379,7 +384,7 @@ class TestDjangoUpdate(unittest.TestCase):
     @patch("builtins.print")
     def test_018_update_db_version_print_messages(self, mock_print):
         """test that update_db_version prints the correct messages"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_housekeeping = MagicMock()
         mock_housekeeping.objects.update_or_create.return_value = (MagicMock(), True)
@@ -394,7 +399,7 @@ class TestDjangoUpdate(unittest.TestCase):
 
     def test_019_global_variables_initialization(self):
         """test that global variables are properly initialized"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         # Test that global variables exist and are initially None
         self.assertIsNone(django_update.django)
@@ -406,7 +411,7 @@ class TestDjangoUpdate(unittest.TestCase):
     @patch("builtins.print")
     def test_020_setup_django_sets_globals(self, mock_print):
         """test that setup_django properly sets global variables"""
-        from acme2certifier.tools import django_update
+        from acme2certifier.tools import a2c_django_update as django_update
 
         mock_django = MagicMock()
         mock_call_command = MagicMock()

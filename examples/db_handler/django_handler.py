@@ -528,7 +528,7 @@ class DBstore(object):
         else:
             result = None
         self.logger.debug("DBStore.dbversion_get() ended with %s", result)
-        return (result, "tools/django_update.py")
+        return (result, "a2c-django-update")
 
     def hkparameter_add(self, data_dic: Dict[str, str]):
         """add housekeeping paramter to database"""

@@ -46,7 +46,7 @@ then
 fi
 
 # apply database updates (if needed)
-python3 /var/www/acme2certifier/tools/db_update.py
+a2c-db-update
 
 # create symlink for the ca_handler
 if [[ ! -L /var/www/acme2certifier/acme_srv/ca_handler.py ]]

@@ -58,7 +58,7 @@ then
     egrep -v '(# SECURITY WARNING: keep the secret key used in production secret!|^SECRET_KEY)' /var/www/acme2certifier/examples/django/acme2certifier/settings.py > /var/www/acme2certifier/volume/settings.py
     ## generate SECRET_KEY
     echo "generating SECRET_KEY" >> /proc/1/fd/1
-    DJANGO_SECRET_KEY=$(python3 tools/django_secret_keygen.py)
+    DJANGO_SECRET_KEY=$(a2c-django-secret-keygen)
     cat >>/var/www/acme2certifier/volume/settings.py <<EOF
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = '${DJANGO_SECRET_KEY}'
@@ -103,7 +103,7 @@ fi
 
 echo "apply migrations"  >> /proc/1/fd/1
 touch /var/www/acme2certifier/acme_srv/migrations/__init__.py
-python3 /var/www/acme2certifier/tools/django_update.py
+a2c-django-update
 python3 manage.py loaddata acme_srv/fixture/status.yaml
 
 chown -R www-data /var/www/acme2certifier/volume

@@ -1,0 +1,14 @@
+[Unit]
+Description=uWSGI instance to serve acme2certifier
+
+[Service]
+RuntimeDirectory=uwsgi
+ExecStart=uwsgi --ini acme2certifier.ini
+WorkingDirectory=/opt/acme2certifier
+Restart=always
+Type=notify
+NotifyAccess=all
+User=nginx
+
+[Install]
+WantedBy=multi-user.target

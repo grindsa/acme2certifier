@@ -1,31 +1,22 @@
 #!/usr/bin/python3
-"""database updater"""
+"""Verify and list EAB keyfile entries."""
 
-# pylint: disable=E0401, C0413
-import sys
-import os.path
+from __future__ import annotations
+
 import argparse
-from typing import Tuple, Dict
+import os.path
+from typing import Dict, Tuple
+
 import yaml
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
-)
-sys.path.append(
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)
-    )
-)
-from acme2certifier.acme_srv.db_handler import initialize  # nopep8
-
-initialize()
+from acme2certifier.acme_srv.db_handler import initialize
 from acme2certifier.acme_srv.helper import (
-    logger_setup,
-    load_config,
     config_eab_profile_load,
     eab_handler_load,
+    load_config,
+    logger_setup,
     print_debug,
-)  # nopep8
+)
 
 
 def _eab_dic_print(logger, eab_dic: Dict[str, str], config_dic: Dict[str, str]) -> None:
@@ -57,9 +48,9 @@ def _filter_eab_dic(logger, eab_dic: Dict[str, str], keyid: str) -> Dict[str, st
     return {k: v for k, v in eab_dic.items() if k == keyid}
 
 
-def arg_parse() -> Tuple[bool, Dict[str, Dict[str, str]]]:
+def arg_parse() -> Tuple[bool, Dict[str, str]]:
     """simple argparser"""
-    parser = argparse.ArgumentParser(description="eab_chk.py - verify eab keyfile")
+    parser = argparse.ArgumentParser(description="a2c-eab-chk - verify eab keyfile")
     parser.add_argument("-c", "--configfile", help="configfile", required=True)
     parser.add_argument(
         "-d", "--debug", help="debug mode", action="store_true", default=False
@@ -113,31 +104,31 @@ def eab_dic_load(logger, acme_srv_dic: Dict[str, Dict[str, str]]) -> Dict[str, s
     return eab_dic
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Load and print EAB keyfile contents according to CLI flags."""
+    initialize()
+    debug, config_dic = arg_parse()
+    logger = logger_setup(debug)
 
-    DEBUG, CONFIG_DIC = arg_parse()
-
-    # setup logging
-    LOGGER = logger_setup(DEBUG)
-
-    # load config
-    if os.path.exists(CONFIG_DIC["configfile"]):
-        ACME_SRV_DIC = load_config(cfg_file=CONFIG_DIC["configfile"])
+    if os.path.exists(config_dic["configfile"]):
+        acme_srv_dic = load_config(cfg_file=config_dic["configfile"])
     else:
-        ACME_SRV_DIC = {}
-        error_text = f'Configfile {CONFIG_DIC["configfile"]} not found.'
-        LOGGER.debug(error_text)
+        acme_srv_dic = {}
+        error_text = f'Configfile {config_dic["configfile"]} not found.'
+        logger.debug(error_text)
         print_debug(True, error_text)
 
-    if "EABhandler" in ACME_SRV_DIC:
-        EAB_DIC = eab_dic_load(LOGGER, ACME_SRV_DIC)
-
-        if "keyid" in CONFIG_DIC and CONFIG_DIC["keyid"]:
-            EAB_DIC = _filter_eab_dic(LOGGER, EAB_DIC, CONFIG_DIC["keyid"])
-
+    if "EABhandler" in acme_srv_dic:
+        eab_dic = eab_dic_load(logger, acme_srv_dic)
+        if config_dic.get("keyid"):
+            eab_dic = _filter_eab_dic(logger, eab_dic, config_dic["keyid"])
     else:
-        EAB_DIC = None
+        eab_dic = None
         print_debug(True, "No EABhandler section in configfile")
 
-    if EAB_DIC:
-        _eab_dic_print(LOGGER, EAB_DIC, CONFIG_DIC)
+    if eab_dic:
+        _eab_dic_print(logger, eab_dic, config_dic)
+
+
+if __name__ == "__main__":
+    main()

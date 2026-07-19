@@ -470,8 +470,11 @@ class CommandLineInterface(object):
             self._exec_cmd(cmd)
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Start the interactive ACME CLI."""
+    cli = CommandLineInterface()  # pragma: no cover
+    cli.start()  # pragma: no cover
 
-    # start cli
-    CLI = CommandLineInterface()  # pragma: no cover
-    CLI.start()  # pragma: no cover
+
+if __name__ == "__main__":
+    main()

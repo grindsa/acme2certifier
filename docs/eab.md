@@ -191,9 +191,9 @@ db_password:
 To check the consistency of the keyfile, use the EAB check utility:
 
 ```bash
-usage: eab_chk.py [-h] -c CONFIGFILE [-d] [-v] [-vv] [-k KEYID | -s]
+usage: a2c-eab-chk [-h] -c CONFIGFILE [-d] [-v] [-vv] [-k KEYID | -s]
 
-eab_chk.py - verify eab keyfile
+a2c-eab-chk - verify eab keyfile
 
 options:
   -h, --help            show this help message and exit
@@ -207,10 +207,10 @@ options:
   -s, --summary         summary
 ```
 
-Prefer `python3 -m acme2certifier.tools.eab_chk` (the legacy wrapper `tools/eab_chk.py` still works):
+Prefer `python3 -m acme2certifier.tools.a2c_eab_chk` :
 
 ```bash
-python3 -m acme2certifier.tools.eab_chk -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -v
+python3 -m acme2certifier.tools.a2c_eab_chk -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -v
 ```
 
 Example output:

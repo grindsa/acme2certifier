@@ -88,7 +88,7 @@ case "${1}" in
 
     echo "appply migrations"
     cd /var/www/acme2certifier
-    python3 tools/django_update.py
+    a2c-django-update
 
     echo "change owner and start service"
     chown -R www-data.www-data /var/www/acme2certifier/volume

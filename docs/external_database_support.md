@@ -245,7 +245,7 @@ sudo python3 manage.py loaddata acme_srv/fixture/status.yaml
 - Run the Django update script:
 
 ```bash
-sudo python3 -m acme2certifier.tools.django_update
+sudo python3 -m acme2certifier.tools.a2c_django_update
 ```
 
 - Restart the apache2 service
