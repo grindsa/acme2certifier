@@ -66,7 +66,7 @@ Modify the **acme2certifier** configuration (`acme_srv.cfg`) and add the followi
 
 ```ini
 [CAhandler]
-handler_file: examples/ca_handler/openxpki_ca_handler.py
+handler_module: acme2certifier.cahandlers.openxpki_ca_handler
 host: <URL>
 client_key: <filename>
 client_cert: <filename>
@@ -139,7 +139,7 @@ This handler can use the [eab profiling feature](eab_profiling.md) to allow indi
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 

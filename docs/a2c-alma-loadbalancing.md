@@ -532,7 +532,7 @@ FLUSH PRIVILEGES;
 - generate a new django secret-key and note it down
 
 ```bash
-python3 /opt/acme2certifier/tools/django_secret_keygen.py
+python3 -m acme2certifier.tools.django_secret_keygen
 +%*lei)yj9b841=2d5(u)a&7*uwi@l99$(*&ong@g*p1%q)g$e
 ```
 
@@ -567,7 +567,7 @@ DATABASES = {
 
 ```cfg
 [CAhandler]
-handler_file: /opt/acme2certifier/examples/ca_handler/openssl_ca_handler.py
+handler_module: acme2certifier.cahandlers.openssl_ca_handler
 ca_cert_chain_list: ["/opt/acme2certifier/volume/root-ca-cert.pem"]
 issuing_ca_key: /opt/acme2certifier/volume/ca/sub-ca-key.pk8
 issuing_ca_key_passphrase_variable: OPENSSL_PASSPHRASE
@@ -592,7 +592,7 @@ sudo python3 manage.py loaddata acme_srv/fixture/status.yaml
 - run the django_update script
 
 ```bash
-sudo python3 /opt/acme2certifier/tools/django_update.py
+sudo python3 -m acme2certifier.tools.django_update
 ```
 
 - restart the acme2certifier service
@@ -616,7 +616,7 @@ curl http://alma9-c1.bar.local/directory
 - generate a new django secret and note it down
 
 ```bash
-python3 /opt/acme2certifier/tools/django_secret_keygen.py
+python3 -m acme2certifier.tools.django_secret_keygen
 5@@wlvvi!hb(6qc%*77j55@jt8ib4^f1o&+pz-^z*#v3e7u3o!
 ```
 

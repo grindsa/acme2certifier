@@ -220,7 +220,7 @@ DATABASES = {
 
 ```cfg
 [CAhandler]
-handler_file: /var/www/acme2certifier/examples/ca_handler/openssl_ca_handler.py
+handler_module: acme2certifier.cahandlers.openssl_ca_handler
 ca_cert_chain_list: ["/var/www/acme2certifier/volume/root-ca-cert.pem"]
 issuing_ca_key: /var/www/acme2certifier/volume/ca/sub-ca-key.pk8
 issuing_ca_key_passphrase_variable: OPENSSL_PASSPHRASE
@@ -245,7 +245,7 @@ sudo python3 manage.py loaddata acme_srv/fixture/status.yaml
 - Run the Django update script:
 
 ```bash
-sudo python3 /var/www/acme2certifier/tools/django_update.py
+sudo python3 -m acme2certifier.tools.django_update
 ```
 
 - Restart the apache2 service

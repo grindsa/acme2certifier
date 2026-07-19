@@ -26,6 +26,7 @@ sudo pip3 install -r requirements.txt
 
 ```bash
 sudo cp examples/acme2certifier_wsgi.py /var/www/acme2certifier/acme2certifier_wsgi.py
+sudo cp -R acme2certifier/ /var/www/acme2certifier/acme2certifier
 sudo cp -R examples/ca_handler/ /var/www/acme2certifier/examples/ca_handler
 sudo cp -R examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler
 sudo cp -R examples/hooks/ /var/www/acme2certifier/examples/hooks
@@ -57,31 +58,30 @@ sudo echo "plugins=python3" >> examples/nginx/acme2certifier.ini
 sudo cp examples/nginx/acme2certifier.ini /var/www/acme2certifier
 ```
 
-### 7. Pick the Correct CA Handler and Copy It
+### 7. Configure the CA Handler in `acme_srv.cfg`
 
-Select the appropriate CA handler from the `examples/ca_handler` directory and copy it to:
+Set `handler_module` to the built-in handler you need (preferred). Example:
 
-```bash
-sudo cp examples/ca_handler/<your_ca_handler>.py /var/www/acme2certifier/acme_srv/ca_handler.py
+```ini
+[CAhandler]
+handler_module: acme2certifier.cahandlers.openssl_ca_handler
 ```
 
-### 8. Configure the CA Handler in `acme_srv.cfg`
+Refer to the [Insta Certifier example](certifier.md) and [Package layout migration](migration_package_layout.md). Copying a handler file into `acme_srv/ca_handler.py` is no longer required.
 
-Refer to the [Example for Insta Certifier](certifier.md).
-
-### 9. Ensure Correct Ownership of Files and Directories
+### 8. Ensure Correct Ownership of Files and Directories
 
 ```bash
 sudo chown -R www-data:www-data /var/www/acme2certifier/
 ```
 
-### 10. Set Correct Permissions for the `acme_srv` Subdirectory
+### 9. Set Correct Permissions for the `acme_srv` Subdirectory
 
 ```bash
 sudo chmod a+x /var/www/acme2certifier/acme_srv
 ```
 
-### 11. Create and Install the uWSGI Service for Acme2Certifier
+### 10. Create and Install the uWSGI Service for Acme2Certifier
 
 ```bash
 cat <<EOT > acme2certifier.service
@@ -103,20 +103,20 @@ EOT
 sudo cp acme2certifier.service /etc/systemd/system/acme2certifier.service
 ```
 
-### 12. Start and Enable the Acme2Certifier Service
+### 11. Start and Enable the Acme2Certifier Service
 
 ```bash
 sudo systemctl start acme2certifier
 sudo systemctl enable acme2certifier
 ```
 
-### 13. Restart Nginx
+### 12. Restart Nginx
 
 ```bash
 sudo systemctl restart nginx
 ```
 
-### 14. Verify the Services
+### 13. Verify the Services
 
 Check if Nginx and uWSGI are up and running:
 
@@ -141,6 +141,6 @@ Expected output:
 }
 ```
 
-### 15. Enroll a Certificate
+### 14. Enroll a Certificate
 
 Use your preferred ACME client to enroll a certificate. If it fails, check the CA handler configuration, logs, and enable [debug mode](acme_srv.md) in Acme2Certifier for troubleshooting.

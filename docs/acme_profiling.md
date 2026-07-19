@@ -46,7 +46,7 @@ Depending on the CA-handler the profile value replaces a certain value in the CA
 The profile value will be added to the `profile` column of the orders table. A CA handler can obtail the value using the `eab_profile_header_info_check()` function from `helper.py`.
 
 ```python
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     eab_profile_header_info_check,
     ...
 )  # pylint: disable=e0401

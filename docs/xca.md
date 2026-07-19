@@ -19,11 +19,16 @@ To use this handler, you need:
 
 ## Configuration
 
-### 1. Copy the CA Handler to the acme2certifier Directory
+### 1. Configure the CA Handler
 
-```bash
-cp example/ca_handlers/xca_ca_handler.py acme_srv/ca_handler.py
+Set `handler_module` in `acme_srv.cfg` (do not copy handler files into `acme_srv/`):
+
+```ini
+[CAhandler]
+handler_module: acme2certifier.cahandlers.xca_ca_handler
 ```
+
+See [Package layout migration](migration_package_layout.md).
 
 ### 2. Ensure Database Accessibility
 
@@ -37,7 +42,7 @@ Edit the **server configuration** (`/acme_srv/acme_srv.cfg`) and add the followi
 
 ```ini
 [CAhandler]
-handler_file: examples/ca_handler/xca_ca_handler.py
+handler_module: acme2certifier.cahandlers.xca_ca_handler
 xdb_file: acme_srv/xca/acme2certifier.xdb
 xdb_permission: 600
 issuing_ca_name: sub-ca
@@ -89,7 +94,7 @@ To enable **EAB profiling**, modify `acme_srv.cfg`:
 
 ```ini
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 

@@ -35,7 +35,7 @@ OrderRepository   OrderConfiguration
 
 ## Core Components
 
-### 1. Order Class (`/acme_srv/order.py`)
+### 1. Order Class (`acme2certifier/acme_srv/order.py`)
 
 The `Order` class is the main entry point for order operations and ACME protocol handling. It provides methods for:
 
@@ -107,10 +107,10 @@ Response to Client
 
 ## File Locations
 
-- Order logic: `/acme_srv/order.py`
-- Repository: `/acme_srv/order.py` (OrderRepository)
-- Configuration: `/acme_srv/order.py` (OrderConfiguration)
-- Helpers: `/acme_srv/helper.py`, `/acme_srv/db_handler.py`
-- Error handling: `/acme_srv/order.py`, `/acme_srv/error.py`
+- Order logic: `acme2certifier/acme_srv/order.py`
+- Repository: `acme2certifier/acme_srv/order.py` (OrderRepository)
+- Configuration: `acme2certifier/acme_srv/order.py` (OrderConfiguration)
+- Helpers: `acme2certifier/acme_srv/helper.py`, `acme2certifier/acme_srv/db_handler.py`
+- Error handling: `acme2certifier/acme_srv/order.py`, `acme2certifier/acme_srv/error.py`
 
 ______________________________________________________________________

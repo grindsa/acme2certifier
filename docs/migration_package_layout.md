@@ -6,23 +6,34 @@
 
 This guide describes the restructuring of `acme2certifier` into a proper Python package namespace, how to migrate configuration and imports, and which options remain for backwards compatibility.
 
+## Phase status
+
+| Phase | Status |
+| --- | --- |
+| 1–6 Package layout, shims, dual loader, handler/tool moves, import updates | Complete |
+| 7 Tests and CI | Complete |
+| 8 Documentation | Complete |
+| 9 Deprecation warnings (runtime) | Mostly complete (`*_file` warns today) |
+| 10 Remove shims / deprecated keys | Future release |
+
 ## Summary
 
-| Area | Legacy location | New location |
+| Area | Legacy location | Current location |
 | --- | --- | --- |
 | ACME server core | `acme_srv/` | `acme2certifier/acme_srv/` |
-| CA handlers | `examples/ca_handler/` | `acme2certifier/cahandlers/` (target) |
-| EAB handlers | `examples/eab_handler/` | `acme2certifier/eabhandlers/` (target) |
-| Hook handlers | `examples/hooks/` | `acme2certifier/hookhandlers/` (target) |
-| Tools / CLI | `tools/` | `acme2certifier/tools/` (target) |
+| CA handlers | `examples/ca_handler/` | `acme2certifier/cahandlers/` |
+| EAB handlers | `examples/eab_handler/` | `acme2certifier/eabhandlers/` |
+| Hook handlers | `examples/hooks/` | `acme2certifier/hookhandlers/` |
+| Tools / CLI | `tools/` | `acme2certifier/tools/` |
 
 **Current status**
 
 - Core modules live under `acme2certifier.acme_srv`. Legacy imports `acme_srv.*` continue to work via temporary compatibility shims.
 - CA / EAB / hook **implementations** live under `acme2certifier.cahandlers`, `acme2certifier.eabhandlers`, and `acme2certifier.hookhandlers`.
-- Paths under `examples/ca_handler/`, `examples/eab_handler/`, and `examples/hooks/` are compatibility shims (except **skeleton** templates, which remain full example sources).
-- Tools live under `acme2certifier.tools`; `tools/*.py` are compatibility wrappers (`python tools/…` still works).
-- Handler loading supports both file paths (`*_file`, deprecated) and dotted module names (`*_module`).
+- Paths under `examples/ca_handler/`, `examples/eab_handler/`, and `examples/hooks/` are compatibility shims (except **skeleton** templates, which remain full example sources for custom handlers).
+- Tools live under `acme2certifier.tools`; `tools/*.py` are compatibility wrappers (`python tools/…` still works; prefer `python3 -m acme2certifier.tools.<name>`).
+- Handler loading supports both file paths (`*_file`, **deprecated**) and dotted module names (`*_module`, **preferred**).
+- The Django app (`models`, `views`, `urls`) remains under top-level `acme_srv/` for now.
 
 ## Backwards compatibility
 
@@ -58,13 +69,13 @@ Notes:
 - `DeprecationWarning` from library code is often filtered by default Python warning filters. Rely on application logs at `WARNING` (or lower) to see the message during normal operation.
 - To also show `DeprecationWarning` on stderr: run with `PYTHONWARNINGS=default` or `python -W default`.
 
-There is **no** hard removal of `*_file` in this release. Removal is planned for a future major cleanup once migrations are complete.
+There is **no** hard removal of `*_file` in this release. Removal is planned for a future major cleanup (Phase 10) once migrations are complete.
 
 ## Config migration (recommended)
 
 ### CA handler
 
-Legacy:
+Legacy (deprecated):
 
 ```ini
 [CAhandler]
@@ -87,7 +98,7 @@ handler_module: examples.ca_handler.openssl_ca_handler
 
 ### EAB handler
 
-Legacy:
+Legacy (deprecated):
 
 ```ini
 [EABhandler]
@@ -103,7 +114,7 @@ eab_handler_module: acme2certifier.eabhandlers.file_handler
 
 ### Hooks
 
-Legacy:
+Legacy (deprecated):
 
 ```ini
 [Hooks]
@@ -139,7 +150,7 @@ Shims under the top-level `acme_srv/` package re-export the new modules. Prefer 
 
 ### CA handlers (`examples/ca_handler` → `acme2certifier.cahandlers`)
 
-| Legacy file | Import today | Target module |
+| Legacy file | Import via shim | Preferred module |
 | --- | --- | --- |
 | `examples/ca_handler/openssl_ca_handler.py` | `examples.ca_handler.openssl_ca_handler` | `acme2certifier.cahandlers.openssl_ca_handler` |
 | `examples/ca_handler/skeleton_ca_handler.py` | `examples.ca_handler.skeleton_ca_handler` | `acme2certifier.cahandlers.skeleton_ca_handler` |
@@ -163,9 +174,11 @@ Shims under the top-level `acme_srv/` package re-export the new modules. Prefer 
 
 Related helper modules (same pattern): `certsrv`, `ms_wcce.*`.
 
+**Note:** `examples/*/skeleton_*.py` remain full template sources for custom handlers. Built-in handler files under `examples/` are shims that re-export the package modules.
+
 ### EAB handlers
 
-| Legacy file | Import today | Target module |
+| Legacy file | Import via shim | Preferred module |
 | --- | --- | --- |
 | `examples/eab_handler/file_handler.py` | `examples.eab_handler.file_handler` | `acme2certifier.eabhandlers.file_handler` |
 | `examples/eab_handler/json_handler.py` | `examples.eab_handler.json_handler` | `acme2certifier.eabhandlers.json_handler` |
@@ -175,7 +188,7 @@ Related helper modules (same pattern): `certsrv`, `ms_wcce.*`.
 
 ### Hooks
 
-| Legacy file | Import today | Target module |
+| Legacy file | Import via shim | Preferred module |
 | --- | --- | --- |
 | `examples/hooks/skeleton_hooks.py` | `examples.hooks.skeleton_hooks` | `acme2certifier.hookhandlers.skeleton_hooks` |
 | `examples/hooks/email_hooks.py` | `examples.hooks.email_hooks` | `acme2certifier.hookhandlers.email_hooks` |
@@ -184,12 +197,12 @@ Related helper modules (same pattern): `certsrv`, `ms_wcce.*`.
 
 ### Tools
 
-| Legacy path | Target module |
+| Legacy path | Preferred invocation |
 | --- | --- |
-| `tools/a2c_cli.py` | `acme2certifier.tools.a2c_cli` |
-| `tools/cert_poll.py` | `acme2certifier.tools.cert_poll` |
-| `tools/db_update.py` | `acme2certifier.tools.db_update` |
-| `tools/…` | `acme2certifier.tools.…` |
+| `tools/a2c_cli.py` | `python3 -m acme2certifier.tools.a2c_cli` |
+| `tools/cert_poll.py` | `python3 -m acme2certifier.tools.cert_poll` |
+| `tools/db_update.py` | `python3 -m acme2certifier.tools.db_update` |
+| `tools/…` | `python3 -m acme2certifier.tools.…` |
 
 ## Custom handlers
 
@@ -202,10 +215,10 @@ If you maintain a custom handler outside this repository:
 ## Migration checklist
 
 1. Confirm the server starts with your existing `*_file` configuration (no change required).
-1. Switch `acme_srv.cfg` to `*_module` keys when ready (prefer `acme2certifier.cahandlers.*` / `eabhandlers.*` / `hookhandlers.*`).
+1. Switch `acme_srv.cfg` to `*_module` keys (prefer `acme2certifier.cahandlers.*` / `eabhandlers.*` / `hookhandlers.*`).
 1. Watch logs for deprecation warnings related to `*_file`.
-1. Update in-house scripts and tests from `acme_srv.*` to `acme2certifier.acme_srv.*` (internal package code already uses the new namespaces; shims keep old imports working).
-1. After handlers/tools are relocated into `acme2certifier.*`, update `*_module` values to the target names in the tables above.
+1. Update in-house scripts and tests from `acme_srv.*` to `acme2certifier.acme_srv.*` (shims keep old imports working until Phase 10).
+1. Prefer `python3 -m acme2certifier.tools.<name>` over `python tools/<name>.py`.
 
 ## Related documentation
 
@@ -213,3 +226,4 @@ If you maintain a custom handler outside this repository:
 - [EAB](eab.md)
 - [Hooks](hooks.md)
 - [Upgrading acme2certifier](upgrading.md)
+- [acme_srv.cfg options](acme_srv.md)
