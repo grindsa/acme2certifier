@@ -69,7 +69,7 @@ jobs:
       - name: "Retrieve version from version.py"
         run: |
           echo APP_NAME=$(echo ${{ github.repository }} | awk -F / '{print $2}') >> $GITHUB_ENV
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
           echo BUILD_NAME=${{ matrix.websrv }}-${{ matrix.dbhandler }} >> $GITHUB_ENV
 
       - name: "Retrieve 2nd last release tag"
@@ -124,7 +124,7 @@ jobs:
           sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           echo "" >> examples/Docker/data/acme_srv.cfg
-          echo "handler_file: examples/ca_handler/openssl_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          echo "handler_module: acme2certifier.cahandlers.openssl_ca_handler" >> examples/Docker/data/acme_srv.cfg
 
       - name: "Download and import container"
         uses: ./.github/actions/container_load
@@ -331,7 +331,7 @@ jobs:
 
       - name: Retrieve Version from version.py
         run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
 
       - name: "Generate keys and certificates"
         uses: ./.github/actions/cert_gen
@@ -378,7 +378,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -492,7 +492,7 @@ jobs:
 
       - name: Retrieve Version from version.py
         run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
       - name: "Generate keys and certificates"
@@ -553,7 +553,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -664,7 +664,7 @@ jobs:
 
       - name: Retrieve Version from version.py
         run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
       - name: "Generate keys and certificates"
@@ -722,7 +722,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -833,7 +833,7 @@ jobs:
 
       - name: Retrieve Version from version.py
         run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
       - name: "Generate keys and certificates"
@@ -894,7 +894,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -1010,7 +1010,7 @@ jobs:
 
       - name: Retrieve Version from version.py
         run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
       - name: "Generate keys and certificates"
@@ -1063,7 +1063,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: /var/www/acme2certifier/volume/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -1171,7 +1171,7 @@ jobs:
 
       - name: Retrieve Version from version.py
         run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
       - name: "Generate keys and certificates"
@@ -1224,7 +1224,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: /var/www/acme2certifier/volume/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -1365,7 +1365,7 @@ jobs:
 
       - name: Retrieve Version from version.py
         run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
       - name: "Generate keys and certificates"
@@ -1418,7 +1418,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: /var/www/acme2certifier/volume/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -1566,7 +1566,7 @@ jobs:
 
       - name: Retrieve Version from version.py
         run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
       - name: "Generate keys and certificates"
@@ -1619,7 +1619,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: /var/www/acme2certifier/volume/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg

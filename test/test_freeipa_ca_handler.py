@@ -4,7 +4,7 @@ import sys
 
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     load_config,
     csr_cn_get,
     csr_san_get,
@@ -21,7 +21,7 @@ import requests
 class TestCAhandler(unittest.TestCase):
     def setUp(self):
         self.logger = MagicMock()
-        from examples.ca_handler.freeipa_ca_handler import CAhandler
+        from acme2certifier.cahandlers.freeipa_ca_handler import CAhandler
 
         self.handler = CAhandler(logger=self.logger)
         self.handler.api_host = "https://ipa.example.com"
@@ -36,7 +36,7 @@ class TestCAhandler(unittest.TestCase):
         self.handler.proxy = None
         self.handler.request_timeout = 30
 
-    @patch("examples.ca_handler.freeipa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.freeipa_ca_handler.load_config")
     def test_001_config_load_testcase(self, mock_load_config):
         config = MagicMock()
         config.get.side_effect = lambda section, key, fallback=None: "value"
@@ -47,7 +47,7 @@ class TestCAhandler(unittest.TestCase):
         self.assertEqual(self.handler.api_user, "value")
         self.assertTrue(self.handler.ca_bundle)
 
-    @patch("examples.ca_handler.freeipa_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.freeipa_ca_handler.load_config")
     def test_002_config_load_fqdn_fallback(self, mock_load_config):
         # Simulate missing fqdn in DEFAULT section, should log and fallback to CONFIG_SECTION
         config = MagicMock()
@@ -71,7 +71,7 @@ class TestCAhandler(unittest.TestCase):
     def test_003_config_load_fqdn_fallback(self):
         # Simulate missing fqdn in DEFAULT section, should log and fallback to CONFIG_SECTION
         with patch(
-            "examples.ca_handler.freeipa_ca_handler.load_config"
+            "acme2certifier.cahandlers.freeipa_ca_handler.load_config"
         ) as mock_load_config:
             config = MagicMock()
 
@@ -96,7 +96,7 @@ class TestCAhandler(unittest.TestCase):
     def test_004_config_load_ca_bundle_boolean_true(self):
         # Simulate ca_bundle as string "true", should convert to boolean True
         with patch(
-            "examples.ca_handler.freeipa_ca_handler.load_config"
+            "acme2certifier.cahandlers.freeipa_ca_handler.load_config"
         ) as mock_load_config:
             config = MagicMock()
             config.get.side_effect = lambda section, key, fallback=None: "true"
@@ -109,7 +109,7 @@ class TestCAhandler(unittest.TestCase):
     def test_005_config_load_ca_bundle_boolean_false(self):
         # Simulate ca_bundle as string "false", should convert to boolean False
         with patch(
-            "examples.ca_handler.freeipa_ca_handler.load_config"
+            "acme2certifier.cahandlers.freeipa_ca_handler.load_config"
         ) as mock_load_config:
             config = MagicMock()
             config.get.side_effect = lambda section, key, fallback=None: "false"
@@ -122,7 +122,7 @@ class TestCAhandler(unittest.TestCase):
     def test_006_config_load_ca_bundle_not_boolean(self):
         # Simulate ca_bundle as string "notaboolean", should fallback to default
         with patch(
-            "examples.ca_handler.freeipa_ca_handler.load_config"
+            "acme2certifier.cahandlers.freeipa_ca_handler.load_config"
         ) as mock_load_config:
             config = MagicMock()
             config.get.side_effect = lambda section, key, fallback=None: "notaboolean"
@@ -148,7 +148,7 @@ class TestCAhandler(unittest.TestCase):
         self.logger.debug.assert_any_call("CAhandler._login()")
         self.assertIsNone(result)
 
-    @patch("examples.ca_handler.freeipa_ca_handler.requests.Session")
+    @patch("acme2certifier.cahandlers.freeipa_ca_handler.requests.Session")
     def test_008_login_creates_session_if_none(self, mock_session):
         # Cover the branch where self.session is None and a new Session is created
         self.handler.session = None
@@ -349,10 +349,10 @@ class TestCAhandler(unittest.TestCase):
     def test_023_parse_csr_valid_testcase(self):
         with (
             patch(
-                "examples.ca_handler.freeipa_ca_handler.csr_cn_get", return_value="cn"
+                "acme2certifier.cahandlers.freeipa_ca_handler.csr_cn_get", return_value="cn"
             ),
             patch(
-                "examples.ca_handler.freeipa_ca_handler.csr_san_get",
+                "acme2certifier.cahandlers.freeipa_ca_handler.csr_san_get",
                 return_value=["DNS:foo", "DNS:bar"],
             ),
         ):
@@ -363,10 +363,10 @@ class TestCAhandler(unittest.TestCase):
     def test_024_parse_csr_no_cn_testcase(self):
         with (
             patch(
-                "examples.ca_handler.freeipa_ca_handler.csr_cn_get", return_value=None
+                "acme2certifier.cahandlers.freeipa_ca_handler.csr_cn_get", return_value=None
             ),
             patch(
-                "examples.ca_handler.freeipa_ca_handler.csr_san_get",
+                "acme2certifier.cahandlers.freeipa_ca_handler.csr_san_get",
                 return_value=["DNS:foo"],
             ),
         ):
@@ -454,11 +454,11 @@ class TestCAhandler(unittest.TestCase):
     def test_034_cert_chain_to_pem_testcase(self):
         with (
             patch(
-                "examples.ca_handler.freeipa_ca_handler.b64_decode",
+                "acme2certifier.cahandlers.freeipa_ca_handler.b64_decode",
                 return_value=b"bytes",
             ),
             patch(
-                "examples.ca_handler.freeipa_ca_handler.cert_der2pem",
+                "acme2certifier.cahandlers.freeipa_ca_handler.cert_der2pem",
                 return_value=b"PEM",
             ),
         ):
@@ -541,7 +541,7 @@ class TestCAhandler(unittest.TestCase):
 
     def test_042_handler_check_testcase(self):
         with patch(
-            "examples.ca_handler.freeipa_ca_handler.handler_config_check",
+            "acme2certifier.cahandlers.freeipa_ca_handler.handler_config_check",
             return_value=None,
         ):
             error = self.handler.handler_check()
@@ -667,7 +667,7 @@ class TestCAhandler(unittest.TestCase):
     def test_054_revoke_public_error(self):
         # Simulate cert_serial_get returns a serial, _revoke returns error
         with patch(
-            "examples.ca_handler.freeipa_ca_handler.cert_serial_get",
+            "acme2certifier.cahandlers.freeipa_ca_handler.cert_serial_get",
             return_value="serial",
         ):
             self.handler._revoke = MagicMock(return_value=(1, "fail", None))
@@ -680,7 +680,7 @@ class TestCAhandler(unittest.TestCase):
     def test_055_revoke_public_success(self):
         # Simulate cert_serial_get returns a serial, _revoke returns success
         with patch(
-            "examples.ca_handler.freeipa_ca_handler.cert_serial_get",
+            "acme2certifier.cahandlers.freeipa_ca_handler.cert_serial_get",
             return_value="serial",
         ):
             self.handler._revoke = MagicMock(
@@ -695,7 +695,7 @@ class TestCAhandler(unittest.TestCase):
     def test_056_revoke_no_serial(self):
         # Simulate cert_serial_get returns None, _revoke should not be called
         with patch(
-            "examples.ca_handler.freeipa_ca_handler.cert_serial_get", return_value=None
+            "acme2certifier.cahandlers.freeipa_ca_handler.cert_serial_get", return_value=None
         ):
             self.handler._revoke = MagicMock()
             code, message, detail = self.handler.revoke("dummycert")
@@ -709,7 +709,7 @@ class TestCAhandler(unittest.TestCase):
     def test_057_revoke_no_cert(self):
         # Simulate cert_serial_get returns None, _revoke should not be called
         with patch(
-            "examples.ca_handler.freeipa_ca_handler.cert_serial_get", return_value=None
+            "acme2certifier.cahandlers.freeipa_ca_handler.cert_serial_get", return_value=None
         ):
             self.handler._revoke = MagicMock()
             code, message, detail = self.handler.revoke(None)
@@ -721,7 +721,7 @@ class TestCAhandler(unittest.TestCase):
     def test_058_enroll_eab_profile_error(self):
         # Simulate eab_profile_header_info_check returns error
         with patch(
-            "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
+            "acme2certifier.cahandlers.freeipa_ca_handler.eab_profile_header_info_check",
             return_value="eab_error",
         ):
             result = self.handler.enroll("dummycsr")
@@ -731,7 +731,7 @@ class TestCAhandler(unittest.TestCase):
         # Simulate eab_profile_header_info_check ok, _parse_csr returns host/alias, _ensure_host_and_principals returns error
         with (
             patch(
-                "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
+                "acme2certifier.cahandlers.freeipa_ca_handler.eab_profile_header_info_check",
                 return_value=None,
             ),
             patch.object(
@@ -748,7 +748,7 @@ class TestCAhandler(unittest.TestCase):
         # Simulate all ok until _enroll, which returns error
         with (
             patch(
-                "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
+                "acme2certifier.cahandlers.freeipa_ca_handler.eab_profile_header_info_check",
                 return_value=None,
             ),
             patch.object(
@@ -758,7 +758,7 @@ class TestCAhandler(unittest.TestCase):
                 self.handler, "_ensure_host_and_principals", return_value=None
             ),
             patch(
-                "examples.ca_handler.freeipa_ca_handler.build_pem_file",
+                "acme2certifier.cahandlers.freeipa_ca_handler.build_pem_file",
                 return_value="pemcsr",
             ),
             patch.object(
@@ -772,7 +772,7 @@ class TestCAhandler(unittest.TestCase):
         # Simulate full success path
         with (
             patch(
-                "examples.ca_handler.freeipa_ca_handler.eab_profile_header_info_check",
+                "acme2certifier.cahandlers.freeipa_ca_handler.eab_profile_header_info_check",
                 return_value=None,
             ),
             patch.object(
@@ -782,7 +782,7 @@ class TestCAhandler(unittest.TestCase):
                 self.handler, "_ensure_host_and_principals", return_value=None
             ),
             patch(
-                "examples.ca_handler.freeipa_ca_handler.build_pem_file",
+                "acme2certifier.cahandlers.freeipa_ca_handler.build_pem_file",
                 return_value="pemcsr",
             ),
             patch.object(self.handler, "_enroll", return_value=(None, "bundle", "raw")),
@@ -799,10 +799,10 @@ class TestCAhandler(unittest.TestCase):
         ]
         with (
             patch(
-                "examples.ca_handler.freeipa_ca_handler.b64_decode"
+                "acme2certifier.cahandlers.freeipa_ca_handler.b64_decode"
             ) as mock_b64_decode,
             patch(
-                "examples.ca_handler.freeipa_ca_handler.cert_der2pem"
+                "acme2certifier.cahandlers.freeipa_ca_handler.cert_der2pem"
             ) as mock_cert_der2pem,
         ):
             result = self.handler._cert_chain_to_pem(certs)
@@ -816,7 +816,7 @@ class TestCAhandler(unittest.TestCase):
         self.handler.enrollment_config_log_skip_list = ["skip1", "skip2"]
         with (
             patch(
-                "examples.ca_handler.freeipa_ca_handler.enrollment_config_log"
+                "acme2certifier.cahandlers.freeipa_ca_handler.enrollment_config_log"
             ) as mock_enroll_log,
             patch.object(self.handler, "_rpc_post", return_value={"error": "fail"}),
         ):

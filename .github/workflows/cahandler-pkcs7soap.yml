@@ -123,7 +123,7 @@ jobs:
           sudo cp test/ca/sub-ca-cert.pem examples/Docker/data/cert.pem
           sudo cp test/ca/certs.pem examples/Docker/data/ca_bundle.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/pkcs7_soap_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.pkcs7_soap_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "soap_srv: http://soap-srv.acme:8888" >> examples/Docker/data/acme_srv.cfg
           sudo echo "signing_cert: /var/www/acme2certifier/volume/cert.pem" >> examples/Docker/data/acme_srv.cfg
           sudo echo "signing_key: /var/www/acme2certifier/volume/key.pem" >> examples/Docker/data/acme_srv.cfg
@@ -246,7 +246,7 @@ jobs:
           sudo cp test/ca/sub-ca-cert.pem examples/Docker/data/cert.pem
           sudo cp test/ca/certs.pem examples/Docker/data/ca_bundle.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/pkcs7_soap_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.pkcs7_soap_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "soap_srv: http://soap-srv.acme:8888" >> examples/Docker/data/acme_srv.cfg
           sudo echo "signing_script: /var/www/acme2certifier/volume/mock_signer.py" >> examples/Docker/data/acme_srv.cfg
           sudo echo "signing_alias: /var/www/acme2certifier/volume/cert.pem" >> examples/Docker/data/acme_srv.cfg

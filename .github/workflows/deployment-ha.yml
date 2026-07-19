@@ -55,7 +55,7 @@ jobs:
 
       - name: Retrieve Version from version.py
         run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       - run: echo "Latest tag is ${{ env.TAG_NAME }}"
 
       - name: "Download RPM artifact by name from build run"
@@ -340,7 +340,6 @@ jobs:
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
           sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
           sudo sed -i "s#volume/acme_ca/#/opt/acme2certifier/volume/acme_ca/#g" data/volume/acme_srv.cfg
-          sudo sed -i "s#examples/ca_handler/#/opt/acme2certifier/examples/ca_handler/#g" data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           docker exec alma9-c1 sh -c "cp -r /tmp/acme2certifier/volume/* /opt/acme2certifier/volume/"
           docker exec alma9-c1 chown -R nginx.nginx /opt/acme2certifier/volume/

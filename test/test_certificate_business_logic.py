@@ -6,7 +6,7 @@ import sys
 # Add the parent directory to sys.path so we can import acme_srv
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from acme_srv.certificate_business_logic import CertificateBusinessLogic
+from acme2certifier.acme_srv.certificate_business_logic import CertificateBusinessLogic
 
 
 class TestCertificateBusinessLogic(unittest.TestCase):
@@ -27,7 +27,7 @@ class TestCertificateBusinessLogic(unittest.TestCase):
             config=self.config,
         )
 
-    @patch("acme_srv.certificate_business_logic.csr_load")
+    @patch("acme2certifier.acme_srv.certificate_business_logic.csr_load")
     def test_001_validate_csr_valid(self, mock_csr_load):
         mock_csr_load.return_value = MagicMock()
         code, error, detail = self.logic.validate_csr("valid_csr")
@@ -35,14 +35,14 @@ class TestCertificateBusinessLogic(unittest.TestCase):
         self.assertIsNone(error)
         self.assertIsNone(detail)
 
-    @patch("acme_srv.certificate_business_logic.csr_load")
+    @patch("acme2certifier.acme_srv.certificate_business_logic.csr_load")
     def test_002_validate_csr_empty(self, mock_csr_load):
         code, error, detail = self.logic.validate_csr("")
         self.assertEqual(code, 400)
         self.assertEqual(error, "Invalid CSR")
         self.assertEqual(detail, "CSR is empty")
 
-    @patch("acme_srv.certificate_business_logic.csr_load")
+    @patch("acme2certifier.acme_srv.certificate_business_logic.csr_load")
     def test_003_validate_csr_invalid_format(self, mock_csr_load):
         mock_csr_load.return_value = None
         code, error, detail = self.logic.validate_csr("bad_csr")
@@ -50,7 +50,7 @@ class TestCertificateBusinessLogic(unittest.TestCase):
         self.assertEqual(error, "Invalid CSR")
         self.assertEqual(detail, "CSR format is invalid")
 
-    @patch("acme_srv.certificate_business_logic.csr_load")
+    @patch("acme2certifier.acme_srv.certificate_business_logic.csr_load")
     def test_004_validate_csr_exception(self, mock_csr_load):
         mock_csr_load.side_effect = Exception("fail")
         code, error, detail = self.logic.validate_csr("csr")
@@ -58,21 +58,21 @@ class TestCertificateBusinessLogic(unittest.TestCase):
         self.assertEqual(error, "Internal server error")
         self.assertEqual(detail, "CSR validation failed")
 
-    @patch("acme_srv.certificate_business_logic.cert_dates_get")
+    @patch("acme2certifier.acme_srv.certificate_business_logic.cert_dates_get")
     def test_005_calculate_certificate_dates_valid(self, mock_cert_dates_get):
         mock_cert_dates_get.return_value = (123, 456)
         issue, expire = self.logic.calculate_certificate_dates("cert")
         self.assertEqual(issue, 123)
         self.assertEqual(expire, 456)
 
-    @patch("acme_srv.certificate_business_logic.cert_dates_get")
+    @patch("acme2certifier.acme_srv.certificate_business_logic.cert_dates_get")
     def test_006_calculate_certificate_dates_exception(self, mock_cert_dates_get):
         mock_cert_dates_get.side_effect = Exception("fail")
         issue, expire = self.logic.calculate_certificate_dates("cert")
         self.assertEqual(issue, 0)
         self.assertEqual(expire, 0)
 
-    @patch("acme_srv.certificate_business_logic.generate_random_string")
+    @patch("acme2certifier.acme_srv.certificate_business_logic.generate_random_string")
     def test_007_generate_certificate_name(self, mock_generate_random_string):
         mock_generate_random_string.return_value = "randomname"
         name = self.logic.generate_certificate_name()
@@ -113,10 +113,10 @@ class TestCertificateBusinessLogic(unittest.TestCase):
             "Certificate validation error: strip failure"
         )
 
-    @patch("acme_srv.certificate_business_logic.cert_serial_get")
-    @patch("acme_srv.certificate_business_logic.cert_cn_get")
-    @patch("acme_srv.certificate_business_logic.cert_san_get")
-    @patch("acme_srv.certificate_business_logic.cert_aki_get")
+    @patch("acme2certifier.acme_srv.certificate_business_logic.cert_serial_get")
+    @patch("acme2certifier.acme_srv.certificate_business_logic.cert_cn_get")
+    @patch("acme2certifier.acme_srv.certificate_business_logic.cert_san_get")
+    @patch("acme2certifier.acme_srv.certificate_business_logic.cert_aki_get")
     @patch.object(CertificateBusinessLogic, "calculate_certificate_dates")
     def test_014_extract_certificate_info(
         self, mock_dates, mock_aki, mock_san, mock_cn, mock_serial
@@ -135,21 +135,21 @@ class TestCertificateBusinessLogic(unittest.TestCase):
         self.assertEqual(info["expire_date"], 222)
 
     @patch(
-        "acme_srv.certificate_business_logic.cert_serial_get",
+        "acme2certifier.acme_srv.certificate_business_logic.cert_serial_get",
         side_effect=Exception("fail"),
     )
     def test_015_extract_certificate_info_exception(self, mock_serial):
         info = self.logic.extract_certificate_info("cert")
         self.assertEqual(info, {})
 
-    @patch("acme_srv.certificate_business_logic.string_sanitize")
+    @patch("acme2certifier.acme_srv.certificate_business_logic.string_sanitize")
     def test_016_sanitize_certificate_name(self, mock_string_sanitize):
         mock_string_sanitize.return_value = "sanitized"
         result = self.logic.sanitize_certificate_name("name")
         self.assertEqual(result, "sanitized")
 
     @patch(
-        "acme_srv.certificate_business_logic.string_sanitize",
+        "acme2certifier.acme_srv.certificate_business_logic.string_sanitize",
         side_effect=Exception("fail"),
     )
     def test_017_sanitize_certificate_name_exception(self, mock_string_sanitize):

@@ -29,13 +29,10 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
-        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
-            FakeDBStore
-        )
         modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
-        from examples.ca_handler.openxpki_ca_handler import CAhandler
+        from acme2certifier.cahandlers.openxpki_ca_handler import CAhandler
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
@@ -46,14 +43,14 @@ class TestACMEHandler(unittest.TestCase):
         """default test which always passes"""
         self.assertEqual("foo", "foo")
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._config_load")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._config_load")
     def test_002__enter__(self, mock_cfg):
         """test enter  called"""
         mock_cfg.return_value = True
         self.cahandler.__enter__()
         self.assertTrue(mock_cfg.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._config_load")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._config_load")
     def test_003__enter__(self, mock_cfg):
         """test enter api hosts defined"""
         mock_cfg.return_value = True
@@ -61,8 +58,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.__enter__()
         self.assertFalse(mock_cfg.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.openxpki_ca_handler.b64_encode")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.cert_pem2der")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.b64_encode")
     def test_004_cert_bundle_create(self, mock_enc, mock_p2d):
         """test _cert_bundle_create()"""
         response_dic = {}
@@ -78,8 +75,8 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.openxpki_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.openxpki_ca_handler.b64_encode")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.cert_pem2der")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.b64_encode")
     def test_005_cert_bundle_create(self, mock_enc, mock_p2d):
         """test _cert_bundle_create()"""
         response_dic = {"data": {"certificate": "certificate", "chain": "chain"}}
@@ -91,8 +88,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_enc.called)
         self.assertTrue(mock_p2d.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.openxpki_ca_handler.b64_encode")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.cert_pem2der")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.b64_encode")
     def test_006_cert_bundle_create(self, mock_enc, mock_p2d):
         """test _cert_bundle_create()"""
         response_dic = {"foo": "bar"}
@@ -108,8 +105,8 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.openxpki_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.openxpki_ca_handler.b64_encode")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.cert_pem2der")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.b64_encode")
     def test_007_cert_bundle_create(self, mock_enc, mock_p2d):
         """test _cert_bundle_create()"""
         response_dic = {"data": {"certificate": "certificate"}}
@@ -125,8 +122,8 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.openxpki_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.openxpki_ca_handler.b64_encode")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.cert_pem2der")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.b64_encode")
     def test_008_cert_bundle_create(self, mock_enc, mock_p2d):
         """test _cert_bundle_create()"""
         response_dic = {"data": {"chain": "chain"}}
@@ -297,7 +294,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._config_passphrase_load")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._config_passphrase_load")
     def test_024__config_session_load(self, mock_pass):
         """test _config_server_load()"""
         parser = configparser.ConfigParser()
@@ -306,7 +303,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(("client_cert", "client_key"), self.cahandler.session.cert)
         self.assertFalse(mock_pass.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._config_passphrase_load")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._config_passphrase_load")
     def test_025__config_session_load(self, mock_pass):
         """test _config_server_load()"""
         parser = configparser.ConfigParser()
@@ -323,8 +320,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_pass.called)
 
     @patch("requests.Session")
-    @patch("examples.ca_handler.openxpki_ca_handler.Pkcs12Adapter")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._config_passphrase_load")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.Pkcs12Adapter")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._config_passphrase_load")
     def test_026__config_session_load(self, mock_pass, mock_req, mock_session):
         """test _config_server_load()"""
         parser = configparser.ConfigParser()
@@ -389,9 +386,9 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual("cert_passphrase", self.cahandler.cert_passphrase)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._config_server_load")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._config_session_load")
-    @patch("examples.ca_handler.openxpki_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._config_server_load")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._config_session_load")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.load_config")
     def test_032_config_load(self, mock_load_cfg, mock_auth_load, mock_server_load):
         """load config"""
         parser = configparser.ConfigParser()
@@ -414,7 +411,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.openxpki_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.load_config")
     def test_033_config_load(self, mock_load_cfg):
         """load config"""
         parser = configparser.ConfigParser()
@@ -427,9 +424,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._config_server_load")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._config_session_load")
-    @patch("examples.ca_handler.openxpki_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._config_server_load")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._config_session_load")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.load_config")
     def test_034_config_load(self, mock_load_cfg, mock_auth_load, mock_server_load):
         """load config"""
         parser = configparser.ConfigParser()
@@ -450,9 +447,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._config_server_load")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._config_session_load")
-    @patch("examples.ca_handler.openxpki_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._config_server_load")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._config_session_load")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.load_config")
     def test_035_config_load(self, mock_load_cfg, mock_auth_load, mock_server_load):
         """load config"""
         parser = configparser.ConfigParser()
@@ -473,9 +470,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._config_server_load")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._config_session_load")
-    @patch("examples.ca_handler.openxpki_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._config_server_load")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._config_session_load")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.load_config")
     def test_036_config_load(self, mock_load_cfg, mock_auth_load, mock_server_load):
         """load config"""
         parser = configparser.ConfigParser()
@@ -533,9 +530,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._enroll")
-    @patch("examples.ca_handler.openxpki_ca_handler.build_pem_file")
-    @patch("examples.ca_handler.openxpki_ca_handler.b64_url_recode")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._enroll")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.build_pem_file")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.b64_url_recode")
     def test_041_enroll(self, mock_recode, mock_pem, mock_enroll):
         """test ernoll"""
         csr = "csr"
@@ -552,9 +549,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_pem.called)
         self.assertFalse(mock_enroll.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._enroll")
-    @patch("examples.ca_handler.openxpki_ca_handler.build_pem_file")
-    @patch("examples.ca_handler.openxpki_ca_handler.b64_url_recode")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._enroll")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.build_pem_file")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.b64_url_recode")
     def test_042_enroll(self, mock_recode, mock_pem, mock_enroll):
         """test ernoll"""
         csr = "csr"
@@ -574,9 +571,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_pem.called)
         self.assertFalse(mock_enroll.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._enroll")
-    @patch("examples.ca_handler.openxpki_ca_handler.build_pem_file")
-    @patch("examples.ca_handler.openxpki_ca_handler.b64_url_recode")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._enroll")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.build_pem_file")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.b64_url_recode")
     def test_043_enroll(self, mock_recode, mock_pem, mock_enroll):
         """test ernoll"""
         csr = "csr"
@@ -597,8 +594,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_pem.called)
         self.assertTrue(mock_enroll.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._cert_bundle_create")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._rpc_post")
     def test_044__enroll(self, mock_post, mock_create):
         """test _enroll()"""
         mock_post.return_value = {"foo": "bar"}
@@ -614,8 +611,8 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(mock_create.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._cert_bundle_create")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._rpc_post")
     def test_045__enroll(self, mock_post, mock_create):
         """test _enroll()"""
         mock_post.return_value = {
@@ -637,9 +634,9 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(mock_create.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.enrollment_config_log")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.enrollment_config_log")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._cert_bundle_create")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._rpc_post")
     def test_046__enroll(self, mock_post, mock_create, mock_log):
         """test _enroll()"""
         mock_post.return_value = {
@@ -658,8 +655,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_create.called)
         self.assertFalse(mock_log.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._cert_bundle_create")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._rpc_post")
     def test_047__enroll(self, mock_post, mock_create):
         """test _enroll()"""
         mock_post.side_effect = [
@@ -691,8 +688,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_create.called)
 
     @patch("time.sleep")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._cert_bundle_create")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._rpc_post")
     def test_048__enroll(self, mock_post, mock_create, mock_sleep):
         """test _enroll()"""
         mock_post.side_effect = [
@@ -726,9 +723,9 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_create.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.enrollment_config_log")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._cert_bundle_create")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.enrollment_config_log")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._cert_bundle_create")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._rpc_post")
     def test_049__enroll(self, mock_post, mock_create, mock_log):
         """test _enroll()"""
         mock_post.return_value = {
@@ -784,7 +781,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.dbstore.certificate_lookup.return_value = {"poll_identifier": ""}
         self.assertFalse(self.cahandler._cert_identifier_get("certcn"))
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._rpc_post")
     def test_055__revoke(self, mock_post):
         """test _revoke()"""
         self.assertEqual(
@@ -796,7 +793,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._revoke("cert_identifier", "rev_reason"),
         )
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._rpc_post")
     def test_056__revoke(self, mock_post):
         """test _revoke()"""
         self.cahandler.host = "host"
@@ -807,7 +804,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._revoke("cert_identifier", "rev_reason"),
         )
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._rpc_post")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._rpc_post")
     def test_057__revoke(self, mock_post):
         """test _revoke()"""
         self.cahandler.host = "host"
@@ -817,8 +814,8 @@ class TestACMEHandler(unittest.TestCase):
             (200, None, None), self.cahandler._revoke("cert_identifier", "rev_reason")
         )
 
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._revoke")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._cert_identifier_get")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._revoke")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._cert_identifier_get")
     def test_058_revoke(self, mock_certid, mock_revoke):
         """test revoke"""
         mock_certid.return_value = None
@@ -829,9 +826,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_certid.called)
         self.assertFalse(mock_revoke.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.eab_profile_revocation_check")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._revoke")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._cert_identifier_get")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.eab_profile_revocation_check")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._revoke")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._cert_identifier_get")
     def test_059_revoke(self, mock_certid, mock_revoke, mock_eab):
         """test revoke"""
         mock_certid.return_value = "cert_identifier"
@@ -843,9 +840,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_revoke.called)
         self.assertFalse(mock_eab.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.eab_profile_revocation_check")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._revoke")
-    @patch("examples.ca_handler.openxpki_ca_handler.CAhandler._cert_identifier_get")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.eab_profile_revocation_check")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._revoke")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.CAhandler._cert_identifier_get")
     def test_060_revoke(self, mock_certid, mock_revoke, mock_eab):
         """test revoke"""
         mock_certid.return_value = "cert_identifier"
@@ -858,7 +855,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_revoke.called)
         self.assertTrue(mock_eab.called)
 
-    @patch("examples.ca_handler.openxpki_ca_handler.handler_config_check")
+    @patch("acme2certifier.cahandlers.openxpki_ca_handler.handler_config_check")
     def test_061_handler_check(self, mock_handler_check):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"

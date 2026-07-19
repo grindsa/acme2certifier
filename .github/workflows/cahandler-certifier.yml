@@ -145,7 +145,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
@@ -173,7 +173,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
@@ -197,7 +197,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
@@ -221,7 +221,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
@@ -245,7 +245,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
@@ -255,7 +255,7 @@ jobs:
           # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
           sudo echo "profile_id: 100" >> examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
@@ -288,7 +288,7 @@ jobs:
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
@@ -299,7 +299,7 @@ jobs:
           sudo echo "profile_id: 100" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
@@ -365,7 +365,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
@@ -392,7 +392,7 @@ jobs:
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> examples/Docker/data/acme_srv.cfg
           sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
@@ -405,7 +405,7 @@ jobs:
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
           sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
@@ -514,7 +514,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
@@ -542,7 +542,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
@@ -570,7 +570,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
@@ -598,7 +598,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
@@ -626,7 +626,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
@@ -636,7 +636,7 @@ jobs:
           # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
           sudo echo "profile_id: 100" >> data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -670,7 +670,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
@@ -681,7 +681,7 @@ jobs:
           sudo echo "profile_id: 100" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -762,7 +762,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
@@ -790,7 +790,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
@@ -802,7 +802,7 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_operations_log: True/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -924,7 +924,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
@@ -953,7 +953,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
@@ -982,7 +982,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
@@ -993,7 +993,7 @@ jobs:
           sudo echo "profile_id: 100" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -1028,7 +1028,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
@@ -1057,7 +1057,7 @@ jobs:
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/certifier_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://forwarder.acme:8084" >> data/volume/acme_srv.cfg
           sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
@@ -1069,7 +1069,7 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_operations_log: True/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -1193,7 +1193,7 @@ jobs:
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.cmp_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "cmp_path: pkix/" >> examples/Docker/data/acme_srv.cfg
           sudo echo "cmp_ignore_keyusage: True" >> examples/Docker/data/acme_srv.cfg
           sudo echo "cmp_msg_timeout: 3" >> examples/Docker/data/acme_srv.cfg
@@ -1263,7 +1263,7 @@ jobs:
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.cmp_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "cmp_path: pkix/" >> examples/Docker/data/acme_srv.cfg
           sudo echo "cmp_ignore_keyusage: True" >> examples/Docker/data/acme_srv.cfg
           sudo echo "cmp_msg_timeout: 3" >> examples/Docker/data/acme_srv.cfg
@@ -1431,7 +1431,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.cmp_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
           sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
           sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg
@@ -1507,7 +1507,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.cmp_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
           sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
           sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg
@@ -1667,7 +1667,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.cmp_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
           sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
           sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg
@@ -1735,7 +1735,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/cmp_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.cmp_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "cmp_path: pkix/" >> data/volume/acme_srv.cfg
           sudo echo "cmp_ignore_keyusage: True" >> data/volume/acme_srv.cfg
           sudo echo "cmp_msg_timeout: 3" >> data/volume/acme_srv.cfg

@@ -95,7 +95,7 @@ jobs:
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/est_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.est_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "est_host: https://openxpki:8443" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "est_host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
           sudo echo "est_client_cert: volume/acme_ca/client_crt.pem" >> examples/Docker/data/acme_srv.cfg
@@ -133,7 +133,7 @@ jobs:
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/est_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.est_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "est_host: https://openxpki:8443" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "est_host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
           sudo echo "est_client_cert: volume/acme_ca/client_crt.p12" >> examples/Docker/data/acme_srv.cfg
@@ -165,7 +165,7 @@ jobs:
       - name: "Setup a2c with openxpki_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.openxpki_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
           sudo echo "client_cert: volume/acme_ca/client_crt.pem" >> examples/Docker/data/acme_srv.cfg
@@ -207,7 +207,7 @@ jobs:
           docker ps -a
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.openxpki_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
           sudo echo "client_cert: volume/acme_ca/client_crt.p12" >> examples/Docker/data/acme_srv.cfg
@@ -242,7 +242,7 @@ jobs:
         run: |
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.openxpki_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
           sudo echo "client_cert: volume/acme_ca/client_crt.p12" >> examples/Docker/data/acme_srv.cfg
@@ -272,7 +272,7 @@ jobs:
       - name: "EAB ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.openxpki_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
           sudo echo "client_cert: volume/acme_ca/client_crt.p12" >> examples/Docker/data/acme_srv.cfg
@@ -286,7 +286,7 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"tls-client\": \"http:\/\/foo.bar\/profile1\", \"tls-server\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
@@ -395,7 +395,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.est_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "est_host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           # sudo echo "est_host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
           sudo echo "est_client_cert: /opt/acme2certifier/volume/acme_ca/client_crt.pem" >> data/volume/acme_srv.cfg
@@ -433,7 +433,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.est_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "est_host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           sudo echo "est_client_cert: /opt/acme2certifier/volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
           sudo echo "cert_passphrase: Test1234" >> data/volume/acme_srv.cfg
@@ -468,7 +468,7 @@ jobs:
       - name: "Setup a2c with openxpki_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.openxpki_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
           sudo echo "client_cert: /opt/acme2certifier/volume/acme_ca/client_crt.pem" >> data/volume/acme_srv.cfg
@@ -507,7 +507,7 @@ jobs:
       - name: "Reconfigure a2c (pkcs12 support)"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.openxpki_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
           sudo echo "client_cert: /opt/acme2certifier/volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
@@ -540,7 +540,7 @@ jobs:
       - name: "ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.openxpki_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           sudo echo "client_cert: volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
           sudo echo "cert_passphrase: Test1234" >> data/volume/acme_srv.cfg
@@ -573,7 +573,7 @@ jobs:
       - name: "EAB ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.openxpki_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
           sudo echo "client_cert: volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
@@ -586,7 +586,7 @@ jobs:
           sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"tls-client\": \"http:\/\/foo.bar\/profile1\", \"tls-server\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -704,7 +704,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.est_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "est_host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           # sudo echo "est_host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
           sudo echo "est_client_cert: /var/www/acme2certifier/volume/acme_ca/client_crt.pem" >> data/volume/acme_srv.cfg
@@ -743,7 +743,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/est_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.est_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "est_host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           sudo echo "est_client_cert: /var/www/acme2certifier/volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
           sudo echo "cert_passphrase: Test1234" >> data/volume/acme_srv.cfg
@@ -779,7 +779,7 @@ jobs:
       - name: "Setup a2c with openxpki_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.openxpki_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
           sudo echo "client_cert: /var/www/acme2certifier/volume/acme_ca/client_crt.pem" >> data/volume/acme_srv.cfg
@@ -819,7 +819,7 @@ jobs:
       - name: "Reconfigure a2c (pkcs12 support)"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.openxpki_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
           sudo echo "client_cert: /var/www/acme2certifier/volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
@@ -854,7 +854,7 @@ jobs:
       - name: "ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.openxpki_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           sudo echo "client_cert: /var/www/acme2certifier/volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
           sudo echo "cert_passphrase: Test1234" >> data/volume/acme_srv.cfg
@@ -888,7 +888,7 @@ jobs:
       - name: "EAB ACME Profiling - setup a2c with openxpki_ca_handler"
         run: |
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/openxpki_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.openxpki_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: https://openxpki:8443" >> data/volume/acme_srv.cfg
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
           sudo echo "client_cert: /var/www/acme2certifier/volume/acme_ca/client_crt.p12" >> data/volume/acme_srv.cfg
@@ -901,7 +901,7 @@ jobs:
           sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"tls-client\": \"http:\/\/foo.bar\/profile1\", \"tls-server\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 

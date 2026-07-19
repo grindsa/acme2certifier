@@ -18,9 +18,6 @@ class FakeDBStore(object):
 class TestCertificateLogger(unittest.TestCase):
     def setUp(self):
         models_mock = MagicMock()
-        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
-            FakeDBStore
-        )
         modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
@@ -28,14 +25,14 @@ class TestCertificateLogger(unittest.TestCase):
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
         self.mock_repository = MagicMock()
-        from acme_srv.certificate import CertificateLogger
+        from acme2certifier.acme_srv.certificate import CertificateLogger
 
         self.certlogger = CertificateLogger(self.logger, "json", self.mock_repository)
 
-    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
-    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
-    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
-    @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
+    @patch("acme2certifier.acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme2certifier.acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    @patch("acme2certifier.acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
     def test_001_log_issuance_success_json(
         self, mock_san, mock_cn, mock_serial, mock_dates
     ):
@@ -54,10 +51,10 @@ class TestCertificateLogger(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
-    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
-    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
-    @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
+    @patch("acme2certifier.acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme2certifier.acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    @patch("acme2certifier.acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
     def test_002_log_issuance_success_text(
         self, mock_san, mock_cn, mock_serial, mock_dates
     ):
@@ -77,9 +74,9 @@ class TestCertificateLogger(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
-    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
-    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    @patch("acme2certifier.acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme2certifier.acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=["SAN"])
     def test_003_log_revocation_success_json(self, mock_san, mock_cn, mock_serial):
         self.mock_repository.certificate_lookup.return_value = {
             "name": "cert_name",
@@ -95,9 +92,9 @@ class TestCertificateLogger(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
-    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
-    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    @patch("acme2certifier.acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme2certifier.acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=["SAN"])
     def test_004_log_revocation_success_text(self, mock_san, mock_cn, mock_serial):
         self.mock_repository.certificate_lookup.return_value = {
             "name": "cert_name",
@@ -114,9 +111,9 @@ class TestCertificateLogger(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
-    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
-    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    @patch("acme2certifier.acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme2certifier.acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=["SAN"])
     def test_005_log_issuance_db_error(self, mock_san, mock_cn, mock_serial):
         self.mock_repository.order_lookup.side_effect = Exception("DB error")
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
@@ -128,9 +125,9 @@ class TestCertificateLogger(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
-    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
-    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    @patch("acme2certifier.acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme2certifier.acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=["SAN"])
     def test_006_log_revocation_db_error(self, mock_san, mock_cn, mock_serial):
         self.mock_repository.certificate_lookup.side_effect = Exception("DB error")
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
@@ -140,10 +137,10 @@ class TestCertificateLogger(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
-    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
-    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
-    @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
+    @patch("acme2certifier.acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme2certifier.acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    @patch("acme2certifier.acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
     def test_007_log_issuance_json_format(
         self, mock_san, mock_cn, mock_serial, mock_dates
     ):
@@ -162,10 +159,10 @@ class TestCertificateLogger(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
-    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
-    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
-    @patch("acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
+    @patch("acme2certifier.acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme2certifier.acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    @patch("acme2certifier.acme_srv.certificate.cert_dates_get", return_value=(0, 1234567890))
     def test_008_log_issuance_with_reusage_and_kid(
         self, mock_san, mock_cn, mock_serial, mock_dates
     ):
@@ -184,9 +181,9 @@ class TestCertificateLogger(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
-    @patch("acme_srv.certificate.cert_cn_get", return_value="CN")
-    @patch("acme_srv.certificate.cert_san_get", return_value=["SAN"])
+    @patch("acme2certifier.acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme2certifier.acme_srv.certificate.cert_cn_get", return_value="CN")
+    @patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=["SAN"])
     def test_009_log_revocation_json_format(self, mock_san, mock_cn, mock_serial):
         self.mock_repository.certificate_lookup.return_value = {
             "name": "cert_name",
@@ -250,9 +247,6 @@ class TestCertificate(unittest.TestCase):
     def setUp(self):
 
         models_mock = MagicMock()
-        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
-            FakeDBStore
-        )
         modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
@@ -287,7 +281,7 @@ class TestCertificate(unittest.TestCase):
         }
 
     def test_013_load_hooks_configuration_success(self):
-        with patch("acme_srv.certificate.hooks_load") as mock_hooks_load:
+        with patch("acme2certifier.acme_srv.certificate.hooks_load") as mock_hooks_load:
             mock_hooks = MagicMock()
             mock_hooks.Hooks.return_value = MagicMock()
             mock_hooks_load.return_value = mock_hooks
@@ -295,7 +289,7 @@ class TestCertificate(unittest.TestCase):
             mock_hooks.Hooks.assert_called()
 
     def test_014_load_hooks_configuration_failure(self):
-        with patch("acme_srv.certificate.hooks_load", return_value=None):
+        with patch("acme2certifier.acme_srv.certificate.hooks_load", return_value=None):
             with self.assertLogs("test_a2c", level="DEBUG") as lcm:
                 self.cert._load_hooks_configuration({"foo": "bar"})
             self.assertIn(
@@ -307,7 +301,7 @@ class TestCertificate(unittest.TestCase):
         # Simulate hooks_load returns a module, but Hooks raises exception
         mock_hooks = MagicMock()
         mock_hooks.Hooks.side_effect = Exception("fail")
-        with patch("acme_srv.certificate.hooks_load", return_value=mock_hooks):
+        with patch("acme2certifier.acme_srv.certificate.hooks_load", return_value=mock_hooks):
             with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
                 self.cert._load_hooks_configuration({"foo": "bar"})
             self.assertIn(
@@ -319,8 +313,8 @@ class TestCertificate(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["foo1"] = {"foo": "bar"}
         with (
-            patch("acme_srv.certificate.load_config", return_value=parser),
-            patch("acme_srv.certificate.ca_handler_load", return_value=MagicMock()),
+            patch("acme2certifier.acme_srv.certificate.load_config", return_value=parser),
+            patch("acme2certifier.acme_srv.certificate.ca_handler_load", return_value=MagicMock()),
         ):
             with self.assertLogs("test_a2c", level="DEBUG") as lcm:
                 self.cert._load_configuration()
@@ -341,8 +335,8 @@ class TestCertificate(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"foo": "bar"}
         with (
-            patch("acme_srv.certificate.load_config", return_value=parser),
-            patch("acme_srv.certificate.ca_handler_load", return_value=None),
+            patch("acme2certifier.acme_srv.certificate.load_config", return_value=parser),
+            patch("acme2certifier.acme_srv.certificate.ca_handler_load", return_value=None),
         ):
             with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
                 self.cert._load_configuration()
@@ -352,7 +346,7 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.tnauthlist_support = True
         with (
             patch.object(self.cert, "_check_for_tnauth_identifiers", return_value=True),
-            patch("acme_srv.certificate.csr_extensions_get", return_value=["tnauth"]),
+            patch("acme2certifier.acme_srv.certificate.csr_extensions_get", return_value=["tnauth"]),
             patch.object(
                 self.cert,
                 "_validate_identifiers_against_tnauthlist",
@@ -367,7 +361,7 @@ class TestCertificate(unittest.TestCase):
     def test_019_load_and_validate_identifiers_sans(self):
         self.cert.config.tnauthlist_support = False
         with (
-            patch("acme_srv.certificate.csr_san_get", return_value=["DNS:foo"]),
+            patch("acme2certifier.acme_srv.certificate.csr_san_get", return_value=["DNS:foo"]),
             patch.object(
                 self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
             ),
@@ -428,8 +422,8 @@ class TestCertificate(unittest.TestCase):
 
     def test_024_get_certificate_renewal_info(self):
         with (
-            patch("acme_srv.certificate.pembundle_to_list", return_value=["a", "b"]),
-            patch("acme_srv.certificate.certid_asn1_get", return_value="hex"),
+            patch("acme2certifier.acme_srv.certificate.pembundle_to_list", return_value=["a", "b"]),
+            patch("acme2certifier.acme_srv.certificate.certid_asn1_get", return_value="hex"),
         ):
             result = self.cert._get_certificate_renewal_info("cert")
             self.assertEqual(result, "hex")
@@ -591,8 +585,8 @@ class TestCertificate(unittest.TestCase):
 
     def test_041_store_certificate_in_database_success(self):
         with (
-            patch("acme_srv.certificate.cert_serial_get", return_value="serial"),
-            patch("acme_srv.certificate.cert_aki_get", return_value="aki"),
+            patch("acme2certifier.acme_srv.certificate.cert_serial_get", return_value="serial"),
+            patch("acme2certifier.acme_srv.certificate.cert_aki_get", return_value="aki"),
             patch.object(self.mock_repository, "certificate_add", return_value=1),
             patch.object(
                 self.cert, "_get_certificate_renewal_info", return_value="renewal"
@@ -633,7 +627,7 @@ class TestCertificate(unittest.TestCase):
             ["field"],
             ["report"],
         )
-        with patch("acme_srv.certificate.uts_now", return_value=124) as mock_uts_now:
+        with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=124) as mock_uts_now:
             result = self.cert.cleanup(None, True)
             self.assertEqual(result, (["field"], ["report"]))
             mock_uts_now.assert_called()
@@ -647,7 +641,7 @@ class TestCertificate(unittest.TestCase):
             "expire_uts": 0,
         }
         with (
-            patch("acme_srv.certificate.cert_dates_get", return_value=(1, 2)),
+            patch("acme2certifier.acme_srv.certificate.cert_dates_get", return_value=(1, 2)),
             patch.object(self.cert, "_store_certificate_in_database", return_value=1),
         ):
             with self.assertLogs("test_a2c", level="DEBUG") as lcm:
@@ -715,7 +709,7 @@ class TestCertificate(unittest.TestCase):
         with (
             patch.object(self.cert, "_check_for_tnauth_identifiers", return_value=True),
             patch(
-                "acme_srv.certificate.cert_extensions_get", return_value="tnauthlist"
+                "acme2certifier.acme_srv.certificate.cert_extensions_get", return_value="tnauthlist"
             ),
             patch.object(
                 self.cert,
@@ -731,8 +725,8 @@ class TestCertificate(unittest.TestCase):
     def test_055_validate_certificate_authorization_sans(self):
         self.cert.config.tnauthlist_support = False
         with (
-            patch("acme_srv.certificate.cert_san_get", return_value=["DNS:foo"]),
-            patch("acme_srv.certificate.cert_cn_get", return_value="foo"),
+            patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=["DNS:foo"]),
+            patch("acme2certifier.acme_srv.certificate.cert_cn_get", return_value="foo"),
             patch.object(
                 self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
             ),
@@ -746,13 +740,13 @@ class TestCertificate(unittest.TestCase):
         # Covers exception in json.loads(identifier_dic["identifiers"].lower()) (lines 454-455)
         self.cert.config.tnauthlist_support = False
         with (
-            patch("acme_srv.certificate.cert_san_get", return_value=["DNS:foo"]),
-            patch("acme_srv.certificate.cert_cn_get", return_value="foo"),
+            patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=["DNS:foo"]),
+            patch("acme2certifier.acme_srv.certificate.cert_cn_get", return_value="foo"),
             patch.object(
                 self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
             ),
             patch(
-                "acme_srv.certificate.json.loads", side_effect=Exception("json error")
+                "acme2certifier.acme_srv.certificate.json.loads", side_effect=Exception("json error")
             ),
         ):
             result = self.cert._validate_certificate_authorization(
@@ -768,7 +762,7 @@ class TestCertificate(unittest.TestCase):
         with (
             patch.object(self.cert, "_check_for_tnauth_identifiers", return_value=True),
             patch(
-                "acme_srv.certificate.cert_extensions_get",
+                "acme2certifier.acme_srv.certificate.cert_extensions_get",
                 side_effect=Exception("fail"),
             ),
             patch.object(
@@ -791,8 +785,8 @@ class TestCertificate(unittest.TestCase):
         # Covers the debug log at the end (lines 479-481)
         self.cert.config.tnauthlist_support = False
         with (
-            patch("acme_srv.certificate.cert_san_get", return_value=["DNS:foo"]),
-            patch("acme_srv.certificate.cert_cn_get", return_value="foo"),
+            patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=["DNS:foo"]),
+            patch("acme2certifier.acme_srv.certificate.cert_cn_get", return_value="foo"),
             patch.object(
                 self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
             ),
@@ -836,13 +830,13 @@ class TestCertificate(unittest.TestCase):
                 "id": 1,
             }
         ]
-        with patch("acme_srv.certificate.uts_now", return_value=2):
+        with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
             result = self.cert._check_certificate_reusability("csr")
             self.assertIsInstance(result, tuple)
 
     def test_063_check_certificate_reusability_db_error(self):
         self.cert.repository.search_certificates.side_effect = Exception("fail")
-        with patch("acme_srv.certificate.uts_now", return_value=2):
+        with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
             with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
                 result = self.cert._check_certificate_reusability("csr")
                 self.assertIsInstance(result, tuple)
@@ -853,7 +847,7 @@ class TestCertificate(unittest.TestCase):
 
     def test_064_check_certificate_reusability_none_found(self):
         self.cert.repository.search_certificates.return_value = None
-        with patch("acme_srv.certificate.uts_now", return_value=2):
+        with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
             result = self.cert._check_certificate_reusability("csr")
             self.assertIsInstance(result, tuple)
 
@@ -1167,7 +1161,7 @@ class TestCertificate(unittest.TestCase):
 
     def test_094_validate_certificate_authorization_exception(self):
         with patch(
-            "acme_srv.certificate.cert_san_get", side_effect=Exception("SAN error")
+            "acme2certifier.acme_srv.certificate.cert_san_get", side_effect=Exception("SAN error")
         ):
             with self.assertLogs(self.cert.logger, level="WARNING") as log:
                 result = self.cert._validate_certificate_authorization(
@@ -1278,7 +1272,7 @@ class TestCertificate(unittest.TestCase):
         }
         with (
             patch(
-                "acme_srv.certificate.cert_dates_get",
+                "acme2certifier.acme_srv.certificate.cert_dates_get",
                 return_value=(1234567890, 1234567890),
             ),
             patch.object(self.cert, "_store_certificate_in_database", return_value=1),
@@ -1292,7 +1286,7 @@ class TestCertificate(unittest.TestCase):
 
     def test_102_handle_enrollment_thread_execution_success(self):
         """Test _handle_enrollment_thread_execution success case"""
-        with patch("acme_srv.certificate.ThreadWithReturnValue") as mock_thread:
+        with patch("acme2certifier.acme_srv.certificate.ThreadWithReturnValue") as mock_thread:
             mock_thread_instance = MagicMock()
             mock_thread_instance.join.return_value = (1, None, "detail")
             mock_thread.return_value = mock_thread_instance
@@ -1304,7 +1298,7 @@ class TestCertificate(unittest.TestCase):
 
     def test_103_handle_enrollment_thread_execution_timeout(self):
         """Test _handle_enrollment_thread_execution timeout case"""
-        with patch("acme_srv.certificate.ThreadWithReturnValue") as mock_thread:
+        with patch("acme2certifier.acme_srv.certificate.ThreadWithReturnValue") as mock_thread:
             mock_thread_instance = MagicMock()
             mock_thread_instance.join.return_value = None
             mock_thread.return_value = mock_thread_instance
@@ -1317,7 +1311,7 @@ class TestCertificate(unittest.TestCase):
     def test_104_handle_enrollment_thread_execution_exception(self):
         """Test _handle_enrollment_thread_execution exception case"""
         with patch(
-            "acme_srv.certificate.ThreadWithReturnValue",
+            "acme2certifier.acme_srv.certificate.ThreadWithReturnValue",
             side_effect=Exception("Thread error"),
         ):
             result = self.cert._handle_enrollment_thread_execution(
@@ -1454,7 +1448,7 @@ class TestCertificate(unittest.TestCase):
         identifier_dic = {"identifiers": "not-a-json"}
         csr = "irrelevant"
         # Patch csr_san_get to return empty list, so identifier_status will be [False]
-        with patch("acme_srv.certificate.csr_san_get", return_value=[]):
+        with patch("acme2certifier.acme_srv.certificate.csr_san_get", return_value=[]):
             with self.assertLogs(self.cert.logger, level="WARNING") as lcm:
                 result = self.cert._load_and_validate_identifiers(identifier_dic, csr)
                 self.assertEqual(result, [False])
@@ -1469,7 +1463,7 @@ class TestCertificate(unittest.TestCase):
         with (
             patch.object(self.cert, "_check_for_tnauth_identifiers", return_value=True),
             patch(
-                "acme_srv.certificate.csr_extensions_get", side_effect=Exception("fail")
+                "acme2certifier.acme_srv.certificate.csr_extensions_get", side_effect=Exception("fail")
             ),
         ):
             with self.assertLogs(self.cert.logger, level="WARNING") as lcm:
@@ -1489,7 +1483,7 @@ class TestCertificate(unittest.TestCase):
             patch.object(
                 self.cert, "_check_for_tnauth_identifiers", return_value=False
             ),
-            patch("acme_srv.certificate.csr_san_get", side_effect=Exception("fail")),
+            patch("acme2certifier.acme_srv.certificate.csr_san_get", side_effect=Exception("fail")),
         ):
             with self.assertLogs(self.cert.logger, level="WARNING") as lcm:
                 result = self.cert._load_and_validate_identifiers(identifier_dic, csr)
@@ -2085,10 +2079,10 @@ class TestCertificate(unittest.TestCase):
     def test_157_process_certificate_request_code_200_no_url(self):
         # Covers: process_certificate_request else branch for missing url in protected
         with patch(
-            "acme_srv.certificate.error_dic_get",
+            "acme2certifier.acme_srv.certificate.error_dic_get",
             return_value={"serverinternal": "err", "malformed": "malf"},
         ):
-            with patch("acme_srv.message.Message.__init__", new=MagicMock()):
+            with patch("acme2certifier.acme_srv.message.Message.__init__", new=MagicMock()):
                 self.cert.logger = MagicMock()
                 self.cert._validate_input_parameters = MagicMock(return_value=None)
                 self.cert._validate_certificate_request_message = MagicMock(
@@ -2106,10 +2100,10 @@ class TestCertificate(unittest.TestCase):
     def test_158_store_certificate_signing_request_unexpected_exception(self):
         # Covers: store_certificate_signing_request exception branch (lines 1824-1826)
         with patch(
-            "acme_srv.certificate.error_dic_get",
+            "acme2certifier.acme_srv.certificate.error_dic_get",
             return_value={"serverinternal": "err", "malformed": "malf"},
         ):
-            with patch("acme_srv.message.Message.__init__", new=MagicMock()):
+            with patch("acme2certifier.acme_srv.message.Message.__init__", new=MagicMock()):
                 # Use a real logger mock and ensure it's set on the cert
                 self.cert.certificate_manager = MagicMock()
                 self.cert.certificate_manager.validate_and_store_csr.side_effect = (
@@ -2309,8 +2303,8 @@ class TestCertificate(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("acme_srv.certificate.cert_serial_get", return_value="serial")
-    @patch("acme_srv.certificate.cert_aki_get", return_value="aki")
+    @patch("acme2certifier.acme_srv.certificate.cert_serial_get", return_value="serial")
+    @patch("acme2certifier.acme_srv.certificate.cert_aki_get", return_value="aki")
     def test_169_store_certificate_in_database_exception(
         self, mock_aki_get, mock_serial_get
     ):
@@ -2622,7 +2616,7 @@ class TestCertificate(unittest.TestCase):
 
     def test_187_handle_enrollment_error_no_poll_identifier(self):
         # Covers branch where poll_identifier is None and error is not special string
-        from acme_srv.helpers.global_variables import ENROLLMENT_FAILED_DETAIL
+        from acme2certifier.acme_srv.helpers.global_variables import ENROLLMENT_FAILED_DETAIL
 
         self.cert.err_msg_dic = {
             "serverinternal": "serverinternal",
@@ -2684,7 +2678,7 @@ class TestCertificate(unittest.TestCase):
 
     def test_190_handle_enrollment_error_exception(self):
         # Covers exception branch
-        from acme_srv.helpers.global_variables import ENROLLMENT_FAILED_DETAIL
+        from acme2certifier.acme_srv.helpers.global_variables import ENROLLMENT_FAILED_DETAIL
 
         self.cert.err_msg_dic = {
             "serverinternal": "serverinternal",
@@ -2709,7 +2703,7 @@ class TestCertificate(unittest.TestCase):
             )
 
     def test_191_handle_enrollment_error_forwards_ca_detail(self):
-        from acme_srv.helpers.global_variables import ENROLLMENT_FAILED_DETAIL
+        from acme2certifier.acme_srv.helpers.global_variables import ENROLLMENT_FAILED_DETAIL
 
         self.cert.config.ca_error_details_forward = True
         self.cert.err_msg_dic = {
@@ -2731,7 +2725,7 @@ class TestCertificate(unittest.TestCase):
             )
 
     def test_192_resolve_client_enrollment_error_empty_ca_error(self):
-        from acme_srv.helpers.global_variables import ENROLLMENT_FAILED_DETAIL
+        from acme2certifier.acme_srv.helpers.global_variables import ENROLLMENT_FAILED_DETAIL
 
         self.cert.config.ca_error_details_forward = True
         self.cert.err_msg_dic = {"serverinternal": "serverinternal"}
@@ -2743,7 +2737,7 @@ class TestCertificate(unittest.TestCase):
         # Explicitly covers lines 477-481: exception in cert_san_get triggers warning and returns []
         self.cert.config.tnauthlist_support = False
         with (
-            patch("acme_srv.certificate.cert_san_get", side_effect=Exception("fail")),
+            patch("acme2certifier.acme_srv.certificate.cert_san_get", side_effect=Exception("fail")),
             patch.object(self.cert.logger, "warning") as mock_warning,
             patch.object(self.cert.logger, "debug") as mock_debug,
         ):
@@ -2772,9 +2766,9 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.cn2san_add = True
         # Simulate no SANs returned, but CN is present
         with (
-            patch("acme_srv.certificate.cert_san_get", return_value=[]),
+            patch("acme2certifier.acme_srv.certificate.cert_san_get", return_value=[]),
             patch(
-                "acme_srv.certificate.cert_cn_get", return_value="mycn"
+                "acme2certifier.acme_srv.certificate.cert_cn_get", return_value="mycn"
             ) as mock_cn_get,
             patch.object(
                 self.cert, "_validate_identifiers_against_sans", return_value=["ok"]
@@ -2792,7 +2786,7 @@ class TestCertificate(unittest.TestCase):
         # Covers lines 477-481: exception in cert_san_get triggers warning and returns []
         self.cert.config.tnauthlist_support = False
         with (
-            patch("acme_srv.certificate.cert_san_get", side_effect=Exception("fail")),
+            patch("acme2certifier.acme_srv.certificate.cert_san_get", side_effect=Exception("fail")),
             patch.object(self.cert.logger, "warning") as mock_warning,
             patch.object(self.cert.logger, "debug") as mock_debug,
         ):
@@ -2812,7 +2806,7 @@ class TestCertificate(unittest.TestCase):
         """Test _handle_enrollment_thread_execution with async_mode True (lines 1305-1306)."""
         self.cert.config.async_mode = True
         self.cert.config.enrollment_timeout = 5
-        with patch("acme_srv.certificate.ThreadWithReturnValue") as mock_thread:
+        with patch("acme2certifier.acme_srv.certificate.ThreadWithReturnValue") as mock_thread:
             mock_thread_instance = MagicMock()
             # join should not be called when async_mode is True
             mock_thread.return_value = mock_thread_instance
@@ -2834,7 +2828,7 @@ class TestCertificate(unittest.TestCase):
         }
         self.cert.repository.search_certificates.return_value = [cert_data]
         self.cert.config.cert_reusage_timeframe = 2  # Ensure reuse block is entered
-        with patch("acme_srv.certificate.uts_now", return_value=2):
+        with patch("acme2certifier.acme_srv.certificate.uts_now", return_value=2):
             _, cert, cert_raw, message = self.cert._check_certificate_reusability("csr")
             self.assertEqual(cert, "cert_value")
             self.assertEqual(cert_raw, "raw_value")
@@ -2868,7 +2862,7 @@ class TestCertificate(unittest.TestCase):
     def test_200_load_configuration_defaults(self):
         """Test _load_configuration uses defaults when config is empty."""
         config = configparser.ConfigParser()
-        with patch("acme_srv.certificate.load_config", return_value=config):
+        with patch("acme2certifier.acme_srv.certificate.load_config", return_value=config):
             with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
                 self.cert._load_configuration()
                 self.assertEqual(self.cert.config.cert_reusage_timeframe, 0)
@@ -2893,14 +2887,14 @@ class TestCertificate(unittest.TestCase):
         config.add_section("Order")
         config.set("Order", "tnauthlist_support", "True")
         config.add_section("CAhandler")
-        config.set("CAhandler", "handler_file", "examples/ca_handler/asa_ca_handler.py")
+        config.set("CAhandler", "handler_module", "acme2certifier.cahandlers.asa_ca_handler")
         config.add_section("Directory")
         config.set("Directory", "url_prefix", "/prefix")
         config.add_section("Hooks")
         config.set("Hooks", "ignore_pre_hook_failure", "True")
         config.set("Hooks", "ignore_post_hook_failure", "False")
         config.set("Hooks", "ignore_success_hook_failure", "True")
-        with patch("acme_srv.certificate.load_config", return_value=config):
+        with patch("acme2certifier.acme_srv.certificate.load_config", return_value=config):
             self.cert._load_configuration()
             self.assertEqual(self.cert.config.cert_reusage_timeframe, 123)
             self.assertEqual(self.cert.config.enrollment_timeout, 9)
@@ -2918,7 +2912,7 @@ class TestCertificate(unittest.TestCase):
         config.add_section("Certificate")
         config.set("Certificate", "cert_reusage_timeframe", "42")
         # No Order, CAhandler, Directory, Hooks
-        with patch("acme_srv.certificate.load_config", return_value=config):
+        with patch("acme2certifier.acme_srv.certificate.load_config", return_value=config):
             with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
                 self.cert._load_configuration()
                 self.assertEqual(self.cert.config.cert_reusage_timeframe, 42)
@@ -2933,7 +2927,7 @@ class TestCertificate(unittest.TestCase):
         config = configparser.ConfigParser()
         config.add_section("Directory")
         config.set("Directory", "url_prefix", "/api")
-        with patch("acme_srv.certificate.load_config", return_value=config):
+        with patch("acme2certifier.acme_srv.certificate.load_config", return_value=config):
             with self.assertLogs("test_a2c", level="CRITICAL") as lcm:
                 self.cert._load_configuration()
                 # path_dic is on the instance, not config
@@ -2947,7 +2941,7 @@ class TestCertificate(unittest.TestCase):
         config.set("Certificate", "cert_reusage_timeframe", "notanint")
         config.set("Certificate", "enrollment_timeout", "notanint")
         config.set("Certificate", "retry_after", "notanint")
-        with patch("acme_srv.certificate.load_config", return_value=config):
+        with patch("acme2certifier.acme_srv.certificate.load_config", return_value=config):
             with self.assertLogs("test_a2c", level="ERROR") as lcm:
                 self.cert._load_configuration()
                 self.assertEqual(self.cert.config.cert_reusage_timeframe, 0)
@@ -2970,7 +2964,7 @@ class TestCertificate(unittest.TestCase):
     def test_205_load_configuration_logging(self):
         """Test _load_configuration logs debug message."""
         config = configparser.ConfigParser()
-        with patch("acme_srv.certificate.load_config", return_value=config):
+        with patch("acme2certifier.acme_srv.certificate.load_config", return_value=config):
             with self.assertLogs("test_a2c", level="DEBUG") as lcm:
                 self.cert._load_configuration()
             self.assertIn(
@@ -2982,7 +2976,7 @@ class TestCertificate(unittest.TestCase):
         config = configparser.ConfigParser()
         config.add_section("Certificate")
         config.set("Certificate", "cert_operations_log", "JSON")
-        with patch("acme_srv.certificate.load_config", return_value=config):
+        with patch("acme2certifier.acme_srv.certificate.load_config", return_value=config):
             # Before loading configuration, CertificateLogger should have None
             self.assertIsNone(self.cert.certificate_logger.cert_operations_log)
             # After loading configuration, CertificateLogger should have the config value
@@ -3000,7 +2994,7 @@ class TestCertificate(unittest.TestCase):
         config = configparser.ConfigParser()
         config.add_section("Certificate")
         config.set("Certificate", "cert_operations_log", "TEXT")
-        with patch("acme_srv.certificate.load_config", return_value=config):
+        with patch("acme2certifier.acme_srv.certificate.load_config", return_value=config):
             # After entering context, config should be loaded and applied
             with self.assertLogs("test_a2c", level="DEBUG") as log:
                 self.cert._load_configuration()
@@ -3078,7 +3072,7 @@ class TestCertificate(unittest.TestCase):
         self.cert.config.dryrun = True
         self.cert.err_msg_dic["unauthorized"] = "unauthorized"
         # Patch dependencies so validation passes
-        from acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
+        from acme2certifier.acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
 
         with (
             patch.object(self.cert, "_validate_input_parameters", return_value=None),

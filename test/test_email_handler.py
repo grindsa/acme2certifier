@@ -14,7 +14,7 @@ from email.mime.multipart import MIMEMultipart
 sys.path.insert(0, ".")
 sys.path.insert(1, "..")
 
-from acme_srv.email_handler import EmailHandler
+from acme2certifier.acme_srv.email_handler import EmailHandler
 
 
 class TestEmailHandler(unittest.TestCase):
@@ -57,7 +57,7 @@ class TestEmailHandler(unittest.TestCase):
         if hasattr(self.email_handler, "_polling_active"):
             self.email_handler.stop_polling()
 
-    @patch("acme_srv.email_handler.load_config")
+    @patch("acme2certifier.acme_srv.email_handler.load_config")
     def test_001_config_load_default_section_exists(self, mock_load_config):
         """Test _config_load with DEFAULT section"""
         parser = configparser.ConfigParser()
@@ -90,7 +90,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertEqual(self.email_handler.polling_timer, 120)
         self.assertEqual(self.email_handler.connection_timeout, 45)
 
-    @patch("acme_srv.email_handler.load_config")
+    @patch("acme2certifier.acme_srv.email_handler.load_config")
     def test_002_config_load_fallback_values(self, mock_load_config):
         """Test _config_load with fallback values"""
         parser = configparser.ConfigParser()
@@ -114,7 +114,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertEqual(self.email_handler.polling_timer, 60)  # default
         self.assertEqual(self.email_handler.connection_timeout, 30)  # default
 
-    @patch("acme_srv.email_handler.load_config")
+    @patch("acme2certifier.acme_srv.email_handler.load_config")
     def test_003_config_load_no_default_section(self, mock_load_config):
         """Test _config_load without DEFAULT section"""
         parser = configparser.ConfigParser()
@@ -126,7 +126,7 @@ class TestEmailHandler(unittest.TestCase):
             "WARNING:test_a2c:DEFAULT configuration section not found", log.output
         )
 
-    @patch("acme_srv.email_handler.load_config")
+    @patch("acme2certifier.acme_srv.email_handler.load_config")
     def test_004_config_load_invalid_port_values(self, mock_load_config):
         """Test _config_load with invalid port values"""
         parser = configparser.ConfigParser()
@@ -222,7 +222,7 @@ class TestEmailHandler(unittest.TestCase):
         self.assertFalse(result)
         self.assertIn("ERROR:test_a2c:Username or password not configured", log.output)
 
-    @patch("acme_srv.email_handler.smtplib.SMTP")
+    @patch("acme2certifier.acme_srv.email_handler.smtplib.SMTP")
     def test_012_send_email_success_tls(self, mock_smtp):
         """Test successful email sending with TLS"""
         # Setup
@@ -258,7 +258,7 @@ class TestEmailHandler(unittest.TestCase):
             "INFO:test_a2c:Email sent successfully to recipient@test.com", log.output
         )
 
-    @patch("acme_srv.email_handler.smtplib.SMTP_SSL")
+    @patch("acme2certifier.acme_srv.email_handler.smtplib.SMTP_SSL")
     def test_013_send_email_success_ssl(self, mock_smtp_ssl):
         """Test successful email sending with SSL"""
         # Setup
@@ -285,7 +285,7 @@ class TestEmailHandler(unittest.TestCase):
         mock_server.starttls.assert_not_called()
         mock_server.send_message.assert_called_once()
 
-    @patch("acme_srv.email_handler.smtplib.SMTP")
+    @patch("acme2certifier.acme_srv.email_handler.smtplib.SMTP")
     def test_014_send_email_with_html(self, mock_smtp):
         """Test sending email with HTML content"""
         # Setup
@@ -318,7 +318,7 @@ class TestEmailHandler(unittest.TestCase):
         )
         self.assertFalse(result)
 
-    @patch("acme_srv.email_handler.smtplib.SMTP")
+    @patch("acme2certifier.acme_srv.email_handler.smtplib.SMTP")
     def test_016_send_email_exception(self, mock_smtp):
         """Test send email with exception"""
         # Setup
@@ -341,7 +341,7 @@ class TestEmailHandler(unittest.TestCase):
         with self.assertLogs(self.logger, level="ERROR") as log:
             self.logger.error("Failed to send email: %s", "SMTP Error")
 
-    @patch("acme_srv.email_handler.imaplib.IMAP4_SSL")
+    @patch("acme2certifier.acme_srv.email_handler.imaplib.IMAP4_SSL")
     def test_017_receive_emails_success(self, mock_imap):
         """Test successful email receiving"""
         # Setup
@@ -368,7 +368,7 @@ class TestEmailHandler(unittest.TestCase):
         mock_mail.select.assert_called_once_with("INBOX")
         mock_mail.search.assert_called_once_with(None, "UNSEEN")
 
-    @patch("acme_srv.email_handler.imaplib.IMAP4")
+    @patch("acme2certifier.acme_srv.email_handler.imaplib.IMAP4")
     def test_018_receive_emails_no_ssl(self, mock_imap):
         """Test email receiving without SSL"""
         # Setup
@@ -393,7 +393,7 @@ class TestEmailHandler(unittest.TestCase):
         emails = self.email_handler.receive()
         self.assertEqual(len(emails), 0)
 
-    @patch("acme_srv.email_handler.imaplib.IMAP4_SSL")
+    @patch("acme2certifier.acme_srv.email_handler.imaplib.IMAP4_SSL")
     def test_020_receive_emails_exception(self, mock_imap):
         """Test receive emails with exception"""
         # Setup
@@ -549,7 +549,7 @@ class TestEmailHandler(unittest.TestCase):
 
         # Should not log anything since polling wasn't active
 
-    @patch("acme_srv.email_handler.time.sleep")
+    @patch("acme2certifier.acme_srv.email_handler.time.sleep")
     def test_028_polling_loop(self, mock_sleep):
         """Test polling loop functionality"""
         # Setup
@@ -576,7 +576,7 @@ class TestEmailHandler(unittest.TestCase):
             # Verify receive was called
             mock_receive.assert_called()
 
-    @patch("acme_srv.email_handler.EmailHandler.receive")
+    @patch("acme2certifier.acme_srv.email_handler.EmailHandler.receive")
     @patch("time.sleep")
     def test_029_polling_loop(self, mock_sleep, mock_receive):
         """Test polling loop functionality"""
@@ -610,7 +610,7 @@ class TestEmailHandler(unittest.TestCase):
                     mock_config.assert_called_once()
                 mock_stop.assert_called_once()
 
-    @patch("acme_srv.email_handler.imaplib.IMAP4_SSL")
+    @patch("acme2certifier.acme_srv.email_handler.imaplib.IMAP4_SSL")
     def test_031_receive_with_callback(self, mock_imap):
         """Test receive method with callback function"""
         # Setup

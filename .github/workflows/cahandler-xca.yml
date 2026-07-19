@@ -90,7 +90,7 @@ jobs:
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
@@ -132,7 +132,7 @@ jobs:
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
@@ -159,7 +159,7 @@ jobs:
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
@@ -187,7 +187,7 @@ jobs:
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
@@ -195,7 +195,7 @@ jobs:
           sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
@@ -233,7 +233,7 @@ jobs:
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
@@ -242,7 +242,7 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
@@ -281,7 +281,7 @@ jobs:
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
@@ -309,7 +309,7 @@ jobs:
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
@@ -318,7 +318,7 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
@@ -412,7 +412,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -452,7 +452,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -482,14 +482,14 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
           sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
           sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
 
       - name: "Execute install script"
@@ -515,7 +515,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -524,7 +524,7 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -564,7 +564,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -573,7 +573,7 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -617,7 +617,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -648,7 +648,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -657,7 +657,7 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -754,7 +754,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -791,7 +791,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -822,14 +822,14 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
           sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
           sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c "
@@ -856,7 +856,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -865,7 +865,7 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -906,7 +906,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -915,7 +915,7 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -959,7 +959,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -991,7 +991,7 @@ jobs:
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/xca_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
           sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
           sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
@@ -1000,7 +1000,7 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 

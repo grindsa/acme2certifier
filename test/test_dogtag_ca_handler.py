@@ -19,7 +19,7 @@ class TestCAhandler(unittest.TestCase):
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
-        from examples.ca_handler.dogtag_ca_handler import (
+        from acme2certifier.cahandlers.dogtag_ca_handler import (
             CAhandler,
             update_validity_attributes,
             approve_profile_get,
@@ -38,7 +38,7 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["foo"] = {"foo": "bar"}
         with patch(
-            "examples.ca_handler.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
         ):
             with self.assertLogs("test_a2c", level="DEBUG") as lcm:
                 self.cahandler._config_load()
@@ -55,7 +55,7 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"api_host": "https://example.com"}
         with patch(
-            "examples.ca_handler.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
         ):
             self.cahandler.api_host = None
             self.cahandler._config_load()
@@ -65,7 +65,7 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"client_cert": "/tmp/cert.pem"}
         with patch(
-            "examples.ca_handler.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
         ):
             self.cahandler.client_cert = None
             self.cahandler._config_load()
@@ -75,7 +75,7 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"client_key": "/tmp/key.pem"}
         with patch(
-            "examples.ca_handler.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
         ):
             self.cahandler.client_key = None
             self.cahandler._config_load()
@@ -85,7 +85,7 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"profile": "testprofile"}
         with patch(
-            "examples.ca_handler.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
         ):
             self.cahandler.profile = None
             self.cahandler._config_load()
@@ -95,7 +95,7 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"ca_bundle": "some_bundle.pem"}
         with patch(
-            "examples.ca_handler.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
         ):
             self.cahandler.ca_bundle = None
             self.cahandler._config_load()
@@ -105,7 +105,7 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"ca_bundle": "true"}
         with patch(
-            "examples.ca_handler.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
         ):
             self.cahandler.ca_bundle = None
             self.cahandler._config_load()
@@ -115,21 +115,21 @@ class TestCAhandler(unittest.TestCase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {"certrequest_approve": "yes"}
         with patch(
-            "examples.ca_handler.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
         ):
             self.cahandler.certrequest_approve = False
             self.cahandler._config_load()
             self.assertTrue(self.cahandler.certrequest_approve)
 
     @patch(
-        "examples.ca_handler.dogtag_ca_handler.config_eab_profile_load",
+        "acme2certifier.cahandlers.dogtag_ca_handler.config_eab_profile_load",
         return_value=(True, "handler"),
     )
     def test_010_load_eab_profile(self, mock_eab):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
-            "examples.ca_handler.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
         ):
             self.cahandler.eab_profiling = False
             self.cahandler.eab_handler = None
@@ -137,53 +137,53 @@ class TestCAhandler(unittest.TestCase):
             self.assertTrue(self.cahandler.eab_profiling)
             self.assertEqual(self.cahandler.eab_handler, "handler")
 
-    @patch("examples.ca_handler.dogtag_ca_handler.CAhandler._config_passphrase_load")
+    @patch("acme2certifier.cahandlers.dogtag_ca_handler.CAhandler._config_passphrase_load")
     def test_011_config_load_cert_passphrase(self, mock_passphrase):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
-            "examples.ca_handler.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
         ):
             self.cahandler._config_load()
             mock_passphrase.assert_called()
 
     @patch(
-        "examples.ca_handler.dogtag_ca_handler.config_profile_load",
+        "acme2certifier.cahandlers.dogtag_ca_handler.config_profile_load",
         return_value={"p": 1},
     )
     def test_012_config_load_profiles(self, mock_profile):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
-            "examples.ca_handler.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
         ):
             self.cahandler.profiles = {}
             self.cahandler._config_load()
             self.assertEqual(self.cahandler.profiles, {"p": 1})
 
     @patch(
-        "examples.ca_handler.dogtag_ca_handler.config_headerinfo_load",
+        "acme2certifier.cahandlers.dogtag_ca_handler.config_headerinfo_load",
         return_value=True,
     )
     def test_013_config_load_header_info(self, mock_header):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
-            "examples.ca_handler.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
         ):
             self.cahandler.header_info_field = False
             self.cahandler._config_load()
             self.assertTrue(self.cahandler.header_info_field)
 
     @patch(
-        "examples.ca_handler.dogtag_ca_handler.config_enroll_config_log_load",
+        "acme2certifier.cahandlers.dogtag_ca_handler.config_enroll_config_log_load",
         return_value=("log", ["skip"]),
     )
     def test_014_config_load_enrollment_config_log(self, mock_enroll):
         parser = configparser.ConfigParser()
         parser["CAhandler"] = {}
         with patch(
-            "examples.ca_handler.dogtag_ca_handler.load_config", return_value=parser
+            "acme2certifier.cahandlers.dogtag_ca_handler.load_config", return_value=parser
         ):
             self.cahandler.enrollment_config_log = False
             self.cahandler.enrollment_config_log_skip_list = []
@@ -440,7 +440,7 @@ class TestCAhandler(unittest.TestCase):
             self.cahandler, "_get_approval_nonce", return_value=(None, "nonce")
         ):
             with patch(
-                "examples.ca_handler.dogtag_ca_handler.approve_profile_get",
+                "acme2certifier.cahandlers.dogtag_ca_handler.approve_profile_get",
                 return_value={"Nonce": "nonce"},
             ):
                 with patch.object(
@@ -468,7 +468,7 @@ class TestCAhandler(unittest.TestCase):
             self.cahandler, "_get_approval_nonce", return_value=(None, "nonce")
         ):
             with patch(
-                "examples.ca_handler.dogtag_ca_handler.approve_profile_get",
+                "acme2certifier.cahandlers.dogtag_ca_handler.approve_profile_get",
                 return_value={},
             ):
                 with patch.object(self.cahandler, "_api_post", return_value=(200, {})):
@@ -493,7 +493,7 @@ class TestCAhandler(unittest.TestCase):
             self.cahandler, "_get_approval_nonce", return_value=(None, "nonce")
         ):
             with patch(
-                "examples.ca_handler.dogtag_ca_handler.approve_profile_get",
+                "acme2certifier.cahandlers.dogtag_ca_handler.approve_profile_get",
                 return_value={},
             ):
                 with patch.object(self.cahandler, "_api_post", return_value=(200, {})):
@@ -529,7 +529,7 @@ class TestCAhandler(unittest.TestCase):
             self.cahandler, "_get_approval_nonce", return_value=(None, "nonce")
         ):
             with patch(
-                "examples.ca_handler.dogtag_ca_handler.approve_profile_get",
+                "acme2certifier.cahandlers.dogtag_ca_handler.approve_profile_get",
                 return_value={},
             ):
                 with patch.object(self.cahandler, "_api_post", return_value=(200, {})):
@@ -543,19 +543,19 @@ class TestCAhandler(unittest.TestCase):
                         ],
                     ):
                         with patch(
-                            "examples.ca_handler.dogtag_ca_handler.pkcs7_to_pem",
+                            "acme2certifier.cahandlers.dogtag_ca_handler.pkcs7_to_pem",
                             return_value="pemchain",
                         ):
                             with patch(
-                                "examples.ca_handler.dogtag_ca_handler.b64_decode",
+                                "acme2certifier.cahandlers.dogtag_ca_handler.b64_decode",
                                 return_value=b"bytes",
                             ):
                                 with patch(
-                                    "examples.ca_handler.dogtag_ca_handler.cert_pem2der",
+                                    "acme2certifier.cahandlers.dogtag_ca_handler.cert_pem2der",
                                     return_value=b"der",
                                 ):
                                     with patch(
-                                        "examples.ca_handler.dogtag_ca_handler.b64_encode",
+                                        "acme2certifier.cahandlers.dogtag_ca_handler.b64_encode",
                                         return_value="rawcert",
                                     ):
                                         with patch.object(
@@ -591,7 +591,7 @@ class TestCAhandler(unittest.TestCase):
             self.cahandler, "_get_approval_nonce", return_value=(None, "nonce")
         ):
             with patch(
-                "examples.ca_handler.dogtag_ca_handler.approve_profile_get",
+                "acme2certifier.cahandlers.dogtag_ca_handler.approve_profile_get",
                 return_value={},
             ):
                 with patch.object(self.cahandler, "_api_post", return_value=(200, {})):
@@ -605,19 +605,19 @@ class TestCAhandler(unittest.TestCase):
                         ],
                     ):
                         with patch(
-                            "examples.ca_handler.dogtag_ca_handler.pkcs7_to_pem",
+                            "acme2certifier.cahandlers.dogtag_ca_handler.pkcs7_to_pem",
                             return_value=None,
                         ):
                             with patch(
-                                "examples.ca_handler.dogtag_ca_handler.b64_decode",
+                                "acme2certifier.cahandlers.dogtag_ca_handler.b64_decode",
                                 return_value=b"bytes",
                             ):
                                 with patch(
-                                    "examples.ca_handler.dogtag_ca_handler.cert_pem2der",
+                                    "acme2certifier.cahandlers.dogtag_ca_handler.cert_pem2der",
                                     return_value=b"der",
                                 ):
                                     with patch(
-                                        "examples.ca_handler.dogtag_ca_handler.b64_encode",
+                                        "acme2certifier.cahandlers.dogtag_ca_handler.b64_encode",
                                         return_value="rawcert",
                                     ):
                                         with patch.object(
@@ -655,7 +655,7 @@ class TestCAhandler(unittest.TestCase):
             self.cahandler, "_get_approval_nonce", return_value=(None, "nonce")
         ):
             with patch(
-                "examples.ca_handler.dogtag_ca_handler.approve_profile_get",
+                "acme2certifier.cahandlers.dogtag_ca_handler.approve_profile_get",
                 return_value={},
             ):
                 with patch.object(self.cahandler, "_api_post", return_value=(200, {})):
@@ -854,7 +854,7 @@ class TestCAhandler(unittest.TestCase):
         with (
             patch("requests.Session") as mock_session,
             patch(
-                "examples.ca_handler.dogtag_ca_handler.Pkcs12Adapter"
+                "acme2certifier.cahandlers.dogtag_ca_handler.Pkcs12Adapter"
             ) as mock_adapter,
             patch.object(self.cahandler.logger, "debug") as mock_log,
         ):
@@ -1047,7 +1047,7 @@ class TestCAhandler(unittest.TestCase):
         """Test enroll returns error from eab_profile_header_info_check and does not proceed"""
         with (
             patch(
-                "examples.ca_handler.dogtag_ca_handler.eab_profile_header_info_check",
+                "acme2certifier.cahandlers.dogtag_ca_handler.eab_profile_header_info_check",
                 return_value="some error",
             ) as mock_eab,
             patch.object(self.cahandler, "_api_version_get") as mock_ver,
@@ -1066,7 +1066,7 @@ class TestCAhandler(unittest.TestCase):
         self.cahandler.certrequest_approve = True
         with (
             patch(
-                "examples.ca_handler.dogtag_ca_handler.eab_profile_header_info_check",
+                "acme2certifier.cahandlers.dogtag_ca_handler.eab_profile_header_info_check",
                 return_value=None,
             ),
             patch.object(self.cahandler, "_api_version_get"),
@@ -1091,7 +1091,7 @@ class TestCAhandler(unittest.TestCase):
         self.cahandler.certrequest_approve = False
         with (
             patch(
-                "examples.ca_handler.dogtag_ca_handler.eab_profile_header_info_check",
+                "acme2certifier.cahandlers.dogtag_ca_handler.eab_profile_header_info_check",
                 return_value=None,
             ),
             patch.object(self.cahandler, "_api_version_get"),
@@ -1110,7 +1110,7 @@ class TestCAhandler(unittest.TestCase):
         self.cahandler.certrequest_approve = False
         with (
             patch(
-                "examples.ca_handler.dogtag_ca_handler.eab_profile_header_info_check",
+                "acme2certifier.cahandlers.dogtag_ca_handler.eab_profile_header_info_check",
                 return_value=None,
             ),
             patch.object(self.cahandler, "_api_version_get"),
@@ -1156,7 +1156,7 @@ class TestCAhandler(unittest.TestCase):
         self.cahandler.enrollment_config_log = True
         with (
             patch(
-                "examples.ca_handler.dogtag_ca_handler.eab_profile_header_info_check",
+                "acme2certifier.cahandlers.dogtag_ca_handler.eab_profile_header_info_check",
                 return_value=None,
             ),
             patch.object(self.cahandler, "_api_version_get"),
@@ -1164,7 +1164,7 @@ class TestCAhandler(unittest.TestCase):
                 self.cahandler, "_certrequest_send", return_value=("reqid", "pending")
             ),
             patch(
-                "examples.ca_handler.dogtag_ca_handler.enrollment_config_log"
+                "acme2certifier.cahandlers.dogtag_ca_handler.enrollment_config_log"
             ) as mock_log,
         ):
             self.cahandler.enrollment_config_log_skip_list = ["foo"]
@@ -1177,7 +1177,7 @@ class TestCAhandler(unittest.TestCase):
         """Test handler_check returns None for valid config and logs debug"""
         with (
             patch(
-                "examples.ca_handler.dogtag_ca_handler.handler_config_check",
+                "acme2certifier.cahandlers.dogtag_ca_handler.handler_config_check",
                 return_value=None,
             ) as mock_check,
             patch.object(self.cahandler.logger, "debug") as mock_log,
@@ -1194,7 +1194,7 @@ class TestCAhandler(unittest.TestCase):
         """Test handler_check returns error string and logs debug"""
         with (
             patch(
-                "examples.ca_handler.dogtag_ca_handler.handler_config_check",
+                "acme2certifier.cahandlers.dogtag_ca_handler.handler_config_check",
                 return_value="error",
             ) as mock_check,
             patch.object(self.cahandler.logger, "debug") as mock_log,
@@ -1226,7 +1226,7 @@ class TestCAhandler(unittest.TestCase):
         """Test revoke calls _revoke with extracted serial and returns its result"""
         with (
             patch(
-                "examples.ca_handler.dogtag_ca_handler.cert_serial_get",
+                "acme2certifier.cahandlers.dogtag_ca_handler.cert_serial_get",
                 return_value="serial",
             ) as mock_serial,
             patch.object(
@@ -1247,7 +1247,7 @@ class TestCAhandler(unittest.TestCase):
         """Test revoke logs error and returns malformed if serial extraction fails"""
         with (
             patch(
-                "examples.ca_handler.dogtag_ca_handler.cert_serial_get",
+                "acme2certifier.cahandlers.dogtag_ca_handler.cert_serial_get",
                 return_value=None,
             ),
             patch.object(self.cahandler.logger, "error") as mock_error,
@@ -1283,7 +1283,7 @@ class TestCAhandler(unittest.TestCase):
         """Test revoke logs debug at entry and exit"""
         with (
             patch(
-                "examples.ca_handler.dogtag_ca_handler.cert_serial_get",
+                "acme2certifier.cahandlers.dogtag_ca_handler.cert_serial_get",
                 return_value="serial",
             ),
             patch.object(self.cahandler, "_revoke", return_value=(200, "ok", "")),
@@ -1480,10 +1480,10 @@ class TestCAhandler(unittest.TestCase):
         # Patch uts_now and uts_to_date_utc to control output
         with (
             patch(
-                "examples.ca_handler.dogtag_ca_handler.uts_now", return_value=1000000
+                "acme2certifier.cahandlers.dogtag_ca_handler.uts_now", return_value=1000000
             ),
             patch(
-                "examples.ca_handler.dogtag_ca_handler.uts_to_date_utc",
+                "acme2certifier.cahandlers.dogtag_ca_handler.uts_to_date_utc",
                 side_effect=["NB", "NA"],
             ),
         ):

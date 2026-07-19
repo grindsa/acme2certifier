@@ -26,16 +26,13 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
-        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
-            FakeDBStore
-        )
         modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
-        from acme_srv.error import Error
+        from acme2certifier.acme_srv.error import Error
 
         self.error = Error(False, self.logger)
 
@@ -115,7 +112,7 @@ class TestACMEHandler(unittest.TestCase):
             self.error.enrich_error("urn:ietf:params:acme:error:badCSR", None)
         )
 
-    @patch("acme_srv.error.Error._acme_errormessage")
+    @patch("acme2certifier.acme_srv.error.Error._acme_errormessage")
     def test_013_error_enrich_error(self, mock_error):
         """Error.enrich_error for valid message, no detail and nothing in error_hash hash"""
         mock_error.return_value = "foo"

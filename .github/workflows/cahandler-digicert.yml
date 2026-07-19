@@ -86,7 +86,7 @@ jobs:
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.digicert_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
           sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
@@ -130,14 +130,14 @@ jobs:
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.digicert_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
           sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
@@ -169,7 +169,7 @@ jobs:
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.digicert_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
           sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
@@ -195,7 +195,7 @@ jobs:
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.digicert_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_key: $DIGICERT_API_KEY" >> examples/Docker/data/acme_srv.cfg
           sudo echo "organization_name: $DIGICERT_ORGNAME" >> examples/Docker/data/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
@@ -203,7 +203,7 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
           sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
@@ -302,7 +302,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/ca_certs.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.digicert_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
           sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
@@ -336,14 +336,14 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.digicert_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
           sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -379,7 +379,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.digicert_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
           sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
@@ -409,7 +409,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.digicert_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
           sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
@@ -417,7 +417,7 @@ jobs:
           sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -523,7 +523,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/ca_certs.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.digicert_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
           sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
@@ -554,14 +554,14 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.digicert_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
           sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -598,7 +598,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.digicert_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
           sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
@@ -629,7 +629,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem data/ca_certs.pem
           sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: examples/ca_handler/digicert_ca_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "handler_module: acme2certifier.cahandlers.digicert_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_key: $DIGICERT_API_KEY" >> data/volume/acme_srv.cfg
           sudo echo "organization_name: $DIGICERT_ORGNAME" >> data/volume/acme_srv.cfg
           sudo echo "allowed_domainlist: [\"*.$DIGICERT_DOMAIN\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
@@ -637,7 +637,7 @@ jobs:
           sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 

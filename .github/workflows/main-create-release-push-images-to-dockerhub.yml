@@ -37,7 +37,7 @@ jobs:
       - name: Retrieve Version from version.py
         run: |
           echo APP_NAME=$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $2}') >> $GITHUB_ENV
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
 
@@ -53,7 +53,7 @@ jobs:
 
       - name: Retrieve dbversion numbers from version.py and fixture.xml
         run: |
-          echo DB_VERSION=$(cat acme_srv/version.py | grep -i __dbversion__ | head -n 1 | sed 's/__dbversion__ = //g' | sed s/\'//g) >> $GITHUB_ENV
+          echo DB_VERSION=$(cat acme2certifier/acme_srv/version.py | grep -i __dbversion__ | head -n 1 | sed 's/__dbversion__ = //g' | sed s/\'//g) >> $GITHUB_ENV
           echo FIXTURE_VERSION=$(awk '/name: dbversion/{getline; print $2}' examples/django/acme_srv/fixture/status.yaml | tr -d "'") >> $GITHUB_ENV
 
       - run: echo "db verion is ${{ env.DB_VERSION }}"
@@ -217,7 +217,7 @@ jobs:
       - name: "Retrieve version from version.py"
         run: |
           echo APP_NAME=$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $2}') >> $GITHUB_ENV
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
           echo BUILD_NAME=${{ matrix.websrv }}-${{ matrix.dbhandler }} >> $GITHUB_ENV
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -275,7 +275,7 @@ jobs:
 
       - name: "show version from version.py"
         run: |
-          cat acme_srv/version.py
+          cat acme2certifier/acme_srv/version.py
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
@@ -425,7 +425,7 @@ jobs:
 
       - name: "Retrieve Version from version.py"
         run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
 
       - name: "Display version information"
         run: |
@@ -616,7 +616,7 @@ jobs:
 
       - name: "Retrieve Version from version.py"
         run: |
-          echo TAG_NAME=$(cat acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
+          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
           echo UUID=$(uuidgen) >> $GITHUB_ENV
 
       - name: "Display version information"

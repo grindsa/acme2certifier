@@ -85,7 +85,7 @@ jobs:
           sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "hooks_file: /var/www/acme2certifier/examples/hooks/cn_dump_hooks.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "hooks_module: acme2certifier.hookhandlers.cn_dump_hooks" >> examples/Docker/data/acme_srv.cfg
           sudo echo "save_path: volume/hooks" >> examples/Docker/data/acme_srv.cfg
           sudo echo "$HOOKS_CHECKSUM" > examples/Docker/data/hooks/checksums.sha256
           # sudo cat examples/Docker/data/acme_srv.cfg
@@ -207,7 +207,7 @@ jobs:
           sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "hooks_file: /var/www/acme2certifier/examples/hooks/exception_test_hooks.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "hooks_module: acme2certifier.hookhandlers.exception_test_hooks" >> examples/Docker/data/acme_srv.cfg
           sudo echo "raise_pre_hook_exception: False" >> examples/Docker/data/acme_srv.cfg
           sudo echo "raise_post_hook_exception: False" >> examples/Docker/data/acme_srv.cfg
           sudo echo "raise_success_hook_exception: False" >> examples/Docker/data/acme_srv.cfg
@@ -416,7 +416,7 @@ jobs:
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "hooks_file: /var/www/acme2certifier/examples/hooks/email_hooks.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "hooks_module: acme2certifier.hookhandlers.email_hooks" >> examples/Docker/data/acme_srv.cfg
           sudo echo "report_failures: True" >> examples/Docker/data/acme_srv.cfg
           sudo echo "report_successes: True" >> examples/Docker/data/acme_srv.cfg
           sudo echo "subject_prefix: [ACME]" >> examples/Docker/data/acme_srv.cfg
@@ -512,7 +512,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo chmod -R 777 data/volume/acme_ca/hooks
           sudo echo -e "\n\n[Hooks]" >> data/volume/acme_srv.cfg
-          sudo echo "hooks_file: /opt/acme2certifier/examples/hooks/cn_dump_hooks.py" >> data/volume/acme_srv.cfg
+          sudo echo "hooks_module: acme2certifier.hookhandlers.cn_dump_hooks" >> data/volume/acme_srv.cfg
           sudo echo "save_path: /tmp/acme2certifier/volume/acme_ca/hooks" >> data/volume/acme_srv.cfg
           sudo echo "$HOOKS_CHECKSUM" > data/volume/acme_ca/hooks/checksums.sha256
         env:
@@ -632,7 +632,7 @@ jobs:
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo chmod -R 777 data/volume/acme_ca/hooks
           sudo echo -e "\n\n[Hooks]" >> data/volume/acme_srv.cfg
-          sudo echo "hooks_file: /opt/acme2certifier/examples/hooks/exception_test_hooks.py" >> data/volume/acme_srv.cfg
+          sudo echo "hooks_module: acme2certifier.hookhandlers.exception_test_hooks" >> data/volume/acme_srv.cfg
           sudo echo "raise_pre_hook_exception: False" >> data/volume/acme_srv.cfg
           sudo echo "raise_post_hook_exception: False" >> data/volume/acme_srv.cfg
           sudo echo "raise_success_hook_exception: False" >> data/volume/acme_srv.cfg
@@ -854,7 +854,7 @@ jobs:
           sudo chmod -R 777 data/volume/acme_ca/hooks
           echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> data/volume/acme_srv.cfg
-          sudo echo "hooks_file: /opt/acme2certifier/examples/hooks/email_hooks.py" >> data/volume/acme_srv.cfg
+          sudo echo "hooks_module: acme2certifier.hookhandlers.email_hooks" >> data/volume/acme_srv.cfg
           sudo echo "report_failures: True" >> data/volume/acme_srv.cfg
           sudo echo "report_successes: True" >> data/volume/acme_srv.cfg
           sudo echo "subject_prefix: [ACME]" >> data/volume/acme_srv.cfg

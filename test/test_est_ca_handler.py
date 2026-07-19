@@ -31,7 +31,7 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         import logging
-        from examples.ca_handler.est_ca_handler import CAhandler
+        from acme2certifier.cahandlers.est_ca_handler import CAhandler
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
@@ -42,13 +42,13 @@ class TestACMEHandler(unittest.TestCase):
         """default test which always passes"""
         self.assertEqual("foo", "foo")
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_proxy_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_parameters_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_password_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_userauth_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_clientauth_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_host_load")
-    @patch("examples.ca_handler.est_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_proxy_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_parameters_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_password_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_userauth_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_clientauth_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_host_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.load_config")
     def test_002_config_load(
         self,
         mock_load_cfg,
@@ -72,13 +72,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_para.called)
         self.assertTrue(mock_proxy.called)
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_proxy_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_parameters_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_password_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_userauth_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_clientauth_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_host_load")
-    @patch("examples.ca_handler.est_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_proxy_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_parameters_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_password_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_userauth_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_clientauth_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_host_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.load_config")
     def test_003_config_load(
         self,
         mock_load_cfg,
@@ -107,13 +107,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_para.called)
         self.assertTrue(mock_proxy.called)
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_proxy_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_parameters_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_password_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_userauth_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_clientauth_load")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_host_load")
-    @patch("examples.ca_handler.est_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_proxy_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_parameters_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_password_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_userauth_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_clientauth_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_host_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.load_config")
     def test_004_config_load(
         self,
         mock_load_cfg,
@@ -203,7 +203,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual(20, self.cahandler.request_timeout)
 
-    @patch("examples.ca_handler.est_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.est_ca_handler.load_config")
     def test_010_config_host_load(self, mock_cfg):
         """test _config_load - client auth configured but no ca_bundle"""
         parser = configparser.ConfigParser()
@@ -254,8 +254,8 @@ class TestACMEHandler(unittest.TestCase):
             ("est_client_cert", "est_client_key"), self.cahandler.session.cert
         )
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._cert_passphrase_load")
-    @patch("examples.ca_handler.est_ca_handler.Pkcs12Adapter")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._cert_passphrase_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.Pkcs12Adapter")
     def test_013_config_clientauth_load(self, mock_pkcs12, mock_load):
         """test _config_load - client certificate configured but no key"""
         parser = configparser.ConfigParser()
@@ -474,7 +474,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(self.cahandler.ca_bundle)
         self.assertEqual(20, self.cahandler.request_timeout)
 
-    @patch("examples.ca_handler.est_ca_handler.parse_url")
+    @patch("acme2certifier.cahandlers.est_ca_handler.parse_url")
     @patch("json.loads")
     def test_034_config_proxy_load(self, mock_json, mock_url):
         """test _config_load ca_handler configured load proxies"""
@@ -487,8 +487,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_url.called)
         self.assertEqual(20, self.cahandler.request_timeout)
 
-    @patch("examples.ca_handler.est_ca_handler.proxy_check")
-    @patch("examples.ca_handler.est_ca_handler.parse_url")
+    @patch("acme2certifier.cahandlers.est_ca_handler.proxy_check")
+    @patch("acme2certifier.cahandlers.est_ca_handler.parse_url")
     @patch("json.loads")
     def test_035_config_proxy_load(self, mock_json, mock_url, mock_chk):
         """test _config_load ca_handler configured load proxies"""
@@ -507,8 +507,8 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual(20, self.cahandler.request_timeout)
 
-    @patch("examples.ca_handler.est_ca_handler.proxy_check")
-    @patch("examples.ca_handler.est_ca_handler.parse_url")
+    @patch("acme2certifier.cahandlers.est_ca_handler.proxy_check")
+    @patch("acme2certifier.cahandlers.est_ca_handler.parse_url")
     @patch("json.loads")
     def test_036_config_proxy_load(self, mock_json, mock_url, mock_chk):
         """test _config_load ca_handler configured load proxies"""
@@ -553,8 +553,8 @@ class TestACMEHandler(unittest.TestCase):
             ("Method not implemented.", None, None), self.cahandler.trigger("payload")
         )
 
-    @patch("examples.ca_handler.est_ca_handler.b64_decode")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._pkcs7_to_pem")
+    @patch("acme2certifier.cahandlers.est_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._pkcs7_to_pem")
     @patch.object(requests, "get")
     def test_040__cacerts_get(self, mock_req, mock_to_pem, _mock_b64):
         """test _cacerts_get() successful run by using client certs"""
@@ -568,8 +568,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.est_client_cert = "est_client_cert"
         self.assertEqual((None, "pem"), self.cahandler._cacerts_get())
 
-    @patch("examples.ca_handler.est_ca_handler.b64_decode")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._pkcs7_to_pem")
+    @patch("acme2certifier.cahandlers.est_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._pkcs7_to_pem")
     @patch.object(requests, "get")
     def test_041__cacerts_get(self, mock_req, mock_to_pem, _mock_b64):
         """test _cacerts_get() successful run by using client certs"""
@@ -584,8 +584,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.est_password = "est_password"
         self.assertEqual((None, "pem"), self.cahandler._cacerts_get())
 
-    @patch("examples.ca_handler.est_ca_handler.b64_decode")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._pkcs7_to_pem")
+    @patch("acme2certifier.cahandlers.est_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._pkcs7_to_pem")
     @patch.object(requests, "get")
     def test_042__cacerts_get(self, mock_req, mock_to_pem, _mock_b64):
         """test _cacerts_get() no est_host parameter"""
@@ -602,8 +602,8 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.est_ca_handler.b64_decode")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._pkcs7_to_pem")
+    @patch("acme2certifier.cahandlers.est_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._pkcs7_to_pem")
     def test_043__cacerts_get(self, mock_to_pem, _mock_b64):
         """test _cacerts_get() request.get triggers exception"""
         self.cahandler.session = Mock()
@@ -618,8 +618,8 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.est_ca_handler.b64_decode")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._pkcs7_to_pem")
+    @patch("acme2certifier.cahandlers.est_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._pkcs7_to_pem")
     def test_044__simpleenroll(self, mock_to_pem, _mock_b64):
         """test _cacerts_get() successful run"""
         mockresponse = Mock()
@@ -631,8 +631,8 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler.est_client_cert = "est_client_cert"
         self.assertEqual((None, "pem"), self.cahandler._simpleenroll("csr"))
 
-    @patch("examples.ca_handler.est_ca_handler.b64_decode")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._pkcs7_to_pem")
+    @patch("acme2certifier.cahandlers.est_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._pkcs7_to_pem")
     def test_045__simpleenroll(self, mock_to_pem, mock_b64):
         """test _cacerts_get() successful run"""
         self.cahandler.session = Mock()
@@ -650,8 +650,8 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.est_ca_handler.b64_decode")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._pkcs7_to_pem")
+    @patch("acme2certifier.cahandlers.est_ca_handler.b64_decode")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._pkcs7_to_pem")
     def test_046__simpleenroll(self, mock_to_pem, mock_b64):
         """test _cacerts_get() successful run"""
         self.cahandler.session = Mock()
@@ -670,7 +670,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._cacerts_get")
     def test_047_enroll(self, mock_ca):
         """test certificate enrollment _cacert_get returns error"""
         mock_ca.return_value = ("Error", None)
@@ -681,7 +681,7 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:Error while fetching the CA certificates: Error", lcm.output
         )
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._cacerts_get")
     def test_048_enroll(self, mock_ca):
         """test certificate enrollment no error but now ca_certs"""
         mock_ca.return_value = (None, None)
@@ -693,8 +693,8 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertIn("ERROR:test_a2c:No CA certificates found", lcm.output)
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._simpleenroll")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._cacerts_get")
     def test_049_enroll(self, mock_ca, mock_enroll):
         """test certificate enrollment _simpleenroll returns error"""
         mock_ca.return_value = (None, "ca_pem")
@@ -705,8 +705,8 @@ class TestACMEHandler(unittest.TestCase):
             self.assertEqual(("Error", None, None, None), self.cahandler.enroll("csr"))
         self.assertIn("ERROR:test_a2c:Simpleenroll error: Error", lcm.output)
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._simpleenroll")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._cacerts_get")
     def test_050_enroll(self, mock_ca, mock_enroll):
         """test certificate enrollment _simpleenroll returns certificate"""
         mock_ca.return_value = (None, "ca_pem")
@@ -717,8 +717,8 @@ class TestACMEHandler(unittest.TestCase):
             (None, "certca_pem", "cert", None), self.cahandler.enroll("csr")
         )
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._simpleenroll")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._cacerts_get")
     def test_051_enroll(self, mock_ca, mock_enroll):
         """test certificate enrollment replace CERT BEGIN"""
         mock_ca.return_value = (None, "ca_pem")
@@ -730,8 +730,8 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.enroll("csr"),
         )
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._simpleenroll")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._cacerts_get")
     def test_052_enroll(self, mock_ca, mock_enroll):
         """test certificate enrollment replace CERT END"""
         mock_ca.return_value = (None, "ca_pem")
@@ -743,8 +743,8 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.enroll("csr"),
         )
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._simpleenroll")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._cacerts_get")
     def test_053_enroll(self, mock_ca, mock_enroll):
         """test certificate enrollment replace CERT BEGIN AND END"""
         mock_ca.return_value = (None, "ca_pem")
@@ -764,8 +764,8 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.enroll("csr"),
         )
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._simpleenroll")
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._cacerts_get")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._simpleenroll")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._cacerts_get")
     def test_054_enroll(self, mock_ca, mock_enroll):
         """test certificate enrollment replace CERT BEGIN AND END and \n"""
         mock_ca.return_value = (None, "ca_pem")
@@ -785,14 +785,14 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.enroll("csr"),
         )
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_load")
     def test_055__enter__(self, mock_cfg):
         """test enter  called"""
         mock_cfg.return_value = True
         self.cahandler.__enter__()
         self.assertTrue(mock_cfg.called)
 
-    @patch("examples.ca_handler.est_ca_handler.CAhandler._config_load")
+    @patch("acme2certifier.cahandlers.est_ca_handler.CAhandler._config_load")
     def test_056__enter__(self, mock_cfg):
         """test enter api hosts defined"""
         mock_cfg.return_value = True
@@ -845,7 +845,7 @@ class TestACMEHandler(unittest.TestCase):
         ]
         self.assertEqual(result, self.cahandler._pkcs7_to_pem(file_content, "list"))
 
-    @patch("examples.ca_handler.est_ca_handler.handler_config_check")
+    @patch("acme2certifier.cahandlers.est_ca_handler.handler_config_check")
     def test_062_handler_check(self, mock_handler_check):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"

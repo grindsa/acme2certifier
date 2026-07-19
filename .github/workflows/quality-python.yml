@@ -72,7 +72,7 @@ jobs:
 
     - name: cp
       run: |
-         cp examples/ca_handler/skeleton_ca_handler.py acme_srv/ca_handler.py
+         cp acme2certifier/cahandlers/skeleton_ca_handler.py acme_srv/ca_handler.py
          cp examples/db_handler/wsgi_handler.py acme_srv/db_handler.py
          cp examples/acme_srv.cfg acme_srv/
     - name: Python test
@@ -113,15 +113,19 @@ jobs:
 
       - name: cp
         run: |
-          cp examples/ca_handler/skeleton_ca_handler.py acme_srv/ca_handler.py
+          cp acme2certifier/cahandlers/skeleton_ca_handler.py acme_srv/ca_handler.py
           cp examples/db_handler/wsgi_handler.py acme_srv/db_handler.py
           cp examples/acme_srv.cfg acme_srv/
 
-      - name: "Pylint folder: acme"
+      - name: "Pylint folder: acme2certifier package"
+        run: |
+          pylint --rcfile=".github/pylintrc" acme2certifier/ || pylint-exit $?
+
+      - name: "Pylint folder: acme_srv (compat shims / Django app)"
         run: |
           pylint --rcfile=".github/pylintrc" acme_srv/ || pylint-exit $?
 
-      - name: "Pylint folder: tools"
+      - name: "Pylint folder: tools (compat wrappers)"
         run: |
           pylint --rcfile=".github/pylintrc" tools/*.py || pylint-exit $?
 
@@ -129,7 +133,7 @@ jobs:
         run: |
           pylint --rcfile=".github/pylintrc" examples/db_handler/*.py || pylint-exit $?
 
-      - name: "Pylint folder: examples/ca_handler"
+      - name: "Pylint folder: examples/ca_handler (compat shims)"
         run: |
           pylint --rcfile=".github/pylintrc" examples/ca_handler/*.py || pylint-exit $?
 
@@ -137,6 +141,7 @@ jobs:
         run: |
           pip install pycodestyle
           cp .github/pycodestyle ~/.config/pycodestyle
+          pycodestyle --show-source acme2certifier/.
           pycodestyle --show-source examples/.
           pycodestyle --show-source acme_srv/.
           pycodestyle --show-source tools/.

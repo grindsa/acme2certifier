@@ -30,13 +30,10 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
-        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
-            FakeDBStore
-        )
         modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
-        from examples.ca_handler.acme_ca_handler import CAhandler
+        from acme2certifier.cahandlers.acme_ca_handler import CAhandler
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
@@ -61,7 +58,7 @@ class TestACMEHandler(unittest.TestCase):
         """exit"""
         self.assertFalse(self.cahandler.__exit__())
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_018__config_load(self, mock_load_cfg):
         """test _config_load default configparser object"""
         parser = configparser.ConfigParser()
@@ -83,7 +80,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(self.cahandler.acme_keypath)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_019__config_load(self, mock_load_cfg):
         """test _config_load empty cahandler section"""
         parser = configparser.ConfigParser()
@@ -111,7 +108,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_020__config_load(self, mock_load_cfg):
         """test _config_load unknown values"""
         parser = configparser.ConfigParser()
@@ -139,7 +136,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_021__config_load(self, mock_load_cfg):
         """test _config_load key_file value"""
         parser = configparser.ConfigParser()
@@ -163,7 +160,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_022__config_load(self, mock_load_cfg):
         """test _config_load key_file value"""
         parser = configparser.ConfigParser()
@@ -190,7 +187,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("acme_keypath", self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_023__config_load(self, mock_load_cfg):
         """test _config_load url value"""
         parser = configparser.ConfigParser()
@@ -214,7 +211,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_024__config_load(self, mock_load_cfg):
         """test _config_load account values"""
         parser = configparser.ConfigParser()
@@ -242,7 +239,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_025__config_load(self, mock_load_cfg):
         """test _config_load key_size"""
         parser = configparser.ConfigParser()
@@ -270,7 +267,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_026__config_load(self, mock_load_cfg):
         """test _config_load email"""
         parser = configparser.ConfigParser()
@@ -298,7 +295,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_027__config_load(self, mock_load_cfg):
         """test _config_load email"""
         parser = configparser.ConfigParser()
@@ -326,7 +323,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_028__config_load(self, mock_load_cfg):
         """test _config_load email"""
         parser = configparser.ConfigParser()
@@ -354,7 +351,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_029__config_load(self, mock_load_cfg):
         """test _config_load allowlist"""
         parser = configparser.ConfigParser()
@@ -382,7 +379,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_030__config_load(self, mock_load_cfg):
         """test _config_load allowlist - failed json parse"""
         parser = configparser.ConfigParser()
@@ -410,7 +407,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_031__config_load(self, mock_load_cfg):
         """test _config_load allowlist - failed json parse"""
         parser = configparser.ConfigParser()
@@ -438,7 +435,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertFalse(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_032__config_load(self, mock_load_cfg):
         """test _config_load allowlist - failed json parse"""
         parser = configparser.ConfigParser()
@@ -467,7 +464,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_033__config_load(self, mock_load_cfg):
         """test _config_load allowlist - failed json parse"""
         parser = configparser.ConfigParser()
@@ -500,7 +497,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_034__config_load(self, mock_load_cfg):
         """test _config_load allowlist - failed json parse"""
         parser = configparser.ConfigParser()
@@ -530,7 +527,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(self.cahandler.acme_keypath)
         self.assertTrue(self.cahandler.ssl_verify)
 
-    @patch("examples.ca_handler.acme_ca_handler.load_config")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.load_config")
     def test_035__config_load(self, mock_load_cfg):
         """test _config_load allowlist - failed json parse"""
         parser = configparser.ConfigParser()
@@ -643,7 +640,7 @@ class TestACMEHandler(unittest.TestCase):
         self.cahandler._http_challenge_store("challenge_name", "challenge_content")
         self.assertTrue(self.cahandler.dbstore.cahandler_add.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_filter")
     def test_043__challenge_info(self, mock_filter):
         """test _challenge_info - all ok"""
         response = Mock()
@@ -654,7 +651,7 @@ class TestACMEHandler(unittest.TestCase):
             "foo.bar", self.cahandler._challenge_info("authzr", "user_key")[1]
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_filter")
     def test_044__challenge_info(self, mock_filter):
         """test _challenge_info - wrong split"""
         response = Mock()
@@ -669,7 +666,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_filter")
     def test_045__challenge_info(self, mock_filter):
         """test _challenge_info - wrong split"""
         response = Mock()
@@ -681,7 +678,7 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertIn("ERROR:test_a2c:acme authorization is missing", lcm.output)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_filter")
     def test_046__challenge_info(self, mock_filter):
         """test _challenge_info - wrong split"""
         response = Mock()
@@ -693,7 +690,7 @@ class TestACMEHandler(unittest.TestCase):
             )
         self.assertIn("ERROR:test_a2c:acme user is missing", lcm.output)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_filter")
     def test_047__challenge_info(self, mock_filter):
         """test _challenge_info - all ok"""
         challenge1 = Mock(return_value="foo")
@@ -740,7 +737,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("account", self.cahandler.account)
 
     @patch("json.dumps")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._key_generate")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._key_generate")
     @patch("builtins.open", mock_open(read_data="csv_dump"), create=True)
     @patch("os.path.exists")
     def test_051__user_key_load(self, mock_file, mock_key, mock_json):
@@ -753,7 +750,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_json.called)
 
     @patch("json.dumps")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._key_generate")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._key_generate")
     @patch("builtins.open", mock_open(read_data="csv_dump"), create=True)
     @patch("os.path.exists")
     def test_052__user_key_load(self, mock_file, mock_key, mock_json):
@@ -906,7 +903,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(self.cahandler.account)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._zerossl_eab_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._zerossl_eab_get")
     @patch("acme.messages")
     def test_060__account_register(self, mock_messages, mock_eab):
         """test account register existing account - normal url"""
@@ -925,7 +922,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("uri", self.cahandler.account)
         self.assertFalse(mock_eab.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._zerossl_eab_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._zerossl_eab_get")
     @patch("acme.messages")
     def test_061__account_register(self, mock_messages, mock_eab):
         """test account register existing account - zerossl.com url"""
@@ -946,7 +943,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_eab.called)
 
     @patch(
-        "examples.ca_handler.acme_ca_handler.messages.ExternalAccountBinding.from_data"
+        "acme2certifier.cahandlers.acme_ca_handler.messages.ExternalAccountBinding.from_data"
     )
     @patch("acme.messages")
     def test_062__account_register(self, mock_messages, mock_eab):
@@ -966,9 +963,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual("uri", self.cahandler.account)
         self.assertFalse(mock_eab.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._jwk_strip")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._jwk_strip")
     @patch(
-        "examples.ca_handler.acme_ca_handler.messages.ExternalAccountBinding.from_data"
+        "acme2certifier.cahandlers.acme_ca_handler.messages.ExternalAccountBinding.from_data"
     )
     @patch("acme.messages")
     def test_063__account_register(self, mock_messages, mock_eab, mock_jwk_strip):
@@ -1051,10 +1048,10 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler.poll("cert_name", "poll_identifier", "csr"),
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.enrollment_config_log")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._enroll")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._registration_lookup")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.enrollment_config_log")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._enroll")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._registration_lookup")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
     @patch("acme.client.ClientNetwork")
     @patch("acme.messages")
     def test_069_enroll(
@@ -1069,10 +1066,10 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(mock_ecl.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.enrollment_config_log")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._enroll")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._registration_lookup")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.enrollment_config_log")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._enroll")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._registration_lookup")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
     @patch("acme.client.ClientNetwork")
     @patch("acme.messages")
     def test_070_enroll(
@@ -1088,9 +1085,9 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_ecl.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._enroll")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._registration_lookup")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._enroll")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._registration_lookup")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
     @patch("acme.client.ClientNetwork")
     @patch("acme.messages")
     def test_071_enroll(
@@ -1107,12 +1104,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_enroll.called)
         self.assertIn("ERROR:test_a2c:Account registration failed", lcm.output)
 
-    @patch("examples.ca_handler.acme_ca_handler.b64_encode")
-    @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_register")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.b64_encode")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.cert_pem2der")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._http_challenge_store")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_info")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._account_register")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
     @patch("acme.client.ClientV2.poll_and_finalize")
     @patch("acme.client.ClientV2.answer_challenge")
     @patch("acme.client.ClientV2.new_order")
@@ -1180,13 +1177,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ach.called)
         self.assertTrue(mock_reg.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.acme_ca_handler.b64_encode")
-    @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.allowed_domainlist_check")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.b64_encode")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.cert_pem2der")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._http_challenge_store")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_info")
     @patch("acme.client.ClientV2.query_registration")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
     @patch("acme.client.ClientV2.poll_and_finalize")
     @patch("acme.client.ClientV2.answer_challenge")
     @patch("acme.client.ClientV2.new_order")
@@ -1252,13 +1249,13 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ach.called)
         self.assertTrue(mock_reg.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.allowed_domainlist_check")
     @patch("OpenSSL.crypto.load_certificate")
     @patch("OpenSSL.crypto.dump_certificate")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_register")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._http_challenge_store")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_info")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._account_register")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
     @patch("acme.client.ClientV2.poll_and_finalize")
     @patch("acme.client.ClientV2.answer_challenge")
     @patch("acme.client.ClientV2.new_order")
@@ -1310,13 +1307,13 @@ class TestACMEHandler(unittest.TestCase):
             "ERROR:test_a2c:Enrollment failed: Bad ACME account: error", lcm.output
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.allowed_domainlist_check")
     @patch("OpenSSL.crypto.load_certificate")
     @patch("OpenSSL.crypto.dump_certificate")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_register")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._http_challenge_store")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_info")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._account_register")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
     @patch("acme.client.ClientV2.poll_and_finalize")
     @patch("acme.client.ClientV2.answer_challenge")
     @patch("acme.client.ClientV2.new_order")
@@ -1392,12 +1389,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ach.called)
         self.assertTrue(mock_reg.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.allowed_domainlist_check")
     @patch("acme.client.ClientV2.query_registration")
     @patch("acme.client.ClientNetwork")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_register")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._account_register")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._http_challenge_store")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
     def test_076_enroll(
         self, mock_key, mock_store, mock_reg, mock_nw, mock_newreg, mock_csrchk
     ):
@@ -1414,14 +1411,14 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_reg.called)
         self.assertFalse(mock_newreg.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._order_issue")
-    @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._order_issue")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.allowed_domainlist_check")
     @patch("OpenSSL.crypto.load_certificate")
     @patch("OpenSSL.crypto.dump_certificate")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._http_challenge_store")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_register")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._http_challenge_store")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_info")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._account_register")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
     @patch("acme.client.ClientV2.poll_and_finalize")
     @patch("acme.client.ClientV2.answer_challenge")
     @patch("acme.client.ClientV2.new_order")
@@ -1547,8 +1544,8 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual("uri", self.cahandler.account)
 
-    @patch("examples.ca_handler.acme_ca_handler.eab_profile_revocation_check")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.eab_profile_revocation_check")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
     @patch("acme.client.ClientV2.revoke")
     @patch("acme.client.ClientV2.query_registration")
     @patch("acme.messages")
@@ -1584,8 +1581,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_revoke.called)
         self.assertFalse(mock_eabrevchk.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.eab_profile_revocation_check")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.eab_profile_revocation_check")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
     @patch("acme.client.ClientV2.revoke")
     @patch("acme.client.ClientV2.query_registration")
     @patch("acme.messages")
@@ -1622,7 +1619,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_revoke.called)
         self.assertTrue(mock_eabrevchk.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
     @patch("acme.client.ClientV2.revoke")
     @patch("acme.client.ClientV2.query_registration")
     @patch("acme.messages")
@@ -1662,8 +1659,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_nw.called)
         self.assertFalse(mock_revoke.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_lookup")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._account_lookup")
     @patch("acme.messages")
     @patch("acme.client.ClientNetwork")
     @patch("builtins.open", mock_open(read_data="mock_open"), create=True)
@@ -1691,7 +1688,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_load.called)
         self.assertTrue(mock_nw.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._account_lookup")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._account_lookup")
     @patch("acme.messages")
     @patch("acme.client.ClientNetwork")
     @patch("josepy.JWKRSA")
@@ -1723,7 +1720,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("builtins.open", mock_open(read_data="mock_open"), create=True)
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._user_key_load")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._user_key_load")
     @patch("os.path.exists")
     def test_087_revoke(self, mock_exists, mock_load):
         """test revoke exception during processing"""
@@ -1823,7 +1820,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_info")
     def test_093__order_authorization(self, mock_info):
         """CAhandler._order_authorization - sectigo challenge"""
         order = Mock()
@@ -1851,7 +1848,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._order_authorization(acmeclient, order, "user_key")
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_info")
     def test_094__order_authorization(self, mock_info):
         """CAhandler._order_authorization - sectigo challenge"""
         order = Mock()
@@ -1868,7 +1865,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._order_authorization("acmeclient", order, "user_key")
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_info")
     def test_095__order_authorization(self, mock_info):
         """CAhandler._order_authorization - sectigo challenge"""
         order = Mock()
@@ -1887,7 +1884,7 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._order_authorization("acmeclient", order, "user_key")
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_info")
     def test_096__order_authorization(self, mock_info):
         """CAhandler._order_authorization - sectigo challenge"""
         order = Mock()
@@ -1927,7 +1924,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
     def test_099_eab_profile_list_check(self, mock_hiv):
         """test eab_profile_list_check"""
         mock_hiv.return_value = ("http://acme_url", None)
@@ -1940,7 +1937,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual("acme_keypath/acme_url.json", self.cahandler.acme_keyfile)
 
-    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
     def test_100_eab_profile_list_check(self, mock_hiv):
         """test eab_profile_list_check"""
         mock_hiv.return_value = (None, "error")
@@ -1954,7 +1951,7 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual("acme_keyfile", self.cahandler.acme_keyfile)
 
-    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
     def test_101_eab_profile_list_check(self, mock_hiv):
         """test eab_profile_list_check"""
         mock_hiv.return_value = ("http://acme_url", None)
@@ -1967,8 +1964,8 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertEqual("acme_keyfile", self.cahandler.acme_keyfile)
 
-    @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.allowed_domainlist_check")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
     def test_102_eab_profile_list_check(self, mock_hiv, mock_chk):
         """test eab_profile_list_check"""
         mock_hiv.return_value = ("http://acme_url", None)
@@ -1985,8 +1982,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(eab_handler.allowed_domains_check.called)
         self.assertFalse(mock_chk.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.allowed_domainlist_check")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
     def test_103_eab_profile_list_check(self, mock_hiv, mock_chk):
         """test eab_profile_list_check"""
         mock_hiv.return_value = ("http://acme_url", None)
@@ -2004,8 +2001,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(eab_handler.allowed_domains_check.called)
         self.assertFalse(mock_chk.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.allowed_domainlist_check")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
     def test_104_eab_profile_list_check(self, mock_hiv, mock_chk):
         """test eab_profile_list_check"""
         mock_hiv.return_value = ("http://acme_url", None)
@@ -2024,8 +2021,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_chk.called)
         self.assertFalse(eab_handler.allowed_domains_check.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.allowed_domainlist_check")
-    @patch("examples.ca_handler.acme_ca_handler.client_parameter_validate")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.allowed_domainlist_check")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client_parameter_validate")
     def test_105_eab_profile_list_check(self, mock_hiv, mock_chk):
         """test eab_profile_list_check"""
         mock_hiv.return_value = ("http://acme_url", None)
@@ -2160,7 +2157,7 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.b64_url_decode")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.b64_url_decode")
     @patch("OpenSSL.crypto.load_certificate")
     @patch("cryptography.x509.load_der_x509_certificate")
     def test_118_revoke_or_fallback(self, mock_cry_load, mock_ossl_load, mock_b64):
@@ -2172,7 +2169,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_ossl_load.called)
 
     @patch.object(josepy, "ComparableX509", create=True)
-    @patch("examples.ca_handler.acme_ca_handler.b64_url_decode")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.b64_url_decode")
     @patch("OpenSSL.crypto.load_certificate")
     @patch("cryptography.x509.load_der_x509_certificate")
     def test_119_revoke_or_fallback(
@@ -2188,12 +2185,12 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_ossl_load.called)
         self.assertTrue(mock_comparable.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_deprovision")
-    @patch("examples.ca_handler.acme_ca_handler.b64_encode")
-    @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
-    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
-    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_challenge_deprovision")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.b64_encode")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.cert_pem2der")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client.ClientV2")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.OrderResource")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.josepy.jwk.JWKRSA")
     def test_120_order_issue_success(
         self,
         mock_jwk,
@@ -2228,12 +2225,12 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(mock_deprovision.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_deprovision")
-    @patch("examples.ca_handler.acme_ca_handler.b64_encode")
-    @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
-    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
-    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_challenge_deprovision")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.b64_encode")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.cert_pem2der")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client.ClientV2")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.OrderResource")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.josepy.jwk.JWKRSA")
     def test_121_order_issue_success(
         self,
         mock_jwk,
@@ -2270,12 +2267,12 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertTrue(mock_deprovision.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_deprovision")
-    @patch("examples.ca_handler.acme_ca_handler.b64_encode")
-    @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
-    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
-    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_challenge_deprovision")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.b64_encode")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.cert_pem2der")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client.ClientV2")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.OrderResource")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.josepy.jwk.JWKRSA")
     def test_122_order_issue_success(
         self,
         mock_jwk,
@@ -2312,12 +2309,12 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(mock_deprovision.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_deprovision")
-    @patch("examples.ca_handler.acme_ca_handler.b64_encode")
-    @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
-    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
-    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_challenge_deprovision")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.b64_encode")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.cert_pem2der")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client.ClientV2")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.OrderResource")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.josepy.jwk.JWKRSA")
     def test_123_order_issue_success(
         self,
         mock_jwk,
@@ -2354,12 +2351,12 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(mock_deprovision.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_deprovision")
-    @patch("examples.ca_handler.acme_ca_handler.b64_encode")
-    @patch("examples.ca_handler.acme_ca_handler.cert_pem2der")
-    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
-    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
-    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_challenge_deprovision")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.b64_encode")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.cert_pem2der")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client.ClientV2")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.OrderResource")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.josepy.jwk.JWKRSA")
     def test_124_order_issue_no_fullchain(
         self,
         mock_jwk,
@@ -2386,9 +2383,9 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(mock_b64.called)
         self.assertFalse(mock_deprovision.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._order_authorization")
-    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client.ClientV2")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._order_authorization")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.josepy.jwk.JWKRSA")
     def test_125_order_issue_invalid_order(self, mock_jwk, mock_order, mock_client):
         acmeclient = mock_client
         user_key = mock_jwk
@@ -2414,11 +2411,11 @@ class TestACMEHandler(unittest.TestCase):
         )
         self.assertFalse(acmeclient.poll_and_finalize.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_provision")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
-    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
-    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
-    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_challenge_provision")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_info")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client.ClientV2")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.OrderResource")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.josepy.jwk.JWKRSA")
     def test_126_order_authorization_http_challenge(
         self, mock_jwk, mock_order, mock_client, mock_info, mock_provision
     ):
@@ -2450,11 +2447,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(result)
         self.assertFalse(mock_provision.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_provision")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
-    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
-    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
-    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_challenge_provision")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_info")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client.ClientV2")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.OrderResource")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.josepy.jwk.JWKRSA")
     def test_127_order_authorization_dns_challenge(
         self, mock_jwk, mock_order, mock_client, mock_info, mock_provision
     ):
@@ -2489,11 +2486,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(result)
         self.assertTrue(mock_provision.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_provision")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
-    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
-    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
-    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_challenge_provision")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_info")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client.ClientV2")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.OrderResource")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.josepy.jwk.JWKRSA")
     def test_128_order_authorization_sectigo_email_challenge(
         self, mock_jwk, mock_order, mock_client, mock_info, mock_provision
     ):
@@ -2519,11 +2516,11 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(result)
         self.assertFalse(mock_provision.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._dns_challenge_provision")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_info")
-    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
-    @patch("examples.ca_handler.acme_ca_handler.messages.OrderResource")
-    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._dns_challenge_provision")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_info")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client.ClientV2")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.OrderResource")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.josepy.jwk.JWKRSA")
     def test_129_order_authorization_no_challenge(
         self, mock_jwk, mock_order, mock_client, mock_info, mock_provision
     ):
@@ -2536,8 +2533,8 @@ class TestACMEHandler(unittest.TestCase):
             self.cahandler._order_authorization(acmeclient, mock_order, user_key)
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._challenge_filter")
-    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._challenge_filter")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.josepy.jwk.JWKRSA")
     def test_130_get_dns_challenge_success(self, mock_jwk, mock_filter):
         """Test _get_dns_challenge with a valid DNS challenge."""
         challenge = MagicMock()
@@ -2555,7 +2552,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(chall_content, "key-auth")
         self.assertEqual(result_challenge, challenge)
 
-    @patch("examples.ca_handler.acme_ca_handler.josepy.jwk.JWKRSA")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.josepy.jwk.JWKRSA")
     def test_131_get_dns_challenge_no_challenge(self, mock_jwk):
         """Test _get_dns_challenge with no DNS challenge."""
         authzr = MagicMock()
@@ -2710,8 +2707,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(self.cahandler.acme_sh_script, "/fake/path/acme.sh")
         self.assertEqual(self.cahandler.dns_update_script_variables, {"VAR1": "value1"})
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._get_http_or_email_challenge")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._get_dns_challenge")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._get_http_or_email_challenge")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._get_dns_challenge")
     def test_140_challenge_info_dns(
         self, mock_get_dns_challenge, mock_get_http_or_email_challenge
     ):
@@ -2735,8 +2732,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_get_dns_challenge.called)
         self.assertFalse(mock_get_http_or_email_challenge.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._get_dns_challenge")
-    @patch("examples.ca_handler.acme_ca_handler.CAhandler._get_http_or_email_challenge")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._get_dns_challenge")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.CAhandler._get_http_or_email_challenge")
     def test_141_challenge_info_http(
         self, mock_get_http_or_email_challenge, mock_get_dns_challenge
     ):
@@ -2790,7 +2787,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("subprocess.call")
     @patch(
-        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
     )
     @patch("os.path.splitext")
     @patch("os.path.basename")
@@ -2829,7 +2826,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("subprocess.call")
     @patch(
-        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
     )
     @patch("os.path.splitext")
     @patch("os.path.basename")
@@ -2861,7 +2858,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("subprocess.call")
     @patch(
-        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
     )
     def test_146_deprovision_no_records(self, mock_env_handle, mock_subprocess):
         """Test _dns_challenge_deprovision with no DNS records."""
@@ -2894,13 +2891,13 @@ class TestACMEHandler(unittest.TestCase):
     @patch("time.sleep")
     @patch("subprocess.call")
     @patch(
-        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
     )
     @patch("os.path.splitext")
     @patch("os.path.basename")
-    @patch("examples.ca_handler.acme_ca_handler.sha256_hash")
-    @patch("examples.ca_handler.acme_ca_handler.b64_url_encode")
-    @patch("examples.ca_handler.acme_ca_handler.txt_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.sha256_hash")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.b64_url_encode")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.txt_get")
     def test_148_dns_challenge_provision_success(
         self,
         mock_txt_get,
@@ -2946,13 +2943,13 @@ class TestACMEHandler(unittest.TestCase):
     @patch("time.sleep")
     @patch("subprocess.call")
     @patch(
-        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
     )
     @patch("os.path.splitext")
     @patch("os.path.basename")
-    @patch("examples.ca_handler.acme_ca_handler.sha256_hash")
-    @patch("examples.ca_handler.acme_ca_handler.b64_url_encode")
-    @patch("examples.ca_handler.acme_ca_handler.txt_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.sha256_hash")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.b64_url_encode")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.txt_get")
     def test_149_dns_challenge_provision_success(
         self,
         mock_txt_get,
@@ -3005,13 +3002,13 @@ class TestACMEHandler(unittest.TestCase):
     @patch("time.sleep")
     @patch("subprocess.call")
     @patch(
-        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
     )
     @patch("os.path.splitext")
     @patch("os.path.basename")
-    @patch("examples.ca_handler.acme_ca_handler.sha256_hash")
-    @patch("examples.ca_handler.acme_ca_handler.b64_url_encode")
-    @patch("examples.ca_handler.acme_ca_handler.txt_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.sha256_hash")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.b64_url_encode")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.txt_get")
     def test_150_dns_challenge_provision_success(
         self,
         mock_txt_get,
@@ -3067,13 +3064,13 @@ class TestACMEHandler(unittest.TestCase):
     @patch("time.sleep")
     @patch("subprocess.call")
     @patch(
-        "examples.ca_handler.acme_ca_handler.CAhandler._environment_variables_handle"
+        "acme2certifier.cahandlers.acme_ca_handler.CAhandler._environment_variables_handle"
     )
     @patch("os.path.splitext")
     @patch("os.path.basename")
-    @patch("acme_srv.helper.sha256_hash")
-    @patch("acme_srv.helper.b64_url_encode")
-    @patch("acme_srv.helper.txt_get")
+    @patch("acme2certifier.acme_srv.helper.sha256_hash")
+    @patch("acme2certifier.acme_srv.helper.b64_url_encode")
+    @patch("acme2certifier.acme_srv.helper.txt_get")
     def test_151_dns_challenge_provision_timeout(
         self,
         mock_txt_get,
@@ -3112,9 +3109,9 @@ class TestACMEHandler(unittest.TestCase):
             b"4EsbamPacNncn5UI7noRUSqV4bk-1xyk8dpPgpQisJY",
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
-    @patch("examples.ca_handler.acme_ca_handler.messages.Registration")
-    @patch("examples.ca_handler.acme_ca_handler.messages.Directory")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client.ClientV2")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.Registration")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.Directory")
     def test_152_existing_account_found(self, mock_directory, mock_reg, mock_client):
         """Test _registration_lookup with existing account found."""
         self.cahandler.acme_url = "https://acme.example.com"
@@ -3133,9 +3130,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
-    @patch("examples.ca_handler.acme_ca_handler.messages.Registration")
-    @patch("examples.ca_handler.acme_ca_handler.messages.Directory")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client.ClientV2")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.Registration")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.Directory")
     def test_153_account_not_found_register_new(
         self, mock_directory, mock_reg, mock_client
     ):
@@ -3165,9 +3162,9 @@ class TestACMEHandler(unittest.TestCase):
             lcm.output,
         )
 
-    @patch("examples.ca_handler.acme_ca_handler.client.ClientV2")
-    @patch("examples.ca_handler.acme_ca_handler.messages.Registration")
-    @patch("examples.ca_handler.acme_ca_handler.messages.Directory")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.client.ClientV2")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.Registration")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.messages.Directory")
     def test_154_no_account_set_register_new(
         self, mock_directory, mock_reg, mock_client
     ):
@@ -3240,7 +3237,7 @@ class TestACMEHandler(unittest.TestCase):
             )
             self.assertIsNone(result)
 
-    @patch("examples.ca_handler.acme_ca_handler.handler_config_check")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.handler_config_check")
     def test_147_handler_check(self, mock_handler_check):
         """test handler_check"""
         mock_handler_check.return_value = "mock_handler_check"
@@ -3261,10 +3258,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertFalse(result)
         self.assertIn("authorization in unexpected state: foobar", " ".join(lcm.output))
 
-    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.url_get")
     def test_149__synchronize_profiles_success(self, mock_url_get):
         """CAhandler._synchronize_profiles() - success path"""
-        from examples.ca_handler.acme_ca_handler import CAhandler
+        from acme2certifier.cahandlers.acme_ca_handler import CAhandler
 
         cah = self.cahandler
         mock_url_get.return_value = (
@@ -3279,10 +3276,10 @@ class TestACMEHandler(unittest.TestCase):
         self.assertIn("profiles", args["value"])
         self.assertIn("synchronized_at", args["value"])
 
-    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.url_get")
     def test_150__synchronize_profiles_error(self, mock_url_get):
         """CAhandler._synchronize_profiles() - error path"""
-        from examples.ca_handler.acme_ca_handler import CAhandler
+        from acme2certifier.cahandlers.acme_ca_handler import CAhandler
 
         cah = self.cahandler
         mock_url_get.return_value = ("fail", 500, "error")
@@ -3291,8 +3288,8 @@ class TestACMEHandler(unittest.TestCase):
             cah._synchronize_profiles(repository, "http://acme", 123456)
         self.assertIn("Error during profile synchronization", " ".join(lcm.output))
 
-    @patch("examples.ca_handler.acme_ca_handler.Thread")
-    @patch("examples.ca_handler.acme_ca_handler.uts_now", return_value=1000)
+    @patch("acme2certifier.cahandlers.acme_ca_handler.Thread")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.uts_now", return_value=1000)
     def test_151_load_profiles_outdated_sync(self, mock_uts, mock_thread):
         """CAhandler.synchronize_profiles() - outdated, sync mode"""
         cah = self.cahandler
@@ -3305,8 +3302,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(thread_instance.start.called)
         self.assertTrue(thread_instance.join.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.Thread")
-    @patch("examples.ca_handler.acme_ca_handler.uts_now", return_value=1000)
+    @patch("acme2certifier.cahandlers.acme_ca_handler.Thread")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.uts_now", return_value=1000)
     def test_152_load_profiles_outdated_async(self, mock_uts, mock_thread):
         """CAhandler.synchronize_profiles() - outdated, async mode"""
         cah = self.cahandler
@@ -3319,8 +3316,8 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(thread_instance.start.called)
         self.assertFalse(thread_instance.join.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.Thread")
-    @patch("examples.ca_handler.acme_ca_handler.uts_now", return_value=1000)
+    @patch("acme2certifier.cahandlers.acme_ca_handler.Thread")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.uts_now", return_value=1000)
     def test_153_load_profiles_up_to_date(self, mock_uts, mock_thread):
         """CAhandler.synchronize_profiles() - up-to-date profiles"""
         cah = self.cahandler
@@ -3336,7 +3333,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(profiles, {"foo": "bar"})
         self.assertFalse(mock_thread.return_value.start.called)
 
-    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.url_get")
     def test_154__get_renewalinfo_endpoint_url_success(self, mock_url_get):
         """CAhandler._get_renewalinfo_endpoint_url() - directory has renewalInfo"""
         cah = self.cahandler
@@ -3345,7 +3342,7 @@ class TestACMEHandler(unittest.TestCase):
         url = cah._get_renewalinfo_endpoint_url("http://acme")
         self.assertEqual(url, "http://acme/renewal-info")
 
-    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.url_get")
     def test_155__get_renewalinfo_endpoint_url_no_renewalinfo(self, mock_url_get):
         """CAhandler._get_renewalinfo_endpoint_url() - directory missing renewalInfo"""
         cah = self.cahandler
@@ -3354,7 +3351,7 @@ class TestACMEHandler(unittest.TestCase):
         url = cah._get_renewalinfo_endpoint_url("http://acme")
         self.assertEqual(url, "http://acme/renewal-info")
 
-    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.url_get")
     def test_156__get_renewalinfo_endpoint_url_json_error(self, mock_url_get):
         """CAhandler._get_renewalinfo_endpoint_url() - JSON decode error"""
         cah = self.cahandler
@@ -3362,7 +3359,7 @@ class TestACMEHandler(unittest.TestCase):
         url = cah._get_renewalinfo_endpoint_url("http://acme")
         self.assertEqual(url, "http://acme/renewal-info")
 
-    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.url_get")
     def test_157__get_renewalinfo_endpoint_url_fetch_error(self, mock_url_get):
         """CAhandler._get_renewalinfo_endpoint_url() - fetch error"""
         cah = self.cahandler
@@ -3370,14 +3367,14 @@ class TestACMEHandler(unittest.TestCase):
         url = cah._get_renewalinfo_endpoint_url("http://acme")
         self.assertEqual(url, "http://acme/renewal-info")
 
-    @patch("examples.ca_handler.acme_ca_handler.url_get", side_effect=Exception("fail"))
+    @patch("acme2certifier.cahandlers.acme_ca_handler.url_get", side_effect=Exception("fail"))
     def test_158__get_renewalinfo_endpoint_url_exception(self, mock_url_get):
         """CAhandler._get_renewalinfo_endpoint_url() - exception"""
         cah = self.cahandler
         url = cah._get_renewalinfo_endpoint_url("http://acme")
         self.assertEqual(url, "http://acme/renewal-info")
 
-    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.url_get")
     def test_159_lookup_renewalinfo_success(self, mock_url_get):
         """CAhandler.lookup_renewalinfo() - success"""
         cah = self.cahandler
@@ -3387,7 +3384,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertEqual(dic, {"cert": "foo", "csr": "bar"})
 
-    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.url_get")
     def test_160_lookup_renewalinfo_json_error(self, mock_url_get):
         """CAhandler.lookup_renewalinfo() - JSON decode error"""
         cah = self.cahandler
@@ -3396,7 +3393,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(code, 500)
         self.assertEqual(dic, {})
 
-    @patch("examples.ca_handler.acme_ca_handler.url_get")
+    @patch("acme2certifier.cahandlers.acme_ca_handler.url_get")
     def test_161_lookup_renewalinfo_unexpected_response(self, mock_url_get):
         """CAhandler.lookup_renewalinfo() - unexpected response"""
         cah = self.cahandler
@@ -3405,7 +3402,7 @@ class TestACMEHandler(unittest.TestCase):
         self.assertEqual(code, 500)
         self.assertEqual(dic, {})
 
-    @patch("examples.ca_handler.acme_ca_handler.url_get", side_effect=Exception("fail"))
+    @patch("acme2certifier.cahandlers.acme_ca_handler.url_get", side_effect=Exception("fail"))
     def test_162_lookup_renewalinfo_exception(self, mock_url_get):
         """CAhandler.lookup_renewalinfo() - exception"""
         cah = self.cahandler

@@ -144,7 +144,7 @@ jobs:
           sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> examples/Docker/data/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
@@ -303,7 +303,7 @@ jobs:
           sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /opt/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
@@ -405,7 +405,7 @@ jobs:
           sudo echo -e "\n\n[Authorization]" >> data/volume/acme_srv.cfg
           sudo echo "prevalidated_domainlist: [\"foo-01.bar.local\", \"*.foo.local\", \"*.acme-new\"]" >> data/volume/acme_srv.cfg
           sudo echo "prevalidated_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_file: \/var\/www\/acme2certifier\/examples\/ca_handler\/openssl_ca_handler.py/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_module: acme2certifier.cahandlers.openssl_ca_handler/g" data/volume/acme_srv.cfg
           sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
@@ -479,10 +479,10 @@ jobs:
           sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_file: /var/www/acme2certifier/examples/eab_handler/kid_profile_handler.py" >> data/volume/acme_srv.cfg
+          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_file: \/var\/www\/acme2certifier\/examples\/ca_handler\/openssl_ca_handler.py/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_module: acme2certifier.cahandlers.openssl_ca_handler/g" data/volume/acme_srv.cfg
           sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
 
           sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
