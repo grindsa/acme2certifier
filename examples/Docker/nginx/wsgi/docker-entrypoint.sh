@@ -30,7 +30,7 @@ then
 else
     if [[ -f /var/www/acme2certifier/volume/ca_handler.py ]]
     then
-        sed -i "s/from acme.helper import/from acme_srv.helper import/g" /var/www/acme2certifier/volume/ca_handler.py
+        sed -i "s/from acme\.helper import/from acme2certifier.acme_srv.helper import/g; s/from acme_srv\.helper import/from acme2certifier.acme_srv.helper import/g" /var/www/acme2certifier/volume/ca_handler.py
     fi
 fi
 

@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-"""Unit tests for package-layout deprecation helpers."""
+"""Unit tests for handler-config deprecation helpers."""
 
 import logging
-import sys
 import unittest
 import warnings
 from unittest.mock import patch
@@ -18,39 +17,6 @@ class TestCompatDeprecation(unittest.TestCase):
 
     def tearDown(self):
         compat._WARNED.clear()
-
-    def test_warn_legacy_import_emits_once(self):
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            compat.warn_legacy_import("acme_srv.account", "acme2certifier.acme_srv.account")
-            compat.warn_legacy_import("acme_srv.account", "acme2certifier.acme_srv.account")
-        self.assertEqual(len(caught), 1)
-        self.assertTrue(issubclass(caught[0].category, DeprecationWarning))
-        self.assertIn("acme_srv.account", str(caught[0].message))
-        self.assertIn(f"acme2certifier {compat.REMOVAL_VERSION}", str(caught[0].message))
-
-    def test_warn_legacy_handler_module(self):
-        logger = logging.getLogger("test_compat")
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            with self.assertLogs("test_compat", level="WARNING") as lcm:
-                compat.warn_legacy_handler_module(
-                    logger, "examples.ca_handler.openssl_ca_handler"
-                )
-        self.assertEqual(len(caught), 1)
-        self.assertIn("acme2certifier.cahandlers.openssl_ca_handler", str(caught[0].message))
-        self.assertTrue(
-            any("examples.ca_handler.openssl_ca_handler" in line for line in lcm.output)
-        )
-
-    def test_warn_legacy_handler_module_ignores_preferred(self):
-        logger = logging.getLogger("test_compat")
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            compat.warn_legacy_handler_module(
-                logger, "acme2certifier.cahandlers.openssl_ca_handler"
-            )
-        self.assertEqual(caught, [])
 
     def test_warn_file_config_deprecated(self):
         logger = logging.getLogger("test_compat")
@@ -77,30 +43,9 @@ class TestCompatDeprecation(unittest.TestCase):
         self.assertIn("acme_srv.ca_handler", str(caught[0].message))
         self.assertTrue(any("acme_srv.ca_handler" in line for line in lcm.output))
 
-    def test_shim_import_warns(self):
-        # Drop cached shim so import re-executes warning path.
-        for key in list(sys.modules):
-            if key == "acme_srv.version" or key.startswith("acme_srv.version."):
-                del sys.modules[key]
-        compat._WARNED.clear()
-        with warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            # Import a lightweight shim module.
-            if "acme_srv.version" in sys.modules:
-                del sys.modules["acme_srv.version"]
-            import acme_srv.version  # noqa: F401
 
-        self.assertTrue(
-            any(
-                issubclass(w.category, DeprecationWarning)
-                and "acme_srv.version" in str(w.message)
-                for w in caught
-            )
-        )
-
-
-class TestPluginLoaderLegacyModule(unittest.TestCase):
-    """plugin_loader warns on examples.* handler_module paths."""
+class TestPluginLoaderFileDeprecated(unittest.TestCase):
+    """plugin_loader warns on handler_file."""
 
     def setUp(self):
         compat._WARNED.clear()
@@ -109,26 +54,20 @@ class TestPluginLoaderLegacyModule(unittest.TestCase):
     def tearDown(self):
         compat._WARNED.clear()
 
-    @patch("importlib.import_module", return_value="mod")
-    def test_ca_handler_module_examples_path_warns(self, mock_imp):
+    @patch("importlib.util")
+    def test_ca_handler_file_deprecated(self, mock_util):
         from acme2certifier.acme_srv.helpers.plugin_loader import ca_handler_load
 
-        config_dic = {
-            "CAhandler": {
-                "handler_module": "examples.ca_handler.openssl_ca_handler"
-            }
-        }
+        mock_util.module_from_spec = lambda spec: "foo"
+        config_dic = {"CAhandler": {"handler_file": "foo"}}
         with warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
             with self.assertLogs("test_compat_plugin", level="WARNING") as lcm:
-                self.assertEqual("mod", ca_handler_load(self.logger, config_dic))
+                self.assertEqual("foo", ca_handler_load(self.logger, config_dic))
         self.assertTrue(
-            any("examples.ca_handler.openssl_ca_handler" in str(w.message) for w in caught)
+            any("handler_file is deprecated" in str(w.message) for w in caught)
         )
-        self.assertTrue(
-            any("acme2certifier.cahandlers.openssl_ca_handler" in line for line in lcm.output)
-        )
-        mock_imp.assert_called_with("examples.ca_handler.openssl_ca_handler")
+        self.assertTrue(any("handler_file is deprecated" in line for line in lcm.output))
 
 
 if __name__ == "__main__":

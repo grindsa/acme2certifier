@@ -21,7 +21,7 @@ runs:
   - name: "Setup le-sim"
     run: |
       sudo mkdir -p "$LESIM_NAME/acme_ca/certs"
-      sudo cp examples/ca_handler/openssl_ca_handler.py "$LESIM_NAME/ca_handler.py"
+      sudo cp acme2certifier/cahandlers/openssl_ca_handler.py "$LESIM_NAME/ca_handler.py"
       sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem "$LESIM_NAME/acme_ca/"
       sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg "$LESIM_NAME/acme_srv.cfg"
       sudo chmod 777 "$LESIM_NAME/acme_srv.cfg"

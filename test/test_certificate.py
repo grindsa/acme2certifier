@@ -260,7 +260,7 @@ class TestCertificate(unittest.TestCase):
         self.mock_message = MagicMock()
         self.mock_hook_handler = MagicMock()
 
-        from acme_srv import certificate
+        from acme2certifier.acme_srv import certificate
 
         # Only pass valid config fields
         self.config = certificate.CertificateConfiguration()
