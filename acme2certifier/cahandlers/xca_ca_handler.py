@@ -22,7 +22,7 @@ from cryptography.x509 import (
 )
 from cryptography.x509.oid import ExtendedKeyUsageOID
 from OpenSSL import crypto as pyossslcrypto
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     b64_decode,
     b64_encode,
     b64_url_recode,

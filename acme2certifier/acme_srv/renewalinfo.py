@@ -4,9 +4,9 @@
 from __future__ import print_function
 from typing import Dict
 from dataclasses import dataclass
-from acme_srv.db_handler import DBstore
-from acme_srv.message import Message
-from acme_srv.helper import (
+from acme2certifier.acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.helper import (
     string_sanitize,
     certid_hex_get,
     uts_to_date_utc,

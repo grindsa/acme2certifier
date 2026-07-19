@@ -23,7 +23,7 @@ from cryptography.x509 import (
 from cryptography.x509.oid import ExtendedKeyUsageOID, NameOID
 
 # pylint: disable=e0401
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     load_config,
     build_pem_file,
     uts_now,

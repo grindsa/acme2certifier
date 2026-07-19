@@ -5,8 +5,8 @@ from __future__ import print_function
 import uuid
 from typing import Tuple, Dict
 from dataclasses import dataclass
-from acme_srv.db_handler import DBstore
-from acme_srv.helper import uts_now, load_config
+from acme2certifier.acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.helper import uts_now, load_config
 
 
 # Custom Exceptions

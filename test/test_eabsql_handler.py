@@ -173,7 +173,7 @@ class TestEABHandler(unittest.TestCase):
             "foo": "bar",
             "order__account__eab_kid": "eab_kid",
         }
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         self.assertEqual(
             {"foo_parameter": "bar_parameter"}, self.eabhandler.eab_profile_get("csr")
@@ -190,7 +190,7 @@ class TestEABHandler(unittest.TestCase):
             "foo": "bar",
             "order__account__eab_kid": "eab_kid",
         }
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         self.assertFalse(self.eabhandler.eab_profile_get("csr"))
 
@@ -205,7 +205,7 @@ class TestEABHandler(unittest.TestCase):
             "foo": "bar",
             "1order__account__eab_kid": "eab_kid",
         }
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         self.assertFalse(self.eabhandler.eab_profile_get("csr"))
 
@@ -220,7 +220,7 @@ class TestEABHandler(unittest.TestCase):
             "foo": "bar",
             "order__account__eab_kid": "eab_kid1",
         }
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         self.assertFalse(self.eabhandler.eab_profile_get("csr"))
 
@@ -232,7 +232,7 @@ class TestEABHandler(unittest.TestCase):
         }
         models_mock = MagicMock()
         models_mock.DBstore().certificate_lookup.side_effect = Exception("ex_db_lookup")
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eabhandler.eab_profile_get("csr"))
@@ -514,7 +514,9 @@ class TestEABHandler(unittest.TestCase):
         self.eabhandler.db_password = "pass"
         dbstore_mock = MagicMock()
         dbstore_mock.side_effect = Exception("db error")
-        sys.modules["acme_srv.db_handler"] = MagicMock(DBstore=dbstore_mock)
+        sys.modules["acme2certifier.acme_srv.db_handler"] = MagicMock(
+            DBstore=dbstore_mock
+        )
         with self.assertLogs("test_a2c", level="ERROR") as lcm:
             result = self.eabhandler.eab_kid_get("csr")
         self.assertIsNone(result)

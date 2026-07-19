@@ -19,7 +19,7 @@ from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives.asymmetric import padding
 from requests.structures import CaseInsensitiveDict
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     load_config,
     b64_url_recode,
     b64_decode,

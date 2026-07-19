@@ -16,10 +16,10 @@ sys.path.append(
         os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)
     )
 )
-from acme_srv.db_handler import initialize  # nopep8
+from acme2certifier.acme_srv.db_handler import initialize  # nopep8
 
 initialize()
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     logger_setup,
     load_config,
     config_eab_profile_load,

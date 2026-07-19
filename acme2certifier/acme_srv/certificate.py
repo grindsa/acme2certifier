@@ -6,7 +6,7 @@ from __future__ import print_function
 import json
 from typing import List, Tuple, Dict, Union, Optional, Any
 from dataclasses import dataclass
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     b64_url_recode,
     ca_handler_load,
     cert_aki_get,
@@ -29,12 +29,12 @@ from acme_srv.helper import (
     config_async_mode_load,
     config_dryrun_load,
 )
-from acme_srv.db_handler import DBstore
-from acme_srv.message import Message
-from acme_srv.threadwithreturnvalue import ThreadWithReturnValue
-from acme_srv.certificate_manager import CertificateManager
-from acme_srv.certificate_repository import DatabaseCertificateRepository
-from acme_srv.helpers.global_variables import (
+from acme2certifier.acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.threadwithreturnvalue import ThreadWithReturnValue
+from acme2certifier.acme_srv.certificate_manager import CertificateManager
+from acme2certifier.acme_srv.certificate_repository import DatabaseCertificateRepository
+from acme2certifier.acme_srv.helpers.global_variables import (
     DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
     ENROLLMENT_FAILED_DETAIL,
 )
@@ -576,8 +576,7 @@ class Certificate(object):
             if (
                 handler_file is not None and handler_file.endswith("asa_ca_handler.py")
             ) or (
-                handler_module is not None
-                and handler_module.endswith("asa_ca_handler")
+                handler_module is not None and handler_module.endswith("asa_ca_handler")
             ):
                 self.logger.debug(
                     "Certificate._load_certificate_parameters(): enabling cn2san_add for asa_ca_handler"

@@ -29,8 +29,8 @@ This guide describes the restructuring of `acme2certifier` into a proper Python 
 The following continue to work:
 
 1. **Python imports** such as `from acme_srv.account import Account` (shim → `acme2certifier.acme_srv.account`).
-2. **Config keys** `handler_file`, `eab_handler_file`, and `hooks_file` (file-based loading).
-3. Existing deployments that only use legacy paths do not need an immediate config change.
+1. **Config keys** `handler_file`, `eab_handler_file`, and `hooks_file` (file-based loading).
+1. Existing deployments that only use legacy paths do not need an immediate config change.
 
 Preferred (non-deprecated) config keys:
 
@@ -196,16 +196,16 @@ Related helper modules (same pattern): `certsrv`, `ms_wcce.*`.
 If you maintain a custom handler outside this repository:
 
 1. Keep using `handler_file: /path/to/your_handler.py` during the transition (deprecated, still supported).
-2. Or install/import it as a normal Python module and set `handler_module: your_package.your_handler`.
-3. The loaded module must still expose the expected class (`CAhandler`, `EABhandler`, or `Hooks`).
+1. Or install/import it as a normal Python module and set `handler_module: your_package.your_handler`.
+1. The loaded module must still expose the expected class (`CAhandler`, `EABhandler`, or `Hooks`).
 
 ## Migration checklist
 
 1. Confirm the server starts with your existing `*_file` configuration (no change required).
-2. Switch `acme_srv.cfg` to `*_module` keys when ready (prefer `acme2certifier.cahandlers.*` / `eabhandlers.*` / `hookhandlers.*`).
-3. Watch logs for deprecation warnings related to `*_file`.
-4. Update in-house scripts and tests from `acme_srv.*` to `acme2certifier.acme_srv.*` when practical.
-5. After handlers/tools are relocated into `acme2certifier.*`, update `*_module` values to the target names in the tables above.
+1. Switch `acme_srv.cfg` to `*_module` keys when ready (prefer `acme2certifier.cahandlers.*` / `eabhandlers.*` / `hookhandlers.*`).
+1. Watch logs for deprecation warnings related to `*_file`.
+1. Update in-house scripts and tests from `acme_srv.*` to `acme2certifier.acme_srv.*` (internal package code already uses the new namespaces; shims keep old imports working).
+1. After handlers/tools are relocated into `acme2certifier.*`, update `*_module` values to the target names in the tables above.
 
 ## Related documentation
 

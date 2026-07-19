@@ -12,7 +12,7 @@ import requests
 from requests.auth import HTTPBasicAuth
 
 # pylint: disable=e0401
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     b64_decode,
     b64_encode,
     cert_pem2der,

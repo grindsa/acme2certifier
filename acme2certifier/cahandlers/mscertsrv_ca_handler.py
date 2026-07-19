@@ -18,7 +18,7 @@ from cryptography.hazmat.primitives.serialization.pkcs7 import (
 
 # pylint: disable=e0401, e0611
 from acme2certifier.cahandlers.certsrv import Certsrv
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     b64_url_recode,
     config_eab_profile_load,
     config_enroll_config_log_load,

@@ -9,7 +9,7 @@ import requests
 from requests_pkcs12 import Pkcs12Adapter
 
 # pylint: disable=e0401
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     b64_encode,
     b64_url_recode,
     build_pem_file,
@@ -25,7 +25,7 @@ from acme_srv.helper import (
     handler_config_check,
     load_config,
 )
-from acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.db_handler import DBstore
 
 
 class CAhandler(object):

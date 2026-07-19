@@ -5,7 +5,7 @@ import sys
 from unittest.mock import MagicMock
 
 # Patch sys.modules to mock DBstore and db_handler import everywhere
-sys.modules["acme_srv.db_handler"] = MagicMock()
+sys.modules["acme2certifier.acme_srv.db_handler"] = MagicMock()
 sys.modules["acme_srv.authorization.DBstore"] = MagicMock()
 
 import sys
@@ -2001,7 +2001,11 @@ class TestAuthorization(unittest.TestCase):
         for id_type in ("email", "dns", "ip"):
             authz_info = {"status": "pending"}
             self.authorization._apply_prevalidation_whitelist(
-                f"authz_{id_type}", {"order__name": "order_1"}, id_type, None, authz_info
+                f"authz_{id_type}",
+                {"order__name": "order_1"},
+                id_type,
+                None,
+                authz_info,
             )
             self.assertEqual(authz_info["status"], "pending")
             self.authorization.repository.mark_authorization_as_valid.assert_not_called()

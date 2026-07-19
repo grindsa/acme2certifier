@@ -9,7 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 mock_db_handler = MagicMock()
 mock_dbstore_class = MagicMock()
 mock_db_handler.DBstore = mock_dbstore_class
-sys.modules["acme_srv.db_handler"] = mock_db_handler
+sys.modules["acme2certifier.acme_srv.db_handler"] = mock_db_handler
 from acme_srv.directory import Directory, DirectoryConfig, DirectoryRepository
 
 

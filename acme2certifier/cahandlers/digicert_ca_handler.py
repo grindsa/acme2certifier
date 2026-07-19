@@ -5,7 +5,7 @@ from __future__ import print_function
 from typing import Tuple, Dict
 
 # pylint: disable=e0401
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     b64_encode,
     cert_pem2der,
     cert_serial_get,

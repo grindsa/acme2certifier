@@ -5,7 +5,7 @@
 from __future__ import print_function
 
 # pylint: disable=E0401
-from acme_srv.helper import load_config
+from acme2certifier.acme_srv.helper import load_config
 
 
 class EABhandler(object):

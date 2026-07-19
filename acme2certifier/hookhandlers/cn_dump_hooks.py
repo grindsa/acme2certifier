@@ -3,7 +3,7 @@
 """hook class for testing"""
 
 import json
-from acme_srv.helper import load_config, cert_san_get, csr_san_get
+from acme2certifier.acme_srv.helper import load_config, cert_san_get, csr_san_get
 
 
 class Hooks:

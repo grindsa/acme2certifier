@@ -3,8 +3,8 @@
 
 from __future__ import print_function
 from typing import Tuple, Dict, Optional
-from acme_srv.helper import signature_check, load_config, error_dic_get
-from acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.helper import signature_check, load_config, error_dic_get
+from acme2certifier.acme_srv.db_handler import DBstore
 
 
 class Signature:

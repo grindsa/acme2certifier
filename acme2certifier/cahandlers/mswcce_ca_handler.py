@@ -15,7 +15,7 @@ from acme2certifier.cahandlers.ms_wcce.target import Target
 from acme2certifier.cahandlers.ms_wcce.request import Request
 
 # pylint: disable=E0401
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     build_pem_file,
     config_eab_profile_load,
     config_enroll_config_log_load,

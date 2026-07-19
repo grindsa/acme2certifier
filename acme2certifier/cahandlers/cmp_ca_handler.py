@@ -9,7 +9,7 @@ import tempfile
 from typing import List, Tuple, Dict
 
 # pylint: disable=e0401
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     load_config,
     build_pem_file,
     b64_url_recode,

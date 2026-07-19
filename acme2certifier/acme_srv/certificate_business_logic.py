@@ -2,7 +2,7 @@
 """Certificate Business Logic - Core Business Rules for Certificate Operations"""
 
 from typing import Dict, Tuple, Union
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     cert_aki_get,
     cert_cn_get,
     cert_dates_get,
@@ -11,10 +11,10 @@ from acme_srv.helper import (
     generate_random_string,
     string_sanitize,
 )
-from acme_srv.helpers.csr import csr_load
+from acme2certifier.acme_srv.helpers.csr import csr_load
 
 # Import will be added when needed to avoid circular imports
-# from acme_srv.certificate import CertificateConfig
+# from acme2certifier.acme_srv.certificate import CertificateConfig
 
 
 class CertificateBusinessLogic:

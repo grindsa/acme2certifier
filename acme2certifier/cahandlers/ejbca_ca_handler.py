@@ -7,7 +7,7 @@ import requests
 from requests_pkcs12 import Pkcs12Adapter
 
 # pylint: disable=e0401
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     b64_decode,
     b64_url_recode,
     build_pem_file,

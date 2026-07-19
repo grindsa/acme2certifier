@@ -7,7 +7,7 @@ import re
 import requests
 
 # pylint: disable=e0401
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     load_config,
     csr_cn_get,
     csr_san_get,

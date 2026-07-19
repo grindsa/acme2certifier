@@ -6,8 +6,8 @@ import sys
 
 sys.path.insert(0, "..")
 sys.path.insert(1, ".")
-from acme_srv.helper import logger_setup  # nopep8
-from acme_srv.db_handler import DBstore  # nopep8
+from acme2certifier.acme_srv.helper import logger_setup  # nopep8
+from acme2certifier.acme_srv.db_handler import DBstore  # nopep8
 
 if __name__ == "__main__":
 

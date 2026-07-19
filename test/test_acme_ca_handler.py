@@ -30,8 +30,10 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
-        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
-        modules = {"acme_srv.db_handler": models_mock}
+        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
+            FakeDBStore
+        )
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
         from examples.ca_handler.acme_ca_handler import CAhandler

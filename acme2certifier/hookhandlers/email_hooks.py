@@ -64,7 +64,7 @@ sys.path.insert(0, "...")
 sys.path.insert(1, "..")
 sys.path.insert(2, ".")
 
-from acme_srv.helper import (  # noqa: E402
+from acme2certifier.acme_srv.helper import (  # noqa: E402
     load_config,
     cert_san_get,
     csr_san_get,
@@ -595,7 +595,7 @@ class Hooks:
 if __name__ == "__main__":  # pragma: no cover
 
     import logging
-    from acme_srv.helper import generate_random_string
+    from acme2certifier.acme_srv.helper import generate_random_string
 
     log_mode = logging.DEBUG
     logging.basicConfig(level=log_mode)
