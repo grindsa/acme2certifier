@@ -165,7 +165,7 @@ jobs:
           sudo cp .github/acme2certifier_cert.pem data/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/acme2certifier_key.pem
           sudo cp .github/django_settings.py data/settings.py
-          sudo cp examples/ca_handler/openssl_ca_handler.py data/ca_handler.py
+          sudo cp acme2certifier/cahandlers/openssl_ca_handler.py data/ca_handler.py
           sudo mkdir -p data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
           sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
@@ -345,7 +345,7 @@ jobs:
           sudo cp .github/acme2certifier_cert.pem data/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/acme2certifier_key.pem
           sudo cp .github/django_settings.py data/settings.py
-          sudo cp examples/ca_handler/openssl_ca_handler.py data/ca_handler.py
+          sudo cp acme2certifier/cahandlers/openssl_ca_handler.py data/ca_handler.py
           sudo mkdir -p data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
           sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg
@@ -627,7 +627,7 @@ jobs:
           sudo cp .github/acme2certifier_cert.pem data/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/acme2certifier_key.pem
           sudo cp .github/django_settings.py data/settings.py
-          sudo cp examples/ca_handler/openssl_ca_handler.py data/ca_handler.py
+          sudo cp acme2certifier/cahandlers/openssl_ca_handler.py data/ca_handler.py
           sudo mkdir -p data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/acme_ca/
           sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/acme_srv.cfg

@@ -33,9 +33,10 @@ sudo cp -R examples/hooks/ /var/www/acme2certifier/examples/hooks
 sudo cp -R examples/nginx/ /var/www/acme2certifier/examples/nginx
 sudo cp examples/acme_srv.cfg /var/www/acme2certifier/examples/
 sudo cp -R acme_srv/ /var/www/acme2certifier/acme_srv
-sudo cp -R tools/ /var/www/acme2certifier/tools
 sudo cp examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
 ```
+
+Built-in handlers and CLI tools are part of the `acme2certifier` package. Prefer `handler_module` and `python3 -m acme2certifier.tools.<name>` (see [Package layout migration](migration_package_layout.md)).
 
 ### 5. Adapt and Activate the Nginx Configuration File
 

@@ -88,17 +88,9 @@ setup(
             "/usr/share/doc/acme2certifier/architecture",
             glob_files("docs/architecture/*"),
         ),
-        # Compatibility shims (legacy import path: acme_srv.*)
+        # Django app (models/views/urls) under acme_srv/
         ("/var/lib/acme2certifier/acme_srv/", glob_files("acme_srv/*.py")),
-        (
-            "/var/lib/acme2certifier/acme_srv/helpers",
-            glob_files("acme_srv/helpers/*.py"),
-        ),
-        (
-            "/var/lib/acme2certifier/acme_srv/challenge_validators",
-            glob_files("acme_srv/challenge_validators/*.py"),
-        ),
-        # Real implementation (acme2certifier.acme_srv.*)
+        # Real implementation (acme2certifier.*)
         (
             "/var/lib/acme2certifier/acme2certifier/",
             glob_files("acme2certifier/__init__.py")
@@ -119,7 +111,7 @@ setup(
         ("/var/lib/acme2certifier/examples", glob_files("examples/*.*")),
         (
             "/var/lib/acme2certifier/examples/ca_handler",
-            glob_files("examples/ca_handler/*.py"),
+            glob_files("examples/ca_handler/*"),
         ),
         (
             "/var/lib/acme2certifier/examples/db_handler",
@@ -127,11 +119,11 @@ setup(
         ),
         (
             "/var/lib/acme2certifier/examples/eab_handler",
-            glob_files("examples/eab_handler/*.py"),
+            glob_files("examples/eab_handler/*"),
         ),
         (
             "/var/lib/acme2certifier/examples/hooks",
-            glob_files("examples/hooks/*.py"),
+            glob_files("examples/hooks/*"),
         ),
         # Packaged handlers and tools
         (
@@ -156,7 +148,7 @@ setup(
         ),
         (
             "/var/lib/acme2certifier/tools",
-            glob_files("tools/*.py"),
+            glob_files("tools/*"),
         ),
         ("/var/lib/acme2certifier/examples/django", glob_files("examples/django/*.py")),
         (
@@ -177,7 +169,6 @@ setup(
         ),
         ("/var/lib/acme2certifier/examples/nginx", glob_files("examples/nginx/*")),
         ("/var/lib/acme2certifier/examples/trigger", glob_files("examples/trigger/*")),
-        ("/var/lib/acme2certifier/tools", glob_files("tools/*.py")),
         ("/var/lib/acme2certifier/examples/Docker", glob_files("examples/Docker/*.*")),
         (
             "/var/lib/acme2certifier/examples/Docker/wsgi",

@@ -12,7 +12,6 @@ from typing import Any, Dict, Optional
 from acme2certifier.compat import (
     warn_default_ca_handler,
     warn_file_config_deprecated,
-    warn_legacy_handler_module,
 )
 
 
@@ -59,7 +58,6 @@ def _load_from_module(
     logger.debug(
         "Helper.plugin_loader._load_from_module() start module_path=%s", module_path
     )
-    warn_legacy_handler_module(logger, module_path)
     try:
         loaded = importlib.import_module(module_path)
         logger.debug(

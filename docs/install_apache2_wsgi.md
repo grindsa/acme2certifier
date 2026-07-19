@@ -78,8 +78,9 @@ sudo cp -R examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler
 sudo cp -R examples/hooks/ /var/www/acme2certifier/examples/hooks
 sudo cp -R examples/db_handler/ /var/www/acme2certifier/examples/db_handler
 sudo cp -R examples/acme_srv.cfg /var/www/acme2certifier/examples/
-sudo cp -R tools/ /var/www/acme2certifier/tools
 ```
+
+Built-in CA/EAB/hook handlers and CLI tools ship inside the `acme2certifier` package (`handler_module` / `python3 -m acme2certifier.tools.<name>`). The `examples/*/skeleton_*.py` files are templates for custom handlers; EAB sample data lives under `examples/eab_handler/`.
 
 ## 9. Set Up the `acme_srv` Directory
 
