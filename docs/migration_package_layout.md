@@ -232,6 +232,7 @@ If you maintain a custom handler outside this repository:
 
 ## Related documentation
 
+- [Phase 10 agent brief — handler fallback removal](architecture/phase10-handler-fallback-removal.md)
 - [How to create your own CA handler](ca_handler.md)
 - [EAB](eab.md)
 - [Hooks](hooks.md)
