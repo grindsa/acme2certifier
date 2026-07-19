@@ -35,9 +35,9 @@ class TestACMEHandler(unittest.TestCase):
 
     def setUp(self):
         """setup unittest"""
-        # from acme_srv.wsgi_handler import DBstore
+        # from acme2certifier.acme_srv.wsgi_handler import DBstore
         from examples.db_handler.wsgi_handler import DBstore, initialize
-        from acme_srv.version import __dbversion__
+        from acme2certifier.acme_srv.version import __dbversion__
         import logging
 
         logging.basicConfig(level=logging.CRITICAL)

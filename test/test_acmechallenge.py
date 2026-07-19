@@ -26,16 +26,13 @@ class TestACMEHandler(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
-        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
-            FakeDBStore
-        )
         modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
-        from acme_srv.acmechallenge import Acmechallenge
+        from acme2certifier.acme_srv.acmechallenge import Acmechallenge
 
         self.acmechallenge = Acmechallenge(False, None, self.logger)
 

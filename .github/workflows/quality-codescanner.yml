@@ -68,7 +68,7 @@ jobs:
           pip install pytest
           pip install pytest-cov impacket
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          cp examples/ca_handler/skeleton_ca_handler.py acme_srv/ca_handler.py
+          cp acme2certifier/cahandlers/skeleton_ca_handler.py acme_srv/ca_handler.py
           cp examples/acme_srv.cfg acme_srv/
           pytest --cov=./ --cov-report=xml
 
@@ -106,7 +106,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install pytest coverage impacket
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
-          cp examples/ca_handler/skeleton_ca_handler.py acme_srv/ca_handler.py
+          cp acme2certifier/cahandlers/skeleton_ca_handler.py acme_srv/ca_handler.py
           cp examples/acme_srv.cfg acme_srv/
 
       - name: run coverage

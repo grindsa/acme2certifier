@@ -39,7 +39,8 @@ def setup_django():
         django = django_module
         django.setup()
         from django.core.management import call_command as django_call_command  # nopep8
-        from acme2certifier.acme_srv.models import (
+        # Django app models remain under the acme_srv Django package.
+        from acme_srv.models import (
             Status as StatusModel,
             Housekeeping as HousekeepingModel,
         )  # nopep8

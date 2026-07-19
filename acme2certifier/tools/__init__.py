@@ -1,7 +1,1 @@
-"""Temporary compatibility layer.
-
-Real implementation lives under the acme2certifier package.
-Do not add logic here.
-"""
-
-# CLI and maintenance tools
+"""CLI and maintenance tools for acme2certifier."""

@@ -29,9 +29,6 @@ class TestOrderRepository(unittest.TestCase):
     def setUp(self):
 
         models_mock = MagicMock()
-        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
-            FakeDBStore
-        )
         modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
@@ -39,7 +36,7 @@ class TestOrderRepository(unittest.TestCase):
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
         self.dbstore = MagicMock()
-        from acme_srv.order import OrderRepository
+        from acme2certifier.acme_srv.order import OrderRepository
 
         self.order_repository = OrderRepository(self.dbstore, self.logger)
 
@@ -265,9 +262,9 @@ class TestOrderRepository(unittest.TestCase):
 class TestOrderClass(unittest.TestCase):
     def test_022_process_csr_dryrun_skipped(self):
         # Covers: enroll_and_store returns dryrun skipped, triggers code=401, message=error, detail preserved
-        from acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
+        from acme2certifier.acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
 
-        with patch("acme_srv.helper.b64_url_recode", return_value="csrval"):
+        with patch("acme2certifier.acme_srv.helper.b64_url_recode", return_value="csrval"):
             self.order._get_order_info = MagicMock(return_value={"name": "order1"})
             cert_mock = MagicMock()
             cert_mock.store_csr.return_value = "cert1"
@@ -275,7 +272,7 @@ class TestOrderClass(unittest.TestCase):
                 "some_error",
                 DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
             )
-            with patch("acme_srv.order.Certificate") as cert_class:
+            with patch("acme2certifier.acme_srv.order.Certificate") as cert_class:
                 cert_class.return_value.__enter__.return_value = cert_mock
                 with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                     result = self.order._process_csr("order1", "csr", "header")
@@ -294,18 +291,15 @@ class TestOrderClass(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
-        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
-            FakeDBStore
-        )
         modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
 
         logging.basicConfig(level=logging.CRITICAL)
         self.logger = logging.getLogger("test_a2c")
-        from acme_srv.order import Message
-        from acme_srv.order import Order
-        from acme_srv.signature import Signature
+        from acme2certifier.acme_srv.order import Message
+        from acme2certifier.acme_srv.order import Order
+        from acme2certifier.acme_srv.signature import Signature
 
         self.message = Message(False, "http://tester.local", self.logger)
         self.signature = Signature(False, "http://tester.local", self.logger)
@@ -1113,8 +1107,8 @@ class TestOrderClass(unittest.TestCase):
         payload = {"profile": "foo"}
         account_name = "acct"
         with (
-            patch("acme_srv.order.generate_random_string", return_value="randomstring"),
-            patch("acme_srv.order.uts_now", return_value=1234567890),
+            patch("acme2certifier.acme_srv.order.generate_random_string", return_value="randomstring"),
+            patch("acme2certifier.acme_srv.order.uts_now", return_value=1234567890),
         ):
             error, detail, order_name, auth_dic, expires = self.order.create_order(
                 payload, account_name
@@ -1130,11 +1124,11 @@ class TestOrderClass(unittest.TestCase):
         # Use unified logger and log_stream
         with (
             patch(
-                "acme_srv.helper.generate_random_string", return_value="randomstring"
+                "acme2certifier.acme_srv.helper.generate_random_string", return_value="randomstring"
             ),
-            patch("acme_srv.helper.uts_now", return_value=1234567890),
+            patch("acme2certifier.acme_srv.helper.uts_now", return_value=1234567890),
             patch(
-                "acme_srv.helper.uts_to_date_utc", return_value="2026-01-01T00:00:00Z"
+                "acme2certifier.acme_srv.helper.uts_to_date_utc", return_value="2026-01-01T00:00:00Z"
             ),
         ):
             with (
@@ -1339,7 +1333,7 @@ class TestOrderClass(unittest.TestCase):
         # Use unified logger and log_stream
         import configparser
 
-        with patch("acme_srv.order.load_config") as mock_load_config:
+        with patch("acme2certifier.acme_srv.order.load_config") as mock_load_config:
             config_dic = configparser.ConfigParser()
             config_dic.add_section("Authorization")
             config_dic.set("Authorization", "validity", "notint")
@@ -1360,7 +1354,7 @@ class TestOrderClass(unittest.TestCase):
         # Test _load_configuration without oder section in config (should use defaults and log warnings for missing options)
         import configparser
 
-        with patch("acme_srv.order.load_config") as mock_load_config:
+        with patch("acme2certifier.acme_srv.order.load_config") as mock_load_config:
             config_dic = configparser.ConfigParser()
             config_dic.add_section("CAhandler")
             config_dic.set("CAhandler", "foo", "bar")
@@ -1373,7 +1367,7 @@ class TestOrderClass(unittest.TestCase):
 
     def test_087_name_get_logging(self):
         with patch(
-            "acme_srv.order.parse_url", return_value={"path": "/acme/order/ord123"}
+            "acme2certifier.acme_srv.order.parse_url", return_value={"path": "/acme/order/ord123"}
         ):
             result = self.order._name_get("/acme/order/ord123")
             self.assertEqual(result, "ord123")
@@ -1381,7 +1375,7 @@ class TestOrderClass(unittest.TestCase):
     def test_088_name_get_with_slash(self):
         # Should split and return first part if slash in order name
         with patch(
-            "acme_srv.order.parse_url",
+            "acme2certifier.acme_srv.order.parse_url",
             return_value={"path": "/acme/order/ord456/extra"},
         ):
             result = self.order._name_get("/acme/order/ord456/extra")
@@ -1390,7 +1384,7 @@ class TestOrderClass(unittest.TestCase):
     def test_089_name_get_logging(self):
         # Should log debug messages using central logger and log_stream
         with patch(
-            "acme_srv.order.parse_url", return_value={"path": "/acme/order/ord789"}
+            "acme2certifier.acme_srv.order.parse_url", return_value={"path": "/acme/order/ord789"}
         ):
             with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                 self.order._name_get("/acme/order/ord789")
@@ -1401,7 +1395,7 @@ class TestOrderClass(unittest.TestCase):
 
     def test_090_are_identifiers_allowed_valid(self):
         # Should return None for valid identifiers
-        with patch("acme_srv.order.validate_identifier", return_value=True):
+        with patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True):
             result = self.order.are_identifiers_allowed(
                 [{"type": "dns", "value": "foo.com"}]
             )
@@ -1409,7 +1403,7 @@ class TestOrderClass(unittest.TestCase):
 
     def test_091_are_identifiers_allowed_invalid_type(self):
         # Should return unsupportedidentifier for unknown type
-        with patch("acme_srv.order.validate_identifier", return_value=True):
+        with patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True):
             result = self.order.are_identifiers_allowed(
                 [{"type": "foo", "value": "bar"}]
             )
@@ -1423,7 +1417,7 @@ class TestOrderClass(unittest.TestCase):
 
     def test_092_are_identifiers_allowed_invalid_value(self):
         # Should return rejectedidentifier if validate_identifier returns False
-        with patch("acme_srv.order.validate_identifier", return_value=False):
+        with patch("acme2certifier.acme_srv.order.validate_identifier", return_value=False):
             result = self.order.are_identifiers_allowed(
                 [{"type": "dns", "value": "foo.com"}]
             )
@@ -1446,7 +1440,7 @@ class TestOrderClass(unittest.TestCase):
 
     def test_094_are_identifiers_allowed_tnauthlist_and_email(self):
         # Should allow tnauthlist and email if config enabled
-        with patch("acme_srv.order.validate_identifier", return_value=True):
+        with patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True):
             self.order.config.tnauthlist_support = True
             self.order.config.email_identifier_support = True
             result = self.order.are_identifiers_allowed(
@@ -1459,7 +1453,7 @@ class TestOrderClass(unittest.TestCase):
 
     def test_095_are_identifiers_allowed_wildcard_rejected_when_disabled(self):
         # Should reject wildcard DNS identifiers when wildcard support is disabled
-        with patch("acme_srv.order.validate_identifier", return_value=True):
+        with patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True):
             self.order.config.wildcard_certificate_disable = True
             result = self.order.are_identifiers_allowed(
                 [{"type": "dns", "value": "*.foo.com"}]
@@ -1474,7 +1468,7 @@ class TestOrderClass(unittest.TestCase):
 
     def test_096_are_identifiers_allowed_wildcard_allowed_when_not_disabled(self):
         # Should allow wildcard DNS identifiers when wildcard support is enabled
-        with patch("acme_srv.order.validate_identifier", return_value=True):
+        with patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True):
             self.order.config.wildcard_certificate_disable = False
             result = self.order.are_identifiers_allowed(
                 [{"type": "dns", "value": "*.foo.com"}]
@@ -1531,7 +1525,7 @@ class TestOrderClass(unittest.TestCase):
     def test_101_name_get_basic(self):
         # Should log debug messages using central logger and log_stream
         with patch(
-            "acme_srv.order.parse_url", return_value={"path": "/acme/order/ord123"}
+            "acme2certifier.acme_srv.order.parse_url", return_value={"path": "/acme/order/ord123"}
         ):
             with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                 self.order._name_get("/acme/order/ord123")
@@ -1543,13 +1537,13 @@ class TestOrderClass(unittest.TestCase):
 
     def test_102_process_csr_all_paths(self):
         # Covers: found, not found, error, logging
-        with patch("acme_srv.helper.b64_url_recode", return_value="csrval"):
+        with patch("acme2certifier.acme_srv.helper.b64_url_recode", return_value="csrval"):
             # Found path
             self.order._get_order_info = MagicMock(return_value={"name": "order1"})
             cert_mock = MagicMock()
             cert_mock.store_csr.return_value = "cert1"
             cert_mock.enroll_and_store.return_value = (None, None)
-            with patch("acme_srv.order.Certificate") as cert_class:
+            with patch("acme2certifier.acme_srv.order.Certificate") as cert_class:
                 cert_class.return_value.__enter__.return_value = cert_mock
                 with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                     result = self.order._process_csr("order1", "csr", "header")
@@ -1569,13 +1563,13 @@ class TestOrderClass(unittest.TestCase):
 
     def test_103_process_csr_rejected_identifier(self):
         # Covers: enroll_and_store returns rejectedIdentifier leading to 401
-        with patch("acme_srv.helper.b64_url_recode", return_value="csrval"):
+        with patch("acme2certifier.acme_srv.helper.b64_url_recode", return_value="csrval"):
             self.order._get_order_info = MagicMock(return_value={"name": "order1"})
             cert_mock = MagicMock()
             cert_mock.store_csr.return_value = "cert1"
             rej = "urn:ietf:params:acme:error:rejectedIdentifier"
             cert_mock.enroll_and_store.return_value = (rej, "detailx")
-            with patch("acme_srv.order.Certificate") as cert_class:
+            with patch("acme2certifier.acme_srv.order.Certificate") as cert_class:
                 cert_class.return_value.__enter__.return_value = cert_mock
                 with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                     result = self.order._process_csr("order1", "csr", "header")
@@ -1591,7 +1585,7 @@ class TestOrderClass(unittest.TestCase):
 
     def test_104_process_csr_serverinternal_error(self):
         # Covers: enroll_and_store returns serverinternal leading to 500
-        with patch("acme_srv.helper.b64_url_recode", return_value="csrval"):
+        with patch("acme2certifier.acme_srv.helper.b64_url_recode", return_value="csrval"):
 
             self.order._get_order_info = MagicMock(return_value={"name": "order1"})
             cert_mock = MagicMock()
@@ -1600,7 +1594,7 @@ class TestOrderClass(unittest.TestCase):
                 self.order.error_msg_dic["serverinternal"],
                 "d",
             )
-            with patch("acme_srv.order.Certificate") as cert_class:
+            with patch("acme2certifier.acme_srv.order.Certificate") as cert_class:
                 cert_class.return_value.__enter__.return_value = cert_mock
                 with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                     result = self.order._process_csr("order1", "csr", "header")
@@ -1619,11 +1613,11 @@ class TestOrderClass(unittest.TestCase):
 
     def test_105_process_csr_certificate_store_failure(self):
         # Covers: store_csr returns falsy leading to 500 and CSR processing failed detail
-        with patch("acme_srv.helper.b64_url_recode", return_value="csrval"):
+        with patch("acme2certifier.acme_srv.helper.b64_url_recode", return_value="csrval"):
             self.order._get_order_info = MagicMock(return_value={"name": "order1"})
             cert_mock = MagicMock()
             cert_mock.store_csr.return_value = None
-            with patch("acme_srv.order.Certificate") as cert_class:
+            with patch("acme2certifier.acme_srv.order.Certificate") as cert_class:
                 cert_class.return_value.__enter__.return_value = cert_mock
                 with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                     result = self.order._process_csr("order1", "csr", "header")
@@ -1722,7 +1716,7 @@ class TestOrderClass(unittest.TestCase):
 
     def test_111_finalize_csr_else_branch_generic_fallback(self):
         # Safety net when upstream detail is missing.
-        from acme_srv.helpers.global_variables import ENROLLMENT_FAILED_DETAIL
+        from acme2certifier.acme_srv.helpers.global_variables import ENROLLMENT_FAILED_DETAIL
 
         self.order.repository.order_update = MagicMock()
         self.order._header_info_lookup = MagicMock(return_value={})
@@ -1745,7 +1739,7 @@ class TestOrderClass(unittest.TestCase):
         self.assertIn("DEBUG:test_a2c:Order._finalize_csr() ended", log_cm.output)
 
     def test_112_process_csr_applies_eab_profile_and_forwards_flag(self):
-        with patch("acme_srv.helper.b64_url_recode", return_value="csrval"):
+        with patch("acme2certifier.acme_srv.helper.b64_url_recode", return_value="csrval"):
             self.order.config.eab_profiling = True
             self.order.config.eab_handler = MagicMock()
             self.order.config.ca_error_details_forward = False
@@ -1762,7 +1756,7 @@ class TestOrderClass(unittest.TestCase):
                 self.order.error_msg_dic["serverinternal"],
                 "upstream failure",
             )
-            with patch("acme_srv.order.Certificate") as cert_class:
+            with patch("acme2certifier.acme_srv.order.Certificate") as cert_class:
                 cert_instance = cert_class.return_value.__enter__.return_value
                 cert_instance.config = MagicMock()
                 cert_instance.store_csr = cert_mock.store_csr
@@ -1938,7 +1932,7 @@ class TestOrderClass(unittest.TestCase):
 
     def test_121_check_identifiers_validity_all_paths(self):
         # Covers: valid, too many, malformed, email rewrite, allowed, rejected, and logging
-        with patch("acme_srv.order.validate_identifier", return_value=True):
+        with patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True):
             self.order.config.identifier_limit = 2
             self.order.config.email_identifier_support = True
             self.order.config.email_identifier_rewrite = True
@@ -1964,7 +1958,7 @@ class TestOrderClass(unittest.TestCase):
             )
 
     def test_122_check_identifiers_validity_all_paths(self):
-        with patch("acme_srv.order.validate_identifier", return_value=False):
+        with patch("acme2certifier.acme_srv.order.validate_identifier", return_value=False):
             self.order.config.identifier_limit = 2
             self.order.config.email_identifier_support = True
             self.order.config.email_identifier_rewrite = True
@@ -2071,7 +2065,7 @@ class TestOrderClass(unittest.TestCase):
             cert_mock = MagicMock()
             cert_mock.store_csr.return_value = "cert1"
             cert_mock.enroll_and_store.return_value = ("someerror", "detail")
-            with patch("acme_srv.order.Certificate") as cert_class:
+            with patch("acme2certifier.acme_srv.order.Certificate") as cert_class:
                 cert_class.return_value.__enter__.return_value = cert_mock
                 result = self.order._process_csr("order1", "csr", "header")
                 self.assertEqual(result[0], 400)
@@ -2088,7 +2082,7 @@ class TestOrderClass(unittest.TestCase):
                 "urn:ietf:params:acme:error:serverInternal",
                 "detail",
             )
-            with patch("acme_srv.order.Certificate") as cert_class:
+            with patch("acme2certifier.acme_srv.order.Certificate") as cert_class:
                 cert_class.return_value.__enter__.return_value = cert_mock
                 result = self.order._process_csr("order1", "csr", "header")
                 self.assertEqual(result[0], 500)
@@ -2416,8 +2410,8 @@ class TestOrderClass(unittest.TestCase):
     def test_152_are_identifiers_allowed_fqdn_not_whitelisted(self):
         # Covers: FQDN/SAN not allowed by configuration (lines 551-566)
         with (
-            patch("acme_srv.order.validate_identifier", return_value=True),
-            patch("acme_srv.order.is_domain_whitelisted", return_value=False),
+            patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True),
+            patch("acme2certifier.acme_srv.order.is_domain_whitelisted", return_value=False),
         ):
             self.order.config.allowed_domainlist = ["allowed.com"]
             result = self.order.are_identifiers_allowed(
@@ -2438,7 +2432,7 @@ class TestOrderClass(unittest.TestCase):
         self.order.config.allowed_domainlist = ["*.bar.local"]
         identifier = {"type": "dns", "value": "bar.local", "wildcard": True}
 
-        with patch("acme_srv.order.validate_identifier", return_value=True):
+        with patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True):
             with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                 error, detail = self.order._check_single_identifier(
                     identifier, ["dns", "ip"]
@@ -2466,7 +2460,7 @@ class TestOrderClass(unittest.TestCase):
         self.order.config.allowed_domainlist = ["*.bar.local"]
         identifier = {"type": "dns", "value": "bar.local"}
 
-        with patch("acme_srv.order.validate_identifier", return_value=True):
+        with patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True):
             with self.assertLogs("test_a2c", level="DEBUG") as log_cm:
                 error, detail = self.order._check_single_identifier(
                     identifier, ["dns", "ip"]
@@ -2527,7 +2521,7 @@ class TestOrderClass(unittest.TestCase):
         # Covers error message for invalid value (line 571)
         identifier = {"type": "dns", "value": "foo"}
         allowed_identifiers = ["dns", "ip"]
-        with patch("acme_srv.order.validate_identifier", return_value=False):
+        with patch("acme2certifier.acme_srv.order.validate_identifier", return_value=False):
             with self.assertLogs("test_a2c", level="ERROR") as log_cm:
                 error, detail = self.order._check_single_identifier(
                     identifier, allowed_identifiers
@@ -2655,7 +2649,7 @@ class TestOrderClass(unittest.TestCase):
         config_dic.set("Directory", "url_prefix", "/prefix/")
         config_dic.add_section("Order")
         config_dic.add_section("Authorization")
-        with patch("acme_srv.order.load_config", return_value=config_dic):
+        with patch("acme2certifier.acme_srv.order.load_config", return_value=config_dic):
             self.order.path_dic = {
                 "authz_path": "/acme/authz/",
                 "order_path": "/acme/order/",
@@ -2712,7 +2706,7 @@ class TestOrderClass(unittest.TestCase):
 
     def test_168_finalize_csr_handles_dryrun_skipped(self):
         # When detail is DRYRUN_ENROLLMENT_SKIPPED_DETAIL, message should be unauthorized error
-        from acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
+        from acme2certifier.acme_srv.helpers.global_variables import DRYRUN_ENROLLMENT_SKIPPED_DETAIL
 
         self.order._header_info_lookup = MagicMock(return_value={})
         self.order._process_csr = MagicMock(
@@ -2734,7 +2728,7 @@ class TestOrderClass(unittest.TestCase):
         self.order.config.allowed_iplist = ["192.168.1.0/24"]
         identifier = {"type": "ip", "value": "10.0.0.1"}
         # Patch is_ip_whitelisted to return False
-        with patch("acme_srv.order.is_ip_whitelisted", return_value=False):
+        with patch("acme2certifier.acme_srv.order.is_ip_whitelisted", return_value=False):
             error, msg = self.order.are_identifiers_allowed([identifier])
             self.assertEqual(error, self.order.error_msg_dic["rejectedidentifier"])
             self.assertEqual(
@@ -2742,7 +2736,7 @@ class TestOrderClass(unittest.TestCase):
                 f'IP address {identifier["value"]} not allowed by configuration',
             )
         # Patch is_ip_whitelisted to return True (should not error)
-        with patch("acme_srv.order.is_ip_whitelisted", return_value=True):
+        with patch("acme2certifier.acme_srv.order.is_ip_whitelisted", return_value=True):
             error, msg = self.order.are_identifiers_allowed([identifier])
             self.assertIsNone(error)
             self.assertIsNone(msg)
@@ -2750,8 +2744,8 @@ class TestOrderClass(unittest.TestCase):
     def test_170_are_identifiers_allowed_ip_whitelisted(self):
         # Should allow IP if in allowed_iplist
         with (
-            patch("acme_srv.order.validate_identifier", return_value=True),
-            patch("acme_srv.order.is_ip_whitelisted", return_value=True),
+            patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True),
+            patch("acme2certifier.acme_srv.order.is_ip_whitelisted", return_value=True),
         ):
             self.order.config.allowed_iplist = ["192.168.1.1", "10.0.0.0/8"]
             result = self.order.are_identifiers_allowed(
@@ -2762,8 +2756,8 @@ class TestOrderClass(unittest.TestCase):
     def test_171_are_identifiers_allowed_ip_not_whitelisted(self):
         # Should reject IP if not in allowed_iplist
         with (
-            patch("acme_srv.order.validate_identifier", return_value=True),
-            patch("acme_srv.order.is_ip_whitelisted", return_value=False),
+            patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True),
+            patch("acme2certifier.acme_srv.order.is_ip_whitelisted", return_value=False),
         ):
             self.order.config.allowed_iplist = ["192.168.1.1", "10.0.0.0/8"]
             result = self.order.are_identifiers_allowed(
@@ -2780,8 +2774,8 @@ class TestOrderClass(unittest.TestCase):
     def test_172_are_identifiers_allowed_iplist_empty(self):
         # Should allow any IP if allowed_iplist is empty
         with (
-            patch("acme_srv.order.validate_identifier", return_value=True),
-            patch("acme_srv.order.is_ip_whitelisted", return_value=False),
+            patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True),
+            patch("acme2certifier.acme_srv.order.is_ip_whitelisted", return_value=False),
         ):
             self.order.config.allowed_iplist = []
             result = self.order.are_identifiers_allowed(
@@ -2792,8 +2786,8 @@ class TestOrderClass(unittest.TestCase):
     def test_173_are_identifiers_allowed_multiple_ips(self):
         # Should reject on first non-whitelisted IP, allow if all whitelisted
         with (
-            patch("acme_srv.order.validate_identifier", return_value=True),
-            patch("acme_srv.order.is_ip_whitelisted", side_effect=[True, False]),
+            patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True),
+            patch("acme2certifier.acme_srv.order.is_ip_whitelisted", side_effect=[True, False]),
         ):
             self.order.config.allowed_iplist = ["10.0.0.0/8"]
             result = self.order.are_identifiers_allowed(
@@ -2810,8 +2804,8 @@ class TestOrderClass(unittest.TestCase):
                 ),
             )
         with (
-            patch("acme_srv.order.validate_identifier", return_value=True),
-            patch("acme_srv.order.is_ip_whitelisted", side_effect=[True, True]),
+            patch("acme2certifier.acme_srv.order.validate_identifier", return_value=True),
+            patch("acme2certifier.acme_srv.order.is_ip_whitelisted", side_effect=[True, True]),
         ):
             self.order.config.allowed_iplist = ["10.0.0.0/8"]
             result = self.order.are_identifiers_allowed(
@@ -2823,13 +2817,13 @@ class TestOrderClass(unittest.TestCase):
             self.assertEqual(result, (None, None))
 
     def test_174_load_profile_mapping_field_returns_none_without_module(self):
-        with patch("acme_srv.order.ca_handler_load", return_value=None):
+        with patch("acme2certifier.acme_srv.order.ca_handler_load", return_value=None):
             self.assertIsNone(self.order._load_profile_mapping_field({}))
 
     def test_175_load_profile_mapping_field_from_module_attribute(self):
         ca_module = types.SimpleNamespace(profile_mapping_field="module_profile")
 
-        with patch("acme_srv.order.ca_handler_load", return_value=ca_module):
+        with patch("acme2certifier.acme_srv.order.ca_handler_load", return_value=ca_module):
             result = self.order._load_profile_mapping_field({})
 
         self.assertEqual(result, "module_profile")
@@ -2842,7 +2836,7 @@ class TestOrderClass(unittest.TestCase):
 
         ca_module = types.SimpleNamespace(CAhandler=DummyCAhandler)
 
-        with patch("acme_srv.order.ca_handler_load", return_value=ca_module):
+        with patch("acme2certifier.acme_srv.order.ca_handler_load", return_value=ca_module):
             result = self.order._load_profile_mapping_field({})
 
         self.assertEqual(result, "instance_profile")
@@ -2854,7 +2848,7 @@ class TestOrderClass(unittest.TestCase):
 
         ca_module = types.SimpleNamespace(CAhandler=DummyCAhandler)
 
-        with patch("acme_srv.order.ca_handler_load", return_value=ca_module):
+        with patch("acme2certifier.acme_srv.order.ca_handler_load", return_value=ca_module):
             result = self.order._load_profile_mapping_field({})
 
         self.assertEqual(result, "noarg_instance_profile")
@@ -2868,7 +2862,7 @@ class TestOrderClass(unittest.TestCase):
 
         ca_module = types.SimpleNamespace(CAhandler=DummyCAhandler)
 
-        with patch("acme_srv.order.ca_handler_load", return_value=ca_module):
+        with patch("acme2certifier.acme_srv.order.ca_handler_load", return_value=ca_module):
             result = self.order._load_profile_mapping_field({})
 
         self.assertEqual(result, "class_profile")
@@ -2876,7 +2870,7 @@ class TestOrderClass(unittest.TestCase):
     def test_179_load_profile_mapping_field_returns_none_without_handler_class(self):
         ca_module = types.SimpleNamespace()
 
-        with patch("acme_srv.order.ca_handler_load", return_value=ca_module):
+        with patch("acme2certifier.acme_srv.order.ca_handler_load", return_value=ca_module):
             self.assertIsNone(self.order._load_profile_mapping_field({}))
 
     def test_180_load_profile_mapping_field_class_fallback_after_empty_instance(self):
@@ -2890,7 +2884,7 @@ class TestOrderClass(unittest.TestCase):
 
         ca_module = types.SimpleNamespace(CAhandler=DummyCAhandler)
 
-        with patch("acme_srv.order.ca_handler_load", return_value=ca_module):
+        with patch("acme2certifier.acme_srv.order.ca_handler_load", return_value=ca_module):
             result = self.order._load_profile_mapping_field({})
 
         self.assertEqual(result, "class_profile")
@@ -2903,7 +2897,7 @@ class TestOrderClass(unittest.TestCase):
 
         ca_module = types.SimpleNamespace(CAhandler=DummyCAhandler)
 
-        with patch("acme_srv.order.ca_handler_load", return_value=ca_module):
+        with patch("acme2certifier.acme_srv.order.ca_handler_load", return_value=ca_module):
             self.assertIsNone(self.order._load_profile_mapping_field({}))
 
     def test_182_load_profile_mapping_field_warns_when_noarg_fallback_fails(self):
@@ -2913,7 +2907,7 @@ class TestOrderClass(unittest.TestCase):
 
         ca_module = types.SimpleNamespace(CAhandler=DummyCAhandler)
 
-        with patch("acme_srv.order.ca_handler_load", return_value=ca_module):
+        with patch("acme2certifier.acme_srv.order.ca_handler_load", return_value=ca_module):
             with self.assertLogs("test_a2c", level="WARNING") as log_cm:
                 result = self.order._load_profile_mapping_field({})
 
@@ -2932,7 +2926,7 @@ class TestOrderClass(unittest.TestCase):
 
         ca_module = types.SimpleNamespace(CAhandler=DummyCAhandler)
 
-        with patch("acme_srv.order.ca_handler_load", return_value=ca_module):
+        with patch("acme2certifier.acme_srv.order.ca_handler_load", return_value=ca_module):
             with self.assertLogs("test_a2c", level="WARNING") as log_cm:
                 result = self.order._load_profile_mapping_field({})
 

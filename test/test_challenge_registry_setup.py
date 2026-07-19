@@ -36,9 +36,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_001_create_challenge_validator_registry_basic(self):
@@ -72,7 +72,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -82,7 +82,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -94,7 +94,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         ):
 
             # Import and test
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 
@@ -153,9 +153,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_002_create_challenge_validator_registry_email_support(self):
@@ -185,7 +185,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -195,7 +195,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -206,7 +206,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 
@@ -233,9 +233,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_003_create_challenge_validator_registry_all_enabled(self):
@@ -278,7 +278,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -288,7 +288,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -299,7 +299,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 
@@ -323,9 +323,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_003a_create_challenge_validator_registry_dns_persist_support(self):
@@ -354,7 +354,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -365,7 +365,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -377,7 +377,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 
@@ -394,9 +394,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_003b_create_challenge_validator_registry_dns_persist_disabled(self):
@@ -421,7 +421,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
 
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -432,7 +432,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -444,7 +444,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 
@@ -458,9 +458,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_004_create_challenge_validator_registry_none_config(self):
@@ -481,7 +481,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -491,7 +491,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -502,7 +502,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 
@@ -520,9 +520,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_005_create_challenge_validator_registry_registry_exception(self):
@@ -542,7 +542,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -552,7 +552,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -563,7 +563,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 
@@ -579,9 +579,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_006_create_custom_registry_basic(self):
@@ -596,16 +596,16 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
 
             # Create mock validator classes
             mock_validator_class1 = Mock()
@@ -648,9 +648,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_007_create_custom_registry_empty_validators(self):
@@ -665,16 +665,16 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
 
             validator_classes = []
 
@@ -700,9 +700,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_008_create_custom_registry_none_validator_classes(self):
@@ -716,16 +716,16 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
 
             # Test with None validator classes - should raise TypeError
             with self.assertRaises(TypeError):
@@ -736,9 +736,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_009_create_custom_registry_validator_exception(self):
@@ -752,16 +752,16 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
 
             mock_validator_class = Mock()
             mock_validator_class.side_effect = Exception("Validator creation failed")
@@ -778,9 +778,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_010_create_custom_registry_registration_exception(self):
@@ -797,16 +797,16 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
 
             mock_validator_class = Mock()
             mock_validator = Mock()
@@ -824,9 +824,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_011_create_challenge_validator_registry_tnauthlist_support(self):
@@ -856,7 +856,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -866,7 +866,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -877,7 +877,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 
@@ -904,9 +904,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_012_create_challenge_validator_registry_forward_address_check(self):
@@ -936,7 +936,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -946,7 +946,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -957,7 +957,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 
@@ -983,9 +983,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_013_create_challenge_validator_registry_reverse_address_check(self):
@@ -1015,7 +1015,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -1025,7 +1025,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -1036,7 +1036,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 
@@ -1058,9 +1058,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_014_create_challenge_validator_registry_both_address_checks(self):
@@ -1090,7 +1090,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -1100,7 +1100,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -1111,7 +1111,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 
@@ -1130,9 +1130,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_015_create_custom_registry_with_config(self):
@@ -1147,16 +1147,16 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
 
             mock_validator_class = Mock()
             mock_validator = Mock()
@@ -1179,9 +1179,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_016_create_custom_registry_get_supported_types_exception(self):
@@ -1198,16 +1198,16 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
 
             mock_validator_class = Mock()
             mock_validator = Mock()
@@ -1225,9 +1225,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_017_create_custom_registry_mixed_validator_types(self):
@@ -1246,16 +1246,16 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import create_custom_registry
+            from acme2certifier.acme_srv.challenge_registry_setup import create_custom_registry
 
             # Create different types of mock validator classes
             class MockHttpValidator:
@@ -1289,9 +1289,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_018_create_challenge_validator_registry_validator_exception(self):
@@ -1313,7 +1313,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -1323,7 +1323,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -1334,7 +1334,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 
@@ -1350,9 +1350,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_019_create_challenge_validator_registry_missing_config_attributes(self):
@@ -1373,7 +1373,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -1383,7 +1383,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -1394,7 +1394,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 
@@ -1414,9 +1414,9 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         {
             "OpenSSL": Mock(),
             "OpenSSL.crypto": Mock(),
-            "acme_srv.helper": Mock(),
-            "acme_srv.helpers.certificates": Mock(),
-            "acme_srv.challenge_validators": Mock(),
+            "acme2certifier.acme_srv.helper": Mock(),
+            "acme2certifier.acme_srv.helpers.certificates": Mock(),
+            "acme2certifier.acme_srv.challenge_validators": Mock(),
         },
     )
     def test_020_create_challenge_validator_registry_registration_exception(self):
@@ -1443,7 +1443,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
         # Patch both the source module and the target module where imports are used
         with (
             patch.multiple(
-                "acme_srv.challenge_validators",
+                "acme2certifier.acme_srv.challenge_validators",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -1453,7 +1453,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
                 SourceAddressValidator=mock_source_validator,
             ),
             patch.multiple(
-                "acme_srv.challenge_registry_setup",
+                "acme2certifier.acme_srv.challenge_registry_setup",
                 ChallengeValidatorRegistry=mock_registry,
                 HttpChallengeValidator=mock_http_validator,
                 DnsChallengeValidator=mock_dns_validator,
@@ -1464,7 +1464,7 @@ class TestChallengeRegistrySetup(unittest.TestCase):
             ),
         ):
 
-            from acme_srv.challenge_registry_setup import (
+            from acme2certifier.acme_srv.challenge_registry_setup import (
                 create_challenge_validator_registry,
             )
 

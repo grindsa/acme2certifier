@@ -18,7 +18,7 @@ class TestChallengeInfo(unittest.TestCase):
 
     def setUp(self):
         """Setup for tests"""
-        from acme_srv.challenge_business_logic import ChallengeInfo
+        from acme2certifier.acme_srv.challenge_business_logic import ChallengeInfo
 
         self.ChallengeInfo = ChallengeInfo
 
@@ -120,7 +120,7 @@ class TestChallengeCreationRequest(unittest.TestCase):
 
     def setUp(self):
         """Setup for tests"""
-        from acme_srv.challenge_business_logic import ChallengeCreationRequest
+        from acme2certifier.acme_srv.challenge_business_logic import ChallengeCreationRequest
 
         self.ChallengeCreationRequest = ChallengeCreationRequest
 
@@ -178,7 +178,7 @@ class TestChallengeUpdateRequest(unittest.TestCase):
 
     def setUp(self):
         """Setup for tests"""
-        from acme_srv.challenge_business_logic import ChallengeUpdateRequest
+        from acme2certifier.acme_srv.challenge_business_logic import ChallengeUpdateRequest
 
         self.ChallengeUpdateRequest = ChallengeUpdateRequest
 
@@ -287,7 +287,7 @@ class TestChallengeStateManager(unittest.TestCase):
 
     def setUp(self):
         """Setup for tests"""
-        from acme_srv.challenge_business_logic import ChallengeStateManager
+        from acme2certifier.acme_srv.challenge_business_logic import ChallengeStateManager
 
         self.logger = Mock(spec=logging.Logger)
         self.repository = MockChallengeRepository()
@@ -517,7 +517,7 @@ class TestChallengeFactory(unittest.TestCase):
 
     def setUp(self):
         """Setup for tests"""
-        from acme_srv.challenge_business_logic import ChallengeFactory
+        from acme2certifier.acme_srv.challenge_business_logic import ChallengeFactory
 
         self.logger = Mock(spec=logging.Logger)
         self.repository = MockChallengeRepository()
@@ -579,7 +579,7 @@ class TestChallengeFactory(unittest.TestCase):
 
     def test_036_create_standard_challenge_set_dns_persist_enabled(self):
         """Test creating standard challenge set with dns-persist-01 enabled."""
-        from acme_srv.challenge_business_logic import ChallengeFactory
+        from acme2certifier.acme_srv.challenge_business_logic import ChallengeFactory
 
         factory = ChallengeFactory(
             repository=self.repository,
@@ -727,7 +727,7 @@ class TestChallengeFactory(unittest.TestCase):
         )  # Sectigo challenges are pre-validated
         self.assertNotIn("token", challenge)  # Token is removed for sectigo
 
-    @patch.dict("sys.modules", {"acme_srv.email_handler": Mock()})
+    @patch.dict("sys.modules", {"acme2certifier.acme_srv.email_handler": Mock()})
     def test_046_create_single_challenge_email(self):
         """Test creating email-reply challenge"""
         # Set up the factory with an email address
@@ -753,7 +753,7 @@ class TestChallengeFactory(unittest.TestCase):
         # Mock the email_handler module
         import sys
 
-        sys.modules["acme_srv.email_handler"].EmailHandler = mock_email_handler_class
+        sys.modules["acme2certifier.acme_srv.email_handler"].EmailHandler = mock_email_handler_class
 
         challenge = self.factory.create_single_challenge(
             authorization_name="test-auth",
@@ -792,7 +792,7 @@ class TestChallengeFactory(unittest.TestCase):
 
     def test_048_factory_without_email_address(self):
         """Test factory initialization without email address"""
-        from acme_srv.challenge_business_logic import ChallengeFactory
+        from acme2certifier.acme_srv.challenge_business_logic import ChallengeFactory
 
         factory = ChallengeFactory(
             repository=self.repository,
@@ -857,7 +857,7 @@ class TestChallengeFactory(unittest.TestCase):
 
     def test_053_factory_email_challenge_without_email_address(self):
         """Test email challenge creation when factory has no email address"""
-        from acme_srv.challenge_business_logic import ChallengeFactory
+        from acme2certifier.acme_srv.challenge_business_logic import ChallengeFactory
 
         factory_no_email = ChallengeFactory(
             repository=self.repository,
@@ -892,7 +892,7 @@ class TestChallengeService(unittest.TestCase):
 
     def setUp(self):
         """Setup for tests"""
-        from acme_srv.challenge_business_logic import (
+        from acme2certifier.acme_srv.challenge_business_logic import (
             ChallengeService,
             ChallengeStateManager,
             ChallengeFactory,

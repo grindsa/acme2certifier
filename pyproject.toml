@@ -50,3 +50,7 @@ Homepage = "https://github.com/grindsa/acme2certifier"
 
 [tool.setuptools]
 include-package-data = true
+
+[tool.pytest.ini_options]
+# Only collect unit tests; skip tools/*_test.py shims (basename clash with package).
+testpaths = ["test"]
