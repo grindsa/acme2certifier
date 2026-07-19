@@ -1,0 +1,14 @@
+
+module acme2certifier 1.0;
+
+require {
+	type var_run_t;
+	type initrc_t;
+	type httpd_t;
+	class sock_file write;
+	class unix_stream_socket connectto;
+}
+
+#============= httpd_t ==============
+allow httpd_t initrc_t:unix_stream_socket connectto;
+allow httpd_t var_run_t:sock_file write;

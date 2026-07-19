@@ -1815,7 +1815,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.housekeeping._cliconfig_check(config_dic))
         self.assertIn(
-            "ERROR:test_a2c:Error: cliuser_mgmt.py config_check() failed: Either jwkname or jwk must be specified",
+            "ERROR:test_a2c:Error: a2c-cliuser-mgmt config_check() failed: Either jwkname or jwk must be specified",
             lcm.output,
         )
 
@@ -1825,7 +1825,7 @@ class TestACMEHandler(unittest.TestCase):
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.housekeeping._cliconfig_check(config_dic))
         self.assertIn(
-            "ERROR:test_a2c:Error: cliuser_mgmt.py config_check() failed: Either jwkname or jwk must be specified",
+            "ERROR:test_a2c:Error: a2c-cliuser-mgmt config_check() failed: Either jwkname or jwk must be specified",
             lcm.output,
         )
 

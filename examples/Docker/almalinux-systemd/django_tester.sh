@@ -82,7 +82,7 @@ case "${1}" in
     cd /opt/acme2certifier
     python3 manage.py makemigrations
     python3 manage.py migrate
-    python3 /opt/acme2certifier/tools/django_update.py
+    a2c-django-update
     python3 manage.py loaddata acme_srv/fixture/status.yaml
 
     chown -R nginx.nginx /opt/acme2certifier/acme2certifier/

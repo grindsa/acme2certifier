@@ -411,7 +411,7 @@ jobs:
         run: |
           docker cp /tmp/acme2certifier-$RUN_ID.noarch.rpm acme-srv:/tmp
           docker exec acme-srv yum -y localinstall /tmp/acme2certifier-$RUN_ID.noarch.rpm
-          docker exec -w /opt/acme2certifier acme-srv python3 -m acme2certifier.tools.db_update
+          docker exec -w /opt/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_db_update
           docker restart acme-srv
         env:
           RUN_ID: ${{ inputs.run_id }}
@@ -583,7 +583,7 @@ jobs:
         run: |
           docker cp /tmp/acme2certifier-$RUN_ID.noarch.rpm acme-srv:/tmp
           docker exec acme-srv yum -y localinstall /tmp/acme2certifier-$RUN_ID.noarch.rpm
-          docker exec -w /opt/acme2certifier acme-srv python3 -m acme2certifier.tools.django_update
+          docker exec -w /opt/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
           docker restart acme-srv
         env:
           RUN_ID: ${{ inputs.run_id }}
@@ -752,7 +752,7 @@ jobs:
         run: |
           docker cp /tmp/acme2certifier-$RUN_ID.noarch.rpm acme-srv:/tmp
           docker exec acme-srv yum -y localinstall /tmp/acme2certifier-$RUN_ID.noarch.rpm
-          docker exec -w /opt/acme2certifier acme-srv python3 -m acme2certifier.tools.django_update
+          docker exec -w /opt/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
           docker restart acme-srv
         env:
           RUN_ID: ${{ inputs.run_id }}
@@ -925,7 +925,7 @@ jobs:
         run: |
           docker cp /tmp/acme2certifier-$RUN_ID.noarch.rpm acme-srv:/tmp
           docker exec acme-srv yum -y localinstall /tmp/acme2certifier-$RUN_ID.noarch.rpm
-          docker exec -w /opt/acme2certifier acme-srv python3 -m acme2certifier.tools.django_update
+          docker exec -w /opt/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
           docker restart acme-srv
         env:
           RUN_ID: ${{ inputs.run_id }}
@@ -1090,7 +1090,7 @@ jobs:
       - name: "Upgrade a2c"
         run: |
           docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-$RUN_ID-1_all.deb
-          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.db_update
+          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_db_update
           docker exec acme-srv systemctl restart apache2
         env:
           RUN_ID: ${{ inputs.run_id }}
@@ -1237,7 +1237,7 @@ jobs:
           docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
           docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
-          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.django_update
+          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
 
           # fix for django 4.0 upgrade
           docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
@@ -1266,7 +1266,7 @@ jobs:
       - name: "Upgrade a2c"
         run: |
           docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-$RUN_ID-1_all.deb
-          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.django_update
+          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
           docker exec acme-srv systemctl restart apache2
         env:
           RUN_ID: ${{ inputs.run_id }}
@@ -1432,7 +1432,7 @@ jobs:
           docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
           docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
-          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.django_update
+          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
 
           # fix for django 4.0 upgrade
           docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
@@ -1456,7 +1456,7 @@ jobs:
       - name: "Upgrade a2c"
         run: |
           docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-$RUN_ID-1_all.deb
-          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.django_update
+          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
           docker exec acme-srv systemctl restart apache2
         env:
           RUN_ID: ${{ inputs.run_id }}
@@ -1633,7 +1633,7 @@ jobs:
           docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
           docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
-          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.django_update
+          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
 
           # fix for django 4.0 upgrade
           docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
@@ -1657,7 +1657,7 @@ jobs:
       - name: "Upgrade a2c"
         run: |
           docker exec acme-srv apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' /tmp/acme2certifier/acme2certifier-$RUN_ID-1_all.deb
-          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.django_update
+          docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
           docker exec acme-srv systemctl restart apache2
         env:
           RUN_ID: ${{ inputs.run_id }}

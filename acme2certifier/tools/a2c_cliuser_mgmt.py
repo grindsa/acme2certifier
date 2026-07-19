@@ -1,28 +1,20 @@
 #!/usr/bin/python
-"""database updater"""
+"""CLI user management for housekeeping."""
 
-# pylint: disable=E0401, C0413
-import sys
-import json
+from __future__ import annotations
+
 import argparse
+import json
 import os.path
 
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
-)
-sys.path.append(
-    os.path.abspath(
-        os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)
-    )
-)
-from acme2certifier.acme_srv.helper import logger_setup  # nopep8
-from acme2certifier.acme_srv.housekeeping import Housekeeping  # nopep8
+from acme2certifier.acme_srv.helper import logger_setup
+from acme2certifier.acme_srv.housekeeping import Housekeeping
 
 
 def arg_parse():
     """simple argparser"""
     parser = argparse.ArgumentParser(
-        description="match_import.py - update matches in database"
+        description="a2c-cliuser-mgmt - manage CLI housekeeping users"
     )
     parser.add_argument(
         "-d", "--debug", help="debug mode", action="store_true", default=False
@@ -114,16 +106,15 @@ def file_load(filename):
     return lines
 
 
+def main() -> None:
+    """Manage CLI housekeeping users."""
+    debug, config_dic = arg_parse()
+    # the cli program needs to be chatty
+    config_dic["silent"] = False
+    logger = logger_setup(debug)
+    with Housekeeping(debug, logger) as housekeeping:
+        housekeeping.cli_usermgr(config_dic)
+
+
 if __name__ == "__main__":
-
-    DEBUG, CONFIG_DIC = arg_parse()
-
-    # the cli program needs ot be chatty
-    CONFIG_DIC["silent"] = False
-
-    # initialize logger
-    LOGGER = logger_setup(DEBUG)
-
-    with Housekeeping(DEBUG, LOGGER) as housekeeping:
-        # cli usermgr
-        result = housekeeping.cli_usermgr(CONFIG_DIC)
+    main()

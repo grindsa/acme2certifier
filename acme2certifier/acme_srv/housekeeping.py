@@ -77,7 +77,7 @@ class Housekeeping(object):
             and "jwk" not in config_dic
         ):
             self.logger.error(
-                "Error: cliuser_mgmt.py config_check() failed: Either jwkname or jwk must be specified"
+                "Error: a2c-cliuser-mgmt config_check() failed: Either jwkname or jwk must be specified"
             )
             check_result = False
 
