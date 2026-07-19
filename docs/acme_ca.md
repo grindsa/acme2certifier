@@ -23,7 +23,7 @@ The configuration will be managed through the acme_srv.cfg file. The below examp
 
 ```cfg
 [CAhandler]
-handler_file: /opt/acme2certifier/examples/ca_handler/acme_ca_handler.py
+handler_module: acme2certifier.cahandlers.acme_ca_handler
 acme_sh_script: /opt/acme2certifier/volume/acme.sh
 acme_sh_shell: /bin/bash
 # setting the dns_update_script parameter will force a2c to use dns-challenges for validation only
@@ -67,7 +67,8 @@ The handler must be configured via `acme_srv`.
 
 | Option                          | Description                                                                                                                                                    | Mandatory | Default      |
 | :------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------: | :----------- |
-| handler_file                    | Path to CA handler file                                                                                                                                        |    Yes    | None         |
+| handler_module                  | Dotted module path of the CA handler (preferred), e.g. `acme2certifier.cahandlers.acme_ca_handler`                                                          |    Yes    | None         |
+| handler_file                    | **Deprecated.** Path to CA handler file. Prefer `handler_module`.                                                                                          |    No     | None         |
 | account_path                    | Path to account resource on CA server                                                                                                                          |    No     | `/acme/acct` |
 | acme_url                        | URL of the ACME endpoint                                                                                                                                       |    Yes    | None         |
 | acme_account                    | ACME account name. If not specified, `acme2certifier` will try to look up the account name based on the key file                                               |    No     | None         |
@@ -93,7 +94,7 @@ Modify the server configuration (`acme_srv/acme_srv.cfg`) and add at least the f
 ```cfg
 [CAhandler]
 # CA specific options
-handler_file: examples/ca_handler/acme_ca_handler.py
+handler_module: acme2certifier.cahandlers.acme_ca_handler
 acme_url: https://some.acme/endpoint
 acme_keyfile: /path/to/privkey.json
 ```
@@ -173,7 +174,7 @@ To enable EAB profiling:
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 acme_key_path: <path>
 eab_profiling: True
 

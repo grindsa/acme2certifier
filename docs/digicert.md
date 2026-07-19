@@ -20,7 +20,7 @@ This handler can be used to enroll certificates from [DigiCert CertCentral](http
 
 ```confag
 [CAhandler]
-handler_file: examples/ca_handler/digicert_ca_handler.py
+handler_module: acme2certifier.cahandlers.digicert_ca_handler
 api_key: <api_key>
 organization_name: <organization_name>
 
@@ -95,7 +95,7 @@ This handler can use the [eab profiling feature](eab_profiling.md) to allow indi
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 

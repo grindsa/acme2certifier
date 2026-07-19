@@ -79,7 +79,22 @@ python3 manage.py loaddata acme_srv/fixture/status.yaml
 chown -R www-data:www-data /var/lib/acme2certifier/
 ```
 
-## 5. Create systemd Service
+______________________________________________________________________
+
+## 5. Configure the CA handler
+
+In `acme_srv.cfg`, set `handler_module` to a built-in handler (preferred), for example:
+
+```ini
+[CAhandler]
+handler_module: acme2certifier.cahandlers.openssl_ca_handler
+```
+
+See [acme_srv.cfg options](acme_srv.md) and [Package layout migration](migration_package_layout.md). Handler-specific settings are documented per CA (for example [OpenSSL](openssl.md)).
+
+______________________________________________________________________
+
+## 6. Create systemd Service
 
 Create the following systemd service file at `/etc/systemd/system/acme2certifier.service`:
 
@@ -101,7 +116,7 @@ WantedBy=multi-user.target
 
 ______________________________________________________________________
 
-## 6. Start and Enable Services
+## 7. Start and Enable Services
 
 Start and enable the acme2certifier service and restart nginx:
 
@@ -126,7 +141,7 @@ systemctl start nginx
 
 ______________________________________________________________________
 
-## 7. Test with lego Client
+## 8. Test with lego Client
 
 You can test your ACME server using the lego client:
 

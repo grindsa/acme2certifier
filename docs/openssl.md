@@ -35,7 +35,7 @@ mv ca-cert.pem acme_srv/ca/
 
 ```ini
 [CAhandler]
-handler_file: examples/ca_handler/openssl_ca_handler.py
+handler_module: acme2certifier.cahandlers.openssl_ca_handler
 issuing_ca_key: acme_srv/ca/ca-key.pem
 issuing_ca_key_passphrase: Test1234
 issuing_ca_cert: acme_srv/ca/ca-cert.pem

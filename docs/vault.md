@@ -24,6 +24,7 @@ Add a `[CAhandler]` section to your configuration file (e.g., `acme_srv.cfg`):
 
 ```ini
 [CAhandler]
+handler_module: acme2certifier.cahandlers.vault_ca_handler
 vault_url = http://vault-server:8200
 vault_path = <pki path>
 vault_role = <vault-role>
@@ -59,7 +60,7 @@ This handler can use the [eab profiling feature](eab_profiling.md) to allow indi
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 

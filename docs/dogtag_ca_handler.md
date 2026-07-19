@@ -74,7 +74,8 @@ The `dogtag_ca_handler` is configured via a configuration file (e.g., `acme_srv.
 
 | Parameter                | Description                                                                                 |
 |--------------------------|---------------------------------------------------------------------------------------------|
-| `handler_file`           | Path to the handler Python file (e.g., `examples/ca_handler/dogtag_ca_handler.py`).         |
+| `handler_module`         | Dotted module path (preferred), e.g. `acme2certifier.cahandlers.dogtag_ca_handler`.        |
+| `handler_file`           | **Deprecated.** Path to the handler Python file. Prefer `handler_module`.                   |
 | `api_host`               | Base URL of the Dogtag CA REST API (e.g., `https://dogtag.acme:8443`).                     |
 | `client_key`             | Path to the user's private key file.                                                        |
 | `client_cert`            | Path to the user's certificate file.                                                        |
@@ -92,7 +93,7 @@ The `dogtag_ca_handler` is configured via a configuration file (e.g., `acme_srv.
 ### Example Configuration
 
 ```yaml
-handler_file: examples/ca_handler/dogtag_ca_handler.py
+handler_module: acme2certifier.cahandlers.dogtag_ca_handler
 api_host: https://dogtag.acme:8443
 client_key: volume/acme/a2c.key
 client_cert: volume/acme/a2c.crt
@@ -133,7 +134,7 @@ This handler can use the [eab profiling feature](eab_profiling.md) to allow indi
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 

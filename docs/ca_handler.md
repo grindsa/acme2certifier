@@ -4,14 +4,16 @@
 
 # How to Create Your Own CA Handler
 
-Creating your own CA handler should be straightforward. All you need to do is create a `ca_handler.py` file with a `CAhandler` class that contains the following methods required by `acme2certifier`:
+Built-in CA handlers ship as package modules. Prefer configuring them with `handler_module` (for example `acme2certifier.cahandlers.openssl_ca_handler`). The older `handler_file` option is **deprecated** but still supported; see [Package layout migration](migration_package_layout.md).
+
+Creating your own CA handler should be straightforward. All you need to do is create a Python module with a `CAhandler` class that contains the following methods required by `acme2certifier`:
 
 - **`enroll`**: Enrolls a new certificate from the CA server.
 - **[`poll`](poll.md)**: Polls a pending certificate request from the CA server.
 - **`revoke`**: Revokes an existing certificate on the CA server.
 - **[`trigger`](trigger.md)**: Processes triggers sent by the CA server.
 
-The [`skeleton_ca_handler.py`](../examples/ca_handler/skeleton_ca_handler.py) file provides a template that you can use to create customized CA handlers.
+The [`skeleton_ca_handler.py`](../examples/ca_handler/skeleton_ca_handler.py) file provides a template that you can use to create customized CA handlers. Load a custom module with `handler_module: your.package.handler` or (deprecated) `handler_file: /path/to/handler.py`.
 
 The following skeleton outlines the input parameters received by `acme2certifier`, as well as the expected return values:
 
@@ -107,4 +109,4 @@ class CAhandler:
 
 You can add additional methods as needed. Additionally, you can configure `acme_srv.cfg` to customize the behavior of the CA handler.
 
-For further details, check [`certifier_ca_handler.py`](../examples/ca_handler/certifier_ca_handler.py), especially the `_config_load()` method.
+For further details, check [`acme2certifier.cahandlers.certifier_ca_handler`](../acme2certifier/cahandlers/certifier_ca_handler.py), especially the `_config_load()` method.

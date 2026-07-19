@@ -27,7 +27,7 @@ This feature requires [external account binding](eab.md) to be enabled and a spe
 
 ```cfg
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: volume/kid_profiles.json
 eab_profiling: True
 ```
@@ -163,10 +163,10 @@ The below example configuration will only allow CSR matching the following crite
 
 ## Profile verification
 
-The key file can be checked for consistency by using the `tools/eab_chk.py` utility.
+The key file can be checked for consistency with `python3 -m acme2certifier.tools.eab_chk` (legacy: `tools/eab_chk.py`).
 
 ```bash
- py /var/www/acme2certifier/tools/eab_chk.py --help
+ python3 -m acme2certifier.tools.eab_chk --help
 ```
 
 ```bash
@@ -191,7 +191,7 @@ Below is an example output by using the above mentioned keyfile
 - show a summary only
 
 ```bash
-py /var/www/acme2certifier/tools/eab_chk.py  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg
+python3 -m acme2certifier.tools.eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg
 ```
 
 ```bash
@@ -201,7 +201,7 @@ Summary: 4 entries in kid_file
 - show keyids and hmac
 
 ```bash
- py /var/www/acme2certifier/tools/eab_chk.py  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -v
+ python3 -m acme2certifier.tools.eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -v
 ```
 
 ```bash
@@ -215,7 +215,7 @@ keyid_03: YW5kX2ZpbmFsbHlfdGhlX2xhc3RfaG1hY19rZXlfd2hpY2hfaXNfbG9uZ2VyX3RoYW5fMj
 - show profiles
 
 ```bash
-py /var/www/acme2certifier/tools/eab_chk.py  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -vv
+python3 -m acme2certifier.tools.eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -vv
 ```
 
 ```bash
@@ -258,7 +258,7 @@ keyid_03:
 - filter output to a single keyid
 
 ```bash
-py /var/www/acme2certifier/tools/eab_chk.py  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -k keyid_01
+python3 -m acme2certifier.tools.eab_chk  -c /var/www/acme2certifier/acme_srv/acme_srv.cfg -k keyid_01
 ```
 
 ```bash

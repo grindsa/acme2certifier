@@ -62,7 +62,7 @@ Modify the server configuration (`acme_srv/acme_srv.cfg`) and add the following 
 
 ```ini
 [CAhandler]
-handler_file: examples/ca_handler/mswcce_ca_handler.py
+handler_module: acme2certifier.cahandlers.mswcce_ca_handler
 host: <hostname>
 user: <username>
 password: <password>
@@ -144,7 +144,7 @@ Notes:
 
 ```ini
 [CAhandler]
-handler_file: examples/ca_handler/mswcce_ca_handler.py
+handler_module: acme2certifier.cahandlers.mswcce_ca_handler
 host: <ca-hostname>
 target_domain: EXAMPLE.COM
 domain_controller: <dc-ip-or-name>
@@ -224,7 +224,7 @@ This handler supports [EAB profiling](eab_profiling.md), which allows individual
 
 ```ini
 [EABhandler]
-eab_handler_file: examples/eab_handler/kid_profile_handler.py
+eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
 key_file: <profile_file>
 eab_profiling: True
 

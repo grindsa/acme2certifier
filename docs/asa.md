@@ -16,7 +16,7 @@ Modify the server configuration (`/acme_srv/acme_srv.cfg`) and add the following
 
 ```config
 [CAhandler]
-handler_file: examples/ca_handler/asa_ca_handler.py
+handler_module: acme2certifier.cahandlers.asa_ca_handler
 api_host: http://<ip>:<port>
 api_user: <user>
 api_password: <password>

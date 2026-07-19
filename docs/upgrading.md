@@ -60,8 +60,10 @@ python manage.py rename_app acme acme_srv
 cp acme/acme_srv.cfg acme_srv/acme_srv.cfg
 cp examples/db_handler/django_handler.py acme_srv/db_handler.py
 
-# If there is no `handler_file` parameter in `acme_srv.cfg`, copy your CA handler
-cp examples/ca_handler/* acme_srv/
+# Prefer handler_module in acme_srv.cfg, for example:
+#   handler_module: acme2certifier.cahandlers.openssl_ca_handler
+# Legacy handler_file / copy-to-acme_srv/ca_handler.py remain supported but deprecated.
+# See docs/migration_package_layout.md
 ```
 
 ### 6. Start acme2certifier and Verify

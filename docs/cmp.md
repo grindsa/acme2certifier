@@ -49,7 +49,7 @@ The latest version of the documentation for the OpenSSL CMP application can be f
 
 ```config
 [CAhandler]
-handler_file: examples/ca_handler/cmp_ca_handler.py
+handler_module: acme2certifier.cahandlers.cmp_ca_handler
 ```
 
 - Modify the server configuration (`/acme_srv/acme_srv.cfg`) according to your needs. Every parameter used in the OpenSSL CLI command requires a corresponding entry in the `[CAhandler]` section. The entry should be the name of the OpenSSL parameter with the prefix `cmp_`, and the value should match the parameter used in the OpenSSL CLI command. You can also customize the path to your OpenSSL 3.x binary (`cmp_openssl_bin`).

@@ -72,9 +72,11 @@ sudo cp examples/acme2certifier_wsgi.py /var/www/acme2certifier
 
 ```bash
 sudo mkdir /var/www/acme2certifier/examples
+sudo cp -R acme2certifier/ /var/www/acme2certifier/acme2certifier
 sudo cp -R examples/ca_handler/ /var/www/acme2certifier/examples/ca_handler
 sudo cp -R examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler
 sudo cp -R examples/hooks/ /var/www/acme2certifier/examples/hooks
+sudo cp -R examples/db_handler/ /var/www/acme2certifier/examples/db_handler
 sudo cp -R examples/acme_srv.cfg /var/www/acme2certifier/examples/
 sudo cp -R tools/ /var/www/acme2certifier/tools
 ```
@@ -101,9 +103,14 @@ Modify the [configuration file](acme_srv.md) according to your needs.
 
 ## 11. Select and Configure the CA Handler
 
-(Optional) Choose the appropriate CA handler from `examples/ca_handler` and copy it to `/var/www/acme2certifier/acme_srv/ca_handler.py`.
+Configure the CA handler in `acme_srv.cfg` using `handler_module` (preferred), for example:
 
-Configure the CA handler in `acme_srv.cfg`. [Example for Insta Certifier](certifier.md).
+```ini
+[CAhandler]
+handler_module: acme2certifier.cahandlers.openssl_ca_handler
+```
+
+See [Package layout migration](migration_package_layout.md) and the [Insta Certifier example](certifier.md). The older `handler_file` option and copying a handler to `acme_srv/ca_handler.py` remain supported but are deprecated.
 
 ## 12. Activate the WSGI Database Handler
 
