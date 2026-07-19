@@ -5,6 +5,8 @@ Do not add logic here.
 """
 
 import sys
+from acme2certifier.compat import warn_legacy_import
 from acme2certifier.acme_srv import renewalinfo as _impl
 
+warn_legacy_import("acme_srv.renewalinfo", "acme2certifier.acme_srv.renewalinfo")
 sys.modules[__name__] = _impl

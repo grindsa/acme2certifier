@@ -5,6 +5,8 @@ Do not add logic here.
 """
 
 import sys
+from acme2certifier.compat import warn_legacy_import
 from acme2certifier.acme_srv import email_handler as _impl
 
+warn_legacy_import("acme_srv.email_handler", "acme2certifier.acme_srv.email_handler")
 sys.modules[__name__] = _impl

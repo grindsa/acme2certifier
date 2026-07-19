@@ -101,7 +101,8 @@ setup(
         # Real implementation (acme2certifier.acme_srv.*)
         (
             "/var/lib/acme2certifier/acme2certifier/",
-            glob_files("acme2certifier/__init__.py"),
+            glob_files("acme2certifier/__init__.py")
+            + glob_files("acme2certifier/compat.py"),
         ),
         (
             "/var/lib/acme2certifier/acme2certifier/acme_srv/",

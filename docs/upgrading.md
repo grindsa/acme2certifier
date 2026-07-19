@@ -4,7 +4,7 @@
 
 # Upgrading acme2certifier
 
-For the package-layout restructuring (`acme2certifier.acme_srv`, module-based handler loading, and deprecation of `*_file` config keys), see [Package layout migration](migration_package_layout.md).
+For the package-layout restructuring (`acme2certifier.acme_srv`, module-based handler loading, and deprecation of `*_file` config keys), see [Package layout migration](migration_package_layout.md). Compatibility shims and `*_file` keys are planned for removal in **acme2certifier 1.0**.
 
 ## Upgrade to Version 0.17
 

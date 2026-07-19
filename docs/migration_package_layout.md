@@ -13,8 +13,8 @@ This guide describes the restructuring of `acme2certifier` into a proper Python 
 | 1–6 Package layout, shims, dual loader, handler/tool moves, import updates | Complete |
 | 7 Tests and CI | Complete |
 | 8 Documentation | Complete |
-| 9 Deprecation warnings (runtime) | Mostly complete (`*_file` warns today) |
-| 10 Remove shims / deprecated keys | Future release |
+| 9 Deprecation warnings (runtime) | Complete |
+| 10 Remove shims / deprecated keys | Planned for acme2certifier **1.0** |
 
 ## Summary
 
@@ -53,15 +53,28 @@ If both a `*_module` and a `*_file` key are set for the same section, **`*_modul
 
 ## Deprecation warnings
 
-When file-based loading is used, `acme2certifier.acme_srv.helpers.plugin_loader` emits:
+Runtime guidance is centralized in `acme2certifier.compat` and emitted when:
+
+| Trigger | What you see |
+| --- | --- |
+| Config key `handler_file` / `eab_handler_file` / `hooks_file` | Prefer the matching `*_module` key |
+| `*_module` still set to `examples.ca_handler.*` / `examples.eab_handler.*` / `examples.hooks.*` | Prefer `acme2certifier.cahandlers.*` / `eabhandlers.*` / `hookhandlers.*` |
+| Fallback load of `acme_srv.ca_handler` | Set `handler_module` explicitly |
+| Import of a compatibility shim (`acme_srv.*`, `examples.ca_handler.*`, `tools.*`, …) | Import `acme2certifier.*` instead |
+| Default discovery of `acme_srv/acme_srv.cfg` (legacy path) | Place cfg next to the package or set `ACME_SRV_CONFIGFILE` |
+
+Each warning is emitted as:
 
 - a Python `DeprecationWarning`, and
-- a `logger.warning(...)` with the same message.
+- a `logger.warning(...)` when a logger is available (config / plugin loader).
 
-Example message:
+Import warnings are **once per process** per deprecated import (to avoid log spam). Config-key warnings (`*_file`) are emitted on each load.
+
+Example messages:
 
 ```text
-handler_file is deprecated; use handler_module (e.g. acme2certifier.cahandlers.openssl_ca_handler)
+handler_file is deprecated; use handler_module (e.g. acme2certifier.cahandlers.openssl_ca_handler). File-based handler loading will be removed in acme2certifier 1.0.
+Importing 'acme_srv.account' is deprecated; use 'acme2certifier.acme_srv.account' instead. Compatibility shims will be removed in acme2certifier 1.0.
 ```
 
 Notes:
@@ -69,7 +82,14 @@ Notes:
 - `DeprecationWarning` from library code is often filtered by default Python warning filters. Rely on application logs at `WARNING` (or lower) to see the message during normal operation.
 - To also show `DeprecationWarning` on stderr: run with `PYTHONWARNINGS=default` or `python -W default`.
 
-There is **no** hard removal of `*_file` in this release. Removal is planned for a future major cleanup (Phase 10) once migrations are complete.
+### Deprecation timeline
+
+| When | What |
+| --- | --- |
+| **Now** (current release series) | Warnings for legacy imports, `*_file` keys, `examples.*` module paths, and legacy cfg discovery. Behavior unchanged. |
+| **acme2certifier 1.0** (Phase 10) | Planned removal of compatibility shims, `*_file` config keys, and `examples.*` handler module paths. |
+
+There is **no** hard removal before 1.0. Migrate configs and imports when convenient; watch logs for deprecation warnings.
 
 ## Config migration (recommended)
 
