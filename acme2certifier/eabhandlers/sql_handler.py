@@ -11,7 +11,7 @@ import re
 from mssql_python import connect
 from typing import Dict, List, Optional, Tuple
 
-from acme_srv.helper import load_config, csr_cn_get, csr_san_get
+from acme2certifier.acme_srv.helper import load_config, csr_cn_get, csr_san_get
 
 
 class EABhandler(object):
@@ -164,7 +164,9 @@ class EABhandler(object):
 
         try:
             # look up eab_kid from database based on csr
-            from acme_srv.db_handler import DBstore  # pylint: disable=c0415
+            from acme2certifier.acme_srv.db_handler import (
+                DBstore,
+            )  # pylint: disable=c0415
 
             if revocation:
                 # this is a lookup for a revocation request

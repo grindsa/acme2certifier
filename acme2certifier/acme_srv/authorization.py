@@ -6,30 +6,30 @@ from __future__ import print_function
 import json
 from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
-from acme_srv.db_handler import DBstore
-from acme_srv.challenge import Challenge
-from acme_srv.challenge_validators.dns_persist_validator import (
+from acme2certifier.acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.challenge import Challenge
+from acme2certifier.acme_srv.challenge_validators.dns_persist_validator import (
     DnsPersistChallengeValidator,
     ChallengeContext,
 )
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     generate_random_string,
     uts_now,
     uts_to_date_utc,
     string_sanitize,
 )
-from acme_srv.helpers.config import (
+from acme2certifier.acme_srv.helpers.config import (
     load_config,
     config_eab_profile_load,
     config_dns_server_list_load,
 )
-from acme_srv.helpers.domain_utils import (
+from acme2certifier.acme_srv.helpers.domain_utils import (
     is_domain_whitelisted,
     is_ip_whitelisted,
     is_email_whitelisted,
 )
-from acme_srv.message import Message
-from acme_srv.nonce import Nonce
+from acme2certifier.acme_srv.message import Message
+from acme2certifier.acme_srv.nonce import Nonce
 
 NO_ORDER_INFO_LOG = "No order information found for authorization %s"
 

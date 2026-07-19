@@ -5,9 +5,13 @@ import configparser
 import json
 import logging
 import os
+import warnings
 from typing import Dict, List, Optional, Tuple
 from .plugin_loader import eab_handler_load
 from .global_variables import PARSING_ERR_MSG
+
+# Emit legacy acme_srv.cfg path deprecation at most once per process.
+_LEGACY_ACME_SRV_CFG_WARNED = False
 
 
 def config_check(logger: logging.Logger, config_dic: Dict):
@@ -310,49 +314,44 @@ def _default_acme_srv_cfg_file(
     helpers_dir = os.path.dirname(os.path.abspath(__file__))
     pkg_dir = os.path.dirname(helpers_dir)  # .../acme_srv (new or install tree)
     install_or_repo_root = os.path.dirname(os.path.dirname(pkg_dir))
-    log.info(
-        "Helper._default_acme_srv_cfg_file(): helpers_dir=%s pkg_dir=%s "
-        "install_or_repo_root=%s",
-        helpers_dir,
-        pkg_dir,
-        install_or_repo_root,
+
+    packaged_cfg = os.path.join(pkg_dir, "acme_srv.cfg")
+    legacy_cfg = os.path.join(install_or_repo_root, "acme_srv", "acme_srv.cfg")
+    log.debug(
+        "Helper._default_acme_srv_cfg_file(): candidates packaged=%s legacy=%s",
+        packaged_cfg,
+        legacy_cfg,
     )
 
-    candidates = [
-        os.path.join(pkg_dir, "acme_srv.cfg"),
-        os.path.join(install_or_repo_root, "acme_srv", "acme_srv.cfg"),
-    ]
-    log.info(
-        "Helper._default_acme_srv_cfg_file(): candidates=%s",
-        candidates,
-    )
-
-    for candidate in candidates:
-        if os.path.isfile(candidate):
-            log.info(
-                "Helper._default_acme_srv_cfg_file(): using existing file %s",
-                candidate,
-            )
-            log.debug(
-                "Helper._default_acme_srv_cfg_file() ended with %s",
-                candidate,
-            )
-            return candidate
-        log.info(
-            "Helper._default_acme_srv_cfg_file(): candidate not found: %s",
-            candidate,
+    if os.path.isfile(packaged_cfg):
+        log.debug(
+            "Helper._default_acme_srv_cfg_file() ended with packaged %s",
+            packaged_cfg,
         )
+        return packaged_cfg
 
-    log.info(
-        "Helper._default_acme_srv_cfg_file(): no candidate exists; "
-        "falling back to first candidate %s",
-        candidates[0],
-    )
+    if os.path.isfile(legacy_cfg):
+        global _LEGACY_ACME_SRV_CFG_WARNED  # pylint: disable=global-statement
+        if not _LEGACY_ACME_SRV_CFG_WARNED:
+            message = (
+                f"Loading acme_srv.cfg from legacy path {legacy_cfg}; "
+                f"prefer placing it next to the package ({packaged_cfg}) "
+                "or set ACME_SRV_CONFIGFILE"
+            )
+            warnings.warn(message, DeprecationWarning, stacklevel=3)
+            log.warning(message)
+            _LEGACY_ACME_SRV_CFG_WARNED = True
+        log.debug(
+            "Helper._default_acme_srv_cfg_file() ended with legacy %s",
+            legacy_cfg,
+        )
+        return legacy_cfg
+
     log.debug(
         "Helper._default_acme_srv_cfg_file() ended with fallback %s",
-        candidates[0],
+        packaged_cfg,
     )
-    return candidates[0]
+    return packaged_cfg
 
 
 def load_config(
@@ -367,37 +366,24 @@ def load_config(
     )
 
     if not cfg_file:
-        log.info("Helper.load_config(): cfg_file not provided")
         if "ACME_SRV_CONFIGFILE" in os.environ:
             cfg_file = os.environ["ACME_SRV_CONFIGFILE"]
-            log.info(
+            log.debug(
                 "Helper.load_config(): using ACME_SRV_CONFIGFILE=%s",
                 cfg_file,
             )
         else:
-            log.info(
-                "Helper.load_config(): ACME_SRV_CONFIGFILE unset; "
-                "resolving default path"
-            )
             cfg_file = _default_acme_srv_cfg_file(log)
     else:
-        log.info("Helper.load_config(): using explicit cfg_file=%s", cfg_file)
+        log.debug("Helper.load_config(): using explicit cfg_file=%s", cfg_file)
 
-    log.info("Helper.load_config(): reading config from %s", cfg_file)
     log.debug("load_config(%s:%s)", mfilter, cfg_file)
     config = configparser.ConfigParser(interpolation=None)
     config.optionxform = str
     read_ok = config.read(cfg_file, encoding="utf8")
-    if read_ok:
-        log.info(
-            "Helper.load_config(): successfully read %s (sections=%s)",
-            read_ok,
-            list(config.sections()),
-        )
-    else:
-        log.info(
-            "Helper.load_config(): config.read() returned empty list "
-            "(file missing or unreadable): %s",
+    if not read_ok:
+        log.warning(
+            "Helper.load_config(): could not read config file %s",
             cfg_file,
         )
     log.debug(
@@ -453,7 +439,7 @@ def profile_lookup(logger: logging.Logger, csr: str) -> str:
     """get profile name from csr"""
     logger.debug("Helper.profile_lookup()")
 
-    from acme_srv.db_handler import DBstore  # pylint: disable=c0415
+    from acme2certifier.acme_srv.db_handler import DBstore  # pylint: disable=c0415
 
     dbstore = DBstore(logger=logger)
 

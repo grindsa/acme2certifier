@@ -9,7 +9,7 @@ from typing import List, Tuple, Dict
 import requests
 
 # pylint: disable=e0401, r0913
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     b64_encode,
     b64_url_recode,
     build_pem_file,

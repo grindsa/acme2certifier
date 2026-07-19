@@ -28,7 +28,11 @@ class SourceAddressValidator(ChallengeValidator):
         self.logger.debug("SourceAddressValidator.perform_validation() called")
         # Import here to avoid circular imports
         try:
-            from acme_srv.helper import fqdn_resolve, ip_validate, ptr_resolve
+            from acme2certifier.acme_srv.helper import (
+                fqdn_resolve,
+                ip_validate,
+                ptr_resolve,
+            )
         except ImportError as e:
             return ValidationResult(
                 success=False,
@@ -136,7 +140,7 @@ class SourceAddressValidator(ChallengeValidator):
         )
 
         try:
-            from acme_srv.helper import fqdn_resolve
+            from acme2certifier.acme_srv.helper import fqdn_resolve
 
             # Resolve the domain to IP addresses
             resolved_ips, _invalid, error_message = fqdn_resolve(
@@ -191,7 +195,7 @@ class SourceAddressValidator(ChallengeValidator):
             domain,
         )
         try:
-            from acme_srv.helper import ptr_resolve
+            from acme2certifier.acme_srv.helper import ptr_resolve
 
             # Perform reverse lookup on source address
             reverse_domains = ptr_resolve(

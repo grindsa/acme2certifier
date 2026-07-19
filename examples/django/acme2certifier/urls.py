@@ -3,7 +3,7 @@
 from django.urls import include, re_path
 from django.contrib import admin
 from acme_srv import views
-from acme_srv.helper import load_config
+from acme2certifier.acme_srv.helper import load_config
 from django.views.generic import RedirectView
 
 # load config to set url_prefix

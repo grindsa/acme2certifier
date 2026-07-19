@@ -17,8 +17,8 @@ sys.path.append(
         os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)
     )
 )
-from acme_srv.helper import logger_setup  # nopep8
-from examples.ca_handler.pkcs7_soap_ca_handler import (
+from acme2certifier.acme_srv.helper import logger_setup  # nopep8
+from acme2certifier.cahandlers.pkcs7_soap_ca_handler import (
     binary_read,
     binary_write,
     CAhandler,

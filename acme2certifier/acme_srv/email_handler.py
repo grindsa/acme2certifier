@@ -8,7 +8,7 @@ import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from typing import Dict, List, Callable, Optional, Any
-from acme_srv.helper import load_config
+from acme2certifier.acme_srv.helper import load_config
 
 
 class EmailHandler:

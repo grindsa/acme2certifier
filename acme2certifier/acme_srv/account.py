@@ -5,7 +5,7 @@ from __future__ import print_function
 import json
 from typing import List, Tuple, Dict, Optional
 from dataclasses import dataclass, field
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     generate_random_string,
     validate_email,
     date_to_datestr,
@@ -16,10 +16,10 @@ from acme_srv.helper import (
     uts_to_date_utc,
     uts_now,
 )
-from acme_srv.db_handler import DBstore
-from acme_srv.message import Message
+from acme2certifier.acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.message import Message
 
-from acme_srv.signature import Signature
+from acme2certifier.acme_srv.signature import Signature
 
 DB_ERROR_MSG = "Database error"
 

@@ -16,7 +16,7 @@ sys.path.append(
     )
 )
 # pylint: disable=E0401, E0611, C0209, C0413
-from acme_srv.helper import logger_setup  # nopep8
+from acme2certifier.acme_srv.helper import logger_setup  # nopep8
 from acme2certifier.cahandlers.entrust_ca_handler import CAhandler  # nopep8
 
 

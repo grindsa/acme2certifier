@@ -13,11 +13,11 @@ sys.path.append(
         os.path.join(os.path.dirname(__file__), os.path.pardir, os.path.pardir)
     )
 )
-from acme_srv.db_handler import initialize  # nopep8
+from acme2certifier.acme_srv.db_handler import initialize  # nopep8
 
 initialize()
-from acme_srv.helper import logger_setup  # nopep8
-from acme_srv.certificate import Certificate  # nopep8
+from acme2certifier.acme_srv.helper import logger_setup  # nopep8
+from acme2certifier.acme_srv.certificate import Certificate  # nopep8
 
 if __name__ == "__main__":
 

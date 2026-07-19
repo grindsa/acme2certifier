@@ -6,7 +6,11 @@ Implements validation logic for email-reply-00 challenges.
 
 from typing import Optional, Tuple
 from .base import ChallengeValidator, ChallengeContext, ValidationResult
-from acme_srv.helper import b64_url_encode, convert_byte_to_string, sha256_hash
+from acme2certifier.acme_srv.helper import (
+    b64_url_encode,
+    convert_byte_to_string,
+    sha256_hash,
+)
 
 
 class EmailReplyChallengeValidator(ChallengeValidator):
@@ -20,7 +24,7 @@ class EmailReplyChallengeValidator(ChallengeValidator):
         """Perform email-reply-00 challenge validation."""
         self.logger.debug("EmailReplyChallengeValidator.perform_validation()")
         try:
-            from acme_srv.email_handler import EmailHandler
+            from acme2certifier.acme_srv.email_handler import EmailHandler
         except ImportError as e:
             return ValidationResult(
                 success=False,

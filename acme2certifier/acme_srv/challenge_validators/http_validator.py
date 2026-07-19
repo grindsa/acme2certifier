@@ -18,7 +18,12 @@ class HttpChallengeValidator(ChallengeValidator):
         """Perform HTTP-01 challenge validation."""
         # Import here to avoid circular imports and missing dependencies
         try:
-            from acme_srv.helper import fqdn_resolve, ip_validate, proxy_check, url_get
+            from acme2certifier.acme_srv.helper import (
+                fqdn_resolve,
+                ip_validate,
+                proxy_check,
+                url_get,
+            )
         except ImportError as e:
             return ValidationResult(
                 success=False,

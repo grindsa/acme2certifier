@@ -7,8 +7,8 @@ import sys
 sys.path.insert(0, "..")
 sys.path.insert(1, ".")
 import time  # nopep8
-from acme_srv.helper import logger_setup, uts_to_date_utc  # nopep8
-from acme_srv.housekeeping import Housekeeping  # nopep8
+from acme2certifier.acme_srv.helper import logger_setup, uts_to_date_utc  # nopep8
+from acme2certifier.acme_srv.housekeeping import Housekeeping  # nopep8
 
 if __name__ == "__main__":
 

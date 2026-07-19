@@ -353,7 +353,7 @@ class ChallengeFactory:
             ):
                 # send challange email
                 # pylint: disable=import-outside-toplevel
-                from acme_srv.email_handler import EmailHandler
+                from acme2certifier.acme_srv.email_handler import EmailHandler
 
                 with EmailHandler(logger=self.logger) as email_handler:
                     email_handler.send_email_challenge(

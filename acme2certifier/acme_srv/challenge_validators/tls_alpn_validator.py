@@ -18,7 +18,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
         """Perform TLS-ALPN-01 challenge validation."""
         self.logger.debug("TlsAlpnChallengeValidator.perform_validation()")
         try:
-            from acme_srv.helper import (
+            from acme2certifier.acme_srv.helper import (
                 fqdn_resolve,
                 ip_validate,
                 proxy_check,
@@ -151,7 +151,7 @@ class TlsAlpnChallengeValidator(ChallengeValidator):
             "TlsAlpnChallengeValidator._validate_certificate_extensions()"
         )
         try:
-            from acme_srv.helper import (
+            from acme2certifier.acme_srv.helper import (
                 cert_san_get,
                 fqdn_in_san_check,
                 cert_extensions_get,

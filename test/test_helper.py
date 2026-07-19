@@ -2721,32 +2721,25 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         )
 
     def test_252_eab_handler_load(self):
-        """test eab_handler_load"""
+        """test eab_handler_load without EABhandler section"""
         config_dic = {"foo": "bar"}
-        with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertFalse(self.eab_handler_load(self.logger, config_dic))
-        self.assertIn(
-            "ERROR:test_a2c:EABhandler configuration missing in config file", lcm.output
-        )
+        self.assertFalse(self.eab_handler_load(self.logger, config_dic))
 
-    @patch("importlib.import_module")
-    def test_253_eab_handler_load(self, mock_imp):
-        """test eab_handler_load"""
+    def test_253_eab_handler_load(self):
+        """test eab_handler_load with incomplete EABhandler section"""
         config_dic = {"EABhandler": {"foo": "bar"}}
-        mock_imp.side_effect = Exception("exc_mock_imp")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eab_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:Loading default EABhandler failed with err: exc_mock_imp",
+            "WARNING:test_a2c:EABhandler section present but neither "
+            "eab_handler_module nor eab_handler_file is set",
             lcm.output,
         )
 
-    @patch("importlib.import_module")
-    def test_254_eab_handler_load(self, mock_imp):
-        """test eab_handler_load"""
+    def test_254_eab_handler_load(self):
+        """test eab_handler_load with incomplete EABhandler section returns None"""
         config_dic = {"EABhandler": {"foo": "bar"}}
-        mock_imp.return_value = "foo"
-        self.assertEqual("foo", self.eab_handler_load(self.logger, config_dic))
+        self.assertFalse(self.eab_handler_load(self.logger, config_dic))
 
     @patch("importlib.util")
     def test_255_eab_handler_load(self, mock_util):
@@ -2755,32 +2748,36 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         mock_util.module_from_spec = Mock(return_value="foo")
         self.assertEqual("foo", self.eab_handler_load(self.logger, config_dic))
 
-    @patch("importlib.import_module")
     @patch("importlib.util")
-    def test_256_eab_handler_load(self, mock_util, mock_imp):
-        """test eab_handler_load"""
+    def test_256_eab_handler_load(self, mock_util):
+        """test eab_handler_load when eab_handler_file load fails"""
         config_dic = {"EABhandler": {"eab_handler_file": "foo"}}
         mock_util.module_from_spec.side_effect = Exception("exc_mock_util")
-        mock_imp.return_value = "foo"
         with self.assertLogs("test_a2c", level="INFO") as lcm:
-            self.assertEqual("foo", self.eab_handler_load(self.logger, config_dic))
+            self.assertFalse(self.eab_handler_load(self.logger, config_dic))
         self.assertIn(
             "CRITICAL:test_a2c:Loading EABhandler configured in cfg failed with err: exc_mock_util",
             lcm.output,
         )
+        self.assertIn(
+            "WARNING:test_a2c:EAB handler_file load failed",
+            lcm.output,
+        )
 
-    @patch("importlib.import_module")
     @patch("importlib.util")
-    def test_257_eab_handler_load(self, mock_util, mock_imp):
-        """test eab_handler_load"""
+    def test_257_eab_handler_load(self, mock_util):
+        """test eab_handler_load when eab_handler_file load fails returns None"""
         config_dic = {"EABhandler": {"eab_handler_file": "foo"}}
         mock_util.module_from_spec.side_effect = Exception("exc_mock_util")
-        mock_imp.side_effect = Exception("exc_mock_imp")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eab_handler_load(self.logger, config_dic))
         self.assertIn(
-            "CRITICAL:test_a2c:Loading default EABhandler failed with err: exc_mock_imp",
+            "CRITICAL:test_a2c:Loading EABhandler configured in cfg failed with err: exc_mock_util",
             lcm.output,
+        )
+        self.assertNotIn(
+            "Loading default EABhandler failed",
+            "".join(lcm.output),
         )
 
     def test_258_hooks_load(self):
@@ -2865,9 +2862,7 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
                 "from_module", self.ca_handler_load(self.logger, config_dic)
             )
         self.assertFalse(mock_util.spec_from_file_location.called)
-        self.assertTrue(
-            any("ignoring handler_file" in line for line in lcm.output)
-        )
+        self.assertTrue(any("ignoring handler_file" in line for line in lcm.output))
 
     def test_262_error_dic_get(self):
         """test error_dic_get"""
@@ -3208,7 +3203,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         """header_info_get ()"""
         models_mock = MagicMock()
         models_mock.DBstore().certificates_search.return_value = ("foo", "bar")
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         self.assertEqual(["foo", "bar"], self.header_info_get(self.logger, "csr"))
 
@@ -3216,7 +3211,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         """header_info_get ()"""
         models_mock = MagicMock()
         models_mock.DBstore().certificates_search.side_effect = Exception("mock_search")
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.header_info_get(self.logger, "csr"))
@@ -4999,7 +4994,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         models_mock.DBstore().certificates_search.return_value = [
             {"foo": "bar", "order__profile": "order_profile"}
         ]
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         self.assertEqual("order_profile", self.profile_lookup(self.logger, "csr"))
 
@@ -5007,7 +5002,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         """profile_lookup ()"""
         models_mock = MagicMock()
         models_mock.DBstore().certificates_search.return_value = None
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         self.assertFalse(self.profile_lookup(self.logger, "csr"))
 
@@ -5015,7 +5010,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         """profile_lookup ()"""
         models_mock = MagicMock()
         models_mock.DBstore().certificates_search.return_value = [{"foo": "bar"}]
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         self.assertFalse(self.profile_lookup(self.logger, "csr"))
 
@@ -5023,7 +5018,7 @@ jX1vlY35Ofonc4+6dRVamBiF9A==
         """profile_lookup ()"""
         models_mock = MagicMock()
         models_mock.DBstore().certificates_search.side_effect = Exception("mock_search")
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.profile_lookup(self.logger, "csr"))

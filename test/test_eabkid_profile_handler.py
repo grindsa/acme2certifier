@@ -371,7 +371,7 @@ class TestACMEHandler(unittest.TestCase):
             "foo": "bar",
             "order__account__eab_kid": "eab_kid",
         }
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         self.assertEqual(
             {"foo_parameter": "bar_parameter"}, self.eabhandler.eab_profile_get("csr")
@@ -388,7 +388,7 @@ class TestACMEHandler(unittest.TestCase):
             "foo": "bar",
             "order__account__eab_kid": "eab_kid",
         }
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         self.assertFalse(self.eabhandler.eab_profile_get("csr"))
 
@@ -403,7 +403,7 @@ class TestACMEHandler(unittest.TestCase):
             "foo": "bar",
             "1order__account__eab_kid": "eab_kid",
         }
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         self.assertFalse(self.eabhandler.eab_profile_get("csr"))
 
@@ -418,7 +418,7 @@ class TestACMEHandler(unittest.TestCase):
             "foo": "bar",
             "order__account__eab_kid": "eab_kid1",
         }
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         self.assertFalse(self.eabhandler.eab_profile_get("csr"))
 
@@ -430,7 +430,7 @@ class TestACMEHandler(unittest.TestCase):
         }
         models_mock = MagicMock()
         models_mock.DBstore().certificate_lookup.side_effect = Exception("ex_db_lookup")
-        modules = {"acme_srv.db_handler": models_mock}
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertFalse(self.eabhandler.eab_profile_get("csr"))

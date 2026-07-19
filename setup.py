@@ -5,7 +5,7 @@ import typing as t
 from setuptools import setup
 import shutil
 from glob import glob
-from acme_srv.version import __version__
+from acme2certifier.acme_srv.version import __version__
 
 
 def glob_files(pattern: str) -> t.List[str]:

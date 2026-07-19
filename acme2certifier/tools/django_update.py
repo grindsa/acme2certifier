@@ -39,11 +39,13 @@ def setup_django():
         django = django_module
         django.setup()
         from django.core.management import call_command as django_call_command  # nopep8
-        from acme_srv.models import (
+        from acme2certifier.acme_srv.models import (
             Status as StatusModel,
             Housekeeping as HousekeepingModel,
         )  # nopep8
-        from acme_srv.version import __dbversion__ as db_version  # nopep8
+        from acme2certifier.acme_srv.version import (
+            __dbversion__ as db_version,
+        )  # nopep8
 
         call_command = django_call_command
         Status = StatusModel

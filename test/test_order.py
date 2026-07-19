@@ -11,7 +11,7 @@ import json
 import os
 import sys
 
-# Inject a mock acme_srv.db_handler.DBstore into sys.modules if missing
+# Inject a mock acme2certifier.acme_srv.db_handler.DBstore into sys.modules if missing
 import types as _types
 
 sys.path.insert(0, ".")
@@ -29,8 +29,10 @@ class TestOrderRepository(unittest.TestCase):
     def setUp(self):
 
         models_mock = MagicMock()
-        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
-        modules = {"acme_srv.db_handler": models_mock}
+        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
+            FakeDBStore
+        )
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
 
@@ -292,8 +294,10 @@ class TestOrderClass(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
-        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
-        modules = {"acme_srv.db_handler": models_mock}
+        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
+            FakeDBStore
+        )
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
 

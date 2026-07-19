@@ -28,7 +28,7 @@ DJANGO_VERSION = initialize()
 from django.conf import settings  # nopep8
 from django.db import transaction  # nopep8
 from django.db.models import QuerySet  # nopep8
-from acme_srv.models import (
+from acme2certifier.acme_srv.models import (
     Account,
     Authorization,
     Cahandler,
@@ -42,7 +42,7 @@ from acme_srv.models import (
 )  # nopep8
 
 if DJANGO_VERSION < 4:
-    import acme_srv.monkey_patches  # nopep8 lgtm [py/unused-import]
+    import acme2certifier.acme_srv.monkey_patches  # nopep8 lgtm [py/unused-import]
 
 
 class DBstore(object):

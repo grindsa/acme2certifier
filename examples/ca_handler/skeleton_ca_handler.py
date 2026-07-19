@@ -4,7 +4,7 @@ from __future__ import print_function
 from typing import Tuple
 
 # pylint: disable=e0401
-from acme_srv.helper import load_config, header_info_get
+from acme2certifier.acme_srv.helper import load_config, header_info_get
 
 
 class CAhandler(object):

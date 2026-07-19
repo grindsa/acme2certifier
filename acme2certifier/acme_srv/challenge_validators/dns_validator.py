@@ -17,7 +17,11 @@ class DnsChallengeValidator(ChallengeValidator):
         """Perform DNS-01 challenge validation."""
         self.logger.debug("DnsChallengeValidator.perform_validation()")
         try:
-            from acme_srv.helper import b64_url_encode, sha256_hash, txt_get
+            from acme2certifier.acme_srv.helper import (
+                b64_url_encode,
+                sha256_hash,
+                txt_get,
+            )
         except ImportError as e:
             return ValidationResult(
                 success=False,

@@ -26,8 +26,10 @@ class TestAccountRepository(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
-        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
-        modules = {"acme_srv.db_handler": models_mock}
+        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
+            FakeDBStore
+        )
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
 
@@ -154,8 +156,10 @@ class TestExternalAccountBinding(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
-        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
-        modules = {"acme_srv.db_handler": models_mock}
+        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
+            FakeDBStore
+        )
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
 
@@ -391,8 +395,10 @@ class TestAccount(unittest.TestCase):
     def setUp(self):
         """setup unittest"""
         models_mock = MagicMock()
-        models_mock.acme_srv.db_handler.DBstore.return_value = FakeDBStore
-        modules = {"acme_srv.db_handler": models_mock}
+        models_mock.acme2certifier.acme_srv.db_handler.DBstore.return_value = (
+            FakeDBStore
+        )
+        modules = {"acme2certifier.acme_srv.db_handler": models_mock}
         patch.dict("sys.modules", modules).start()
         import logging
 

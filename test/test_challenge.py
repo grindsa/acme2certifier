@@ -14,7 +14,7 @@ class TestChallengeConfiguration(unittest.TestCase):
         mock_db_handler = MagicMock()
         mock_dbstore_class = MagicMock()
         mock_db_handler.DBstore = mock_dbstore_class
-        sys.modules["acme_srv.db_handler"] = mock_db_handler
+        sys.modules["acme2certifier.acme_srv.db_handler"] = mock_db_handler
 
         # Import after mocking
         from acme_srv.challenge import ChallengeConfiguration
@@ -24,8 +24,8 @@ class TestChallengeConfiguration(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         """Clean up module mocks"""
-        if "acme_srv.db_handler" in sys.modules:
-            del sys.modules["acme_srv.db_handler"]
+        if "acme2certifier.acme_srv.db_handler" in sys.modules:
+            del sys.modules["acme2certifier.acme_srv.db_handler"]
         if "acme_srv.challenge" in sys.modules:
             del sys.modules["acme_srv.challenge"]
 
@@ -51,11 +51,11 @@ class TestDatabaseChallengeRepository(unittest.TestCase):
         import logging
 
         # Mock the missing db_handler module if not already done
-        if "acme_srv.db_handler" not in sys.modules:
+        if "acme2certifier.acme_srv.db_handler" not in sys.modules:
             mock_db_handler = MagicMock()
             mock_dbstore_class = MagicMock()
             mock_db_handler.DBstore = mock_dbstore_class
-            sys.modules["acme_srv.db_handler"] = mock_db_handler
+            sys.modules["acme2certifier.acme_srv.db_handler"] = mock_db_handler
 
         # Import after ensuring mocking
         from acme_srv.challenge import DatabaseChallengeRepository
@@ -282,11 +282,11 @@ class TestChallenge(unittest.TestCase):
         import logging
 
         # Mock the missing db_handler module if not already done
-        if "acme_srv.db_handler" not in sys.modules:
+        if "acme2certifier.acme_srv.db_handler" not in sys.modules:
             mock_db_handler = MagicMock()
             mock_dbstore_class = MagicMock()
             mock_db_handler.DBstore = mock_dbstore_class
-            sys.modules["acme_srv.db_handler"] = mock_db_handler
+            sys.modules["acme2certifier.acme_srv.db_handler"] = mock_db_handler
 
         # Import after ensuring mocking
         from acme_srv.challenge import (

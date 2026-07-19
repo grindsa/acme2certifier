@@ -17,7 +17,7 @@ sys.path.insert(0, "..")
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     b64_encode,
     b64_decode,
     b64_url_encode,
@@ -28,7 +28,7 @@ from acme_srv.helper import (
 )  # nopep8
 
 # pylint: disable=e0611
-from examples.ca_handler.xca_ca_handler import CAhandler  # nopep8
+from acme2certifier.cahandlers.xca_ca_handler import CAhandler  # nopep8
 
 
 def arg_parse():

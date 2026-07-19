@@ -4,9 +4,9 @@
 from __future__ import print_function
 import json
 from typing import List, Tuple, Dict
-from acme_srv.certificate import Certificate
-from acme_srv.db_handler import DBstore
-from acme_srv.helper import (
+from acme2certifier.acme_srv.certificate import Certificate
+from acme2certifier.acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.helper import (
     convert_byte_to_string,
     cert_pubkey_get,
     csr_pubkey_get,

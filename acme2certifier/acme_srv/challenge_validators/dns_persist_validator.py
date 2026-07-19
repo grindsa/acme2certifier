@@ -36,7 +36,7 @@ class DnsPersistChallengeValidator(ChallengeValidator):
         self.logger.debug("DnsPersistChallengeValidator.perform_validation()")
 
         try:
-            from acme_srv.helper import txt_get, uts_now
+            from acme2certifier.acme_srv.helper import txt_get, uts_now
         except ImportError as err:
             self.logger.error(
                 "DnsPersistChallengeValidator dependencies unavailable: %s", err

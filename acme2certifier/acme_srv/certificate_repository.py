@@ -3,7 +3,7 @@
 
 from abc import ABC, abstractmethod
 from typing import Dict, List, Any, Optional, Union, Tuple
-from acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.db_handler import DBstore
 
 
 class CertificateRepository(ABC):

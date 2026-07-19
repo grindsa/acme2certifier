@@ -559,7 +559,7 @@ def header_info_get(
     logger.debug("Helper.header_info_get()")
 
     try:
-        from acme_srv.db_handler import DBstore  # pylint: disable=c0415
+        from acme2certifier.acme_srv.db_handler import DBstore  # pylint: disable=c0415
 
         dbstore = DBstore(logger=logger)
         result = dbstore.certificates_search(field_name, csr, vlist)

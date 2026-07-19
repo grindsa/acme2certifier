@@ -6,7 +6,7 @@ import json
 import copy
 from typing import Any, List, Tuple, Dict, Optional
 from dataclasses import dataclass, field
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     b64_url_recode,
     ca_handler_load,
     config_allowed_domainlist_load,
@@ -24,13 +24,13 @@ from acme_srv.helper import (
     config_dryrun_load,
     is_ip_whitelisted,
 )
-from acme_srv.certificate import Certificate
-from acme_srv.db_handler import DBstore
-from acme_srv.helpers.global_variables import (
+from acme2certifier.acme_srv.certificate import Certificate
+from acme2certifier.acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.helpers.global_variables import (
     DRYRUN_ENROLLMENT_SKIPPED_DETAIL,
     ENROLLMENT_FAILED_DETAIL,
 )
-from acme_srv.message import Message
+from acme2certifier.acme_srv.message import Message
 
 
 class OrderDatabaseError(Exception):

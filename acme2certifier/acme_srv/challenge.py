@@ -8,7 +8,7 @@ from configparser import ConfigParser
 from typing import List, Tuple, Dict, Optional, Any
 from dataclasses import dataclass
 from threading import Thread
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     generate_random_string,
     jwk_thumbprint_get,
     parse_url,
@@ -20,17 +20,19 @@ from acme_srv.helper import (
     config_async_mode_load,
     config_dns_server_list_load,
 )
-from acme_srv.db_handler import DBstore
-from acme_srv.message import Message
+from acme2certifier.acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.message import Message
 
 # Import our modules
-from acme_srv.challenge_validators import (
+from acme2certifier.acme_srv.challenge_validators import (
     ChallengeContext,
     ValidationResult,
 )
-from acme_srv.challenge_registry_setup import create_challenge_validator_registry
+from acme2certifier.acme_srv.challenge_registry_setup import (
+    create_challenge_validator_registry,
+)
 
-from acme_srv.challenge_business_logic import (
+from acme2certifier.acme_srv.challenge_business_logic import (
     ChallengeRepository,
     ChallengeStateManager,
     ChallengeFactory,
@@ -39,7 +41,7 @@ from acme_srv.challenge_business_logic import (
     ChallengeCreationRequest,
     ChallengeUpdateRequest,
 )
-from acme_srv.challenge_error_handling import (
+from acme2certifier.acme_srv.challenge_error_handling import (
     ErrorHandler,
     ValidationError,
     DatabaseError,

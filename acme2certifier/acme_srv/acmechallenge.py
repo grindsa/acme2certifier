@@ -2,7 +2,7 @@
 """acmechallenge class"""
 
 from __future__ import print_function
-from acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.db_handler import DBstore
 
 
 class Acmechallenge(object):

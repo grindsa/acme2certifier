@@ -4,26 +4,26 @@
 from __future__ import unicode_literals, print_function
 from django.http import HttpResponse, HttpResponseNotFound
 from django.utils.html import escape
-from acme_srv.a2c_response import JsonResponse
-from acme_srv.authorization import Authorization
-from acme_srv.account import Account
-from acme_srv.certificate import Certificate
-from acme_srv.challenge import Challenge
-from acme_srv.directory import Directory
-from acme_srv.helper import (
+from acme2certifier.acme_srv.a2c_response import JsonResponse
+from acme2certifier.acme_srv.authorization import Authorization
+from acme2certifier.acme_srv.account import Account
+from acme2certifier.acme_srv.certificate import Certificate
+from acme2certifier.acme_srv.challenge import Challenge
+from acme2certifier.acme_srv.directory import Directory
+from acme2certifier.acme_srv.helper import (
     get_url,
     load_config,
     logger_setup,
     logger_info,
     config_check,
 )
-from acme_srv.housekeeping import Housekeeping
-from acme_srv.nonce import Nonce
-from acme_srv.order import Order
-from acme_srv.renewalinfo import Renewalinfo
-from acme_srv.trigger import Trigger
-from acme_srv.version import __dbversion__, __version__
-from acme_srv.acmechallenge import Acmechallenge
+from acme2certifier.acme_srv.housekeeping import Housekeeping
+from acme2certifier.acme_srv.nonce import Nonce
+from acme2certifier.acme_srv.order import Order
+from acme2certifier.acme_srv.renewalinfo import Renewalinfo
+from acme2certifier.acme_srv.trigger import Trigger
+from acme2certifier.acme_srv.version import __dbversion__, __version__
+from acme2certifier.acme_srv.acmechallenge import Acmechallenge
 
 # load config to set debug mode
 CONFIG = load_config()

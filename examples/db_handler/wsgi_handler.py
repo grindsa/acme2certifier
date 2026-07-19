@@ -9,8 +9,8 @@ from typing import List, Tuple, Dict
 import os
 
 # pylint: disable=E0401
-from acme_srv.helper import datestr_to_date, load_config
-from acme_srv.version import __dbversion__
+from acme2certifier.acme_srv.helper import datestr_to_date, load_config
+from acme2certifier.acme_srv.version import __dbversion__
 
 # Define constants
 COLUMN_NOT_IN_TABLE_MSG = "Column: %s not found in %s table"

@@ -6,17 +6,17 @@ from __future__ import print_function
 import json
 from typing import Tuple, Dict, Optional
 from dataclasses import dataclass
-from acme_srv.helper import (
+from acme2certifier.acme_srv.helper import (
     decode_message,
     load_config,
     eab_handler_load,
     uts_to_date_utc,
     uts_now,
 )
-from acme_srv.error import Error
-from acme_srv.db_handler import DBstore
-from acme_srv.nonce import Nonce
-from acme_srv.signature import Signature
+from acme2certifier.acme_srv.error import Error
+from acme2certifier.acme_srv.db_handler import DBstore
+from acme2certifier.acme_srv.nonce import Nonce
+from acme2certifier.acme_srv.signature import Signature
 
 
 @dataclass

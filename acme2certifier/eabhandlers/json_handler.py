@@ -7,7 +7,7 @@ import json
 from typing import Dict
 
 # pylint: disable=C0209, E0401
-from acme_srv.helper import load_config
+from acme2certifier.acme_srv.helper import load_config
 
 
 class EABhandler(object):
