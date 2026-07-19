@@ -1,7 +1,9 @@
 """Temporary compatibility layer.
 
-Real implementation lives under the acme2certifier package.
+Real implementation: acme2certifier.tools
 Do not add logic here.
 """
 
-# Compatibility shims for tools
+from acme2certifier.compat import warn_legacy_import
+
+warn_legacy_import("tools", "acme2certifier.tools")

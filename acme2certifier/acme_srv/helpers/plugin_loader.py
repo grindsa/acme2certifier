@@ -7,20 +7,13 @@ import importlib
 import importlib.util
 import logging
 import sys
-import warnings
 from typing import Any, Dict, Optional
 
-
-def _warn_file_deprecated(
-    logger: logging.Logger,
-    file_key: str,
-    module_key: str,
-    example_module: str,
-) -> None:
-    """Emit structured deprecation warnings for file-based handler loading."""
-    message = f"{file_key} is deprecated; use {module_key} " f"(e.g. {example_module})"
-    warnings.warn(message, DeprecationWarning, stacklevel=3)
-    logger.warning(message)
+from acme2certifier.compat import (
+    warn_default_ca_handler,
+    warn_file_config_deprecated,
+    warn_legacy_handler_module,
+)
 
 
 def _load_from_file(
@@ -66,6 +59,7 @@ def _load_from_module(
     logger.debug(
         "Helper.plugin_loader._load_from_module() start module_path=%s", module_path
     )
+    warn_legacy_handler_module(logger, module_path)
     try:
         loaded = importlib.import_module(module_path)
         logger.debug(
@@ -134,7 +128,7 @@ def ca_handler_load(
             "CA handler_module load failed; falling back to default CAhandler"
         )
     elif handler_file:
-        _warn_file_deprecated(
+        warn_file_config_deprecated(
             logger,
             "handler_file",
             "handler_module",
@@ -156,6 +150,7 @@ def ca_handler_load(
         )
 
     logger.info("Attempting default CA handler acme_srv.ca_handler")
+    warn_default_ca_handler(logger)
     try:
         loaded = importlib.import_module("acme_srv.ca_handler")
         logger.info("Loaded default CA handler %s", _loaded_identity(loaded))
@@ -204,7 +199,7 @@ def eab_handler_load(
         return None
 
     if eab_file:
-        _warn_file_deprecated(
+        warn_file_config_deprecated(
             logger,
             "eab_handler_file",
             "eab_handler_module",
@@ -267,7 +262,7 @@ def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_mod
         return None
 
     if hooks_file:
-        _warn_file_deprecated(
+        warn_file_config_deprecated(
             logger,
             "hooks_file",
             "hooks_module",

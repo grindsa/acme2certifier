@@ -336,7 +336,8 @@ def _default_acme_srv_cfg_file(
             message = (
                 f"Loading acme_srv.cfg from legacy path {legacy_cfg}; "
                 f"prefer placing it next to the package ({packaged_cfg}) "
-                "or set ACME_SRV_CONFIGFILE"
+                "or set ACME_SRV_CONFIGFILE. "
+                "Legacy default cfg discovery will change in acme2certifier 1.0."
             )
             warnings.warn(message, DeprecationWarning, stacklevel=3)
             log.warning(message)
