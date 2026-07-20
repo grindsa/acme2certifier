@@ -33,7 +33,7 @@ This guide describes the restructuring of `acme2certifier` into a proper Python 
 - Under `examples/ca_handler/`, `examples/eab_handler/`, and `examples/hooks/` only **skeleton** templates (and EAB sample data files) remain.
 - Tools live under `acme2certifier.tools`. Invoke with `python3 -m acme2certifier.tools.<name>` (top-level `tools/*.py` wrappers are removed; see `tools/README.md`).
 - Handler loading supports both file paths (`*_file`, **deprecated**) and dotted module names (`*_module`, **preferred**).
-- The Django app (`models`, `views`, `urls`, `admin`) remains under top-level `acme_srv/` and imports the package implementation.
+- The Django app (`models`, `views`, `urls`, `admin`) lives under `examples/django/acme_srv/` and imports the package implementation. A top-level `acme_srv/` tree may exist locally for development but is not tracked in the repository.
 
 ## Backwards compatibility
 
