@@ -2,10 +2,11 @@ name: build
 on:
 
   push:
-    branches: [ "**" ]       # build on any branch
+    branches: [ "disabled" ]         # build on any branch
+    #branches: [ "**" ]       # build on any branch
   workflow_dispatch: {}
-  schedule:
-    - cron: '0 01 * * 6'  # Every Saturday morning
+  #schedule:
+  #   - cron: '0 01 * * 6'  # Every Saturday morning
 
 
 jobs:
