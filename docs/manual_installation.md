@@ -36,7 +36,7 @@ python3 setup.py install
 Copy and link required files for the application and web server:
 
 ```sh
-cp /var/lib/acme2certifier/examples/acme2certifier_wsgi.py /var/lib/acme2certifier
+cp /var/lib/acme2certifier/acme2certifier/share/acme2certifier_wsgi.py /var/lib/acme2certifier/
 ln -s /var/lib/acme2certifier/volume/acme_srv.cfg /var/lib/acme2certifier/acme_srv/
 
 cp /var/lib/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf

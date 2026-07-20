@@ -17,6 +17,7 @@ from acme2certifier.acme_srv.helper import (
     logger_info,
     config_check,
 )
+from acme2certifier.acme_srv.db_handler import log_active_db_handler
 from acme2certifier.acme_srv.housekeeping import Housekeeping
 from acme2certifier.acme_srv.nonce import Nonce
 from acme2certifier.acme_srv.order import Order
@@ -32,6 +33,7 @@ DEBUG = CONFIG.getboolean("DEFAULT", "debug", fallback=False)
 # initialize logger
 LOGGER = logger_setup(DEBUG)
 LOGGER.info("starting acme2certifier version %s", __version__)
+log_active_db_handler(LOGGER)
 
 METHOD_NOT_ALLOWED = "Method Not Allowed"
 ERR_DATA_POST = {

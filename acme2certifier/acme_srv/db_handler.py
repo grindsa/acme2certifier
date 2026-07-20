@@ -16,7 +16,7 @@ from __future__ import annotations
 import importlib
 import logging
 import os
-from typing import Any, Dict, Mapping, Optional, Union
+from typing import Any, Dict, Mapping, Optional, Tuple, Union
 
 _LOGGER = logging.getLogger("acme2certifier.db_handler")
 
@@ -27,6 +27,8 @@ _SHORT_NAMES: Dict[str, str] = {
     "wsgi": "acme2certifier.dbhandlers.wsgi_handler",
     "django": "acme2certifier.dbhandlers.django_handler",
 }
+
+_MODULE_TO_SHORT = {module: name for name, module in _SHORT_NAMES.items()}
 
 ConfigLike = Union[Mapping[str, Any], Any]
 
@@ -83,49 +85,68 @@ def _cfg_handler_name(config_dic: Optional[ConfigLike] = None) -> Optional[str]:
     return None
 
 
-def resolve_db_handler_module(config_dic: Optional[ConfigLike] = None) -> str:
-    """Resolve dotted module path for the active DB handler.
-
-    Args:
-        config_dic: Optional config mapping/parser. When omitted, ``load_config()``
-            is used. Pass an explicit dict in tests to avoid filesystem config.
-    """
+def _resolve_db_handler(
+    config_dic: Optional[ConfigLike] = None,
+) -> Tuple[str, str]:
+    """Resolve ``(module_path, source)`` with ``source`` in cfg|env|default."""
     cfg_value = _cfg_handler_name(config_dic)
     if cfg_value:
-        module_path = _normalize_handler(cfg_value)
-        _LOGGER.info("DB handler from acme_srv.cfg: %s", module_path)
-        return module_path
+        return _normalize_handler(cfg_value), "cfg"
 
-    # Only consult env when no explicit config_dic was supplied for testing, or
-    # when that config had no handler selection.
     env_value = os.environ.get(_ENV_NAME, "").strip()
     if env_value:
-        module_path = _normalize_handler(env_value)
-        _LOGGER.info("DB handler from %s: %s", _ENV_NAME, module_path)
-        return module_path
+        return _normalize_handler(env_value), "env"
 
-    module_path = _SHORT_NAMES[_DEFAULT_HANDLER]
-    _LOGGER.info("DB handler default: %s", module_path)
+    return _SHORT_NAMES[_DEFAULT_HANDLER], "default"
+
+
+def resolve_db_handler_module(config_dic: Optional[ConfigLike] = None) -> str:
+    """Resolve dotted module path for the active DB handler."""
+    module_path, _source = _resolve_db_handler(config_dic)
     return module_path
 
 
 def load_db_handler_module(config_dic: Optional[ConfigLike] = None) -> Any:
     """Import and return the configured DB handler module."""
-    module_path = resolve_db_handler_module(config_dic)
+    module_path, source = _resolve_db_handler(config_dic)
     try:
         loaded = importlib.import_module(module_path)
     except Exception as err:
         _LOGGER.critical("Loading DB handler %s failed: %s", module_path, err)
         raise
-    _LOGGER.info(
-        "Loaded DB handler %s (%s)",
-        getattr(loaded, "__name__", module_path),
+    short = _MODULE_TO_SHORT.get(module_path, module_path)
+    _LOGGER.debug(
+        "Loaded DB handler %s (%s) via %s from %s",
+        short,
+        module_path,
+        source,
         getattr(loaded, "__file__", None),
     )
     return loaded
 
 
-_handler_module = load_db_handler_module()
+def active_db_handler_label() -> str:
+    """Human-readable label for the loaded DB handler (e.g. ``wsgi``)."""
+    module_name = getattr(_handler_module, "__name__", "")
+    return _MODULE_TO_SHORT.get(module_name, module_name or "unknown")
+
+
+def log_active_db_handler(logger: logging.Logger) -> None:
+    """Log which DB handler is active (call after ``logger_setup``)."""
+    module_name = getattr(_handler_module, "__name__", "unknown")
+    module_file = getattr(_handler_module, "__file__", None)
+    short = _MODULE_TO_SHORT.get(module_name, module_name)
+    logger.info(
+        "Using DB handler '%s' (%s) selected via %s%s",
+        short,
+        module_name,
+        _handler_source,
+        f" from {module_file}" if module_file else "",
+    )
+
+
+_handler_module_path, _handler_source = _resolve_db_handler()
+_handler_module = importlib.import_module(_handler_module_path)
 
 DBstore = _handler_module.DBstore
 initialize = getattr(_handler_module, "initialize", lambda: None)

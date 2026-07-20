@@ -1,4 +1,4 @@
-examples/acme2certifier_wsgi.py /var/www/acme2certifier/
+acme2certifier/share/acme2certifier_wsgi.py /var/www/acme2certifier/
 acme_srv /var/www/acme2certifier/
 examples/acme_srv.cfg /var/www/acme2certifier/acme_srv/
 examples/ca_handler /var/www/acme2certifier/examples

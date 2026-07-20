@@ -59,7 +59,6 @@ RUN apt-get update  && \
     rm -rf /var/www/acme2certifier/examples/Docker && \
     rm -rf /var/www/acme2certifier/examples/apache2 && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
-    rm -rf /var/www/acme2certifier/examples/acme2certifier_wsgi.py  && \
     rm -rf /var/www/acme2certifier/acme2certifier_wsgi.py  && \
     rm /var/www/acme2certifier/acme2certifier/settings.py && \
     chmod a+rx /docker-entrypoint.sh  # NOSONAR

@@ -47,7 +47,6 @@ RUN apt-get update  && \
     rm -rf /var/www/acme2certifier/examples/django && \
     rm -rf /var/www/acme2certifier/examples/apache2 && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
-    rm -rf /var/www/acme2certifier/examples/acme2certifier_wsgi.py  && \
     chmod a+rx /docker-entrypoint.sh  # NOSONAR
 
 COPY ./examples/nginx/supervisord.conf /etc

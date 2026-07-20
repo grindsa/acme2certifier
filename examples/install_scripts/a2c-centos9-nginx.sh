@@ -36,7 +36,7 @@ cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg /opt/acme2certifie
 # 9 copy db handler
 
 # 10 copy wsgi file
-cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2certifier/
+cp /opt/acme2certifier/acme2certifier/share/acme2certifier_wsgi.py /opt/acme2certifier/
 
 # 16 add uswgi plugin
 echo "## Modify acme2certifier.ini for Redhat/Centos and deviations"

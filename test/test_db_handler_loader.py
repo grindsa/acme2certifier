@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import importlib
+import logging
 import os
 from typing import Dict
 
@@ -74,6 +75,13 @@ def test_load_wsgi_handler_exports_dbstore() -> None:
     loaded = db_handler_mod.load_db_handler_module({"DBhandler": {"handler": "wsgi"}})
     assert hasattr(loaded, "DBstore")
     assert loaded.__name__ == "acme2certifier.dbhandlers.wsgi_handler"
+
+
+def test_log_active_db_handler(caplog: pytest.LogCaptureFixture) -> None:
+    logger = logging.getLogger("test.db_handler_startup")
+    with caplog.at_level(logging.INFO, logger="test.db_handler_startup"):
+        db_handler_mod.log_active_db_handler(logger)
+    assert any("Using DB handler" in rec.message for rec in caplog.records)
 
 
 def test_package_db_handler_reexports_dbstore() -> None:

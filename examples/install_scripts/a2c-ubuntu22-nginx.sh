@@ -19,7 +19,7 @@ sudo pip3 install pyopenssl --upgrade
 echo "## Create directory structure required by acme2certifier"
 sudo mkdir -p /var/www/acme2certifier/examples
 
-sudo cp examples/acme2certifier_wsgi.py /var/www/acme2certifier/acme2certifier_wsgi.py
+sudo cp acme2certifier/share/acme2certifier_wsgi.py /var/www/acme2certifier/acme2certifier_wsgi.py
 sudo cp -R examples/ca_handler/ /var/www/acme2certifier/examples/ca_handler
 sudo cp -R examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler
 sudo cp -R examples/hooks/ /var/www/acme2certifier/examples/hooks

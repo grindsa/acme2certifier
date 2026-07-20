@@ -122,7 +122,7 @@ Remember to:
     %{buildroot}%{dest_dir}/%{projname}/acme_srv/acme_srv.cfg
 
 %{__cp} -a \
-    examples/acme2certifier_wsgi.py \
+    acme2certifier/share/acme2certifier_wsgi.py \
     %{buildroot}%{dest_dir}/%{projname}/
 
 ## Modify acme2certifier.ini for Redhat/Centos and derivations

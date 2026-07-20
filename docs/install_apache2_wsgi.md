@@ -65,7 +65,7 @@ sudo mkdir /var/www/acme2certifier
 ### Copy the WSGI Application
 
 ```bash
-sudo cp examples/acme2certifier_wsgi.py /var/www/acme2certifier
+sudo cp acme2certifier/share/acme2certifier_wsgi.py /var/www/acme2certifier/
 ```
 
 ### Copy Required Directories

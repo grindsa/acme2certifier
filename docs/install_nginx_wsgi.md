@@ -57,7 +57,7 @@ handler: wsgi
 ## 7. Copy the WSGI Application File
 
 ```bash
-sudo cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2certifier/
+sudo cp /opt/acme2certifier/acme2certifier/share/acme2certifier_wsgi.py /opt/acme2certifier/
 ```
 
 ## 8. Set Correct Permissions
