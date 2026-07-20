@@ -109,7 +109,8 @@ acme_srv/models.py
 acme_srv/tests.py
 acme_srv/urls.py
 acme_srv/views.py
-# acme_srv/__init__.py
+# Top-level acme_srv/ is local-only (dev); Django app ships from examples/django/acme_srv/
+acme_srv/__init__.py
 commands.txt
 *.bat
 *.db
