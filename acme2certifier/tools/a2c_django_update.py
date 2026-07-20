@@ -8,7 +8,9 @@ import os
 sys.path.append(
     os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
 )
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "acme2certifier.settings")
+os.environ.setdefault(
+    "DJANGO_SETTINGS_MODULE", "acme2certifier.django_project.settings"
+)
 
 # Global variables to store imported modules (for testing)
 django = None
@@ -39,8 +41,7 @@ def setup_django():
         django = django_module
         django.setup()
         from django.core.management import call_command as django_call_command  # nopep8
-        # Django app models remain under the acme_srv Django package.
-        from acme_srv.models import (
+        from acme2certifier.django_app.models import (
             Status as StatusModel,
             Housekeeping as HousekeepingModel,
         )  # nopep8

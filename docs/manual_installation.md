@@ -68,17 +68,18 @@ When using the django handler configure install and configure the django environ
 
 ```sh
 apt-get install -y python3-django python3-mysqldb python3-pymysql python3-yaml
-cp -R /var/lib/acme2certifier/examples/django/* /var/lib/acme2certifier/
-sed -i "s/acme2certifier_wsgi/acme2certifier.wsgi/g" /var/lib/acme2certifier/acme2certifier.ini
+# optional: start from MySQL template
+cp /var/lib/acme2certifier/examples/django/settings.py \
+  /var/lib/acme2certifier/acme2certifier/django_project/settings.py
+sed -i "s/acme2certifier_wsgi/acme2certifier.django_project.wsgi/g" /var/lib/acme2certifier/acme2certifier.ini
 ```
 
-Modify the `settings.py` according to your needs, create the database tables and load the fixtures.
+Modify `django_project/settings.py` according to your needs, apply migrations and load fixtures.
 
 ```sh
 cd /var/lib/acme2certifier
-python3 manage.py makemigrations
-python3 manage.py migrate
-python3 manage.py loaddata acme_srv/fixture/status.yaml
+a2c-manage migrate
+a2c-manage loaddata status
 chown -R www-data:www-data /var/lib/acme2certifier/
 ```
 

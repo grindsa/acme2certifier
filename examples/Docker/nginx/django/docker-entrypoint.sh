@@ -46,6 +46,7 @@ fi
 # create symlink for the acme_srv.cfg
 if [[ ! -L /var/www/acme2certifier/acme_srv/acme_srv.cfg ]]
 then
+    mkdir -p /var/www/acme2certifier/acme_srv
     ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
     chown www-data /var/www/acme2certifier/volume/acme_srv.cfg
 fi
@@ -53,20 +54,25 @@ fi
 # create symlink for the acme_srv.db
 if [[ ! -L /var/www/acme2certifier/acme_srv/acme_srv.db ]]
 then
+    mkdir -p /var/www/acme2certifier/acme_srv
     ln -s /var/www/acme2certifier/volume/acme_srv.db /var/www/acme2certifier/acme_srv/acme_srv.db
 fi
 
 # create symlink for the ca_handler
 if [[ ! -L /var/www/acme2certifier/acme_srv/ca_handler.py ]]
 then
+    mkdir -p /var/www/acme2certifier/acme_srv
     ln -s /var/www/acme2certifier/volume/ca_handler.py /var/www/acme2certifier/acme_srv/ca_handler.py
 fi
+
+DJANGO_SETTINGS=/var/www/acme2certifier/acme2certifier/django_project/settings.py
+DJANGO_MIGRATIONS=/var/www/acme2certifier/acme2certifier/django_app/migrations
 
 # create settings.py if not existing
 if [[ ! -f /var/www/acme2certifier/volume/settings.py ]]
 then
     echo "no settings.py found! copy settings.py"
-    egrep -v '(# SECURITY WARNING: keep the secret key used in production secret!|^SECRET_KEY)' /var/www/acme2certifier/examples/django/acme2certifier/settings.py > /var/www/acme2certifier/volume/settings.py
+    egrep -v '(# SECURITY WARNING: keep the secret key used in production secret!|^SECRET_KEY)' /var/www/acme2certifier/examples/django/settings.py > /var/www/acme2certifier/volume/settings.py
     ## generate SECRET_KEY
     echo "generating SECRET_KEY"
     DJANGO_SECRET_KEY=$(a2c-django-secret-keygen)
@@ -81,27 +87,26 @@ fi
 # create migrations if not existing
 if [[ ! -d /var/www/acme2certifier/volume/migrations ]]
 then
-    echo "no acme_srv.cfg found! creating acme_srv.cfg" >> /proc/1/fd/1
-    cp  -R /var/www/acme2certifier/examples/django/acme_srv/migrations /var/www/acme2certifier/volume/
-    # mkdir -p /var/www/acme2certifier/volume/migrations
+    echo "copying django migrations to volume" >> /proc/1/fd/1
+    cp -R "$DJANGO_MIGRATIONS" /var/www/acme2certifier/volume/
 fi
 
 # create a symlink for migrations
-if [[ ! -L /var/www/acme2certifier/acme_srv/migrations ]]
+if [[ ! -L "$DJANGO_MIGRATIONS" ]]
 then
     if [[ -d /var/www/acme2certifier/volume/migrations ]]
     then
-        echo "delete migration directory" >> /proc/1/fd/1
-        rm -rf /var/www/acme2certifier/acme_srv/migrations
+        echo "replace migration directory with volume symlink" >> /proc/1/fd/1
+        rm -rf "$DJANGO_MIGRATIONS"
+        ln -s /var/www/acme2certifier/volume/migrations "$DJANGO_MIGRATIONS"
     fi
-    echo "create symlink for migration directory" >> /proc/1/fd/1
-    ln -s /var/www/acme2certifier/volume/migrations /var/www/acme2certifier/acme_srv/
 fi
 
 # create a symlink for settings.py
-if [[ ! -L /var/www/acme2certifier/acme2certifier/settings.py ]]
+if [[ ! -L "$DJANGO_SETTINGS" ]]
 then
-    ln -s /var/www/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/settings.py
+    rm -f "$DJANGO_SETTINGS"
+    ln -s /var/www/acme2certifier/volume/settings.py "$DJANGO_SETTINGS"
 fi
 
 # check if we need to remove django_rename app
@@ -112,9 +117,9 @@ then
 fi
 
 echo "apply migrations"  >> /proc/1/fd/1
-touch /var/www/acme2certifier/acme_srv/migrations/__init__.py
+touch /var/www/acme2certifier/volume/migrations/__init__.py
 a2c-django-update
-python3 manage.py loaddata acme_srv/fixture/status.yaml
+a2c-manage loaddata status
 
 chown -R www-data /var/www/acme2certifier/volume
 chmod u+s /var/www/acme2certifier/volume/

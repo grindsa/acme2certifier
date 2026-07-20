@@ -491,12 +491,13 @@ sudo a2dissite 000-default.conf
 sudo a2dissite default-ssl
 ```
 
-- configure the Django DB handler and copy the django directory structure
+- configure the Django DB handler (optional MySQL settings template)
 
 ```bash
 # in acme_srv.cfg under [DBhandler]:
 #   handler: django
-sudo cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/
+sudo cp /var/www/acme2certifier/examples/django/settings.py \
+  /var/www/acme2certifier/acme2certifier/django_project/settings.py
 ```
 
 - move the acme2certifier configuration file `acme_srv.cfg` into the mirrored directory and create a symbolic link
@@ -536,7 +537,7 @@ python3 -m acme2certifier.tools.a2c_django_secret_keygen
 +%*lei)yj9b841=2d5(u)a&7*uwi@l99$(*&ong@g*p1%q)g$e
 ```
 
-- modify `/var/www/acme2certifier/acme2certifier/settings.py` and
+- modify `/var/www/acme2certifier/acme2certifier/django_project/settings.py` and
   - insert the secret-key created in the previous step
   - update the 'ALLOWED_HOSTS'- section with both ip-address and fqdn of the node
   - configure a connection to mariadb as shown below
@@ -584,9 +585,8 @@ cn_enforce: True
 
 ```bash
 cd /var/www/acme2certifier
-sudo python3 manage.py makemigrations
-sudo python3 manage.py migrate
-sudo python3 manage.py loaddata acme_srv/fixture/status.yaml
+sudo a2c-manage migrate
+sudo a2c-manage loaddata status
 ```
 
 - run the django_update script
@@ -620,7 +620,7 @@ python3 -m acme2certifier.tools.a2c_django_secret_keygen
 5@@wlvvi!hb(6qc%*77j55@jt8ib4^f1o&+pz-^z*#v3e7u3o!
 ```
 
-- modify `/var/www/acme2certifier/acme2certifier/settings.py` and
+- modify `/var/www/acme2certifier/acme2certifier/django_project/settings.py` and
   - insert a secret key created in the previous step
   - update the 'ALLOWED_HOSTS'- section with both IP-Adress and fqdn of the node
   - configure a connection to mariadb as shown below

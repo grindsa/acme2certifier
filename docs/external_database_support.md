@@ -129,12 +129,13 @@ sudo a2dissite 000-default.conf
 sudo a2dissite default-ssl
 ```
 
-- Configure the Django DB handler and copy the Django directory structure:
+- Configure the Django DB handler (Django app ships in the package):
 
 ```bash
 # in acme_srv.cfg under [DBhandler]:
 #   handler: django
-sudo cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/
+# optional MySQL/Postgres settings template:
+#   cp examples/django/settings.py /var/www/acme2certifier/acme2certifier/django_project/settings.py
 ```
 
 - Enable and start the Apache2 service:
@@ -147,10 +148,10 @@ sudo systemctl start apache2.service
 - Generate a new Django secret key and note it down:
 
 ```bash
-python3 -c "import secrets; print(secrets.token_urlsafe(50))"
+a2c-django-secret-keygen
 ```
 
-- Modify `/var/www/acme2certifier/acme2certifier/settings.py` and:
+- Modify `/var/www/acme2certifier/acme2certifier/django_project/settings.py` and:
   - Insert the secret key created in the previous step
   - Update the `ALLOWED_HOSTS` section with both the IP address and FQDN of the node
   - Configure a connection to MariaDB as shown below
@@ -167,8 +168,8 @@ ALLOWED_HOSTS = ["192.168.14.132", "ub2204-c1.bar.local"]
 
 The official Docker images already contain:
 
-- the Django project under `/var/www/acme2certifier/acme2certifier/`
-- a ready-made Django settings file (`/var/www/acme2certifier/acme2certifier/settings.py`) to be updated
+- the Django app under `acme2certifier.django_app` and project under `acme2certifier.django_project`
+- a volume-backed settings file (`django_project/settings.py` → `/var/www/acme2certifier/volume/settings.py`)
 - the Django database handler (`handler: django` / `acme2certifier.dbhandlers.django_handler`)
 
 Mount a volume or directory from the Docker host into `/var/www/acme2certifier/volume`. When this volume is present, acme2certifier automatically writes `settings.py`, `acme_srv.cfg`, and all Django migration sets into it and maps them back to the appropriate internal locations during container startup.
@@ -256,9 +257,8 @@ cn_enforce: True
 
 ```bash
 cd /var/www/acme2certifier
-sudo python3 manage.py makemigrations
-sudo python3 manage.py migrate
-sudo python3 manage.py loaddata acme_srv/fixture/status.yaml
+sudo a2c-manage migrate
+sudo a2c-manage loaddata status
 ```
 
 - Run the Django update script:

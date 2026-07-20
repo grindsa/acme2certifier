@@ -52,7 +52,6 @@ case "${1}" in
       yum -y install python3-PyMySQL python3-sqlparse python3-psycopg2 python3-pyyaml python3-mysqlclient
     fi
 
-    yes | cp -R /opt/acme2certifier/examples/django/* /opt/acme2certifier/
     CFG=/opt/acme2certifier/acme_srv/acme_srv.cfg
     if [[ -f "$CFG" ]]; then
       sed -i 's/^# handler: django$/handler: django/' "$CFG"
@@ -74,6 +73,14 @@ case "${1}" in
       mkdir -p /opt/acme2certifier/acme2certifier
       yes | cp -R /tmp/acme2certifier/acme2certifier/* /opt/acme2certifier/acme2certifier/
     fi
+    if [[ -f /opt/acme2certifier/volume/settings.py ]]; then
+      rm -f /opt/acme2certifier/acme2certifier/django_project/settings.py
+      ln -sf /opt/acme2certifier/volume/settings.py \
+        /opt/acme2certifier/acme2certifier/django_project/settings.py
+    elif [[ -f /opt/acme2certifier/examples/django/settings.py ]]; then
+      cp /opt/acme2certifier/examples/django/settings.py \
+        /opt/acme2certifier/acme2certifier/django_project/settings.py
+    fi
     if [[ -d /tmp/acme2certifier/nginx ]]
       then
       yes | cp -R /tmp/acme2certifier/nginx/* /etc/nginx/
@@ -84,10 +91,8 @@ case "${1}" in
     echo "}" >> /etc/nginx/nginx.conf
 
     cd /opt/acme2certifier
-    python3 manage.py makemigrations
-    python3 manage.py migrate
     a2c-django-update
-    python3 manage.py loaddata acme_srv/fixture/status.yaml
+    a2c-manage loaddata status
 
     chown -R nginx.nginx /opt/acme2certifier/acme2certifier/
     chown -R nginx.nginx /opt/acme2certifier/volume/

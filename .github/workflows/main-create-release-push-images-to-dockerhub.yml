@@ -54,7 +54,7 @@ jobs:
       - name: Retrieve dbversion numbers from version.py and fixture.xml
         run: |
           echo DB_VERSION=$(cat acme2certifier/acme_srv/version.py | grep -i __dbversion__ | head -n 1 | sed 's/__dbversion__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-          echo FIXTURE_VERSION=$(awk '/name: dbversion/{getline; print $2}' examples/django/acme_srv/fixture/status.yaml | tr -d "'") >> $GITHUB_ENV
+          echo FIXTURE_VERSION=$(awk '/name: dbversion/{getline; print $2}' acme2certifier/django_app/fixture/status.yaml | tr -d "'") >> $GITHUB_ENV
 
       - run: echo "db verion is ${{ env.DB_VERSION }}"
       - run: echo "fixture version is ${{ env.FIXTURE_VERSION }}"

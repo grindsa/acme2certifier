@@ -16,7 +16,9 @@ def initialize():  # nopep8
     sys.path.append(
         os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
     )
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "acme2certifier.settings")
+    os.environ.setdefault(
+        "DJANGO_SETTINGS_MODULE", "acme2certifier.django_project.settings"
+    )
     import django
 
     # pylint: disable=E1101
@@ -28,7 +30,7 @@ DJANGO_VERSION = initialize()
 from django.conf import settings  # nopep8
 from django.db import transaction  # nopep8
 from django.db.models import QuerySet  # nopep8
-from acme2certifier.acme_srv.models import (
+from acme2certifier.django_app.models import (
     Account,
     Authorization,
     Cahandler,

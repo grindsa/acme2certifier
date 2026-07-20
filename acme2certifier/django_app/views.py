@@ -4,7 +4,7 @@
 from __future__ import unicode_literals, print_function
 from django.http import HttpResponse, HttpResponseNotFound
 from django.utils.html import escape
-from acme_srv.a2c_response import JsonResponse
+from acme2certifier.django_app.a2c_response import JsonResponse
 from acme2certifier.acme_srv.authorization import Authorization
 from acme2certifier.acme_srv.account import Account
 from acme2certifier.acme_srv.certificate import Certificate

@@ -66,6 +66,7 @@ a2c-cli = "acme2certifier.tools.a2c_cli:main"
 a2c-db-update = "acme2certifier.tools.a2c_db_update:main"
 a2c-django-update = "acme2certifier.tools.a2c_django_update:main"
 a2c-django-secret-keygen = "acme2certifier.tools.a2c_django_secret_keygen:main"
+a2c-manage = "acme2certifier.tools.a2c_manage:main"
 a2c-eab-chk = "acme2certifier.tools.a2c_eab_chk:main"
 a2c-cert-poll = "acme2certifier.tools.a2c_cert_poll:main"
 a2c-cliuser-mgmt = "acme2certifier.tools.a2c_cliuser_mgmt:main"
@@ -90,6 +91,9 @@ acme2certifier = [
     "share/skeletons/ca_handler/*",
     "share/skeletons/eab_handler/*",
     "share/skeletons/hooks/*",
+    "django_app/fixture/*",
+    "django_app/fixtures/*",
+    "django_app/migrations/*",
 ]
 
 [tool.setuptools]

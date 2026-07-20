@@ -42,13 +42,12 @@ RUN apt-get update  && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
     mkdir -p /run/uwsgi && \
-    cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/  && \
     cp /var/www/acme2certifier/examples/nginx/acme2certifier.ini /var/www/acme2certifier && \
     cp /var/www/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf && \
     ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf && \
     rm -f /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
     chown -R www-data:www-data /var/www/acme2certifier && \
-    sed -i "s/acme2certifier_wsgi/acme2certifier.wsgi/g" /var/www/acme2certifier/acme2certifier.ini && \
+    sed -i "s/acme2certifier_wsgi/acme2certifier.django_project.wsgi/g" /var/www/acme2certifier/acme2certifier.ini && \
     sed -i "s/nginx/www-data/g" /var/www/acme2certifier/acme2certifier.ini && \
     ln -sf /dev/stdout /var/log/nginx/access.log && ln -sf /dev/stderr /var/log/nginx/error.log && \
     sed -i "s/\/etc\/nginx/\/var\/www\/acme2certifier\/volume/g" /var/www/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf && \
@@ -60,7 +59,6 @@ RUN apt-get update  && \
     rm -rf /var/www/acme2certifier/examples/apache2 && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
     rm -rf /var/www/acme2certifier/acme2certifier_wsgi.py  && \
-    rm /var/www/acme2certifier/acme2certifier/settings.py && \
     chmod a+rx /docker-entrypoint.sh  # NOSONAR
 
 COPY ./examples/nginx/supervisord.conf /etc

@@ -520,9 +520,9 @@ jobs:
           sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
           sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
-          sudo cp .github/django_settings_mariadb.py data/acme2certifier/settings.py
-          # sudo sed -i "s/\/var\/www\//\/opt\//g" data/acme2certifier/settings.py
-          sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
+          sudo cp .github/django_settings_mariadb.py data/volume/settings.py
+          # sudo sed -i "s/\/var\/www\//\/opt\//g" data/volume/settings.py
+          sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/volume/settings.py
           sudo cp examples/nginx/nginx_acme_srv.conf data/nginx/conf.d
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv.conf
           sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
@@ -683,9 +683,9 @@ jobs:
           sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
           sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
-          sudo cp .github/django_settings.py data/acme2certifier/settings.py
-          sudo sed -i "s/\/var\/www\//\/opt\//g" data/acme2certifier/settings.py
-          sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
+          sudo cp .github/django_settings.py data/volume/settings.py
+          sudo sed -i "s/\/var\/www\//\/opt\//g" data/volume/settings.py
+          sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/volume/settings.py
           sudo cp examples/nginx/nginx_acme_srv.conf data/nginx/conf.d
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv.conf
           sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
@@ -843,9 +843,9 @@ jobs:
           sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
           sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
-          sudo cp .github/django_settings_psql.py data/acme2certifier/settings.py
-          # sudo sed -i "s/\/var\/www\//\/opt\//g" data/acme2certifier/settings.py
-          sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
+          sudo cp .github/django_settings_psql.py data/volume/settings.py
+          # sudo sed -i "s/\/var\/www\//\/opt\//g" data/volume/settings.py
+          sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/volume/settings.py
           sudo cp examples/nginx/nginx_acme_srv.conf data/nginx/conf.d
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv.conf
           sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
@@ -1187,16 +1187,11 @@ jobs:
           sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
           sudo cp .github/django_settings.py data/volume/settings.py
-          docker exec acme-srv bash -c "cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/"
           docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
           docker exec acme-srv bash -c 'CFG=/var/www/acme2certifier/acme_srv/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
-          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
+          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/django_project/settings.py
           docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
-
-          # fix for django 4.0 upgrade
-          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
-          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
           docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
           docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
 
@@ -1373,16 +1368,11 @@ jobs:
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
 
           sudo cp .github/django_settings_mariadb.py data/volume/settings.py
-          docker exec acme-srv bash -c "cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/"
           docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
           docker exec acme-srv bash -c 'CFG=/var/www/acme2certifier/acme_srv/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
-          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
+          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/django_project/settings.py
           docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
-
-          # fix for django 4.0 upgrade
-          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
-          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
           docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
           docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
 
@@ -1565,16 +1555,11 @@ jobs:
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
 
           sudo cp .github/django_settings_psql.py data/volume/settings.py
-          docker exec acme-srv bash -c "cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/"
           docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
           docker exec acme-srv bash -c 'CFG=/var/www/acme2certifier/acme_srv/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
-          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
+          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/django_project/settings.py
           docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
-
-          # fix for django 4.0 upgrade
-          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
-          docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
           docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
           docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
 

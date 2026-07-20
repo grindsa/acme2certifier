@@ -62,7 +62,7 @@ class TestDjangoUpdate(unittest.TestCase):
             {
                 "django": mock_django,
                 "django.core.management": MagicMock(call_command=mock_call_command),
-                "acme_srv.models": MagicMock(
+                "acme2certifier.django_app.models": MagicMock(
                     Status=mock_status, Housekeeping=mock_housekeeping
                 ),
                 "acme2certifier.acme_srv.version": MagicMock(__dbversion__=mock_dbversion),
@@ -424,7 +424,7 @@ class TestDjangoUpdate(unittest.TestCase):
             {
                 "django": mock_django,
                 "django.core.management": MagicMock(call_command=mock_call_command),
-                "acme_srv.models": MagicMock(
+                "acme2certifier.django_app.models": MagicMock(
                     Status=mock_status, Housekeeping=mock_housekeeping
                 ),
                 "acme2certifier.acme_srv.version": MagicMock(__dbversion__=mock_dbversion),

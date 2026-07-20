@@ -94,7 +94,7 @@ dbfile: /var/www/acme2certifier/acme_srv.db
 ```
 
 - CA handlers: see [acme_srv.cfg](acme_srv.md) and [Package layout migration](migration_package_layout.md).
-- DB handler: default is `wsgi` (SQLite). Use `handler: django` for Django. Cfg wins over `ACME_SRV_DB_HANDLER`.
+- DB handler: default is `wsgi` (SQLite). For MariaDB/PostgreSQL/SQL Server or concurrent writes, use `handler: django` — see [Django / external databases](#django--external-databases) below.
 
 
 
@@ -218,6 +218,44 @@ Expected JSON includes `newAccount`, `newNonce`, `newOrder`, etc.
 
 Use your preferred ACME client against this directory URL. If enrollment fails, check the CA handler section in `acme_srv.cfg`, Apache/error logs, and [debug mode](acme_srv.md).
 
+## Django / external databases
+
+The steps above use the default **WSGI + SQLite** backend. For an external database (MariaDB, PostgreSQL, …), install the Django extra and switch the DB handler:
+
+```bash
+sudo /var/www/acme2certifier/venv/bin/pip install 'acme2certifier[django]'
+# plus DB driver, e.g. mysqlclient / psycopg2 — see external DB guide
+```
+
+```ini
+[DBhandler]
+handler: django
+```
+
+Then:
+
+1. Configure `acme2certifier.django_project.settings` (DB credentials, `SECRET_KEY`, `ALLOWED_HOSTS`). Start from `examples/django/settings.py` for MySQL if useful.
+2. Point Apache at the Django WSGI entry instead of `acme2certifier_wsgi.py`. Use the packaged vhost as a starting point:
+
+```bash
+SHARE=$(/var/www/acme2certifier/venv/bin/python -c \
+  "import acme2certifier.share as s, pathlib; print(pathlib.Path(s.__file__).parent)")
+sudo cp "$SHARE/apache2/apache_django.conf" /etc/apache2/sites-available/acme2certifier.conf
+```
+
+Ensure `python-home=/var/www/acme2certifier/venv` (and `ACME_SRV_CONFIGFILE` in `envvars`) match the WSGI setup above. The alias targets `.../acme2certifier/django_project/wsgi.py` when the package lives under DocumentRoot; for a pure venv install, point `WSGIScriptAlias` at the `django_project/wsgi.py` inside the venv’s `site-packages`.
+
+3. Apply schema and fixtures:
+
+```bash
+sudo -u www-data env ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg \
+  /var/www/acme2certifier/venv/bin/a2c-manage migrate
+sudo -u www-data env ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg \
+  /var/www/acme2certifier/venv/bin/a2c-manage loaddata status
+```
+
+Full MariaDB/PostgreSQL/SQL Server setup, Docker notes, and sample `DATABASES` blocks: [Support for External Databases](external_database_support.md).
+
 ## Upgrading
 
 ```bash
@@ -236,6 +274,7 @@ sudo systemctl restart apache2
 
 - [acme_srv.cfg options](acme_srv.md)
 - [Package layout migration](migration_package_layout.md)
+- [Support for External Databases (Django)](external_database_support.md)
 - [DEB installation](install_deb.md) (apt package alternative)
 - [Nginx + uWSGI (Ubuntu)](install_nginx_wsgi_ub24.md)
 

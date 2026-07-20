@@ -24,7 +24,9 @@ This guide describes the restructuring of `acme2certifier` into a proper Python 
 | CA handlers | `examples/ca_handler/` | `acme2certifier/cahandlers/` |
 | EAB handlers | `examples/eab_handler/` | `acme2certifier/eabhandlers/` |
 | Hook handlers | `examples/hooks/` | `acme2certifier/hookhandlers/` |
-| Tools / CLI | `tools/` | `acme2certifier/tools/` |
+| Django app | `examples/django/acme_srv/` | `acme2certifier/django_app/` |
+| Django project | `examples/django/acme2certifier/` | `acme2certifier/django_project/` |
+| Django settings template | `examples/django/acme2certifier/settings.py` | `examples/django/settings.py` |
 
 **Current status**
 
@@ -33,7 +35,7 @@ This guide describes the restructuring of `acme2certifier` into a proper Python 
 - Under `examples/ca_handler/`, `examples/eab_handler/`, and `examples/hooks/` only **skeleton** templates (and EAB sample data files) remain.
 - Tools live under `acme2certifier.tools`. Invoke with `python3 -m acme2certifier.tools.<name>` (top-level `tools/*.py` wrappers are removed; see `tools/README.md`).
 - Handler loading supports both file paths (`*_file`, **deprecated**) and dotted module names (`*_module`, **preferred**).
-- The Django app (`models`, `views`, `urls`, `admin`) lives under `examples/django/acme_srv/` and imports the package implementation. A top-level `acme_srv/` tree may exist locally for development but is not tracked in the repository.
+- The Django app lives under `acme2certifier.django_app`; the Django project shell under `acme2certifier.django_project`. Install with `pip install 'acme2certifier[django]'` and use `a2c-manage`. `examples/django/settings.py` is an optional MySQL settings template for Docker/external DB installs.
 
 ## Backwards compatibility
 

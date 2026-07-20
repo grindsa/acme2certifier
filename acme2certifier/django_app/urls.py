@@ -2,7 +2,7 @@
 """urls for acme django database"""
 
 from django.urls import re_path
-from acme_srv import views
+from acme2certifier.django_app import views
 
 urlpatterns = [
     re_path(r"^acct", views.acct, name="acct"),

@@ -155,9 +155,8 @@ jobs:
           pip install pyyaml
           sed -i 's/^# handler: django$/handler: django/' acme_srv/acme_srv.cfg || true
           grep -qE '^handler:' acme_srv/acme_srv.cfg || sed -i '/\[DBhandler\]/a handler: django' acme_srv/acme_srv.cfg
-          cp examples/django/* .\ -Recurse -Force
-          (Get-Content .github/django_settings.py) -replace '/var/www/acme2certifier/volume/db.sqlite3', 'volume/db.sqlite3' | Set-Content acme2certifier/settings.py
-          (Get-Content acme2certifier/settings.py) -replace 'django.contrib.staticfiles', 'sslserver' | Set-Content acme2certifier/settings.py
+          (Get-Content .github/django_settings.py) -replace '/var/www/acme2certifier/volume/db.sqlite3', 'volume/db.sqlite3' | Set-Content acme2certifier/django_project/settings.py
+          (Get-Content acme2certifier/django_project/settings.py) -replace 'django.contrib.staticfiles', 'sslserver' | Set-Content acme2certifier/django_project/settings.py
           cp acme2certifier/cahandlers/openssl_ca_handler.py acme2certifier/ca_handler.py
           cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg acme_srv/acme_srv.cfg
           (Get-Content acme_srv/acme_srv.cfg) -replace 'challenge_validation_disable: False', 'challenge_validation_disable: True' | Set-Content acme_srv/acme_srv.cfg
@@ -170,13 +169,12 @@ jobs:
 
       - name: "Configure server"
         run: |
-          python manage.py makemigrations
-          python manage.py migrate
-          python manage.py loaddata acme_srv/fixture/status.yaml
+          python -m acme2certifier.tools.a2c_manage migrate
+          python -m acme2certifier.tools.a2c_manage loaddata status
 
       - name: "Try to get up the server"
         run: |
-          Start-Process powershell {python .\manage.py runserver 0.0.0.0:8080 3>&1 2>&1 > volume\redirection.log}
+          Start-Process powershell {python -m acme2certifier.tools.a2c_manage runserver 0.0.0.0:8080 3>&1 2>&1 > volume\redirection.log}
 
       - name: "Sleep for 5s"
         uses: juliangruber/sleep-action@v2.0.4
@@ -222,7 +220,7 @@ jobs:
 
       - name: "Try to get up the sslserver"
         run: |
-          Start-Process powershell {python .\manage.py runsslserver 0.0.0.0:443 --certificate acme2certifier/acme2certifier_cert.pem --key acme2certifier/acme2certifier_key.pem 3>&1 2>&1 > volume\redirection_ssl.log}
+          Start-Process powershell {python -m acme2certifier.tools.a2c_manage runsslserver 0.0.0.0:443 --certificate acme2certifier/acme2certifier_cert.pem --key acme2certifier/acme2certifier_key.pem 3>&1 2>&1 > volume\redirection_ssl.log}
 
       - name: "Sleep for 5s"
         uses: juliangruber/sleep-action@v2.0.4
