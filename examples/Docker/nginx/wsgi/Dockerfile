@@ -32,7 +32,6 @@ RUN apt-get update  && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
     mkdir -p /run/uwsgi && \
-    cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py && \
     cp /var/www/acme2certifier/examples/nginx/acme2certifier.ini /var/www/acme2certifier && \
     cp /var/www/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf && \
     rm -f /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
@@ -47,7 +46,6 @@ RUN apt-get update  && \
     rm -f /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme_srv_ssl.conf && \
     rm -rf /var/www/acme2certifier/examples/Docker && \
     rm -rf /var/www/acme2certifier/examples/django && \
-    rm -rf /var/www/acme2certifier/examples/db_handler && \
     rm -rf /var/www/acme2certifier/examples/apache2 && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
     rm -rf /var/www/acme2certifier/examples/acme2certifier_wsgi.py  && \

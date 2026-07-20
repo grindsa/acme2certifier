@@ -101,6 +101,7 @@ The Renewalinfo subsystem implements a modular, maintainable architecture using 
 ```text
 acme_srv/
 ├── renewalinfo.py         # Main handler, config, repository
-├── db_handler.py          # Database abstraction
+├── dbhandlers/            # Database backends (wsgi/django)
+│   └── (selected via acme_srv.cfg / ACME_SRV_DB_HANDLER)
 ├── message.py             # Protocol message handling
 ```

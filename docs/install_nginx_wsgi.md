@@ -44,10 +44,14 @@ sudo pip install -r /opt/acme2certifier/requirements.txt
 1. Set `handler_module` in `acme_srv.cfg` (preferred), for example `handler_module: acme2certifier.cahandlers.openssl_ca_handler`. See [Package layout migration](migration_package_layout.md). The older `handler_file` option and copying a handler to `acme_srv/ca_handler.py` remain supported but are deprecated.
 1. Configure the connection to your CA server. [Example for Insta Certifier](certifier.md).
 
-## 6. Activate the WSGI Database Handler
+## 6. Activate the Database Handler
 
-```bash
-sudo cp /opt/acme2certifier/examples/db_handler/wsgi_handler.py /opt/acme2certifier/acme_srv/db_handler.py
+Prefer configuring the packaged handler in `acme_srv.cfg` (cfg wins over env):
+
+```ini
+[DBhandler]
+handler: wsgi
+# handler: django
 ```
 
 ## 7. Copy the WSGI Application File

@@ -491,10 +491,11 @@ sudo a2dissite 000-default.conf
 sudo a2dissite default-ssl
 ```
 
-- copy the django handler and the django directory structure
+- configure the Django DB handler and copy the django directory structure
 
 ```bash
-sudo cp /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
+# in acme_srv.cfg under [DBhandler]:
+#   handler: django
 sudo cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/
 ```
 

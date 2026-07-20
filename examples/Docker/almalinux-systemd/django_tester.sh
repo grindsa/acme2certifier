@@ -52,8 +52,12 @@ case "${1}" in
       yum -y install python3-PyMySQL python3-sqlparse python3-psycopg2 python3-pyyaml python3-mysqlclient
     fi
 
-    yes | cp /opt/acme2certifier/examples/db_handler/django_handler.py /opt/acme2certifier/acme_srv/db_handler.py
     yes | cp -R /opt/acme2certifier/examples/django/* /opt/acme2certifier/
+    CFG=/opt/acme2certifier/acme_srv/acme_srv.cfg
+    if [[ -f "$CFG" ]]; then
+      sed -i 's/^# handler: django$/handler: django/' "$CFG"
+      grep -qE '^handler:' "$CFG" || sed -i '/\[DBhandler\]/a handler: django' "$CFG"
+    fi
 
     cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
     cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d

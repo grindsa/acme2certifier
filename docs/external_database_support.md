@@ -129,10 +129,11 @@ sudo a2dissite 000-default.conf
 sudo a2dissite default-ssl
 ```
 
-- Copy the Django handler and the Django directory structure:
+- Configure the Django DB handler and copy the Django directory structure:
 
 ```bash
-sudo cp /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
+# in acme_srv.cfg under [DBhandler]:
+#   handler: django
 sudo cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/
 ```
 
@@ -168,7 +169,7 @@ The official Docker images already contain:
 
 - the Django project under `/var/www/acme2certifier/acme2certifier/`
 - a ready-made Django settings file (`/var/www/acme2certifier/acme2certifier/settings.py`) to be updated
-- the Django database handler at `/var/www/acme2certifier/acme_srv/db_handler.py`
+- the Django database handler (`handler: django` / `acme2certifier.dbhandlers.django_handler`)
 
 Mount a volume or directory from the Docker host into `/var/www/acme2certifier/volume`. When this volume is present, acme2certifier automatically writes `settings.py`, `acme_srv.cfg`, and all Django migration sets into it and maps them back to the appropriate internal locations during container startup.
 

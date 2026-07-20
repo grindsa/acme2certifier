@@ -58,11 +58,11 @@ python manage.py rename_app acme acme_srv
 
 ```bash
 cp acme/acme_srv.cfg acme_srv/acme_srv.cfg
-cp examples/db_handler/django_handler.py acme_srv/db_handler.py
 
-# Prefer handler_module in acme_srv.cfg, for example:
+# Select DB backend in acme_srv.cfg (cfg wins over ACME_SRV_DB_HANDLER):
+#   handler: django
+# Prefer CA handler_module, for example:
 #   handler_module: acme2certifier.cahandlers.openssl_ca_handler
-# Legacy handler_file / copy-to-acme_srv/ca_handler.py remain supported but deprecated.
 # See docs/migration_package_layout.md
 ```
 

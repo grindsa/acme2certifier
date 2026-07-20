@@ -424,18 +424,9 @@ jobs:
       - name: "Test http://acme-srv/directory is accessible"
         run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-      - name: "Get hashes of django_handler.py and db_handler.py"
+      - name: "Verify packaged DB handler is present"
         run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /opt/acme2certifier/examples/db_handler/wsgi_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /opt/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -596,18 +587,9 @@ jobs:
       - name: "Test http://acme-srv/directory is accessible"
         run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-      - name: "Get hashes of django_handler.py and db_handler.py"
+      - name: "Verify packaged DB handler is present"
         run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /opt/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /opt/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -765,18 +747,9 @@ jobs:
       - name: "Test http://acme-srv/directory is accessible"
         run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-      - name: "Get hashes of django_handler.py and db_handler.py"
+      - name: "Verify packaged DB handler is present"
         run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /opt/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /opt/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -938,18 +911,9 @@ jobs:
       - name: "Test http://acme-srv/directory is accessible"
         run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-      - name: "Get hashes of django_handler.py and db_handler.py"
+      - name: "Verify packaged DB handler is present"
         run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /opt/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /opt/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -1103,18 +1067,9 @@ jobs:
       - name: "Test http://acme-srv/directory is accessible after upgrade"
         run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-      - name: "Get hashes of wsgi_handler.py and db_handler.py"
+      - name: "Verify packaged DB handler is present"
         run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /var/www/acme2certifier/examples/db_handler/wsgi_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /var/www/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -1233,8 +1188,8 @@ jobs:
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
           sudo cp .github/django_settings.py data/volume/settings.py
           docker exec acme-srv bash -c "cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/"
-          docker exec acme-srv cp -r /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
           docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
+          docker exec acme-srv bash -c 'CFG=/var/www/acme2certifier/acme_srv/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
           docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
           docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
@@ -1242,8 +1197,8 @@ jobs:
           # fix for django 4.0 upgrade
           docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
           docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
-          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
-          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
 
           docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
           docker exec acme-srv systemctl restart apache2
@@ -1279,18 +1234,9 @@ jobs:
       - name: "Test http://acme-srv/directory is accessible after upgrade"
         run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-      - name: "Get hashes of django_handler.py and db_handler.py"
+      - name: "Verify packaged DB handler is present"
         run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /var/www/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /var/www/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -1428,8 +1374,8 @@ jobs:
 
           sudo cp .github/django_settings_mariadb.py data/volume/settings.py
           docker exec acme-srv bash -c "cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/"
-          docker exec acme-srv cp -r /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
           docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
+          docker exec acme-srv bash -c 'CFG=/var/www/acme2certifier/acme_srv/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
           docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
           docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
@@ -1437,8 +1383,8 @@ jobs:
           # fix for django 4.0 upgrade
           docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
           docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
-          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
-          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
 
           docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
           docker exec acme-srv systemctl restart apache2
@@ -1469,18 +1415,9 @@ jobs:
       - name: "Test http://acme-srv/directory is accessible after upgrade"
         run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-      - name: "Get hashes of django_handler.py and db_handler.py"
+      - name: "Verify packaged DB handler is present"
         run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /var/www/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /var/www/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -1629,8 +1566,8 @@ jobs:
 
           sudo cp .github/django_settings_psql.py data/volume/settings.py
           docker exec acme-srv bash -c "cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/"
-          docker exec acme-srv cp -r /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
           docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
+          docker exec acme-srv bash -c 'CFG=/var/www/acme2certifier/acme_srv/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
           docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/
           docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
@@ -1638,8 +1575,8 @@ jobs:
           # fix for django 4.0 upgrade
           docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import url/from django.urls import re_path as url/g" /var/www/acme2certifier/acme_srv/urls.py'
           docker exec acme-srv bash -c 'sed -i "s/from django.conf.urls import include, url/from django.conf.urls import include\nfrom django.urls import re_path as url/g" /var/www/acme2certifier/acme2certifier/urls.py'
-          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
-          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme_srv/db_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
 
           docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
           docker exec acme-srv systemctl restart apache2
@@ -1670,18 +1607,9 @@ jobs:
       - name: "Test http://acme-srv/directory is accessible after upgrade"
         run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
 
-      - name: "Get hashes of django_handler.py and db_handler.py"
+      - name: "Verify packaged DB handler is present"
         run: |
-          echo HASH1=$(docker exec acme-srv sha256sum /var/www/acme2certifier/examples/db_handler/django_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-          echo HASH2=$(docker exec acme-srv sha256sum /var/www/acme2certifier/acme_srv/db_handler.py | awk -F ' '  '{ print $1 }') >> $GITHUB_ENV
-
-      - run: echo "Hash1 is ${{ env.HASH1 }}"
-      - run: echo "Hash2 is ${{ env.HASH2 }}"
-
-      - name: Compare hashes
-        if: env.HASH1 != env.HASH2
-        run: |
-          exit 1
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |

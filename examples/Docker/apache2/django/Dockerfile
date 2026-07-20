@@ -46,9 +46,7 @@ RUN apt-get update  && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
     cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-enabled/acme2certifier.conf && \
     cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/  && \
-    cp /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py  && \
     rm -rf /var/www/acme2certifier/examples/Docker && \
-    rm -rf /var/www/acme2certifier/examples/db_handler && \
     rm -rf /var/www/acme2certifier/examples/nginx && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
     rm -rf /var/www/acme2certifier/examples/acme2certifier_wsgi.py  && \

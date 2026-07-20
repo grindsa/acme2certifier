@@ -34,6 +34,15 @@ else
     fi
 fi
 
+# select packaged Django DB handler when unset
+CFG=/var/www/acme2certifier/volume/acme_srv.cfg
+if [[ -f "$CFG" ]]; then
+    sed -i 's/^# handler: django$/handler: django/' "$CFG"
+    if ! grep -qE '^handler(_module)?:' "$CFG"; then
+        sed -i '/\[DBhandler\]/a handler: django' "$CFG"
+    fi
+fi
+
 # create symlink for the acme_srv.cfg
 if [[ ! -L /var/www/acme2certifier/acme_srv/acme_srv.cfg ]]
 then

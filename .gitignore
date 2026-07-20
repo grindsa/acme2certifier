@@ -136,7 +136,7 @@ acme_srv/acme_srv.cfg
 acme_srv/wsgi_handler.py
 acme_srv/django_handler.py
 acme_srv/a2c_response.py
-acme2certifier/acme_srv/db_handler.py
+# acme2certifier/acme_srv/db_handler.py is the tracked loader (not ignored)
 acme2certifier/acme_srv/ca_handler.py
 acme2certifier/acme_srv/a2c_response.py
 acme2certifier/acme2certifier/settings.py

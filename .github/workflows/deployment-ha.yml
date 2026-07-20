@@ -298,7 +298,7 @@ jobs:
 
           docker exec alma9-c1 sh -c "head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf"
           docker exec alma9-c1 sh -c "echo '}' >> /etc/nginx/nginx.conf"
-          docker exec alma9-c1  cp /opt/acme2certifier/examples/db_handler/django_handler.py /opt/acme2certifier/acme_srv/db_handler.py
+          docker exec alma9-c1 bash -c 'CFG=/opt/acme2certifier/acme_srv/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
           docker exec alma9-c1 sh -c "cp -r /opt/acme2certifier/examples/django/* /opt/acme2certifier/"
           docker exec alma9-c1 rm /opt/acme2certifier/acme_srv/acme_srv.cfg
           docker exec alma9-c1 ln -s /opt/acme2certifier/volume/acme_srv.cfg  /opt/acme2certifier/acme_srv/
@@ -322,7 +322,7 @@ jobs:
 
           docker exec alma9-c2 sh -c "head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf"
           docker exec alma9-c2 sh -c "echo '}' >> /etc/nginx/nginx.conf"
-          docker exec alma9-c2  cp /opt/acme2certifier/examples/db_handler/django_handler.py /opt/acme2certifier/acme_srv/db_handler.py
+          docker exec alma9-c2 bash -c 'CFG=/opt/acme2certifier/acme_srv/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
           docker exec alma9-c2 sh -c "cp -r /opt/acme2certifier/examples/django/* /opt/acme2certifier/"
           docker exec alma9-c2 rm /opt/acme2certifier/acme_srv/acme_srv.cfg
           docker exec alma9-c2 ln -s /opt/acme2certifier/volume/acme_srv.cfg  /opt/acme2certifier/acme_srv/

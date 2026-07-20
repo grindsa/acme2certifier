@@ -34,7 +34,6 @@ cp -R ./* /opt/acme2certifier/
 cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg /opt/acme2certifier/acme_srv/acme_srv.cfg
 
 # 9 copy db handler
-cp /opt/acme2certifier/examples/db_handler/wsgi_handler.py /opt/acme2certifier/acme_srv/db_handler.py
 
 # 10 copy wsgi file
 cp /opt/acme2certifier/examples/acme2certifier_wsgi.py /opt/acme2certifier/

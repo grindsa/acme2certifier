@@ -69,8 +69,12 @@ case "${1}" in
     sed -i "s/# activate = 1/activate = 1/g" /etc/ssl/openssl.cnf
 
     echo "configure django"
+    CFG=/var/www/acme2certifier/volume/acme_srv.cfg
+    if [[ -f "$CFG" ]]; then
+      sed -i 's/^# handler: django$/handler: django/' "$CFG"
+      grep -qE '^handler:' "$CFG" || sed -i '/\[DBhandler\]/a handler: django' "$CFG"
+    fi
     cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/
-    cp -r /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
 
     echo "copy data"
     mkdir -p /var/www/acme2certifier/volume/acme_ca

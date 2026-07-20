@@ -110,7 +110,7 @@ Response to Client
 - Order logic: `acme2certifier/acme_srv/order.py`
 - Repository: `acme2certifier/acme_srv/order.py` (OrderRepository)
 - Configuration: `acme2certifier/acme_srv/order.py` (OrderConfiguration)
-- Helpers: `acme2certifier/acme_srv/helper.py`, `acme2certifier/acme_srv/db_handler.py`
+- Helpers: `acme2certifier/acme_srv/helper.py`, `acme2certifier/dbhandlers/*` (via `acme2certifier.acme_srv.db_handler` loader)
 - Error handling: `acme2certifier/acme_srv/order.py`, `acme2certifier/acme_srv/error.py`
 
 ______________________________________________________________________

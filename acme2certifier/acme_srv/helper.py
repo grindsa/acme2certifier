@@ -145,7 +145,12 @@ from .helpers.logging_utils import (
 )
 
 # Plugin loaders
-from .helpers.plugin_loader import ca_handler_load, eab_handler_load, hooks_load
+from .helpers.plugin_loader import (
+    ca_handler_load,
+    db_handler_load,
+    eab_handler_load,
+    hooks_load,
+)
 
 # EAB functions
 from .helpers.eab import (

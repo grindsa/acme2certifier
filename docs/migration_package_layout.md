@@ -157,6 +157,21 @@ hooks_module: acme2certifier.hookhandlers.skeleton_hooks
 
 `load_config()` looks for `acme_srv.cfg` next to the package first, then falls back to the legacy path `<repo>/acme_srv/acme_srv.cfg`. You can also set `ACME_SRV_CONFIGFILE`.
 
+### Database handlers
+
+Implementations live under `acme2certifier.dbhandlers`. Selection (cfg wins over env):
+
+1. `[DBhandler] handler_module` or `handler` in `acme_srv.cfg`
+2. `ACME_SRV_DB_HANDLER` (`wsgi`, `django`, or a dotted module)
+3. default `wsgi`
+
+| Preferred module |
+| --- |
+| `acme2certifier.dbhandlers.wsgi_handler` |
+| `acme2certifier.dbhandlers.django_handler` |
+
+`acme2certifier.acme_srv.db_handler` is a thin loader that re-exports `DBstore` from the selected backend. Do not copy handler files into the install tree for pip installs.
+
 ### CA handlers
 
 | Preferred module |

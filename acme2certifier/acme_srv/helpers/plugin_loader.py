@@ -223,6 +223,32 @@ def eab_handler_load(
     return None
 
 
+def db_handler_load(
+    logger: logging.Logger, config_dic: Optional[Dict] = None
+) -> importlib.import_module:
+    """Load and return the configured DB handler module.
+
+    Precedence matches password loading elsewhere (cfg over env):
+
+    1. ``[DBhandler] handler_module`` / ``handler`` in config
+    2. ``ACME_SRV_DB_HANDLER``
+    3. default ``wsgi``
+
+    ``config_dic`` is accepted for API symmetry with other loaders; selection is
+    performed by ``acme2certifier.acme_srv.db_handler``.
+    """
+    logger.debug("Helper.plugin_loader.db_handler_load() start")
+    from acme2certifier.acme_srv.db_handler import (  # pylint: disable=c0415
+        load_db_handler_module,
+    )
+
+    _ = config_dic
+    loaded = load_db_handler_module()
+    logger.info("Loaded DB handler %s", _loaded_identity(loaded))
+    logger.debug("Helper.plugin_loader.db_handler_load() ended")
+    return loaded
+
+
 def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_module:
     """load and return hooks"""
     logger.debug("Helper.plugin_loader.hooks_load() start")

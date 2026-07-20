@@ -153,7 +153,8 @@ jobs:
           pip install django
           pip install django-sslserver-v2
           pip install pyyaml
-          cp examples/db_handler/django_handler.py acme_srv/db_handler.py
+          sed -i 's/^# handler: django$/handler: django/' acme_srv/acme_srv.cfg || true
+          grep -qE '^handler:' acme_srv/acme_srv.cfg || sed -i '/\[DBhandler\]/a handler: django' acme_srv/acme_srv.cfg
           cp examples/django/* .\ -Recurse -Force
           (Get-Content .github/django_settings.py) -replace '/var/www/acme2certifier/volume/db.sqlite3', 'volume/db.sqlite3' | Set-Content acme2certifier/settings.py
           (Get-Content acme2certifier/settings.py) -replace 'django.contrib.staticfiles', 'sslserver' | Set-Content acme2certifier/settings.py

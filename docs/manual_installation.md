@@ -38,7 +38,6 @@ Copy and link required files for the application and web server:
 ```sh
 cp /var/lib/acme2certifier/examples/acme2certifier_wsgi.py /var/lib/acme2certifier
 ln -s /var/lib/acme2certifier/volume/acme_srv.cfg /var/lib/acme2certifier/acme_srv/
-ln -s /var/lib/acme2certifier/examples/db_handler/wsgi_handler.py /var/lib/acme2certifier/acme_srv/db_handler.py
 
 cp /var/lib/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
 cp /var/lib/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme_srv_ssl.conf
@@ -53,12 +52,14 @@ chown -R www-data:www-data /var/lib/acme2certifier/
 
 ______________________________________________________________________
 
-## 4. Copy and configure the database handler
+## 4. Configure the database handler
 
-Link your preferred database-handler into `/var/lib/acme2certifier/acme_srv`
+Select the packaged handler in `acme_srv.cfg`:
 
-```sh
-ln -s /var/lib/acme2certifier/examples/db_handler/[wsgi|django]_handler.py /var/lib/acme2certifier/acme_srv/db_handler.py
+```ini
+[DBhandler]
+handler: wsgi
+# handler: django
 ```
 
 When using the django handler configure install and configure the django environment.

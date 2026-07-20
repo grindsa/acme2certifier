@@ -28,7 +28,17 @@ case "$1" in
     if [ -d /var/www/acme2certifier/acme2certifier ]; then
         echo "django environment detected"
         cp -R /var/www/acme2certifier/examples/django/acme_srv/* /var/www/acme2certifier/acme_srv/
-        cp -f /var/www/acme2certifier/examples/db_handler/django_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
+        CFG=/var/www/acme2certifier/acme_srv/acme_srv.cfg
+        if [ -f "$CFG" ]; then
+            sed -i 's/^# handler: django$/handler: django/' "$CFG"
+            if ! grep -qE '^handler(_module)?:' "$CFG"; then
+                if grep -q '^\[DBhandler\]' "$CFG"; then
+                    sed -i '/\[DBhandler\]/a handler: django' "$CFG"
+                else
+                    printf '\n[DBhandler]\nhandler: django\n' >> "$CFG"
+                fi
+            fi
+        fi
     fi
 
 	chown -R www-data.www-data /var/www/acme2certifier
