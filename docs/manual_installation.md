@@ -6,6 +6,8 @@
 
 This guide provides step-by-step instructions for manually installing and configuring **acme2certifier** from source. These steps assume you have downloaded and extracted the source code to `/tmp/acme2certifier`.
 
+> **Prefer PyPI?** For Apache2 on Ubuntu, use [Installation from PyPI on Apache2](install_apache2_wsgi.md).
+
 > **Note:** These instructions are based on an installation on Ubuntu 24.04. Adapting them to other Linux distributions should be straightforward, though package names and service management commands may vary slightly.
 
 ______________________________________________________________________

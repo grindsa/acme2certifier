@@ -1,177 +1,241 @@
-<!-- markdownlint-disable MD013 MD014 MD029 -->
 
-<!-- wiki-title: Installation on Apache2 Running on Ubuntu 24.04 -->
 
-# Installation on Apache2 Running on Ubuntu 24.04
 
-A [ready-made shell script](../examples/install_scripts/a2c-ubuntu22-apache2.sh) performing the tasks below can be found in the `examples/install_scripts` directory.
 
-## 1. Install Apache2 and the Corresponding WSGI Module
+# Installation from PyPI on Apache2 (Ubuntu)
+
+Install `acme2certifier` from PyPI into a virtualenv and serve it with Apache2 + `mod_wsgi`.
+
+Tested on Ubuntu 24.04. Adapt package names as needed for other releases.
+
+> **Devel / pre-release builds:** packages published as `X.Y.devN` are **not** installed by a plain `pip install acme2certifier`. Use an exact version or `--pre` (see step 3).
+
+## 1. Install system packages
 
 ```bash
-sudo apt-get install -y apache2 libapache2-mod-wsgi-py3 python3-pip apache2-data curl krb5-user libgssapi-krb5-2 libkrb5-3 python3-gssapi
+sudo apt-get update
+sudo apt-get install -y \
+  apache2 libapache2-mod-wsgi-py3 apache2-data \
+  python3-venv python3-pip curl \
+  krb5-user libgssapi-krb5-2 libkrb5-3 python3-gssapi
 ```
 
-## 2. Check if the WSGI Module is Activated in Your Apache Configuration
+Confirm `mod_wsgi` is loaded:
 
 ```bash
 sudo apache2ctl -M | grep -i wsgi
- wsgi_module (shared)
+# wsgi_module (shared)
 ```
 
-If the `wsgi_module` is not enabled, refer to online resources on how to enable it.
 
-## 3. Download `acme2certifier` from [master](https://github.com/grindsa/acme2certifier/archive/refs/heads/master.tar.gz) and Unpack It
 
-## 4. Install the Required Python Modules via `pip`
+## 2. Create the application directory and venv
 
 ```bash
-sudo pip3 install -r requirements.txt
+sudo mkdir -p /var/www/acme2certifier
+sudo python3 -m venv /var/www/acme2certifier/venv
+sudo /var/www/acme2certifier/venv/bin/pip install -U pip
 ```
 
-## 5. Copy the Apache WSGI Configuration File
 
-Copy `examples/apache2/apache_wsgi.conf` to `/etc/apache2/sites-available/acme2certifier.conf` and modify it according to your needs.
 
-## 6. Enable TLS (Optional)
+## 3. Install acme2certifier from PyPI
 
-If you want to enable TLS, copy `examples/acme_wsgi_ssl.conf` to `/etc/apache2/sites-available/acme2certifier.conf` and modify it accordingly. Ensure you place the key bundle correctly. This file must contain the following certificate data in PEM format:
+Stable release (when published):
 
-- The private key
-- The end-entity certificate
-- Intermediate CA certificates (sorted from leaf to root, excluding the root CA certificate for security reasons)
+```bash
+sudo /var/www/acme2certifier/venv/bin/pip install acme2certifier
+```
 
-Activate the SSL module:
+Optional extras:
+
+```bash
+sudo /var/www/acme2certifier/venv/bin/pip install 'acme2certifier[django]'
+# or: 'acme2certifier[gssapi]' / 'acme2certifier[full]'
+```
+
+Devel / pre-release (example):
+
+```bash
+sudo /var/www/acme2certifier/venv/bin/pip install 'acme2certifier==0.45.dev0'
+# or: sudo /var/www/acme2certifier/venv/bin/pip install --pre acme2certifier
+```
+
+
+
+## 4. Deploy share files (WSGI entry + example config)
+
+```bash
+SHARE=$(/var/www/acme2certifier/venv/bin/python -c \
+  "import acme2certifier.share as s, pathlib; print(pathlib.Path(s.__file__).parent)")
+
+sudo cp "$SHARE/acme2certifier_wsgi.py" /var/www/acme2certifier/
+sudo cp "$SHARE/acme_srv.cfg" /var/www/acme2certifier/acme_srv.cfg
+sudo cp "$SHARE/apache2/apache_wsgi.conf" /etc/apache2/sites-available/acme2certifier.conf
+```
+
+After package upgrades, re-copy `$SHARE/acme2certifier_wsgi.py` if the entrypoint changed.
+
+## 5. Configure `acme_srv.cfg`
+
+Edit `/var/www/acme2certifier/acme_srv.cfg`. Minimum useful settings:
+
+```ini
+[DEFAULT]
+debug: False
+
+[CAhandler]
+handler_module: acme2certifier.cahandlers.openssl_ca_handler
+# plus CA-specific options for your handler
+
+[DBhandler]
+handler: wsgi
+dbfile: /var/www/acme2certifier/acme_srv.db
+```
+
+- CA handlers: see [acme_srv.cfg](acme_srv.md) and [Package layout migration](migration_package_layout.md).
+- DB handler: default is `wsgi` (SQLite). Use `handler: django` for Django. Cfg wins over `ACME_SRV_DB_HANDLER`.
+
+
+
+## 6. Point Apache at the venv and config
+
+The packaged vhost must use the venv (`python-home`) and must **not** rely on unsupported `WSGIDaemonProcess environ=` on Ubuntu’s `mod_wsgi`.
+
+`/etc/apache2/sites-available/acme2certifier.conf`:
+
+```apache
+<VirtualHost *:80>
+        DocumentRoot /var/www/acme2certifier/
+        WSGIDaemonProcess acme_srv \
+          python-home=/var/www/acme2certifier/venv \
+          python-path=/var/www/acme2certifier
+        WSGIProcessGroup acme_srv
+        WSGIApplicationGroup %{GLOBAL}
+        WSGIScriptAlias / /var/www/acme2certifier/acme2certifier_wsgi.py
+        <Directory /var/www/acme2certifier>
+        Require all granted
+        </Directory>
+</VirtualHost>
+```
+
+Set the config path in `/etc/apache2/envvars` (read at process start via `os.environ`):
+
+```bash
+echo 'export ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg' | sudo tee -a /etc/apache2/envvars
+```
+
+
+
+## 7. Enable TLS (optional)
+
+Enable the Apache SSL module if it is not already loaded:
 
 ```bash
 sudo a2enmod ssl
 ```
 
-## 7. Activate the Virtual Server(s)
+Validate that `ssl_module` is active:
 
 ```bash
+sudo apache2ctl -M | grep -i ssl
+# ssl_module (shared)
+```
+
+If the module does not appear, enable it with `sudo a2enmod ssl` and restart Apache (`sudo systemctl restart apache2`), then check again.
+
+Deploy and adjust the SSL vhost:
+
+```bash
+SHARE=$(/var/www/acme2certifier/venv/bin/python -c \
+  "import acme2certifier.share as s, pathlib; print(pathlib.Path(s.__file__).parent)")
+
+sudo cp "$SHARE/apache2/apache_wsgi_ssl.conf" /etc/apache2/sites-available/acme2certifier_ssl.conf
+```
+
+`/etc/apache2/sites-available/acme2certifier_ssl.conf` must use the same venv settings as the HTTP vhost:
+
+```apache
+<IfModule mod_ssl.c>
+<VirtualHost *:443>
+        DocumentRoot /var/www/acme2certifier/
+        WSGIDaemonProcess acme_srv_ssl \
+          python-home=/var/www/acme2certifier/venv \
+          python-path=/var/www/acme2certifier
+        WSGIProcessGroup acme_srv_ssl
+        WSGIApplicationGroup %{GLOBAL}
+        WSGIScriptAlias / /var/www/acme2certifier/acme2certifier_wsgi.py
+        <Directory /var/www/acme2certifier>
+        Require all granted
+        </Directory>
+        SSLEngine on
+        SSLCertificateFile /var/www/acme2certifier/volume/acme2certifier.pem
+</VirtualHost>
+</IfModule>
+```
+
+Point `SSLCertificateFile` at your PEM bundle (private key + leaf certificate + intermediates, leaf to root, excluding the root CA).
+
+## 8. Permissions
+
+```bash
+sudo chown -R www-data:www-data /var/www/acme2certifier
+```
+
+Keep the venv readable/executable by `www-data`; do not expose `/venv` via Apache aliases.
+
+## 9. Enable the site and restart Apache
+
+```bash
+sudo a2dissite 000-default.conf || true
 sudo a2ensite acme2certifier.conf
-sudo a2ensite acme2certifier_ssl.conf
+# sudo a2ensite acme2certifier_ssl.conf   # if TLS was configured
+sudo apache2ctl configtest
+sudo systemctl restart apache2
 ```
 
-## 8. Create Required Directories and Copy Necessary Files
+On startup, the error log should include a line like:
 
-### Create the Main Directory
+```text
+Using DB handler 'wsgi' (acme2certifier.dbhandlers.wsgi_handler) selected via cfg ...
+```
 
 ```bash
-sudo mkdir /var/www/acme2certifier
+sudo tail -n 50 /var/log/apache2/error.log
 ```
 
-### Copy the WSGI Application
 
-```bash
-sudo cp acme2certifier/share/acme2certifier_wsgi.py /var/www/acme2certifier/
-```
 
-### Copy Required Directories
-
-```bash
-sudo mkdir /var/www/acme2certifier/examples
-sudo cp -R acme2certifier/ /var/www/acme2certifier/acme2certifier
-sudo cp -R examples/ca_handler/ /var/www/acme2certifier/examples/ca_handler
-sudo cp -R examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler
-sudo cp -R examples/hooks/ /var/www/acme2certifier/examples/hooks
-sudo cp -R examples/acme_srv.cfg /var/www/acme2certifier/examples/
-```
-
-Built-in CA/EAB/hook handlers and CLI tools ship inside the `acme2certifier` package (`handler_module` / `python3 -m acme2certifier.tools.<name>`). The `examples/*/skeleton_*.py` files are templates for custom handlers; EAB sample data lives under `examples/eab_handler/`.
-
-## 9. Set Up the `acme_srv` Directory
-
-### Create the `acme_srv` Directory
-
-```bash
-sudo mkdir /var/www/acme2certifier/acme_srv
-```
-
-### Copy the Contents of `acme_srv`
-
-```bash
-sudo cp -R acme_srv/ /var/www/acme2certifier/acme_srv
-```
-
-### 10. Configure `acme_srv.cfg`
-
-Create a configuration file `acme_srv.cfg` in `/var/www/acme2certifier/acme_srv`, or use the example stored in the `examples` directory.
-
-Modify the [configuration file](acme_srv.md) according to your needs.
-
-## 11. Select and Configure the CA Handler
-
-Configure the CA handler in `acme_srv.cfg` using `handler_module` (preferred), for example:
-
-```ini
-[CAhandler]
-handler_module: acme2certifier.cahandlers.openssl_ca_handler
-```
-
-See [Package layout migration](migration_package_layout.md) and the [Insta Certifier example](certifier.md). The older `handler_file` option and copying a handler to `acme_srv/ca_handler.py` remain supported but are deprecated.
-
-## 12. Select the Database Handler
-
-Default is the packaged WSGI/SQLite handler. Set in `acme_srv.cfg` (preferred) or via `ACME_SRV_DB_HANDLER` (cfg wins):
-
-```ini
-[DBhandler]
-handler: wsgi
-# handler: django
-# handler_module: acme2certifier.dbhandlers.wsgi_handler
-dbfile: /var/www/acme2certifier/acme_srv.db
-```
-
-Copying handler files into `acme_srv/db_handler.py` is no longer required for package installs.
-
-## 13. Set Proper Permissions
-
-Ensure that all files and directories under `/var/www/acme2certifier` are owned by the web server user (`www-data` is used as an example):
-
-```bash
-sudo chown -R www-data:www-data /var/www/acme2certifier/
-```
-
-Set the correct permissions for the `acme_srv` directory:
-
-```bash
-sudo chmod a+x /var/www/acme2certifier/acme_srv
-```
-
-## 14. Remove the Default Apache Configuration and Restart Apache
-
-```bash
-sudo rm /etc/apache2/sites-enabled/000-default.conf
-sudo systemctl reload apache2
-```
-
-## 15. Verify Installation
-
-Check if access to the directory resource works:
+## 10. Verify
 
 ```bash
 curl http://127.0.0.1/directory
 ```
 
-Expected response:
+Expected JSON includes `newAccount`, `newNonce`, `newOrder`, etc.
 
-```json
-{
-  "newAccount": "http://127.0.0.1/acme_srv/newaccount",
-  "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417",
-  "keyChange": "http://127.0.0.1/acme_srv/key-change",
-  "newNonce": "http://127.0.0.1/acme_srv/newnonce",
-  "meta": {
-    "home": "https://github.com/grindsa/acme2certifier",
-    "author": "grindsa <grindelsack@gmail.com>"
-  },
-  "newOrder": "http://127.0.0.1/acme_srv/neworders",
-  "revokeCert": "http://127.0.0.1/acme_srv/revokecert"
-}
+## 11. Enroll a certificate
+
+Use your preferred ACME client against this directory URL. If enrollment fails, check the CA handler section in `acme_srv.cfg`, Apache/error logs, and [debug mode](acme_srv.md).
+
+## Upgrading
+
+```bash
+sudo /var/www/acme2certifier/venv/bin/pip install -U acme2certifier
+# or pin: ... install 'acme2certifier==0.45.dev1'
+
+SHARE=$(/var/www/acme2certifier/venv/bin/python -c \
+  "import acme2certifier.share as s, pathlib; print(pathlib.Path(s.__file__).parent)")
+sudo cp "$SHARE/acme2certifier_wsgi.py" /var/www/acme2certifier/
+sudo systemctl restart apache2
 ```
 
-## 16. Enroll a Certificate
 
-Try enrolling a certificate using your preferred ACME client. If it fails, check your CA handler configuration, logs, and enable [debug mode](acme_srv.md) in `acme2certifier` for further investigation.
+
+## Related
+
+- [acme_srv.cfg options](acme_srv.md)
+- [Package layout migration](migration_package_layout.md)
+- [DEB installation](install_deb.md) (apt package alternative)
+- [Nginx + uWSGI (Ubuntu)](install_nginx_wsgi_ub24.md)
+
