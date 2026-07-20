@@ -113,17 +113,13 @@ Remember to:
 
 # %{__cp} -a . %{buildroot}%{dest_dir}/%{projname}
 %{__cp} -a acme_srv tools %{buildroot}%{dest_dir}/%{projname}
-%{__cp} -a examples/ca_handler examples/db_handler examples/django examples/eab_handler examples/hooks examples/trigger examples/nginx %{buildroot}%{dest_dir}/%{projname}/examples
+%{__cp} -a examples/ca_handler examples/django examples/eab_handler examples/hooks examples/trigger examples/nginx %{buildroot}%{dest_dir}/%{projname}/examples
 
 %{__chmod} -R go-w %{buildroot}%{dest_dir}/%{projname}
 
 %{__cp} -a \
     examples/acme_srv.cfg \
     %{buildroot}%{dest_dir}/%{projname}/acme_srv/acme_srv.cfg
-
-%{__cp} -a \
-    examples/db_handler/wsgi_handler.py \
-    %{buildroot}%{dest_dir}/%{projname}/acme_srv/db_handler.py
 
 %{__cp} -a \
     examples/acme2certifier_wsgi.py \
@@ -158,7 +154,7 @@ plugins = python3
 %files
 %defattr(-,root,root,-)
 %config(noreplace) %{dest_dir}/%{projname}/acme_srv/acme_srv.cfg
-# %config(noreplace) %{dest_dir}/%{projname}/acme_srv/db_handler.py
+# (db_handler is selected via acme_srv.cfg handler / handler_module)
 
 %license LICENSE
 %doc *.md requirements.txt docs/*.md
@@ -171,7 +167,17 @@ plugins = python3
 if [ -d %{dest_dir}/%{projname}/%{projname} ]; then
     echo "django environment detected"
     cp -R %{dest_dir}/%{projname}/examples/django/acme_srv/* %{dest_dir}/%{projname}/acme_srv/
-    cp -f %{dest_dir}/%{projname}/examples/db_handler/django_handler.py %{dest_dir}/%{projname}/acme_srv/db_handler.py
+    CFG=%{dest_dir}/%{projname}/acme_srv/acme_srv.cfg
+    if [ -f "$CFG" ]; then
+        sed -i 's/^# handler: django$/handler: django/' "$CFG"
+        if ! grep -qE '^handler(_module)?:' "$CFG"; then
+            if grep -q '^\[DBhandler\]' "$CFG"; then
+                sed -i '/\[DBhandler\]/a handler: django' "$CFG"
+            else
+                printf '\n[DBhandler]\nhandler: django\n' >> "$CFG"
+            fi
+        fi
+    fi
 fi
 
 cat <<EOT > /tmp/acme2certifier.te

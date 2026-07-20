@@ -490,10 +490,11 @@ sudo cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
 sudo cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
 ```
 
-- copy the django handler and the django directory structure
+- configure the Django DB handler and copy the django directory structure
 
 ```bash
-sudo cp /opt/acme2certifier/examples/db_handler/django_handler.py /opt/acme2certifier/acme_srv/db_handler.py
+# in acme_srv.cfg under [DBhandler]:
+#   handler: django
 sudo cp -r /opt/acme2certifier/examples/django/* /opt/acme2certifier/
 ```
 

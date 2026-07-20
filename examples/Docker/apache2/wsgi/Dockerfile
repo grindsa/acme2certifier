@@ -34,10 +34,8 @@ RUN apt-get update  && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
     cp /var/www/acme2certifier/examples/apache2/apache_wsgi.conf /etc/apache2/sites-enabled/acme2certifier.conf  && \
-    cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py  && \
     rm -rf /var/www/acme2certifier/examples/Docker && \
     rm -rf /var/www/acme2certifier/examples/django && \
-    rm -rf /var/www/acme2certifier/examples/db_handler && \
     rm -rf /var/www/acme2certifier/examples/nginx && \
     rm -f /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
     chown -R www-data:www-data /var/www/acme2certifier/ && \

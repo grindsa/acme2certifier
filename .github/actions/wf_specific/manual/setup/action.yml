@@ -78,8 +78,8 @@ runs:
       docker exec acme-srv cp /tmp/acme2certifier/.github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg /var/lib/acme2certifier/volume/acme_srv.cfg
       docker exec acme-srv ln -s /var/lib/acme2certifier/volume/acme_srv.cfg /var/lib/acme2certifier/acme_srv/
 
-      # copy db handler
-      docker exec acme-srv cp /var/lib/acme2certifier/examples/db_handler/${DB_HANDLER}_handler.py /var/lib/acme2certifier/acme_srv/db_handler.py
+      # Select DB handler via acme_srv.cfg (cfg wins over env)
+      docker exec -e DB_HANDLER=${{ inputs.DB_HANDLER }} acme-srv bash -c 'CFG=/var/lib/acme2certifier/volume/acme_srv.cfg; sed -i "s/^# handler: ${DB_HANDLER}$/handler: ${DB_HANDLER}/" "$CFG"; grep -qE "^handler:" "$CFG" || sed -i "/\[DBhandler\]/a handler: ${DB_HANDLER}" "$CFG"'
     shell: bash
     env:
       DB_HANDLER: ${{ inputs.DB_HANDLER }}

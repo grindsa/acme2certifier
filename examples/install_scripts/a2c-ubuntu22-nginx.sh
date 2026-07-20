@@ -27,7 +27,6 @@ sudo cp -R examples/nginx/ /var/www/acme2certifier/examples/nginx
 sudo cp examples/acme_srv.cfg /var/www/acme2certifier/examples/
 sudo cp -R acme_srv/ /var/www/acme2certifier/acme_srv
 sudo cp -R tools/ /var/www/acme2certifier/tools
-sudo cp examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
 
 echo "## Modify nginx configuration file"
 sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv.conf

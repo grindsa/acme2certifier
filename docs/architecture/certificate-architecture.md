@@ -59,7 +59,7 @@ The `Certificate` class is the main entry point for certificate operations and A
 - Handles protocol-specific logic and error handling
 - Coordinates with CAHandler for backend CA operations
 
-### 2. Certificate Repository (`acme2certifier/acme_srv/db_handler.py`)
+### 2. Certificate Repository (`acme2certifier/dbhandlers/*` via `acme2certifier.acme_srv.db_handler`)
 
 - Encapsulates all database operations related to certificates
 - Provides methods for certificate CRUD, account checks, and order lookups

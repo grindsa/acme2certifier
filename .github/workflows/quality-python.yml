@@ -73,7 +73,6 @@ jobs:
     - name: cp
       run: |
          cp acme2certifier/cahandlers/skeleton_ca_handler.py acme_srv/ca_handler.py
-         cp examples/db_handler/wsgi_handler.py acme_srv/db_handler.py
          cp examples/acme_srv.cfg acme_srv/
     - name: Python test
       run: |
@@ -114,8 +113,7 @@ jobs:
       - name: cp
         run: |
           cp acme2certifier/cahandlers/skeleton_ca_handler.py acme_srv/ca_handler.py
-          cp examples/db_handler/wsgi_handler.py acme_srv/db_handler.py
-          cp examples/acme_srv.cfg acme_srv/
+           cp examples/acme_srv.cfg acme_srv/
 
       - name: "Pylint folder: acme2certifier package"
         run: |
@@ -125,9 +123,9 @@ jobs:
         run: |
           pylint --rcfile=".github/pylintrc" acme_srv/ || pylint-exit $?
 
-      - name: "Pylint folder: examples/db_handler"
+      - name: "Pylint folder: acme2certifier/dbhandlers"
         run: |
-          pylint --rcfile=".github/pylintrc" examples/db_handler/*.py || pylint-exit $?
+          pylint --rcfile=".github/pylintrc" acme2certifier/dbhandlers/*.py || pylint-exit $?
 
       - name: "Pylint folder: examples skeletons"
         run: |

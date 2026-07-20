@@ -76,7 +76,6 @@ sudo cp -R acme2certifier/ /var/www/acme2certifier/acme2certifier
 sudo cp -R examples/ca_handler/ /var/www/acme2certifier/examples/ca_handler
 sudo cp -R examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler
 sudo cp -R examples/hooks/ /var/www/acme2certifier/examples/hooks
-sudo cp -R examples/db_handler/ /var/www/acme2certifier/examples/db_handler
 sudo cp -R examples/acme_srv.cfg /var/www/acme2certifier/examples/
 ```
 
@@ -113,11 +112,19 @@ handler_module: acme2certifier.cahandlers.openssl_ca_handler
 
 See [Package layout migration](migration_package_layout.md) and the [Insta Certifier example](certifier.md). The older `handler_file` option and copying a handler to `acme_srv/ca_handler.py` remain supported but are deprecated.
 
-## 12. Activate the WSGI Database Handler
+## 12. Select the Database Handler
 
-```bash
-sudo cp /var/www/acme2certifier/examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
+Default is the packaged WSGI/SQLite handler. Set in `acme_srv.cfg` (preferred) or via `ACME_SRV_DB_HANDLER` (cfg wins):
+
+```ini
+[DBhandler]
+handler: wsgi
+# handler: django
+# handler_module: acme2certifier.dbhandlers.wsgi_handler
+dbfile: /var/www/acme2certifier/acme_srv.db
 ```
+
+Copying handler files into `acme_srv/db_handler.py` is no longer required for package installs.
 
 ## 13. Set Proper Permissions
 

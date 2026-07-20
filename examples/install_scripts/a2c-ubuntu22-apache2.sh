@@ -58,7 +58,6 @@ sudo mkdir -p /var/www/acme2certifier/volume/acme_ca/certs
 sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem /var/www/acme2certifier/volume/acme_ca/
 
 # 17 copy database handler
-sudo cp examples/db_handler/wsgi_handler.py /var/www/acme2certifier/acme_srv/db_handler.py
 
 # 18 set correct ownership
 sudo chown -R www-data.www-data /var/www/acme2certifier/
