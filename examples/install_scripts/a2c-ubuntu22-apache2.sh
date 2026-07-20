@@ -33,7 +33,7 @@ sudo a2ensite acme2certifier_ssl.conf
 sudo mkdir -p /var/www/acme2certifier
 
 # 9 copy main wsgi file
-sudo cp examples/acme2certifier_wsgi.py /var/www/acme2certifier
+sudo cp acme2certifier/share/acme2certifier_wsgi.py /var/www/acme2certifier/
 
 # 10 copy components needed by a2c
 sudo mkdir /var/www/acme2certifier/examples

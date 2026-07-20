@@ -25,7 +25,7 @@ sudo pip3 install -r requirements.txt
 ### 4. Copy the Required Files and Directories
 
 ```bash
-sudo cp examples/acme2certifier_wsgi.py /var/www/acme2certifier/acme2certifier_wsgi.py
+sudo cp acme2certifier/share/acme2certifier_wsgi.py /var/www/acme2certifier/acme2certifier_wsgi.py
 sudo cp -R acme2certifier/ /var/www/acme2certifier/acme2certifier
 sudo cp -R examples/ca_handler/ /var/www/acme2certifier/examples/ca_handler
 sudo cp -R examples/eab_handler/ /var/www/acme2certifier/examples/eab_handler

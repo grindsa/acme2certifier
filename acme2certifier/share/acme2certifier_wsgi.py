@@ -26,6 +26,7 @@ from acme2certifier.acme_srv.helper import (
     logger_info,
     config_check,
 )
+from acme2certifier.acme_srv.db_handler import log_active_db_handler
 from acme2certifier.acme_srv.version import __dbversion__, __version__
 
 # We address a cpdesmells
@@ -79,6 +80,7 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
 # initialize logger
 LOGGER = logger_setup(DEBUG)
+log_active_db_handler(LOGGER)
 
 with Housekeeping(DEBUG, LOGGER) as housekeeping:
     housekeeping.dbversion_check(__dbversion__)

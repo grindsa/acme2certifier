@@ -72,7 +72,7 @@ runs:
       docker exec acme-srv cp /tmp/acme2certifier/.github/acme2certifier_key.pem /etc/ssl/private/acme2certifier_key.pem
       docker exec acme-srv cp /var/lib/acme2certifier/examples/nginx/acme2certifier.ini /var/lib/acme2certifier
       # configure cahandler
-      docker exec acme-srv cp /var/lib/acme2certifier/examples/acme2certifier_wsgi.py  /var/lib/acme2certifier
+      docker exec acme-srv cp /var/lib/acme2certifier/acme2certifier/share/acme2certifier_wsgi.py /var/lib/acme2certifier/
       docker exec acme-srv mkdir -p /var/lib/acme2certifier/volume/acme_ca/certs
       docker exec acme-srv cp /tmp/acme2certifier/test/ca/sub-ca-key.pem /tmp/acme2certifier/test/ca/sub-ca-crl.pem /tmp/acme2certifier/test/ca/sub-ca-cert.pem /tmp/acme2certifier/test/ca/root-ca-cert.pem /var/lib/acme2certifier/volume/acme_ca/
       docker exec acme-srv cp /tmp/acme2certifier/.github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg /var/lib/acme2certifier/volume/acme_srv.cfg

@@ -49,7 +49,6 @@ RUN apt-get update  && \
     rm -rf /var/www/acme2certifier/examples/Docker && \
     rm -rf /var/www/acme2certifier/examples/nginx && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
-    rm -rf /var/www/acme2certifier/examples/acme2certifier_wsgi.py  && \
     rm -rf /var/www/acme2certifier/acme2certifier_wsgi.py  && \
     rm /var/www/acme2certifier/acme2certifier/settings.py && \
     rm -f /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
