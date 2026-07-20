@@ -102,15 +102,15 @@ ENV/
 # /acme2certifier/
 db.sqlite3
 /manage.py
-acme_srv/migrations/
-acme_srv/admin.py
-acme_srv/apps.py
-acme_srv/models.py
-acme_srv/tests.py
-acme_srv/urls.py
-acme_srv/views.py
+acme2certifier/acme_srv/migrations/
+acme2certifier/acme_srv/admin.py
+acme2certifier/acme_srv/apps.py
+acme2certifier/acme_srv/models.py
+acme2certifier/acme_srv/tests.py
+acme2certifier/acme_srv/urls.py
+acme2certifier/acme_srv/views.py
 # Top-level acme_srv/ is local-only (dev); Django app ships from examples/django/acme_srv/
-acme_srv/__init__.py
+acme2certifieracme_srv/__init__.py
 commands.txt
 *.bat
 *.db
@@ -139,6 +139,10 @@ acme_srv/a2c_response.py
 acme2certifier/acme_srv/db_handler.py
 acme2certifier/acme_srv/ca_handler.py
 acme2certifier/acme_srv/a2c_response.py
+acme2certifier/acme2certifier/settings.py
+acme2certifier/acme2certifier/settings.py.mariadb.old
+acme2certifier/acme2certifier/urls.py
+acme2certifier/acme2certifier/wsgi.py
 acme2certifier/settings.py
 acme2certifier/settings.py.mariadb.old
 acme2certifier/urls.py
