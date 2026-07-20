@@ -51,7 +51,8 @@ INSTALLED_APPS = [
 ### 4. Rename the App
 
 ```bash
-python manage.py rename_app acme acme_srv
+a2c-manage rename_app acme acme_srv
+# or: python -m acme2certifier.tools.a2c_manage rename_app acme acme_srv
 ```
 
 ### 5. Update Configuration and Handlers

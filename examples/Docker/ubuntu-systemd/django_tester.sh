@@ -74,7 +74,6 @@ case "${1}" in
       sed -i 's/^# handler: django$/handler: django/' "$CFG"
       grep -qE '^handler:' "$CFG" || sed -i '/\[DBhandler\]/a handler: django' "$CFG"
     fi
-    cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/
 
     echo "copy data"
     mkdir -p /var/www/acme2certifier/volume/acme_ca
@@ -83,16 +82,23 @@ case "${1}" in
     if [[ -f /var/www/acme2certifier/acme_srv/acme_srv.cfg ]]; then
       rm /var/www/acme2certifier/acme_srv/acme_srv.cfg
     fi
+    mkdir -p /var/www/acme2certifier/acme_srv
     ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
 
-    if [[ -f /var/www/acme2certifier/acme2certifier/settings.py ]]; then
-      rm /var/www/acme2certifier/acme2certifier/settings.py
+    if [[ -f /var/www/acme2certifier/volume/acme2certifier/settings.py ]]; then
+      rm -f /var/www/acme2certifier/acme2certifier/django_project/settings.py
+      ln -s /var/www/acme2certifier/volume/acme2certifier/settings.py \
+        /var/www/acme2certifier/acme2certifier/django_project/settings.py
+    elif [[ -f /var/www/acme2certifier/volume/settings.py ]]; then
+      rm -f /var/www/acme2certifier/acme2certifier/django_project/settings.py
+      ln -s /var/www/acme2certifier/volume/settings.py \
+        /var/www/acme2certifier/acme2certifier/django_project/settings.py
     fi
-    ln -s /var/www/acme2certifier/volume/acme2certifier/settings.py /var/www/acme2certifier/acme2certifier/settings.py
 
     echo "appply migrations"
     cd /var/www/acme2certifier
     a2c-django-update
+    a2c-manage loaddata status
 
     echo "change owner and start service"
     chown -R www-data.www-data /var/www/acme2certifier/volume

@@ -2,14 +2,12 @@
 
 from django.urls import include, re_path
 from django.contrib import admin
-from acme_srv import views
-from acme2certifier.acme_srv.helper import load_config
 from django.views.generic import RedirectView
+from acme2certifier.django_app import views
+from acme2certifier.acme_srv.helper import load_config
 
-# load config to set url_prefix
 CONFIG = load_config()
 
-# check ifwe need to prefix the url
 if "Directory" in CONFIG and "url_prefix" in CONFIG["Directory"]:
     PREFIX = CONFIG["Directory"]["url_prefix"] + "/"
     if PREFIX.startswith("/"):
@@ -24,10 +22,9 @@ urlpatterns = [
     re_path(rf"^{PREFIX}get_servername$", views.servername_get, name="servername_get"),
     re_path(rf"^{PREFIX}trigger$", views.trigger, name="trigger"),
     re_path(rf"^{PREFIX}housekeeping$", views.housekeeping, name="housekeeping"),
-    re_path(rf"^{PREFIX}acme/", include("acme_srv.urls")),
+    re_path(rf"^{PREFIX}acme/", include("acme2certifier.django_app.urls")),
 ]
 
-# check if we need to activate the url pattern for challenge verification
 if "CAhandler" in CONFIG and "acme_url" in CONFIG["CAhandler"]:
     urlpatterns.append(
         re_path(

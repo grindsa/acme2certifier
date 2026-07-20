@@ -102,6 +102,7 @@ ENV/
 # /acme2certifier/
 db.sqlite3
 /manage.py
+# Legacy ignores: Django app no longer lives under acme2certifier/acme_srv/
 acme2certifier/acme_srv/migrations/
 acme2certifier/acme_srv/admin.py
 acme2certifier/acme_srv/apps.py
@@ -109,7 +110,7 @@ acme2certifier/acme_srv/models.py
 acme2certifier/acme_srv/tests.py
 acme2certifier/acme_srv/urls.py
 acme2certifier/acme_srv/views.py
-# Top-level acme_srv/ is local-only (dev); Django app ships from examples/django/acme_srv/
+# Top-level acme_srv/ is local-only (dev); Django ships as django_app/django_project
 acme2certifieracme_srv/__init__.py
 commands.txt
 *.bat
@@ -143,6 +144,7 @@ acme2certifier/acme2certifier/settings.py
 acme2certifier/acme2certifier/settings.py.mariadb.old
 acme2certifier/acme2certifier/urls.py
 acme2certifier/acme2certifier/wsgi.py
+# Legacy package-root Django project files (canonical: django_project/)
 acme2certifier/settings.py
 acme2certifier/settings.py.mariadb.old
 acme2certifier/urls.py

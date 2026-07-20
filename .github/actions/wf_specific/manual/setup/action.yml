@@ -91,11 +91,9 @@ runs:
       # delete wsgi handler as it is not needed and cause confusion with django handler
       docker exec acme-srv rm /var/lib/acme2certifier/acme2certifier_wsgi.py
       docker exec acme-srv apt-get install -y python3-django python3-mysqldb python3-pymysql python3-yaml
-      docker exec acme-srv bash -c 'cp -R /var/lib/acme2certifier/examples/django/* /var/lib/acme2certifier/'
-      docker exec acme-srv bash -c 'sed -i "s/acme2certifier_wsgi/acme2certifier.wsgi/g" /var/lib/acme2certifier/acme2certifier.ini'
-      docker exec acme-srv cp /tmp/acme2certifier/.github/django_settings_mariadb.py /var/lib/acme2certifier/acme2certifier/settings.py
-      docker exec acme-srv bash -c 'cd /var/lib/acme2certifier && python3 manage.py makemigrations'
-      docker exec acme-srv bash -c 'cd /var/lib/acme2certifier && python3 manage.py migrate && python3 manage.py loaddata acme_srv/fixture/status.yaml'
+      docker exec acme-srv bash -c 'sed -i "s/acme2certifier_wsgi/acme2certifier.django_project.wsgi/g" /var/lib/acme2certifier/acme2certifier.ini'
+      docker exec acme-srv cp /tmp/acme2certifier/.github/django_settings_mariadb.py /var/lib/acme2certifier/acme2certifier/django_project/settings.py
+      docker exec acme-srv bash -c 'cd /var/lib/acme2certifier && a2c-manage migrate && a2c-manage loaddata status'
       docker exec acme-srv chown -R www-data:www-data /var/lib/acme2certifier/
     shell: bash
 

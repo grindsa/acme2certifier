@@ -45,12 +45,10 @@ RUN apt-get update  && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
     cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-enabled/acme2certifier.conf && \
-    cp -R /var/www/acme2certifier/examples/django/* /var/www/acme2certifier/  && \
     rm -rf /var/www/acme2certifier/examples/Docker && \
     rm -rf /var/www/acme2certifier/examples/nginx && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
     rm -rf /var/www/acme2certifier/acme2certifier_wsgi.py  && \
-    rm /var/www/acme2certifier/acme2certifier/settings.py && \
     rm -f /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
     chown -R www-data:www-data /var/www/acme2certifier/ && \
     sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
