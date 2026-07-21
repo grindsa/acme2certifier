@@ -4,156 +4,200 @@
 
 # Installation on NGINX Running on Alma Linux 9
 
-The setup is designed so that uWSGI serves `acme2certifier`, while NGINX acts as a reverse proxy for better connection handling.
+Install `acme2certifier` from PyPI into a virtualenv under **`/opt/acme2certifier`** and serve it with Nginx + uWSGI. The same flow applies to RHEL 9 / Rocky / CentOS Stream with EPEL.
 
-A [ready-made shell script](../examples/install_scripts/a2c-centos9-nginx.sh) performing the tasks below can be found in the `examples/install_scripts` directory.
+uWSGI serves the application; Nginx is the reverse proxy.
 
-## 1. Download and Extract the Archive
+**Other install guides:** [Apache2 on Ubuntu](install_apache2_ubuntu.md) · [Nginx on Ubuntu](install_nginx_ubuntu.md)
 
-```bash
-cd /tmp
-curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/heads/master -o a2c-master.tgz
-tar xvfz a2c-master.tgz
-cd /tmp/acme2certifier-master
-```
+## Automated install script
 
-## 2. Install Required Packages
+[`examples/install_scripts/a2c-centos9-nginx.sh`](../examples/install_scripts/a2c-centos9-nginx.sh)
 
 ```bash
-sudo yum install -y epel-release
-sudo yum update -y
-sudo yum install -y python-pip nginx python3-uwsgidecorators.x86_64 tar uwsgi-plugin-python3 policycoreutils-python-utils
+chmod a+rx examples/install_scripts/a2c-centos9-nginx.sh
+./examples/install_scripts/a2c-centos9-nginx.sh --mode wsgi --from-source
+./examples/install_scripts/a2c-centos9-nginx.sh --mode wsgi
+./examples/install_scripts/a2c-centos9-nginx.sh --mode django --version 0.45.dev1
 ```
 
-## 3. Set Up the Project Directory
+| Option | Meaning |
+| --- | --- |
+| `--mode wsgi\|django` | DB backend + matching uWSGI `module` (default: `wsgi`) |
+| `--version VERSION` | `pip` pin |
+| `--pre` | allow pre-releases |
+| `--from-source` | editable install from the current checkout |
+
+App root is always `/opt/acme2certifier`. The remainder of this guide is the manual equivalent of that script.
+
+## 1. Install system packages
 
 ```bash
-sudo mkdir /opt/acme2certifier
+sudo dnf install -y epel-release   # or: yum install -y epel-release
+sudo dnf install -y \
+  nginx uwsgi uwsgi-plugin-python3 \
+  python3 python3-pip python3-devel gcc tar curl openssl \
+  policycoreutils-python-utils checkpolicy \
+  krb5-workstation krb5-libs krb5-devel procps-ng
 ```
 
-## 4. Install Required Python Modules
+## 2. Create app root and venv
 
 ```bash
-sudo pip install -r /opt/acme2certifier/requirements.txt
+sudo mkdir -p /opt/acme2certifier/volume /run/uwsgi
+sudo python3 -m venv /opt/acme2certifier/venv
+sudo /opt/acme2certifier/venv/bin/pip install -U pip
 ```
 
-## 5. Configure `acme2certifier`
+## 3. Install acme2certifier
 
-1. Create a configuration file `acme_srv.cfg` in `/opt/acme2certifier/acme_srv/`, or use the example stored in the `examples` directory.
-1. Modify the [configuration file](acme_srv.md) according to your needs.
-1. Set `handler_module` in `acme_srv.cfg` (preferred), for example `handler_module: acme2certifier.cahandlers.openssl_ca_handler`. See [Package layout migration](migration_package_layout.md). The older `handler_file` option and copying a handler to `acme_srv/ca_handler.py` remain supported but are deprecated.
-1. Configure the connection to your CA server. [Example for Insta Certifier](certifier.md).
+```bash
+sudo /opt/acme2certifier/venv/bin/pip install acme2certifier
+# Django: sudo ... pip install 'acme2certifier[django]'
+# pre-release: sudo ... pip install 'acme2certifier==0.45.dev1'
+```
 
-## 6. Activate the Database Handler
+## 4. Deploy config and WSGI entry
 
-Prefer configuring the packaged handler in `acme_srv.cfg` (cfg wins over env):
+```bash
+SHARE=$(/opt/acme2certifier/venv/bin/python -c \
+  "import acme2certifier.share as s, pathlib; print(pathlib.Path(s.__file__).parent)")
+A2C=$(/opt/acme2certifier/venv/bin/python -c \
+  "import acme2certifier, pathlib; print(pathlib.Path(acme2certifier.__file__).parent)")
+
+sudo cp "$SHARE/acme_srv.cfg" /opt/acme2certifier/acme_srv.cfg
+sudo mkdir -p /opt/acme2certifier/acme_srv
+sudo ln -sfn /opt/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv/acme_srv.cfg
+```
+
+Edit `/opt/acme2certifier/acme_srv.cfg`:
 
 ```ini
 [DBhandler]
 handler: wsgi
 # handler: django
+dbfile: /opt/acme2certifier/acme_srv.db
+
+[CAhandler]
+handler_module: acme2certifier.cahandlers.openssl_ca_handler
+# plus CA-specific options — see acme_srv.md
 ```
 
-## 7. Copy the WSGI Application File
+**WSGI mode:**
 
 ```bash
-sudo cp /opt/acme2certifier/acme2certifier/share/acme2certifier_wsgi.py /opt/acme2certifier/
+sudo cp "$SHARE/acme2certifier_wsgi.py" /opt/acme2certifier/
+# uWSGI module = acme2certifier_wsgi:application
 ```
 
-## 8. Set Correct Permissions
+**Django mode:**
 
 ```bash
-sudo chmod a+x /opt/acme2certifier/acme_srv
-sudo chown -R nginx /opt/acme2certifier/acme_srv
+sudo ln -sfn "$A2C" /opt/acme2certifier/acme2certifier
+# uWSGI module = acme2certifier.django_project.wsgi:application
+export ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
+export ACME2CERTIFIER_BASE_DIR=/opt/acme2certifier
+sudo -E /opt/acme2certifier/venv/bin/a2c-manage migrate
+sudo -E /opt/acme2certifier/venv/bin/a2c-manage loaddata status
 ```
 
-## 9. Test `acme2certifier` by Starting the Application
+## 5. uWSGI ini
+
+Create `/opt/acme2certifier/acme2certifier.ini` (socket under `/run/uwsgi`, user `nginx`):
+
+```ini
+[uwsgi]
+plugins = python3
+virtualenv = /opt/acme2certifier/venv
+chdir = /opt/acme2certifier
+module = acme2certifier_wsgi:application
+# django: module = acme2certifier.django_project.wsgi:application
+master = true
+processes = 5
+uid = nginx
+gid = nginx
+socket = /run/uwsgi/acme.sock
+chown-socket = nginx
+chmod-socket = 660
+vacuum = true
+die-on-term = true
+disable-logging = true
+enable-threads = true
+env = ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
+env = ACME2CERTIFIER_BASE_DIR=/opt/acme2certifier
+```
+
+## 6. Nginx configs (`/etc/nginx/conf.d/`)
 
 ```bash
-cd /opt/acme2certifier
-sudo uwsgi --http-socket :8000 --plugin python3 --wsgi-file acme2certifier_wsgi.py
+sudo cp "$SHARE/nginx/nginx_acme_srv.conf" /etc/nginx/conf.d/nginx_acme_srv.conf
+sudo cp "$SHARE/nginx/nginx_acme_srv_ssl.conf" /etc/nginx/conf.d/nginx_acme_srv_ssl.conf
+# rewrite TLS paths from the Ubuntu-oriented defaults to /opt
+sudo sed -i 's|/var/www/acme2certifier|/opt/acme2certifier|g' \
+  /etc/nginx/conf.d/nginx_acme_srv.conf \
+  /etc/nginx/conf.d/nginx_acme_srv_ssl.conf
+sudo rm -f /etc/nginx/conf.d/default.conf
 ```
 
-## 10. Verify Directory Access
+TLS files:
 
-Run the following command in a parallel session to confirm that everything is working:
+- `/opt/acme2certifier/volume/acme2certifier_cert.pem`
+- `/opt/acme2certifier/volume/acme2certifier_key.pem`
+
+## 7. systemd unit for uWSGI
 
 ```bash
-curl http://127.0.0.1:8000/directory
+sudo tee /etc/systemd/system/acme2certifier.service >/dev/null <<'EOF'
+[Unit]
+Description=uWSGI instance to serve acme2certifier
+After=network.target
+
+[Service]
+RuntimeDirectory=uwsgi
+User=nginx
+Group=nginx
+WorkingDirectory=/opt/acme2certifier
+Environment=PATH=/opt/acme2certifier/venv/bin:/usr/bin
+Environment=ACME_SRV_CONFIGFILE=/opt/acme2certifier/acme_srv.cfg
+Environment=ACME2CERTIFIER_BASE_DIR=/opt/acme2certifier
+ExecStart=/usr/sbin/uwsgi --ini /opt/acme2certifier/acme2certifier.ini
+Restart=on-failure
+Type=notify
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target
+EOF
+# if uwsgi is only at /usr/bin/uwsgi, adjust ExecStart accordingly
 ```
 
-Expected response:
-
-```json
-{
-  "newAccount": "http://127.0.0.1:8000/acme_srv/newaccount",
-  "fa8b347d3849421ebc4b234205418805": "https://community.letsencrypt.org/t/adding-random-entries-to-the-directory/33417",
-  "keyChange": "http://127.0.0.1:8000/acme_srv/key-change",
-  "newNonce": "http://127.0.0.1:8000/acme_srv/newnonce",
-  "meta": {
-    "home": "https://github.com/grindsa/acme2certifier",
-    "author": "grindsa <grindelsack@gmail.com>"
-  },
-  "newOrder": "http://127.0.0.1:8000/acme_srv/neworders",
-  "revokeCert": "http://127.0.0.1:8000/acme_srv/revokecert"
-}
-```
-
-## 11. Set Up uWSGI
-
-1. Create a uWSGI configuration file, or use the one stored in `examples/nginx`:
+## 8. SELinux (Nginx ↔ uWSGI socket)
 
 ```bash
-sudo cp examples/nginx/acme2certifier.ini /opt/acme2certifier
-```
-
-2. Enable the Python3 module in the uWSGI configuration file:
-
-```bash
-echo "plugins = python3" | sudo tee -a examples/nginx/acme2certifier.ini
-```
-
-3. Create a Systemd Unit File for uWSGI, or use the one in `examples/nginx`:
-
-```bash
-sudo cp examples/nginx/uwsgi.service /etc/systemd/system/
-sudo systemctl enable uwsgi.service
-```
-
-4. Start uWSGI as a service:
-
-```bash
-sudo systemctl start uwsgi
-```
-
-## 12. Configure NGINX as a Reverse Proxy
-
-1. Use the example stored in `examples/nginx` and modify it as needed:
-
-```bash
-sudo cp examples/nginx/nginx_acme.conf /etc/nginx/conf.d/acme.conf
-```
-
-2. Restart NGINX:
-
-```bash
-sudo systemctl restart nginx
-```
-
-## 13. Adapt SELinux Configuration
-
-Apply a customized policy to allow NGINX to communicate with uWSGI over Unix sockets:
-
-```bash
-sudo checkmodule -M -m -o acme2certifier.mod examples/nginx/acme2certifier.te
+sudo cp "$SHARE/nginx/acme2certifier.te" ./acme2certifier.te
+sudo checkmodule -M -m -o acme2certifier.mod acme2certifier.te
 sudo semodule_package -o acme2certifier.pp -m acme2certifier.mod
 sudo semodule -i acme2certifier.pp
 ```
 
-## 14. Test the Server
+## 9. Permissions and start
 
 ```bash
-curl http://<your-server-name>/directory
+sudo chown -R nginx:nginx /opt/acme2certifier
+sudo chmod a+x /opt/acme2certifier/acme_srv
+sudo nginx -t
+sudo systemctl daemon-reload
+sudo systemctl enable --now acme2certifier nginx
+sudo systemctl restart acme2certifier nginx
+curl -sS http://127.0.0.1/directory
 ```
 
-The above command may result in an error if the SELinux configuration still needs adjustment.
+## Related
+
+- Install script: [`a2c-centos9-nginx.sh`](../examples/install_scripts/a2c-centos9-nginx.sh)
+- [Apache2 + mod_wsgi (Ubuntu / PyPI)](install_apache2_ubuntu.md)
+- [Nginx + uWSGI (Ubuntu)](install_nginx_ubuntu.md)
+- [Support for External Databases (Django)](external_database_support.md)
+- [acme_srv.cfg options](acme_srv.md)
+- [Package layout migration](migration_package_layout.md)
+- Example CA: [Insta Certifier](certifier.md)

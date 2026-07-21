@@ -115,11 +115,12 @@ In addition rpm packages for AlmaLinux/CentOS Stream/Redhat EL 9 and deb package
 
 Installation guides:
 
-- [PyPI + Apache2 WSGI (Ubuntu)](docs/install_apache2_wsgi.md) — recommended for pip installs
+- [PyPI + Apache2 (Ubuntu)](docs/install_apache2_ubuntu.md) — recommended for pip installs
+- [Nginx + uWSGI (Ubuntu)](docs/install_nginx_ubuntu.md)
+- [Nginx + uWSGI (Alma / RHEL)](docs/install_nginx_alma.md)
 - [RPM Installation (AlmaLinux 9)](docs/install_rpm.md)
 - [DEB Installation (Ubuntu 24.04)](docs/install_deb.md)
 - [Docker Build Instructions](examples/Docker/)
-- [Nginx WSGI Setup (Ubuntu 24.04)](docs/install_nginx_wsgi_ub24.md)
 
 ## Software Bill Of Material
 

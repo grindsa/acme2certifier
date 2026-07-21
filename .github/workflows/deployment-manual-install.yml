@@ -67,8 +67,8 @@ jobs:
       - name: "Run install script"
         run: |
           sudo mkdir -p data
-          chmod a+rx examples/install_scripts/a2c-ubuntu22-apache2.sh
-          examples/install_scripts/a2c-ubuntu22-apache2.sh ${GITHUB_REF##*/}
+          chmod a+rx examples/install_scripts/a2c-ubuntu-apache2.sh
+          examples/install_scripts/a2c-ubuntu-apache2.sh --mode wsgi --from-source
 
       - name: "Local modification to get a2c running"
         run: |
@@ -136,7 +136,8 @@ jobs:
       - name: "Run install script"
         run: |
           sudo mkdir -p data
-          sh examples/install_scripts/a2c-ubuntu22-nginx.sh
+          chmod a+rx examples/install_scripts/a2c-ubuntu-nginx.sh
+          examples/install_scripts/a2c-ubuntu-nginx.sh --mode wsgi --from-source
 
       - name: "Local modification to get a2c running"
         run: |
@@ -205,7 +206,7 @@ jobs:
         run: |
           docker network create acme
           mkdir -p acme-sh
-          echo "exit 0" >> examples/install_scripts/a2c-centos9-nginx.sh
+          chmod a+rx examples/install_scripts/a2c-centos9-nginx.sh
 
       - name: "Almalinux instance"
         run: |

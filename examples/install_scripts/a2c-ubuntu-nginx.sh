@@ -1,10 +1,8 @@
 #!/bin/bash
-# Install acme2certifier on RHEL/CentOS/Alma/Rocky (Nginx + uWSGI) from PyPI (or local source).
-#
-# Install root: /opt/acme2certifier
+# Install acme2certifier on Ubuntu (Nginx + uWSGI) from PyPI (or local source).
 #
 # Usage:
-#   ./examples/install_scripts/a2c-centos9-nginx.sh [options]
+#   ./examples/install_scripts/a2c-ubuntu-nginx.sh [options]
 #
 # Options:
 #   -m, --mode wsgi|django   DB/WSGI mode (default: wsgi)
@@ -14,9 +12,9 @@
 #   -h, --help               show help
 #
 # Examples:
-#   ./examples/install_scripts/a2c-centos9-nginx.sh
-#   ./examples/install_scripts/a2c-centos9-nginx.sh --mode django --version 0.45.dev1
-#   ./examples/install_scripts/a2c-centos9-nginx.sh --mode wsgi --from-source
+#   ./examples/install_scripts/a2c-ubuntu-nginx.sh
+#   ./examples/install_scripts/a2c-ubuntu-nginx.sh --mode django --version 0.45.dev1
+#   ./examples/install_scripts/a2c-ubuntu-nginx.sh --mode wsgi --from-source
 #
 # Requires: run from a checkout when using --from-source; otherwise installs from PyPI.
 
@@ -26,15 +24,14 @@ MODE="wsgi"
 VERSION=""
 USE_PRE=0
 FROM_SOURCE=0
-APP_ROOT="/opt/acme2certifier"
+APP_ROOT="/var/www/acme2certifier"
 VENV="${APP_ROOT}/venv"
 CFG="${APP_ROOT}/acme_srv.cfg"
 UWSGI_INI="${APP_ROOT}/acme2certifier.ini"
-UWSGI_SOCK="/run/uwsgi/acme.sock"
-NGINX_USER="nginx"
+UWSGI_SOCK="${APP_ROOT}/acme.sock"
 
 usage() {
-  sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 while [[ $# -gt 0 ]]; do
@@ -81,35 +78,23 @@ else
   SUDO="sudo"
 fi
 
-if command -v dnf >/dev/null 2>&1; then
-  PKG="dnf"
-else
-  PKG="yum"
-fi
-
-echo "==> Installing system packages (${PKG})"
-${SUDO} ${PKG} install -y epel-release
-${SUDO} ${PKG} install -y curl --allowerasing
-${SUDO} ${PKG} install -y \
+echo "==> Installing system packages"
+${SUDO} apt-get update
+${SUDO} apt-get install -y \
   nginx \
   uwsgi \
   uwsgi-plugin-python3 \
-  python3 \
+  python3-venv \
   python3-pip \
-  python3-devel \
-  gcc \
-  tar \
   curl \
   openssl \
-  policycoreutils-python-utils \
-  checkpolicy \
-  krb5-workstation \
-  krb5-libs \
-  krb5-devel \
-  procps-ng
+  krb5-user \
+  libgssapi-krb5-2 \
+  libkrb5-3 \
+  python3-gssapi
 
 echo "==> Creating ${APP_ROOT} and venv"
-${SUDO} mkdir -p "${APP_ROOT}/volume" /run/uwsgi
+${SUDO} mkdir -p "${APP_ROOT}/volume"
 ${SUDO} python3 -m venv "${VENV}"
 ${SUDO} "${VENV}/bin/pip" install -U pip
 
@@ -159,11 +144,6 @@ else
   ${SUDO} sed -i "/^\[DBhandler\]/a handler: ${MODE}" "${CFG}"
 fi
 
-# dbfile path under APP_ROOT
-if grep -qE '^dbfile:' "${CFG}"; then
-  ${SUDO} sed -i "s|^dbfile:.*|dbfile: ${APP_ROOT}/acme_srv.db|" "${CFG}"
-fi
-
 if [[ "${MODE}" == "wsgi" ]]; then
   UWSGI_MODULE="acme2certifier_wsgi:application"
   ${SUDO} cp "${SHARE}/acme2certifier_wsgi.py" "${APP_ROOT}/"
@@ -181,10 +161,10 @@ chdir = ${APP_ROOT}
 module = ${UWSGI_MODULE}
 master = true
 processes = 5
-uid = ${NGINX_USER}
-gid = ${NGINX_USER}
+uid = www-data
+gid = www-data
 socket = ${UWSGI_SOCK}
-chown-socket = ${NGINX_USER}
+chown-socket = www-data
 chmod-socket = 660
 vacuum = true
 die-on-term = true
@@ -194,22 +174,21 @@ env = ACME_SRV_CONFIGFILE=${CFG}
 env = ACME2CERTIFIER_BASE_DIR=${APP_ROOT}
 EOF
 
-echo "==> Deploying Nginx HTTP + SSL configs to /etc/nginx/conf.d/"
+echo "==> Deploying Nginx HTTP + SSL site configs"
 TMP_NGINX="$(mktemp -d)"
 ${SUDO} cp "${SHARE}/nginx/nginx_acme_srv.conf" "${TMP_NGINX}/"
 ${SUDO} cp "${SHARE}/nginx/nginx_acme_srv_ssl.conf" "${TMP_NGINX}/"
-# Point TLS material and (if needed) socket at /opt layout
-${SUDO} sed -i \
-  -e "s|/var/www/acme2certifier|${APP_ROOT}|g" \
-  -e "s|/run/uwsgi/acme.sock|${UWSGI_SOCK}|g" \
+# Use DocumentRoot socket path (writable by www-data)
+${SUDO} sed -i "s|/run/uwsgi/acme.sock|${UWSGI_SOCK}|g" \
   "${TMP_NGINX}/nginx_acme_srv.conf" \
   "${TMP_NGINX}/nginx_acme_srv_ssl.conf"
-${SUDO} cp "${TMP_NGINX}/nginx_acme_srv.conf" /etc/nginx/conf.d/nginx_acme_srv.conf
-${SUDO} cp "${TMP_NGINX}/nginx_acme_srv_ssl.conf" /etc/nginx/conf.d/nginx_acme_srv_ssl.conf
+${SUDO} cp "${TMP_NGINX}/nginx_acme_srv.conf" /etc/nginx/sites-available/acme_srv.conf
+${SUDO} cp "${TMP_NGINX}/nginx_acme_srv_ssl.conf" /etc/nginx/sites-available/acme_srv_ssl.conf
 ${SUDO} rm -rf "${TMP_NGINX}"
 
-# RHEL default server often conflicts; drop default welcome page if present
-${SUDO} rm -f /etc/nginx/conf.d/default.conf 2>/dev/null || true
+${SUDO} rm -f /etc/nginx/sites-enabled/default
+${SUDO} ln -sfn /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf
+${SUDO} ln -sfn /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme_srv_ssl.conf
 
 echo "==> TLS certificate/key for Nginx SSL server"
 CERT="${APP_ROOT}/volume/acme2certifier_cert.pem"
@@ -245,9 +224,6 @@ if [[ -d "test/ca" ]]; then
     else
       printf '\n[DBhandler]\nhandler: %s\n' "${MODE}" | ${SUDO} tee -a "${CFG}" >/dev/null
     fi
-    if grep -qE '^dbfile:' "${CFG}"; then
-      ${SUDO} sed -i "s|^dbfile:.*|dbfile: ${APP_ROOT}/acme_srv.db|" "${CFG}"
-    fi
   fi
 fi
 
@@ -256,6 +232,7 @@ if [[ "${MODE}" == "django" ]]; then
   if [[ -z "${ACME2CERTIFIER_SECRET_KEY:-}" ]]; then
     ACME2CERTIFIER_SECRET_KEY="$("${VENV}/bin/a2c-django-secret-keygen")"
   fi
+  # Persist secret for the uWSGI service
   if ! grep -q 'ACME2CERTIFIER_SECRET_KEY=' "${UWSGI_INI}"; then
     echo "env = ACME2CERTIFIER_SECRET_KEY=${ACME2CERTIFIER_SECRET_KEY}" | ${SUDO} tee -a "${UWSGI_INI}" >/dev/null
   fi
@@ -274,8 +251,7 @@ if [[ "${MODE}" == "django" ]]; then
 fi
 
 echo "==> Permissions"
-${SUDO} chown -R "${NGINX_USER}:${NGINX_USER}" "${APP_ROOT}"
-${SUDO} chmod a+x "${APP_ROOT}/acme_srv"
+${SUDO} chown -R www-data:www-data "${APP_ROOT}"
 
 echo "==> systemd unit for uWSGI"
 ${SUDO} tee /etc/systemd/system/acme2certifier.service >/dev/null <<EOF
@@ -284,63 +260,18 @@ Description=uWSGI instance to serve acme2certifier
 After=network.target
 
 [Service]
-RuntimeDirectory=uwsgi
-User=${NGINX_USER}
-Group=${NGINX_USER}
+User=www-data
+Group=www-data
 WorkingDirectory=${APP_ROOT}
 Environment=PATH=${VENV}/bin:/usr/bin
 Environment=ACME_SRV_CONFIGFILE=${CFG}
 Environment=ACME2CERTIFIER_BASE_DIR=${APP_ROOT}
-ExecStart=/usr/sbin/uwsgi --ini ${UWSGI_INI}
+ExecStart=/usr/bin/uwsgi --ini ${UWSGI_INI}
 Restart=on-failure
-Type=notify
-NotifyAccess=all
 
 [Install]
 WantedBy=multi-user.target
 EOF
-
-# uwsgi binary path differs across RHEL builds
-if [[ ! -x /usr/sbin/uwsgi ]] && [[ -x /usr/bin/uwsgi ]]; then
-  ${SUDO} sed -i 's|/usr/sbin/uwsgi|/usr/bin/uwsgi|' /etc/systemd/system/acme2certifier.service
-fi
-
-echo "==> SELinux policy for Nginx ↔ uWSGI socket"
-if command -v checkmodule >/dev/null 2>&1 && command -v semodule >/dev/null 2>&1; then
-  TE_SRC="${SHARE}/nginx/acme2certifier.te"
-  if [[ ! -f "${TE_SRC}" ]]; then
-    TE_SRC=""
-  fi
-  TE_WORK="$(mktemp -d)"
-  if [[ -n "${TE_SRC}" ]]; then
-    ${SUDO} cp "${TE_SRC}" "${TE_WORK}/acme2certifier.te"
-  else
-    ${SUDO} tee "${TE_WORK}/acme2certifier.te" >/dev/null <<'EOT'
-module acme2certifier 1.0;
-
-require {
-	type var_run_t;
-	type initrc_t;
-	type httpd_t;
-	class sock_file write;
-	class unix_stream_socket connectto;
-}
-
-#============= httpd_t ==============
-allow httpd_t initrc_t:unix_stream_socket connectto;
-allow httpd_t var_run_t:sock_file write;
-EOT
-  fi
-  (
-    cd "${TE_WORK}"
-    ${SUDO} checkmodule -M -m -o acme2certifier.mod acme2certifier.te
-    ${SUDO} semodule_package -o acme2certifier.pp -m acme2certifier.mod
-    ${SUDO} semodule -i acme2certifier.pp || ${SUDO} semodule -u acme2certifier.pp || true
-  )
-  ${SUDO} rm -rf "${TE_WORK}"
-else
-  echo "SELinux tools not available; skipping policy install"
-fi
 
 echo "==> Enable and start services"
 ${SUDO} nginx -t
@@ -350,10 +281,9 @@ ${SUDO} systemctl restart acme2certifier
 ${SUDO} systemctl restart nginx
 
 echo "==> Done (mode=${MODE})"
-echo "    App root: ${APP_ROOT}"
-echo "    HTTP:     http://127.0.0.1/directory"
-echo "    HTTPS:    https://127.0.0.1/directory  (self-signed unless you replaced ${CERT})"
-echo "    Config:   ${CFG}"
-echo "    uWSGI:    ${UWSGI_INI}  module=${UWSGI_MODULE}"
-echo "    Check:    journalctl -u acme2certifier -n 50 --no-pager"
-echo "              tail -n 50 /var/log/nginx/error.log"
+echo "    HTTP:  http://127.0.0.1/directory"
+echo "    HTTPS: https://127.0.0.1/directory  (self-signed unless you replaced ${CERT})"
+echo "    Config: ${CFG}"
+echo "    uWSGI:  ${UWSGI_INI}  module=${UWSGI_MODULE}"
+echo "    Check:  journalctl -u acme2certifier -n 50 --no-pager"
+echo "            tail -n 50 /var/log/nginx/error.log"
