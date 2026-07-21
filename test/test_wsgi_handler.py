@@ -2852,7 +2852,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_create.return_value = True
         self.dbstore.__init__()
         self.assertTrue(mock_cfg.called)
-        self.assertIn("acme_srv.db", self.dbstore.db_name)
+        self.assertTrue(self.dbstore.db_name.endswith("/acme_srv.db"))
+        self.assertFalse(self.dbstore.db_name.endswith("dbhandlers/acme_srv.db"))
 
     @patch("acme2certifier.dbhandlers.wsgi_handler.DBstore._db_create")
     @patch("acme2certifier.dbhandlers.wsgi_handler.load_config")
@@ -2863,7 +2864,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_cfg.return_value = {"FOO": {"foo": "bar"}}
         self.dbstore.__init__()
         self.assertTrue(mock_cfg.called)
-        self.assertIn("acme_srv.db", self.dbstore.db_name)
+        self.assertTrue(self.dbstore.db_name.endswith("/acme_srv.db"))
+        self.assertFalse(self.dbstore.db_name.endswith("dbhandlers/acme_srv.db"))
 
     @patch("acme2certifier.dbhandlers.wsgi_handler.DBstore._db_create")
     @patch("acme2certifier.dbhandlers.wsgi_handler.load_config")
@@ -2874,7 +2876,8 @@ class TestACMEHandler(unittest.TestCase):
         mock_cfg.return_value = {"DBhandler": {"foo": "bar"}}
         self.dbstore.__init__()
         self.assertTrue(mock_cfg.called)
-        self.assertIn("acme_srv.db", self.dbstore.db_name)
+        self.assertTrue(self.dbstore.db_name.endswith("/acme_srv.db"))
+        self.assertFalse(self.dbstore.db_name.endswith("dbhandlers/acme_srv.db"))
 
     @patch("acme2certifier.dbhandlers.wsgi_handler.DBstore._db_create")
     @patch("acme2certifier.dbhandlers.wsgi_handler.load_config")

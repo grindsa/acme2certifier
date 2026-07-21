@@ -142,15 +142,25 @@ fi
 
 ${SUDO} mkdir -p "${APP_ROOT}/volume" "${APP_ROOT}/acme_srv"
 
-# Sample config from the package if missing
+# Sample config from the package if missing (shipped with dbfile under APP_ROOT).
 if [[ ! -e "${CFG}" ]]; then
-  if [[ -f "${APP_ROOT}/examples/acme_srv.cfg" ]]; then
-    ${SUDO} cp "${APP_ROOT}/examples/acme_srv.cfg" "${CFG}"
-  elif [[ -f "${SHARE}/acme_srv.cfg" ]]; then
+  if [[ -f "${SHARE}/acme_srv.cfg" ]]; then
     ${SUDO} cp "${SHARE}/acme_srv.cfg" "${CFG}"
+  elif [[ -f "${APP_ROOT}/examples/acme_srv.cfg" ]]; then
+    ${SUDO} cp "${APP_ROOT}/examples/acme_srv.cfg" "${CFG}"
   else
     echo "ERROR: no sample acme_srv.cfg found under ${APP_ROOT}" >&2
     exit 1
+  fi
+fi
+
+# Ensure SQLite path is writable by www-data (avoid default next to dist-packages).
+if ! ${SUDO} grep -qE '^[[:space:]]*dbfile:' "${CFG}"; then
+  if ${SUDO} grep -q '^\[DBhandler\]' "${CFG}"; then
+    ${SUDO} sed -i "/^\[DBhandler\]/a dbfile: ${APP_ROOT}/acme_srv.db" "${CFG}"
+  else
+    printf '\n[DBhandler]\ndbfile: %s/acme_srv.db\n' "${APP_ROOT}" \
+      | ${SUDO} tee -a "${CFG}" >/dev/null
   fi
 fi
 

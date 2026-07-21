@@ -9,7 +9,11 @@ from typing import List, Tuple, Dict
 import os
 
 # pylint: disable=E0401
-from acme2certifier.acme_srv.helper import datestr_to_date, load_config
+from acme2certifier.acme_srv.helper import (
+    datestr_to_date,
+    default_wsgi_dbfile,
+    load_config,
+)
 from acme2certifier.acme_srv.version import __dbversion__
 
 # Define constants
@@ -45,7 +49,9 @@ class DBstore(object):
             if "DBhandler" in cfg and "dbfile" in cfg["DBhandler"]:
                 db_name = cfg["DBhandler"]["dbfile"]
             else:
-                db_name = os.path.dirname(__file__) + "/" + "acme_srv.db"
+                # Prefer deploy root (DEB/pip: /var/www/..., RPM: /opt/...)
+                # over dist-packages next to this module (not writable by www-data).
+                db_name = default_wsgi_dbfile()
 
         self.db_name = db_name
 
