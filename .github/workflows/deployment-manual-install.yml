@@ -7,6 +7,10 @@ on:
         description: 'Branch to run the workflow on'
         required: true
         default: 'main'
+      run_id:
+        description: 'Run ID of the producing workflow'
+        required: true
+        default: '0'
       sha:
         description: 'SHA of the commit to run the workflow on'
         required: true
@@ -23,15 +27,17 @@ on:
 jobs:
   guard:
     runs-on: ubuntu-latest
-    if: ${{ inputs.sha != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
+    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
     steps:
       - run: |
           echo "Triggered by SHA: $SHA"
           echo "From branch:      $BRANCH"
+          echo "Producer run_id:  $RUN_ID"
           echo "Called by:        $CALLED_BY"
         env:
           SHA: ${{ inputs.sha }}
           BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
           CALLED_BY: ${{ inputs.called_by_workflow }}
 
   ubuntu-pip-install:
