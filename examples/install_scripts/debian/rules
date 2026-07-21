@@ -9,3 +9,35 @@ export PYBUILD_SYSTEM = pyproject
 # Upstream tests need pytest extras not in Build-Depends.
 override_dh_auto_test:
 	:
+
+# Adapt pip-oriented share/ templates for Debian system packages + www-data.
+# Source tree under acme2certifier/share/ stays pip/venv friendly.
+execute_after_dh_install:
+	SHARE=debian/acme2certifier/var/www/acme2certifier/share; \
+	rm -f $$SHARE/nginx/supervisord.conf \
+	      $$SHARE/nginx/uwsgi.service \
+	      $$SHARE/nginx/acme2certifier.te; \
+	sed -i 's|run/uwsgi/acme.sock|var/www/acme2certifier/acme.sock|g' \
+	  $$SHARE/nginx/nginx_acme_srv.conf \
+	  $$SHARE/nginx/nginx_acme_srv_ssl.conf; \
+	sed -i 's|/run/uwsgi/acme.sock|acme.sock|g' $$SHARE/nginx/acme2certifier.ini; \
+	sed -i 's/nginx/www-data/g' $$SHARE/nginx/acme2certifier.ini; \
+	grep -q '^plugins=python3$$' $$SHARE/nginx/acme2certifier.ini \
+	  || echo 'plugins=python3' >> $$SHARE/nginx/acme2certifier.ini; \
+	python3 debian/patch_apache_for_deb.py $$SHARE/apache2; \
+	printf '%s\n' \
+	  '[Unit]' \
+	  'Description=uWSGI instance to serve acme2certifier' \
+	  'After=network.target' \
+	  '' \
+	  '[Service]' \
+	  'User=www-data' \
+	  'Group=www-data' \
+	  'WorkingDirectory=/var/www/acme2certifier' \
+	  'Environment="PATH=/var/www/acme2certifier"' \
+	  'Environment="ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg"' \
+	  'ExecStart=uwsgi --ini /var/www/acme2certifier/acme2certifier.ini' \
+	  '' \
+	  '[Install]' \
+	  'WantedBy=multi-user.target' \
+	  > $$SHARE/nginx/acme2certifier.service
