@@ -114,7 +114,7 @@ Installation guides:
 
 - [PyPI + Apache2 (Ubuntu)](docs/install_apache2_ubuntu.md) — recommended for pip installs
 - [Nginx + uWSGI (Ubuntu)](docs/install_nginx_ubuntu.md)
-- [Nginx + uWSGI (Alma / RHEL)](docs/install_nginx_alma.md)
+- [Nginx + uWSGI (Alma / RHEL 9)](docs/install_nginx_alma.md) — PyPI path; EL8 not supported (Python 3.6)
 - [RPM Installation (AlmaLinux 9)](docs/install_rpm.md)
 - [DEB Installation (Ubuntu 22.04)](docs/install_deb.md)
 - [Docker Build Instructions](examples/Docker/)

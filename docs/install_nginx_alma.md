@@ -6,6 +6,8 @@
 
 Install `acme2certifier` from PyPI into a virtualenv under **`/opt/acme2certifier`** and serve it with Nginx + uWSGI. The same flow applies to RHEL 9 / Rocky / CentOS Stream with EPEL.
 
+> **Not supported on EL8:** AlmaLinux / RHEL / Rocky 8 ship Python 3.6 as `python3`. The PyPI package requires **Python ≥ 3.7** (and a modern `setuptools` build). Use **EL9** for this install path, or the [RPM packages](install_rpm.md) where EL8 is still covered separately.
+
 uWSGI serves the application; Nginx is the reverse proxy.
 
 **Other install guides:** [Apache2 on Ubuntu](install_apache2_ubuntu.md) · [Nginx on Ubuntu](install_nginx_ubuntu.md)
