@@ -181,6 +181,7 @@ if [[ "${WEBSRV}" == "apache2" ]]; then
   ${SUDO} a2enmod wsgi
   ${SUDO} a2enmod ssl || true
 
+  # Packaged share/apache2 configs are already DEB-tuned (no pip venv python-home).
   if [[ "${MODE}" == "wsgi" ]]; then
     ${SUDO} cp "${SHARE}/apache2/apache_wsgi.conf" \
       /etc/apache2/sites-available/acme2certifier.conf

@@ -38,39 +38,10 @@ runs:
           build-essential fakeroot dpkg-dev debhelper \
           dh-python pybuild-plugin-pyproject \
           python3-all python3-setuptools python3-build
-        # DEB-specific nginx/uwsgi path and user tweaks (not for pip wheel).
-        rm -f acme2certifier/share/nginx/supervisord.conf
-        rm -f acme2certifier/share/nginx/uwsgi.service
-        rm -f acme2certifier/share/nginx/acme2certifier.te
-        sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" acme2certifier/share/nginx/nginx_acme_srv.conf
-        sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" acme2certifier/share/nginx/nginx_acme_srv_ssl.conf
-        sed -i "s/\/run\/uwsgi\/acme.sock/acme.sock/g" acme2certifier/share/nginx/acme2certifier.ini
-        sed -i "s/nginx/www-data/g" acme2certifier/share/nginx/acme2certifier.ini
-        echo "plugins=python3" >> acme2certifier/share/nginx/acme2certifier.ini
-        # DEB uses system Python packages — drop pip venv python-home from Apache templates.
-        for f in acme2certifier/share/apache2/apache_*.conf; do
-          # Collapse multi-line WSGIDaemonProcess and drop python-home=.../venv
-          perl -i -0pe 's/WSGIDaemonProcess\s+(\S+)\s*\\\s*\n\s*python-home=\/var\/www\/acme2certifier\/venv\s*\\\s*\n\s*python-path=/WSGIDaemonProcess $1 python-path=/g' "$f"
-          sed -i 's/ python-home=\/var\/www\/acme2certifier\/venv//' "$f"
-        done
-        cat <<EOT > acme2certifier/share/nginx/acme2certifier.service
-        [Unit]
-        Description=uWSGI instance to serve acme2certifier
-        After=network.target
-
-        [Service]
-        User=www-data
-        Group=www-data
-        WorkingDirectory=/var/www/acme2certifier
-        Environment="PATH=/var/www/acme2certifier"
-        Environment="ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg"
-        ExecStart=uwsgi --ini /var/www/acme2certifier/acme2certifier.ini
-
-        [Install]
-        WantedBy=multi-user.target
-        EOT
+        # DEB-specific share/ tweaks run in debian/rules (execute_after_dh_install).
         cp -R examples/install_scripts/debian ./
         sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
+        chmod +x debian/rules debian/patch_apache_for_deb.py
       shell: bash
 
     - name: "Build debian package"
@@ -84,4 +55,15 @@ runs:
         dpkg -c "$DEB" | grep -E 'var/www/acme2certifier/acme2certifier_wsgi\.py'
         dpkg -c "$DEB" | grep -E 'var/www/acme2certifier/acme_srv\.cfg'
         dpkg -c "$DEB" | grep -E 'var/www/acme2certifier/share/(apache2|nginx)/'
+        echo "Apache vhosts in .deb must not reference pip venv"
+        rm -rf /tmp/a2c-deb-check
+        mkdir -p /tmp/a2c-deb-check
+        dpkg-deb -x "$DEB" /tmp/a2c-deb-check
+        if grep -R 'python-home=/var/www/acme2certifier/venv' \
+          /tmp/a2c-deb-check/var/www/acme2certifier/share/apache2/; then
+          echo "ERROR: python-home=venv still present in packaged Apache configs" >&2
+          exit 1
+        fi
+        test -f /tmp/a2c-deb-check/var/www/acme2certifier/share/nginx/acme2certifier.service
+        rm -rf /tmp/a2c-deb-check
       shell: bash
