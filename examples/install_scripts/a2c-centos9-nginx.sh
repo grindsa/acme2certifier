@@ -10,7 +10,7 @@
 #   -m, --mode wsgi|django   DB/WSGI mode (default: wsgi)
 #   -v, --version VERSION    pip pin, e.g. 0.45.dev1
 #       --pre                allow pip pre-releases (--pre)
-#       --from-source        pip install from current checkout (editable)
+#       --from-source        pip install from current checkout (non-editable)
 #   -h, --help               show help
 #
 # Examples:
@@ -123,12 +123,13 @@ if [[ "${FROM_SOURCE}" -eq 1 ]]; then
     echo "ERROR: --from-source requires running from the repository root" >&2
     exit 1
   fi
+  # Non-editable so the app lives in the venv (same as PyPI installs).
   if [[ "${MODE}" == "django" ]]; then
-    echo "==> pip install -e '.[django]' (from source)"
-    ${SUDO} "${VENV}/bin/pip" install -e ".[django]"
+    echo "==> pip install '.[django]' (from source)"
+    ${SUDO} "${VENV}/bin/pip" install ".[django]"
   else
-    echo "==> pip install -e . (from source)"
-    ${SUDO} "${VENV}/bin/pip" install -e .
+    echo "==> pip install . (from source)"
+    ${SUDO} "${VENV}/bin/pip" install .
   fi
 else
   if [[ "${MODE}" == "django" ]]; then

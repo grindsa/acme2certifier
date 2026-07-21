@@ -26,7 +26,7 @@ chmod a+rx examples/install_scripts/a2c-centos9-nginx.sh
 | `--mode wsgi\|django` | DB backend + matching uWSGI `module` (default: `wsgi`) |
 | `--version VERSION` | `pip` pin |
 | `--pre` | allow pre-releases |
-| `--from-source` | editable install from the current checkout |
+| `--from-source` | `pip install .` from the current checkout (into the venv) |
 
 App root is always `/opt/acme2certifier`. The remainder of this guide is the manual equivalent of that script.
 

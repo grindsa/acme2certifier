@@ -69,9 +69,9 @@ jobs:
           else
             SCRIPT=examples/install_scripts/a2c-ubuntu-nginx.sh
           fi
-          docker exec acme-srv chmod a+rx "/tmp/acme2certifier/${SCRIPT}"
+          docker exec acme-srv chmod a+rx "/data/acme2certifier/${SCRIPT}"
           docker exec acme-srv bash -lc \
-            "cd /tmp/acme2certifier && ./${SCRIPT} --mode ${DBHANDLER} --from-source"
+            "cd /data/acme2certifier && ./${SCRIPT} --mode ${DBHANDLER} --from-source"
         env:
           WEBSRV: ${{ matrix.websrv }}
           DBHANDLER: ${{ matrix.dbhandler }}
@@ -134,9 +134,9 @@ jobs:
         run: |
           set -euo pipefail
           SCRIPT=examples/install_scripts/a2c-centos9-nginx.sh
-          docker exec acme-srv chmod a+rx "/tmp/acme2certifier/${SCRIPT}"
+          docker exec acme-srv chmod a+rx "/data/acme2certifier/${SCRIPT}"
           docker exec acme-srv bash -lc \
-            "cd /tmp/acme2certifier && ./${SCRIPT} --mode ${DBHANDLER} --from-source"
+            "cd /data/acme2certifier && ./${SCRIPT} --mode ${DBHANDLER} --from-source"
         env:
           DBHANDLER: ${{ matrix.dbhandler }}
 

@@ -1,5 +1,5 @@
 name: "pip_install_prep"
-description: "Spin up a systemd container with the checkout mounted for pip --from-source install scripts"
+description: "Spin up a systemd container with the checkout mounted at /data/acme2certifier for pip --from-source install scripts"
 inputs:
   DISTRO:
     description: "ubuntu or alma"
@@ -44,7 +44,7 @@ runs:
           --privileged \
           -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
           --cgroupns=host \
-          -v "$(pwd)":/tmp/acme2certifier \
+          -v "$(pwd)":/data/acme2certifier \
           "${IMAGE}"
         # Wait for systemd (do not use --wait; it can hang in CI images)
         for i in $(seq 1 30); do
@@ -71,7 +71,7 @@ runs:
           --hostname="${CONTAINER_NAME}" \
           --network "${NAME_SPACE}" \
           --privileged \
-          -v "$(pwd)":/tmp/acme2certifier \
+          -v "$(pwd)":/data/acme2certifier \
           "${IMAGE}"
         for i in $(seq 1 30); do
           if docker exec "${CONTAINER_NAME}" systemctl is-system-running 2>/dev/null | grep -Eq 'running|degraded'; then
