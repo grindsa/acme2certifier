@@ -24,7 +24,8 @@ case "$1" in
 			ln -sfn "$A2C_PKG" /var/www/acme2certifier/acme2certifier
 		fi
 	fi
-	# Core lives in dist-packages; deploy tree is owned by the web user.
+	mkdir -p /var/www/acme2certifier/acme_srv
+	# Core lives in dist-packages; deploy tree (incl. default SQLite dbfile) owned by web user.
 	if id www-data >/dev/null 2>&1; then
 		chown -R www-data:www-data /var/www/acme2certifier
 	fi

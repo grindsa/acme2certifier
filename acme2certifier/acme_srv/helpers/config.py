@@ -317,6 +317,29 @@ def _warn_acme_srv_cfg_path(
     logger.warning(message)
 
 
+def default_deploy_base_dir() -> str:
+    """Resolve pip/DEB/RPM deploy root for writable runtime files.
+
+    Order:
+    1. ``ACME2CERTIFIER_BASE_DIR`` when set
+    2. ``/var/www/acme2certifier`` if that directory exists (DEB / Ubuntu pip)
+    3. ``/opt/acme2certifier`` if that directory exists (RPM)
+    4. ``/var/www/acme2certifier`` as the default install layout
+    """
+    env_base = os.environ.get("ACME2CERTIFIER_BASE_DIR")
+    if env_base:
+        return env_base
+    for candidate in ("/var/www/acme2certifier", "/opt/acme2certifier"):
+        if os.path.isdir(candidate):
+            return candidate
+    return "/var/www/acme2certifier"
+
+
+def default_wsgi_dbfile() -> str:
+    """Default SQLite path when ``DBhandler.dbfile`` is unset."""
+    return os.path.join(default_deploy_base_dir(), "acme_srv.db")
+
+
 def _default_acme_srv_cfg_file(
     logger: Optional[logging.Logger] = None,
 ) -> str:

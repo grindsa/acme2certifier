@@ -125,6 +125,8 @@ from .helpers.config import (
     config_proxy_load,
     config_dns_server_list_load,
     config_dryrun_load,
+    default_deploy_base_dir,
+    default_wsgi_dbfile,
     load_config,
     header_info_jsonify,
     header_info_lookup,
