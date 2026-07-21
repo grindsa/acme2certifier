@@ -54,8 +54,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.sha }}
 
       - name: Prepare container
         uses: ./.github/actions/pip_install_prep
@@ -125,8 +123,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.sha }}
 
       - name: Prepare container
         uses: ./.github/actions/pip_install_prep
