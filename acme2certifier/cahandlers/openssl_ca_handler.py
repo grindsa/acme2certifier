@@ -5,7 +5,7 @@ from __future__ import print_function
 import os
 import datetime
 import json
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional
 import base64
 import uuid
 import re
@@ -68,6 +68,35 @@ class CAhandler(object):
 
     def __exit__(self, *args):
         """cose the connection at the end of the context"""
+
+    def _path_resolve(self, path: Optional[str]) -> Optional[str]:
+        """Resolve relative paths against ACME2CERTIFIER_BASE_DIR when set.
+
+        Absolute paths are left unchanged. Relative paths without BASE_DIR stay
+        relative (process CWD), preserving historical behavior.
+        """
+        if not path:
+            return path
+        if os.path.isabs(path):
+            return path
+        base_dir = os.environ.get("ACME2CERTIFIER_BASE_DIR")
+        if not base_dir:
+            return path
+        return os.path.normpath(os.path.join(base_dir, path))
+
+    def _config_paths_resolve(self) -> None:
+        """Apply BASE_DIR resolution to all configured filesystem paths."""
+        self.logger.debug("CAhandler._config_paths_resolve()")
+        for key in ("issuing_ca_key", "issuing_ca_cert", "issuing_ca_crl"):
+            if self.issuer_dict.get(key):
+                self.issuer_dict[key] = self._path_resolve(self.issuer_dict[key])
+        self.cert_save_path = self._path_resolve(self.cert_save_path)
+        self.openssl_conf = self._path_resolve(self.openssl_conf)
+        if self.ca_cert_chain_list:
+            self.ca_cert_chain_list = [
+                self._path_resolve(ele) for ele in self.ca_cert_chain_list
+            ]
+        self.logger.debug("CAhandler._config_paths_resolve() ended")
 
     def _ca_load(self) -> Tuple[object, object]:
         """load ca key and cert"""
@@ -500,6 +529,10 @@ class CAhandler(object):
         self.save_cert_as_hex = config_dic.getboolean(
             "CAhandler", "save_cert_as_hex", fallback=False
         )
+
+        # relative volume/... paths → $ACME2CERTIFIER_BASE_DIR when set
+        self._config_paths_resolve()
+
         self.logger.debug("CAhandler._config_load() ended")
 
     def _chk_san_lists_get(self, csr: str) -> Tuple[List[str], List[bool]]:

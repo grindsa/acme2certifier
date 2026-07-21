@@ -2241,6 +2241,79 @@ class TestACMEHandler(unittest.TestCase):
         self.assertTrue(mock_default.called)
         self.assertTrue(mock_get.called)
 
+    def test_path_resolve_relative_without_base_dir(self):
+        """relative paths stay relative when BASE_DIR is unset"""
+        os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
+        self.assertEqual(
+            "volume/acme_ca/sub-ca-key.pem",
+            self.cahandler._path_resolve("volume/acme_ca/sub-ca-key.pem"),
+        )
+
+    def test_path_resolve_relative_with_base_dir(self):
+        """relative paths are joined with ACME2CERTIFIER_BASE_DIR"""
+        os.environ["ACME2CERTIFIER_BASE_DIR"] = "/var/www/acme2certifier"
+        try:
+            self.assertEqual(
+                "/var/www/acme2certifier/volume/acme_ca/sub-ca-key.pem",
+                self.cahandler._path_resolve("volume/acme_ca/sub-ca-key.pem"),
+            )
+        finally:
+            os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
+
+    def test_path_resolve_absolute_unchanged(self):
+        """absolute paths are not rewritten"""
+        os.environ["ACME2CERTIFIER_BASE_DIR"] = "/var/www/acme2certifier"
+        try:
+            self.assertEqual(
+                "/opt/keys/ca.pem",
+                self.cahandler._path_resolve("/opt/keys/ca.pem"),
+            )
+        finally:
+            os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
+
+    @patch("acme2certifier.cahandlers.openssl_ca_handler.load_config")
+    def test_config_load_resolves_paths_with_base_dir(self, mock_load_cfg):
+        """_config_load applies BASE_DIR to CA path options"""
+        parser = configparser.ConfigParser()
+        parser["CAhandler"] = {
+            "issuing_ca_key": "volume/acme_ca/sub-ca-key.pem",
+            "issuing_ca_cert": "volume/acme_ca/sub-ca-cert.pem",
+            "issuing_ca_crl": "volume/acme_ca/sub-ca-crl.pem",
+            "cert_save_path": "volume/acme_ca/certs",
+            "ca_cert_chain_list": '["volume/acme_ca/root-ca-cert.pem"]',
+            "openssl_conf": "volume/openssl.cnf",
+        }
+        mock_load_cfg.return_value = parser
+        os.environ["ACME2CERTIFIER_BASE_DIR"] = "/var/www/acme2certifier"
+        try:
+            self.cahandler._config_load()
+            self.assertEqual(
+                "/var/www/acme2certifier/volume/acme_ca/sub-ca-key.pem",
+                self.cahandler.issuer_dict["issuing_ca_key"],
+            )
+            self.assertEqual(
+                "/var/www/acme2certifier/volume/acme_ca/sub-ca-cert.pem",
+                self.cahandler.issuer_dict["issuing_ca_cert"],
+            )
+            self.assertEqual(
+                "/var/www/acme2certifier/volume/acme_ca/sub-ca-crl.pem",
+                self.cahandler.issuer_dict["issuing_ca_crl"],
+            )
+            self.assertEqual(
+                "/var/www/acme2certifier/volume/acme_ca/certs",
+                self.cahandler.cert_save_path,
+            )
+            self.assertEqual(
+                ["/var/www/acme2certifier/volume/acme_ca/root-ca-cert.pem"],
+                self.cahandler.ca_cert_chain_list,
+            )
+            self.assertEqual(
+                "/var/www/acme2certifier/volume/openssl.cnf",
+                self.cahandler.openssl_conf,
+            )
+        finally:
+            os.environ.pop("ACME2CERTIFIER_BASE_DIR", None)
+
 
 if __name__ == "__main__":
 
