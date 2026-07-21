@@ -19,14 +19,14 @@ sudo apt-get install -y ../acme2certifier_<version>-1_all.deb
 3. Copy and activate the Apache2 configuration file:
 
 ```bash
-sudo cp /var/www/acme2certifier/examples/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
+sudo cp /var/www/acme2certifier/share/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
 sudo a2ensite acme2certifier
 ```
 
 4. Copy and activate the Apache2 SSL configuration file (optional):
 
 ```bash
-sudo cp /var/www/acme2certifier/examples/apache2/apache_wsgi_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
+sudo cp /var/www/acme2certifier/share/apache2/apache_wsgi_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
 sudo a2ensite acme2certifier_ssl
 ```
 
@@ -66,7 +66,7 @@ Expected response:
 }
 ```
 
-10. Try enrolling a certificate using your favorite ACME client. If something does not work, enable debugging in `/var/www/acme2certifier/acme_srv/acme_srv.cfg` and check `/var/log/apache2/error.log` for errors.
+10. Try enrolling a certificate using your favorite ACME client. If something does not work, enable debugging in `/var/www/acme2certifier/acme_srv.cfg` and check `/var/log/apache2/error.log` for errors.
 
 ## Installation with Nginx
 
@@ -78,28 +78,30 @@ sudo apt-get install -y python3-pip nginx uwsgi uwsgi-plugin-python3
 sudo apt-get install -y ../acme2certifier_<version>-1_all.deb
 ```
 
-3. Adapt the Nginx configuration file for Ubuntu 24.04 and activate the configuration:
+3. Activate the Nginx configuration (DEB package already adjusts socket paths for Ubuntu):
 
 ```bash
-sudo sed -i "s/run\/uwsgi\/acme.sock/var\/www\/acme2certifier\/acme.sock/g" examples/nginx/nginx_acme_srv.conf
-sudo cp examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
+sudo cp /var/www/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
 sudo rm /etc/nginx/sites-enabled/default
 sudo ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf
 ```
 
-4. Modify and copy the uWSGI configuration files:
+4. Copy the uWSGI configuration:
 
 ```bash
-sudo sed -i "s/\/run\/uwsgi\/acme.sock/acme.sock/g" examples/nginx/acme2certifier.ini
-sudo sed -i "s/nginx/www-data/g" examples/nginx/acme2certifier.ini
-echo "plugins=python3" | sudo tee -a examples/nginx/acme2certifier.ini
-sudo cp examples/nginx/acme2certifier.ini /var/www/acme2certifier
+sudo cp /var/www/acme2certifier/share/nginx/acme2certifier.ini /var/www/acme2certifier
 ```
 
-5. Create the `acme2certifier` systemd service file:
+5. Install the systemd unit shipped with the package (or create one):
 
 ```bash
-sudo cat <<EOT > acme2certifier.service
+sudo cp /var/www/acme2certifier/share/nginx/acme2certifier.service /etc/systemd/system/acme2certifier.service
+```
+
+Alternatively, create the service file manually:
+
+```bash
+sudo cat <<EOT > /etc/systemd/system/acme2certifier.service
 [Unit]
 Description=uWSGI instance to serve acme2certifier
 After=network.target
@@ -109,34 +111,29 @@ User=www-data
 Group=www-data
 WorkingDirectory=/var/www/acme2certifier
 Environment="PATH=/var/www/acme2certifier"
-ExecStart=uwsgi --ini acme2certifier.ini
+Environment="ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg"
+ExecStart=uwsgi --ini /var/www/acme2certifier/acme2certifier.ini
 
 [Install]
 WantedBy=multi-user.target
 EOT
 ```
 
-6. Move the systemd service file:
-
-```bash
-sudo mv acme2certifier.service /etc/systemd/system/acme2certifier.service
-```
-
-7. Enable and start the `acme2certifier` service:
+6. Enable and start the `acme2certifier` service:
 
 ```bash
 sudo systemctl start acme2certifier
 sudo systemctl enable acme2certifier
 ```
 
-8. Enable and start Nginx:
+7. Enable and start Nginx:
 
 ```bash
 sudo systemctl start nginx
 sudo systemctl enable nginx
 ```
 
-9. Test the server by accessing the directory resource:
+8. Test the server by accessing the directory resource:
 
 ```bash
 curl http://<your-server-name>/directory
@@ -159,4 +156,4 @@ Expected response:
 }
 ```
 
-10. Try enrolling a certificate using your favorite ACME client. If something does not work, enable debugging in `/var/www/acme2certifier/acme_srv/acme_srv.cfg` and check `/var/log/nginx/error.log` for errors.
+9. Try enrolling a certificate using your favorite ACME client. If something does not work, enable debugging in `/var/www/acme2certifier/acme_srv.cfg` and check `/var/log/nginx/error.log` for errors.

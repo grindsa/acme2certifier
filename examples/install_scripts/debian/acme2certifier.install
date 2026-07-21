@@ -1,12 +1,9 @@
 acme2certifier/share/acme2certifier_wsgi.py /var/www/acme2certifier/
-acme_srv /var/www/acme2certifier/
-examples/acme_srv.cfg /var/www/acme2certifier/acme_srv/
-examples/ca_handler /var/www/acme2certifier/examples
-examples/eab_handler /var/www/acme2certifier/examples
-examples/hooks /var/www/acme2certifier/examples
+examples/acme_srv.cfg /var/www/acme2certifier/
+examples/acme_srv.cfg /var/www/acme2certifier/examples/
+acme2certifier/share/apache2 /var/www/acme2certifier/share/
+acme2certifier/share/nginx /var/www/acme2certifier/share/
+acme2certifier/share/skeletons /var/www/acme2certifier/share/
 examples/trigger /var/www/acme2certifier/examples
 examples/django /var/www/acme2certifier/examples
-examples/nginx /var/www/acme2certifier/examples
-examples/apache2 /var/www/acme2certifier/examples
-tools /var/www/acme2certifier/
 docs /usr/share/doc/acme2certifier/

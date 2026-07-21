@@ -21,9 +21,9 @@ This guide describes the restructuring of `acme2certifier` into a proper Python 
 | Area | Legacy location | Current location |
 | --- | --- | --- |
 | ACME server core | `acme_srv/` | `acme2certifier/acme_srv/` |
-| CA handlers | `examples/ca_handler/` | `acme2certifier/cahandlers/` |
-| EAB handlers | `examples/eab_handler/` | `acme2certifier/eabhandlers/` |
-| Hook handlers | `examples/hooks/` | `acme2certifier/hookhandlers/` |
+| CA handlers | `examples/ca_handler/` | `acme2certifier/cahandlers/` (+ skeletons in `acme2certifier/share/skeletons/ca_handler/`) |
+| EAB handlers | `examples/eab_handler/` | `acme2certifier/eabhandlers/` (+ skeletons in `acme2certifier/share/skeletons/eab_handler/`) |
+| Hook handlers | `examples/hooks/` | `acme2certifier/hookhandlers/` (+ skeletons in `acme2certifier/share/skeletons/hooks/`) |
 | Django app | `examples/django/acme_srv/` | `acme2certifier/django_app/` |
 | Django project | `examples/django/acme2certifier/` | `acme2certifier/django_project/` |
 | Django settings template | `examples/django/acme2certifier/settings.py` | `examples/django/settings.py` |
@@ -32,7 +32,7 @@ This guide describes the restructuring of `acme2certifier` into a proper Python 
 
 - Core modules live under `acme2certifier.acme_srv`. Import `acme2certifier.acme_srv.*` (legacy `acme_srv.*` import shims are **removed**).
 - CA / EAB / hook **implementations** live under `acme2certifier.cahandlers`, `acme2certifier.eabhandlers`, and `acme2certifier.hookhandlers`.
-- Under `examples/ca_handler/`, `examples/eab_handler/`, and `examples/hooks/` only **skeleton** templates (and EAB sample data files) remain.
+- Skeleton templates (and EAB sample data files) live under `acme2certifier/share/skeletons/{ca_handler,eab_handler,hooks}/`.
 - Tools live under `acme2certifier.tools`. Invoke with `python3 -m acme2certifier.tools.<name>` (top-level `tools/*.py` wrappers are removed; see `tools/README.md`).
 - Handler loading supports both file paths (`*_file`, **deprecated**) and dotted module names (`*_module`, **preferred**).
 - The Django app lives under `acme2certifier.django_app`; the Django project shell under `acme2certifier.django_project`. Install with `pip install 'acme2certifier[django]'` and use `a2c-manage`. `examples/django/settings.py` is an optional MySQL settings template for Docker/external DB installs.
@@ -132,7 +132,7 @@ Legacy (deprecated):
 
 ```ini
 [Hooks]
-hooks_file: examples/hooks/skeleton_hooks.py
+hooks_file: acme2certifier/share/skeletons/hooks/skeleton_hooks.py
 ```
 
 Preferred:
@@ -200,7 +200,7 @@ Implementations live under `acme2certifier.dbhandlers`. Selection (cfg wins over
 
 Related helpers: `acme2certifier.cahandlers.certsrv`, `acme2certifier.cahandlers.ms_wcce.*`.
 
-Skeleton templates for custom handlers remain under `examples/*/skeleton_*.py` (also available as package modules).
+Skeleton templates for custom handlers remain under `acme2certifier/share/skeletons/*/skeleton_*.py` (also available as package modules).
 
 ### EAB handlers
 
@@ -212,7 +212,7 @@ Skeleton templates for custom handlers remain under `examples/*/skeleton_*.py` (
 | `acme2certifier.eabhandlers.sql_handler` |
 | `acme2certifier.eabhandlers.skeleton_eab_handler` |
 
-Sample key/profile data files remain under `examples/eab_handler/`.
+Sample key/profile data files remain under `acme2certifier/share/skeletons/eab_handler/`.
 
 ### Hooks
 

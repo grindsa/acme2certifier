@@ -32,25 +32,25 @@ RUN apt-get update  && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
     mkdir -p /run/uwsgi && \
-    cp /var/www/acme2certifier/examples/nginx/acme2certifier.ini /var/www/acme2certifier && \
-    cp /var/www/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf && \
-    rm -f /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
+    cp /var/www/acme2certifier/share/nginx/acme2certifier.ini /var/www/acme2certifier && \
+    cp /var/www/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf && \
+    rm -f /var/www/acme2certifier/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
     chown -R www-data /var/www/acme2certifier && \
     ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf && \
     sed -i "s/nginx/www-data/g" /var/www/acme2certifier/acme2certifier.ini && \
     ln -sf /dev/stdout /var/log/nginx/access.log && ln -sf /dev/stderr /var/log/nginx/error.log && \
-    sed -i "s/\/etc\/nginx/\/var\/www\/acme2certifier\/volume/g" /var/www/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf && \
+    sed -i "s/\/etc\/nginx/\/var\/www\/acme2certifier\/volume/g" /var/www/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf && \
     sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
     sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf && \
     rm /etc/nginx/sites-enabled/default && \
     rm -f /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme_srv_ssl.conf && \
     rm -rf /var/www/acme2certifier/examples/Docker && \
     rm -rf /var/www/acme2certifier/examples/django && \
-    rm -rf /var/www/acme2certifier/examples/apache2 && \
+    rm -rf /var/www/acme2certifier/share/apache2 && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
     chmod a+rx /docker-entrypoint.sh  # NOSONAR
 
-COPY ./examples/nginx/supervisord.conf /etc
+COPY ./acme2certifier/share/nginx/supervisord.conf /etc
 
 WORKDIR /var/www/acme2certifier
 

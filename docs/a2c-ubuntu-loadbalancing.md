@@ -473,14 +473,14 @@ sudo apt-get install -y ./acme2certifier_<version>-1_all.deb
 - Copy and activate apache2 configuration file
 
 ```bash
-sudo cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
+sudo cp /var/www/acme2certifier/share/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
 sudo a2ensite acme2certifier
 ```
 
 - Copy and activate apache2 ssl configuration file (optional)
 
 ```bash
-sudo cp /var/www/acme2certifier/examples/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
+sudo cp /var/www/acme2certifier/share/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
 sudo a2ensite acme2certifier_ssl
 ```
 

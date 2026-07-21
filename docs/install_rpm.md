@@ -47,13 +47,13 @@ Depending on your CA handler, you may need these additional modules:
 ## 4. Copy the Nginx Configuration File
 
 ```bash
-sudo cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d/
+sudo cp /opt/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/conf.d/
 ```
 
 ## 5. Copy the Nginx SSL Configuration File (Optional)
 
 ```bash
-sudo cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d/
+sudo cp /opt/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d/
 ```
 
 ## 6. Create and Configure `acme_srv.cfg`

@@ -58,8 +58,8 @@ case "${1}" in
       grep -qE '^handler:' "$CFG" || sed -i '/\[DBhandler\]/a handler: django' "$CFG"
     fi
 
-    cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
-    cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
+    cp /opt/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
+    cp /opt/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
     mkdir -p /opt/acme2certifier/volume/
 
     yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv

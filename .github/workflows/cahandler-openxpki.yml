@@ -290,10 +290,10 @@ jobs:
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
           sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
           sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/eab_handler/kid_profiles.json
+          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
           sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"tls-server\", \"tls-client\", \"profile_3\"\]/g" examples/Docker/data/kid_profiles.json
           sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"tls-client\"/g" examples/Docker/data/kid_profiles.json
           sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
@@ -590,7 +590,7 @@ jobs:
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
           sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
           sudo chmod 777 data/volume/acme_ca/kid_profiles.json
@@ -905,7 +905,7 @@ jobs:
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
           sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
           sudo chmod 777 data/volume/acme_ca/kid_profiles.json

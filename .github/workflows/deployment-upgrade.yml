@@ -359,9 +359,9 @@ jobs:
           sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
           sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
-          sudo cp examples/nginx/nginx_acme_srv.conf data/nginx/conf.d
+          sudo cp acme2certifier/share/nginx/nginx_acme_srv.conf data/nginx/conf.d
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv.conf
-          sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
+          sudo cp acme2certifier/share/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
 
       - name: "Retrieve rpms from SBOM repo"
@@ -426,7 +426,7 @@ jobs:
 
       - name: "Verify packaged DB handler is present"
         run: |
-          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -492,10 +492,10 @@ jobs:
       - name: update version number in spec file and path in nginx ssl config
         run: |
           sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
+          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" acme2certifier/share/nginx/nginx_acme_srv_ssl.conf
           git config --global user.email "$EMAIL"
           git config --global user.name "rpm update"
-          git add examples/nginx
+          git add acme2certifier/share/nginx
           git commit -a -m "rpm update"
 
       - name: "Download RPM artifact by name from build run"
@@ -523,9 +523,9 @@ jobs:
           sudo cp .github/django_settings_mariadb.py data/volume/settings.py
           # sudo sed -i "s/\/var\/www\//\/opt\//g" data/volume/settings.py
           sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/volume/settings.py
-          sudo cp examples/nginx/nginx_acme_srv.conf data/nginx/conf.d
+          sudo cp acme2certifier/share/nginx/nginx_acme_srv.conf data/nginx/conf.d
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv.conf
-          sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
+          sudo cp acme2certifier/share/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
 
       - name: "Instanciate mariadb"
@@ -589,7 +589,7 @@ jobs:
 
       - name: "Verify packaged DB handler is present"
         run: |
-          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -655,10 +655,10 @@ jobs:
       - name: update version number in spec file and path in nginx ssl config
         run: |
           sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
+          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" acme2certifier/share/nginx/nginx_acme_srv_ssl.conf
           git config --global user.email "$EMAIL"
           git config --global user.name "rpm update"
-          git add examples/nginx
+          git add acme2certifier/share/nginx
           git commit -a -m "rpm update"
 
       - name: "Download RPM artifact by name from build run"
@@ -686,9 +686,9 @@ jobs:
           sudo cp .github/django_settings.py data/volume/settings.py
           sudo sed -i "s/\/var\/www\//\/opt\//g" data/volume/settings.py
           sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/volume/settings.py
-          sudo cp examples/nginx/nginx_acme_srv.conf data/nginx/conf.d
+          sudo cp acme2certifier/share/nginx/nginx_acme_srv.conf data/nginx/conf.d
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv.conf
-          sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
+          sudo cp acme2certifier/share/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
 
       - name: "Retrieve rpms from SBOM repo"
@@ -749,7 +749,7 @@ jobs:
 
       - name: "Verify packaged DB handler is present"
         run: |
-          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -815,10 +815,10 @@ jobs:
       - name: update version number in spec file and path in nginx ssl config
         run: |
           sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
+          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" acme2certifier/share/nginx/nginx_acme_srv_ssl.conf
           git config --global user.email "$EMAIL"
           git config --global user.name "rpm update"
-          git add examples/nginx
+          git add acme2certifier/share/nginx
           git commit -a -m "rpm update"
 
       - name: "Download RPM artifact by name from build run"
@@ -846,9 +846,9 @@ jobs:
           sudo cp .github/django_settings_psql.py data/volume/settings.py
           # sudo sed -i "s/\/var\/www\//\/opt\//g" data/volume/settings.py
           sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/volume/settings.py
-          sudo cp examples/nginx/nginx_acme_srv.conf data/nginx/conf.d
+          sudo cp acme2certifier/share/nginx/nginx_acme_srv.conf data/nginx/conf.d
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv.conf
-          sudo cp examples/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
+          sudo cp acme2certifier/share/nginx/nginx_acme_srv_ssl.conf data/nginx/conf.d
           sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g"  data/nginx/conf.d/nginx_acme_srv_ssl.conf
 
       - name: "Instanciate postgres"
@@ -913,7 +913,7 @@ jobs:
 
       - name: "Verify packaged DB handler is present"
         run: |
-          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -1012,8 +1012,8 @@ jobs:
       - name: "Configure a2c"
         run: |
           sudo cp .github/acme2certifier.pem data/volume/acme2certifier.pem
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_wsgi_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
+          docker exec acme-srv cp /var/www/acme2certifier/share/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
+          docker exec acme-srv cp /var/www/acme2certifier/share/apache2/apache_wsgi_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
           docker exec acme-srv a2enmod ssl
           docker exec acme-srv a2ensite acme2certifier
           docker exec acme-srv a2ensite acme2certifier_ssl
@@ -1035,7 +1035,7 @@ jobs:
           sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
 
-          docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
+          docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
           docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
           docker exec acme-srv systemctl restart apache2
@@ -1069,7 +1069,7 @@ jobs:
 
       - name: "Verify packaged DB handler is present"
         run: |
-          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -1164,8 +1164,8 @@ jobs:
       - name: "Configure a2c"
         run: |
           sudo cp .github/acme2certifier.pem data/volume/acme2certifier.pem
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
+          docker exec acme-srv cp /var/www/acme2certifier/share/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
+          docker exec acme-srv cp /var/www/acme2certifier/share/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
           docker exec acme-srv a2enmod ssl
           docker exec acme-srv a2ensite acme2certifier
           docker exec acme-srv a2ensite acme2certifier_ssl
@@ -1187,13 +1187,13 @@ jobs:
           sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
           sudo cp .github/django_settings.py data/volume/settings.py
-          docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
-          docker exec acme-srv bash -c 'CFG=/var/www/acme2certifier/acme_srv/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
+          docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg
+          docker exec acme-srv bash -c 'CFG=/var/www/acme2certifier/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
-          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/django_project/settings.py
+          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /usr/lib/python3/dist-packages/acme2certifier/django_project/settings.py
           docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
-          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
-          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py"
 
           docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
           docker exec acme-srv systemctl restart apache2
@@ -1231,7 +1231,7 @@ jobs:
 
       - name: "Verify packaged DB handler is present"
         run: |
-          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -1344,8 +1344,8 @@ jobs:
       - name: "Configure a2c"
         run: |
           sudo cp .github/acme2certifier.pem data/volume/acme2certifier.pem
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
+          docker exec acme-srv cp /var/www/acme2certifier/share/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
+          docker exec acme-srv cp /var/www/acme2certifier/share/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
           docker exec acme-srv a2enmod ssl
           docker exec acme-srv a2ensite acme2certifier
           docker exec acme-srv a2ensite acme2certifier_ssl
@@ -1368,13 +1368,13 @@ jobs:
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
 
           sudo cp .github/django_settings_mariadb.py data/volume/settings.py
-          docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
-          docker exec acme-srv bash -c 'CFG=/var/www/acme2certifier/acme_srv/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
+          docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg
+          docker exec acme-srv bash -c 'CFG=/var/www/acme2certifier/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
-          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/django_project/settings.py
+          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /usr/lib/python3/dist-packages/acme2certifier/django_project/settings.py
           docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
-          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
-          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py"
 
           docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
           docker exec acme-srv systemctl restart apache2
@@ -1407,7 +1407,7 @@ jobs:
 
       - name: "Verify packaged DB handler is present"
         run: |
-          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |
@@ -1531,8 +1531,8 @@ jobs:
       - name: "Configure a2c"
         run: |
           sudo cp .github/acme2certifier.pem data/volume/acme2certifier.pem
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
-          docker exec acme-srv cp /var/www/acme2certifier/examples/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
+          docker exec acme-srv cp /var/www/acme2certifier/share/apache2/apache_django.conf /etc/apache2/sites-available/acme2certifier.conf
+          docker exec acme-srv cp /var/www/acme2certifier/share/apache2/apache_django_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
           docker exec acme-srv a2enmod ssl
           docker exec acme-srv a2ensite acme2certifier
           docker exec acme-srv a2ensite acme2certifier_ssl
@@ -1555,13 +1555,13 @@ jobs:
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
 
           sudo cp .github/django_settings_psql.py data/volume/settings.py
-          docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
-          docker exec acme-srv bash -c 'CFG=/var/www/acme2certifier/acme_srv/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
+          docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg
+          docker exec acme-srv bash -c 'CFG=/var/www/acme2certifier/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
           docker exec acme-srv cp /tmp/acme2certifier/volume/$XCA_DB_NAME /var/www/acme2certifier/volume/
-          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /var/www/acme2certifier/acme2certifier/django_project/settings.py
+          docker exec acme-srv cp /tmp/acme2certifier/volume/settings.py /usr/lib/python3/dist-packages/acme2certifier/django_project/settings.py
           docker exec -w /var/www/acme2certifier acme-srv python3 -m acme2certifier.tools.a2c_django_update
-          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
-          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/if settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/if False and settings.DATABASES\['default'\]\['ENGINE'\] == 'django.db.backends.sqlite3'/g\" /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py"
+          docker exec acme-srv bash -c "sed -i \"s/import acme_srv.monkey_patches/# import acme_srv.monkey_patches/g\" /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py"
 
           docker exec acme-srv chown -R www-data.www-data /var/www/acme2certifier/volume
           docker exec acme-srv systemctl restart apache2
@@ -1594,7 +1594,7 @@ jobs:
 
       - name: "Verify packaged DB handler is present"
         run: |
-          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/django_handler.py'
+          docker exec acme-srv bash -c 'test -f /opt/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /var/www/acme2certifier/acme2certifier/dbhandlers/wsgi_handler.py || test -f /opt/acme2certifier/acme2certifier/dbhandlers/django_handler.py || test -f /usr/lib/python3/dist-packages/acme2certifier/dbhandlers/django_handler.py'
 
       - name: "Test renewal again"
         run: |

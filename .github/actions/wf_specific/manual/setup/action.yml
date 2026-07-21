@@ -63,14 +63,14 @@ runs:
   - name: "Setup environment for ubuntu 24.04"
     run: |
       docker exec acme-srv bash -c 'cd /tmp/acme2certifier && pip3 install Cython --break-system-packages && python3 setup.py install'
-      docker exec acme-srv cp /var/lib/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
-      docker exec acme-srv cp /var/lib/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme_srv_ssl.conf
+      docker exec acme-srv cp /var/lib/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
+      docker exec acme-srv cp /var/lib/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme_srv_ssl.conf
       docker exec acme-srv rm /etc/nginx/sites-enabled/default
       docker exec acme-srv ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf
       docker exec acme-srv ln -s /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme_srv_ssl.conf
       docker exec acme-srv cp /tmp/acme2certifier/.github/acme2certifier_cert.pem /etc/ssl/certs/acme2certifier_cert.pem
       docker exec acme-srv cp /tmp/acme2certifier/.github/acme2certifier_key.pem /etc/ssl/private/acme2certifier_key.pem
-      docker exec acme-srv cp /var/lib/acme2certifier/examples/nginx/acme2certifier.ini /var/lib/acme2certifier
+      docker exec acme-srv cp /var/lib/acme2certifier/share/nginx/acme2certifier.ini /var/lib/acme2certifier
       # configure cahandler
       docker exec acme-srv cp /var/lib/acme2certifier/acme2certifier/share/acme2certifier_wsgi.py /var/lib/acme2certifier/
       docker exec acme-srv mkdir -p /var/lib/acme2certifier/volume/acme_ca/certs

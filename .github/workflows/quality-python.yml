@@ -129,7 +129,7 @@ jobs:
 
       - name: "Pylint folder: examples skeletons"
         run: |
-          pylint --rcfile=".github/pylintrc" examples/ca_handler/skeleton_ca_handler.py examples/eab_handler/skeleton_eab_handler.py examples/hooks/skeleton_hooks.py || pylint-exit $?
+          pylint --rcfile=".github/pylintrc" acme2certifier/share/skeletons/ca_handler/skeleton_ca_handler.py acme2certifier/share/skeletons/eab_handler/skeleton_eab_handler.py acme2certifier/share/skeletons/hooks/skeleton_hooks.py || pylint-exit $?
 
       - name: "Linting with pycodestyle"
         run: |

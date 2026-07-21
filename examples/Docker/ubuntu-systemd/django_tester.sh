@@ -6,7 +6,7 @@ case "${1}" in
 
   "restart")
     echo "update configuration and restart service"
-    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv
+    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg
     yes | cp -R /tmp/acme2certifier/volume/acme_ca/* /var/www/acme2certifier/volume/acme_ca/
     if [[ "${2}" = "apache2" ]]; then
       systemctl restart apache2
@@ -40,26 +40,29 @@ case "${1}" in
     echo "install a2c"
     apt-get install -y /tmp/acme2certifier/acme2certifier*.deb
 
+    python3 -c "import acme2certifier.acme_srv; print('acme2certifier import ok')"
+    command -v a2c-cli >/dev/null
+
     apt-get install -y python3-pip
     pip install "requests-pkcs12" "cryptography<=48.0.1" --break-system-packages
 
     if [[ "${2}" = "apache2" ]]; then
       echo "configure apache"
-      cp /var/www/acme2certifier/examples/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
-      cp /var/www/acme2certifier/examples/apache2/apache_wsgi_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
+      cp /var/www/acme2certifier/share/apache2/apache_wsgi.conf /etc/apache2/sites-available/acme2certifier.conf
+      cp /var/www/acme2certifier/share/apache2/apache_wsgi_ssl.conf /etc/apache2/sites-available/acme2certifier_ssl.conf
       a2enmod ssl
       a2ensite acme2certifier
       a2ensite acme2certifier_ssl
       rm /etc/apache2/sites-enabled/000-default.conf
     elif [[ "${2}" = "nginx" ]]; then
       echo "configure nginx"
-      cp /var/www/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
-      cp /var/www/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme_srv_ssl.conf
+      cp /var/www/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
+      cp /var/www/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme_srv_ssl.conf
       rm /etc/nginx/sites-enabled/default
       ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf
       ln -s /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme_srv_ssl.conf
-      cp /var/www/acme2certifier/examples/nginx/acme2certifier.ini /var/www/acme2certifier
-      cp /var/www/acme2certifier/examples/nginx/acme2certifier.service /etc/systemd/system/acme2certifier.service
+      cp /var/www/acme2certifier/share/nginx/acme2certifier.ini /var/www/acme2certifier
+      cp /var/www/acme2certifier/share/nginx/acme2certifier.service /etc/systemd/system/acme2certifier.service
       systemctl start acme2certifier
       systemctl enable acme2certifier
     fi
@@ -79,20 +82,18 @@ case "${1}" in
     mkdir -p /var/www/acme2certifier/volume/acme_ca
     cp -R /tmp/acme2certifier/volume/* /var/www/acme2certifier/volume/
 
-    if [[ -f /var/www/acme2certifier/acme_srv/acme_srv.cfg ]]; then
-      rm /var/www/acme2certifier/acme_srv/acme_srv.cfg
+    if [[ -f /var/www/acme2certifier/acme_srv.cfg ]]; then
+      rm /var/www/acme2certifier/acme_srv.cfg
     fi
-    mkdir -p /var/www/acme2certifier/acme_srv
-    ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
+    ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg
 
+    DJANGO_SETTINGS=/usr/lib/python3/dist-packages/acme2certifier/django_project/settings.py
     if [[ -f /var/www/acme2certifier/volume/acme2certifier/settings.py ]]; then
-      rm -f /var/www/acme2certifier/acme2certifier/django_project/settings.py
-      ln -s /var/www/acme2certifier/volume/acme2certifier/settings.py \
-        /var/www/acme2certifier/acme2certifier/django_project/settings.py
+      rm -f "$DJANGO_SETTINGS"
+      ln -s /var/www/acme2certifier/volume/acme2certifier/settings.py "$DJANGO_SETTINGS"
     elif [[ -f /var/www/acme2certifier/volume/settings.py ]]; then
-      rm -f /var/www/acme2certifier/acme2certifier/django_project/settings.py
-      ln -s /var/www/acme2certifier/volume/settings.py \
-        /var/www/acme2certifier/acme2certifier/django_project/settings.py
+      rm -f "$DJANGO_SETTINGS"
+      ln -s /var/www/acme2certifier/volume/settings.py "$DJANGO_SETTINGS"
     fi
 
     echo "appply migrations"

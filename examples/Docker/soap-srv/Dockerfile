@@ -25,7 +25,7 @@ RUN pip3 install -r /tmp/requirements.txt &&\
 COPY examples/soap/mock_soap_srv.py /usr/local/soap-srv/
 COPY acme_srv/helper.py acme_srv/version.py /usr/local/soap-srv/acme_srv/
 COPY acme_srv/helpers /usr/local/soap-srv/acme_srv/helpers
-COPY examples/ca_handler/xca_ca_handler.py /usr/local/soap-srv/examples/ca_handler/xca_ca_handler.py
+COPY acme2certifier/cahandlers/xca_ca_handler.py /usr/local/soap-srv/examples/ca_handler/xca_ca_handler.py
 COPY examples/Docker/soap-srv/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod a+rx /docker-entrypoint.sh
 

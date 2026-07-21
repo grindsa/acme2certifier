@@ -11,7 +11,7 @@ fi
 if [[ -f /var/www/acme2certifier/volume/acme2certifier.pem ]]
 then
     echo "found acme2certifier.pem! enable TLS" >> /proc/1/fd/1
-    cp  /var/www/acme2certifier/examples/apache2/apache_django_ssl.conf /etc/apache2/sites-enabled/acme2certifier_ssl.conf
+    cp  /var/www/acme2certifier/share/apache2/apache_django_ssl.conf /etc/apache2/sites-enabled/acme2certifier_ssl.conf
 fi
 
 # create ca_handler if:
@@ -24,7 +24,7 @@ if ( [[ ! -f /var/www/acme2certifier/volume/ca_handler.py ]] && \
         ))
 then
     echo "no ca_handler.py found! creating from skeleton_ca_handler.py" >> /proc/1/fd/1
-    cp /var/www/acme2certifier/examples/ca_handler/skeleton_ca_handler.py /var/www/acme2certifier/volume/ca_handler.py
+    cp /var/www/acme2certifier/share/skeletons/ca_handler/skeleton_ca_handler.py /var/www/acme2certifier/volume/ca_handler.py
 else
     if [[ -f /var/www/acme2certifier/volume/ca_handler.py ]]
     then
@@ -42,10 +42,9 @@ if [[ -f "$CFG" ]]; then
 fi
 
 # create symlink for the acme_srv.cfg
-if [[ ! -L /var/www/acme2certifier/acme_srv/acme_srv.cfg ]]
+if [[ ! -L /var/www/acme2certifier/acme_srv.cfg ]]
 then
-    mkdir -p /var/www/acme2certifier/acme_srv
-    ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
+    ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg
     chown www-data.www-data /var/www/acme2certifier/volume/acme_srv.cfg
 fi
 
@@ -63,8 +62,8 @@ then
     ln -s /var/www/acme2certifier/volume/ca_handler.py /var/www/acme2certifier/acme_srv/ca_handler.py
 fi
 
-DJANGO_SETTINGS=/var/www/acme2certifier/acme2certifier/django_project/settings.py
-DJANGO_MIGRATIONS=/var/www/acme2certifier/acme2certifier/django_app/migrations
+DJANGO_SETTINGS=/usr/lib/python3/dist-packages/acme2certifier/django_project/settings.py
+DJANGO_MIGRATIONS=/usr/lib/python3/dist-packages/acme2certifier/django_app/migrations
 
 # create settings.py if not existing
 if [[ ! -f /var/www/acme2certifier/volume/settings.py ]]

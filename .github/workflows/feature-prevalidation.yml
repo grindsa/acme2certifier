@@ -148,7 +148,7 @@ jobs:
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
+          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
           sudo chmod 777 examples/Docker/data/kid_profiles.json
           sudo sed -i "s/cahandler/authorization/g" examples/Docker/data/kid_profiles.json
           sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" examples/Docker/data/kid_profiles.json
@@ -307,7 +307,7 @@ jobs:
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo chmod 777 data/volume/acme_ca/kid_profiles.json
           sudo sed -i "s/cahandler/authorization/g" data/volume/acme_ca/kid_profiles.json
           sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" data/volume/acme_ca/kid_profiles.json
@@ -485,7 +485,7 @@ jobs:
           sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_module: acme2certifier.cahandlers.openssl_ca_handler/g" data/volume/acme_srv.cfg
           sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
 
-          sudo cp examples/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
+          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo chmod 777 data/volume/acme_ca/kid_profiles.json
           sudo sed -i "s/cahandler/authorization/g" data/volume/acme_ca/kid_profiles.json
           sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" data/volume/acme_ca/kid_profiles.json

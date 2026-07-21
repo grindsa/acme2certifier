@@ -159,7 +159,7 @@ docker-compose build --no-cache
 During startup, the **entry-point script** checks for missing configuration files in `data/`:
 
 - **Configuration file:** [`acme_srv.cfg`](../../examples/acme_srv.cfg)
-- **Stub handler:** [`skeleton_ca_handler.py`](../../examples/ca_handler/skeleton_ca_handler.py)
+- **Stub handler:** [`skeleton_ca_handler.py`](../../acme2certifier/share/skeletons/ca_handler/skeleton_ca_handler.py)
 
 For **Django-based deployments**, a **project-specific `settings.py`** will also be created in `data/`.
 

@@ -28,10 +28,10 @@ runs:
     - name: "Update version number in spec file and path in nginx ssl config"
       run: |
         sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-        sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
+        sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" acme2certifier/share/nginx/nginx_acme_srv_ssl.conf
         git config --global user.email "$EMAIL"
         git config --global user.name "rpm update"
-        git add examples/nginx
+        git add acme2certifier/share/nginx
         git commit -a -m "rpm update"
       shell: bash
       env:
