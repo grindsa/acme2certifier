@@ -1,11 +1,10 @@
 #!/usr/bin/make -f
-# See debhelper(7) (uncomment to enable)
 export DH_VERBOSE = 1
 export PYBUILD_NAME = acme2certifier
 export PYBUILD_SYSTEM = pyproject
 
 %:
-	dh $@ --buildsystem=pybuild
+	dh $@ --with python3 --buildsystem=pybuild
 
 # Upstream tests need pytest extras not in Build-Depends.
 override_dh_auto_test:

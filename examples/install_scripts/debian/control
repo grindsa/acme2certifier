@@ -4,10 +4,12 @@ Priority: optional
 Maintainer: GrindSa <grindelsack@gmail.com>
 Build-Depends:
  debhelper-compat (= 13),
+ dh-python,
  dh-sequence-python3,
  pybuild-plugin-pyproject,
  python3-all,
  python3-setuptools,
+ python3-build,
 Standards-Version: 4.6.0
 Homepage: https://github.com/grindsa/acme2certifier
 Rules-Requires-Root: no

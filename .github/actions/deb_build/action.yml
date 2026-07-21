@@ -35,8 +35,9 @@ runs:
       run: |
         sudo apt-get update && sudo apt-get -y upgrade
         sudo apt-get -y install --allow-downgrades \
-          build-essential fakeroot dpkg-dev devscripts debhelper \
-          dh-python pybuild-plugin-pyproject python3-all python3-setuptools
+          build-essential fakeroot dpkg-dev debhelper \
+          dh-python pybuild-plugin-pyproject \
+          python3-all python3-setuptools python3-build
         # DEB-specific nginx/uwsgi path and user tweaks (not for pip wheel).
         rm -f acme2certifier/share/nginx/supervisord.conf
         rm -f acme2certifier/share/nginx/uwsgi.service
