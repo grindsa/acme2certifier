@@ -1,7 +1,8 @@
 #!/bin/bash
-# Install acme2certifier on RHEL/CentOS/Alma/Rocky (Nginx + uWSGI) from PyPI (or local source).
+# Install acme2certifier on RHEL/CentOS/Alma/Rocky 9 (Nginx + uWSGI) from PyPI (or local source).
 #
 # Install root: /opt/acme2certifier
+# Requires: Python ≥ 3.7 (EL9). EL8 (Python 3.6) is not supported for this script.
 #
 # Usage:
 #   ./examples/install_scripts/a2c-centos9-nginx.sh [options]

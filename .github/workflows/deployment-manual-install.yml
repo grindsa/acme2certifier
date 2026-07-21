@@ -118,7 +118,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rh_version: ['8', '9']
+        rh_version: ['9']
         dbhandler: [wsgi, django]
     steps:
       - name: Checkout
