@@ -44,12 +44,12 @@ RUN apt-get update  && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
-    cp /var/www/acme2certifier/examples/apache2/apache_django.conf /etc/apache2/sites-enabled/acme2certifier.conf && \
+    cp /var/www/acme2certifier/share/apache2/apache_django.conf /etc/apache2/sites-enabled/acme2certifier.conf && \
     rm -rf /var/www/acme2certifier/examples/Docker && \
-    rm -rf /var/www/acme2certifier/examples/nginx && \
+    rm -rf /var/www/acme2certifier/share/nginx && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
     rm -rf /var/www/acme2certifier/acme2certifier_wsgi.py  && \
-    rm -f /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
+    rm -f /var/www/acme2certifier/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
     chown -R www-data:www-data /var/www/acme2certifier/ && \
     sed -i "s/default = default_sect/\default = default_sect\nlegacy = legacy_sect/g" /etc/ssl/openssl.cnf && \
     sed -i "s/\[default_sect\]/\[default_sect\]\nactivate = 1\n\[legacy_sect\]\nactivate = 1/g" /etc/ssl/openssl.cnf && \

@@ -28,8 +28,8 @@ case "${1}" in
     systemctl start syslog-ng.service
 
     yum -y localinstall /tmp/acme2certifier/*.rpm
-    cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
-    cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
+    cp /opt/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
+    cp /opt/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
     mkdir -p /opt/acme2certifier/volume/
 
     yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv

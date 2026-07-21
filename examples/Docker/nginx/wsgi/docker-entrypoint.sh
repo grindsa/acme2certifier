@@ -12,7 +12,7 @@ if  [[ -f /var/www/acme2certifier/volume/acme2certifier_cert.pem ]] && \
     [[ -f /var/www/acme2certifier/volume/acme2certifier_key.pem ]] && \
     [[ ! -f /etc/nginx/sites-available/acme_srv_ssl.conf ]]
 then
-    cp  /var/www/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme_srv_ssl.conf
+    cp  /var/www/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme_srv_ssl.conf
     ln -s /etc/nginx/sites-available/acme_srv_ssl.conf /etc/nginx/sites-enabled/acme_srv_ssl.conf
 fi
 
@@ -26,7 +26,7 @@ if ( [[ ! -f /var/www/acme2certifier/volume/ca_handler.py ]] && \
         ))
 then
     echo "no ca_handler.py found! creating from skeleton_ca_handler.py" >> /proc/1/fd/1
-    cp /var/www/acme2certifier/examples/ca_handler/skeleton_ca_handler.py /var/www/acme2certifier/volume/ca_handler.py
+    cp /var/www/acme2certifier/share/skeletons/ca_handler/skeleton_ca_handler.py /var/www/acme2certifier/volume/ca_handler.py
 else
     if [[ -f /var/www/acme2certifier/volume/ca_handler.py ]]
     then
@@ -35,9 +35,9 @@ else
 fi
 
 # create symlink for the acme_srv.cfg
-if [[ ! -L /var/www/acme2certifier/acme_srv/acme_srv.cfg ]]
+if [[ ! -L /var/www/acme2certifier/acme_srv.cfg ]]
 then
-    ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg
+    ln -s /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg
     chown www-data.www-data /var/www/acme2certifier/volume/acme_srv.cfg
 fi
 

@@ -89,7 +89,7 @@ Remember to:
 	  sudo systemctl enable acme2certifier.service
 	  sudo systemctl start acme2certifier.service
   - active acme2certifier in your nginx configuration
-	  cp /opt/acme2certifer/examples/nginx/nginx_acme_srv[_ssl].conf /etc/nginx/conf.d
+	  cp /opt/acme2certifier/share/nginx/nginx_acme_srv[_ssl].conf /etc/nginx/conf.d
   - enable and start nginx service
 	  sudo systemctl enable nginx.service
 	  sudo systemctl start nginx.service
@@ -107,13 +107,15 @@ Remember to:
     %{buildroot}%{_datadir} \
     %{buildroot}%{_unitdir} \
     %{buildroot}%{dest_dir}/%{name}/examples \
+    %{buildroot}%{dest_dir}/%{name}/share \
 	%{buildroot}%{_docdir}/%{projname} \
     #\
     #%{buildroot}%{_sysconfdir}/httpd/conf.d \
 
 # %{__cp} -a . %{buildroot}%{dest_dir}/%{projname}
 %{__cp} -a acme_srv tools %{buildroot}%{dest_dir}/%{projname}
-%{__cp} -a examples/ca_handler examples/django examples/eab_handler examples/hooks examples/trigger examples/nginx %{buildroot}%{dest_dir}/%{projname}/examples
+%{__cp} -a examples/django examples/trigger %{buildroot}%{dest_dir}/%{projname}/examples
+%{__cp} -a acme2certifier/share/apache2 acme2certifier/share/nginx acme2certifier/share/skeletons %{buildroot}%{dest_dir}/%{projname}/share/
 
 %{__chmod} -R go-w %{buildroot}%{dest_dir}/%{projname}
 
@@ -130,7 +132,7 @@ Remember to:
 $a\
 plugins = python3
 ' \
-  examples/nginx/acme2certifier.ini > \
+  acme2certifier/share/nginx/acme2certifier.ini > \
   %{buildroot}%{dest_dir}/%{projname}/acme2certifier.ini
 
 ## Configure and enable uWSGI service
@@ -138,12 +140,12 @@ plugins = python3
 # /^User/i\
 # WorkingDirectory=%{dest_dir}/acme2certifier
 # ' \
-#    examples/nginx/uwsgi.service > \
+#    acme2certifier/share/nginx/uwsgi.service > \
 #    %{buildroot}%{_unitdir}/acme2certifier.service    # ugh
 
 # copy and rename service file
 %{__cp} -a \
-    examples/nginx/uwsgi.service \
+    acme2certifier/share/nginx/uwsgi.service \
     %{buildroot}%{_unitdir}/acme2certifier.service
 
 %clean

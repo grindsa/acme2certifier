@@ -6,12 +6,12 @@ import json
 import logging
 import os
 import warnings
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 from .plugin_loader import eab_handler_load
 from .global_variables import PARSING_ERR_MSG
 
-# Emit legacy acme_srv.cfg path deprecation at most once per process.
-_LEGACY_ACME_SRV_CFG_WARNED = False
+# Emit acme_srv.cfg path deprecation warnings at most once per path per process.
+_ACME_SRV_CFG_PATH_WARNED: Set[str] = set()
 
 
 def config_check(logger: logging.Logger, config_dic: Dict):
@@ -299,14 +299,35 @@ def config_proxy_load(logger, config_dic: Dict[str, str], host_name: str):
     return proxy
 
 
+def _warn_acme_srv_cfg_path(
+    path: str,
+    preferred: str,
+    logger: logging.Logger,
+) -> None:
+    """Warn once when a non-preferred acme_srv.cfg path is used."""
+    if path in _ACME_SRV_CFG_PATH_WARNED:
+        return
+    _ACME_SRV_CFG_PATH_WARNED.add(path)
+    message = (
+        f"Loading acme_srv.cfg from {path}; prefer {preferred} "
+        "or set ACME_SRV_CONFIGFILE. "
+        "This fallback path will change in acme2certifier 1.0."
+    )
+    warnings.warn(message, DeprecationWarning, stacklevel=4)
+    logger.warning(message)
+
+
 def _default_acme_srv_cfg_file(
     logger: Optional[logging.Logger] = None,
 ) -> str:
     """Resolve default acme_srv.cfg after the package move.
 
     Candidates (first existing file wins):
-    1. Next to the real package: ``acme2certifier/acme_srv/acme_srv.cfg``
-    2. Legacy layout: ``<repo>/acme_srv/acme_srv.cfg``
+    1. Preferred OS deploy roots: ``/var/www/acme2certifier/acme_srv.cfg``
+       (DEB) or ``/opt/acme2certifier/acme_srv.cfg`` (RPM)
+    2. Nested deploy paths under ``.../acme_srv/acme_srv.cfg`` (warn)
+    3. Next to the package module: ``.../acme_srv/acme_srv.cfg``
+    4. Legacy repo layout: ``<repo>/acme_srv/acme_srv.cfg`` (warn)
     """
     log = logger or logging.getLogger(__name__)
     log.debug("Helper._default_acme_srv_cfg_file() start")
@@ -315,13 +336,47 @@ def _default_acme_srv_cfg_file(
     pkg_dir = os.path.dirname(helpers_dir)  # .../acme_srv (new or install tree)
     install_or_repo_root = os.path.dirname(os.path.dirname(pkg_dir))
 
+    preferred_deploy_cfgs = (
+        "/var/www/acme2certifier/acme_srv.cfg",
+        "/opt/acme2certifier/acme_srv.cfg",
+    )
+    nested_deploy_cfgs = (
+        (
+            "/var/www/acme2certifier/acme_srv/acme_srv.cfg",
+            "/var/www/acme2certifier/acme_srv.cfg",
+        ),
+        (
+            "/opt/acme2certifier/acme_srv/acme_srv.cfg",
+            "/opt/acme2certifier/acme_srv.cfg",
+        ),
+    )
     packaged_cfg = os.path.join(pkg_dir, "acme_srv.cfg")
     legacy_cfg = os.path.join(install_or_repo_root, "acme_srv", "acme_srv.cfg")
     log.debug(
-        "Helper._default_acme_srv_cfg_file(): candidates packaged=%s legacy=%s",
+        "Helper._default_acme_srv_cfg_file(): candidates preferred=%s "
+        "nested=%s packaged=%s legacy=%s",
+        preferred_deploy_cfgs,
+        [path for path, _ in nested_deploy_cfgs],
         packaged_cfg,
         legacy_cfg,
     )
+
+    for deploy_cfg in preferred_deploy_cfgs:
+        if os.path.isfile(deploy_cfg):
+            log.debug(
+                "Helper._default_acme_srv_cfg_file() ended with preferred %s",
+                deploy_cfg,
+            )
+            return deploy_cfg
+
+    for nested_cfg, preferred_cfg in nested_deploy_cfgs:
+        if os.path.isfile(nested_cfg):
+            _warn_acme_srv_cfg_path(nested_cfg, preferred_cfg, log)
+            log.debug(
+                "Helper._default_acme_srv_cfg_file() ended with nested %s",
+                nested_cfg,
+            )
+            return nested_cfg
 
     if os.path.isfile(packaged_cfg):
         log.debug(
@@ -331,17 +386,11 @@ def _default_acme_srv_cfg_file(
         return packaged_cfg
 
     if os.path.isfile(legacy_cfg):
-        global _LEGACY_ACME_SRV_CFG_WARNED  # pylint: disable=global-statement
-        if not _LEGACY_ACME_SRV_CFG_WARNED:
-            message = (
-                f"Loading acme_srv.cfg from legacy path {legacy_cfg}; "
-                f"prefer placing it next to the package ({packaged_cfg}) "
-                "or set ACME_SRV_CONFIGFILE. "
-                "Legacy default cfg discovery will change in acme2certifier 1.0."
-            )
-            warnings.warn(message, DeprecationWarning, stacklevel=3)
-            log.warning(message)
-            _LEGACY_ACME_SRV_CFG_WARNED = True
+        _warn_acme_srv_cfg_path(
+            legacy_cfg,
+            preferred_deploy_cfgs[0],
+            log,
+        )
         log.debug(
             "Helper._default_acme_srv_cfg_file() ended with legacy %s",
             legacy_cfg,
@@ -350,9 +399,9 @@ def _default_acme_srv_cfg_file(
 
     log.debug(
         "Helper._default_acme_srv_cfg_file() ended with fallback %s",
-        packaged_cfg,
+        preferred_deploy_cfgs[0],
     )
-    return packaged_cfg
+    return preferred_deploy_cfgs[0]
 
 
 def load_config(

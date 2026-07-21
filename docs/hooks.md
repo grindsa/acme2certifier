@@ -21,7 +21,7 @@ Creating your own hook handler is straightforward. All you need to do is create 
 - `post_hook` - Executed after certificate enrollment, regardless of the result.
 - `success_hook` - Executed in case of a successful certificate enrollment; this runs *before* the `post_hook`.
 
-The [skeleton_hooks.py](../examples/hooks/skeleton_hooks.py) file contains a template that can be used to create a customized handler.
+The [skeleton_hooks.py](../acme2certifier/share/skeletons/hooks/skeleton_hooks.py) file contains a template that can be used to create a customized handler.
 
 There is also a built-in [Email Hook](../acme2certifier/hookhandlers/email_hooks.py) (`acme2certifier.hookhandlers.email_hooks`) that sends emails on successful or failed certificate enrollments.
 

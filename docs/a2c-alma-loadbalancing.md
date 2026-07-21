@@ -481,13 +481,13 @@ sudo yum localinstall -y ./acme2certifier_<version>-1.0.noarch.rpm
 - Copy and activate nginx configuration file
 
 ```bash
-sudo cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
+sudo cp /opt/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
 ```
 
 - Copy and activate nginx ssl configuration file (optional)
 
 ```bash
-sudo cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
+sudo cp /opt/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
 ```
 
 - configure the Django DB handler and copy the django directory structure

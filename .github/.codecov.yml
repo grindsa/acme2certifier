@@ -1,7 +1,7 @@
 ignore:
-  - "examples/ca_handler/skeleton_ca_handler.py"
-  - "examples/eab_handler/skeleton_eab_handler.py"
-  - "examples/hooks/skeleton_hooks.py"
+  - "acme2certifier/share/skeletons/ca_handler/skeleton_ca_handler.py"
+  - "acme2certifier/share/skeletons/eab_handler/skeleton_eab_handler.py"
+  - "acme2certifier/share/skeletons/hooks/skeleton_hooks.py"
   - "docs/__init__.py"
   - "setup.py"
   - "test"
