@@ -17,6 +17,16 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: "ACME_SRV_DB_HANDLER matches image variant"
+      working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
+      run: |
+          set -euo pipefail
+          got="$(docker compose exec -T acme-srv printenv ACME_SRV_DB_HANDLER)"
+          echo "ACME_SRV_DB_HANDLER=${got} (expected ${DB_HANDLER})"
+          test "${got}" = "${DB_HANDLER}"
+      env:
+        DB_HANDLER: ${{ inputs.DB_HANDLER }}
+      shell: bash
     - name: "Logs"
       working-directory: ${{ inputs.DOCKER_COMPOSE_FILE_PATH }}
       run: |

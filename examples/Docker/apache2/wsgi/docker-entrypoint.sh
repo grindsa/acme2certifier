@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# shellcheck source=/resolve_db_handler.sh
+. /resolve_db_handler.sh
+
 # create acme-srv.cfg if not existing
 if [[ ! -f /var/www/acme2certifier/volume/acme_srv.cfg ]]
 then
@@ -43,6 +46,12 @@ fi
 if [[ ! -L /var/www/acme2certifier/acme_srv/acme_srv.db ]]
 then
     ln -s /var/www/acme2certifier/volume/acme_srv.db /var/www/acme2certifier/acme_srv/acme_srv.db
+fi
+
+DB_HANDLER=$(a2c_resolve_db_handler)
+echo "resolved DB handler: ${DB_HANDLER} (cfg > ACME_SRV_DB_HANDLER=${ACME_SRV_DB_HANDLER:-} > wsgi)" >> /proc/1/fd/1
+if [[ "$DB_HANDLER" == "django" ]]; then
+    echo "WARNING: handler resolves to django but this is a WSGI image; Apache/mod_wsgi entry and packages stay WSGI. Selection only — use a django image for a full Django stack." >> /proc/1/fd/1
 fi
 
 # apply database updates (if needed)
