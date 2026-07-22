@@ -4,13 +4,13 @@ case "${1}" in
 
   "update")
     echo "update configuration only"
-    # yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
+    # yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv.cfg
     yes | cp -R /tmp/acme2certifier/volume/acme_ca/* /opt/acme2certifier/volume/acme_ca/
     ;;
 
   "restart")
     echo "update configuration and restart service"
-    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv
+    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv.cfg
     #if [[ -d /tmp/acme2certifier/acme_ca ]]; then
     #  yes | cp -R /tmp/acme2certifier/acme_ca/* /opt/acme2certifier/volume/acme_ca/
     #fi
@@ -31,6 +31,8 @@ case "${1}" in
     systemctl start syslog-ng.service
 
     yum -y localinstall /tmp/acme2certifier/*.rpm
+    # Soft Recommends — ensure nginx/uWSGI present for CI
+    yum -y install nginx uwsgi-plugin-python3 python3-uwsgidecorators || true
 
 
     if [[ -f /tmp/acme2certifier/packages-microsoft-prod.rpm ]]
@@ -52,7 +54,7 @@ case "${1}" in
       yum -y install python3-PyMySQL python3-sqlparse python3-psycopg2 python3-pyyaml python3-mysqlclient
     fi
 
-    CFG=/opt/acme2certifier/acme_srv/acme_srv.cfg
+    CFG=/opt/acme2certifier/acme_srv.cfg
     if [[ -f "$CFG" ]]; then
       sed -i 's/^# handler: django$/handler: django/' "$CFG"
       grep -qE '^handler:' "$CFG" || sed -i '/\[DBhandler\]/a handler: django' "$CFG"
@@ -62,7 +64,7 @@ case "${1}" in
     cp /opt/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
     mkdir -p /opt/acme2certifier/volume/
 
-    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv
+    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv.cfg
     if [[ -d /tmp/acme2certifier/volume ]]
       then
       mkdir -p /opt/acme2certifier/volume

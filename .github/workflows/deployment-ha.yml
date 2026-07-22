@@ -283,7 +283,7 @@ jobs:
 
       - name: "Install acme2certifier"
         run: |
-          docker exec alma9-c1 yum install python3-mysqlclient python3-django4.2 python3-pyyaml -y
+          docker exec alma9-c1 yum install python3-mysqlclient python3-django4.2 python3-pyyaml nginx uwsgi-plugin-python3 python3-uwsgidecorators -y
           docker exec alma9-c1 yum localinstall -y /tmp/acme2certifier/acme2certifier-$RUN_ID.noarch.rpm
           docker exec alma9-c1 chown -R nginx /opt/acme2certifier/volume/
           docker exec alma9-c1 cp /opt/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
@@ -298,15 +298,15 @@ jobs:
 
           docker exec alma9-c1 sh -c "head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf"
           docker exec alma9-c1 sh -c "echo '}' >> /etc/nginx/nginx.conf"
-          docker exec alma9-c1 bash -c 'CFG=/opt/acme2certifier/acme_srv/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
-          docker exec alma9-c1 rm -f /opt/acme2certifier/acme_srv/acme_srv.cfg
-          docker exec alma9-c1 ln -s /opt/acme2certifier/volume/acme_srv.cfg  /opt/acme2certifier/acme_srv/
+          docker exec alma9-c1 bash -c 'CFG=/opt/acme2certifier/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
+          docker exec alma9-c1 rm -f /opt/acme2certifier/acme_srv.cfg
+          docker exec alma9-c1 ln -s /opt/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv.cfg
           docker exec alma9-c1 systemctl enable acme2certifier
           docker exec alma9-c1 systemctl start acme2certifier
           docker exec alma9-c1 systemctl enable nginx
           docker exec alma9-c1 systemctl start nginx
 
-          docker exec alma9-c2 yum install python3-mysqlclient python3-django4.2 python3-pyyaml -y
+          docker exec alma9-c2 yum install python3-mysqlclient python3-django4.2 python3-pyyaml nginx uwsgi-plugin-python3 python3-uwsgidecorators -y
           docker exec alma9-c2 yum localinstall -y /tmp/acme2certifier/acme2certifier-$RUN_ID.noarch.rpm
           docker exec alma9-c2 chown -R nginx /opt/acme2certifier/volume/
           docker exec alma9-c2 cp /opt/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
@@ -321,9 +321,9 @@ jobs:
 
           docker exec alma9-c2 sh -c "head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf"
           docker exec alma9-c2 sh -c "echo '}' >> /etc/nginx/nginx.conf"
-          docker exec alma9-c2 bash -c 'CFG=/opt/acme2certifier/acme_srv/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
-          docker exec alma9-c2 rm -f /opt/acme2certifier/acme_srv/acme_srv.cfg
-          docker exec alma9-c2 ln -s /opt/acme2certifier/volume/acme_srv.cfg  /opt/acme2certifier/acme_srv/
+          docker exec alma9-c2 bash -c 'CFG=/opt/acme2certifier/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
+          docker exec alma9-c2 rm -f /opt/acme2certifier/acme_srv.cfg
+          docker exec alma9-c2 ln -s /opt/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv.cfg
           docker exec alma9-c2 systemctl enable acme2certifier
           docker exec alma9-c2 systemctl start acme2certifier
           docker exec alma9-c2 systemctl enable nginx

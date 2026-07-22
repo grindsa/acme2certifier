@@ -5,7 +5,7 @@
 #   ./examples/install_scripts/a2c-deb.sh --deb PATH [options]
 #
 # Options:
-#   -d, --deb PATH              path to acme2certifier_*.deb (required unless
+#   -d, --deb PATH|GLOB        path or glob to acme2certifier_*.deb (optional if
 #                               a matching .deb is found in . or ..)
 #   -m, --mode wsgi|django      application mode (default: wsgi)
 #   -w, --webserver apache2|nginx
@@ -16,7 +16,8 @@
 #
 # Examples:
 #   ./examples/install_scripts/a2c-deb.sh --deb ../acme2certifier_0.45-1_all.deb
-#   ./examples/install_scripts/a2c-deb.sh -d ./acme2certifier_*.deb -m django -w nginx
+#   ./examples/install_scripts/a2c-deb.sh -d './acme2certifier_*.deb' -m django -w nginx
+#   ./examples/install_scripts/a2c-deb.sh -d ./acme2certifier_*.deb   # glob ok (quote if many matches)
 #
 # Notes:
 #   - Intended for Ubuntu/Debian after building or downloading the package.
@@ -28,6 +29,7 @@ set -euo pipefail
 MODE="wsgi"
 WEBSRV="apache2"
 DEB_PATH=""
+DEB_GLOBS=()
 ENABLE_SSL=1
 INSTALL_PKCS12=1
 APP_ROOT="/var/www/acme2certifier"
@@ -35,21 +37,53 @@ CFG="${APP_ROOT}/acme_srv.cfg"
 SHARE="${APP_ROOT}/share"
 
 usage() {
-  sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,29p' "$0" | sed 's/^# \{0,1\}//'
+}
+
+# Resolve a path or glob to one .deb (newest mtime wins if several match).
+pick_deb() {
+  local pattern="$1"
+  local matches=()
+  local f
+  # shellcheck disable=SC2086
+  while IFS= read -r f; do
+    [[ -n "${f}" ]] && matches+=("${f}")
+  done < <(compgen -G "${pattern}" 2>/dev/null | sort -r || true)
+  if [[ ${#matches[@]} -eq 0 ]]; then
+    # Exact path (compgen -G can miss some absolute non-glob paths)
+    if [[ -f "${pattern}" ]]; then
+      printf '%s\n' "${pattern}"
+      return 0
+    fi
+    return 1
+  fi
+  # Newest by mtime among matches
+  # shellcheck disable=SC2086
+  ls -1t "${matches[@]}" 2>/dev/null | head -n 1
 }
 
 find_deb() {
   local candidate
   local candidates=()
-  if [[ -n "${DEB_PATH}" ]]; then
+  local picked
+
+  # Unquoted --deb ./acme2certifier_*.deb may expand to several argv entries.
+  if [[ ${#DEB_GLOBS[@]} -gt 1 ]]; then
+    ls -1t "${DEB_GLOBS[@]}" 2>/dev/null | head -n 1
+    return 0
+  fi
+  if [[ ${#DEB_GLOBS[@]} -eq 1 ]]; then
+    if picked="$(pick_deb "${DEB_GLOBS[0]}")"; then
+      printf '%s\n' "${picked}"
+      return 0
+    fi
+  elif [[ -n "${DEB_PATH}" ]]; then
     candidates+=("${DEB_PATH}")
   fi
   candidates+=("./acme2certifier_*.deb" "../acme2certifier_*.deb")
   for candidate in "${candidates[@]}"; do
-    # shellcheck disable=SC2086
-    if compgen -G "${candidate}" >/dev/null 2>&1; then
-      # shellcheck disable=SC2086
-      ls -1 ${candidate} | head -n 1
+    if picked="$(pick_deb "${candidate}")"; then
+      printf '%s\n' "${picked}"
       return 0
     fi
   done
@@ -60,7 +94,17 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     -d|--deb)
       DEB_PATH="${2:-}"
+      if [[ -z "${DEB_PATH}" ]]; then
+        echo "ERROR: --deb requires a path or glob (e.g. './acme2certifier_*.deb')" >&2
+        exit 1
+      fi
       shift 2
+      # Shell may expand an unquoted glob into multiple *.deb args; collect them.
+      DEB_GLOBS=("${DEB_PATH}")
+      while [[ $# -gt 0 && "$1" == *.deb ]]; do
+        DEB_GLOBS+=("$1")
+        shift
+      done
       ;;
     -m|--mode)
       MODE="${2:-}"

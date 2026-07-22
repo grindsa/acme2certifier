@@ -502,8 +502,8 @@ sudo cp /opt/acme2certifier/examples/django/settings.py \
 - move the acme2certifier configuration file `acme_srv.cfg` into the mirrored directory and create a symbolic link
 
 ```bash
-sudo mv /opt/acme2certifier/acme_srv/acme_srv.cfg /opt/acme2certifier/volume/
-sudo ln -s /opt/acme2certifier/volume/acme_srv.cfg  /opt/acme2certifier/acme_srv/
+sudo mv /opt/acme2certifier/acme_srv.cfg /opt/acme2certifier/volume/
+sudo ln -s /opt/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv.cfg
 ```
 
 - Enable and start the apache2 service
