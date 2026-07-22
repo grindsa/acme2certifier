@@ -133,7 +133,7 @@ jobs:
       - name: Install via script (--from-source)
         run: |
           set -euo pipefail
-          SCRIPT=examples/install_scripts/a2c-centos9-nginx.sh
+          SCRIPT=examples/install_scripts/a2c-rel-nginx.sh
           docker exec acme-srv chmod a+rx "/data/acme2certifier/${SCRIPT}"
           docker exec acme-srv bash -lc \
             "cd /data/acme2certifier && ./${SCRIPT} --mode ${DBHANDLER} --from-source"

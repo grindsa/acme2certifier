@@ -5,7 +5,7 @@
 # Requires: Python ≥ 3.7 (EL9). EL8 (Python 3.6) is not supported for this script.
 #
 # Usage:
-#   ./examples/install_scripts/a2c-centos9-nginx.sh [options]
+#   ./examples/install_scripts/a2c-rel-nginx.sh [options]
 #
 # Options:
 #   -m, --mode wsgi|django   DB/WSGI mode (default: wsgi)
@@ -15,9 +15,9 @@
 #   -h, --help               show help
 #
 # Examples:
-#   ./examples/install_scripts/a2c-centos9-nginx.sh
-#   ./examples/install_scripts/a2c-centos9-nginx.sh --mode django --version 0.45.dev1
-#   ./examples/install_scripts/a2c-centos9-nginx.sh --mode wsgi --from-source
+#   ./examples/install_scripts/a2c-rel-nginx.sh
+#   ./examples/install_scripts/a2c-rel-nginx.sh --mode django --version 0.45.dev1
+#   ./examples/install_scripts/a2c-rel-nginx.sh --mode wsgi --from-source
 #
 # Requires: run from a checkout when using --from-source; otherwise installs from PyPI.
 

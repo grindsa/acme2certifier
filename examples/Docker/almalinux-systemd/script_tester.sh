@@ -8,7 +8,7 @@ systemctl start syslog-ng
 cd /tmp/acme2certifier
 
 echo "execute install script"
-sh examples/install_scripts/a2c-centos9-nginx.sh --mode wsgi --from-source
+sh examples/install_scripts/a2c-rel-nginx.sh --mode wsgi --from-source
 
 
 echo "configure handler"
