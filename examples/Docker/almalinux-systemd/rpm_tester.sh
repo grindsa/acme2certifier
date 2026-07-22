@@ -4,13 +4,13 @@ case "${1}" in
 
   "update")
     echo "update configuration only"
-    # yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv
+    # yes | cp /tmp/acme2certifier/acme_srv.cfg /opt/acme2certifier/acme_srv.cfg
     yes | cp -R /tmp/acme2certifier/volume/acme_ca/* /opt/acme2certifier/volume/acme_ca/
     ;;
 
   "restart")
     echo "update configuration and restart service"
-    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv
+    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv.cfg
     if [[ -d /tmp/acme2certifier/volume ]]
       then
       echo "copying volume"
@@ -28,11 +28,13 @@ case "${1}" in
     systemctl start syslog-ng.service
 
     yum -y localinstall /tmp/acme2certifier/*.rpm
+    # Soft Recommends — ensure nginx/uWSGI present for CI
+    yum -y install nginx uwsgi-plugin-python3 python3-uwsgidecorators || true
     cp /opt/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/conf.d
     cp /opt/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d
     mkdir -p /opt/acme2certifier/volume/
 
-    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv
+    yes | cp /tmp/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv.cfg
     if [[ -d /tmp/acme2certifier/volume ]]
       then
       mkdir -p /opt/acme2certifier/volume
