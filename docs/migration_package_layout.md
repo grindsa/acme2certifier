@@ -142,6 +142,39 @@ Preferred:
 hooks_module: acme2certifier.hookhandlers.skeleton_hooks
 ```
 
+## Django migration
+
+Existing Django deployments must point `settings.py` at the packaged app. The app label stays **`acme_srv`** (`AcmeSrvConfig.label`), so existing tables and migration history remain valid once `INSTALLED_APPS` is updated.
+
+Legacy (in-tree layout under `examples/django/`):
+
+```python
+INSTALLED_APPS = [
+    ...
+    "acme_srv",  # or legacy "acme" before v0.17
+    ...
+]
+```
+
+Current:
+
+```python
+INSTALLED_APPS = [
+    ...
+    "acme2certifier.django_app.apps.AcmeSrvConfig",
+    ...
+]
+```
+
+If your project still references the old Django project package, also update:
+
+```python
+ROOT_URLCONF = "acme2certifier.django_project.urls"
+WSGI_APPLICATION = "acme2certifier.django_project.wsgi.application"
+```
+
+After editing `settings.py`, run `a2c-django-update` (or `a2c-manage migrate`) and verify the ACME directory endpoint.
+
 ## Old path → new module mapping
 
 ### Core (`acme_srv` → `acme2certifier.acme_srv`)
@@ -243,6 +276,7 @@ If you maintain a custom handler outside this repository:
 ## Migration checklist
 
 1. Switch `acme_srv.cfg` to `*_module` keys (`acme2certifier.cahandlers.*` / `eabhandlers.*` / `hookhandlers.*`).
+1. **Django:** set `INSTALLED_APPS` to `acme2certifier.django_app.apps.AcmeSrvConfig` (replace `acme_srv` / `acme`); update `ROOT_URLCONF` / `WSGI_APPLICATION` if still on the old project path.
 1. Update application code and Django views to import `acme2certifier.acme_srv.*`.
 1. Prefer `python3 -m acme2certifier.tools.<name>` for maintenance tools.
 1. Watch logs for deprecation warnings related to `*_file` or the default CA-handler fallback.

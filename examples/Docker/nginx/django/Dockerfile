@@ -6,6 +6,8 @@ ENV ACME_SRV_DB_HANDLER=django
 COPY ./*.deb /tmp/
 COPY ./examples/Docker/nginx/django/docker-entrypoint.sh /docker-entrypoint.sh
 COPY ./examples/Docker/resolve_db_handler.sh /resolve_db_handler.sh
+# Not shipped in the .deb (debian/rules removes it for systemd installs).
+COPY ./acme2certifier/share/nginx/supervisord.conf /etc/supervisord.conf
 
 RUN apt-get update  && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-install-recommends tzdata && \
@@ -47,7 +49,6 @@ RUN apt-get update  && \
     mkdir -p /run/uwsgi && \
     cp /var/www/acme2certifier/share/nginx/acme2certifier.ini /var/www/acme2certifier && \
     cp /var/www/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf && \
-    cp /var/www/acme2certifier/share/nginx/supervisord.conf /etc/ && \
     ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf && \
     rm -f /var/www/acme2certifier/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
     chown -R www-data:www-data /var/www/acme2certifier && \
