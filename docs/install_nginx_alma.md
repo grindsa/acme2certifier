@@ -14,13 +14,13 @@ uWSGI serves the application; Nginx is the reverse proxy.
 
 ## Automated install script
 
-[`examples/install_scripts/a2c-centos9-nginx.sh`](../examples/install_scripts/a2c-centos9-nginx.sh)
+[`examples/install_scripts/a2c-rel-nginx.sh`](../examples/install_scripts/a2c-rel-nginx.sh)
 
 ```bash
-chmod a+rx examples/install_scripts/a2c-centos9-nginx.sh
-./examples/install_scripts/a2c-centos9-nginx.sh --mode wsgi --from-source
-./examples/install_scripts/a2c-centos9-nginx.sh --mode wsgi
-./examples/install_scripts/a2c-centos9-nginx.sh --mode django --version 0.45.dev1
+chmod a+rx examples/install_scripts/a2c-rel-nginx.sh
+./examples/install_scripts/a2c-rel-nginx.sh --mode wsgi --from-source
+./examples/install_scripts/a2c-rel-nginx.sh --mode wsgi
+./examples/install_scripts/a2c-rel-nginx.sh --mode django --version 0.45.dev1
 ```
 
 | Option | Meaning |
@@ -196,7 +196,7 @@ curl -sS http://127.0.0.1/directory
 
 ## Related
 
-- Install script: [`a2c-centos9-nginx.sh`](../examples/install_scripts/a2c-centos9-nginx.sh)
+- Install script: [`a2c-rel-nginx.sh`](../examples/install_scripts/a2c-rel-nginx.sh)
 - [Apache2 + mod_wsgi (Ubuntu / PyPI)](install_apache2_ubuntu.md)
 - [Nginx + uWSGI (Ubuntu)](install_nginx_ubuntu.md)
 - [Support for External Databases (Django)](external_database_support.md)
