@@ -4,9 +4,11 @@ LABEL maintainer="grindelsack@gmail.com"
 ENV APACHE_RUN_USER=www-data
 ENV APACHE_RUN_GROUP=www-data
 ENV APACHE_LOG_DIR=/var/log/apache2
+ENV ACME_SRV_DB_HANDLER=wsgi
 
 COPY ./*.deb /tmp/
 COPY ./examples/Docker/apache2/wsgi/docker-entrypoint.sh /docker-entrypoint.sh
+COPY ./examples/Docker/resolve_db_handler.sh /resolve_db_handler.sh
 
 RUN apt-get update  && \
     DEBIAN_FRONTEND="noninteractive" apt-get -y install --no-install-recommends tzdata && \
@@ -44,7 +46,7 @@ RUN apt-get update  && \
     sed -i "s/\${APACHE_LOG_DIR}\/error.log/\/dev\/stderr/g" /etc/apache2/apache2.conf && \
     a2enmod ssl && \
     rm /etc/apache2/sites-enabled/000-default.conf && \
-    chmod a+rx /docker-entrypoint.sh  # NOSONAR
+    chmod a+rx /docker-entrypoint.sh /resolve_db_handler.sh  # NOSONAR
 WORKDIR /var/www/acme2certifier/
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

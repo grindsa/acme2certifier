@@ -1,8 +1,11 @@
 FROM ubuntu:26.04
 LABEL maintainer="grindelsack@gmail.com"
 
+ENV ACME_SRV_DB_HANDLER=wsgi
+
 COPY ./*.deb /tmp/
 COPY ./examples/Docker/nginx/wsgi/docker-entrypoint.sh /docker-entrypoint.sh
+COPY ./examples/Docker/resolve_db_handler.sh /resolve_db_handler.sh
 
 RUN apt-get update  && \
     DEBIAN_FRONTEND="noninteractive" apt-get install -y --no-install-recommends tzdata && \
@@ -26,7 +29,6 @@ RUN apt-get update  && \
     rm -rf /usr/share/doc/python3-impacke/examples && \
     rm -rf /usr/share/impacket/script* && \
     rm -rf /usr/bin/impacket-* && \
-    DEBIAN_FRONTEND="noninteractive" apt-get install --no-install-recommends -y /tmp/acme2*.deb && \
     apt-get clean &&  \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/* /tmp/* && \
     mkdir -p /var/www/acme2certifier/volume && \
@@ -34,6 +36,7 @@ RUN apt-get update  && \
     mkdir -p /run/uwsgi && \
     cp /var/www/acme2certifier/share/nginx/acme2certifier.ini /var/www/acme2certifier && \
     cp /var/www/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf && \
+    cp /var/www/acme2certifier/share/nginx/supervisord.conf /etc/ && \
     rm -f /var/www/acme2certifier/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg && \
     chown -R www-data /var/www/acme2certifier && \
     ln -s /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf && \
@@ -48,9 +51,7 @@ RUN apt-get update  && \
     rm -rf /var/www/acme2certifier/examples/django && \
     rm -rf /var/www/acme2certifier/share/apache2 && \
     rm -rf /var/www/acme2certifier/examples/acme_srv.db.example && \
-    chmod a+rx /docker-entrypoint.sh  # NOSONAR
-
-COPY ./acme2certifier/share/nginx/supervisord.conf /etc
+    chmod a+rx /docker-entrypoint.sh /resolve_db_handler.sh  # NOSONAR
 
 WORKDIR /var/www/acme2certifier
 

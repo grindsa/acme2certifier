@@ -166,11 +166,13 @@ ALLOWED_HOSTS = ["192.168.14.132", "ub2204-c1.bar.local"]
 
 **No manual file copying is required.**
 
-The official Docker images already contain:
+The official Django Docker images already contain:
 
 - the Django app under `acme2certifier.django_app` and project under `acme2certifier.django_project`
 - a volume-backed settings file (`django_project/settings.py` → `/var/www/acme2certifier/volume/settings.py`)
-- the Django database handler (`handler: django` / `acme2certifier.dbhandlers.django_handler`)
+- baked `ENV ACME_SRV_DB_HANDLER=django` (default when cfg has no `handler` / `handler_module`)
+
+Set `handler: django` (or `handler_module: …django_handler`) in `acme_srv.cfg` only when overriding the image default. The entrypoint does not write the handler into cfg.
 
 Mount a volume or directory from the Docker host into `/var/www/acme2certifier/volume`. When this volume is present, acme2certifier automatically writes `settings.py`, `acme_srv.cfg`, and all Django migration sets into it and maps them back to the appropriate internal locations during container startup.
 
