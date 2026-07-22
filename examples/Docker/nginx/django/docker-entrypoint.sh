@@ -44,13 +44,6 @@ then
     chown www-data /var/www/acme2certifier/volume/acme_srv.cfg
 fi
 
-# create symlink for the acme_srv.db
-if [[ ! -L /var/www/acme2certifier/acme_srv/acme_srv.db ]]
-then
-    mkdir -p /var/www/acme2certifier/acme_srv
-    ln -s /var/www/acme2certifier/volume/acme_srv.db /var/www/acme2certifier/acme_srv/acme_srv.db
-fi
-
 # create symlink for the ca_handler
 if [[ ! -L /var/www/acme2certifier/acme_srv/ca_handler.py ]]
 then
