@@ -2,8 +2,8 @@
 # Build multi-arch acme2certifier Docker test images (amd64 + arm64).
 #
 # Usage:
-#   ./examples/install_scripts/a2c_build.sh -b BRANCH [options]
-#   ./examples/install_scripts/a2c_build.sh BRANCH [options]
+#   ./examples/install_scripts/a2c-container-build.sh -b BRANCH [options]
+#   ./examples/install_scripts/a2c-container-build.sh BRANCH [options]
 #
 # Options:
 #   -b, --branch BRANCH           git branch to clone (required)
@@ -28,9 +28,9 @@
 #   DOCKERHUB_TOKEN=...
 #
 # Examples:
-#   ./a2c_build.sh -b devel -m wsgi -w apache2
-#   ./a2c_build.sh -b devel -m django -w nginx --upload
-#   ./a2c_build.sh devel -w nginx --load
+#   ./a2c-container-build.sh -b devel -m wsgi -w apache2
+#   ./a2c-container-build.sh -b devel -m django -w nginx --upload
+#   ./a2c-container-build.sh devel -w nginx --load
 
 set -euo pipefail
 
