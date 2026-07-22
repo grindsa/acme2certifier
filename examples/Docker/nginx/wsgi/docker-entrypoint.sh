@@ -45,9 +45,9 @@ then
 fi
 
 # create symlink for the acme_srv.db
-if [[ ! -L /var/www/acme2certifier/acme_srv/acme_srv.db ]]
+if [[ ! -L /var/www/acme2certifier/acme_srv.db ]]
 then
-    ln -s /var/www/acme2certifier/volume/acme_srv.db /var/www/acme2certifier/acme_srv/acme_srv.db
+    ln -s /var/www/acme2certifier/volume/acme_srv.db /var/www/acme2certifier/acme_srv.db
 fi
 
 DB_HANDLER=$(a2c_resolve_db_handler)
