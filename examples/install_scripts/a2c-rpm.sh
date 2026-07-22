@@ -180,12 +180,29 @@ ${SUDO} ${PKG} install -y \
   procps-ng
 
 if [[ "${MODE}" == "django" ]]; then
-  echo "==> Installing Django-related system packages (best effort)"
-  ${SUDO} ${PKG} install -y python3-django python3-pyyaml \
-    python3-mysqlclient python3-PyMySQL python3-psycopg2 \
-    2>/dev/null || \
-  ${SUDO} ${PKG} install -y python3-django python3-pyyaml 2>/dev/null || \
-    echo "WARNING: could not install all Django RPMs; install manually if migrate fails" >&2
+  echo "==> Installing Django-related system packages"
+  # EL9 EPEL commonly ships python3-django4.2; some repos use python3-django.
+  DJANGO_RPM=""
+  for cand in python3-django4.2 python3-django; do
+    if ${SUDO} ${PKG} install -y "${cand}" 2>/dev/null; then
+      DJANGO_RPM="${cand}"
+      break
+    fi
+  done
+  if [[ -z "${DJANGO_RPM}" ]]; then
+    echo "ERROR: could not install Django (tried python3-django4.2, python3-django)." >&2
+    echo "       Enable EPEL / CRB and retry, or install Django manually." >&2
+    exit 1
+  fi
+  echo "==> Installed Django package: ${DJANGO_RPM}"
+  # Optional DB drivers — missing ones must not block Django itself
+  for cand in python3-pyyaml python3-mysqlclient python3-PyMySQL python3-psycopg2 python3-sqlparse; do
+    ${SUDO} ${PKG} install -y "${cand}" 2>/dev/null || true
+  done
+  if ! ${SUDO} python3 -c "import django; print('django', django.get_version())"; then
+    echo "ERROR: Django RPM installed but 'import django' failed" >&2
+    exit 1
+  fi
 fi
 
 echo "==> Installing ${RPM_FILE}"
@@ -291,6 +308,14 @@ fi
 
 if [[ "${MODE}" == "django" ]]; then
   echo "==> Django migrate + fixtures"
+  # EPEL python3-django* RPMs often ship without locale/mo files.
+  SETTINGS_PY="${APP_ROOT}/acme2certifier/django_project/settings.py"
+  if [[ -f "${SETTINGS_PY}" ]]; then
+    ${SUDO} sed -i \
+      -e 's/^USE_I18N = True/USE_I18N = False/' \
+      -e 's/^USE_L10N = True/USE_L10N = False/' \
+      "${SETTINGS_PY}"
+  fi
   export ACME_SRV_CONFIGFILE="${CFG}"
   export ACME2CERTIFIER_BASE_DIR="${APP_ROOT}"
   export DJANGO_SETTINGS_MODULE="acme2certifier.django_project.settings"
