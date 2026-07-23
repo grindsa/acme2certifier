@@ -39,28 +39,13 @@ runs:
         sudo cp .github/acme2certifier_cabundle.pem lego/
       shell: bash
 
-    - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.4
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
       with:
-        time: 5s
-
-    - name: "Test if http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network $NAME_SPACE curlimages/curl -f http://$ACME_SERVER:$HTTP_PORT/directory
-      shell: bash
-      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
-        NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure -f https://$ACME_SERVER:$HTTPS_PORT/directory
-      shell: bash
-      env:
-        ACME_SERVER: ${{ inputs.ACME_SERVER }}
-        HTTP_PORT: ${{ inputs.HTTP_PORT }}
-        HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
-        NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
     - name: "HTTPS - Enroll lego"
       run: |

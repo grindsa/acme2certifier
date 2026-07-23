@@ -4,18 +4,8 @@ description: "wf enrollment 102 profile"
 runs:
   using: "composite"
   steps:
-  - name: "Profile 102 - Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 10s
-
-  - name: "Profile 102 - Test http://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-    shell: bash
-
-  - name: "Profile 102 - Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
 
   - name: "Profile 102 - Enroll acme.sh"
     run: |

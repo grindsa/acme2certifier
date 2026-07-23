@@ -4,18 +4,11 @@ description: "enroll_acmeprofile"
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
+  - name: "Wait for ACME directory"
+    uses: ./.github/actions/wait_for_directory
     with:
-      time: 10s
-
-  - name: "ACME Profile - Test http://acme-srv.server.acme/directory is accessible"
-    run: docker run -i --rm --network server.acme curlimages/curl -f http://acme-srv.server.acme/directory
-    shell: bash
-
-  - name: "ACME Profile - Test if https://acme-srv.server.acme/directory is accessible"
-    run: docker run -i --rm --network server.acme curlimages/curl --insecure -f https://acme-srv.server.acme/directory
-    shell: bash
+      NAME_SPACE: "server.acme"
+      ACME_SERVER: "acme-srv.server.acme"
 
   - name: "Generate UUID"
     run: |
