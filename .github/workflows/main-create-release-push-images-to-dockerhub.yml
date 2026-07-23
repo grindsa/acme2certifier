@@ -473,16 +473,8 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           TAG_NAME: ${{ env.TAG_NAME }}
 
-      - name: "[ WAIT ] Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 5s
-
-      - name: "Test if http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
-
-      - name: "Test if https://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
+      - name: "Wait for ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Prepare acme.sh container"
         run: |

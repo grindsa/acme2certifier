@@ -38,17 +38,12 @@ runs:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
       SECTIGO_SIM: ${{ inputs.SECTIGO_SIM }}
 
-  - name: "Sleep for 10s"
-    uses: juliangruber/sleep-action@v2.0.4
+  - name: "Wait for ACME directory (http)"
+    uses: ./.github/actions/wait_for_directory
     with:
-      time: 10s
-
-  - name: "Test http://acme-le-sim/directory is accessible"
-    run: docker run -i --rm --network "$NAME_SPACE" curlimages/curl -f http://"$LESIM_NAME"/directory
-    shell: bash
-    env:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
-      LESIM_NAME: ${{ inputs.LESIM_NAME }}
+      ACME_SERVER: ${{ inputs.LESIM_NAME }}
+      CHECK_HTTPS: "false"
 
   - name: "Enroll from le-sim"
     run: |

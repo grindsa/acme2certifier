@@ -186,8 +186,10 @@ jobs:
         env:
           MODE: ${{ matrix.mode }}
 
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Wait for ACME directory (http)"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          CHECK_HTTPS: "false"
 
       - name: "Install curl and socat and test connction"
         run: |
@@ -284,8 +286,10 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
           MODE: ${{ matrix.mode }}
 
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Wait for ACME directory (http)"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          CHECK_HTTPS: "false"
 
       - name: "Install curl and socat and test connction"
         run: |

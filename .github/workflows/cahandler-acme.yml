@@ -324,13 +324,11 @@ jobs:
           XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
           XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Wait for ACME directory (http)"
+        uses: ./.github/actions/wait_for_directory
         with:
-          time: 10s
-
-      - name: "Test http://acme-le-sim2/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim-2/directory
+          ACME_SERVER: "acme-le-sim-2"
+          CHECK_HTTPS: "false"
 
       - name: "Enroll from acme-le-sim-2"
         run: |
@@ -1025,13 +1023,11 @@ jobs:
           XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
           XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
 
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Wait for ACME directory (http)"
+        uses: ./.github/actions/wait_for_directory
         with:
-          time: 10s
-
-      - name: "Test http://acme-le-sim2/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-le-sim-2/directory
+          ACME_SERVER: "acme-le-sim-2"
+          CHECK_HTTPS: "false"
 
       - name: "Enroll from acme-le-sim-2"
         run: |
@@ -1077,13 +1073,10 @@ jobs:
         env:
           MODE: ${{ matrix.mode }}
 
-      - name: "EAB Profiling - Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Wait for ACME directory (http)"
+        uses: ./.github/actions/wait_for_directory
         with:
-          time: 10s
-
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+          CHECK_HTTPS: "false"
 
       - name: "EAB Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
@@ -1221,8 +1214,10 @@ jobs:
         env:
           MODE: ${{ matrix.mode }}
 
-      - name: "Test http://acme-srv/directory is accessible"
-        run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
+      - name: "Wait for ACME directory (http)"
+        uses: ./.github/actions/wait_for_directory
+        with:
+          CHECK_HTTPS: "false"
 
       - name: "Enroll via acme_ca_handler 1st attempt"
         run: |

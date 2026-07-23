@@ -9,14 +9,10 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
+  - name: "Wait for ACME directory (https)"
+    uses: ./.github/actions/wait_for_directory
     with:
-      time: 5s
-
-  - name: "Test if https://acme-srv/directory is accessible"
-    run: docker run -i --rm --network acme curlimages/curl --insecure -f https://acme-srv/directory
-    shell: bash
+      CHECK_HTTP: "false"
 
   - name: "Enroll lego with correct SAN"
     run: |

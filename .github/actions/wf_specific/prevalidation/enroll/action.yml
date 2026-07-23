@@ -41,16 +41,9 @@ runs:
       env:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
-    - name: "Test http://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl -f http://$ACME_SERVER/directory
-      shell: bash
-      env:
-        ACME_SERVER: ${{ inputs.ACME_SERVER }}
-
-    - name: "Test if https://acme-srv/directory is accessible"
-      run: docker run -i --rm --network acme curlimages/curl --insecure -f https://$ACME_SERVER/directory
-      shell: bash
-      env:
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
+      with:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
 
     - name: "Enroll lego with both ip and domain prevalidation"
