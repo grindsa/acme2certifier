@@ -82,7 +82,7 @@ jobs:
           sudo cp acme2certifier/cahandlers/openssl_ca_handler.py examples/Docker/data/ca_handler.py
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
           sudo echo "hooks_module: acme2certifier.hookhandlers.cn_dump_hooks" >> examples/Docker/data/acme_srv.cfg
@@ -204,7 +204,7 @@ jobs:
           sudo cp acme2certifier/cahandlers/openssl_ca_handler.py examples/Docker/data/ca_handler.py
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
           sudo echo "hooks_module: acme2certifier.hookhandlers.exception_test_hooks" >> examples/Docker/data/acme_srv.cfg
@@ -412,7 +412,7 @@ jobs:
           sudo chmod -R 777 examples/Docker/data/hooks
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
@@ -508,7 +508,7 @@ jobs:
           sudo mkdir -p data/volume/acme_ca/certs
           sudo mkdir -p data/volume/acme_ca/hooks
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo chmod -R 777 data/volume/acme_ca/hooks
           sudo echo -e "\n\n[Hooks]" >> data/volume/acme_srv.cfg
@@ -628,7 +628,7 @@ jobs:
           sudo mkdir -p data/volume/acme_ca/certs
           sudo mkdir -p data/volume/acme_ca/hooks
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo chmod -R 777 data/volume/acme_ca/hooks
           sudo echo -e "\n\n[Hooks]" >> data/volume/acme_srv.cfg
@@ -849,7 +849,7 @@ jobs:
           sudo mkdir -p data/volume/acme_ca/certs
           sudo mkdir -p data/volume/acme_ca/hooks
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo chmod -R 777 data/volume/acme_ca/hooks
           echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg

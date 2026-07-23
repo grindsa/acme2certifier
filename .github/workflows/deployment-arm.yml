@@ -190,7 +190,7 @@ jobs:
       run: |
         sudo mkdir -p /tmp/data/acme_ca/certs
         sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem /tmp/data/acme_ca/
-        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg /tmp/data/acme_srv.cfg
+        sudo cp .github/acme_srv.openssl.cfg /tmp/data/acme_srv.cfg
         sudo cp .github/acme2certifier.pem /tmp/data/acme2certifier.pem
         sudo cp .github/django_settings.py /tmp/data/settings.py
         sudo cp .github/acme2certifier_cert.pem /tmp/data/acme2certifier_cert.pem

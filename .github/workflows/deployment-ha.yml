@@ -336,7 +336,7 @@ jobs:
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg data/volume/acme_srv.cfg
+          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo sed -i "s#volume/acme_ca/#/opt/acme2certifier/volume/acme_ca/#g" data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           docker exec alma9-c1 sh -c "cp -r /tmp/acme2certifier/volume/* /opt/acme2certifier/volume/"

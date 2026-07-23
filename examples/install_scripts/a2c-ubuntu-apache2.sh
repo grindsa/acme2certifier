@@ -199,8 +199,8 @@ if [[ -d "test/ca" ]]; then
   ${SUDO} cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem \
     test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem \
     "${APP_ROOT}/volume/acme_ca/" || true
-  if [[ -f ".github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg" ]]; then
-    ${SUDO} cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg "${CFG}"
+  if [[ -f ".github/acme_srv.openssl.cfg" ]]; then
+    ${SUDO} cp .github/acme_srv.openssl.cfg "${CFG}"
     ${SUDO} ln -sfn "${CFG}" "${APP_ROOT}/acme_srv/acme_srv.cfg"
     # re-apply handler after overwriting cfg
     if grep -qE '^handler:' "${CFG}"; then

@@ -94,7 +94,7 @@ jobs:
         run: |
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
           sudo echo "cert_file: volume/acme_ca/superadmin.p12" >> examples/Docker/data/acme_srv.cfg
@@ -133,7 +133,7 @@ jobs:
 
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
           sudo echo "cert_file: volume/acme_ca/superadmin.p12" >> examples/Docker/data/acme_srv.cfg
@@ -177,7 +177,7 @@ jobs:
 
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
           sudo echo "cert_file: volume/acme_ca/superadmin.p12" >> examples/Docker/data/acme_srv.cfg
@@ -222,7 +222,7 @@ jobs:
 
       - name: "ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
           sudo echo "cert_file: volume/acme_ca/superadmin.p12" >> examples/Docker/data/acme_srv.cfg
@@ -249,7 +249,7 @@ jobs:
 
       - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> examples/Docker/data/acme_srv.cfg
           sudo echo "cert_file: volume/acme_ca/superadmin.p12" >> examples/Docker/data/acme_srv.cfg
@@ -370,7 +370,7 @@ jobs:
           sudo mkdir -p data/volume/acme_ca/certs
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
           sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
@@ -407,7 +407,7 @@ jobs:
 
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
           sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
@@ -454,7 +454,7 @@ jobs:
 
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
           sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
@@ -502,7 +502,7 @@ jobs:
 
       - name: "ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
           sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
@@ -533,7 +533,7 @@ jobs:
 
       - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
           sudo echo "cert_file: /opt/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
@@ -653,7 +653,7 @@ jobs:
           sudo mkdir -p data/volume/acme_ca/certs
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
           sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
@@ -687,7 +687,7 @@ jobs:
 
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
           sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
@@ -735,7 +735,7 @@ jobs:
 
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
           sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
@@ -784,7 +784,7 @@ jobs:
 
       - name: "ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
           sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg
@@ -816,7 +816,7 @@ jobs:
 
       - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.ejbca_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "api_host: https://ejbca" >> data/volume/acme_srv.cfg
           sudo echo "cert_file: /var/www/acme2certifier/volume/acme_ca/superadmin.p12" >> data/volume/acme_srv.cfg

@@ -83,9 +83,9 @@ jobs:
 
       - name: "Setup esthandler using http-basic-auth"
         run: |
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg examples/Docker/data/acme_srv.cfg
+          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.est_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "est_host: https://testrfc7030.com:8443" >> examples/Docker/data/acme_srv.cfg
           sudo echo "est_user: estuser" >> examples/Docker/data/acme_srv.cfg
@@ -178,9 +178,9 @@ jobs:
 
       - name: "setup esthandler using http-basic-auth"
         run: |
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.est_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "est_host: https://testrfc7030.com:8443" >> data/volume/acme_srv.cfg
           sudo echo "est_user: estuser" >> data/volume/acme_srv.cfg
@@ -270,9 +270,9 @@ jobs:
 
       - name: "setup esthandler using http-basic-auth"
         run: |
-          sudo cp .github/openssl_ca_handler.py_acme_srv_default_handler.cfg data/volume/acme_srv.cfg
+          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.est_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "est_host: https://testrfc7030.com:8443" >> data/volume/acme_srv.cfg
           sudo echo "est_user: estuser" >> data/volume/acme_srv.cfg

@@ -145,7 +145,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
@@ -200,7 +200,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
@@ -246,7 +246,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
           sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> examples/Docker/data/acme_srv.cfg
@@ -294,7 +294,7 @@ jobs:
         run: |
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
@@ -343,7 +343,7 @@ jobs:
         run: |
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
@@ -457,7 +457,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
           sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> examples/Docker/data/acme_srv.cfg
@@ -527,7 +527,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
@@ -689,7 +689,7 @@ jobs:
           sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $RUNNER_IP" >> examples/Docker/data/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
@@ -730,7 +730,7 @@ jobs:
           sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $RUNNER_IP" >> examples/Docker/data/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
@@ -764,7 +764,7 @@ jobs:
           sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
@@ -821,7 +821,7 @@ jobs:
           sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
@@ -962,7 +962,7 @@ jobs:
           sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
@@ -1033,7 +1033,7 @@ jobs:
           sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
           sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> examples/Docker/data/acme_srv.cfg
@@ -1178,7 +1178,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
@@ -1220,7 +1220,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
           sudo touch examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > examples/Docker/data/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> examples/Docker/data/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> examples/Docker/data/acme_srv.cfg
           sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> examples/Docker/data/acme_srv.cfg
@@ -1344,7 +1344,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
@@ -1382,7 +1382,7 @@ jobs:
 
       - name: "NTLM - Setup a2c with mscertsrv_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
@@ -1440,7 +1440,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
@@ -1485,7 +1485,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> data/volume/acme_srv.cfg
@@ -1616,7 +1616,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
@@ -1675,7 +1675,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> data/volume/acme_srv.cfg
@@ -1740,7 +1740,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
@@ -1916,7 +1916,7 @@ jobs:
           sudo echo "$MSCA_CA_BUNDLE" > data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $RUNNER_IP" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
@@ -1951,7 +1951,7 @@ jobs:
           sudo echo "$MSCA_CA_BUNDLE" > data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
@@ -2006,7 +2006,7 @@ jobs:
         run: |
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
@@ -2156,7 +2156,7 @@ jobs:
           sudo echo "$MSCA_CA_BUNDLE" > data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> data/volume/acme_srv.cfg
@@ -2221,7 +2221,7 @@ jobs:
           sudo echo "$MSCA_CA_BUNDLE" > data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> data/volume/acme_srv.cfg
@@ -2374,7 +2374,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
@@ -2422,7 +2422,7 @@ jobs:
 
       - name: "NTLM - Setup a2c with mscertsrv_ca_handler"
         run: |
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
@@ -2480,7 +2480,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
@@ -2526,7 +2526,7 @@ jobs:
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> data/volume/acme_srv.cfg
@@ -2695,7 +2695,7 @@ jobs:
           sudo echo "$MSCA_CA_BUNDLE" > data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $RUNNER_IP" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
@@ -2732,7 +2732,7 @@ jobs:
           sudo echo "$MSCA_CA_BUNDLE" > data/volume/acme_ca/ca_certs.pem
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "user: $MSCA_USER" >> data/volume/acme_srv.cfg
@@ -2786,7 +2786,7 @@ jobs:
         run: |
           sudo touch data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -8 .github/openssl_ca_handler.py_acme_srv_default_handler.cfg > data/volume/acme_srv.cfg
+          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
           sudo echo "handler_module: acme2certifier.cahandlers.mswcce_ca_handler" >> data/volume/acme_srv.cfg
           sudo echo "host: $MSCA_FQDN" >> data/volume/acme_srv.cfg
           sudo echo "krb5_principal: $KRB5_PRINCIPAL" >> data/volume/acme_srv.cfg
