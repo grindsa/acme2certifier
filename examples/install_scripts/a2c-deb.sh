@@ -90,10 +90,11 @@ find_deb() {
     candidates+=("${DEB_PATH}")
   fi
   if [[ -n "${DATA_DIR}" ]]; then
-    candidates+=("${DATA_DIR}/acme2certifier_*.deb")
+    candidates+=("${DATA_DIR}/acme2certifier_*.deb" "${DATA_DIR}/acme2certifier-*.deb")
   fi
-  candidates+=("./acme2certifier_*.deb" "../acme2certifier_*.deb")
-  candidates+=("/tmp/acme2certifier/acme2certifier_*.deb")
+  candidates+=("./acme2certifier_*.deb" "./acme2certifier-*.deb")
+  candidates+=("../acme2certifier_*.deb" "../acme2certifier-*.deb")
+  candidates+=("/tmp/acme2certifier/acme2certifier_*.deb" "/tmp/acme2certifier/acme2certifier-*.deb")
   for candidate in "${candidates[@]}"; do
     if picked="$(pick_deb "${candidate}")"; then
       printf '%s\n' "${picked}"
@@ -165,6 +166,24 @@ link_django_settings_from_volume() {
     ${SUDO} rm -f "${django_settings}"
     ${SUDO} ln -sfn "${APP_ROOT}/volume/settings.py" "${django_settings}"
   fi
+}
+
+# Set [DBhandler] handler=MODE without touching [CAhandler] handler_module.
+set_dbhandler_mode() {
+  local mode="$1"
+  echo "==> Setting DBhandler to ${mode}"
+  if ! ${SUDO} grep -q '^\[DBhandler\]' "${CFG}"; then
+    printf '\n[DBhandler]\nhandler: %s\n' "${mode}" | ${SUDO} tee -a "${CFG}" >/dev/null
+    return 0
+  fi
+  # Drop handler / handler_module only inside [DBhandler].
+  ${SUDO} sed -i \
+    '/^\[DBhandler\]/,/^\[/{
+      /^\[DBhandler\]/b
+      /^\[/b
+      /^[[:space:]]*#*[[:space:]]*handler\(_module\)\?:/d
+    }' "${CFG}"
+  ${SUDO} sed -i "/^\[DBhandler\]/a handler: ${mode}" "${CFG}"
 }
 
 maybe_install_mssql() {
@@ -325,8 +344,10 @@ command -v a2c-cli >/dev/null
 if [[ "${INSTALL_PKCS12}" -eq 1 ]]; then
   echo "==> Installing requests-pkcs12 (optional CA handlers)"
   ${SUDO} apt-get install -y python3-pip
-  ${SUDO} pip3 install --break-system-packages requests-pkcs12 || \
-    ${SUDO} pip install --break-system-packages requests-pkcs12 || true
+  # --no-deps: keep apt python3-cryptography / python3-openssl; a full pip
+  # resolve upgrades cryptography and breaks pyOpenSSL (GEN_EMAIL AttributeError).
+  ${SUDO} pip3 install --break-system-packages --no-deps requests-pkcs12 || \
+    ${SUDO} pip install --break-system-packages --no-deps requests-pkcs12 || true
 fi
 
 ${SUDO} mkdir -p "${APP_ROOT}/volume" "${APP_ROOT}/acme_srv"
@@ -362,17 +383,7 @@ if ! ${SUDO} grep -qE '^[[:space:]]*dbfile:' "${CFG}"; then
   fi
 fi
 
-echo "==> Setting DBhandler to ${MODE}"
-if ${SUDO} grep -qE '^handler(_module)?:' "${CFG}"; then
-  ${SUDO} sed -i "s/^#* *handler:.*/handler: ${MODE}/" "${CFG}"
-  ${SUDO} sed -i "/^handler_module:/d" "${CFG}" || true
-else
-  if ${SUDO} grep -q '^\[DBhandler\]' "${CFG}"; then
-    ${SUDO} sed -i "/^\[DBhandler\]/a handler: ${MODE}" "${CFG}"
-  else
-    printf '\n[DBhandler]\nhandler: %s\n' "${MODE}" | ${SUDO} tee -a "${CFG}" >/dev/null
-  fi
-fi
+set_dbhandler_mode "${MODE}"
 
 ${SUDO} mkdir -p "${APP_ROOT}/acme_srv"
 if [[ ! -e "${APP_ROOT}/acme_srv/acme_srv.cfg" ]]; then
