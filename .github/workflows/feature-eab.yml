@@ -383,6 +383,7 @@ jobs:
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
+          MODE: ${{ matrix.mode }}
 
       - name: "Register without eab-credentials - should fail"
         uses: ./.github/actions/wf_specific/eab/enroll_wo_credentials
