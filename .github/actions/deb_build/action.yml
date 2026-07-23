@@ -14,17 +14,16 @@ runs:
         echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
       shell: bash
 
-    - run: echo "Latest tag is ${{ env.TAG_NAME }}"
-      shell: bash
-
     - name: "Prepare environment to build deb package"
       run: |
-        sudo apt-get update && sudo apt-get -y upgrade
-        sudo apt-get -y install \
-          build-essential fakeroot dpkg-dev debhelper \
+        set -euo pipefail
+        export DEBIAN_FRONTEND=noninteractive
+        sudo apt-get update
+        # Match debian/control Build-Depends (+ dpkg-dev/fakeroot for dpkg-buildpackage).
+        sudo apt-get -y install --no-install-recommends \
+          dpkg-dev fakeroot debhelper \
           dh-python pybuild-plugin-pyproject \
           python3-all python3-setuptools python3-build
-        # DEB-specific share/ tweaks run in debian/rules (execute_after_dh_install).
         cp -R examples/install_scripts/debian ./
         sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
         chmod +x debian/rules debian/patch_apache_for_deb.py
@@ -32,24 +31,24 @@ runs:
 
     - name: "Build debian package"
       run: |
-        set -e
+        set -euo pipefail
         dpkg-buildpackage -uc -us
         DEB="../acme2certifier_${{ env.TAG_NAME }}-1_all.deb"
-        dpkg -c "$DEB"
+        CHECK="$(mktemp -d)"
+        trap 'rm -rf "${CHECK}"' EXIT
+        dpkg-deb -x "$DEB" "${CHECK}"
         echo "Smoke-check package contents for dist-packages + deploy tree"
-        dpkg -c "$DEB" | grep -E 'dist-packages/acme2certifier/'
-        dpkg -c "$DEB" | grep -E 'var/www/acme2certifier/acme2certifier_wsgi\.py'
-        dpkg -c "$DEB" | grep -E 'var/www/acme2certifier/acme_srv\.cfg'
-        dpkg -c "$DEB" | grep -E 'var/www/acme2certifier/share/(apache2|nginx)/'
+        DIST="$(find "${CHECK}/usr/lib" -type d -path '*/dist-packages/acme2certifier' | head -n 1)"
+        test -n "${DIST}"
+        test -f "${CHECK}/var/www/acme2certifier/acme2certifier_wsgi.py"
+        test -f "${CHECK}/var/www/acme2certifier/acme_srv.cfg"
+        test -d "${CHECK}/var/www/acme2certifier/share/apache2"
+        test -d "${CHECK}/var/www/acme2certifier/share/nginx"
+        test -f "${CHECK}/var/www/acme2certifier/share/nginx/acme2certifier.service"
         echo "Apache vhosts in .deb must not reference pip venv"
-        rm -rf /tmp/a2c-deb-check
-        mkdir -p /tmp/a2c-deb-check
-        dpkg-deb -x "$DEB" /tmp/a2c-deb-check
         if grep -R 'python-home=/var/www/acme2certifier/venv' \
-          /tmp/a2c-deb-check/var/www/acme2certifier/share/apache2/; then
+          "${CHECK}/var/www/acme2certifier/share/apache2/"; then
           echo "ERROR: python-home=venv still present in packaged Apache configs" >&2
           exit 1
         fi
-        test -f /tmp/a2c-deb-check/var/www/acme2certifier/share/nginx/acme2certifier.service
-        rm -rf /tmp/a2c-deb-check
       shell: bash
