@@ -6,30 +6,43 @@
 #
 # Usage:
 #   ./examples/install_scripts/a2c-rpm.sh --rpm PATH [options]
+#   ./examples/install_scripts/a2c-rpm.sh install|restart|update [options]
 #
 # Options:
 #   -r, --rpm PATH              path to acme2certifier-*.noarch.rpm (required unless
-#                               a matching .rpm is found in . or ..)
+#                               a matching .rpm is found in . / .. / data-dir)
 #   -m, --mode wsgi|django      application mode (default: wsgi)
+#       --restart               sync volume/cfg and restart nginx + acme2certifier
+#       --update                sync volume/acme_ca only (no restart)
+#       --volume-dir DIR        sync DIR into APP_ROOT/volume (default: use
+#                               /tmp/acme2certifier/volume when present)
+#       --data-dir DIR          search root for .rpm / MSSQL repo pkg
+#                               (default: /tmp/acme2certifier when present)
 #       --no-ssl                skip copying SSL nginx vhost / generating TLS material
 #   -h, --help                  show help
 #
 # Examples:
 #   ./examples/install_scripts/a2c-rpm.sh --rpm ./acme2certifier-0.45.dev1-1.0.noarch.rpm
 #   ./examples/install_scripts/a2c-rpm.sh -r ../acme2certifier-*.rpm -m django
-#   ./examples/install_scripts/a2c-rpm.sh -m wsgi --no-ssl
+#   ./examples/install_scripts/a2c-rpm.sh install -m wsgi --no-ssl
+#   ./examples/install_scripts/a2c-rpm.sh restart
+#   ./examples/install_scripts/a2c-rpm.sh --update --volume-dir /tmp/acme2certifier/volume
 #
 # Notes:
 #   - Works on AlmaLinux / RHEL / Rocky / CentOS Stream 8 and 9 (dnf or yum).
 #   - Installs EPEL + nginx + uWSGI stack (soft Recommends of the RPM).
 #   - EL8 may need newer cryptography/dns/jwcrypto from the A2C RPM repo; see docs/install_rpm.md.
+#   - CI-only host tweaks (syslog-ng/krb5, nginx.conf trim) stay in rpm_prep, not here.
 
 set -euo pipefail
 
 MODE="wsgi"
+ACTION="install"
 RPM_PATH=""
 RPM_GLOBS=()
 ENABLE_SSL=1
+VOLUME_DIR=""
+DATA_DIR=""
 APP_ROOT="/opt/acme2certifier"
 CFG="${APP_ROOT}/acme_srv.cfg"
 SHARE="${APP_ROOT}/share"
@@ -37,14 +50,13 @@ UWSGI_INI="${APP_ROOT}/acme2certifier.ini"
 NGINX_USER="nginx"
 
 usage() {
-  sed -n '2,26p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,36p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 find_rpm() {
   local candidate
   local candidates=()
 
-  # Unquoted --rpm ./acme2certifier-*.rpm may expand to several argv entries.
   if [[ ${#RPM_GLOBS[@]} -gt 1 ]]; then
     ls -1t "${RPM_GLOBS[@]}" 2>/dev/null | head -n 1
     return 0
@@ -64,8 +76,12 @@ find_rpm() {
   elif [[ -n "${RPM_PATH}" ]]; then
     candidates+=("${RPM_PATH}")
   fi
+  if [[ -n "${DATA_DIR}" ]]; then
+    candidates+=("${DATA_DIR}/acme2certifier-*.noarch.rpm" "${DATA_DIR}/acme2certifier-*.rpm")
+  fi
   candidates+=("./acme2certifier-*.noarch.rpm" "./acme2certifier-*.rpm")
   candidates+=("../acme2certifier-*.noarch.rpm" "../acme2certifier-*.rpm")
+  candidates+=("/tmp/acme2certifier/acme2certifier-*.noarch.rpm" "/tmp/acme2certifier/acme2certifier-*.rpm")
   for candidate in "${candidates[@]}"; do
     # shellcheck disable=SC2086
     if compgen -G "${candidate}" >/dev/null 2>&1; then
@@ -97,8 +113,139 @@ el_major() {
   echo "unknown"
 }
 
+resolve_defaults() {
+  if [[ -z "${DATA_DIR}" && -d /tmp/acme2certifier ]]; then
+    DATA_DIR="/tmp/acme2certifier"
+  fi
+  if [[ -z "${VOLUME_DIR}" ]]; then
+    if [[ -n "${DATA_DIR}" && -d "${DATA_DIR}/volume" ]]; then
+      VOLUME_DIR="${DATA_DIR}/volume"
+    elif [[ -d /tmp/acme2certifier/volume ]]; then
+      VOLUME_DIR="/tmp/acme2certifier/volume"
+    fi
+  fi
+}
+
+sync_volume() {
+  local vol="${1:-}"
+  if [[ -z "${vol}" || ! -d "${vol}" ]]; then
+    echo "==> No volume dir to sync (skip)"
+    return 0
+  fi
+  echo "==> Syncing volume from ${vol} -> ${APP_ROOT}/volume"
+  ${SUDO} mkdir -p "${APP_ROOT}/volume"
+  ${SUDO} cp -a "${vol}/." "${APP_ROOT}/volume/"
+  if [[ -f "${vol}/acme_srv.cfg" ]]; then
+    ${SUDO} cp -f "${vol}/acme_srv.cfg" "${CFG}"
+  fi
+}
+
+sync_acme_ca_only() {
+  local vol="${1:-}"
+  if [[ -z "${vol}" || ! -d "${vol}/acme_ca" ]]; then
+    echo "ERROR: --update requires ${vol:-<volume-dir>}/acme_ca" >&2
+    exit 1
+  fi
+  echo "==> Updating acme_ca from ${vol}/acme_ca"
+  ${SUDO} mkdir -p "${APP_ROOT}/volume/acme_ca"
+  ${SUDO} cp -a "${vol}/acme_ca/." "${APP_ROOT}/volume/acme_ca/"
+}
+
+link_django_settings_from_volume() {
+  local vol="${1:-}"
+  local settings_py="${APP_ROOT}/acme2certifier/django_project/settings.py"
+  if [[ -n "${vol}" && -f "${vol}/settings.py" ]]; then
+    echo "==> Linking Django settings from ${vol}/settings.py"
+    ${SUDO} rm -f "${settings_py}"
+    ${SUDO} ln -sfn "${vol}/settings.py" "${settings_py}"
+  elif [[ -f "${APP_ROOT}/volume/settings.py" ]]; then
+    echo "==> Linking Django settings from ${APP_ROOT}/volume/settings.py"
+    ${SUDO} rm -f "${settings_py}"
+    ${SUDO} ln -sfn "${APP_ROOT}/volume/settings.py" "${settings_py}"
+  elif [[ -n "${DATA_DIR}" && -f "${DATA_DIR}/acme2certifier/settings.py" ]]; then
+    # rpm_prep historically staged settings under data/acme2certifier/
+    echo "==> Linking Django settings from ${DATA_DIR}/acme2certifier/settings.py"
+    ${SUDO} mkdir -p "${APP_ROOT}/volume"
+    ${SUDO} cp -f "${DATA_DIR}/acme2certifier/settings.py" "${APP_ROOT}/volume/settings.py"
+    ${SUDO} rm -f "${settings_py}"
+    ${SUDO} ln -sfn "${APP_ROOT}/volume/settings.py" "${settings_py}"
+  elif [[ -f "${APP_ROOT}/examples/django/settings.py" ]]; then
+    ${SUDO} cp "${APP_ROOT}/examples/django/settings.py" "${settings_py}"
+  fi
+}
+
+maybe_install_mssql() {
+  local pkg=""
+  if [[ -n "${DATA_DIR}" && -f "${DATA_DIR}/packages-microsoft-prod.rpm" ]]; then
+    pkg="${DATA_DIR}/packages-microsoft-prod.rpm"
+  elif [[ -f /tmp/acme2certifier/packages-microsoft-prod.rpm ]]; then
+    pkg="/tmp/acme2certifier/packages-microsoft-prod.rpm"
+  fi
+  if [[ -z "${pkg}" ]]; then
+    return 0
+  fi
+  echo "==> Installing Microsoft ODBC / mssql-django from ${pkg}"
+  ${SUDO} ${PKG} localinstall -y "${pkg}" || true
+  ACCEPT_EULA=Y ${SUDO} ${PKG} install -y msodbcsql18 python3-pip python3-pyodbc || true
+  if command -v pip3 >/dev/null 2>&1; then
+    ${SUDO} ${PKG} install -y gcc gcc-c++ python3-devel unixODBC-devel || true
+    ${SUDO} pip3 install mssql-django==1.3 || ${SUDO} pip3 install mssql-django || true
+  fi
+}
+
+maybe_overlay_nginx_from_data() {
+  if [[ -n "${DATA_DIR}" && -d "${DATA_DIR}/nginx" ]]; then
+    echo "==> Overlaying nginx configs from ${DATA_DIR}/nginx"
+    ${SUDO} mkdir -p /etc/nginx
+    ${SUDO} cp -a "${DATA_DIR}/nginx/." /etc/nginx/
+  fi
+}
+
+restart_services() {
+  echo "==> Restarting acme2certifier + nginx"
+  ${SUDO} systemctl restart acme2certifier.service
+  ${SUDO} systemctl restart nginx.service
+}
+
+do_restart() {
+  echo "==> Restart mode (no package reinstall)"
+  if [[ -z "${VOLUME_DIR}" || ! -d "${VOLUME_DIR}" ]]; then
+    echo "ERROR: --restart requires a volume dir (pass --volume-dir or mount /tmp/acme2certifier/volume)" >&2
+    exit 1
+  fi
+  if [[ -f "${VOLUME_DIR}/acme_srv.cfg" ]]; then
+    ${SUDO} cp -f "${VOLUME_DIR}/acme_srv.cfg" "${CFG}"
+  fi
+  sync_volume "${VOLUME_DIR}"
+  ${SUDO} chown -R "${NGINX_USER}:${NGINX_USER}" "${APP_ROOT}/volume" || true
+  restart_services
+  echo "Done. restarted nginx + acme2certifier"
+}
+
+do_update() {
+  echo "==> Update mode (acme_ca only, no restart)"
+  if [[ -z "${VOLUME_DIR}" || ! -d "${VOLUME_DIR}" ]]; then
+    echo "ERROR: --update requires a volume dir" >&2
+    exit 1
+  fi
+  sync_acme_ca_only "${VOLUME_DIR}"
+  echo "Done. updated ${APP_ROOT}/volume/acme_ca"
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    install|restart|update)
+      ACTION="$1"
+      shift
+      ;;
+    --restart)
+      ACTION="restart"
+      shift
+      ;;
+    --update)
+      ACTION="update"
+      shift
+      ;;
     -r|--rpm)
       RPM_PATH="${2:-}"
       if [[ -z "${RPM_PATH}" ]]; then
@@ -106,7 +253,6 @@ while [[ $# -gt 0 ]]; do
         exit 1
       fi
       shift 2
-      # Shell may expand an unquoted glob into multiple *.rpm args; collect them.
       RPM_GLOBS=("${RPM_PATH}")
       while [[ $# -gt 0 && ( "$1" == *.rpm || "$1" == *.RPM ) ]]; do
         RPM_GLOBS+=("$1")
@@ -115,6 +261,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     -m|--mode)
       MODE="${2:-}"
+      shift 2
+      ;;
+    --volume-dir)
+      VOLUME_DIR="${2:-}"
+      shift 2
+      ;;
+    --data-dir)
+      DATA_DIR="${2:-}"
       shift 2
       ;;
     --no-ssl)
@@ -154,6 +308,17 @@ else
   PKG="yum"
 fi
 
+resolve_defaults
+
+if [[ "${ACTION}" == "restart" ]]; then
+  do_restart
+  exit 0
+fi
+if [[ "${ACTION}" == "update" ]]; then
+  do_update
+  exit 0
+fi
+
 EL_MAJOR="$(el_major)"
 echo "==> Detected package manager: ${PKG} (EL major: ${EL_MAJOR})"
 
@@ -166,7 +331,6 @@ echo "==> Using package: ${RPM_FILE}"
 
 echo "==> Installing EPEL + Nginx/uWSGI stack"
 ${SUDO} ${PKG} install -y epel-release
-# curl may conflict with curl-minimal on some EL9 images
 ${SUDO} ${PKG} install -y curl --allowerasing 2>/dev/null || ${SUDO} ${PKG} install -y curl || true
 ${SUDO} ${PKG} install -y \
   nginx \
@@ -181,7 +345,6 @@ ${SUDO} ${PKG} install -y \
 
 if [[ "${MODE}" == "django" ]]; then
   echo "==> Installing Django-related system packages"
-  # EL9 EPEL commonly ships python3-django4.2; some repos use python3-django.
   DJANGO_RPM=""
   for cand in python3-django4.2 python3-django; do
     if ${SUDO} ${PKG} install -y "${cand}" 2>/dev/null; then
@@ -195,10 +358,10 @@ if [[ "${MODE}" == "django" ]]; then
     exit 1
   fi
   echo "==> Installed Django package: ${DJANGO_RPM}"
-  # Optional DB drivers — missing ones must not block Django itself
   for cand in python3-pyyaml python3-mysqlclient python3-PyMySQL python3-psycopg2 python3-sqlparse; do
     ${SUDO} ${PKG} install -y "${cand}" 2>/dev/null || true
   done
+  maybe_install_mssql
   if ! ${SUDO} python3 -c "import django; print('django', django.get_version())"; then
     echo "ERROR: Django RPM installed but 'import django' failed" >&2
     exit 1
@@ -215,6 +378,10 @@ command -v a2c-cli >/dev/null
 
 ${SUDO} mkdir -p "${APP_ROOT}/volume" /run/uwsgi
 
+if [[ -n "${VOLUME_DIR}" && -d "${VOLUME_DIR}" ]]; then
+  sync_volume "${VOLUME_DIR}"
+fi
+
 if [[ ! -e "${CFG}" ]]; then
   if [[ -f "${SHARE}/acme_srv.cfg" ]]; then
     ${SUDO} cp "${SHARE}/acme_srv.cfg" "${CFG}"
@@ -224,7 +391,6 @@ if [[ ! -e "${CFG}" ]]; then
   fi
 fi
 
-# Ensure SQLite path under APP_ROOT
 if ! ${SUDO} grep -qE '^[[:space:]]*dbfile:' "${CFG}"; then
   if ${SUDO} grep -q '^\[DBhandler\]' "${CFG}"; then
     ${SUDO} sed -i "/^\[DBhandler\]/a dbfile: ${APP_ROOT}/acme_srv.db" "${CFG}"
@@ -273,7 +439,15 @@ if [[ "${ENABLE_SSL}" -eq 1 ]]; then
   fi
 fi
 
-# uWSGI ini shipped by RPM; retarget module for django
+maybe_overlay_nginx_from_data
+
+# CI marker from rpm_prep: trim stock Alma nginx.conf server blocks.
+if [[ -n "${DATA_DIR}" && -f "${DATA_DIR}/.a2c_ci" && -f /etc/nginx/nginx.conf ]]; then
+  echo "==> CI: trimming /etc/nginx/nginx.conf (Alma systemd image)"
+  ${SUDO} cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig
+  ${SUDO} sh -c 'head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf; echo "}" >> /etc/nginx/nginx.conf'
+fi
+
 if [[ ! -f "${UWSGI_INI}" ]]; then
   ${SUDO} cp "${SHARE}/nginx/acme2certifier.ini" "${UWSGI_INI}"
 fi
@@ -294,7 +468,6 @@ if ! grep -q 'ACME_SRV_CONFIGFILE' "${UWSGI_INI}"; then
   echo "env = ACME2CERTIFIER_BASE_DIR=${APP_ROOT}" | ${SUDO} tee -a "${UWSGI_INI}" >/dev/null
 fi
 
-# Ensure systemd unit has PYTHONPATH (RPM ships this; refresh if missing)
 if [[ -f /usr/lib/systemd/system/acme2certifier.service ]]; then
   if ! grep -q 'PYTHONPATH=' /usr/lib/systemd/system/acme2certifier.service; then
     ${SUDO} sed -i "/^WorkingDirectory=/a Environment=PYTHONPATH=${APP_ROOT}" \
@@ -307,8 +480,8 @@ if [[ -f /usr/lib/systemd/system/acme2certifier.service ]]; then
 fi
 
 if [[ "${MODE}" == "django" ]]; then
+  link_django_settings_from_volume "${VOLUME_DIR}"
   echo "==> Django migrate + fixtures"
-  # EPEL python3-django* RPMs often ship without locale/mo files.
   SETTINGS_PY="${APP_ROOT}/acme2certifier/django_project/settings.py"
   if [[ -f "${SETTINGS_PY}" ]]; then
     ${SUDO} sed -i \

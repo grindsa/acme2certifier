@@ -53,7 +53,8 @@ rm -rf impacket-0.11.0/examples/*
 - Install the package:
 
 ```bash
-python3 setup.py install
+pip install .
+# or: pip install acme2certifier
 ```
 
 ## Configuration
@@ -157,7 +158,8 @@ krb5_keytab: /etc/acme2certifier/svc-a2c-enroll.keytab
 
 # Optional
 krb5_auth_backend: python
-krb5_cache: /var/lib/acme2certifier/krb5cc_a2c
+krb5_cache: /var/www/acme2certifier/volume/krb5cc_a2c
+
 krb5_config: /etc/krb5.conf
 krb5_kinit_path: /usr/bin/kinit
 ```

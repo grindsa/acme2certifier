@@ -17,12 +17,19 @@ chmod a+rx examples/install_scripts/a2c-rpm.sh
 ./examples/install_scripts/a2c-rpm.sh --rpm ./acme2certifier-0.45.dev1-1.0.noarch.rpm
 ./examples/install_scripts/a2c-rpm.sh -r ../acme2certifier-*.rpm -m django
 ./examples/install_scripts/a2c-rpm.sh -m wsgi --no-ssl
+# Sync volume/cfg and restart nginx + acme2certifier (no reinstall)
+./examples/install_scripts/a2c-rpm.sh restart --volume-dir /path/to/volume
+# Copy volume/acme_ca only (no restart)
+./examples/install_scripts/a2c-rpm.sh --update --volume-dir /path/to/volume
 ```
 
 | Option | Meaning |
 | --- | --- |
-| `-r, --rpm PATH` | path to `acme2certifier-*.rpm` (or auto-find in `.` / `..`) |
+| `-r, --rpm PATH` | path to `acme2certifier-*.rpm` (or auto-find in `.` / `..` / data-dir) |
 | `-m, --mode wsgi\|django` | DB handler + matching uWSGI module (default: `wsgi`) |
+| `--restart` / `restart` | sync volume/cfg and restart services (no reinstall) |
+| `--update` / `update` | sync `volume/acme_ca` only (no restart) |
+| `--volume-dir DIR` | sync source (default: `/tmp/acme2certifier/volume` when present) |
 | `--no-ssl` | skip SSL nginx vhost / self-signed cert generation |
 
 Works with `dnf` or `yum` on EL8 and EL9. The remainder of this guide is the manual equivalent.

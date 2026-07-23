@@ -25,13 +25,19 @@ sudo ./examples/install_scripts/a2c-deb.sh \
   --deb ../acme2certifier_<version>-1_all.deb \
   --mode django \
   --webserver nginx
+
+# After changing volume/cfg in place (lab/CI): sync and restart
+sudo ./examples/install_scripts/a2c-deb.sh restart nginx \
+  --volume-dir /path/to/volume
 ```
 
 | Switch | Values | Default |
 | --- | --- | --- |
-| `-d` / `--deb` | path to `.deb` | auto: `./` or `../acme2certifier_*.deb` |
+| `-d` / `--deb` | path to `.deb` | auto: `./` / `../` / data-dir |
 | `-m` / `--mode` | `wsgi` \| `django` | `wsgi` |
 | `-w` / `--webserver` | `apache2` \| `nginx` | `apache2` |
+| `--restart` / `restart` | — | sync volume/cfg and restart services (no reinstall) |
+| `--volume-dir DIR` | path | `/tmp/acme2certifier/volume` when present |
 | `--no-ssl` | — | SSL vhosts enabled |
 | `--skip-pkcs12` | — | installs `requests-pkcs12` via pip |
 

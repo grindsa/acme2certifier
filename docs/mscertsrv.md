@@ -155,7 +155,8 @@ auth_method: gssapi
 template: <name>
 krb5_principal: svc-a2c-enroll@EXAMPLE.COM
 krb5_keytab: /etc/acme2certifier/svc-a2c-enroll.keytab
-krb5_cache: /var/lib/acme2certifier/krb5cc_a2c
+krb5_cache: /var/www/acme2certifier/volume/krb5cc_a2c
+
 krb5_config: /etc/krb5.conf
 krb5_kinit_path: /usr/bin/kinit
 ```
