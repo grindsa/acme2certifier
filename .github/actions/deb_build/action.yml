@@ -17,24 +17,10 @@ runs:
     - run: echo "Latest tag is ${{ env.TAG_NAME }}"
       shell: bash
 
-    - name: "Install Firefox from Mozilla"
-      run: |
-        sudo apt-get update
-        sudo install -d -m 0755 /etc/apt/keyrings
-        wget -q https://packages.mozilla.org/apt/repo-signing-key.gpg -O- | sudo tee /etc/apt/keyrings/packages.mozilla.org.asc > /dev/null
-        echo "deb [signed-by=/etc/apt/keyrings/packages.mozilla.org.asc] https://packages.mozilla.org/apt mozilla main" | sudo tee -a /etc/apt/sources.list.d/mozilla.list > /dev/null
-        echo '
-        Package: *
-        Pin: origin packages.mozilla.org
-        Pin-Priority: 1000
-        ' | sudo tee /etc/apt/preferences.d/mozilla
-        sudo apt update && sudo apt install -y firefox --allow-downgrades
-      shell: bash
-
     - name: "Prepare environment to build deb package"
       run: |
         sudo apt-get update && sudo apt-get -y upgrade
-        sudo apt-get -y install --allow-downgrades \
+        sudo apt-get -y install \
           build-essential fakeroot dpkg-dev debhelper \
           dh-python pybuild-plugin-pyproject \
           python3-all python3-setuptools python3-build
