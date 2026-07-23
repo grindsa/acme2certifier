@@ -1,7 +1,5 @@
 """Django manage.py entry point for acme2certifier."""
 
-from __future__ import annotations
-
 import os
 import sys
 

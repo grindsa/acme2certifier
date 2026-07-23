@@ -1,8 +1,6 @@
 #!/usr/bin/python
 """CLI user management for housekeeping."""
 
-from __future__ import annotations
-
 import argparse
 import json
 import os.path

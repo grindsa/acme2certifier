@@ -1,8 +1,6 @@
 #!/usr/bin/python3
 """secret key generator for django project"""
 
-from __future__ import annotations
-
 
 def main() -> None:
     """Print a Django SECRET_KEY to stdout."""

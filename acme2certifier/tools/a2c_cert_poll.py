@@ -1,8 +1,6 @@
 #!/usr/bin/python
 """Poll certificates stuck in processing status."""
 
-from __future__ import annotations
-
 from acme2certifier.acme_srv.certificate import Certificate
 from acme2certifier.acme_srv.db_handler import initialize
 from acme2certifier.acme_srv.helper import logger_setup

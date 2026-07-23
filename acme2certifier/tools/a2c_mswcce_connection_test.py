@@ -2,8 +2,6 @@
 # -*- coding: utf-8 -*-
 """Test MS-WCCE CA handler connectivity."""
 
-from __future__ import annotations
-
 from acme2certifier.acme_srv.helper import logger_setup
 from acme2certifier.cahandlers.mswcce_ca_handler import CAhandler
 
