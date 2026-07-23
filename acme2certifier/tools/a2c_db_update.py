@@ -1,8 +1,6 @@
 #!/usr/bin/python
 """database updater"""
 
-from __future__ import annotations
-
 from acme2certifier.acme_srv.db_handler import DBstore
 from acme2certifier.acme_srv.helper import logger_setup
 

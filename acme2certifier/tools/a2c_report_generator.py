@@ -1,8 +1,6 @@
 #!/usr/bin/python
 """Generate housekeeping reports (certificates, accounts, cleanup)."""
 
-from __future__ import annotations
-
 import time
 
 from acme2certifier.acme_srv.helper import logger_setup, uts_to_date_utc
