@@ -90,13 +90,7 @@ jobs:
           echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
 
       - name: "Prepare acme_srv.cfg with openssl_ca_handler"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo sed -i "s/examples\/ca_handler/\/var\/www\/acme2certifier\/examples\/ca_handler/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
 
       - name: "Execute install scipt"
         run: |

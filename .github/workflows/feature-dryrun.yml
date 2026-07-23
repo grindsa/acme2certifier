@@ -75,10 +75,12 @@ jobs:
           CONTAINER_BUILD: false
 
       - name: "Setup openssl ca_handler - dryrun mode false"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Configure openssl ca_handler - dryrun mode false"
         run: |
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\ndryrun: False/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
@@ -227,10 +229,10 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Setup openssl ca_handler - dryrun false"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Configure openssl ca_handler - dryrun false"
         run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\ndryrun: False/g" data/volume/acme_srv.cfg
 
@@ -395,10 +397,10 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Setup openssl ca_handler - dryrun false"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Configure openssl ca_handler - dryrun false"
         run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo sed -i "s#volume/acme_ca/#/var/www/acme2certifier/volume/acme_ca/#g" data/volume/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\ndryrun: False/g" data/volume/acme_srv.cfg

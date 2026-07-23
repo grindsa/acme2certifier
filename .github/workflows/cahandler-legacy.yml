@@ -263,13 +263,11 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Setup acme_srv.cfg with legacy xca_ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Setup acme_srv.cfg with legacy xca_ca_handler (config)"
         run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777  data/volume/acme_srv.cfg
-          sudo sed -i "s/examples\/ca_handler/\/var\/www\/acme2certifier\/examples\/ca_handler/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
 
           # download legacy handler
           curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/tags/0.31 -o /tmp/a2c.tgz

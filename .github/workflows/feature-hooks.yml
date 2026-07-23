@@ -76,19 +76,20 @@ jobs:
           NAME_SPACE: acme
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: examples/Docker/data
+
+      - name: "Configure openssl ca_handler"
         run: |
           sudo mkdir -p examples/Docker/data/hooks
           sudo chmod -R 777 examples/Docker/data/hooks
           sudo cp acme2certifier/cahandlers/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
           sudo echo "hooks_module: acme2certifier.hookhandlers.cn_dump_hooks" >> examples/Docker/data/acme_srv.cfg
           sudo echo "save_path: volume/hooks" >> examples/Docker/data/acme_srv.cfg
           sudo echo "$HOOKS_CHECKSUM" > examples/Docker/data/hooks/checksums.sha256
-          # sudo cat examples/Docker/data/acme_srv.cfg
         env:
           HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
 
@@ -190,20 +191,21 @@ jobs:
           NAME_SPACE: acme
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: examples/Docker/data
+
+      - name: "Configure openssl ca_handler"
         run: |
           sudo mkdir -p examples/Docker/data/hooks
           sudo chmod -R 777 examples/Docker/data/hooks
           sudo cp acme2certifier/cahandlers/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
           sudo echo "hooks_module: acme2certifier.hookhandlers.exception_test_hooks" >> examples/Docker/data/acme_srv.cfg
           sudo echo "raise_pre_hook_exception: False" >> examples/Docker/data/acme_srv.cfg
           sudo echo "raise_post_hook_exception: False" >> examples/Docker/data/acme_srv.cfg
           sudo echo "raise_success_hook_exception: False" >> examples/Docker/data/acme_srv.cfg
-          # sudo cat examples/Docker/data/acme_srv.cfg
         env:
           HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
 
@@ -391,12 +393,14 @@ jobs:
           MAILSERVER_CERT: ${{ secrets.MAILSERVER_CERT }}
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Configure openssl ca_handler"
         run: |
           sudo mkdir -p examples/Docker/data/hooks
           sudo chmod -R 777 examples/Docker/data/hooks
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[Hooks]" >> examples/Docker/data/acme_srv.cfg
@@ -488,11 +492,11 @@ jobs:
           mkdir lego
 
       - name: "Prepare acme_srv.cfg with openssl_ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Prepare acme_srv.cfg with openssl_ca_handler (config)"
         run: |
-          sudo mkdir -p data/volume/acme_ca/certs
           sudo mkdir -p data/volume/acme_ca/hooks
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo chmod -R 777 data/volume/acme_ca/hooks
           sudo echo -e "\n\n[Hooks]" >> data/volume/acme_srv.cfg
@@ -610,11 +614,11 @@ jobs:
           mkdir lego
 
       - name: "prepare acme_srv.cfg with openssl_ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "prepare acme_srv.cfg with openssl_ca_handler"
         run: |
-          sudo mkdir -p data/volume/acme_ca/certs
           sudo mkdir -p data/volume/acme_ca/hooks
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo chmod -R 777 data/volume/acme_ca/hooks
           sudo echo -e "\n\n[Hooks]" >> data/volume/acme_srv.cfg
@@ -833,11 +837,11 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "prepare acme_srv.cfg with openssl_ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "prepare acme_srv.cfg with openssl_ca_handler"
         run: |
-          sudo mkdir -p data/volume/acme_ca/certs
           sudo mkdir -p data/volume/acme_ca/hooks
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo chmod -R 777 data/volume/acme_ca/hooks
           echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg

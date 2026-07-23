@@ -75,10 +75,12 @@ jobs:
           CONTAINER_BUILD: false
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Configure openssl ca_handler"
         run: |
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/identifier_limit: 2\nallowed_domainlist: [\"*.acme\", \"*.bar.local\"]/g" examples/Docker/data/acme_srv.cfg
           echo "[Directory]" >> examples/Docker/data/acme_srv.cfg

@@ -83,14 +83,16 @@ jobs:
           mkdir certbot
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Configure openssl ca_handler"
         run: |
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
           sudo cp acme2certifier/cahandlers/openssl_ca_handler.py examples/Docker/data/ca_handler.py
           sudo chmod 777 examples/Docker/data/ca_handler.py
           sudo sed -i "s/import uuid/import uuid\\nimport time/g" examples/Docker/data/ca_handler.py
           sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        time.sleep(30)/g" examples/Docker/data/ca_handler.py
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 300\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
 
@@ -161,14 +163,16 @@ jobs:
           mkdir certbot
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Configure openssl ca_handler"
         run: |
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
           sudo cp acme2certifier/cahandlers/openssl_ca_handler.py examples/Docker/data/ca_handler.py
           sudo chmod 777 examples/Docker/data/ca_handler.py
           sudo sed -i "s/import uuid/import uuid\\nimport time/g" examples/Docker/data/ca_handler.py
           sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        time.sleep(20)/g" examples/Docker/data/ca_handler.py
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 300\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nasync_mode: True/g" examples/Docker/data/acme_srv.cfg
@@ -244,15 +248,15 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Configure openssl ca_handler"
         run: |
-          mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
           sudo cp acme2certifier/cahandlers/openssl_ca_handler.py data/volume/acme_ca/ca_handler.py
           sudo chmod 777 data/volume/acme_ca/ca_handler.py
           sudo sed -i "s/import uuid/import uuid\\nimport time/g" data/volume/acme_ca/ca_handler.py
           # sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        time.sleep(15)/g" data/volume/acme_ca/ca_handler.py
           sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        self.logger.debug('CAhandler.enroll(): timeout start')\\n        time.sleep(30)\\n        self.logger.debug('CAhandler.enroll(): timeout done')/g" data/volume/acme_ca/ca_handler.py
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
           # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg
@@ -333,15 +337,15 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Configure openssl ca_handler"
         run: |
-          mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
           sudo cp acme2certifier/cahandlers/openssl_ca_handler.py data/volume/acme_ca/ca_handler.py
           sudo chmod 777 data/volume/acme_ca/ca_handler.py
           sudo sed -i "s/import uuid/import uuid\\nimport time/g" data/volume/acme_ca/ca_handler.py
           # sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        time.sleep(15)/g" data/volume/acme_ca/ca_handler.py
           sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        self.logger.debug('CAhandler.enroll(): timeout start')\\n        time.sleep(20)\\n        self.logger.debug('CAhandler.enroll(): timeout done')/g" data/volume/acme_ca/ca_handler.py
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
           # sudo sed -i "s/retry_after_timeout: 15/retry_after_timeout: 30\nenrollment_timeout: 15/g" data/volume/acme_srv.cfg

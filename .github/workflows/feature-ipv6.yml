@@ -76,10 +76,9 @@ jobs:
           IPV6: true
 
       - name: "Setup openssl ca_handler"
-        run: |
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -166,10 +165,7 @@ jobs:
           mkdir certbot
 
       - name: "Setup openssl ca_handler"
-        run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
 
       - name: "Execute install script"
         run: |
@@ -262,12 +258,11 @@ jobs:
           mkdir certbot
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Configure openssl ca_handler"
         run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_module: acme2certifier.cahandlers.openssl_ca_handler/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |

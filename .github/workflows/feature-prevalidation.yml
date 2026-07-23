@@ -75,10 +75,12 @@ jobs:
           NAME_SPACE: acme
 
       - name: "Setup openssl ca_handler with domain and ip prevalidation support"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Configure openssl ca_handler with domain and ip prevalidation support"
         run: |
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n\n[Authorization]" >> examples/Docker/data/acme_srv.cfg
           sudo echo "prevalidated_domainlist: [\"foo-01.bar.local\", \"*.foo.local\", \"*.acme-new\"]" >> examples/Docker/data/acme_srv.cfg
@@ -140,8 +142,12 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "Setup openssl ca_handler with eab-profiling support"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Configure openssl ca_handler with eab-profiling support"
         run: |
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
@@ -226,10 +232,10 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Setup openssl ca_handler with domain and ip prevalidation support"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Configure openssl ca_handler with domain and ip prevalidation support"
         run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo echo -e "\n\n[Authorization]" >> data/volume/acme_srv.cfg
           sudo echo "prevalidated_domainlist: [\"foo-01.bar.local\", \"*.foo.local\", \"*.acme-new\"]" >> data/volume/acme_srv.cfg
@@ -299,8 +305,10 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "Setup openssl ca_handler with eab-profiling support"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Configure openssl ca_handler with eab-profiling support"
         run: |
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
           sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
@@ -397,16 +405,15 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Setup openssl ca_handler with domain and ip prevalidation support"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Configure openssl ca_handler with domain and ip prevalidation support"
         run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo echo -e "\n\n[Authorization]" >> data/volume/acme_srv.cfg
           sudo echo "prevalidated_domainlist: [\"foo-01.bar.local\", \"*.foo.local\", \"*.acme-new\"]" >> data/volume/acme_srv.cfg
           sudo echo "prevalidated_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]" >> data/volume/acme_srv.cfg
           sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_module: acme2certifier.cahandlers.openssl_ca_handler/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -475,8 +482,10 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "Setup openssl ca_handler with eab-profiling support"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "Configure openssl ca_handler with eab-profiling support"
         run: |
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
           sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg

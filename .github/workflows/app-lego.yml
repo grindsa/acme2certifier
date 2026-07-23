@@ -76,10 +76,9 @@ jobs:
           NAME_SPACE: acme
 
       - name: "Setup openssl ca_handler"
-        run: |
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -193,10 +192,7 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Prepare acme_srv.cfg with openssl_ca_handler"
-        run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
 
       - name: "Execute install script"
         run: |
@@ -293,13 +289,7 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Prepare acme_srv.cfg with openssl_ca_handler"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo sed -i "s/examples\/ca_handler/\/var\/www\/acme2certifier\/examples\/ca_handler/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
 
       - name: "Execute install script"
         run: |

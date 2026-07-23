@@ -118,10 +118,12 @@ jobs:
           DJANGO_DB: ${{ matrix.django_db }}
 
       - name: "Configure acme2certifier"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Configure acme2certifier"
         run: |
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           echo "" >> examples/Docker/data/acme_srv.cfg
           echo "handler_module: acme2certifier.cahandlers.openssl_ca_handler" >> examples/Docker/data/acme_srv.cfg

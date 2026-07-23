@@ -450,10 +450,12 @@ jobs:
         uses: ./.github/actions/cert_gen
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: examples/Docker/data
+
+      - name: "Stage container TLS/settings"
         run: |
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
           sudo cp .github/django_settings.py examples/Docker/data/settings.py
           sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
@@ -671,11 +673,13 @@ jobs:
       - name: "Generate keys and certificates"
         uses: ./.github/actions/cert_gen
 
+      - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: /tmp/data
+
       - name: "Prepare and data package"
         run: |
-          sudo mkdir -p /tmp/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem /tmp/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg /tmp/data/acme_srv.cfg
           sudo cp .github/acme2certifier.pem /tmp/data/acme2certifier.pem
           sudo cp .github/django_settings.py /tmp/data/settings.py
           sudo cp .github/acme2certifier_cert.pem /tmp/data/acme2certifier_cert.pem

@@ -121,10 +121,12 @@ jobs:
           time: 10s
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Configure openssl ca_handler"
         run: |
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"acme-sh.acme\$\": \"socks5:\/\/proxy.acme:8080\", \"acme-sh.\$\": \"http\:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
 
@@ -455,10 +457,10 @@ jobs:
       - run: echo "Latest tag is ${{ env.PROXY_IP }}"
 
       - name: "setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+
+      - name: "setup openssl ca_handler"
         run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"acme-sh.acme\$\": \"socks5:\/\/${{ env.PROXY_IP }}:8080\", \"acme-sh.\$\": \"http\:\/\/${{ env.PROXY_IP }}:8080\"}/g" data/volume/acme_srv.cfg
 

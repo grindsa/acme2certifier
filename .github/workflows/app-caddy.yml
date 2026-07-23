@@ -78,11 +78,13 @@ jobs:
           NAME_SPACE: acme
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+
+      - name: "Configure openssl ca_handler"
         run: |
           sudo cp acme2certifier/cahandlers/openssl_ca_handler.py examples/Docker/data/ca_handler.py
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
