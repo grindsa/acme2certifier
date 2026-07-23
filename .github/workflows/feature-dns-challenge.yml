@@ -250,7 +250,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -293,9 +293,9 @@ jobs:
 
       - name: "Execute install scipt"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll by using dns-01 challenges"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
@@ -338,9 +338,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll by using dns-01 challenges with wildcard disabled (wildcard expected to fail)"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
@@ -358,9 +358,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll by using dns-01 challenges with wildcard enabled (wildcard expected to succeed)"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
@@ -378,9 +378,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Register lego container and create dns records for persistent-01 challenges"
         uses: ./.github/actions/wf_specific/dns/persistent_prep
@@ -405,9 +405,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll by using persistent-01 dns challenges (not to fail)"
         uses: ./.github/actions/wf_specific/dns/enroll_persistent01
@@ -426,9 +426,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll by using persistent-01 dns challenges (not to fail)"
         uses: ./.github/actions/wf_specific/dns/enroll_persistent01
@@ -468,7 +468,7 @@ jobs:
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
-        execscript: ['deb_tester.sh','django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -480,13 +480,13 @@ jobs:
           json_secret: ${{ secrets.XCA_CFG }}
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
+        if: matrix.mode == 'wsgi'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
+        if: matrix.mode == 'django'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
@@ -517,10 +517,10 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll by using dns-01 challenges"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
@@ -563,10 +563,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll by using dns-01 challenges with wildcard disabled (wildcard expected to fail)"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
@@ -584,10 +584,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll by using dns-01 challenges with wildcard enabled (wildcard expected to succeed)"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
@@ -605,10 +605,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Register lego container and create dns records for persistent-01 challenges"
         uses: ./.github/actions/wf_specific/dns/persistent_prep
@@ -633,10 +633,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll by using persistent-01 dns challenges (not to fail)"
         uses: ./.github/actions/wf_specific/dns/enroll_persistent01
@@ -655,10 +655,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll by using persistent-01 dns challenges (not to fail)"
         uses: ./.github/actions/wf_specific/dns/enroll_persistent01
@@ -686,5 +686,5 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/

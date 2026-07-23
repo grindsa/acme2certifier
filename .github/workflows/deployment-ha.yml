@@ -78,7 +78,7 @@ jobs:
           # sudo cp acme2certifier-$RUN_ID.noarch.rpm data
           sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
-          # sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+          # use examples/install_scripts/a2c-rpm.sh for RPM installs
           sudo mkdir -p $PWD/lego
           sudo mkdir -p $PWD/certbot
           sudo mkdir -p $PWD/acme-sh

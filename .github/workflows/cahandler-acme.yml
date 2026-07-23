@@ -742,7 +742,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
     steps:
 
       - name: "checkout GIT"
@@ -788,9 +788,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
@@ -828,9 +828,9 @@ jobs:
 
       - name: "ACME Profile - Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "ACME Profile - enrollment"
         uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_acmeprofile
@@ -855,7 +855,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpm-lesim-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
+          name: test-rpm-lesim-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
@@ -869,7 +869,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
     steps:
 
       - name: "checkout GIT"
@@ -916,9 +916,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
@@ -945,7 +945,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpm-sectigo-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
+          name: test-rpm-sectigo-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
@@ -959,7 +959,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
     steps:
 
       - name: "checkout GIT"
@@ -1073,9 +1073,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB Profiling - Sleep for 10s"
         uses: juliangruber/sleep-action@v2.0.4
@@ -1127,9 +1127,9 @@ jobs:
 
       - name: "EAB ACME Profiling - Run Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB ACME Profiling - enrollment"
         uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_eab_acmeprofile
@@ -1156,7 +1156,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpm-profiling-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
+          name: test-rpm-profiling-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
@@ -1170,7 +1170,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
     steps:
 
       - name: "checkout GIT"
@@ -1217,9 +1217,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test http://acme-srv/directory is accessible"
         run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
@@ -1254,7 +1254,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpm-smallstep-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
+          name: test-rpm-smallstep-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
@@ -1269,7 +1269,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
     steps:
 
       - name: "checkout GIT"
@@ -1343,9 +1343,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Compare profile information"
         uses: ./.github/actions/wf_specific/acme_ca_handler/compare_profile_info
@@ -1398,5 +1398,5 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpm-letsencrypt-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
+          name: test-rpm-letsencrypt-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/

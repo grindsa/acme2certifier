@@ -149,8 +149,7 @@ jobs:
       - name: "Build local acme2certifier environment"
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install django
+          pip install ".[django,test]"
           pip install django-sslserver-v2
           pip install pyyaml
           sed -i 's/^# handler: django$/handler: django/' acme_srv/acme_srv.cfg || true

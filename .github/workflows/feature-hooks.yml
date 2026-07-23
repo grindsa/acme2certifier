@@ -470,7 +470,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -520,9 +520,9 @@ jobs:
 
       - name: "Execute install scipt"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test http://acme-srv/directory is accessible"
         run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
@@ -590,7 +590,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -641,9 +641,9 @@ jobs:
 
       - name: "Execute install scipt"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test http://acme-srv/directory is accessible"
         run: docker run -i --rm --network acme curlimages/curl -f http://acme-srv/directory
@@ -667,9 +667,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "acme.sh enrollment fails due to pre-hook exception (default behaviour)"
         id: prehookfailure
@@ -689,9 +689,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll acme.sh - ignore pre_hook_failures "
         run: |
@@ -705,9 +705,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "acme.sh enrollment fails due to success-hook exception (default behaviour) "
         id: successhookfailure
@@ -727,9 +727,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll acme.sh - ignore sucess_hook_failures "
         run: |
@@ -743,9 +743,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll acme.sh - ignore post_hook_failures (default behaviour) "
         run: |
@@ -758,9 +758,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Fail acme.sh enrollment fails due to post-hook exception "
         id: posthookfailure
@@ -805,7 +805,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -864,9 +864,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enrollment tests"
         uses: ./.github/actions/wf_specific/hooks/enroll
@@ -889,5 +889,5 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpm-email-hooks-rh${{ matrix.rhversion }}-{{ matrix.execscript }}.tar.gz
+          name: test-rpm-email-hooks-rh${{ matrix.rhversion }}-{{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/

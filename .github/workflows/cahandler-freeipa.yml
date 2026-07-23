@@ -226,7 +226,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
     steps:
 
       - name: "checkout GIT"
@@ -298,9 +298,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
@@ -340,9 +340,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_acmeprofile
@@ -372,9 +372,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_eabprofile
@@ -396,7 +396,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
+          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
@@ -410,7 +410,7 @@ jobs:
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
-        execscript: ['deb_tester.sh','django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -427,14 +427,14 @@ jobs:
           json_secret: ${{ secrets.GH_CFG }}
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
+        if: matrix.mode == 'wsgi'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
           NAME_SPACE: "server.acme"
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
+        if: matrix.mode == 'django'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
@@ -488,10 +488,10 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
@@ -529,10 +529,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_acmeprofile
@@ -562,10 +562,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_eabprofile
@@ -589,5 +589,5 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/

@@ -271,7 +271,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -321,9 +321,9 @@ jobs:
 
       - name: "Execute install scipt"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Install dehydrated"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/dehydrated_install
@@ -339,9 +339,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -352,9 +352,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -378,9 +378,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -437,9 +437,9 @@ jobs:
 
       - name: "Execute install scipt"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB - forward address check enabled"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
@@ -506,7 +506,7 @@ jobs:
       fail-fast: false
       matrix:
         websrv: ['apache2', 'nginx']
-        execscript: ['deb_tester.sh','django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -518,13 +518,13 @@ jobs:
           json_secret: ${{ secrets.XCA_CFG }}
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
+        if: matrix.mode == 'wsgi'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
+        if: matrix.mode == 'django'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
@@ -556,10 +556,10 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Install dehydrated"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/dehydrated_install
@@ -575,10 +575,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -589,10 +589,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -610,10 +610,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll
@@ -665,10 +665,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB - forward address check enabled"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
@@ -710,5 +710,5 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/

@@ -59,7 +59,7 @@ After Phase 10:
 ### `acme2certifier/compat.py`
 
 - Remove `warn_file_config_deprecated`, `warn_default_ca_handler`, and likely the whole module if nothing else remains
-- Update `setup.py` if it still packages `compat.py`
+- Ensure packaging (`pyproject.toml` / package-data) still ships any remaining compat helpers if needed
 - Delete or rewrite `test/test_compat.py`
 
 ### Custom handlers (breaking change — document clearly)

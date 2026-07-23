@@ -470,7 +470,7 @@ jobs:
       max-parallel: 1
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
 
@@ -526,9 +526,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "No profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_no_profile
@@ -554,9 +554,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Profile 101 - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_101_profile
@@ -582,9 +582,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Profile 102 - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_102_profile
@@ -610,9 +610,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Header-info - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_headerinfo
@@ -654,9 +654,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB without headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_wo_headerinfo
@@ -699,9 +699,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB with headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -719,9 +719,9 @@ jobs:
 
       - name: "Update configuration"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT update
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE update
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB with headerinfo - Enrollment after reconfiguration"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -744,9 +744,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "kid-file in yaml format - Enrollment after reconfiguration"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -774,9 +774,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
@@ -820,9 +820,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
@@ -851,7 +851,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
+          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
@@ -866,7 +866,7 @@ jobs:
       max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
-        execscript: ['deb_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -883,13 +883,13 @@ jobs:
           json_secret: ${{ secrets.NCM_CFG }}
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
+        if: matrix.mode == 'wsgi'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
+        if: matrix.mode == 'django'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
@@ -936,10 +936,10 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "No profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_no_profile
@@ -965,10 +965,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Profile 101 - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_101_profile
@@ -1011,10 +1011,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB with headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -1040,10 +1040,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_acmeprofile
@@ -1087,10 +1087,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_acmeprofile
@@ -1116,7 +1116,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
@@ -1354,7 +1354,7 @@ jobs:
       matrix:
         # not possible on RH8 due to OpenSSL 3 dependency
         rhversion: [9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
 
@@ -1451,9 +1451,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Sleep for 10s"
         uses: juliangruber/sleep-action@v2.0.4
@@ -1529,9 +1529,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Sleep for 10s"
         uses: juliangruber/sleep-action@v2.0.4
@@ -1576,7 +1576,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-cmpv2-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
+          name: test-cmpv2-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
@@ -1591,7 +1591,7 @@ jobs:
       max-parallel: 1
       matrix:
         websrv: ['nginx']
-        execscript: ['deb_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -1613,13 +1613,13 @@ jobs:
           RUNNER_IP: ${{ env.RUNNER_IP }}
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
+        if: matrix.mode == 'wsgi'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
+        if: matrix.mode == 'django'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
@@ -1687,10 +1687,10 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Sleep for 10s"
         uses: juliangruber/sleep-action@v2.0.4
@@ -1757,10 +1757,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Sleep for 10s"
         uses: juliangruber/sleep-action@v2.0.4
@@ -1815,7 +1815,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-cmpv2-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          name: test-cmpv2-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------

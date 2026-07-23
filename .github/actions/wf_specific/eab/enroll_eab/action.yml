@@ -13,12 +13,8 @@ inputs:
     description: "ACME server hostname"
     required: false
     default: "acme-srv"
-  EXEC_SCRIPT:
-    description: "Executable script for deployment"
-    required: false
-    default: "rpm_tester.sh"
   WEBSRV:
-    description: "Web server for deb deployment"
+    description: "Web server for deb restart"
     required: false
     default: "nginx"
   DATA_DIR:
@@ -83,14 +79,13 @@ runs:
         cd examples/Docker/
         docker compose restart
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+        docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
       elif [ "$DEPLOYMENT_TYPE" == "deb" ]; then
-        docker exec acme-srv bash /tmp/acme2certifier/$EXEC_SCRIPT install $WEBSRV
+        docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
       fi
     shell: bash
     env:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-      EXEC_SCRIPT: ${{ inputs.EXEC_SCRIPT }}
       WEBSRV: ${{ inputs.WEBSRV }}
 
   - name: "Enroll acme.sh with unknown kid - should fail"
@@ -122,14 +117,13 @@ runs:
         cd examples/Docker/
         docker compose restart
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+        docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
       elif [ "$DEPLOYMENT_TYPE" == "deb" ]; then
-        docker exec acme-srv bash /tmp/acme2certifier/$EXEC_SCRIPT install $WEBSRV
+        docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
       fi
     shell: bash
     env:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-      EXEC_SCRIPT: ${{ inputs.EXEC_SCRIPT }}
       WEBSRV: ${{ inputs.WEBSRV }}
 
   - name: "Enroll acme.sh with unknown kid - should work"

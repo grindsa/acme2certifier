@@ -385,7 +385,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
     steps:
 
       - name: "checkout GIT"
@@ -472,9 +472,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Sleep for 10s"
         uses: juliangruber/sleep-action@v2.0.4
@@ -535,9 +535,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll via certifier_ca_handler"
         run: |
@@ -581,9 +581,9 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll via EST using http-basic-auth"
         run: |
@@ -621,7 +621,7 @@ jobs:
 
       #- name: "[ PREPARE  ] reconfigure a2c "
       #  run: |
-      #    docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+      #    docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
 
       #- name: "Enroll via nclm_ca_handler"
       #  run: |
@@ -681,9 +681,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Enroll via msca ca_handler"
         run: |
@@ -715,5 +715,5 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.execscript }}.tar.gz
+          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/

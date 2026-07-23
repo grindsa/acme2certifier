@@ -1284,7 +1284,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -1365,10 +1365,10 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
           docker exec acme-srv yum install -y krb5-libs
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "KRB - enrollment mit default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -1397,9 +1397,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "NTLM - enrollment mit default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -1418,7 +1418,7 @@ jobs:
 
       - name: "NTLM - Reconfigure a2c "
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
 
       - name: "NTLM - enrollment allowed domainlist"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
@@ -1463,9 +1463,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "KRB ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
@@ -1513,9 +1513,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "KRB ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
@@ -1556,7 +1556,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -1654,10 +1654,10 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
           docker exec acme-srv yum install -y krb5-libs
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB with headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab
@@ -1718,9 +1718,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB ACME Profiling - Enrollment with ms_wcce_ca_handler and keytab"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
@@ -1780,9 +1780,9 @@ jobs:
 
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
@@ -1825,7 +1825,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -1931,9 +1931,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "NTLM - enrollment mit default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -1967,9 +1967,9 @@ jobs:
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
       - name: "Reconfigure a2c"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT  restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "KRB - enrollment mit default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -1986,9 +1986,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "KRB - enrollment allowed domainlist"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
@@ -2024,7 +2024,7 @@ jobs:
 
       - name: "ACME Profiling - Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
           docker exec acme-srv yum install -y krb5-libs
 
       - name: "ACME Profiling - Enrollment"
@@ -2066,7 +2066,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [9]
-        execscript: ['rpm_tester.sh', 'django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -2201,9 +2201,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB with headerinfo - enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab
@@ -2266,9 +2266,9 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT restart
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "EAB ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
@@ -2307,7 +2307,7 @@ jobs:
       matrix:
         # apache does not work for some reason
         websrv: ['nginx']
-        execscript: ['deb_tester.sh','django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -2324,14 +2324,14 @@ jobs:
           json_secret: ${{ secrets.GH_CFG }}
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
+        if: matrix.mode == 'wsgi'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
           NAME_SPACE: local
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
+        if: matrix.mode == 'django'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
@@ -2395,20 +2395,20 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
           # docker exec acme-srv apt-get install -y python3-gssapi
           docker exec acme-srv rm -rf /etc/krb5.conf
           docker exec acme-srv ln -s /var/www/acme2certifier/volume/acme_ca/krb5.conf /etc/krb5.conf
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "KRB - enrollment default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -2437,10 +2437,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "NTLM - enrollment mit default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -2459,10 +2459,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "NTLM - enrollment allowed domainlist"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
@@ -2503,10 +2503,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "KRB ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
@@ -2554,10 +2554,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "KRB ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
@@ -2586,7 +2586,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: mscertsrv-test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          name: mscertsrv-test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
@@ -2601,7 +2601,7 @@ jobs:
       fail-fast: false
       matrix:
         websrv: ['nginx']
-        execscript: ['deb_tester.sh','django_tester.sh']
+        mode: ['wsgi', 'django']
 
     steps:
       - name: "checkout GIT"
@@ -2618,13 +2618,13 @@ jobs:
           json_secret: ${{ secrets.GH_CFG }}
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'deb_tester.sh'
+        if: matrix.mode == 'wsgi'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
+        if: matrix.mode == 'django'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
@@ -2710,11 +2710,11 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
           docker exec acme-srv apt-get install -y python3-impacket
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "NTLM - enrollment mit default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -2749,10 +2749,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "KRB - enrollment mit default profile and headerinfo"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -2769,10 +2769,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "KRB - enrollment allowed domainlist"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
@@ -2815,10 +2815,10 @@ jobs:
 
       - name: "Reconfigure a2c "
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT restart $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
@@ -2844,7 +2844,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: mswcce-test-deb-${{ matrix.websrv }}-${{ matrix.execscript }}.tar.gz
+          name: mswcce-test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------

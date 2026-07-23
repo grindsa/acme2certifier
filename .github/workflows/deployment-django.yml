@@ -131,7 +131,7 @@ jobs:
       fail-fast: false
       matrix:
         rhversion: [8, 9]
-        execscript: ['django_tester.sh']
+        mode: ['django']
         database: ['mariadb', 'psql', 'sqlite3', 'mssql']
 
     steps:
@@ -174,9 +174,9 @@ jobs:
 
       - name: "Execute install scipt"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/$EXEC_SCRIPT
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
-          EXEC_SCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
@@ -215,7 +215,7 @@ jobs:
         # nginx is not working with sqlite3 and mariadb
         # websrv: ['apache2', 'nginx']
         websrv: ['apache2']
-        execscript: ['django_tester.sh']
+        mode: ['django']
         database: ['mariadb', 'psql', 'sqlite3', 'mssql']
 
 
@@ -229,7 +229,7 @@ jobs:
           json_secret: ${{ secrets.XCA_CFG }}
 
       - name: "Prepare Ubuntu environment"
-        if: matrix.execscript == 'django_tester.sh'
+        if: matrix.mode == 'django'
         uses: ./.github/actions/deb_prep
         with:
           DEB_BUILD: false
@@ -254,10 +254,10 @@ jobs:
 
       - name: "Execute install script"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/$EXECSCRIPT install $WEBSRV
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
         env:
           WEBSRV: ${{ matrix.websrv }}
-          EXECSCRIPT: ${{ matrix.execscript }}
+          MODE: ${{ matrix.mode }}
 
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients

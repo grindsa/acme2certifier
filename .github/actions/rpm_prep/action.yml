@@ -51,8 +51,9 @@ runs:
         sudo mkdir -p data/acme2certifier
         sudo mkdir -p data/nginx
         sudo chmod -R 777 data
-        sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
-        sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+        sudo cp examples/install_scripts/a2c-rpm.sh data/a2c-rpm.sh
+        sudo chmod a+rx data/a2c-rpm.sh
+        sudo touch data/.a2c_ci
         sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
         if [ -f ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm ]; then
@@ -64,16 +65,12 @@ runs:
         if [ -z "$DJANGO_DB" ] || [ "$DJANGO_DB" == "sqlite3" ]; then
             sudo cp .github/django_settings.py data/acme2certifier/settings.py
         else
-            #if [ "$RH_VERSION" == '8' ] && [ "$DJANGO_DB" == 'mariadb' ]; then
-            #  echo "Using psql as django database on RHEL8"
-            #  sudo cp .github/django_settings_psql.py data/acme2certifier/settings.py
-            #else
             sudo cp .github/django_settings_$DJANGO_DB.py data/acme2certifier/settings.py
-            #fi
-
         fi
         sudo sed -i "s/\/var\/www\//\/opt\//g" data/acme2certifier/settings.py
         sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
+        # Also stage under volume/ for a2c-rpm --volume-dir sync
+        sudo cp data/acme2certifier/settings.py data/volume/settings.py
       env:
         DJANGO_DB: ${{ inputs.DJANGO_DB }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
@@ -103,6 +100,21 @@ runs:
       env:
         RH_VERSION: ${{ inputs.RH_VERSION }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
+      shell: bash
+
+    - name: "CI host packages (former rpm_tester bits)"
+      run: |
+        set -euo pipefail
+        for i in $(seq 1 30); do
+          if docker exec acme-srv systemctl is-system-running 2>/dev/null | grep -Eq 'running|degraded'; then
+            break
+          fi
+          sleep 2
+        done
+        docker exec acme-srv yum -y install epel-release || true
+        docker exec acme-srv yum install -y procps syslog-ng krb5-workstation krb5-libs || \
+          docker exec acme-srv dnf install -y procps syslog-ng krb5-workstation krb5-libs
+        docker exec acme-srv systemctl start syslog-ng.service || true
       shell: bash
 
     - name: "Instanciate Mariadb"

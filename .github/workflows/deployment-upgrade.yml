@@ -354,9 +354,10 @@ jobs:
           sudo mkdir -p data/acme2certifier
           sudo mkdir -p data/nginx/conf.d
           sudo chmod -R 777 data
-          sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
+          sudo cp examples/install_scripts/a2c-rpm.sh data/a2c-rpm.sh
+          sudo chmod a+rx data/a2c-rpm.sh
+          sudo touch data/.a2c_ci
           wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.23.2/acme2certifier-0.23.2-1.0.noarch.rpm
-          sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
           sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
           sudo cp acme2certifier/share/nginx/nginx_acme_srv.conf data/nginx/conf.d
@@ -387,12 +388,11 @@ jobs:
 
       - name: "Almalinux instance"
         run: |
-          cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-          docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+          docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux/9-init
 
       - name: "Execute install scipt"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/rpm_tester.sh
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m wsgi
           sudo docker cp data/nginx acme-srv:/etc
           sudo docker cp data/volume/ acme-srv:/opt/acme2certifier/
           docker exec acme-srv chmod -R 777 /opt/acme2certifier/volume
@@ -516,8 +516,9 @@ jobs:
           sudo mkdir -p data/nginx/conf.d
           sudo chmod -R 777 data
           wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.23.2/acme2certifier-0.23.2-1.0.noarch.rpm
-          sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-          sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
+          sudo cp examples/install_scripts/a2c-rpm.sh data/a2c-rpm.sh
+          sudo chmod a+rx data/a2c-rpm.sh
+          sudo touch data/.a2c_ci
           sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
           sudo cp .github/django_settings_mariadb.py data/volume/settings.py
@@ -553,12 +554,11 @@ jobs:
 
       - name: "Almalinux instance"
         run: |
-          cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-          docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+          docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux/9-init
 
       - name: "Execute install scipt"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m django
 
       - name: "Test enrollment"
         run: |
@@ -679,8 +679,9 @@ jobs:
           sudo mkdir -p data/nginx/conf.d
           sudo chmod -R 777 data
           wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.23.2/acme2certifier-0.23.2-1.0.noarch.rpm
-          sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-          sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
+          sudo cp examples/install_scripts/a2c-rpm.sh data/a2c-rpm.sh
+          sudo chmod a+rx data/a2c-rpm.sh
+          sudo touch data/.a2c_ci
           sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
           sudo cp .github/django_settings.py data/volume/settings.py
@@ -713,12 +714,11 @@ jobs:
 
       - name: "Almalinux instance"
         run: |
-          cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-          docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+          docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux/9-init
 
       - name: "Execute install scipt"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m django
 
       - name: "Test enrollment"
         run: |
@@ -839,8 +839,9 @@ jobs:
           sudo mkdir -p data/nginx/conf.d
           sudo chmod -R 777 data
           wget -P data/ https://github.com/grindsa/acme2certifier/releases/download/0.23.2/acme2certifier-0.23.2-1.0.noarch.rpm
-          sudo cp examples/Docker/almalinux-systemd/rpm_tester.sh data
-          sudo cp examples/Docker/almalinux-systemd/django_tester.sh data
+          sudo cp examples/install_scripts/a2c-rpm.sh data/a2c-rpm.sh
+          sudo chmod a+rx data/a2c-rpm.sh
+          sudo touch data/.a2c_ci
           sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
           sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
           sudo cp .github/django_settings_psql.py data/volume/settings.py
@@ -876,12 +877,11 @@ jobs:
 
       - name: "Almalinux instance"
         run: |
-          cat examples/Docker/almalinux-systemd/Dockerfile | docker build -t almalinux-systemd -f - . --no-cache
-          docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux-systemd
+          docker run -d -id --privileged --network acme -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux/9-init
 
       - name: "Execute install scipt"
         run: |
-          docker exec acme-srv sh /tmp/acme2certifier/django_tester.sh
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m django
 
       - name: "Test enrollment"
         run: |

@@ -123,10 +123,14 @@ jobs:
       - name: Prepare deb packaging environment
         if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
         run: |
-          sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
-          rm setup.py
+          sudo apt-get update
+          sudo apt-get -y install --allow-downgrades \
+            build-essential fakeroot dpkg-dev debhelper \
+            dh-python pybuild-plugin-pyproject \
+            python3-all python3-setuptools python3-build
           cp -R examples/install_scripts/debian ./
           sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
+          chmod +x debian/rules debian/patch_apache_for_deb.py
           cd ../
           tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
 
