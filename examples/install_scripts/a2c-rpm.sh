@@ -154,23 +154,29 @@ sync_acme_ca_only() {
 link_django_settings_from_volume() {
   local vol="${1:-}"
   local settings_py="${APP_ROOT}/acme2certifier/django_project/settings.py"
-  if [[ -n "${vol}" && -f "${vol}/settings.py" ]]; then
-    echo "==> Linking Django settings from ${vol}/settings.py"
-    ${SUDO} rm -f "${settings_py}"
-    ${SUDO} ln -sfn "${vol}/settings.py" "${settings_py}"
-  elif [[ -f "${APP_ROOT}/volume/settings.py" ]]; then
-    echo "==> Linking Django settings from ${APP_ROOT}/volume/settings.py"
-    ${SUDO} rm -f "${settings_py}"
-    ${SUDO} ln -sfn "${APP_ROOT}/volume/settings.py" "${settings_py}"
+  local src=""
+  # Prefer APP_ROOT/volume so settings survive PrivateTmp / ephemeral /tmp mounts.
+  if [[ -f "${APP_ROOT}/volume/settings.py" ]]; then
+    src="${APP_ROOT}/volume/settings.py"
+  elif [[ -f "${APP_ROOT}/volume/acme2certifier/settings.py" ]]; then
+    src="${APP_ROOT}/volume/acme2certifier/settings.py"
+  elif [[ -n "${vol}" && -f "${vol}/settings.py" ]]; then
+    ${SUDO} mkdir -p "${APP_ROOT}/volume"
+    ${SUDO} cp -f "${vol}/settings.py" "${APP_ROOT}/volume/settings.py"
+    src="${APP_ROOT}/volume/settings.py"
   elif [[ -n "${DATA_DIR}" && -f "${DATA_DIR}/acme2certifier/settings.py" ]]; then
     # rpm_prep historically staged settings under data/acme2certifier/
-    echo "==> Linking Django settings from ${DATA_DIR}/acme2certifier/settings.py"
     ${SUDO} mkdir -p "${APP_ROOT}/volume"
     ${SUDO} cp -f "${DATA_DIR}/acme2certifier/settings.py" "${APP_ROOT}/volume/settings.py"
-    ${SUDO} rm -f "${settings_py}"
-    ${SUDO} ln -sfn "${APP_ROOT}/volume/settings.py" "${settings_py}"
+    src="${APP_ROOT}/volume/settings.py"
   elif [[ -f "${APP_ROOT}/examples/django/settings.py" ]]; then
     ${SUDO} cp "${APP_ROOT}/examples/django/settings.py" "${settings_py}"
+    return 0
+  fi
+  if [[ -n "${src}" ]]; then
+    echo "==> Linking Django settings from ${src}"
+    ${SUDO} rm -f "${settings_py}"
+    ${SUDO} ln -sfn "${src}" "${settings_py}"
   fi
 }
 
