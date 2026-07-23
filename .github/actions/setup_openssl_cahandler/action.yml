@@ -1,0 +1,35 @@
+name: "setup_openssl_cahandler"
+description: "Stage openssl CA handler material and acme_srv.cfg into a volume directory"
+inputs:
+  VOLUME_DIR:
+    description: "Target volume directory (contains acme_ca/ and acme_srv.cfg)"
+    required: false
+    default: "data/volume"
+  CFG_SOURCE:
+    description: "Source acme_srv.cfg for openssl CA handler"
+    required: false
+    default: ".github/acme_srv.openssl.cfg"
+  CA_SOURCE_DIR:
+    description: "Directory with test CA key/cert/CRL files"
+    required: false
+    default: "test/ca"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Setup openssl ca_handler"
+      run: |
+        set -euo pipefail
+        sudo mkdir -p "${VOLUME_DIR}/acme_ca/certs"
+        sudo cp \
+          "${CA_SOURCE_DIR}/sub-ca-key.pem" \
+          "${CA_SOURCE_DIR}/sub-ca-crl.pem" \
+          "${CA_SOURCE_DIR}/sub-ca-cert.pem" \
+          "${CA_SOURCE_DIR}/root-ca-cert.pem" \
+          "${VOLUME_DIR}/acme_ca/"
+        sudo cp "${CFG_SOURCE}" "${VOLUME_DIR}/acme_srv.cfg"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        CFG_SOURCE: ${{ inputs.CFG_SOURCE }}
+        CA_SOURCE_DIR: ${{ inputs.CA_SOURCE_DIR }}

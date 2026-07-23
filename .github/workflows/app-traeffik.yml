@@ -90,10 +90,9 @@ jobs:
           NAME_SPACE: acme
 
       - name: "Setup openssl ca_handler"
-        run: |
-          sudo mkdir -p examples/Docker/data/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: examples/Docker/data
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -104,41 +103,28 @@ jobs:
       - name: "Wait for ACME directory"
         uses: ./.github/actions/wait_for_directory
 
-      - name: "Setup and instanciate traefik"
-        run: |
-          mkdir -p traefik/certs/
-          sudo cp .github/acme2certifier_cabundle.pem traefik/certs/
-          sudo cp .github/traefik-matrix.yml traefik/docker-compose.yml
-          sudo sed -i "s/whoami.acme/${{ env.RUNNER_HOSTNAME }}/g" traefik/docker-compose.yml
-          sudo sed -i "s/CHALLENGE_TYPE/${{ matrix.challenge_type }}/g" traefik/docker-compose.yml
-          cd traefik
-          docker compose up -d
-
-      - name: "Sleep for 30s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Traefik enroll and verify certificate"
+        uses: ./.github/actions/wf_specific/traefik/enroll_check
         with:
-          time: 30s
-
-      - name: "Check for certificate"
-        working-directory: traefik
-        run: |
-          sudo cat letsencrypt/acme.json | jq -r '.a2c | .Certificates | . [] | .certificate ' | base64 -d |  awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
-          openssl verify -CAfile cert-3.pem -untrusted cert-2.pem cert-1.pem
+          CHALLENGE_TYPE: ${{ matrix.challenge_type }}
+          RUNNER_HOSTNAME: ${{ env.RUNNER_HOSTNAME }}
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
+        continue-on-error: true
         run: |
           mkdir -p ${{ github.workspace }}/artifact/upload
-          docker logs traefik > traefik/traefik.log
+          docker logs traefik > traefik/traefik.log 2>&1 || true
           sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp traefik/ ${{ github.workspace }}/artifact/traefik/
+          sudo cp -rp traefik/ ${{ github.workspace }}/artifact/traefik/ || true
           cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
+          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log || true
           sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data traefik
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
+        continue-on-error: true
         with:
           name: test-containers-${{ matrix.challenge_type }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
@@ -197,10 +183,7 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Setup openssl ca_handler"
-        run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
 
       - name: "Execute install script"
         run: |
@@ -211,43 +194,12 @@ jobs:
       - name: "Wait for ACME directory"
         uses: ./.github/actions/wait_for_directory
 
-      - name: "Setup and instanciate traefik"
-        run: |
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-          sudo apt update
-          sudo apt install -y docker-compose-plugin
-          mkdir -p traefik/certs/
-          sudo cp .github/acme2certifier_cabundle.pem traefik/certs/
-          sudo cp .github/traefik-matrix.yml traefik/docker-compose.yml
-          sudo sed -i "s/whoami.acme/${{ env.RUNNER_HOSTNAME }}/g" traefik/docker-compose.yml
-          sudo sed -i "s/CHALLENGE_TYPE/${{ matrix.challenge_type }}/g" traefik/docker-compose.yml
-          cd traefik
-          docker compose up -d
-
-      - name: "Sleep for 30s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Traefik enroll and verify certificate"
+        uses: ./.github/actions/wf_specific/traefik/enroll_check
         with:
-          time: 30s
-
-      - name: "Check for certificate"
-        working-directory: traefik
-        run: |
-          set -euo pipefail
-          if [ ! -f letsencrypt/acme.json ]; then
-            echo "acme.json missing — Traefik did not create ACME storage"
-            exit 1
-          fi
-          sudo cat letsencrypt/acme.json | jq .
-          CERT_B64="$(sudo cat letsencrypt/acme.json | jq -r '.a2c.Certificates[0].certificate // empty')"
-          if [ -z "$CERT_B64" ] || [ "$CERT_B64" = "null" ]; then
-            echo "No certificate in acme.json (Traefik enrollment failed)"
-            docker logs traefik || true
-            exit 1
-          fi
-          echo "$CERT_B64" | base64 -d | awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
-          ls -la cert-*.pem
-          openssl verify -CAfile cert-3.pem -untrusted cert-2.pem cert-1.pem
+          CHALLENGE_TYPE: ${{ matrix.challenge_type }}
+          RUNNER_HOSTNAME: ${{ env.RUNNER_HOSTNAME }}
+          INSTALL_COMPOSE_PLUGIN: "true"
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -331,12 +283,7 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Setup openssl ca_handler"
-        run: |
-          sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo sed -i "s/examples\/ca_handler/\/var\/www\/acme2certifier\/examples\/ca_handler/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
 
       - name: "Execute install script"
         run: |
@@ -348,49 +295,40 @@ jobs:
       - name: "Wait for ACME directory"
         uses: ./.github/actions/wait_for_directory
 
-      - name: "Setup and instanciate traefik"
-        run: |
-          curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --batch --yes --no-tty --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-          sudo apt update
-          sudo apt install -y docker-compose-plugin
-          mkdir -p traefik/certs/
-          sudo cp .github/acme2certifier_cabundle.pem traefik/certs/
-          sudo cp .github/traefik-matrix.yml traefik/docker-compose.yml
-          sudo sed -i "s/whoami.acme/${{ env.RUNNER_HOSTNAME }}/g" traefik/docker-compose.yml
-          sudo sed -i "s/CHALLENGE_TYPE/${{ matrix.challenge_type }}/g" traefik/docker-compose.yml
-          cd traefik
-          docker compose up -d
-
-      - name: "Sleep for 30s"
-        uses: juliangruber/sleep-action@v2.0.4
+      - name: "Traefik enroll and verify certificate"
+        uses: ./.github/actions/wf_specific/traefik/enroll_check
         with:
-          time: 30s
-
-      - name: "Check for certificate"
-        working-directory: traefik
-        run: |
-          sudo cat letsencrypt/acme.json | jq -r '.a2c | .Certificates | . [] | .certificate ' | base64 -d |  awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
-          openssl verify -CAfile cert-3.pem -untrusted cert-2.pem cert-1.pem
+          CHALLENGE_TYPE: ${{ matrix.challenge_type }}
+          RUNNER_HOSTNAME: ${{ env.RUNNER_HOSTNAME }}
+          INSTALL_COMPOSE_PLUGIN: "true"
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
+        continue-on-error: true
         run: |
+          set -euo pipefail
           mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier || true
           sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.deb
-          if [ ${{ matrix.websrv }} == "apache2" ]; then
-            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+          sudo rm -f ${{ github.workspace }}/artifact/data/*.deb
+          if [ "${{ matrix.websrv }}" = "apache2" ]; then
+            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log || true
           else
-            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
+            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log || true
           fi
-          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
+          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog || true
+          docker logs traefik > ${{ github.workspace }}/artifact/traefik.log 2>&1 || true
+          if [ -d traefik ]; then
+            sudo cp -rp traefik/ ${{ github.workspace }}/artifact/traefik/ || true
+          fi
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz \
+            data acme-srv.log syslog traefik.log traefik 2>/dev/null || \
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
+        continue-on-error: true
         with:
-          name: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}-${{ matrix.challenge_type }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
