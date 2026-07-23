@@ -19,9 +19,9 @@ runs:
         set -euo pipefail
         export DEBIAN_FRONTEND=noninteractive
         sudo apt-get update
-        # Match debian/control Build-Depends (+ dpkg-dev/fakeroot for dpkg-buildpackage).
+        # Match debian/control Build-Depends (+ dpkg tooling for dpkg-buildpackage).
         sudo apt-get -y install --no-install-recommends \
-          dpkg-dev fakeroot debhelper \
+          build-essential dpkg-dev fakeroot debhelper \
           dh-python pybuild-plugin-pyproject \
           python3-all python3-setuptools python3-build
         cp -R examples/install_scripts/debian ./
