@@ -145,26 +145,30 @@ sync_volume() {
 link_django_settings_from_volume() {
   local vol="${1:-}"
   local django_settings
+  local src=""
   django_settings="$(python3 -c "import acme2certifier.django_project, pathlib; print(pathlib.Path(acme2certifier.django_project.__file__).parent / 'settings.py')" 2>/dev/null || true)"
   if [[ -z "${django_settings}" ]]; then
     django_settings="/usr/lib/python3/dist-packages/acme2certifier/django_project/settings.py"
   fi
-  if [[ -n "${vol}" && -f "${vol}/acme2certifier/settings.py" ]]; then
-    echo "==> Linking Django settings from ${vol}/acme2certifier/settings.py"
-    ${SUDO} rm -f "${django_settings}"
-    ${SUDO} ln -sfn "${vol}/acme2certifier/settings.py" "${django_settings}"
-  elif [[ -n "${vol}" && -f "${vol}/settings.py" ]]; then
-    echo "==> Linking Django settings from ${vol}/settings.py"
-    ${SUDO} rm -f "${django_settings}"
-    ${SUDO} ln -sfn "${vol}/settings.py" "${django_settings}"
-  elif [[ -f "${APP_ROOT}/volume/acme2certifier/settings.py" ]]; then
-    echo "==> Linking Django settings from ${APP_ROOT}/volume/acme2certifier/settings.py"
-    ${SUDO} rm -f "${django_settings}"
-    ${SUDO} ln -sfn "${APP_ROOT}/volume/acme2certifier/settings.py" "${django_settings}"
+  # Prefer APP_ROOT/volume (survives Apache PrivateTmp). Never symlink into /tmp —
+  # systemd PrivateTmp for apache2 makes /tmp/... targets dangling in the worker.
+  if [[ -f "${APP_ROOT}/volume/acme2certifier/settings.py" ]]; then
+    src="${APP_ROOT}/volume/acme2certifier/settings.py"
   elif [[ -f "${APP_ROOT}/volume/settings.py" ]]; then
-    echo "==> Linking Django settings from ${APP_ROOT}/volume/settings.py"
+    src="${APP_ROOT}/volume/settings.py"
+  elif [[ -n "${vol}" && -f "${vol}/acme2certifier/settings.py" ]]; then
+    ${SUDO} mkdir -p "${APP_ROOT}/volume/acme2certifier"
+    ${SUDO} cp -f "${vol}/acme2certifier/settings.py" "${APP_ROOT}/volume/acme2certifier/settings.py"
+    src="${APP_ROOT}/volume/acme2certifier/settings.py"
+  elif [[ -n "${vol}" && -f "${vol}/settings.py" ]]; then
+    ${SUDO} mkdir -p "${APP_ROOT}/volume"
+    ${SUDO} cp -f "${vol}/settings.py" "${APP_ROOT}/volume/settings.py"
+    src="${APP_ROOT}/volume/settings.py"
+  fi
+  if [[ -n "${src}" ]]; then
+    echo "==> Linking Django settings from ${src}"
     ${SUDO} rm -f "${django_settings}"
-    ${SUDO} ln -sfn "${APP_ROOT}/volume/settings.py" "${django_settings}"
+    ${SUDO} ln -sfn "${src}" "${django_settings}"
   fi
 }
 
