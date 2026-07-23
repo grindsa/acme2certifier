@@ -5,8 +5,6 @@ Warns when deprecated ``*_file`` keys or legacy default CA-handler loading
 are used. Prefer ``handler_module`` / ``eab_handler_module`` / ``hooks_module``.
 """
 
-from __future__ import annotations
-
 import logging
 import warnings
 from typing import Optional, Set

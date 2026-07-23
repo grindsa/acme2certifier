@@ -5,8 +5,6 @@ Override via ACME2CERTIFIER_* env vars, or replace/symlink this module for
 production DB credentials (see examples/django for a MySQL template).
 """
 
-from __future__ import annotations
-
 import os
 
 _DEFAULT_BASE = "/var/www/acme2certifier"

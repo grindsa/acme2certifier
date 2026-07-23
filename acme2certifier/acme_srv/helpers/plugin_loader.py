@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """Plugin loading utilities for acme2certifier"""
 
-from __future__ import annotations
-
 import importlib
 import importlib.util
 import logging
