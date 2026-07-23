@@ -25,6 +25,7 @@
 #   ./examples/install_scripts/a2c-deb.sh -d './acme2certifier_*.deb' -m django -w nginx
 #   ./examples/install_scripts/a2c-deb.sh install nginx -m django
 #   ./examples/install_scripts/a2c-deb.sh restart apache2
+#   ./examples/install_scripts/a2c-deb.sh restart nginx -m django
 #   ./examples/install_scripts/a2c-deb.sh --restart -w nginx --volume-dir /tmp/acme2certifier/volume
 #
 # Notes:
@@ -36,6 +37,7 @@
 set -euo pipefail
 
 MODE="wsgi"
+MODE_EXPLICIT=0
 WEBSRV="apache2"
 ACTION="install"
 DEB_PATH=""
@@ -172,6 +174,37 @@ link_django_settings_from_volume() {
   fi
 }
 
+# Normalize handler / handler_module value to short name (wsgi|django) or empty.
+normalize_dbhandler_mode() {
+  local value="${1:-}"
+  case "${value}" in
+    django|*django_handler*) echo "django" ;;
+    wsgi|*wsgi_handler*) echo "wsgi" ;;
+    *) echo "${value}" ;;
+  esac
+}
+
+# Read [DBhandler] handler / handler_module from cfg (short name or empty).
+get_dbhandler_mode() {
+  local cfg="${1:-${CFG}}"
+  local raw=""
+  if [[ ! -f "${cfg}" ]]; then
+    echo ""
+    return 0
+  fi
+  raw="$(${SUDO} awk '
+    /^\[DBhandler\]/ { in_sec=1; next }
+    /^\[/ { in_sec=0 }
+    in_sec && /^[[:space:]]*#*[[:space:]]*handler(_module)?[[:space:]]*:/ {
+      sub(/^[^:]*:[[:space:]]*/, "")
+      gsub(/[[:space:]]/, "")
+      print
+      exit
+    }
+  ' "${cfg}" 2>/dev/null || true)"
+  normalize_dbhandler_mode "${raw}"
+}
+
 # Set [DBhandler] handler=MODE without touching [CAhandler] handler_module.
 set_dbhandler_mode() {
   local mode="$1"
@@ -222,6 +255,10 @@ do_restart() {
     echo "ERROR: --restart requires a volume dir (pass --volume-dir or mount /tmp/acme2certifier/volume)" >&2
     exit 1
   fi
+  # Preserve install-time DBhandler; volume cfg often lacks [DBhandler] and would
+  # otherwise fall back to default wsgi (empty SQLite) after restart.
+  local prev_mode
+  prev_mode="$(get_dbhandler_mode "${CFG}")"
   # Legacy parity: refresh cfg + acme_ca, then full volume tree.
   if [[ -f "${VOLUME_DIR}/acme_srv.cfg" ]]; then
     ${SUDO} cp -f "${VOLUME_DIR}/acme_srv.cfg" "${CFG}"
@@ -231,9 +268,22 @@ do_restart() {
     ${SUDO} cp -a "${VOLUME_DIR}/acme_ca/." "${APP_ROOT}/volume/acme_ca/"
   fi
   sync_volume "${VOLUME_DIR}"
+  local effective_mode=""
+  if [[ "${MODE_EXPLICIT}" -eq 1 ]]; then
+    effective_mode="${MODE}"
+  else
+    effective_mode="$(get_dbhandler_mode "${CFG}")"
+    if [[ -z "${effective_mode}" ]]; then
+      effective_mode="${prev_mode}"
+    fi
+    if [[ -z "${effective_mode}" ]]; then
+      effective_mode="${MODE}"
+    fi
+  fi
+  set_dbhandler_mode "${effective_mode}"
   ${SUDO} chown -R www-data:www-data "${APP_ROOT}"
   restart_services
-  echo "Done. restarted webserver=${WEBSRV}"
+  echo "Done. restarted webserver=${WEBSRV} mode=${effective_mode}"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -265,6 +315,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -m|--mode)
       MODE="${2:-}"
+      MODE_EXPLICIT=1
       shift 2
       ;;
     -w|--webserver|--websrv)
