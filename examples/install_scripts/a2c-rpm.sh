@@ -31,7 +31,10 @@
 # Notes:
 #   - Works on AlmaLinux / RHEL / Rocky / CentOS Stream 8 and 9 (dnf or yum).
 #   - Installs EPEL + nginx + uWSGI stack (soft Recommends of the RPM).
-#   - EL8 may need newer cryptography/dns/jwcrypto from the A2C RPM repo; see docs/install_rpm.md.
+#   - EL8 may need newer cryptography/dns/jwcrypto from the A2C RPM repo; see
+#     docs/install_rpm.md. CI installs those via .github/actions/rpm_prep.
+#   - MSSQL (msodbcsql18 / mssql-django) is also installed by rpm_prep when
+#     DJANGO_DB=mssql — not by this script.
 #   - CI-only host tweaks (syslog-ng/krb5, nginx.conf trim) stay in rpm_prep, not here.
 
 set -euo pipefail
@@ -196,25 +199,6 @@ set_dbhandler_mode() {
       /^[[:space:]]*#*[[:space:]]*handler\(_module\)\?:/d
     }' "${CFG}"
   ${SUDO} sed -i "/^\[DBhandler\]/a handler: ${mode}" "${CFG}"
-}
-
-maybe_install_mssql() {
-  local pkg=""
-  if [[ -n "${DATA_DIR}" && -f "${DATA_DIR}/packages-microsoft-prod.rpm" ]]; then
-    pkg="${DATA_DIR}/packages-microsoft-prod.rpm"
-  elif [[ -f /tmp/acme2certifier/packages-microsoft-prod.rpm ]]; then
-    pkg="/tmp/acme2certifier/packages-microsoft-prod.rpm"
-  fi
-  if [[ -z "${pkg}" ]]; then
-    return 0
-  fi
-  echo "==> Installing Microsoft ODBC / mssql-django from ${pkg}"
-  ${SUDO} ${PKG} localinstall -y "${pkg}" || true
-  ACCEPT_EULA=Y ${SUDO} ${PKG} install -y msodbcsql18 python3-pip python3-pyodbc || true
-  if command -v pip3 >/dev/null 2>&1; then
-    ${SUDO} ${PKG} install -y gcc gcc-c++ python3-devel unixODBC-devel || true
-    ${SUDO} pip3 install mssql-django==1.3 || ${SUDO} pip3 install mssql-django || true
-  fi
 }
 
 maybe_overlay_nginx_from_data() {
@@ -385,7 +369,6 @@ if [[ "${MODE}" == "django" ]]; then
   for cand in python3-pyyaml python3-mysqlclient python3-PyMySQL python3-psycopg2 python3-sqlparse; do
     ${SUDO} ${PKG} install -y "${cand}" 2>/dev/null || true
   done
-  maybe_install_mssql
   if ! ${SUDO} python3 -c "import django; print('django', django.get_version())"; then
     echo "ERROR: Django RPM installed but 'import django' failed" >&2
     exit 1
