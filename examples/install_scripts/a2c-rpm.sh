@@ -174,6 +174,24 @@ link_django_settings_from_volume() {
   fi
 }
 
+# Set [DBhandler] handler=MODE without touching [CAhandler] handler_module.
+set_dbhandler_mode() {
+  local mode="$1"
+  echo "==> Setting DBhandler to ${mode}"
+  if ! ${SUDO} grep -q '^\[DBhandler\]' "${CFG}"; then
+    printf '\n[DBhandler]\nhandler: %s\n' "${mode}" | ${SUDO} tee -a "${CFG}" >/dev/null
+    return 0
+  fi
+  # Drop handler / handler_module only inside [DBhandler].
+  ${SUDO} sed -i \
+    '/^\[DBhandler\]/,/^\[/{
+      /^\[DBhandler\]/b
+      /^\[/b
+      /^[[:space:]]*#*[[:space:]]*handler\(_module\)\?:/d
+    }' "${CFG}"
+  ${SUDO} sed -i "/^\[DBhandler\]/a handler: ${mode}" "${CFG}"
+}
+
 maybe_install_mssql() {
   local pkg=""
   if [[ -n "${DATA_DIR}" && -f "${DATA_DIR}/packages-microsoft-prod.rpm" ]]; then
@@ -402,17 +420,7 @@ else
   ${SUDO} sed -i "s|^[[:space:]]*dbfile:.*|dbfile: ${APP_ROOT}/acme_srv.db|" "${CFG}"
 fi
 
-echo "==> Setting DBhandler to ${MODE}"
-if ${SUDO} grep -qE '^handler(_module)?:' "${CFG}"; then
-  ${SUDO} sed -i "s/^#* *handler:.*/handler: ${MODE}/" "${CFG}"
-  ${SUDO} sed -i "/^handler_module:/d" "${CFG}" || true
-else
-  if ${SUDO} grep -q '^\[DBhandler\]' "${CFG}"; then
-    ${SUDO} sed -i "/^\[DBhandler\]/a handler: ${MODE}" "${CFG}"
-  else
-    printf '\n[DBhandler]\nhandler: %s\n' "${MODE}" | ${SUDO} tee -a "${CFG}" >/dev/null
-  fi
-fi
+set_dbhandler_mode "${MODE}"
 
 echo "==> Configuring Nginx (conf.d) + uWSGI module (${MODE})"
 ${SUDO} cp "${SHARE}/nginx/nginx_acme_srv.conf" /etc/nginx/conf.d/nginx_acme_srv.conf
