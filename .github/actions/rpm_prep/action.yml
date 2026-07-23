@@ -54,6 +54,11 @@ runs:
         sudo cp examples/install_scripts/a2c-rpm.sh data/a2c-rpm.sh
         sudo chmod a+rx data/a2c-rpm.sh
         sudo touch data/.a2c_ci
+        # Nginx SSL vhost uses ${APP_ROOT}/volume/acme2certifier_{cert,key}.pem
+        # (see a2c-rpm.sh). Stage CI TLS material there so Traefik/LEGO_CA_CERTIFICATES
+        # can verify https://acme-srv.acme — data/nginx/ alone is not enough.
+        sudo cp .github/acme2certifier_cert.pem data/volume/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem data/volume/acme2certifier_key.pem
         sudo cp .github/acme2certifier_cert.pem data/nginx/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem data/nginx/acme2certifier_key.pem
         if [ -f ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm ]; then

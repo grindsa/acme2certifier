@@ -479,6 +479,17 @@ if [[ "${ENABLE_SSL}" -eq 1 ]]; then
   CERT="${APP_ROOT}/volume/acme2certifier_cert.pem"
   KEY="${APP_ROOT}/volume/acme2certifier_key.pem"
   if [[ ! -f "${CERT}" || ! -f "${KEY}" ]]; then
+    # Prefer CI-provided material from DATA_DIR (volume/ or nginx/) over self-signed.
+    for src_dir in "${VOLUME_DIR}" "${DATA_DIR}/volume" "${DATA_DIR}/nginx"; do
+      if [[ -n "${src_dir}" && -f "${src_dir}/acme2certifier_cert.pem" && -f "${src_dir}/acme2certifier_key.pem" ]]; then
+        echo "==> Seeding TLS cert/key from ${src_dir}"
+        ${SUDO} cp -f "${src_dir}/acme2certifier_cert.pem" "${CERT}"
+        ${SUDO} cp -f "${src_dir}/acme2certifier_key.pem" "${KEY}"
+        break
+      fi
+    done
+  fi
+  if [[ ! -f "${CERT}" || ! -f "${KEY}" ]]; then
     echo "==> Generating self-signed TLS cert/key"
     ${SUDO} openssl req -x509 -nodes -newkey rsa:2048 \
       -keyout "${KEY}" \

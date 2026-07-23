@@ -233,32 +233,48 @@ jobs:
       - name: "Check for certificate"
         working-directory: traefik
         run: |
-          sudo cat letsencrypt/acme.json | jq -r '.a2c | .Certificates | . [] | .certificate ' | base64 -d |  awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
+          set -euo pipefail
+          if [ ! -f letsencrypt/acme.json ]; then
+            echo "acme.json missing — Traefik did not create ACME storage"
+            exit 1
+          fi
+          sudo cat letsencrypt/acme.json | jq .
+          CERT_B64="$(sudo cat letsencrypt/acme.json | jq -r '.a2c.Certificates[0].certificate // empty')"
+          if [ -z "$CERT_B64" ] || [ "$CERT_B64" = "null" ]; then
+            echo "No certificate in acme.json (Traefik enrollment failed)"
+            docker logs traefik || true
+            exit 1
+          fi
+          echo "$CERT_B64" | base64 -d | awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}'
+          ls -la cert-*.pem
           openssl verify -CAfile cert-3.pem -untrusted cert-2.pem cert-1.pem
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         continue-on-error: true
         run: |
+          set -euo pipefail
           mkdir -p ${{ github.workspace }}/artifact/upload
-          mkdir -p ${{ github.workspace }}/artifact/clients
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier || true
           sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          # sudo cp *.pem ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/clients/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/clients/certbot/
-          sudo cp -rp lego/ ${{ github.workspace }}/artifact/clients/lego/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data clients acme-srv.log
+          sudo rm -f ${{ github.workspace }}/artifact/data/*.rpm
+          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig || true
+          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf || true
+          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log || true
+          docker logs traefik > ${{ github.workspace }}/artifact/traefik.log 2>&1 || true
+          if [ -d traefik ]; then
+            sudo cp -rp traefik/ ${{ github.workspace }}/artifact/traefik/ || true
+          fi
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz \
+            data acme-srv.log traefik.log traefik 2>/dev/null || \
+          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
+        continue-on-error: true
         with:
-          name: test-rpms-rh${{ matrix.rhversion }}-${{ matrix.mode}}.tar.gz
+          name: test-rpms-rh${{ matrix.rhversion }}-${{ matrix.mode}}-${{ matrix.challenge_type }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
