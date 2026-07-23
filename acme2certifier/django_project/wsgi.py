@@ -2,8 +2,6 @@
 WSGI config for acme2certifier Django project.
 """
 
-from __future__ import annotations
-
 import os
 import sys
 

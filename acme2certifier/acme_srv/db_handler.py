@@ -11,8 +11,6 @@ Precedence (cfg wins over env, matching CAhandler password loading):
 3. default ``wsgi``
 """
 
-from __future__ import annotations
-
 import importlib
 import logging
 import os

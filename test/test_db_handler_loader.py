@@ -1,8 +1,6 @@
 # -*- coding: utf-8 -*-
 """Tests for selectable DB handler resolution."""
 
-from __future__ import annotations
-
 import importlib
 import logging
 import os

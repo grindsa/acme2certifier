@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Strip pip venv python-home from Apache vhosts for Debian packages."""
 
-from __future__ import annotations
-
 import re
 import sys
 from pathlib import Path
