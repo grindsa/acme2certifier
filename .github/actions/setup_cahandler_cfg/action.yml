@@ -10,10 +10,11 @@ inputs:
     required: false
     default: ".github/acme_srv.openssl.cfg"
   HANDLER_MODULE:
-    description: "Dotted Python module for CAhandler.handler_module"
-    required: true
+    description: "Dotted Python module for CAhandler.handler_module (omit when using handler_file in OPTIONS)"
+    required: false
+    default: ""
   OPTIONS:
-    description: "Extra [CAhandler] options (multiline). Expand secrets in the caller (e.g. env.VAR)."
+    description: "Extra [CAhandler] options (multiline). Expand secrets in the caller before passing."
     required: false
     default: ""
   EXTRA_SECTIONS:
@@ -42,7 +43,9 @@ runs:
         awk '1; /^\[CAhandler\][[:space:]]*$/ { exit }' "${CFG_SOURCE}" | sudo tee "${cfg}" >/dev/null
 
         {
-          echo "handler_module: ${HANDLER_MODULE}"
+          if [[ -n "${HANDLER_MODULE}" ]]; then
+            echo "handler_module: ${HANDLER_MODULE}"
+          fi
           if [[ -n "${OPTIONS}" ]]; then
             # Callers should expand secrets in OPTIONS before passing the input.
             printf '%s\n' "${OPTIONS}"
