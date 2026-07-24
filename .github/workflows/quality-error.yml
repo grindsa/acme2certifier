@@ -154,6 +154,11 @@ jobs:
         with:
           CA_ERROR_FORWARDING: "false"
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/quality_error_xca.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "Setup a2c with xca_ca_handler"
         run: |
           sudo echo -e "\n\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
@@ -163,20 +168,6 @@ jobs:
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/ca_error_details_forward: false/unknown_key: unknown_value/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"ca_error_details_forward\"\: \"True\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"ca_error_details_forward\"\: \"False\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '22,24d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
-
-          cat examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
 
