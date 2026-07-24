@@ -401,8 +401,10 @@ if [[ "${INSTALL_PKCS12}" -eq 1 ]]; then
   ${SUDO} apt-get install -y python3-pip
   # --no-deps: keep apt python3-cryptography / python3-openssl; a full pip
   # resolve upgrades cryptography and breaks pyOpenSSL (GEN_EMAIL AttributeError).
-  ${SUDO} pip3 install --break-system-packages --no-deps requests-pkcs12 || \
-    ${SUDO} pip install --break-system-packages --no-deps requests-pkcs12 || true
+  # Pin <1.23: 1.23+ requires cryptography>=42 (not_valid_after_utc); Ubuntu 24.04
+  # apt cryptography is older and only exposes not_valid_after.
+  ${SUDO} pip3 install --break-system-packages --no-deps 'requests-pkcs12<1.23' || \
+    ${SUDO} pip install --break-system-packages --no-deps 'requests-pkcs12<1.23' || true
 fi
 
 ${SUDO} mkdir -p "${APP_ROOT}/volume" "${APP_ROOT}/acme_srv"
