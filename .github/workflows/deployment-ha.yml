@@ -298,8 +298,8 @@ jobs:
 
           docker exec alma9-c1 sh -c "head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf"
           docker exec alma9-c1 sh -c "echo '}' >> /etc/nginx/nginx.conf"
-          docker exec alma9-c1 bash -c 'CFG=/opt/acme2certifier/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
-          docker exec alma9-c1 rm -f /opt/acme2certifier/acme_srv.cfg
+          docker exec alma9-c1 mv /opt/acme2certifier/acme_srv.cfg /opt/acme2certifier/volume/acme_srv.cfg
+          docker exec alma9-c1 bash -c 'CFG=/opt/acme2certifier/volume/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
           docker exec alma9-c1 ln -s /opt/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv.cfg
           docker exec alma9-c1 systemctl enable acme2certifier
           docker exec alma9-c1 systemctl start acme2certifier
@@ -321,7 +321,6 @@ jobs:
 
           docker exec alma9-c2 sh -c "head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf"
           docker exec alma9-c2 sh -c "echo '}' >> /etc/nginx/nginx.conf"
-          docker exec alma9-c2 bash -c 'CFG=/opt/acme2certifier/acme_srv.cfg; sed -i "s/^# handler: django$/handler: django/" "$CFG"; if ! grep -qE "^handler(_module)?:" "$CFG"; then if grep -q "^\[DBhandler\]" "$CFG"; then sed -i "/\[DBhandler\]/a handler: django" "$CFG"; else printf "\n[DBhandler]\nhandler: django\n" >> "$CFG"; fi; fi'
           docker exec alma9-c2 rm -f /opt/acme2certifier/acme_srv.cfg
           docker exec alma9-c2 ln -s /opt/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv.cfg
           docker exec alma9-c2 systemctl enable acme2certifier
@@ -339,6 +338,12 @@ jobs:
         run: |
           sudo sed -i "s#volume/acme_ca/#/opt/acme2certifier/volume/acme_ca/#g" data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+          if ! grep -qE '^\[DBhandler\]' data/volume/acme_srv.cfg; then
+            printf '\n[DBhandler]\nhandler: django\n' | sudo tee -a data/volume/acme_srv.cfg >/dev/null
+          else
+            sudo sed -i 's/^# handler: django$/handler: django/' data/volume/acme_srv.cfg
+            grep -qE '^handler: django$' data/volume/acme_srv.cfg || sudo sed -i '/^\[DBhandler\]/a handler: django' data/volume/acme_srv.cfg
+          fi
           docker exec alma9-c1 sh -c "cp -r /tmp/acme2certifier/volume/* /opt/acme2certifier/volume/"
           docker exec alma9-c1 chown -R nginx.nginx /opt/acme2certifier/volume/
 
@@ -357,7 +362,7 @@ jobs:
           sudo sed -i "s/mariadbsrv.acme/alma9-c1.acme/g" data/alma9-c1-settings.py
           sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/alma9-c1-settings.py
           sudo sed -i "s/\"PASSWORD\": \"1mmSvDFl\"/\"PASSWORD\": \"a2cpasswd\"/g" data/alma9-c1-settings.py
-          docker exec alma9-c1 cp /tmp/acme2certifier/alma9-c1-settings.py /opt/acme2certifier/acme2certifier/settings.py
+          docker exec alma9-c1 cp /tmp/acme2certifier/alma9-c1-settings.py /opt/acme2certifier/acme2certifier/django_project/settings.py
           docker exec alma9-c1 sh -c "cd /opt/acme2certifier/ && a2c-manage migrate && a2c-manage loaddata status"
           docker exec alma9-c1 systemctl restart acme2certifier.service
 
@@ -365,7 +370,7 @@ jobs:
           sudo sed -i "s/mariadbsrv.acme/alma9-c2.acme/g" data/alma9-c2-settings.py
           sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/alma9-c2-settings.py
           sudo sed -i "s/\"PASSWORD\": \"1mmSvDFl\"/\"PASSWORD\": \"a2cpasswd\"/g" data/alma9-c2-settings.py
-          docker exec alma9-c2 cp /tmp/acme2certifier/alma9-c2-settings.py /opt/acme2certifier/acme2certifier/settings.py
+          docker exec alma9-c2 cp /tmp/acme2certifier/alma9-c2-settings.py /opt/acme2certifier/acme2certifier/django_project/settings.py
           docker exec alma9-c2 systemctl restart acme2certifier.service
 
       - name: "Sleep for 5s"
