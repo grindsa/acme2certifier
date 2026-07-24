@@ -1,0 +1,105 @@
+name: "certifier_reconfigure"
+description: "Write certifier/cmp acme_srv.cfg, optional CA certs, and restart by deployment type"
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb"
+    required: true
+  VOLUME_DIR:
+    description: "Volume directory containing acme_srv.cfg"
+    required: true
+  HANDLER_MODULE:
+    description: "CAhandler.handler_module"
+    required: true
+  OPTIONS:
+    description: "[CAhandler] options (multiline)"
+    required: false
+    default: ""
+  EXTRA_SECTIONS:
+    description: "Extra cfg sections (multiline)"
+    required: false
+    default: ""
+  CERTIFICATE_OPTIONS:
+    description: "Lines after [Certificate] (default enrollment_timeout)"
+    required: false
+    default: "enrollment_timeout: 15"
+  ORDER_OPTIONS:
+    description: "Lines after [Order]"
+    required: false
+    default: ""
+  COPY_CA_CERTS:
+    description: "Copy test/ca/certsrv_ca_certs.pem into volume"
+    required: false
+    default: "false"
+  CA_CERTS_DEST:
+    description: "Destination path for ca certs when COPY_CA_CERTS=true"
+    required: false
+    default: ""
+  RESTART:
+    description: "Restart a2c after writing cfg"
+    required: false
+    default: "true"
+  WEBSRV:
+    description: "Web server for deb restart (apache2|nginx)"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Write acme_srv.cfg"
+      uses: ./.github/actions/setup_cahandler_cfg
+      with:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        HANDLER_MODULE: ${{ inputs.HANDLER_MODULE }}
+        OPTIONS: ${{ inputs.OPTIONS }}
+        EXTRA_SECTIONS: ${{ inputs.EXTRA_SECTIONS }}
+        CERTIFICATE_OPTIONS: ${{ inputs.CERTIFICATE_OPTIONS }}
+        ORDER_OPTIONS: ${{ inputs.ORDER_OPTIONS }}
+
+    - name: "Copy CA certs"
+      if: ${{ inputs.COPY_CA_CERTS == 'true' }}
+      run: |
+        set -euo pipefail
+        dest="${CA_CERTS_DEST}"
+        if [[ -z "${dest}" ]]; then
+          if [[ "${DEPLOYMENT_TYPE}" == "container" ]]; then
+            dest="${VOLUME_DIR}/ca_certs.pem"
+          else
+            dest="${VOLUME_DIR}/acme_ca/ca_certs.pem"
+          fi
+        fi
+        sudo mkdir -p "$(dirname "${dest}")"
+        sudo cp test/ca/certsrv_ca_certs.pem "${dest}"
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        CA_CERTS_DEST: ${{ inputs.CA_CERTS_DEST }}
+
+    - name: "Restart a2c"
+      if: ${{ inputs.RESTART == 'true' }}
+      run: |
+        set -euo pipefail
+        case "${DEPLOYMENT_TYPE}" in
+          container)
+            (cd examples/Docker && docker compose restart)
+            ;;
+          rpm)
+            docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+            ;;
+          deb)
+            if [[ -z "${WEBSRV}" ]]; then
+              echo "ERROR: WEBSRV is required for deb restart" >&2
+              exit 1
+            fi
+            docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart "${WEBSRV}"
+            ;;
+          *)
+            echo "ERROR: unknown DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2
+            exit 1
+            ;;
+        esac
+      shell: bash
+      env:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        WEBSRV: ${{ inputs.WEBSRV }}
