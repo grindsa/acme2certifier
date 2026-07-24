@@ -87,7 +87,7 @@ jobs:
           mkdir certbot
 
 
-      - name: "Setup a2c with xca_ca_handler"
+      - name: "Prepare customized ca_handler and XCA assets"
         run: |
           sudo cp acme2certifier/cahandlers/xca_ca_handler.py examples/Docker/data/ca_handler.py
           sudo chmod 777 examples/Docker/data/ca_handler.py
@@ -96,17 +96,23 @@ jobs:
           sudo mkdir -p examples/Docker/data/xca
           sudo chmod -R 777 examples/Docker/data/xca
           sudo cp test/ca/acme2certifier-clean.xdb examples/Docker/data/xca/$XCA_DB_NAME
-
           sudo mkdir -p examples/Docker/data/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
+
+      - name: "Setup a2c with customized xca ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          OPTIONS: |
+            handler_file: volume/ca_handler.py
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Setup a2c with customized xca ca_handler (post-cfg)"
+        run: |
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
@@ -199,26 +205,30 @@ jobs:
         run: |
           mkdir lego
 
-      - name: "Setup acme_srv.cfg with xca_ca_handler"
+      - name: "Prepare customized ca_handler and XCA assets"
         run: |
           mkdir -p data/volume/acme_ca/certs
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-
           sudo cp acme2certifier/cahandlers/xca_ca_handler.py data/volume/ca_handler.py
           sudo chmod 777 data/volume/ca_handler.py
           sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
           sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" data/volume/ca_handler.py
 
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /opt/acme2certifier/volume/ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
+      - name: "Setup acme_srv.cfg with customized xca ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          OPTIONS: |
+            handler_file: /opt/acme2certifier/volume/ca_handler.py
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Setup acme_srv.cfg with customized xca ca_handler (post-cfg)"
+        run: |
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
       - name: "Execute install scipt"
@@ -321,26 +331,30 @@ jobs:
         run: |
           mkdir lego
 
-      - name: "Setup acme_srv.cfg with xca_ca_handler"
+      - name: "Prepare customized ca_handler and XCA assets"
         run: |
           mkdir -p data/volume/acme_ca/certs
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
-
           sudo cp acme2certifier/cahandlers/xca_ca_handler.py data/volume/ca_handler.py
           sudo chmod 777 data/volume/ca_handler.py
           sudo sed -i "s/error = eab_profile_header_info_check(self.logger, self, csr, self.profile_mapping_field)/qset = header_info_get(self.logger, csr=csr)\n            if qset:\n                self.logger.info('customized header_info: %s', qset[-1]['header_info'])/g" data/volume/ca_handler.py
           sudo sed -i "s/eab_profile_header_info_check/header_info_get/g" data/volume/ca_handler.py
 
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_file: /var/www/acme2certifier/volume/ca_handler.py" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
+      - name: "Setup acme_srv.cfg with customized xca ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          OPTIONS: |
+            handler_file: /var/www/acme2certifier/volume/ca_handler.py
+            xdb_file: /var/www/acme2certifier/volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Setup acme_srv.cfg with customized xca ca_handler (post-cfg)"
+        run: |
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
