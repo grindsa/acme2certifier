@@ -1,4 +1,4 @@
-name: Feature Tests - custom db-file
+name: Feature Tests - custom db-file and url_prefix
 on:
   workflow_dispatch:
     inputs:
@@ -87,8 +87,6 @@ jobs:
           sudo echo "dbfile: volume/a2c.db" >> examples/Docker/data/acme_srv.cfg
           sudo echo "[Directory]" >> examples/Docker/data/acme_srv.cfg
           sudo echo "url_prefix: /foo" >> examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -102,7 +100,7 @@ jobs:
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
         with:
-          DB_HANDLER: wsgi
+          DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "[ * ] Collecting test logs"

@@ -340,6 +340,22 @@ def default_wsgi_dbfile() -> str:
     return os.path.join(default_deploy_base_dir(), "acme_srv.db")
 
 
+def resolve_config_path(path: Optional[str]) -> Optional[str]:
+    """Resolve relative config paths against ``ACME2CERTIFIER_BASE_DIR``.
+
+    Absolute paths are unchanged. Relative paths without ``ACME2CERTIFIER_BASE_DIR``
+    stay relative (process CWD), matching openssl CA handler behavior.
+    """
+    if not path:
+        return path
+    if os.path.isabs(path):
+        return path
+    base_dir = os.environ.get("ACME2CERTIFIER_BASE_DIR")
+    if not base_dir:
+        return path
+    return os.path.normpath(os.path.join(base_dir, path))
+
+
 def _default_acme_srv_cfg_file(
     logger: Optional[logging.Logger] = None,
 ) -> str:

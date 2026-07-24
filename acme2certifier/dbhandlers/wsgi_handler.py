@@ -13,6 +13,7 @@ from acme2certifier.acme_srv.helper import (
     datestr_to_date,
     default_wsgi_dbfile,
     load_config,
+    resolve_config_path,
 )
 from acme2certifier.acme_srv.version import __dbversion__
 
@@ -53,7 +54,8 @@ class DBstore(object):
                 # over dist-packages next to this module (not writable by www-data).
                 db_name = default_wsgi_dbfile()
 
-        self.db_name = db_name
+        # Relative dbfile (e.g. volume/a2c.db) → $ACME2CERTIFIER_BASE_DIR under mod_wsgi.
+        self.db_name = resolve_config_path(db_name)
 
         if not os.path.exists(self.db_name):
             self._db_create()
