@@ -373,20 +373,23 @@ jobs:
           cp /tmp/sbom/rpm-repo/RPMs/rhel9/*.rpm  data
 
       - name: "Prepare acme_srv.cfg with xca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Prepare acme_srv.cfg with xca_ca_handler (post-cfg)"
         run: |
           sudo mkdir acme-sh
           sudo mkdir -p data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
 
       - name: "Almalinux instance"
         run: |
@@ -537,19 +540,22 @@ jobs:
           cp /tmp/sbom/rpm-repo/RPMs/rhel9/*.rpm  data
 
       - name: "Configure acme2certifier"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Configure acme2certifier (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
 
       - name: "Almalinux instance"
         run: |
@@ -694,19 +700,22 @@ jobs:
           cp /tmp/sbom/rpm-repo/RPMs/rhel9/*.rpm  data
 
       - name: "Configure acme2certifier"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Configure acme2certifier (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
 
       - name: "Almalinux instance"
         run: |
@@ -854,19 +863,22 @@ jobs:
           cp /tmp/sbom/rpm-repo/RPMs/rhel9/*.rpm  data
 
       - name: "Configure acme2certifier"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/acme_ca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Configure acme2certifier (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem data/volume/acme_ca/
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/acme_ca/$XCA_DB_NAME
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: volume/acme_ca/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
 
       - name: "Almalinux instance"
         run: |
@@ -885,7 +897,6 @@ jobs:
         run: |
           docker run -i -v "$(pwd)/lego":/.lego/ --network acme --rm --name lego goacme/lego run -s https://acme-srv.acme -a --email "lego@example.com"  -d lego.acme --tls-skip-verify --http --renew-days 364 --no-random-sleep
           docker run -i --rm --name certbot --network acme -v "$(pwd)/certbot":/etc/letsencrypt/ certbot/certbot certonly --server https://acme-srv.acme --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot.acme --cert-name certbot --force-renewal
-
 
       - name: "Update acme2certifier"
         run: |
@@ -1013,16 +1024,19 @@ jobs:
           docker exec acme-srv systemctl start apache2
 
       - name: "Setup xca-handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Setup xca-handler (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
 
           docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg
@@ -1162,16 +1176,19 @@ jobs:
           docker exec acme-srv systemctl start apache2
 
       - name: "Setup xca-handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Setup xca-handler (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
           sudo cp .github/django_settings.py data/volume/settings.py
           docker exec acme-srv cp /tmp/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg
@@ -1339,16 +1356,19 @@ jobs:
           docker exec acme-srv systemctl start apache2
 
       - name: "Setup xca-handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Setup xca-handler (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
 
           sudo cp .github/django_settings_mariadb.py data/volume/settings.py
@@ -1523,16 +1543,19 @@ jobs:
           docker exec acme-srv systemctl start apache2
 
       - name: "Setup xca-handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: /var/www/acme2certifier/volume/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: ${{ env.XCA_ISSUING_CA }}
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            ca_cert_chain_list: ["root-ca"]
+            template_name: ${{ env.XCA_TEMPLATE }}
+
+      - name: "Setup xca-handler (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "xdb_file: /var/www/acme2certifier/volume/$XCA_DB_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "issuing_ca_name: $XCA_ISSUING_CA" >> data/volume/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> data/volume/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> data/volume/acme_srv.cfg
           sudo cp test/ca/acme2certifier-clean.xdb data/volume/$XCA_DB_NAME
 
           sudo cp .github/django_settings_psql.py data/volume/settings.py

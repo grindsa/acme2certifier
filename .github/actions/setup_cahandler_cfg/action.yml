@@ -1,0 +1,69 @@
+name: "setup_cahandler_cfg"
+description: "Write acme_srv.cfg from openssl base, replacing [CAhandler] body with handler_module + options"
+inputs:
+  VOLUME_DIR:
+    description: "Target volume directory (acme_srv.cfg is written here)"
+    required: false
+    default: "data/volume"
+  CFG_SOURCE:
+    description: "Base acme_srv.cfg (sections above [CAhandler] are kept)"
+    required: false
+    default: ".github/acme_srv.openssl.cfg"
+  HANDLER_MODULE:
+    description: "Dotted Python module for CAhandler.handler_module"
+    required: true
+  OPTIONS:
+    description: "Extra [CAhandler] options (multiline). Use ${{ env.VAR }} for secrets."
+    required: false
+    default: ""
+  EXTRA_SECTIONS:
+    description: "Additional cfg sections to append (e.g. [EABhandler]). Multiline."
+    required: false
+    default: ""
+  PATH_REWRITE_FROM:
+    description: "Optional substring to rewrite in the finished cfg"
+    required: false
+    default: ""
+  PATH_REWRITE_TO:
+    description: "Replacement for PATH_REWRITE_FROM"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Write acme_srv.cfg"
+      run: |
+        set -euo pipefail
+        cfg="${VOLUME_DIR}/acme_srv.cfg"
+        sudo mkdir -p "${VOLUME_DIR}"
+
+        # Keep base cfg through the [CAhandler] header; drop openssl-specific body.
+        awk '1; /^\[CAhandler\][[:space:]]*$/ { exit }' "${CFG_SOURCE}" | sudo tee "${cfg}" >/dev/null
+
+        {
+          echo "handler_module: ${HANDLER_MODULE}"
+          if [[ -n "${OPTIONS}" ]]; then
+            # Callers should expand secrets via ${{ env.VAR }} in OPTIONS.
+            printf '%s\n' "${OPTIONS}"
+          fi
+        } | sudo tee -a "${cfg}" >/dev/null
+
+        if [[ -n "${EXTRA_SECTIONS}" ]]; then
+          printf '\n%s\n' "${EXTRA_SECTIONS}" | sudo tee -a "${cfg}" >/dev/null
+        fi
+
+        if [[ -n "${PATH_REWRITE_FROM}" ]]; then
+          sudo sed -i "s|${PATH_REWRITE_FROM}|${PATH_REWRITE_TO}|g" "${cfg}"
+        fi
+
+        sudo chmod 777 "${cfg}"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        CFG_SOURCE: ${{ inputs.CFG_SOURCE }}
+        HANDLER_MODULE: ${{ inputs.HANDLER_MODULE }}
+        OPTIONS: ${{ inputs.OPTIONS }}
+        EXTRA_SECTIONS: ${{ inputs.EXTRA_SECTIONS }}
+        PATH_REWRITE_FROM: ${{ inputs.PATH_REWRITE_FROM }}
+        PATH_REWRITE_TO: ${{ inputs.PATH_REWRITE_TO }}

@@ -25,7 +25,6 @@ on:
 #        required: false
 #        default: ''
 
-
 jobs:
 
   # ---------------------------------------------------------
@@ -168,16 +167,25 @@ jobs:
           docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
       - name: "Setup certifier ca_handler for proxy usage"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.NCM_API_HOST }}
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            ca_bundle: ${{ env.NCM_CA_BUNDLE }}
+        env:
+          NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+          NCM_API_USER: ${{ secrets.NCM_API_USER }}
+          NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+          NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+          NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
+
+      - name: "Setup certifier ca_handler for proxy usage (post-cfg)"
         run: |
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"ncm.nclm.eu\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
@@ -210,6 +218,17 @@ jobs:
           docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
       - name: "Setup using http-basic-auth for proxy usage"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.est_ca_handler
+          OPTIONS: |
+            est_host: https://testrfc7030.com:8443
+            est_user: estuser
+            est_password: estpwd
+            ca_bundle: False
+
+      - name: "Setup using http-basic-auth for proxy usage (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/est
           sudo chmod -R 777 examples/Docker/data/est
@@ -221,14 +240,6 @@ jobs:
           sudo openssl base64 -d -in /tmp/cacerts.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out examples/Docker/data/est/ca_bundle.pem
           sudo curl https://testrfc7030.com:8443/.well-known/est/simpleenroll --anyauth -u estuser:estpwd -s -o /tmp/cert.p7 --cacert /tmp/dstcax3.pem --data-binary @/tmp/request.p10 -H "Content-Type: application/pkcs10" --dump-header /tmp/resp.hdr
           sudo openssl base64 -d -in /tmp/cert.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out examples/Docker/data/est/est_client_cert.pem
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.est_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "est_host: https://testrfc7030.com:8443" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "est_user: estuser" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "est_password: estpwd" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"testrfc7030.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
@@ -282,18 +293,27 @@ jobs:
       #    docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
       - name: "Setup msca ca_handler for proxy usage"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          OPTIONS: |
+            host: ${{ env.WES_HOST }}
+            user: ${{ env.WES_USER }}
+            password: ${{ env.WES_PASSWORD }}
+            auth_method: ${{ env.WES_AUTHMETHOD }}
+            template: ${{ env.WES_TEMPLATE }}
+            ca_bundle: volume/ca_certs.pem
+        env:
+          WES_HOST: ${{ secrets.WES_HOST }}
+          WES_USER: ${{ secrets.WES_USER }}
+          WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
+          WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
+          WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
+
+      - name: "Setup msca ca_handler for proxy usage (post-cfg)"
         run: |
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "host: $WES_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "user: $WES_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "password: $WES_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "auth_method: $WES_AUTHMETHOD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "template: $WES_TEMPLATE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: volume/ca_certs.pem" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"amazonaws.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
@@ -366,7 +386,6 @@ jobs:
         with:
           name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
-
 
   # ---------------------------------------------------------
   # Test RPMs (EL8 & EL9) downloaded from the producer run
@@ -504,18 +523,27 @@ jobs:
           docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
       - name: "Prepare acme_srv.cfg with certifier_ca_handler and proxy usage"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.certifier_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.NCM_API_HOST }}
+            api_user: ${{ env.NCM_API_USER }}
+            api_password: ${{ env.NCM_API_PASSWORD }}
+            ca_name: ${{ env.NCM_CA_NAME }}
+            ca_bundle: ${{ env.NCM_CA_BUNDLE }}
+        env:
+          NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
+          NCM_API_USER: ${{ secrets.NCM_API_USER }}
+          NCM_API_PASSWORD: ${{ secrets.NCM_API_PASSWORD }}
+          NCM_CA_NAME: ${{ secrets.NCM_CA_NAME }}
+          NCM_CA_BUNDLE: ${{ secrets.NCM_CA_BUNDLE }}
+
+      - name: "Prepare acme_srv.cfg with certifier_ca_handler and proxy usage (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.certifier_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $NCM_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $NCM_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $NCM_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"ncm.nclm.eu\$\": \"socks5:\/\/proxy.acme:8080\"}/g" data/volume/acme_srv.cfg
         env:
           NCM_API_HOST: ${{ secrets.NCM_API_HOST }}
@@ -548,6 +576,17 @@ jobs:
           docker run -d -it --name=proxy --network acme --rm -p 8080:8080 mosajjal/pproxy:latest -vv &
 
       - name: "Setup esthandler using http-basic-auth"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.est_ca_handler
+          OPTIONS: |
+            est_host: https://testrfc7030.com:8443
+            est_user: estuser
+            est_password: estpwd
+            ca_bundle: False
+
+      - name: "Setup esthandler using http-basic-auth (post-cfg)"
         run: |
           sudo mkdir -p data/acme_ca
           sudo chmod -R 777 data/acme_ca
@@ -560,14 +599,6 @@ jobs:
           sudo openssl base64 -d -in /tmp/cacerts.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out data/volume/acme_ca/ca_bundle.pem
           sudo curl https://testrfc7030.com:8443/.well-known/est/simpleenroll --anyauth -u estuser:estpwd -s -o /tmp/cert.p7 --cacert /tmp/dstcax3.pem --data-binary @/tmp/request.p10 -H "Content-Type: application/pkcs10" --dump-header /tmp/resp.hdr
           sudo openssl base64 -d -in /tmp/cert.p7 | openssl pkcs7 -inform DER -outform PEM -print_certs -out data/volume/acme_ca/est_client_cert.pem
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.est_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "est_host: https://testrfc7030.com:8443" >> data/volume/acme_srv.cfg
-          sudo echo "est_user: estuser" >> data/volume/acme_srv.cfg
-          sudo echo "est_password: estpwd" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"testrfc7030.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c "
@@ -649,19 +680,28 @@ jobs:
           time: 5s
 
       - name: "setup msca ca_handler for proxy usage"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          OPTIONS: |
+            host: ${{ env.WES_HOST }}
+            user: ${{ env.WES_USER }}
+            password: ${{ env.WES_PASSWORD }}
+            auth_method: ${{ env.WES_AUTHMETHOD }}
+            template: ${{ env.WES_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+        env:
+          WES_HOST: ${{ secrets.WES_HOST }}
+          WES_USER: ${{ secrets.WES_USER }}
+          WES_PASSWORD: ${{ secrets.WES_PASSWORD }}
+          WES_AUTHMETHOD: ${{ secrets.WES_AUTHMETHOD }}
+          WES_TEMPLATE: ${{ secrets.WES_TEMPLATE }}
+
+      - name: "setup msca ca_handler for proxy usage (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.mscertsrv_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "host: $WES_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "user: $WES_USER" >> data/volume/acme_srv.cfg
-          sudo echo "password: $WES_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "auth_method: $WES_AUTHMETHOD" >> data/volume/acme_srv.cfg
-          sudo echo "template: $WES_TEMPLATE" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: volume/acme_ca/ca_certs.pem" >> data/volume/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nproxy_server_list: {\"amazonaws.com\$\": \"socks5:\/\/proxy.acme:8080\"}/g" data/volume/acme_srv.cfg
         env:
           WES_HOST: ${{ secrets.WES_HOST }}

@@ -100,27 +100,31 @@ jobs:
           A2C_PASSWORD: ${{ secrets.DOGTAG_A2C_PASSWORD }}
 
       - name: "Setup dogtag_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.dogtag_ca_handler
+          OPTIONS: |
+            api_host: https://dogtag.acme:8443
+            client_key: volume/acme/${{ env.A2C_USER }}.key
+            client_cert: volume/acme/${{ env.A2C_USER }}.crt
+            ca_bundle: False
+            profile: WebserverSanOnly
+            certrequest_approve: True
+            enrollment_config_log: True
+            allowed_domainlist: ["*.foo.bar", "*.acme"]
+        env:
+          ADMIN_USER: ${{ inputs.ADMIN_USER }}
+
+      - name: "Setup dogtag_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme
           sudo cp dogtag/$A2C_USER* examples/Docker/data/acme/
           sudo chmod -R 777 examples/Docker/data/acme
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.dogtag_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://dogtag.acme:8443" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "client_key: volume/acme/$A2C_USER.key" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "client_cert: volume/acme/$A2C_USER.crt" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile: WebserverSanOnly" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "certrequest_approve: True" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
           # sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
           # sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.foo.bar\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         env:
           ADMIN_USER: ${{ inputs.ADMIN_USER }}
-
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -271,24 +275,29 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Setup dogtag_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.dogtag_ca_handler
+          OPTIONS: |
+            api_host: https://dogtag.acme:8443
+            client_key: /opt/acme2certifier/volume/${{ env.A2C_USER }}.key
+            client_cert: /opt/acme2certifier/volume/${{ env.A2C_USER }}.crt
+            ca_bundle: False
+            profile: WebserverSanOnly
+            certrequest_approve: True
+            enrollment_config_log: True
+            allowed_domainlist: ["*.foo.bar", "*.acme"]
+        env:
+          ADMIN_USER: ${{ inputs.ADMIN_USER }}
+
+      - name: "Setup dogtag_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca/
           sudo cp dogtag/$A2C_USER* data/volume/
           sudo chmod -R 777 data/volume/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.dogtag_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://dogtag.acme:8443" >> data/volume/acme_srv.cfg
-          sudo echo "client_key: /opt/acme2certifier/volume/$A2C_USER.key" >> data/volume/acme_srv.cfg
-          sudo echo "client_cert: /opt/acme2certifier/volume/$A2C_USER.crt" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "profile: WebserverSanOnly" >> data/volume/acme_srv.cfg
-          sudo echo "certrequest_approve: True" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
           # sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           # sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.foo.bar\", \"*.acme\"]" >> data/volume/acme_srv.cfg
         env:
           ADMIN_USER: ${{ inputs.ADMIN_USER }}
 
@@ -461,24 +470,29 @@ jobs:
       - run: echo "UUID ${{ env.UUID }}"
 
       - name: "Setup dogtag_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.dogtag_ca_handler
+          OPTIONS: |
+            api_host: https://dogtag.acme:8443
+            client_key: /var/www/acme2certifier/volume/${{ env.A2C_USER }}.key
+            client_cert: /var/www/acme2certifier/volume/${{ env.A2C_USER }}.crt
+            ca_bundle: False
+            profile: WebserverSanOnly
+            certrequest_approve: True
+            enrollment_config_log: True
+            allowed_domainlist: ["*.foo.bar", "*.acme"]
+        env:
+          ADMIN_USER: ${{ inputs.ADMIN_USER }}
+
+      - name: "Setup dogtag_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca/
           sudo cp dogtag/$A2C_USER* data/volume/
           sudo chmod -R 777 data/volume/
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.dogtag_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://dogtag.acme:8443" >> data/volume/acme_srv.cfg
-          sudo echo "client_key: /var/www/acme2certifier/volume/$A2C_USER.key" >> data/volume/acme_srv.cfg
-          sudo echo "client_cert: /var/www/acme2certifier/volume/$A2C_USER.crt" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "profile: WebserverSanOnly" >> data/volume/acme_srv.cfg
-          sudo echo "certrequest_approve: True" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
           # sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           # sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.foo.bar\", \"*.acme\"]" >> data/volume/acme_srv.cfg
         env:
           ADMIN_USER: ${{ inputs.ADMIN_USER }}
 

@@ -104,18 +104,21 @@ jobs:
       - run: echo "UUID ${{ env.UUID }}"
 
       - name: "Setup freeipa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.freeipa_ca_handler
+          OPTIONS: |
+            api_host: https://freeipa.server.acme
+            api_user: ${{ env.A2C_USER }}
+            api_password: ${{ env.A2C_PASSWORD }}
+            ca_bundle: False
+            realm: SERVER.ACME
+
+      - name: "Setup freeipa_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme
           sudo chmod -R 777 examples/Docker/data/acme
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.freeipa_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://freeipa.server.acme" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $A2C_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $A2C_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "realm: SERVER.ACME" >> examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -147,20 +150,23 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "ACME Profiling - Setup a2c with freeca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.freeipa_ca_handler
+          OPTIONS: |
+            api_host: https://freeipa.server.acme
+            api_user: ${{ env.ADMIN_USER }}
+            api_password: ${{ env.ADMIN_PASSWORD }}
+            ca_bundle: False
+            realm: SERVER.ACME
+            enrollment_config_log: True
+
+      - name: "ACME Profiling - Setup a2c with freeca_ca_handler (post-cfg)"
         run: |
           sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           sudo mkdir -p examples/Docker/data/acme
           sudo chmod -R 777 examples/Docker/data/acme
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.freeipa_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: https://freeipa.server.acme" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $ADMIN_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $ADMIN_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "realm: SERVER.ACME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
           # disable challenge validation to avoid issues with profile tests
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"IECUserRoles\": \"http:\/\/foo.bar\/iecuserroles\", \"caIPAserviceCert\": \"http:\/\/foo.bar\/caipaservicecert\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
@@ -283,18 +289,21 @@ jobs:
       - run: echo "UUID ${{ env.UUID }}"
 
       - name: "Setup freeipa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.freeipa_ca_handler
+          OPTIONS: |
+            api_host: https://freeipa.server.acme
+            api_user: ${{ env.A2C_USER }}
+            api_password: ${{ env.A2C_PASSWORD }}
+            ca_bundle: False
+            realm: SERVER.ACME
+
+      - name: "Setup freeipa_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme
           sudo chmod -R 777 data/volume/acme
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.freeipa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://freeipa.server.acme" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $A2C_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $A2C_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "realm: SERVER.ACME" >> data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -319,19 +328,24 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "ACME Profiling - Setup a2c with freeca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.freeipa_ca_handler
+          OPTIONS: |
+            api_host: https://freeipa.server.acme
+            api_user: ${{ env.ADMIN_USER }}
+            api_password: ${{ env.ADMIN_PASSWORD }}
+            ca_bundle: False
+            realm: SERVER.ACME
+            enrollment_config_log: True
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "ACME Profiling - Setup a2c with freeca_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca
           sudo chmod -R 777 data/volume/acme_ca
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.freeipa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://freeipa.server.acme" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ADMIN_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ADMIN_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "realm: SERVER.ACME" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
           # disable challenge validation to avoid issues with profile tests
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"IECUserRoles\": \"http:\/\/foo.bar\/iecuserroles\", \"caIPAserviceCert\": \"http:\/\/foo.bar\/caipaservicecert\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
@@ -378,7 +392,6 @@ jobs:
 
       - name: "EAB Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_eabprofile
-
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -473,18 +486,21 @@ jobs:
       - run: echo "UUID ${{ env.UUID }}"
 
       - name: "Setup freeipa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.freeipa_ca_handler
+          OPTIONS: |
+            api_host: https://freeipa.server.acme
+            api_user: ${{ env.A2C_USER }}
+            api_password: ${{ env.A2C_PASSWORD }}
+            ca_bundle: False
+            realm: SERVER.ACME
+
+      - name: "Setup freeipa_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca
           sudo chmod -R 777 data/volume/acme_ca
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.freeipa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://freeipa.server.acme" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $A2C_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $A2C_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "realm: SERVER.ACME" >> data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -510,17 +526,22 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "ACME Profiling - Setup a2c with freeca_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.freeipa_ca_handler
+          OPTIONS: |
+            api_host: https://freeipa.server.acme
+            api_user: ${{ env.ADMIN_USER }}
+            api_password: ${{ env.ADMIN_PASSWORD }}
+            ca_bundle: False
+            realm: SERVER.ACME
+            enrollment_config_log: True
+        env:
+          SAEC: ${{ env.SAEC }}
+
+      - name: "ACME Profiling - Setup a2c with freeca_ca_handler (post-cfg)"
         run: |
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.freeipa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: https://freeipa.server.acme" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ADMIN_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ADMIN_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "realm: SERVER.ACME" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
           # disable challenge validation to avoid issues with profile tests
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"IECUserRoles\": \"http:\/\/foo.bar\/iecuserroles\", \"caIPAserviceCert\": \"http:\/\/foo.bar\/caipaservicecert\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg

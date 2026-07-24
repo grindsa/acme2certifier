@@ -23,7 +23,6 @@ on:
         required: false
         default: ''
 
-
 jobs:
 
   # ---------------------------------------------------------
@@ -89,19 +88,24 @@ jobs:
           WORKING_DIR: ${{ github.workspace }}/examples/Docker
 
       - name: "Setup a2c with vault_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.vault_ca_handler
+          OPTIONS: |
+            vault_url: https://vault.acme:8200
+            vault_path: pki_int
+            vault_role: serverauth
+            vault_token: ${{ env.VAULT_TOKEN }}
+            ca_bundle: False
+            enrollment_config_log: True
+            allowed_domainlist: ["*.acme", "*.bar.local"]
+        env:
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+
+      - name: "Setup a2c with vault_ca_handler (post-cfg)"
         run: |
           mkdir -p examples/Docker/data/
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.vault_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "vault_url: https://vault.acme:8200" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "vault_path: pki_int" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "vault_role: serverauth" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "vault_token: $VAULT_TOKEN" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
           # sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
         env:
           VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
@@ -245,19 +249,24 @@ jobs:
           WORKING_DIR: ${{ github.workspace }}/examples/Docker
 
       - name: "Setup a2c with vault_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.vault_ca_handler
+          OPTIONS: |
+            vault_url: https://vault.acme:8200
+            vault_path: pki_int
+            vault_role: serverauth
+            vault_token: ${{ env.VAULT_TOKEN }}
+            ca_bundle: False
+            enrollment_config_log: True
+            allowed_domainlist: ["*.acme", "*.bar.local"]
+        env:
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+
+      - name: "Setup a2c with vault_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.vault_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "vault_url: https://vault.acme:8200" >> data/volume/acme_srv.cfg
-          sudo echo "vault_path: pki_int" >> data/volume/acme_srv.cfg
-          sudo echo "vault_role: serverauth" >> data/volume/acme_srv.cfg
-          sudo echo "vault_token: $VAULT_TOKEN" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
           # sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           # sudo cat data/volume/acme_srv.cfg
         env:
@@ -394,19 +403,24 @@ jobs:
           WORKING_DIR: ${{ github.workspace }}/examples/Docker
 
       - name: "Setup a2c with vault_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.vault_ca_handler
+          OPTIONS: |
+            vault_url: https://vault.acme:8200
+            vault_path: pki_int
+            vault_role: serverauth
+            vault_token: ${{ env.VAULT_TOKEN }}
+            ca_bundle: False
+            enrollment_config_log: True
+            allowed_domainlist: ["*.acme", "*.bar.local"]
+        env:
+          VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
+
+      - name: "Setup a2c with vault_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.vault_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "vault_url: https://vault.acme:8200" >> data/volume/acme_srv.cfg
-          sudo echo "vault_path: pki_int" >> data/volume/acme_srv.cfg
-          sudo echo "vault_role: serverauth" >> data/volume/acme_srv.cfg
-          sudo echo "vault_token: $VAULT_TOKEN" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: False" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.acme\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
           # sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           # sudo cat data/volume/acme_srv.cfg
         env:

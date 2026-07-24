@@ -82,19 +82,22 @@ jobs:
           CONTAINER_BUILD: false
 
       - name: "a2c configuration with standard profile"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+
+      - name: "a2c configuration with standard profile (post-cfg)"
         run: |
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
 
@@ -204,21 +207,24 @@ jobs:
           CONTAINER_BUILD: false
 
       - name: "Profile $ASA_PROFILE1 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Profile $ASA_PROFILE1 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1 (post-cfg)"
         run: |
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
@@ -238,21 +244,24 @@ jobs:
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_1
 
       - name: "Profile $ASA_PROFILE2 - Reconfiguration of a2c with a new profile"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE2 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Profile $ASA_PROFILE2 - Reconfiguration of a2c with a new profile (post-cfg)"
         run: |
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo touch examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE2" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
@@ -262,22 +271,25 @@ jobs:
           PROFILE: ${{ env.ASA_PROFILE1 }}
 
       - name: "Header-info - Setup asa_ca_handler with headerinfo"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Header-info - Setup asa_ca_handler with headerinfo (post-cfg)"
         run: |
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
@@ -288,24 +300,28 @@ jobs:
           ASA_PROFILE2: ${{ env.ASA_PROFILE2 }}
 
       - name: "EAB without headerinfo - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "EAB without headerinfo - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
           sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
@@ -328,25 +344,29 @@ jobs:
           ASA_CA_NAME2: ${{ env.ASA_CA_NAME2 }}
 
       - name: "EAB with headerinfo - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "EAB with headerinfo - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
           sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
@@ -369,22 +389,25 @@ jobs:
           ASA_CA_NAME2: ${{ env.ASA_CA_NAME2 }}
 
       - name: "ACME Profile - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "ACME Profile - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
@@ -395,25 +418,29 @@ jobs:
           ASA_PROFILE2: ${{ env.ASA_PROFILE2 }}
 
       - name: "EAB ACME Profiling - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "EAB ACME Profiling - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
           sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
@@ -509,22 +536,25 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Profile $ASA_PROFILE1 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Profile $ASA_PROFILE1 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1 (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -544,20 +574,23 @@ jobs:
           PROFILE: ${{ env.ASA_PROFILE1 }}
 
       - name: "Profile $ASA_PROFILE2 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE2 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Profile $ASA_PROFILE2 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1 (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE2" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
       - name: "Profile $ASA_PROFILE2 - reconfigure a2c "
         run: |
@@ -571,21 +604,24 @@ jobs:
           PROFILE: ${{ env.ASA_PROFILE1 }}
 
       - name: "Header-info - Setup asa_ca_handler with headerinfo"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Header-info - Setup asa_ca_handler with headerinfo (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
       - name: "Profile $ASA_PROFILE2 - reconfigure a2c "
         run: |
@@ -600,23 +636,27 @@ jobs:
           ASA_PROFILE2: ${{ env.ASA_PROFILE2 }}
 
       - name: "EAB without headerinfo - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "EAB without headerinfo - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
@@ -643,24 +683,28 @@ jobs:
           ASA_CA_NAME2: ${{ env.ASA_CA_NAME2 }}
 
       - name: "EAB with headerinfo - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "EAB with headerinfo - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
@@ -687,21 +731,24 @@ jobs:
           ASA_CA_NAME2: ${{ env.ASA_CA_NAME2 }}
 
       - name: "ACME Profile - Setup asa_ca_handler with headerinfo"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "ACME Profile - Setup asa_ca_handler with headerinfo (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
       - name: "ACME Profile - reconfigure a2c "
         run: |
@@ -716,24 +763,28 @@ jobs:
           ASA_PROFILE2: ${{ env.ASA_PROFILE2 }}
 
       - name: "EAB ACME Profiling - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "EAB ACME Profiling - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
@@ -827,22 +878,25 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Profile $ASA_PROFILE1 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Profile $ASA_PROFILE1 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1 (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -863,20 +917,23 @@ jobs:
           PROFILE: ${{ env.ASA_PROFILE1 }}
 
       - name: "Profile $ASA_PROFILE2 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE2 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Profile $ASA_PROFILE2 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1 (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE2" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c"
         run: |
@@ -891,21 +948,24 @@ jobs:
           PROFILE: ${{ env.ASA_PROFILE1 }}
 
       - name: "Header-info - Setup asa_ca_handler with headerinfo"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Header-info - Setup asa_ca_handler with headerinfo (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c"
         run: |
@@ -921,23 +981,27 @@ jobs:
           ASA_PROFILE2: ${{ env.ASA_PROFILE2 }}
 
       - name: "EAB without headerinfo - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "EAB without headerinfo - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
@@ -965,24 +1029,28 @@ jobs:
           ASA_CA_NAME2: ${{ env.ASA_CA_NAME2 }}
 
       - name: "EAB with headerinfo - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "EAB with headerinfo - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
@@ -1010,21 +1078,24 @@ jobs:
           ASA_CA_NAME2: ${{ env.ASA_CA_NAME2 }}
 
       - name: "ACME Profile - Setup asa_ca_handler with headerinfo"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "ACME Profile - Setup asa_ca_handler with headerinfo (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c"
         run: |
@@ -1040,24 +1111,28 @@ jobs:
           ASA_PROFILE2: ${{ env.ASA_PROFILE2 }}
 
       - name: "EAB ACME Profiling - Setup asa_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.asa_ca_handler
+          OPTIONS: |
+            api_host: ${{ env.ASA_API_HOST }}
+            api_user: ${{ env.ASA_API_USER }}
+            api_password: ${{ env.ASA_API_PASSWORD }}
+            api_key: ${{ env.ASA_API_KEY }}
+            ca_name: ${{ env.ASA_CA_NAME }}
+            ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            profile_name: ${{ env.ASA_PROFILE1 }}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "EAB ACME Profiling - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo touch data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.asa_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "api_host: $ASA_API_HOST" >> data/volume/acme_srv.cfg
-          sudo echo "api_user: $ASA_API_USER" >> data/volume/acme_srv.cfg
-          sudo echo "api_password: $ASA_API_PASSWORD" >> data/volume/acme_srv.cfg
-          sudo echo "api_key: $ASA_API_KEY" >> data/volume/acme_srv.cfg
-          sudo echo "ca_name: $ASA_CA_NAME" >> data/volume/acme_srv.cfg
-          sudo echo "ca_bundle: $ASA_CA_BUNDLE" >> data/volume/acme_srv.cfg
-          sudo echo "profile_name: $ASA_PROFILE1" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json

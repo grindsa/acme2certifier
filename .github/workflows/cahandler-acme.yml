@@ -83,18 +83,21 @@ jobs:
         uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
 
       - name: "Setup acme ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: volume/acme/le_staging_private_key.json
+            acme_url: http://acme-le-sim
+            acme_account_email: grindsa@foo.bar
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Setup acme ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme
           sudo chmod -R 777 examples/Docker/data/acme
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_url: http://acme-le-sim" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -124,20 +127,23 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "ACME Profile - Setup acme ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: volume/acme/le_staging_private_key.json
+            acme_url: http://acme-le-sim
+            acme_account_email: grindsa@foo.bar
+            allowed_domainlist: ["bar.local", "*.acme"]
+            enrollment_config_log: True
+
+      - name: "ACME Profile - Setup acme ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme
           sudo chmod -R 777 examples/Docker/data/acme
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_url: http://acme-le-sim" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile1\": \"http:\/\/foo.bar\/profile1\", \"profile2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
@@ -145,7 +151,6 @@ jobs:
         uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_acmeprofile
         with:
           DEPLOYMENT_TYPE: "container"
-
 
       - name: "[ * ] collecting test data"
         if: ${{ failure() }}
@@ -209,15 +214,18 @@ jobs:
           SECTIGO_SIM: true
 
       - name: "Setup openssl ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: volume/acme/le_staging_private_key.json
+            acme_url: http://acme-le-sim
+            acme_account_email: grindsa@foo.bar
+
+      - name: "Setup openssl ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_url: http://acme-le-sim" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
@@ -302,20 +310,29 @@ jobs:
           LESIM_NAME: acme-le-sim-2
 
       - name: "Reconfigure acme-le-sim-2"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "acme-le-sim-2"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: root-ca
+            issuing_ca_key: root-ca
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            template_name: ${{ env.XCA_TEMPLATE }}
+        env:
+          XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
+          XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
+          XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
+          XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
+
+      - name: "Reconfigure acme-le-sim-2 (post-cfg)"
         run: |
           docker stop acme-le-sim-2
           sudo mkdir acme-le-sim-2/xca
           sudo chmod -R 777 acme-le-sim-2/xca
           sudo cp test/ca/acme2certifier-clean.xdb acme-le-sim-2/xca/$XCA_DB_NAME
-          sudo chmod 777 acme-le-sim-2/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > acme-le-sim-2/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> acme-le-sim-2/acme_srv.cfg
-          sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> acme-le-sim-2/acme_srv.cfg
-          sudo echo "issuing_ca_name: root-ca" >> acme-le-sim-2/acme_srv.cfg
-          sudo echo "issuing_ca_key: root-ca" >> acme-le-sim-2/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> acme-le-sim-2/acme_srv.cfg
           # sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> acme-le-sim-2/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> acme-le-sim-2/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" acme-le-sim-2/acme_srv.cfg
           docker run -d --rm -id --network acme --name=acme-le-sim-2 -v "$(pwd)/acme-le-sim-2":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
         env:
@@ -339,22 +356,26 @@ jobs:
           sudo rm -rf acme-sh/*
 
       - name: "EAB Profiling - Setup acme ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: volume/acme/le_staging_private_key.json
+            acme_keypath: volume/acme/
+            acme_url: http://acme-le-sim-1
+            acme_account_email: grindsa@foo.bar
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "EAB Profiling - Setup acme ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_keypath: volume/acme/" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_url: http://acme-le-sim-1" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
           sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
@@ -389,25 +410,29 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "EAB ACME Profiling - Setup acme ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: volume/acme/le_staging_private_key_prof.json
+            acme_keypath: volume/acme/
+            acme_url: http://acme-le-sim-1
+            acme_account_email: grindsa@foo.bar
+            profile: profile_1
+            enrollment_config_log: True
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
+
+      - name: "EAB ACME Profiling - Setup acme ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_keyfile: volume/acme/le_staging_private_key_prof.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_keypath: volume/acme/" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_url: http://acme-le-sim-1" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile_1\": \"http:\/\/foo.bar\/profile_1\", \"profile_2\": \"http:\/\/foo.bar\/profile_2\", \"profile_3\": \"http:\/\/foo.bar\/profile_3\"}/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "profile: profile_1" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
           sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
@@ -490,17 +515,20 @@ jobs:
         uses: ./.github/actions/wf_specific/acme_ca_handler/smallstep_prep
 
       - name: "Setup acme ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: volume/acme/le_staging_private_key.json
+            acme_url: https://step-ca.acme:9000/acme/acme
+            acme_account_email: grindsa@foo.bar
+            account_path: /
+            ssl_verify: False
+
+      - name: "Setup acme ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_url: https://step-ca.acme:9000/acme/acme" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_account_email: grindsa@foo.bar" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "account_path: /" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "ssl_verify: False" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
@@ -597,28 +625,34 @@ jobs:
           NAME_SPACE: acme.dynamop.de
 
       - name: "CloudFlare - Setup acme ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: volume/acme/le_staging_private_key.json
+            acme_url: https://acme-staging-v02.api.letsencrypt.org
+            acme_account_email: ${{ env.EMAIL }}
+            acme_sh_script: volume/acme/acme.sh
+            dns_update_script: volume/acme/dns_cf.sh
+            dns_update_script_variables: {"CF_Token": "${{ env.CF_TOKEN }}", "CF_Zone_ID": "${{ env.CF_ZONE_ID }}"}
+            acme_sh_shell: /bin/bash
+            dns_validation_timeout: 20
+            enrollment_config_log: True
+            profiles_sync: True
+            renewalinfo_lookup: True
+            allowed_domainlist: ["bar.local", "*.acme.dynamop.de"]
+        env:
+          CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
+
+      - name: "CloudFlare - Setup acme ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme
           sudo chmod -R 777 examples/Docker/data/acme
           sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/acme.sh --output examples/Docker/data/acme/acme.sh
           sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/dnsapi/dns_cf.sh --output examples/Docker/data/acme/dns_cf.sh
           sudo chmod a+x examples/Docker/data/acme/*.sh
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_url: https://acme-staging-v02.api.letsencrypt.org" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_account_email: $EMAIL" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_sh_script: volume/acme/acme.sh" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "dns_update_script: volume/acme/dns_cf.sh" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "dns_update_script_variables: {\"CF_Token\": \"$CF_TOKEN\", \"CF_Zone_ID\": \"$CF_ZONE_ID\"}" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_sh_shell: /bin/bash" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "dns_validation_timeout: 20" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profiles_sync: True" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "renewalinfo_lookup: True" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
           # sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 15/g" examples/Docker/data/acme_srv.cfg
         env:
@@ -663,28 +697,35 @@ jobs:
           VERIFY_CERT: false
 
       - name: "ACMEDNS - Setup acme ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: volume/acme/le_staging_private_key.json
+            acme_url: https://acme-staging-v02.api.letsencrypt.org
+            acme_account_email: ${{ env.EMAIL }}
+            acme_sh_script: volume/acme/acme.sh
+            dns_update_script: volume/acme/dns_acmedns.sh
+            dns_update_script_variables: {"ACMEDNS_USERNAME": "${{ env.ACMEDNS_USERNAME }}", "ACMEDNS_PASSWORD": "${{ env.ACMEDNS_PASSWORD }}", "ACMEDNS_BASE_URL": "https://auth.acme-dns.io", "ACMEDNS_SUBDOMAIN": "${{ env.ACMEDNS_SUBDOMAIN }}"}
+            acme_sh_shell: /bin/bash
+            dns_validation_timeout: 30
+            enrollment_config_log: True
+            allowed_domainlist: ["bar.local", "*.acme.dynamop.de"]
+            profiles_sync: True
+            renewalinfo_lookup: True
+        env:
+          ACMEDNS_USERNAME: ${{ env.ACMEDNS_USERNAME }}
+          ACMEDNS_PASSWORD: ${{ env.ACMEDNS_PASSWORD }}
+          ACMEDNS_SUBDOMAIN: ${{ env.ACMEDNS_SUBDOMAIN }}
+
+      - name: "ACMEDNS - Setup acme ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme
           sudo chmod -R 777 examples/Docker/data/acme
           sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/acme.sh --output examples/Docker/data/acme/acme.sh
           sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/dnsapi/dns_acmedns.sh --output examples/Docker/data/acme/dns_acmedns.sh
           sudo chmod a+x examples/Docker/data/acme/*.sh
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_keyfile: volume/acme/le_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_url: https://acme-staging-v02.api.letsencrypt.org" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_account_email: $EMAIL" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_sh_script: volume/acme/acme.sh" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "dns_update_script: volume/acme/dns_acmedns.sh" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "dns_update_script_variables: {\"ACMEDNS_USERNAME\": \"$ACMEDNS_USERNAME\", \"ACMEDNS_PASSWORD\": \"$ACMEDNS_PASSWORD\", \"ACMEDNS_BASE_URL\": \"https://auth.acme-dns.io\", \"ACMEDNS_SUBDOMAIN\": \"$ACMEDNS_SUBDOMAIN\"}" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_sh_shell: /bin/bash" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "dns_validation_timeout: 30" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "profiles_sync: True" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "renewalinfo_lookup: True" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 15/g" examples/Docker/data/acme_srv.cfg
 
@@ -772,17 +813,20 @@ jobs:
         uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
 
       - name: "Prepare setup acme_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json
+            acme_url: http://acme-le-sim
+            acme_account_email: grindsa@foo.bar
+            allowed_domainlist: ["bar.local", "*.acme"]
+
+      - name: "Prepare setup acme_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/acme
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/volume/acme_srv.cfg
-          sudo echo "acme_url: http://acme-le-sim" >> data/volume/acme_srv.cfg
-          sudo echo "acme_account_email: grindsa@foo.bar" >> data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -810,19 +854,22 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "ACME Profile - Setup acme ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json
+            acme_url: http://acme-le-sim
+            acme_account_email: grindsa@foo.bar
+            allowed_domainlist: ["bar.local", "*.acme"]
+            enrollment_config_log: True
+
+      - name: "ACME Profile - Setup acme ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/acme
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/volume/acme_srv.cfg
-          sudo echo "acme_url: http://acme-le-sim" >> data/volume/acme_srv.cfg
-          sudo echo "acme_account_email: grindsa@foo.bar" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile1\": \"http:\/\/foo.bar\/profile1\", \"profile2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme\"]" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
 
       - name: "ACME Profile - Reconfigure a2c"
         run: |
@@ -901,15 +948,18 @@ jobs:
           SECTIGO_SIM: true
 
       - name: "Prepare setup acme_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json
+            acme_url: http://acme-le-sim
+            acme_account_email: grindsa@foo.bar
+
+      - name: "Prepare setup acme_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/acme
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/volume/acme_srv.cfg
-          sudo echo "acme_url: http://acme-le-sim" >> data/volume/acme_srv.cfg
-          sudo echo "acme_account_email: grindsa@foo.bar" >> data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
@@ -1001,20 +1051,29 @@ jobs:
           LESIM_NAME: acme-le-sim-2
 
       - name: "Reconfigure acme-le-sim-2"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "acme-le-sim-2"
+          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+          OPTIONS: |
+            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
+            issuing_ca_name: root-ca
+            issuing_ca_key: root-ca
+            passphrase: ${{ env.XCA_PASSPHRASE }}
+            template_name: ${{ env.XCA_TEMPLATE }}
+        env:
+          XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
+          XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
+          XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
+          XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
+
+      - name: "Reconfigure acme-le-sim-2 (post-cfg)"
         run: |
           docker stop acme-le-sim-2
           sudo mkdir acme-le-sim-2/xca
           sudo chmod -R 777 acme-le-sim-2/xca
           sudo cp test/ca/acme2certifier-clean.xdb acme-le-sim-2/xca/$XCA_DB_NAME
-          sudo chmod 777 acme-le-sim-2/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > acme-le-sim-2/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.xca_ca_handler" >> acme-le-sim-2/acme_srv.cfg
-          sudo echo "xdb_file: volume/xca/$XCA_DB_NAME" >> acme-le-sim-2/acme_srv.cfg
-          sudo echo "issuing_ca_name: root-ca" >> acme-le-sim-2/acme_srv.cfg
-          sudo echo "issuing_ca_key: root-ca" >> acme-le-sim-2/acme_srv.cfg
-          sudo echo "passphrase: $XCA_PASSPHRASE" >> acme-le-sim-2/acme_srv.cfg
           # sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> acme-le-sim-2/acme_srv.cfg
-          sudo echo "template_name: $XCA_TEMPLATE" >> acme-le-sim-2/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" acme-le-sim-2/acme_srv.cfg
           docker run -d --rm -id --network acme --name=acme-le-sim-2 -v "$(pwd)/acme-le-sim-2":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
         env:
@@ -1037,22 +1096,26 @@ jobs:
           openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i root-ca
 
       - name: "EAB Profiling - Setup acme_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: /opt/acme2certifier/volume/acme_ca/le_staging_private_key.json
+            acme_keypath: /opt/acme2certifier/volume/acme_ca/
+            acme_url: http://acme-le-sim-1
+            acme_account_email: grindsa@foo.bar
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "EAB Profiling - Setup acme_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "acme_keyfile: /opt/acme2certifier/volume/acme_ca/le_staging_private_key.json" >> data/volume/acme_srv.cfg
-          sudo echo "acme_keypath: /opt/acme2certifier/volume/acme_ca/" >> data/volume/acme_srv.cfg
-          sudo echo "acme_url: http://acme-le-sim-1" >> data/volume/acme_srv.cfg
-          sudo echo "acme_account_email: grindsa@foo.bar" >> data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
@@ -1087,24 +1150,28 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "EAB ACME Profiling - Setup acme_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: /opt/acme2certifier/volume/acme_ca/le_staging_private_key.json
+            acme_keypath: /opt/acme2certifier/volume/acme_ca/
+            acme_url: http://acme-le-sim-1
+            acme_account_email: grindsa@foo.bar
+            profile: profile_1
+            enrollment_config_log: True
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+
+      - name: "EAB ACME Profiling - Setup acme_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/acme_ca
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "acme_keyfile: /opt/acme2certifier/volume/acme_ca/le_staging_private_key.json" >> data/volume/acme_srv.cfg
-          sudo echo "acme_keypath: /opt/acme2certifier/volume/acme_ca/" >> data/volume/acme_srv.cfg
-          sudo echo "acme_url: http://acme-le-sim-1" >> data/volume/acme_srv.cfg
-          sudo echo "acme_account_email: grindsa@foo.bar" >> data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile_1\": \"http:\/\/foo.bar\/profile_1\", \"profile_2\": \"http:\/\/foo.bar\/profile_2\", \"profile_3\": \"http:\/\/foo.bar\/profile_3\"}/g" data/volume/acme_srv.cfg
-          sudo echo "profile: profile_1" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
           sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
@@ -1128,7 +1195,6 @@ jobs:
         uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_eab_acmeprofile
         with:
           DEPLOYMENT_TYPE: "rpm"
-
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -1195,17 +1261,20 @@ jobs:
         uses: ./.github/actions/wf_specific/acme_ca_handler/smallstep_prep
 
       - name: "Prepare setup acme_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json
+            acme_url: https://step-ca.acme:9000/acme/acme
+            acme_account_email: grindsa@foo.bar
+            account_path: /
+            ssl_verify: False
+
+      - name: "Prepare setup acme_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/acme
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/volume/acme_srv.cfg
-          sudo echo "acme_url: https://step-ca.acme:9000/acme/acme" >> data/volume/acme_srv.cfg
-          sudo echo "acme_account_email: grindsa@foo.bar" >> data/volume/acme_srv.cfg
-          sudo echo "account_path: /" >> data/volume/acme_srv.cfg
-          sudo echo "ssl_verify: False" >> data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
@@ -1309,28 +1378,34 @@ jobs:
           REPO: ${{ github.repository }}
 
       - name: "Prepare setup acme_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json
+            acme_url: https://acme-staging-v02.api.letsencrypt.org
+            acme_account_email: ${{ env.EMAIL }}
+            acme_sh_script: /opt/acme2certifier/volume/acme_ca/acme.sh
+            dns_update_script: /opt/acme2certifier/volume/acme_ca/dns_cf.sh
+            dns_update_script_variables: {"CF_Token": "${{ env.CF_TOKEN }}", "CF_Zone_ID": "${{ env.CF_ZONE_ID }}"}
+            acme_sh_shell: /bin/bash
+            dns_validation_timeout: 30
+            enrollment_config_log: True
+            profiles_sync: True
+            renewalinfo_lookup: True
+            allowed_domainlist: ["bar.local", "*.acme.dynamop.de"]
+        env:
+          CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
+
+      - name: "Prepare setup acme_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca
           sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/acme.sh --output data/volume/acme_ca/acme.sh
           sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/dnsapi/dns_cf.sh --output data/volume/acme_ca/dns_cf.sh
           sudo chmod a+x data/volume/acme_ca/*.sh
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
 
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json" >> data/volume/acme_srv.cfg
-          sudo echo "acme_url: https://acme-staging-v02.api.letsencrypt.org" >> data/volume/acme_srv.cfg
-          sudo echo "acme_account_email: $EMAIL" >> data/volume/acme_srv.cfg
-          sudo echo "acme_sh_script: /opt/acme2certifier/volume/acme_ca/acme.sh" >> data/volume/acme_srv.cfg
-          sudo echo "dns_update_script: /opt/acme2certifier/volume/acme_ca/dns_cf.sh" >> data/volume/acme_srv.cfg
-          sudo echo "dns_update_script_variables: {\"CF_Token\": \"$CF_TOKEN\", \"CF_Zone_ID\": \"$CF_ZONE_ID\"}" >> data/volume/acme_srv.cfg
-          sudo echo "acme_sh_shell: /bin/bash" >> data/volume/acme_srv.cfg
-          sudo echo "dns_validation_timeout: 30" >> data/volume/acme_srv.cfg
-          sudo echo "enrollment_config_log: True" >> data/volume/acme_srv.cfg
-          sudo echo "profiles_sync: True" >> data/volume/acme_srv.cfg
-          sudo echo "renewalinfo_lookup: True" >> data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"bar.local\", \"*.acme.dynamop.de\"]" >> data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
         env:
           CF_TOKEN: ${{ env.CF_TOKEN }}

@@ -96,22 +96,27 @@ jobs:
       - run: echo "UUID ${{ env.UUID }}"
 
       - name: "Setup acme_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: volume/acme/harica_staging_private_key.json
+            acme_url: ${{ env.ACME_URL }}
+            account_path: /acct/
+            acme_account_email: ${{ env.ACME_ACCOUNT_EMAIL }}
+            eab_kid: ${{ env.EAB_KID }}
+            eab_hmac_key: ${{ env.EAB_HMAC_KEY }}
+            allowed_domainlist: ["*.${{ env.DOMAIN }}", "*.acme"]
+        env:
+          ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
+
+      - name: "Setup acme_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme
           sudo chmod -R 777 examples/Docker/data/acme
-          sudo cp .github/acme_srv.openssl.cfg examples/Docker/data/acme_srv.cfg
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > examples/Docker/data/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_keyfile: volume/acme/harica_staging_private_key.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_url: $ACME_URL" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "account_path: /acct/" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "acme_account_email: $ACME_ACCOUNT_EMAIL" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_kid: $EAB_KID" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_hmac_key: $EAB_HMAC_KEY" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.$DOMAIN\", \"*.acme\"]" >> examples/Docker/data/acme_srv.cfg
         env:
           ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
 
@@ -213,21 +218,26 @@ jobs:
       - run: echo "UUID ${{ env.UUID }}"
 
       - name: "Setup acme_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: volume/acme/harica_staging_private_key.json
+            acme_url: ${{ env.ACME_URL }}
+            account_path: /acct/
+            acme_account_email: ${{ env.ACME_ACCOUNT_EMAIL }}
+            eab_kid: ${{ env.EAB_KID }}
+            eab_hmac_key: ${{ env.EAB_HMAC_KEY }}
+            allowed_domainlist: ["*.${{ env.DOMAIN }}", "*.acme"]
+        env:
+          ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
+
+      - name: "Setup acme_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme
           sudo chmod -R 777 data/volume/acme
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "acme_keyfile: volume/acme/harica_staging_private_key.json" >> data/volume/acme_srv.cfg
-          sudo echo "acme_url: $ACME_URL" >> data/volume/acme_srv.cfg
-          sudo echo "account_path: /acct/" >> data/volume/acme_srv.cfg
-          sudo echo "acme_account_email: $ACME_ACCOUNT_EMAIL" >> data/volume/acme_srv.cfg
-          sudo echo "eab_kid: $EAB_KID" >> data/volume/acme_srv.cfg
-          sudo echo "eab_hmac_key: $EAB_HMAC_KEY" >> data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.$DOMAIN\", \"*.acme\"]" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
         env:
           ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
@@ -325,21 +335,26 @@ jobs:
       - run: echo "UUID ${{ env.UUID }}"
 
       - name: "Setup acme_ca_handler"
+        uses: ./.github/actions/setup_cahandler_cfg
+        with:
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
+          OPTIONS: |
+            acme_keyfile: /var/www/acme2certifier/volume/acme/harica_staging_private_key.json
+            acme_url: ${{ env.ACME_URL }}
+            account_path: /acct/
+            acme_account_email: ${{ env.ACME_ACCOUNT_EMAIL }}
+            eab_kid: ${{ env.EAB_KID }}
+            eab_hmac_key: ${{ env.EAB_HMAC_KEY }}
+            allowed_domainlist: ["*.${{ env.DOMAIN }}", "*.acme"]
+        env:
+          ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
+
+      - name: "Setup acme_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme
           sudo chmod -R 777 data/volume/acme
-          sudo cp .github/acme_srv.openssl.cfg data/volume/acme_srv.cfg
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo head -n -10 .github/acme_srv.openssl.cfg > data/volume/acme_srv.cfg
-          sudo echo "handler_module: acme2certifier.cahandlers.acme_ca_handler" >> data/volume/acme_srv.cfg
-          sudo echo "acme_keyfile: /var/www/acme2certifier/volume/acme/harica_staging_private_key.json" >> data/volume/acme_srv.cfg
-          sudo echo "acme_url: $ACME_URL" >> data/volume/acme_srv.cfg
-          sudo echo "account_path: /acct/" >> data/volume/acme_srv.cfg
-          sudo echo "acme_account_email: $ACME_ACCOUNT_EMAIL" >> data/volume/acme_srv.cfg
-          sudo echo "eab_kid: $EAB_KID" >> data/volume/acme_srv.cfg
-          sudo echo "eab_hmac_key: $EAB_HMAC_KEY" >> data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.$DOMAIN\", \"*.acme\"]" >> data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 1800\nenrollment_timeout: 15\ncert_operations_log: True/g" data/volume/acme_srv.cfg
         env:
           ACME_ACCOUNT_EMAIL: ${{ secrets.EMAIL }}
