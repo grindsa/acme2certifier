@@ -523,6 +523,11 @@ else
     ${SUDO} sed -i 's/module = acme2certifier_wsgi/module = acme2certifier.django_project.wsgi/g' \
       "${APP_ROOT}/acme2certifier.ini"
   fi
+  if grep -q '^python-path' "${APP_ROOT}/acme2certifier.ini"; then
+    ${SUDO} sed -i "s|^python-path = .*|python-path = ${APP_ROOT}|" "${APP_ROOT}/acme2certifier.ini"
+  else
+    echo "python-path = ${APP_ROOT}" | ${SUDO} tee -a "${APP_ROOT}/acme2certifier.ini" >/dev/null
+  fi
   if ! grep -q 'ACME_SRV_CONFIGFILE' "${APP_ROOT}/acme2certifier.ini"; then
     echo "env = ACME_SRV_CONFIGFILE=${CFG}" | ${SUDO} tee -a "${APP_ROOT}/acme2certifier.ini" >/dev/null
     echo "env = ACME2CERTIFIER_BASE_DIR=${APP_ROOT}" | ${SUDO} tee -a "${APP_ROOT}/acme2certifier.ini" >/dev/null

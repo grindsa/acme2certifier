@@ -159,6 +159,7 @@ ${SUDO} tee "${UWSGI_INI}" >/dev/null <<EOF
 plugins = python3
 virtualenv = ${VENV}
 chdir = ${APP_ROOT}
+python-path = ${APP_ROOT}
 module = ${UWSGI_MODULE}
 master = true
 processes = 5

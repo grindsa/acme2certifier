@@ -522,7 +522,11 @@ else
     "${UWSGI_INI}" || true
 fi
 grep -q '^plugins' "${UWSGI_INI}" || echo 'plugins = python3' | ${SUDO} tee -a "${UWSGI_INI}" >/dev/null
-grep -q '^python-path' "${UWSGI_INI}" || echo "python-path = ${APP_ROOT}" | ${SUDO} tee -a "${UWSGI_INI}" >/dev/null
+if grep -q '^python-path' "${UWSGI_INI}"; then
+  ${SUDO} sed -i "s|^python-path = .*|python-path = ${APP_ROOT}|" "${UWSGI_INI}"
+else
+  echo "python-path = ${APP_ROOT}" | ${SUDO} tee -a "${UWSGI_INI}" >/dev/null
+fi
 if ! grep -q 'ACME_SRV_CONFIGFILE' "${UWSGI_INI}"; then
   echo "env = ACME_SRV_CONFIGFILE=${CFG}" | ${SUDO} tee -a "${UWSGI_INI}" >/dev/null
   echo "env = ACME2CERTIFIER_BASE_DIR=${APP_ROOT}" | ${SUDO} tee -a "${UWSGI_INI}" >/dev/null
