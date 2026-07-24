@@ -1,0 +1,113 @@
+name: "upgrade setup legacy xca"
+description: "Stage pre-0.45 acme_srv.cfg (handler_file) + xca materials"
+inputs:
+  VOLUME_DIR:
+    description: "Host volume directory"
+    required: true
+  DEPLOYMENT_TYPE:
+    description: "container | rpm | deb"
+    required: true
+  HANDLER_TAG:
+    description: "Git tag to fetch legacy xca_ca_handler.py from"
+    required: false
+    default: "0.31"
+  DJANGO_SETTINGS_TAG:
+    description: "Git tag for legacy django_settings_mariadb.py (django only)"
+    required: false
+    default: "0.44"
+  DJANGO:
+    description: "If true, stage legacy django mariadb settings"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Stage legacy xca handler + cfg"
+      shell: bash
+      env:
+        VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        HANDLER_TAG: ${{ inputs.HANDLER_TAG }}
+        DJANGO_SETTINGS_TAG: ${{ inputs.DJANGO_SETTINGS_TAG }}
+        DJANGO: ${{ inputs.DJANGO }}
+        XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
+        XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
+        XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
+        XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
+      run: |
+        set -euo pipefail
+        sudo mkdir -p "${VOLUME_DIR}/acme_ca/certs" "${VOLUME_DIR}/xca"
+        sudo chmod -R 777 "${VOLUME_DIR}"
+
+        case "${DEPLOYMENT_TYPE}" in
+          container)
+            handler_path="/var/www/acme2certifier/volume/xca_ca_handler.py"
+            xdb_line="xdb_file: volume/xca/${XCA_DB_NAME}"
+            sudo cp "test/ca/acme2certifier-clean.xdb" "${VOLUME_DIR}/xca/${XCA_DB_NAME}"
+            sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem \
+              test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem "${VOLUME_DIR}/acme_ca/"
+            handler_dest="${VOLUME_DIR}/xca_ca_handler.py"
+            ;;
+          rpm)
+            handler_path="/opt/acme2certifier/volume/acme_ca/xca_ca_handler.py"
+            xdb_line="xdb_file: /opt/acme2certifier/volume/acme_ca/${XCA_DB_NAME}"
+            sudo cp "test/ca/acme2certifier-clean.xdb" "${VOLUME_DIR}/acme_ca/${XCA_DB_NAME}"
+            sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem \
+              test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem "${VOLUME_DIR}/acme_ca/"
+            handler_dest="${VOLUME_DIR}/acme_ca/xca_ca_handler.py"
+            ;;
+          deb)
+            handler_path="/var/www/acme2certifier/volume/acme_ca/xca_ca_handler.py"
+            xdb_line="xdb_file: /var/www/acme2certifier/volume/acme_ca/${XCA_DB_NAME}"
+            sudo cp "test/ca/acme2certifier-clean.xdb" "${VOLUME_DIR}/acme_ca/${XCA_DB_NAME}"
+            sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem \
+              test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem "${VOLUME_DIR}/acme_ca/"
+            handler_dest="${VOLUME_DIR}/acme_ca/xca_ca_handler.py"
+            ;;
+          *)
+            echo "Unknown DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2
+            exit 1
+            ;;
+        esac
+
+        curl -fsSL \
+          "https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/tags/${HANDLER_TAG}" \
+          -o /tmp/a2c-handler.tgz
+        tar -xzf /tmp/a2c-handler.tgz -C /tmp/ \
+          --strip-components=3 "acme2certifier-${HANDLER_TAG}/examples/ca_handler/xca_ca_handler.py"
+        sudo cp /tmp/xca_ca_handler.py "${handler_dest}"
+        sudo chmod 777 "${handler_dest}"
+
+        sudo head -n -10 .github/acme_srv.openssl.cfg | sudo tee "${VOLUME_DIR}/acme_srv.cfg" >/dev/null
+        {
+          echo "handler_file: ${handler_path}"
+          echo "${xdb_line}"
+          echo "issuing_ca_name: ${XCA_ISSUING_CA}"
+          echo "passphrase: ${XCA_PASSPHRASE}"
+          echo "ca_cert_chain_list: [\"root-ca\"]"
+          echo "template_name: ${XCA_TEMPLATE}"
+        } | sudo tee -a "${VOLUME_DIR}/acme_srv.cfg" >/dev/null
+        sudo chmod 777 "${VOLUME_DIR}/acme_srv.cfg"
+
+        if [[ "${DJANGO}" == "true" ]]; then
+          curl -fsSL \
+            "https://raw.githubusercontent.com/grindsa/acme2certifier/${DJANGO_SETTINGS_TAG}/.github/django_settings_mariadb.py" \
+            -o /tmp/django_settings_mariadb.py
+          case "${DEPLOYMENT_TYPE}" in
+            container)
+              sudo cp /tmp/django_settings_mariadb.py "${VOLUME_DIR}/settings.py"
+              ;;
+            rpm)
+              sudo mkdir -p data/acme2certifier
+              sudo cp /tmp/django_settings_mariadb.py data/acme2certifier/settings.py
+              sudo sed -i "s|/var/www/|/opt/|g" data/acme2certifier/settings.py
+              sudo sed -i "s/USE_I18N = True/USE_I18N = False/g" data/acme2certifier/settings.py
+              sudo cp data/acme2certifier/settings.py "${VOLUME_DIR}/settings.py"
+              ;;
+            deb)
+              sudo mkdir -p "${VOLUME_DIR}/acme2certifier"
+              sudo cp /tmp/django_settings_mariadb.py "${VOLUME_DIR}/acme2certifier/settings.py"
+              ;;
+          esac
+        fi

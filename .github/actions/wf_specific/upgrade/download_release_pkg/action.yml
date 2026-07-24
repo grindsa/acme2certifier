@@ -1,0 +1,62 @@
+name: "download release package"
+description: "Download RPM or DEB asset for a GitHub release tag"
+inputs:
+  TAG:
+    description: "Release tag"
+    required: true
+  PKG_TYPE:
+    description: "rpm | deb"
+    required: true
+  DESTINATION_PATH:
+    description: "Download directory"
+    required: true
+    default: "data"
+  GITHUB_TOKEN:
+    description: "Token for API (optional)"
+    required: false
+    default: ""
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Download ${{ inputs.PKG_TYPE }} for ${{ inputs.TAG }}"
+      shell: bash
+      env:
+        TAG: ${{ inputs.TAG }}
+        PKG_TYPE: ${{ inputs.PKG_TYPE }}
+        DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
+        GH_TOKEN: ${{ inputs.GITHUB_TOKEN || github.token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+        mkdir -p "${DESTINATION_PATH}"
+        case "${PKG_TYPE}" in
+          rpm)
+            name="acme2certifier-${TAG}-1.0.noarch.rpm"
+            url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${name}"
+            curl -fsSL -o "${DESTINATION_PATH}/${name}" "${url}"
+            echo "PKG_FILE=${DESTINATION_PATH}/${name}" >> "${GITHUB_ENV}"
+            ;;
+          deb)
+            # Prefer -1_all; fall back to whatever .deb the release publishes.
+            name="acme2certifier_${TAG}-1_all.deb"
+            url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${name}"
+            if ! curl -fsSL -o "${DESTINATION_PATH}/${name}" "${url}"; then
+              asset="$(gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${TAG}" \
+                --jq '.assets[].name | select(endswith(".deb"))' | head -n1)"
+              if [[ -z "${asset}" ]]; then
+                echo "No deb asset for ${TAG}" >&2
+                exit 1
+              fi
+              name="${asset}"
+              curl -fsSL -o "${DESTINATION_PATH}/${name}" \
+                "https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${name}"
+            fi
+            echo "PKG_FILE=${DESTINATION_PATH}/${name}" >> "${GITHUB_ENV}"
+            ;;
+          *)
+            echo "Unknown PKG_TYPE=${PKG_TYPE}" >&2
+            exit 1
+            ;;
+        esac
+        ls -la "${DESTINATION_PATH}/${name}"

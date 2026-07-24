@@ -27,7 +27,8 @@ inputs:
     default: "443"
   HOSTNAME_SUFFIX:
     description: "Hostname suffix"
-    required: true
+    required: false
+    default: ""
   NAME_SPACE:
     description: "Namespace"
     required: true
