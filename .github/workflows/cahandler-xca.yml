@@ -491,10 +491,6 @@ jobs:
             passphrase: ${{ env.XCA_PASSPHRASE }}
             ca_cert_chain_list: ["root-ca"]
             template_name: ${{ env.XCA_TEMPLATE }}
-          EXTRA_SECTIONS: |
-            [EABhandler]
-            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
-            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
 
       - name: "Header-info - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
@@ -837,10 +833,6 @@ jobs:
             passphrase: ${{ env.XCA_PASSPHRASE }}
             ca_cert_chain_list: ["root-ca"]
             template_name: ${{ env.XCA_TEMPLATE }}
-          EXTRA_SECTIONS: |
-            [EABhandler]
-            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
-            key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
 
       - name: "Header-info - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
