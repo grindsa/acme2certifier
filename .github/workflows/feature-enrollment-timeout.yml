@@ -94,7 +94,8 @@ jobs:
           sudo sed -i "s/import uuid/import uuid\\nimport time/g" examples/Docker/data/ca_handler.py
           sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        time.sleep(30)/g" examples/Docker/data/ca_handler.py
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 300\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/handler_module: acme2certifier.cahandlers.openssl_ca_handler/handler_file: \/var\/www\/acme2certifier\/volume\/ca_handler.py/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 300\nenrollment_timeout: 15\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -174,7 +175,8 @@ jobs:
           sudo sed -i "s/import uuid/import uuid\\nimport time/g" examples/Docker/data/ca_handler.py
           sudo sed -i "s/        cert_raw = None/        cert_raw = None\\n        time.sleep(20)/g" examples/Docker/data/ca_handler.py
           sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 300\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/handler_module: acme2certifier.cahandlers.openssl_ca_handler/handler_file: \/var\/www\/acme2certifier\/volume\/ca_handler.py/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_reusage_timeframe: 300\nenrollment_timeout: 15\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nasync_mode: True/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
