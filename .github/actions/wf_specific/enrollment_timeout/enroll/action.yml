@@ -21,11 +21,20 @@ runs:
   - name: "Check timeout"
     working-directory: examples/Docker/
     run: |
+      EXPECTED='Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out'
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
+        if ! docker compose logs | grep -F "$EXPECTED"; then
+          echo "::error::expected enrollment timeout not found in container logs"
+          docker compose logs --tail=200
+          exit 1
+        fi
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec acme-srv grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out" /var/log/messages
+        if ! docker exec acme-srv grep -F "$EXPECTED" /var/log/messages; then
+          echo "::error::expected enrollment timeout not found in /var/log/messages"
+          docker exec acme-srv tail -n 200 /var/log/messages
+          exit 1
+        fi
       fi
     shell: bash
     env:
@@ -69,8 +78,13 @@ runs:
   - name: "Check timeout"
     working-directory: examples/Docker/
     run: |
+      EXPECTED='Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out'
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
+        if ! docker compose logs | grep -F "$EXPECTED"; then
+          echo "::error::expected enrollment timeout not found in container logs"
+          docker compose logs --tail=200
+          exit 1
+        fi
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash
@@ -90,8 +104,13 @@ runs:
   - name: "Check timeout"
     working-directory: examples/Docker/
     run: |
+      EXPECTED='Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out'
       if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "Certificate.process_certificate_enrollment_request() ended with: timeout:Enrollment process timed out"
+        if ! docker compose logs | grep -F "$EXPECTED"; then
+          echo "::error::expected enrollment timeout not found in container logs"
+          docker compose logs --tail=200
+          exit 1
+        fi
         sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
       fi
     shell: bash
