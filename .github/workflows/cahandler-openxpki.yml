@@ -317,23 +317,17 @@ jobs:
         env:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/openxpki.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB ACME Profiling - setup a2c with openxpki_ca_handler (post-cfg)"
         run: |
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"tls-client\": \"http:\/\/foo.bar\/profile1\", \"tls-server\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"tls-server\", \"tls-client\", \"profile_3\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"tls-client\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/www.example.org/*.acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
           cd examples/Docker/
           docker compose restart
@@ -634,22 +628,16 @@ jobs:
         env:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/openxpki.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profiling - setup a2c with openxpki_ca_handler (post-cfg)"
         run: |
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"tls-client\": \"http:\/\/foo.bar\/profile1\", \"tls-server\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"tls-server\", \"tls-client\", \"profile_3\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"tls-client\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.org/*.acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
@@ -964,22 +952,16 @@ jobs:
         env:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/openxpki.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profiling - setup a2c with openxpki_ca_handler (post-cfg)"
         run: |
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"tls-client\": \"http:\/\/foo.bar\/profile1\", \"tls-server\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"tls-server\", \"tls-client\", \"profile_3\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"tls-client\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.org/*.acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 

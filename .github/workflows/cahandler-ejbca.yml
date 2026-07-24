@@ -153,20 +153,13 @@ jobs:
         env:
           SAEC: ${{ env.SAEC }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
           docker compose logs
@@ -204,21 +197,15 @@ jobs:
         env:
           SAEC: ${{ env.SAEC }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
           docker compose logs
@@ -290,21 +277,15 @@ jobs:
         env:
           SAEC: ${{ env.SAEC }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acmeca1\": \"http:\/\/foo.bar\/acmeca1\", \"acmeca2\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
         env:
@@ -460,19 +441,13 @@ jobs:
         env:
           SAEC: ${{ env.SAEC }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           SAEC: ${{ env.SAEC }}
 
@@ -513,21 +488,15 @@ jobs:
         env:
           SAEC: ${{ env.SAEC }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           SAEC: ${{ env.SAEC }}
 
@@ -606,21 +575,15 @@ jobs:
         env:
           SAEC: ${{ env.SAEC }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acmeca1\": \"http:\/\/foo.bar\/acmeca1\", \"acmeca2\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           SAEC: ${{ env.SAEC }}
 
@@ -772,19 +735,13 @@ jobs:
         env:
           SAEC: ${{ env.SAEC }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           SAEC: ${{ env.SAEC }}
 
@@ -826,21 +783,15 @@ jobs:
         env:
           SAEC: ${{ env.SAEC }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB with headerinfo - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           SAEC: ${{ env.SAEC }}
 
@@ -921,21 +872,15 @@ jobs:
         env:
           SAEC: ${{ env.SAEC }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/ejbca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profiling - setup a2c with ejbca_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acmeca1\": \"http:\/\/foo.bar\/acmeca1\", \"acmeca2\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_profile_name\"\: \[\"acmeca2\", \"acmeca1\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_profile_name\"\: \"acmeca2\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"acmeca\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           SAEC: ${{ env.SAEC }}
 

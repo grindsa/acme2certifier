@@ -142,6 +142,11 @@ jobs:
       #  with:
       #    TO_FAIL: "false"
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/emailreply.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB profile - setup handler with EAB support"
         run: |
           sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: False/g" examples/Docker/data/acme_srv.cfg
@@ -151,21 +156,6 @@ jobs:
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/cahandler/authorization/g" examples/Docker/data/kid_profiles.json
-          # sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_emaillist\": [\"key_id01_1\@mailserver.acme\", \"key_id01_2\@mailserver.acme\", \"key_id01_2\@mailserver.acme\"]#g" examples/Docker/data/kid_profiles.json
-          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#\"prevalidated_emaillist\": [\"key_id00_1\@mailserver.acme\", \"key_id00_2\@mailserver.acme\", \"key_id00_2\@mailserver.acme\"],#g' examples/Docker/data/kid_profiles.json
-          sudo sed -i 's#"allowed_domainlist": *\["www.example.com", "www.example.org"\]#\"prevalidated_emaillist\": [\"key_id02_1\@mailserver.acme\", \"key_id02_2\@mailserver.acme\", \"key_id02_3\@mailserver.acme\"]\n    }#g' examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme.local/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' examples/Docker/data/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' examples/Docker/data/kid_profiles.json
-          sudo sed -i '30,35d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '17,18d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '15,15d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
           cd examples/Docker/
           docker compose restart
@@ -302,6 +292,11 @@ jobs:
         with:
           TO_FAIL: "false"
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/emailreply.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB profile - setup handler with EAB support"
         run: |
           sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: False/g" data/volume/acme_srv.cfg
@@ -311,21 +306,6 @@ jobs:
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/cahandler/authorization/g" data/volume/acme_ca/kid_profiles.json
-          # sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_emaillist\": [\"key_id01_1\@mailserver.acme\", \"key_id01_2\@mailserver.acme\", \"key_id01_2\@mailserver.acme\"]#g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#\"prevalidated_emaillist\": [\"key_id00_1\@mailserver.acme\", \"key_id00_2\@mailserver.acme\", \"key_id00_2\@mailserver.acme\"],#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"allowed_domainlist": *\["www.example.com", "www.example.org"\]#\"prevalidated_emaillist\": [\"key_id02_1\@mailserver.acme\", \"key_id02_2\@mailserver.acme\", \"key_id02_3\@mailserver.acme\"]\n    }#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '30,35d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '17,18d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '15,15d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c"
         run: |
@@ -468,6 +448,11 @@ jobs:
         with:
           TO_FAIL: "false"
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/emailreply.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB profile - setup handler with EAB support"
         run: |
           sudo sed -i "s/challenge_validation_disable: True/challenge_validation_disable: False/g" data/volume/acme_srv.cfg
@@ -477,21 +462,6 @@ jobs:
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/cahandler/authorization/g" data/volume/acme_ca/kid_profiles.json
-          # sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_emaillist\": [\"key_id01_1\@mailserver.acme\", \"key_id01_2\@mailserver.acme\", \"key_id01_2\@mailserver.acme\"]#g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#\"prevalidated_emaillist\": [\"key_id00_1\@mailserver.acme\", \"key_id00_2\@mailserver.acme\", \"key_id00_2\@mailserver.acme\"],#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"allowed_domainlist": *\["www.example.com", "www.example.org"\]#\"prevalidated_emaillist\": [\"key_id02_1\@mailserver.acme\", \"key_id02_2\@mailserver.acme\", \"key_id02_3\@mailserver.acme\"]\n    }#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '30,35d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '17,18d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '15,15d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |

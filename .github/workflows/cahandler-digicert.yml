@@ -149,6 +149,11 @@ jobs:
           DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
           DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/digicert.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB - Setup a2c with digicert_ca_handler (post-cfg)"
         run: |
           mkdir -p examples/Docker/data
@@ -156,17 +161,6 @@ jobs:
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
         env:
@@ -230,6 +224,11 @@ jobs:
           DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
           DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/digicert.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB ACME Profile - Setup a2c with digicert_ca_handler (post-cfg)"
         run: |
           mkdir -p examples/Docker/data
@@ -237,17 +236,6 @@ jobs:
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
         env:
@@ -385,6 +373,11 @@ jobs:
           DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
           DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/digicert.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB - Setup a2c with digicert_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
@@ -392,17 +385,6 @@ jobs:
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
           DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
@@ -474,6 +456,11 @@ jobs:
           DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
           DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/digicert.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profile - Setup a2c with digicert_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
@@ -481,17 +468,6 @@ jobs:
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
           DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
@@ -633,6 +609,11 @@ jobs:
           DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
           DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/digicert.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB - Setup a2c with digicert_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
@@ -640,17 +621,6 @@ jobs:
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
           DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
@@ -724,6 +694,11 @@ jobs:
           DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}
           DIGICERT_DOMAIN: ${{ env.DIGICERT_DOMAIN }}
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/digicert.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profile - Setup a2c with digicert_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca/certs
@@ -731,17 +706,6 @@ jobs:
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"ssl_basic\": \"http:\/\/foo.bar\/acmeca1\", \"ssl_securesite_pro\": \"http:\/\/foo.bar\/acmeca2\", \"ssl_securesite_flex\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"cert_type\"\: \[\"ssl_basic\", \"ssl_securesite_pro\", \"ssl_securesite_flex\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"cert_type\"\: \"ssl_securesite_pro\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.org/*.acme.dynamop.de/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
         env:
           DIGICERT_API_KEY: ${{ env.DIGICERT_API_KEY }}
           DIGICERT_ORGNAME: ${{ env.DIGICERT_ORGNAME }}

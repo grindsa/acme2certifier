@@ -148,6 +148,11 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/vault.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB ACME Profiling - setup a2c with vault_ca_handler"
         run: |
           sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
@@ -155,17 +160,6 @@ jobs:
           sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
           sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"vault_role\"\: \[\"clientauth\", \"serverauth\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"vault_role\"\: \"servers\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"vault_path\": \"pki\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
 
@@ -310,6 +304,11 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/vault.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profiling - setup a2c with vault_ca_handler"
         run: |
           sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
@@ -317,17 +316,6 @@ jobs:
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"vault_role\"\: \[\"clientauth\", \"serverauth\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"vault_role\"\: \"servers\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"vault_path\": \"pki\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c"
         run: |
@@ -465,6 +453,11 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/vault.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profiling - setup a2c with vault_ca_handler"
         run: |
           sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
@@ -472,17 +465,6 @@ jobs:
           sudo echo "key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"vault_role\"\: \[\"clientauth\", \"serverauth\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"vault_role\"\: \"servers\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"vault_path\": \"pki\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown\": \"unknown\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |

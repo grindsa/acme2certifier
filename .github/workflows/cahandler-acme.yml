@@ -371,23 +371,17 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB Profiling - Setup acme ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"acme_url\"\: \[\"http:\/\/acme-le-sim-2.acme\", \"http:\/\/acme-le-sim-1.acme\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"acme_url\"\: \"http:\/\/acme-le-sim-2.acme\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"acme_keyfile\": \"\/var\/www\/acme2certifier\/volume\/acme-le-sim-2.json\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"acme_keyfile\": \[\"\/var\/www\/acme2certifier\/volume\/acme-le-sim-1.json\", \"\/var\/www\/acme2certifier\/volume\/acme-le-sim-2.json\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
       - name: "EAB Profiling - Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -427,6 +421,11 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme_profiles.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB ACME Profiling - Setup acme ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/acme
@@ -434,16 +433,6 @@ jobs:
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/profile_id/profile/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
 
@@ -1111,24 +1100,17 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB Profiling - Setup acme_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/volume/acme_ca
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"acme_url\"\: \[\"http:\/\/acme-le-sim-2.acme\", \"http:\/\/acme-le-sim-1.acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"acme_url\"\: \"http:\/\/acme-le-sim-2.acme\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"acme_keyfile\": \"\/var\/www\/acme2certifier\/volume\/acme-le-sim-2.json\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"acme_keyfile\": \[\"\/var\/www\/acme2certifier\/volume\/acme-le-sim-1.json\", \"\/var\/www\/acme2certifier\/volume\/acme-le-sim-2.json\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Execute install script"
         run: |
@@ -1167,23 +1149,17 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme_profiles.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profiling - Setup acme_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p data/acme_ca
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile_1\": \"http:\/\/foo.bar\/profile_1\", \"profile_2\": \"http:\/\/foo.bar\/profile_2\", \"profile_3\": \"http:\/\/foo.bar\/profile_3\"}/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/profile_id/profile/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "EAB ACME Profiling - Run Execute install script"
         run: |

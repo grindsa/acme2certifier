@@ -485,6 +485,11 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB with headerinfo - Setup a2c with mscertsrv_ca_handler using kerberos (post-cfg)"
         run: |
           sudo touch examples/Docker/data/ca_certs.pem
@@ -502,17 +507,6 @@ jobs:
           sudo chmod 777 examples/Docker/data/krb5.keytab
           sudo echo $KRB5_KEYTAB | base64 -d > examples/Docker/data/krb5.keytab
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template\"\: \[\"WebServer-07-C\"\, \"WebServer-07-S\"]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template\"\: \"WebServer-07-C\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/local/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -559,6 +553,11 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB ACME Profiling - Setup a2c with mscertsrv_ca_handler (Kerberos) (post-cfg)"
         run: |
           sudo touch examples/Docker/data/ca_certs.pem
@@ -573,17 +572,6 @@ jobs:
           $KRB5_CONF
           EOF
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template\"\: \[\"WebServer-07-C\"\, \"WebServer-07-S\"]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template\"\: \"WebServer-07-C\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/local/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
 
@@ -1010,6 +998,11 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca_acme.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB with headerinfo - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab) (post-cfg)"
         run: |
           sudo touch examples/Docker/data/ca_certs.pem
@@ -1020,17 +1013,6 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template\"\: \[\"WebServer-07-C\"\, \"WebServer-07-S\"]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template\"\: \"WebServer-07-C\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
           sudo touch examples/Docker/data/krb5.conf
           sudo chmod 777 examples/Docker/data/krb5.conf
@@ -1085,6 +1067,11 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca_acme.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos) (post-cfg)"
         run: |
           sudo touch examples/Docker/data/ca_certs.pem
@@ -1093,17 +1080,6 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/profile1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template\"\: \[\"WebServer-07-C\"\, \"WebServer-07-S\"]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template\"\: \"WebServer-07-C\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
           sudo touch examples/Docker/data/krb5.conf
           sudo chmod 777 examples/Docker/data/krb5.conf
@@ -1687,6 +1663,11 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB with headerinfo - Setup a2c with mscertsrv_ca_handler using kerberos (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -1694,17 +1675,6 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template\"\: \[\"WebServer-07-C\"\, \"WebServer-07-S\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template\"\: \"WebServer-07-C\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
           sudo touch data/volume/acme_ca/krb5.conf
           sudo chmod 777 data/volume/acme_ca/krb5.conf
@@ -1751,6 +1721,11 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab) (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -1758,17 +1733,6 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template\"\: \[\"WebServer-07-C\"\, \"WebServer-07-S\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template\"\: \"WebServer-07-C\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
           sudo touch data/volume/acme_ca/krb5.conf
           sudo chmod 777 data/volume/acme_ca/krb5.conf
@@ -1819,6 +1783,11 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab) (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -1826,17 +1795,6 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template\"\: \[\"WebServer-07-C\"\, \"WebServer-07-S\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template\"\: \"WebServer-07-C\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
           sudo touch data/volume/acme_ca/krb5.conf
           sudo chmod 777 data/volume/acme_ca/krb5.conf
@@ -2244,6 +2202,11 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca_acme.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB with headerinfo - Setup a2c with ms_wcce_ca_handler (Kerberos) (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -2253,17 +2216,6 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template\"\: \[\"WebServer-07-C\"\, \"WebServer-07-S\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template\"\: \"WebServer-07-C\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
           sudo touch data/volume/acme_ca/krb5.conf
           sudo chmod 777 data/volume/acme_ca/krb5.conf
@@ -2312,6 +2264,11 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca_acme.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos) (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -2321,17 +2278,6 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template\"\: \[\"WebServer-07-C\"\, \"WebServer-07-S\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template\"\: \"WebServer-07-C\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
           sudo touch data/volume/acme_ca/krb5.conf
           sudo chmod 777 data/volume/acme_ca/krb5.conf

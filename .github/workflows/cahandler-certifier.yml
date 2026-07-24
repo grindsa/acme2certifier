@@ -276,23 +276,17 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB without headerinfo - Setup a2c with certifier_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> examples/Docker/data/acme_srv.cfg
           # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
           cd examples/Docker/
           docker compose restart
@@ -323,6 +317,11 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB with headerinfo - Setup a2c with certifier_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
@@ -330,17 +329,6 @@ jobs:
           # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
 
@@ -353,10 +341,10 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "EAB with headerinfo - Reconfigure key_file without restarting"
-        run: |
-          sudo sed -i "s/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\"\]/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\", \"*.acme\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/      \"prevalidated_domainlist\": \[\"www.example.com\"\]/          \"prevalidated_domainlist\": \[\"www.example1.com\"\]\n  },\n  \"keyid_04\": {\n    \"hmac\": \"YW5kX2hlcmVfaXNfYW5vdGhlcl92ZXJ5X2xvbmdfbWFja19obWFjX2tleV90b19jaGVja19pZl9jaGFuZ2VzX2FmZmVjdF9pbW1lZGF0ZWx5\",\n    \"cahandler\": {}\n  }\n}/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '34,35d' examples/Docker/data/kid_profiles.json
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier_reconfigured.json
+          DEST: examples/Docker/data/kid_profiles.json
 
       - name: "EAB with headerinfo - Enrollment after reconfiguration"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -371,12 +359,9 @@ jobs:
       - name: "kid-file in yaml format - Reconfiguration"
         run: |
           sudo sed -i "s/kid_profiles.json/kid_profiles.yml/g" examples/Docker/data/acme_srv.cfg
-          sudo pip3 install yq
-          sudo pip3 install jq
-          sudo sh -c "cat examples/Docker/data/kid_profiles.json | yq -y '.' > examples/Docker/data/kid_profiles.yml"
-          sudo rm examples/Docker/data/kid_profiles.json
-          sudo sed -i '33,34d' examples/Docker/data/kid_profiles.yml
-          # sudo cat examples/Docker/data/kid_profiles.yml
+          sudo cp .github/actions/wf_specific/eab_profiling/fixtures/certifier_reconfigured.yml examples/Docker/data/kid_profiles.yml
+          sudo chmod 777 examples/Docker/data/kid_profiles.yml
+          sudo rm -f examples/Docker/data/kid_profiles.json
 
       - name: "kid-file in yaml format - Enrollment after reconfiguration"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/enroll_eab_w_headerinfo
@@ -437,6 +422,11 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB ACME Profile - Setup a2c with certifier_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
@@ -445,17 +435,6 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_operations_log: True/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '18,19d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
           cd examples/Docker/
           docker compose restart
 
@@ -694,23 +673,17 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB without headerinfo - Setup a2c with certifier_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
           # sudo echo "api_host: $NCM_API_HOST" >> data/volume/acme_srv.cfg
           # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |
@@ -744,6 +717,11 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB with headerinfo - Setup a2c with certifier_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
@@ -751,17 +729,6 @@ jobs:
           # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |
@@ -778,10 +745,10 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "EAB with headerinfo - Reconfigure key_file without restarting"
-        run: |
-          sudo sed -i "s/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\"\]/\"allowed_domainlist\": \[\"www.example.com\", \"www.example.org\", \"*.acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/      \"prevalidated_domainlist\": \[\"www.example.com\"\]/          \"prevalidated_domainlist\": \[\"www.example1.com\"\]\n  },\n  \"keyid_04\": {\n    \"hmac\": \"YW5kX2hlcmVfaXNfYW5vdGhlcl92ZXJ5X2xvbmdfbWFja19obWFjX2tleV90b19jaGVja19pZl9jaGFuZ2VzX2FmZmVjdF9pbW1lZGF0ZWx5\",\n    \"cahandler\": {}\n  }\n}/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '34,35d' data/volume/acme_ca/kid_profiles.json
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier_reconfigured.json
+          DEST: data/volume/acme_ca/kid_profiles.json
 
       - name: "Update configuration"
         run: |
@@ -802,11 +769,9 @@ jobs:
       - name: "kid-file in yaml format - Reconfiguration"
         run: |
           sudo sed -i "s/kid_profiles.json/kid_profiles.yml/g" data/volume/acme_srv.cfg
-          sudo pip3 install yq
-          sudo pip3 install jq
-          sudo sh -c "cat data/volume/acme_ca/kid_profiles.json | yq -y '.' > data/volume/acme_ca/kid_profiles.yml"
-          sudo rm data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '33,34d' data/volume/acme_ca/kid_profiles.yml
+          sudo cp .github/actions/wf_specific/eab_profiling/fixtures/certifier_reconfigured.yml data/volume/acme_ca/kid_profiles.yml
+          sudo chmod 777 data/volume/acme_ca/kid_profiles.yml
+          sudo rm -f data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |
@@ -875,6 +840,11 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profile - Setup a2c with certifier_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
@@ -883,17 +853,6 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_operations_log: True/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |
@@ -1081,6 +1040,11 @@ jobs:
             key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB with headerinfo - Setup a2c with certifier_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
@@ -1088,17 +1052,6 @@ jobs:
           # sudo echo "ca_bundle: $NCM_CA_BUNDLE" >> data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |
@@ -1167,6 +1120,11 @@ jobs:
             key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/certifier.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profile - Setup a2c with certifier_ca_handler (post-cfg)"
         run: |
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
@@ -1175,17 +1133,6 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"101\": \"http:\/\/foo.bar\/profile1\", \"102\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
           sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\ncert_operations_log: True/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"profile_id\"\: \[\"102\", \"101\"\, \"100\"]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"profile_id\"\: \"102\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca_2\",/\"ca_name\": \"sub-ca-2\"/" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '18,19d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |

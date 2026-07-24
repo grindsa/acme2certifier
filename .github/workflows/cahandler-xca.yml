@@ -202,6 +202,11 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB - Setup a2c with xca_ca_handler - profiling (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/xca
@@ -211,18 +216,6 @@ jobs:
           sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '22,24d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
           cd examples/Docker/
           docker compose restart
@@ -252,6 +245,11 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca_subject.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB subject profiling - Setup a2c with xca_ca_handler  (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/xca
@@ -262,19 +260,6 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \"acme\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\",/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '22,24d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '9d' examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"api_user\"\: \"api_user\",/\"subject\"\: \{\n        \"serialNumber\"\: \"*\",\n        \"organizationName\"\: \"acme corp\",\n        \"organizationalUnitName\"\: \[\"acme1\", \"acme2\"\],\n        \"countryName\"\: \"AC\"\n       \}/g" examples/Docker/data/kid_profiles.json
 
           cd examples/Docker/
           docker compose restart
@@ -335,6 +320,11 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: examples/Docker/data/kid_profiles.json
       - name: "EAB ACME Profile - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           sudo mkdir -p examples/Docker/data/xca
@@ -345,18 +335,6 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo sed -i '29,33d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo chmod 777 acme2certifier/share/skeletons/eab_handler/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i '22,24d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
 
           cd examples/Docker/
           docker compose restart
@@ -557,6 +535,11 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -566,18 +549,6 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '22,24d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Execute install script"
         run: |
@@ -610,6 +581,11 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca_subject.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB subject profiling - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -619,19 +595,6 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\",/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '22,24d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '9d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"api_user\"\: \"api_user\",/\"subject\"\: \{\n        \"serialNumber\"\: \"*\",\n        \"organizationName\"\: \"acme corp\",\n        \"organizationalUnitName\"\: \[\"acme1\", \"acme2\"\],\n        \"countryName\"\: \"AC\"\n       \}/g" data/volume/acme_ca/kid_profiles.json
 
       - name: "Execute install script"
         run: |
@@ -701,6 +664,11 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profile - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -710,16 +678,6 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '22,24d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Execute install script"
         run: |
@@ -924,6 +882,11 @@ jobs:
             key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -933,18 +896,6 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '22,24d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |
@@ -978,6 +929,11 @@ jobs:
             key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca_subject.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB subject profiling - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -987,19 +943,6 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '29,33d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\",/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '22,24d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '9d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"api_user\"\: \"api_user\",/\"subject\"\: \{\n        \"serialNumber\"\: \"*\",\n        \"organizationName\"\: \"acme corp\",\n        \"organizationalUnitName\"\: \[\"acme1\", \"acme2\"\],\n        \"countryName\"\: \"AC\"\n       \}/g" data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |
@@ -1070,6 +1013,11 @@ jobs:
             key_file: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
+      - name: "Stage kid_profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/xca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
       - name: "EAB ACME Profile - Setup a2c with xca_ca_handler (post-cfg)"
         run: |
           mkdir -p data/volume/acme_ca
@@ -1079,16 +1027,6 @@ jobs:
 
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"acme\": \"http:\/\/foo.bar\/profile1\", \"template\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \[\"profile_1\", \"profile_2\", \"profile_3\"\]/\"template_name\"\: \[\"template\", \"acme\"\]/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"profile_id\"\: \"profile_2\"/\"template_name\"\: \"template\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/\"ca_name\": \"example_ca\",/\"unknown_key\": \"unknown_value\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/  \"ca_name\": \"example_ca_2\",/  \"issuing_ca_name\": \"root-ca\",\n      \"issuing_ca_key\": \"root-ca\"\n    },\n    "challenge": {\n      \"challenge_validation_disable\": \"True\"\n      \"issuing_ca_key\": \"root-ca\"/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/www.example.com/www.example.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '22,24d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c "
         run: |

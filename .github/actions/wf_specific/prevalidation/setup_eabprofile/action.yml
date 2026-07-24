@@ -34,12 +34,10 @@ runs:
         PATH_REWRITE_FROM: ${{ inputs.PATH_REWRITE_FROM }}
         PATH_REWRITE_TO: ${{ inputs.PATH_REWRITE_TO }}
 
-    - name: "Configure EABhandler and stage kid_profiles"
+    - name: "Configure EABhandler"
       run: |
         set -euo pipefail
         cfg="${VOLUME_DIR}/acme_srv.cfg"
-        dest_dir="$(dirname "${KID_PROFILES_DEST}")"
-        sudo mkdir -p "${dest_dir}"
         {
           echo
           echo "[EABhandler]"
@@ -47,11 +45,13 @@ runs:
           echo "key_file: ${KEY_FILE}"
           echo "eab_profiling: True"
         } | sudo tee -a "${cfg}" >/dev/null
-        sudo cp "${KID_PROFILES_SOURCE}" "${KID_PROFILES_DEST}"
-        sudo chmod 777 "${KID_PROFILES_DEST}"
       shell: bash
       env:
         VOLUME_DIR: ${{ inputs.VOLUME_DIR }}
         KEY_FILE: ${{ inputs.KEY_FILE }}
-        KID_PROFILES_DEST: ${{ inputs.KID_PROFILES_DEST }}
-        KID_PROFILES_SOURCE: ${{ inputs.KID_PROFILES_SOURCE }}
+
+    - name: "Stage kid_profiles"
+      uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+      with:
+        SOURCE: ${{ inputs.KID_PROFILES_SOURCE }}
+        DEST: ${{ inputs.KID_PROFILES_DEST }}
