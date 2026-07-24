@@ -1,5 +1,5 @@
 name: "tunnel_setup"
-description: "tunnel_setup"
+description: "SSH port-forward tunnel to NCM/CMP endpoints on the remote AWS instance"
 inputs:
   SSH_KEY:
     description: "SSH access key"
@@ -32,13 +32,14 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: "Prepare ssh environment on ramdisk "
+  - name: "Prepare ssh environment on ramdisk"
     run: |
+      set -euo pipefail
       sudo mkdir -p /tmp/rd
-      sudo mount -t tmpfs -o size=5M none /tmp/rd
-      sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
+      sudo mount -t tmpfs -o size=5M none /tmp/rd || true
+      printf '%s\n' "${SSH_KEY}" | sudo tee /tmp/rd/ak.tmp >/dev/null
       sudo chmod 600 /tmp/rd/ak.tmp
-      sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
+      printf '%s\n' "${KNOWN_HOSTS}" | sudo tee /tmp/rd/known_hosts >/dev/null
     env:
       SSH_KEY: ${{ inputs.SSH_KEY }}
       KNOWN_HOSTS: ${{ inputs.SSH_KNOWN_HOSTS }}
@@ -46,7 +47,14 @@ runs:
 
   - name: "Setup ssh forwarder"
     run: |
-        docker run -d --rm --network $NAME_SPACE --name=forwarder  -e "MAPPINGS=8084:127.0.0.1:8084; 8080:127.0.0.1:8080" -e "SSH_HOST=$SSH_HOST" -e "SSH_PORT=$SSH_PORT" -e "SSH_USER=$SSH_USER" -p 8080:8080 -p 8084:8084 -v "/tmp/rd/ak.tmp:/ssh_key:ro" davidlor/ssh-port-forward-client:dev
+      docker run -d --rm --network "${NAME_SPACE}" --name=forwarder \
+        -e "MAPPINGS=8084:127.0.0.1:8084; 8080:127.0.0.1:8080" \
+        -e "SSH_HOST=${SSH_HOST}" \
+        -e "SSH_PORT=${SSH_PORT}" \
+        -e "SSH_USER=${SSH_USER}" \
+        -p 8080:8080 -p 8084:8084 \
+        -v "/tmp/rd/ak.tmp:/ssh_key:ro" \
+        davidlor/ssh-port-forward-client:dev
     env:
       SSH_USER: ${{ inputs.SSH_USER }}
       SSH_HOST: ${{ inputs.SSH_HOST }}
@@ -55,14 +63,20 @@ runs:
       NCM_API_HOST: ${{ inputs.NCM_API_HOST }}
     shell: bash
 
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 5s
-
-  - name: "Test conection to mscertsrv via ssh tunnel"
+  - name: "Wait for NCM API via ssh tunnel"
     run: |
-      docker run -i --rm --network $NAME_SPACE curlimages/curl --insecure https://$NCM_API_USER:$NCM_API_PASSWORD@forwarder.acme:8084
+      set -euo pipefail
+      for i in $(seq 1 30); do
+        if docker run -i --rm --network "${NAME_SPACE}" curlimages/curl \
+          --silent --show-error --fail --insecure \
+          "https://${NCM_API_USER}:${NCM_API_PASSWORD}@forwarder.acme:8084"; then
+          echo "tunnel ready after ${i} attempt(s)"
+          exit 0
+        fi
+        sleep 2
+      done
+      echo "ERROR: NCM API tunnel not ready" >&2
+      exit 1
     env:
       NCM_API_HOST: ${{ inputs.NCM_API_HOST }}
       NAME_SPACE: ${{ inputs.NAME_SPACE }}

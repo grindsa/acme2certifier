@@ -21,6 +21,14 @@ inputs:
     description: "Additional cfg sections to append (e.g. [EABhandler]). Multiline."
     required: false
     default: ""
+  CERTIFICATE_OPTIONS:
+    description: "Lines to insert after [Certificate] header (e.g. enrollment_timeout: 15)"
+    required: false
+    default: ""
+  ORDER_OPTIONS:
+    description: "Lines to insert after [Order] header (e.g. header_info_list / profiles)"
+    required: false
+    default: ""
   PATH_REWRITE_FROM:
     description: "Optional substring to rewrite in the finished cfg"
     required: false
@@ -56,6 +64,30 @@ runs:
           printf '\n%s\n' "${EXTRA_SECTIONS}" | sudo tee -a "${cfg}" >/dev/null
         fi
 
+        insert_after_section() {
+          local section="$1"
+          local options="$2"
+          [[ -z "${options}" ]] && return 0
+          local opts_file tmp
+          opts_file="$(mktemp)"
+          tmp="$(mktemp)"
+          printf '%s\n' "${options}" > "${opts_file}"
+          awk -v section="[${section}]" -v opts_file="${opts_file}" '
+            $0 == section {
+              print
+              while ((getline line < opts_file) > 0) print line
+              close(opts_file)
+              next
+            }
+            { print }
+          ' "${cfg}" > "${tmp}"
+          sudo mv "${tmp}" "${cfg}"
+          rm -f "${opts_file}"
+        }
+
+        insert_after_section "Certificate" "${CERTIFICATE_OPTIONS}"
+        insert_after_section "Order" "${ORDER_OPTIONS}"
+
         if [[ -n "${PATH_REWRITE_FROM}" ]]; then
           sudo sed -i "s|${PATH_REWRITE_FROM}|${PATH_REWRITE_TO}|g" "${cfg}"
         fi
@@ -68,5 +100,7 @@ runs:
         HANDLER_MODULE: ${{ inputs.HANDLER_MODULE }}
         OPTIONS: ${{ inputs.OPTIONS }}
         EXTRA_SECTIONS: ${{ inputs.EXTRA_SECTIONS }}
+        CERTIFICATE_OPTIONS: ${{ inputs.CERTIFICATE_OPTIONS }}
+        ORDER_OPTIONS: ${{ inputs.ORDER_OPTIONS }}
         PATH_REWRITE_FROM: ${{ inputs.PATH_REWRITE_FROM }}
         PATH_REWRITE_TO: ${{ inputs.PATH_REWRITE_TO }}
