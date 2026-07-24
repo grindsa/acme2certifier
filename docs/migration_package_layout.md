@@ -28,7 +28,7 @@ This guide describes the restructuring of `acme2certifier` into a proper Python 
 | Django project | `examples/django/acme2certifier/` | `acme2certifier/django_project/` |
 | Django settings template | `examples/django/acme2certifier/settings.py` | `examples/django/settings.py` |
 
-**Current status**
+## Current status
 
 - Core modules live under `acme2certifier.acme_srv`. Import `acme2certifier.acme_srv.*` (legacy `acme_srv.*` import shims are **removed**).
 - CA / EAB / hook **implementations** live under `acme2certifier.cahandlers`, `acme2certifier.eabhandlers`, and `acme2certifier.hookhandlers`.
@@ -126,7 +126,7 @@ Preferred:
 eab_handler_module: acme2certifier.eabhandlers.file_handler
 ```
 
-### Hooks
+### Hook
 
 Legacy (deprecated):
 

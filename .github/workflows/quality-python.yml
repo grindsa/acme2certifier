@@ -113,8 +113,7 @@ jobs:
 
       - name: cp
         run: |
-          cp acme2certifier/cahandlers/skeleton_ca_handler.py acme_srv/ca_handler.py
-           cp examples/acme_srv.cfg acme_srv/
+          cp examples/acme_srv.cfg acme_srv/
 
       - name: "Pylint folder: acme2certifier package"
         run: |
