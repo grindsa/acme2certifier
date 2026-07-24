@@ -78,13 +78,7 @@ jobs:
         uses: ./.github/actions/setup_openssl_cahandler
         with:
           VOLUME_DIR: "examples/Docker/data"
-
-      - name: "Configure openssl ca_handler with domain and ip prevalidation support"
-        run: |
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n\n[Authorization]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "prevalidated_domainlist: [\"foo-01.bar.local\", \"*.foo.local\", \"*.acme-new\"]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "prevalidated_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]" >> examples/Docker/data/acme_srv.cfg
+          PREVALIDATED: both
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -107,8 +101,13 @@ jobs:
           DEPLOYMENT_TYPE: "container"
 
       - name: "Setup openssl ca_handler with domain prevalidation support"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          PREVALIDATED: domain
+
+      - name: "Restart a2c container"
         run: |
-          sudo sed -i "s/prevalidated_iplist/# prevalidated_iplist/g" examples/Docker/data/ca_handler.py
           cd examples/Docker/
           docker compose restart
 
@@ -124,9 +123,13 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "Setup openssl ca_handler with ip prevalidation support"
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          PREVALIDATED: ip
+
+      - name: "Restart a2c container"
         run: |
-          sudo sed -i "s/# prevalidated_iplist/prevalidated_iplist/g" examples/Docker/data/ca_handler.py
-          sudo sed -i "s/prevalidated_domainlist/# prevalidated_domainlist/g" examples/Docker/data/ca_handler.py
           cd examples/Docker/
           docker compose restart
 
@@ -142,34 +145,14 @@ jobs:
           DEPLOYMENT_TYPE: container
 
       - name: "Setup openssl ca_handler with eab-profiling support"
-        uses: ./.github/actions/setup_openssl_cahandler
+        uses: ./.github/actions/wf_specific/prevalidation/setup_eabprofile
         with:
           VOLUME_DIR: "examples/Docker/data"
+          KEY_FILE: volume/kid_profiles.json
+          KID_PROFILES_DEST: examples/Docker/data/kid_profiles.json
 
-      - name: "Configure openssl ca_handler with eab-profiling support"
+      - name: "Restart a2c container"
         run: |
-          sudo chmod 777 examples/Docker/data/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "key_file: volume/kid_profiles.json" >> examples/Docker/data/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> examples/Docker/data/acme_srv.cfg
-
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json examples/Docker/data/kid_profiles.json
-          sudo chmod 777 examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/cahandler/authorization/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_iplist\": [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]#g" examples/Docker/data/kid_profiles.json
-          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"],#g' examples/Docker/data/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": *\["www.example.com", "www.example.org"\]#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"]\n    }#g' examples/Docker/data/kid_profiles.json
-          sudo sed -i "s/example.net/acme.local/g" examples/Docker/data/kid_profiles.json
-          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' examples/Docker/data/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' examples/Docker/data/kid_profiles.json
-          sudo sed -i '30,35d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '20,22d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '17,18d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '15,15d' examples/Docker/data/kid_profiles.json
-          sudo sed -i '8,9d' examples/Docker/data/kid_profiles.json
-
           cd examples/Docker/
           docker compose restart
 
@@ -233,13 +216,8 @@ jobs:
 
       - name: "Setup openssl ca_handler with domain and ip prevalidation support"
         uses: ./.github/actions/setup_openssl_cahandler
-
-      - name: "Configure openssl ca_handler with domain and ip prevalidation support"
-        run: |
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[Authorization]" >> data/volume/acme_srv.cfg
-          sudo echo "prevalidated_domainlist: [\"foo-01.bar.local\", \"*.foo.local\", \"*.acme-new\"]" >> data/volume/acme_srv.cfg
-          sudo echo "prevalidated_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]" >> data/volume/acme_srv.cfg
+        with:
+          PREVALIDATED: both
 
       - name: "Execute install scipt"
         run: |
@@ -262,8 +240,9 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "Setup openssl ca_handler with domain prevalidation support"
-        run: |
-          sudo sed -i "s/prevalidated_iplist/# prevalidated_iplist/g" data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          PREVALIDATED: domain
 
       - name: "Reconfigure a2c"
         run: |
@@ -283,9 +262,9 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "Setup openssl ca_handler with ip prevalidation support"
-        run: |
-          sudo sed -i "s/# prevalidated_iplist/prevalidated_iplist/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/prevalidated_domainlist/# prevalidated_domainlist/g" data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          PREVALIDATED: ip
 
       - name: "Reconfigure a2c"
         run: |
@@ -305,31 +284,10 @@ jobs:
           DEPLOYMENT_TYPE: rpm
 
       - name: "Setup openssl ca_handler with eab-profiling support"
-        uses: ./.github/actions/setup_openssl_cahandler
-
-      - name: "Configure openssl ca_handler with eab-profiling support"
-        run: |
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/cahandler/authorization/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_iplist\": [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]#g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"],#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": *\["www.example.com", "www.example.org"\]#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"]\n    }#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '30,35d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '17,18d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '15,15d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+        uses: ./.github/actions/wf_specific/prevalidation/setup_eabprofile
+        with:
+          KEY_FILE: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+          KID_PROFILES_DEST: data/volume/acme_ca/kid_profiles.json
 
       - name: "Reconfigure a2c"
         run: |
@@ -406,13 +364,8 @@ jobs:
 
       - name: "Setup openssl ca_handler with domain and ip prevalidation support"
         uses: ./.github/actions/setup_openssl_cahandler
-
-      - name: "Configure openssl ca_handler with domain and ip prevalidation support"
-        run: |
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo echo -e "\n\n[Authorization]" >> data/volume/acme_srv.cfg
-          sudo echo "prevalidated_domainlist: [\"foo-01.bar.local\", \"*.foo.local\", \"*.acme-new\"]" >> data/volume/acme_srv.cfg
-          sudo echo "prevalidated_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]" >> data/volume/acme_srv.cfg
+        with:
+          PREVALIDATED: both
 
       - name: "Execute install script"
         run: |
@@ -436,8 +389,9 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "Setup openssl ca_handler with domain prevalidation support"
-        run: |
-          sudo sed -i "s/prevalidated_iplist/# prevalidated_iplist/g" data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          PREVALIDATED: domain
 
       - name: "Reconfigure a2c "
         run: |
@@ -458,9 +412,9 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "Setup openssl ca_handler with ip prevalidation support"
-        run: |
-          sudo sed -i "s/# prevalidated_iplist/prevalidated_iplist/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/prevalidated_domainlist/# prevalidated_domainlist/g" data/volume/acme_srv.cfg
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          PREVALIDATED: ip
 
       - name: "Reconfigure a2c "
         run: |
@@ -481,32 +435,12 @@ jobs:
           DEPLOYMENT_TYPE: deb
 
       - name: "Setup openssl ca_handler with eab-profiling support"
-        uses: ./.github/actions/setup_openssl_cahandler
-
-      - name: "Configure openssl ca_handler with eab-profiling support"
-        run: |
-          sudo chmod 777 data/volume/acme_srv.cfg
-          sudo echo -e "\n[EABhandler]" >> data/volume/acme_srv.cfg
-          sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
-          sudo echo "key_file: volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
-          sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
-
-          sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
-          sudo chmod 777 data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/cahandler/authorization/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/allowed_domainlist/prevalidated_domainlist/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s#\"profile_id\"\: \"profile_2\"#\"prevalidated_iplist\": [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]#g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"profile_id": *\["profile_1", "profile_2", "profile_3"\],#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"],#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": *\["www.example.com", "www.example.org"\]#"prevalidated_iplist": ["10.0.0.0/8", "172.0.0.1/32", "192.168.0.0/16"]\n    }#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i "s/example.net/acme.local/g" data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's/"ca_name": "example_ca",/"unknown_key": "unknown_value"/g; s/"ca_name": "example_ca_2",/"unknown_key": "unknown_value"/g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i 's#"prevalidated_domainlist": \["www.example.com"\]#"unknown_key": "unknown_value"#g' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '30,35d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '20,22d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '17,18d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '15,15d' data/volume/acme_ca/kid_profiles.json
-          sudo sed -i '8,9d' data/volume/acme_ca/kid_profiles.json
+        uses: ./.github/actions/wf_specific/prevalidation/setup_eabprofile
+        with:
+          KEY_FILE: /var/www/acme2certifier/volume/acme_ca/kid_profiles.json
+          KID_PROFILES_DEST: data/volume/acme_ca/kid_profiles.json
+          PATH_REWRITE_FROM: volume
+          PATH_REWRITE_TO: /var/www/acme2certifier/volume
 
       - name: "Reconfigure a2c "
         run: |
