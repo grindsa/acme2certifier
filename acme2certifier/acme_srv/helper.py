@@ -127,6 +127,7 @@ from .helpers.config import (
     config_dryrun_load,
     default_deploy_base_dir,
     default_wsgi_dbfile,
+    resolve_config_path,
     load_config,
     header_info_jsonify,
     header_info_lookup,
