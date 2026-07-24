@@ -11,7 +11,7 @@ inputs:
     description: "SSH user"
     required: true
   SSH_HOST:
-    description: "SSH host"
+    description: "SSH host (DNS name or IP); overridden by EC2 public IP when DNS is stale"
     required: true
   SSH_PORT:
     description: "SSH port"
@@ -29,6 +29,22 @@ inputs:
   NCM_API_PASSWORD:
     description: "NCM API password"
     required: true
+  AWS_ACCESS_KEY_ID:
+    description: "Optional AWS key to resolve live EC2 public IP when DNS is stale"
+    required: false
+    default: ""
+  AWS_SECRET_ACCESS_KEY:
+    description: "Optional AWS secret"
+    required: false
+    default: ""
+  AWS_REGION:
+    description: "Optional AWS region"
+    required: false
+    default: ""
+  AWS_INSTANCE_ID:
+    description: "Optional EC2 instance id used for public IP lookup"
+    required: false
+    default: ""
 runs:
   using: "composite"
   steps:
@@ -40,9 +56,55 @@ runs:
       printf '%s\n' "${SSH_KEY}" | sudo tee /tmp/rd/ak.tmp >/dev/null
       sudo chmod 600 /tmp/rd/ak.tmp
       printf '%s\n' "${KNOWN_HOSTS}" | sudo tee /tmp/rd/known_hosts >/dev/null
+      sudo chown "$(id -u):$(id -g)" /tmp/rd/ak.tmp /tmp/rd/known_hosts 2>/dev/null || true
     env:
       SSH_KEY: ${{ inputs.SSH_KEY }}
       KNOWN_HOSTS: ${{ inputs.SSH_KNOWN_HOSTS }}
+    shell: bash
+
+  - name: "Resolve SSH connect host (DNS vs EC2 public IP)"
+    id: resolve_host
+    run: |
+      set -euo pipefail
+      CONNECT_HOST="${SSH_HOST}"
+      DNS_IP="$(getent ahostsv4 "${SSH_HOST}" | awk '{print $1; exit}' || true)"
+      echo "SSH_HOST DNS ${SSH_HOST} -> ${DNS_IP:-unresolved}"
+
+      if [[ -n "${AWS_ACCESS_KEY_ID}" && -n "${AWS_SECRET_ACCESS_KEY}" && -n "${AWS_REGION}" && -n "${AWS_INSTANCE_ID}" ]]; then
+        if ! command -v aws >/dev/null 2>&1; then
+          pip3 install --user awscli >/dev/null
+          export PATH="${HOME}/.local/bin:${PATH}"
+        fi
+        aws configure set aws_access_key_id "${AWS_ACCESS_KEY_ID}"
+        aws configure set aws_secret_access_key "${AWS_SECRET_ACCESS_KEY}"
+        aws configure set default.region "${AWS_REGION}"
+
+        PUBLIC_IP="$(aws ec2 describe-instances --region "${AWS_REGION}" --instance-ids "${AWS_INSTANCE_ID}" \
+          --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)"
+        echo "EC2 public IP for ${AWS_INSTANCE_ID}: ${PUBLIC_IP}"
+
+        if [[ -n "${PUBLIC_IP}" && "${PUBLIC_IP}" != "None" ]]; then
+          if [[ -z "${DNS_IP}" || "${DNS_IP}" != "${PUBLIC_IP}" ]]; then
+            echo "WARNING: DNS ${DNS_IP:-unresolved} != EC2 public IP ${PUBLIC_IP}; using EC2 IP for tunnel"
+            CONNECT_HOST="${PUBLIC_IP}"
+          else
+            echo "DNS matches EC2 public IP; using ${SSH_HOST}"
+          fi
+        else
+          echo "WARNING: no EC2 public IP; falling back to SSH_HOST=${SSH_HOST}"
+        fi
+      else
+        echo "AWS inputs not fully set; using SSH_HOST=${SSH_HOST}"
+      fi
+
+      echo "connect_host=${CONNECT_HOST}" >> "${GITHUB_OUTPUT}"
+      echo "Tunnel SSH target: ${CONNECT_HOST}"
+    env:
+      SSH_HOST: ${{ inputs.SSH_HOST }}
+      AWS_ACCESS_KEY_ID: ${{ inputs.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ inputs.AWS_SECRET_ACCESS_KEY }}
+      AWS_REGION: ${{ inputs.AWS_REGION }}
+      AWS_INSTANCE_ID: ${{ inputs.AWS_INSTANCE_ID }}
     shell: bash
 
   - name: "Setup ssh forwarder"
@@ -57,7 +119,7 @@ runs:
         davidlor/ssh-port-forward-client:dev
     env:
       SSH_USER: ${{ inputs.SSH_USER }}
-      SSH_HOST: ${{ inputs.SSH_HOST }}
+      SSH_HOST: ${{ steps.resolve_host.outputs.connect_host }}
       SSH_PORT: ${{ inputs.SSH_PORT }}
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
       NCM_API_HOST: ${{ inputs.NCM_API_HOST }}
@@ -66,16 +128,23 @@ runs:
   - name: "Wait for NCM API via ssh tunnel"
     run: |
       set -euo pipefail
+      # NCM root often returns 404; any HTTP response means the tunnel is up.
+      # Do not use curl --fail (exit 22 on 4xx).
       for i in $(seq 1 30); do
-        if docker run -i --rm --network "${NAME_SPACE}" curlimages/curl \
-          --silent --show-error --fail --insecure \
-          "https://${NCM_API_USER}:${NCM_API_PASSWORD}@forwarder.acme:8084"; then
+        code="$(docker run -i --rm --network "${NAME_SPACE}" curlimages/curl \
+          --silent --show-error --insecure \
+          --output /dev/null --write-out '%{http_code}' \
+          "https://${NCM_API_USER}:${NCM_API_PASSWORD}@forwarder.acme:8084" \
+          || true)"
+        echo "attempt ${i}/30 http_code=${code}"
+        if [[ "${code}" =~ ^[1-5][0-9]{2}$ ]]; then
           echo "tunnel ready after ${i} attempt(s)"
           exit 0
         fi
         sleep 2
       done
       echo "ERROR: NCM API tunnel not ready" >&2
+      docker logs forwarder 2>&1 || true
       exit 1
     env:
       NCM_API_HOST: ${{ inputs.NCM_API_HOST }}
