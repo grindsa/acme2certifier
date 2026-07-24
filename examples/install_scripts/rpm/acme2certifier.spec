@@ -105,7 +105,11 @@ APP=%{buildroot}%{app_root}
 # uWSGI ini: EL plugins + python-path for /opt layout
 %{__cp} -a acme2certifier/share/nginx/acme2certifier.ini "$APP/acme2certifier.ini"
 grep -q '^plugins' "$APP/acme2certifier.ini" || echo 'plugins = python3' >> "$APP/acme2certifier.ini"
-grep -q '^python-path' "$APP/acme2certifier.ini" || echo 'python-path = %{app_root}' >> "$APP/acme2certifier.ini"
+if grep -q '^python-path' "$APP/acme2certifier.ini"; then
+  %{__sed} -i 's|^python-path = .*|python-path = %{app_root}|' "$APP/acme2certifier.ini"
+else
+  echo 'python-path = %{app_root}' >> "$APP/acme2certifier.ini"
+fi
 
 # Apache examples: retarget paths; drop pip venv python-home
 %{__sed} -i 's|/var/www/acme2certifier|%{app_root}|g' "$APP"/share/apache2/apache_*.conf
