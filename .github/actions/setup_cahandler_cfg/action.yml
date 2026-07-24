@@ -13,7 +13,7 @@ inputs:
     description: "Dotted Python module for CAhandler.handler_module"
     required: true
   OPTIONS:
-    description: "Extra [CAhandler] options (multiline). Use ${{ env.VAR }} for secrets."
+    description: "Extra [CAhandler] options (multiline). Expand secrets in the caller (e.g. env.VAR)."
     required: false
     default: ""
   EXTRA_SECTIONS:
@@ -44,7 +44,7 @@ runs:
         {
           echo "handler_module: ${HANDLER_MODULE}"
           if [[ -n "${OPTIONS}" ]]; then
-            # Callers should expand secrets via ${{ env.VAR }} in OPTIONS.
+            # Callers should expand secrets in OPTIONS before passing the input.
             printf '%s\n' "${OPTIONS}"
           fi
         } | sudo tee -a "${cfg}" >/dev/null
