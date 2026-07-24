@@ -1,4 +1,4 @@
-name: CA-Handler Tests - MSCA
+name: CA-Handler Tests - Microsoft CA
 on:
   workflow_dispatch:
     inputs:
@@ -24,9 +24,6 @@ on:
         default: ''
 
 jobs:
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
   guard:
     runs-on: ubuntu-latest
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
@@ -40,13 +37,11 @@ jobs:
           BRANCH: ${{ inputs.branch }}
           RUN_ID: ${{ inputs.run_id }}
 
-  # ---------------------------------------------------------
-  # start instance
-  # ---------------------------------------------------------
   instance_start:
     needs: guard
     runs-on: ubuntu-latest
-    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'msca')) }}
+    # Shared Windows MSCA AWS host; keep in sync with instance_stop skip logic.
+    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'wf_pip') || contains(inputs.branch, 'msca')) }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
@@ -66,28 +61,51 @@ jobs:
           ACTION: "start"
           IGNORE_CURRENT_STATUS: "false"
 
-      - name: "Sleep for 60s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 60s
+      - name: "Wait for instance public IP + status"
+        run: |
+          set -euo pipefail
+          INSTANCE_ID="${{ env.AWS_WINDOWS-01_INSTANCE_ID }}"
+          REGION="${{ env.AWS_REGION }}"
+          PUBLIC_IP=""
+          for i in $(seq 1 40); do
+            STATE="$(aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" \
+              --query 'Reservations[0].Instances[0].State.Name' --output text)"
+            PUBLIC_IP="$(aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" \
+              --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)"
+            echo "attempt ${i}/40 state=${STATE} public_ip=${PUBLIC_IP}"
+            if [[ "$STATE" == "running" && -n "$PUBLIC_IP" && "$PUBLIC_IP" != "None" ]]; then
+              break
+            fi
+            sleep 5
+            PUBLIC_IP=""
+          done
+          if [[ -z "$PUBLIC_IP" || "$PUBLIC_IP" == "None" ]]; then
+            echo "ERROR: instance has no public IP yet" >&2
+            exit 1
+          fi
+          echo "MSCA instance public IP: ${PUBLIC_IP}"
+          aws ec2 wait instance-status-ok --region "$REGION" --instance-ids "$INSTANCE_ID" || true
 
-  # ---------------------------------------------------------
-  # Test mscertserv - container images (matrix from payload)
-  # ---------------------------------------------------------
+
   mscertserv-test-containers:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     name: "mscertsrv_handler_tests"
-
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -119,11 +137,6 @@ jobs:
       - name: "Get runner ip"
         run: |
           echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -136,13 +149,25 @@ jobs:
           MSCA_FQDN: ${{ env.MSCA_FQDN }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
           NAME_SPACE: local
 
-      - name: "KRB Headerinfo - Setup a2c with mscertsrv_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB Headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -154,31 +179,12 @@ jobs:
             verify: False
             request_timeout: 30
 
-      - name: "KRB Headerinfo - Setup a2c with mscertsrv_ca_handler (post-cfg)"
-        run: |
-          sudo touch examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/ca_certs.pem
-          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-
-          sudo touch examples/Docker/data/krb5.conf
-          sudo chmod 777 examples/Docker/data/krb5.conf
-          cat <<EOF > examples/Docker/data/krb5.conf
-          $KRB5_CONF
-          EOF
-
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
           NAME_SPACE: local
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
 
       - name: "KRB Headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -196,11 +202,19 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -212,27 +226,6 @@ jobs:
             verify: False
             request_timeout: 30
             enrollment_config_log: True
-
-      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler (post-cfg)"
-        run: |
-          sudo touch examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/ca_certs.pem
-          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-
-          sudo touch examples/Docker/data/krb5.conf
-          sudo chmod 777 examples/Docker/data/krb5.conf
-          cat <<EOF > examples/Docker/data/krb5.conf
-          $KRB5_CONF
-          EOF
-          cd examples/Docker/
-          docker compose restart
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
 
       - name: "KRB ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
@@ -245,11 +238,20 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler with keytab support"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB ACME Profiling keytab - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             krb5_principal: ${{ env.KRB5_PRINCIPAL }}
@@ -262,32 +264,7 @@ jobs:
             request_timeout: 30
             enrollment_config_log: True
 
-      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler with keytab support (post-cfg)"
-        run: |
-          sudo touch examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/ca_certs.pem
-          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-
-          sudo touch examples/Docker/data/krb5.conf
-          sudo chmod 777 examples/Docker/data/krb5.conf
-          cat <<EOF > examples/Docker/data/krb5.conf
-          $KRB5_CONF
-          EOF
-          sudo touch examples/Docker/data/krb5.keytab
-          sudo chmod 777 examples/Docker/data/krb5.keytab
-          sudo echo $KRB5_KEYTAB | base64 -d > examples/Docker/data/krb5.keytab
-
-          cd examples/Docker/
-          docker compose restart
-
-      - name: "Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
-      - name: "KRB ACME Profiling - Enrollment with keytab support"
+      - name: "KRB ACME Profiling - Enrollment with keytab"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
         with:
           NAME_SPACE: local
@@ -298,11 +275,18 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "NTLM Headerinfo - Setup a2c with mscertsrv_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "NTLM Headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -312,11 +296,6 @@ jobs:
             ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem
             verify: False
             request_timeout: 30
-
-      - name: "NTLM Headerinfo - Setup a2c with mscertsrv_ca_handler (post-cfg)"
-        run: |
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
 
       - name: "NTLM Headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
@@ -328,33 +307,55 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "NTLM Headerinfo - Setup a2c with mscertsrv_ca_handler with allowed_domainlist configuration"
-        run: |
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
+      - name: "NTLM allowed_domainlist - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          DISABLE_CHALLENGE_VALIDATION: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            allowed_domainlist: ["*.acme", "foo1.bar", "*.bar.local"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: ntlm
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: /var/www/acme2certifier/volume/ca_certs.pem
+            verify: False
+            request_timeout: 30
 
-      - name: "NTLM Headerinfo - enrollment allowed domainlist"
+      - name: "NTLM allowed_domainlist - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
         with:
           NAME_SPACE: local
 
-      - name: "NTLM Headerinfo - Verify allowed_domainlist error"
+      - name: "Verify allowed_domainlist error"
         run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+          (cd examples/Docker && docker compose logs) | grep -E "FQDN/SAN [^ ]+ not allowed by configuration"
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "NTLM ACME Profiling - Setup a2c with mscertsrv_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "NTLM ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -366,54 +367,43 @@ jobs:
             request_timeout: 30
             enrollment_config_log: True
 
-      - name: "NTLM ACME Profiling - Setup a2c with mscertsrv_ca_handler (post-cfg)"
-        run: |
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-
       - name: "NTLM ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
         with:
           NAME_SPACE: local
           DEPLOYMENT_TYPE: container
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp /etc/hosts ${{ github.workspace }}/artifact/data/
-          sudo cp /etc/resolv.conf ${{ github.workspace }}/artifact/data/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
-
-      - name: "[ * ] Uploading artifacts"
+      - name: "Collect failure logs"
+        if: failure()
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
+      - name: "Upload failure artifacts"
+        if: failure()
         uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
         with:
           name: mscertsrv-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ----------------------------------------------------------------------
-  # Test mscertserv eab-profiling - container images (matrix from payload)
-  # ----------------------------------------------------------------------
   mscertsrv-eabprov-container-tests:
-    name: "mscertsrv-container-eab-profiling-tests"
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
     needs: [guard, instance_start, mscertserv-test-containers]
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
-      # max-parallel: 1
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
+    name: "mscertsrv-container-eab-profiling-tests"
     steps:
-
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -445,11 +435,6 @@ jobs:
       - name: "Get runner ip"
         run: |
           echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -462,13 +447,31 @@ jobs:
           MSCA_FQDN: ${{ env.MSCA_FQDN }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
           NAME_SPACE: local
 
-      - name: "EAB with headerinfo - Setup a2c with mscertsrv_ca_handler using kerberos"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "EAB headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             krb5_principal: ${{ env.KRB5_PRINCIPAL }}
@@ -479,34 +482,12 @@ jobs:
             krb5_config: /var/www/acme2certifier/volume/krb5.conf
             verify: False
             request_timeout: 30
-          EXTRA_SECTIONS: |
-            [EABhandler]
-            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
-            key_file: volume/kid_profiles.json
-            eab_profiling: True
 
-      - name: "Stage kid_profiles"
+      - name: "Stage kid profiles"
         uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
           DEST: examples/Docker/data/kid_profiles.json
-      - name: "EAB with headerinfo - Setup a2c with mscertsrv_ca_handler using kerberos (post-cfg)"
-        run: |
-          sudo touch examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/ca_certs.pem
-          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-
-          sudo touch examples/Docker/data/krb5.conf
-          sudo chmod 777 examples/Docker/data/krb5.conf
-          cat <<EOF > examples/Docker/data/krb5.conf
-          $KRB5_CONF
-          EOF
-          sudo touch examples/Docker/data/krb5.keytab
-          sudo chmod 777 examples/Docker/data/krb5.keytab
-          sudo echo $KRB5_KEYTAB | base64 -d > examples/Docker/data/krb5.keytab
-
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -515,7 +496,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
           NAME_SPACE: local
 
-      - name: "EAB with headerinfo - enrollment"
+      - name: "EAB headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab
         with:
           NAME_SPACE: local
@@ -531,11 +512,24 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "EAB ACME Profiling - Setup a2c with mscertsrv_ca_handler (Kerberos)"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "EAB ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/profile1", "WebServer-07-S": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -547,33 +541,12 @@ jobs:
             verify: False
             request_timeout: 30
             enrollment_config_log: True
-          EXTRA_SECTIONS: |
-            [EABhandler]
-            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
-            key_file: volume/kid_profiles.json
-            eab_profiling: True
 
-      - name: "Stage kid_profiles"
+      - name: "Stage kid profiles"
         uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
           DEST: examples/Docker/data/kid_profiles.json
-      - name: "EAB ACME Profiling - Setup a2c with mscertsrv_ca_handler (Kerberos) (post-cfg)"
-        run: |
-          sudo touch examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/ca_certs.pem
-          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/profile1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-
-          sudo touch examples/Docker/data/krb5.conf
-          sudo chmod 777 examples/Docker/data/krb5.conf
-          cat <<EOF > examples/Docker/data/krb5.conf
-          $KRB5_CONF
-          EOF
-
-          cd examples/Docker/
-          docker compose restart
 
       - name: "EAB ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
@@ -581,41 +554,36 @@ jobs:
           NAME_SPACE: local
           DEPLOYMENT_TYPE: container
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp /etc/hosts ${{ github.workspace }}/artifact/data/
-          sudo cp /etc/resolv.conf ${{ github.workspace }}/artifact/data/
-            cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data dnsmasq
-
-      - name: "[ * ] Uploading artifacts"
+      - name: "Collect failure logs"
+        if: failure()
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
+      - name: "Upload failure artifacts"
+        if: failure()
         uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
         with:
           name: mscertsrv-eabp-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ---------------------------------------------------------
-  # Test mswcce - container images (matrix from payload)
-  # ---------------------------------------------------------
   mswcce-test-containers:
-    runs-on: ubuntu-latest
     needs: [guard, instance_start]
-    # Prevent workflows from running in forks
+    runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
-      # max-parallel: 1
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -644,38 +612,17 @@ jobs:
           CONTAINER_BUILD: false
           NAME_SPACE: acme
 
-      - name: "[ PREPARE ] get runner ip"
+      - name: "Get runner ip"
         run: |
           echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
+      - name: "Setup dnsmasq"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/dnsmasq_setup
+        with:
           RUNNER_IP: ${{ env.RUNNER_IP }}
-
-      - name: "Install dnsmasq"
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y dnsmasq
-          sudo systemctl disable systemd-resolved
-          sudo systemctl stop systemd-resolved
-          sudo mkdir -p dnsmasq
-          sudo cp .github/dnsmasq.conf dnsmasq/
-          sudo chmod -R 777 dnsmasq/dnsmasq.conf
-          sudo sed -i "s/RUNNER_IP/$RUNNER_IP/g" dnsmasq/dnsmasq.conf
-          sudo echo "address=/$MSCA_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          sudo echo "address=/$MSCA_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          sudo echo "address=/$WES_HOST/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          cat dnsmasq/dnsmasq.conf
-          sudo cp dnsmasq/dnsmasq.conf /etc/
-          sudo systemctl enable dnsmasq
-          sudo systemctl start dnsmasq
-
-      - name: "[ PREPARE ] test dns resolution"
-        run: |
-          host $MSCA_ADS_DOMAIN 127.0.0.1
-          host $MSCA_FQDN 127.0.0.1
-          host $WES_HOST 127.0.0.1
+          MSCA_FQDN: ${{ env.MSCA_FQDN }}
+          MSCA_ADS_DOMAIN: ${{ env.MSCA_ADS_DOMAIN }}
+          WES_HOST: ${{ env.WES_HOST }}
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -688,12 +635,25 @@ jobs:
           MSCA_FQDN: ${{ env.MSCA_FQDN }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
 
-      - name: "NTLM Headerinfo - Setup a2c with ms_wcce_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "NTLM Headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          COPY_DJANGO_SETTINGS: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
           OPTIONS: |
             host: ${{ env.RUNNER_IP }}
             user: ${{ env.MSCA_USER }}
@@ -705,22 +665,13 @@ jobs:
             timeout: 20
             ssh_host: ${{ env.SSH_HOST }}:${{ env.SSH_PORT }}
 
-      - name: "NTLM Headerinfo - Setup a2c with ms_wcce_ca_handler (post-cfg)"
-        run: |
-          sudo cp .github/django_settings.py examples/Docker/data/settings.py
-          sudo touch examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/ca_certs.pem
-          sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-
-      - name: "NTLM Headerinfo - Bring up a2c container"
+      - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "NTLM Headerinfo  - Enrollment"
+      - name: "NTLM Headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
 
       - name: "Check container configuration"
@@ -734,11 +685,19 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "NTLM ACME Profile - Setup a2c with ms_wcce_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "NTLM ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
           OPTIONS: |
             host: ${{ env.RUNNER_IP }}
             user: ${{ env.MSCA_USER }}
@@ -751,17 +710,7 @@ jobs:
             ssh_host: ${{ env.SSH_HOST }}:${{ env.SSH_PORT }}
             enrollment_config_log: True
 
-      - name: "NTLM ACME Profile - Setup a2c with ms_wcce_ca_handler (post-cfg)"
-        run: |
-          sudo touch examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/ca_certs.pem
-          sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
-
-      - name: "NTLM ACME Profiling - Enrollment"
+      - name: "NTLM ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
         with:
           DEPLOYMENT_TYPE: container
@@ -771,11 +720,19 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "KRB Headerinfo - Setup a2c with ms_wcce_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB Headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -788,21 +745,6 @@ jobs:
             timeout: 20
             use_kerberos: True
 
-      - name: "KRB Headerinfo - Setup a2c with ms_wcce_ca_handler (post-cfg)"
-        run: |
-          sudo touch examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/ca_certs.pem
-          sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
-
-      - name: "KRB Headerinfo - Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
       - name: "KRB Headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
 
@@ -811,31 +753,57 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "KRB - Setup a2c with mswcce_ca_handler with allowed_domainlist configuration"
-        run: |
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
+      - name: "KRB allowed_domainlist - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: container
+          VOLUME_DIR: "examples/Docker/data"
+          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          DISABLE_CHALLENGE_VALIDATION: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            allowed_domainlist: ["*.acme", "foo1.bar", "*.bar.local"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_name: ${{ env.MSCA_NAME }}
+            target_domain: ${{ env.MSCA_ADS_DOMAIN }}
+            domain_controller: ${{ env.RUNNER_IP }}
+            ca_bundle: volume/ca_certs.pem
+            timeout: 20
+            use_kerberos: True
 
-      - name: "KRB - enrollment allowed domainlist"
+      - name: "KRB allowed_domainlist - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
 
       - name: "Verify allowed_domainlist error"
         run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+          (cd examples/Docker && docker compose logs) | grep -E "FQDN/SAN [^ ]+ not allowed by configuration"
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "KRB ACME Profile - Setup a2c with ms_wcce_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB ACME Profile - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -849,60 +817,41 @@ jobs:
             use_kerberos: True
             enrollment_config_log: True
 
-      - name: "KRB ACME Profile - Setup a2c with ms_wcce_ca_handler (post-cfg)"
-        run: |
-          sudo touch examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/ca_certs.pem
-          sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-          cd examples/Docker/
-          docker compose restart
-
-      - name: "KRB ACME Profile - Sleep for 10s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 10s
-
       - name: "KRB ACME Profile - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp dnsmasq/ ${{ github.workspace }}/artifact/dnsmasq/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data dnsmasq
-      - name: "[ * ] Uploading artifacts"
+      - name: "Collect failure logs"
+        if: failure()
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
+      - name: "Upload failure artifacts"
+        if: failure()
         uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
         with:
           name: mswcce-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ---------------------------------------------------------
-  # Test mswcce eab - container images (matrix from payload)
-  # ---------------------------------------------------------
   mswcce-eab-container-tests:
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
     needs: [guard, instance_start, mswcce-test-containers]
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
-      # max-parallel: 2
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
-
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -914,38 +863,17 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: "[ PREPARE ] get runner ip"
+      - name: "Get runner ip"
         run: |
           echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
+      - name: "Setup dnsmasq"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/dnsmasq_setup
+        with:
           RUNNER_IP: ${{ env.RUNNER_IP }}
-
-      - name: "Install dnsmasq"
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y dnsmasq
-          sudo systemctl disable systemd-resolved
-          sudo systemctl stop systemd-resolved
-          sudo mkdir -p dnsmasq
-          sudo cp .github/dnsmasq.conf dnsmasq/
-          sudo chmod -R 777 dnsmasq/dnsmasq.conf
-          sudo sed -i "s/RUNNER_IP/$RUNNER_IP/g" dnsmasq/dnsmasq.conf
-          sudo echo "address=/$MSCA_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          sudo echo "address=/$MSCA_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          sudo echo "address=/$WES_HOST/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          cat dnsmasq/dnsmasq.conf
-          sudo cp dnsmasq/dnsmasq.conf /etc/
-          sudo systemctl enable dnsmasq
-          sudo systemctl start dnsmasq
-
-      - name: "[ PREPARE ] test dns resolution"
-        run: |
-          host $MSCA_ADS_DOMAIN 127.0.0.1
-          host $MSCA_FQDN 127.0.0.1
-          host $WES_HOST 127.0.0.1
+          MSCA_FQDN: ${{ env.MSCA_FQDN }}
+          MSCA_ADS_DOMAIN: ${{ env.MSCA_ADS_DOMAIN }}
+          WES_HOST: ${{ env.WES_HOST }}
 
       - name: "Download and import container"
         uses: ./.github/actions/container_load
@@ -974,12 +902,31 @@ jobs:
           MSCA_FQDN: ${{ env.MSCA_FQDN }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
 
-      - name: "EAB with headerinfo - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab)"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "EAB headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             krb5_principal: ${{ env.KRB5_PRINCIPAL }}
@@ -992,36 +939,12 @@ jobs:
             ca_bundle: volume/ca_certs.pem
             timeout: 20
             use_kerberos: True
-          EXTRA_SECTIONS: |
-            [EABhandler]
-            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
-            key_file: volume/kid_profiles.json
-            eab_profiling: True
 
-      - name: "Stage kid_profiles"
+      - name: "Stage kid profiles"
         uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca_acme.json
           DEST: examples/Docker/data/kid_profiles.json
-      - name: "EAB with headerinfo - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab) (post-cfg)"
-        run: |
-          sudo touch examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/ca_certs.pem
-          sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
-          # sudo echo "user: $MSCA_USER" >> examples/Docker/data/acme_srv.cfg
-          # sudo echo "password: $MSCA_PASSWORD" >> examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-
-
-          sudo touch examples/Docker/data/krb5.conf
-          sudo chmod 777 examples/Docker/data/krb5.conf
-          cat <<EOF > examples/Docker/data/krb5.conf
-          $KRB5_CONF
-          EOF
-          sudo touch examples/Docker/data/krb5.keytab
-          sudo chmod 777 examples/Docker/data/krb5.keytab
-          sudo echo $KRB5_KEYTAB | base64 -d > examples/Docker/data/krb5.keytab
 
       - name: "Bring up a2c container"
         uses: ./.github/actions/container_up
@@ -1029,7 +952,7 @@ jobs:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "EAB with headerinfo - enrollment"
+      - name: "EAB headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab
 
       - name: "Check container configuration"
@@ -1043,11 +966,26 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos)"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "EAB ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/profile1", "WebServer-07-S": "http://foo.bar/profile2", "profile3": "http://foo.bar/profile3"}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: volume/kid_profiles.json
+            eab_profiling: True
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             krb5_principal: ${{ env.KRB5_PRINCIPAL }}
@@ -1061,78 +999,49 @@ jobs:
             timeout: 20
             use_kerberos: True
             enrollment_config_log: True
-          EXTRA_SECTIONS: |
-            [EABhandler]
-            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
-            key_file: volume/kid_profiles.json
-            eab_profiling: True
 
-      - name: "Stage kid_profiles"
+      - name: "Stage kid profiles"
         uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca_acme.json
           DEST: examples/Docker/data/kid_profiles.json
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos) (post-cfg)"
-        run: |
-          sudo touch examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/ca_certs.pem
-          sudo echo "$MSCA_CA_BUNDLE" > examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/profile1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-
-
-          sudo touch examples/Docker/data/krb5.conf
-          sudo chmod 777 examples/Docker/data/krb5.conf
-          cat <<EOF > examples/Docker/data/krb5.conf
-          $KRB5_CONF
-          EOF
-          sudo touch examples/Docker/data/krb5.keytab
-          sudo chmod 777 examples/Docker/data/krb5.keytab
-          sudo echo $KRB5_KEYTAB | base64 -d > examples/Docker/data/krb5.keytab
-
-          cd examples/Docker/
-          docker compose restart
 
       - name: "EAB ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp dnsmasq/ ${{ github.workspace }}/artifact/dnsmasq/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data dnsmasq
-
-      - name: "[ * ] Uploading artifacts"
+      - name: "Collect failure logs"
+        if: failure()
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
+      - name: "Upload failure artifacts"
+        if: failure()
         uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
         with:
           name: mswcce-eabp-container-tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # -------------------------------------------------------------------
-  # Test mscertsrv eab - container images build without impacket
-  # -------------------------------------------------------------------
   mscertsrv-without-impacket_tests:
-    name: "mscertsrv-without-impacket_tests"
-    runs-on: ubuntu-latest
     needs: [guard, instance_start, mscertsrv-eabprov-container-tests]
-    # Prevent workflows from running in forks
+    runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
-      # max-parallel: 1
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
+    name: "mscertsrv-without-impacket_tests"
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -1149,28 +1058,30 @@ jobs:
         with:
           RUN_ID: ${{ inputs.run_id }}
           ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-          DESTINATION_PATH: ./
+          DESTINATION_PATH: data/
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
-      - name: "Modify Dockerfile"
+      - name: "Strip python3-impacket from Dockerfile"
         run: |
-          cd examples/Docker/$WEBSRV/$DBHANDLER
-          sed -i '/python3-impacket/d' Dockerfile
-          sed -i '/rm -rf \/usr\/lib\/python3\/dist-packages\/impacket\/examples/d' Dockerfile
-          sed -i '/rm -rf \/usr\/share\/doc\/python3-impacke\/examples/d' Dockerfile
-          sed -i '/rm -rf \/usr\/share\/impacket\/script/d' Dockerfile
-          sed -i '/rm -rf \/usr\/bin\/impacket/d' Dockerfile
-        env:
-          WEBSRV: ${{ matrix.websrv }}
-          DBHANDLER: ${{ matrix.dbhandler }}
+          set -euo pipefail
+          DF="examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile"
+          sudo sed -i '/python3-impacket/d' "$DF"
+          sudo sed -i '/rm -rf \/usr\/lib\/python3\/dist-packages\/impacket\/examples/d' "$DF"
+          sudo sed -i '/rm -rf \/usr\/share\/doc\/python3-impacke\/examples/d' "$DF"
+          sudo sed -i '/rm -rf \/usr\/share\/impacket\/script/d' "$DF"
+          sudo sed -i '/rm -rf \/usr\/bin\/impacket/d' "$DF"
 
-      - name: "Build container"
+      - name: "Prepare container environment"
         uses: ./.github/actions/container_prep
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
           NAME_SPACE: local
+
+      - name: "Get runner ip"
+        run: |
+          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -1183,13 +1094,23 @@ jobs:
           MSCA_FQDN: ${{ env.MSCA_FQDN }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
           NAME_SPACE: local
 
-      - name: "KRB - Setup a2c with mscertsrv_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -1201,22 +1122,7 @@ jobs:
             verify: False
             request_timeout: 30
 
-      - name: "KRB - Setup a2c with mscertsrv_ca_handler (post-cfg)"
-        run: |
-          sudo touch examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/ca_certs.pem
-          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-
-          sudo touch examples/Docker/data/krb5.conf
-          sudo chmod 777 examples/Docker/data/krb5.conf
-          cat <<EOF > examples/Docker/data/krb5.conf
-          $KRB5_CONF
-          EOF
-          cd examples/Docker/
-          docker compose restart
-
-      - name: "Test enrollment"
+      - name: "KRB - Enrollment"
         uses: ./.github/actions/acme_clients
         with:
           REVOCATION: "false"
@@ -1230,11 +1136,18 @@ jobs:
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "KRB - Setup a2c with mscertsrv_ca_handler with keytab"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB keytab - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: container
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             krb5_principal: ${{ env.KRB5_PRINCIPAL }}
@@ -1246,26 +1159,7 @@ jobs:
             verify: False
             request_timeout: 30
 
-      - name: "KRB - Setup a2c with mscertsrv_ca_handler with keytab (post-cfg)"
-        run: |
-          sudo touch examples/Docker/data/ca_certs.pem
-          sudo chmod 777 examples/Docker/data/ca_certs.pem
-          sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" examples/Docker/data/acme_srv.cfg
-
-          sudo touch examples/Docker/data/krb5.conf
-          sudo chmod 777 examples/Docker/data/krb5.conf
-          cat <<EOF > examples/Docker/data/krb5.conf
-          $KRB5_CONF
-          EOF
-          sudo touch examples/Docker/data/krb5.keytab
-          sudo chmod 777 examples/Docker/data/krb5.keytab
-          sudo echo $KRB5_KEYTAB | base64 -d > examples/Docker/data/krb5.keytab
-
-          cd examples/Docker/
-          docker compose restart
-
-      - name: "Test enrollment"
+      - name: "KRB keytab - Enrollment"
         uses: ./.github/actions/acme_clients
         with:
           REVOCATION: "false"
@@ -1274,40 +1168,36 @@ jobs:
           TEST_ADL: "false"
           NAME_SPACE: local
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
-
-      - name: "[ * ] Uploading artifacts"
+      - name: "Collect failure logs"
+        if: failure()
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
+      - name: "Upload failure artifacts"
+        if: failure()
         uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
         with:
           name: mscertsrv_wo_impacket_tests-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ---------------------------------------------------------
-  # Test RPMs mscertsrv
-  # ---------------------------------------------------------
   mscertsrv-test-rpm:
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
     needs: [guard, instance_start]
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
-      max-parallel: 1
       fail-fast: false
+      max-parallel: 1
       matrix:
         rhversion: [8]
         mode: ['wsgi', 'django']
-
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -1324,9 +1214,9 @@ jobs:
         with:
           GH_USER: ${{ env.GH_USER }}
           GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-          NAME_SPACE: "local"
+          RH_VERSION: 8
+          RPM_BUILD: "false"
+          NAME_SPACE: local
 
       - name: "Download RPM artifact by name from build run"
         uses: ./.github/actions/download_artifact
@@ -1340,9 +1230,6 @@ jobs:
       - name: "Get runner ip"
         run: |
           echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-
-      - run: echo "runner IP is $RUNNER_IP"
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -1355,13 +1242,25 @@ jobs:
           MSCA_FQDN: ${{ env.MSCA_FQDN }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
           NAME_SPACE: local
 
-      - name: "KRB - Setup a2c with mscertsrv_ca_handler using kerberos"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -1373,26 +1272,12 @@ jobs:
             verify: False
             request_timeout: 30
 
-      - name: "KRB - Setup a2c with mscertsrv_ca_handler using kerberos (post-cfg)"
+      - name: "Install a2c RPM"
         run: |
-          mkdir -p data/volume/acme_ca
-          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-          sudo touch data/volume/acme_ca/krb5.conf
-          sudo chmod 777 data/volume/acme_ca/krb5.conf
-          cat <<EOF > data/volume/acme_ca/krb5.conf
-          $KRB5_CONF
-          EOF
-
-      - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m ${{ matrix.mode }}
           docker exec acme-srv yum install -y krb5-libs
-        env:
-          MODE: ${{ matrix.mode }}
 
-      - name: "KRB - enrollment mit default profile and headerinfo"
+      - name: "KRB - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
         with:
           NAME_SPACE: local
@@ -1402,11 +1287,18 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "NTLM - Setup a2c with mscertsrv_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "NTLM - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -1417,18 +1309,7 @@ jobs:
             verify: False
             request_timeout: 30
 
-      - name: "NTLM - Setup a2c with mscertsrv_ca_handler (post-cfg)"
-        run: |
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-      - name: "Reconfigure a2c"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
-        env:
-          MODE: ${{ matrix.mode }}
-
-      - name: "NTLM - enrollment mit default profile and headerinfo"
+      - name: "NTLM - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
         with:
           NAME_SPACE: local
@@ -1438,34 +1319,56 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "NTLM - Setup a2c with mscertsrv_ca_handler with allowed_domainlist configuration"
-        run: |
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
+      - name: "NTLM allowed_domainlist - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          DISABLE_CHALLENGE_VALIDATION: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            allowed_domainlist: ["*.acme", "foo1.bar", "*.bar.local"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: ntlm
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            verify: False
+            request_timeout: 30
 
-      - name: "NTLM - Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
-
-      - name: "NTLM - enrollment allowed domainlist"
+      - name: "NTLM allowed_domainlist - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
         with:
           NAME_SPACE: local
 
       - name: "Verify allowed_domainlist error"
         run: |
-          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
+          docker exec acme-srv grep -E "FQDN/SAN [^ ]+ not allowed by configuration" /var/log/messages
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler using kerberos"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -1478,25 +1381,6 @@ jobs:
             request_timeout: 30
             enrollment_config_log: True
 
-      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler using kerberos (post-cfg)"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-          sudo touch data/volume/acme_ca/krb5.conf
-          sudo chmod 777 data/volume/acme_ca/krb5.conf
-          cat <<EOF > data/volume/acme_ca/krb5.conf
-          $KRB5_CONF
-          EOF
-
-      - name: "Reconfigure a2c"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
-        env:
-          MODE: ${{ matrix.mode }}
-
       - name: "KRB ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
         with:
@@ -1509,11 +1393,20 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler using kerberos and keytab"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB ACME Profiling keytab - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             krb5_principal: ${{ env.KRB5_PRINCIPAL }}
@@ -1526,73 +1419,265 @@ jobs:
             request_timeout: 30
             enrollment_config_log: True
 
-      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler using kerberos and keytab (post-cfg)"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-          sudo touch data/volume/acme_ca/krb5.conf
-          sudo chmod 777 data/volume/acme_ca/krb5.conf
-          cat <<EOF > data/volume/acme_ca/krb5.conf
-          $KRB5_CONF
-          EOF
-          sudo touch data/volume/acme_ca/krb5.keytab
-          sudo chmod 777 data/volume/acme_ca/krb5.keytab
-          sudo echo $KRB5_KEYTAB | base64 -d > data/volume/acme_ca/krb5.keytab
-
-      - name: "Reconfigure a2c"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
-        env:
-          MODE: ${{ matrix.mode }}
-
-      - name: "KRB ACME Profiling - Enrollment"
+      - name: "KRB ACME Profiling keytab - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
         with:
           NAME_SPACE: local
           DEPLOYMENT_TYPE: rpm
           TAIL_NUMBER: 1900
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          sudo rm -rf data/*.rpm
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          docker exec acme-srv ls -la /tmp > ${{ github.workspace }}/artifact/data/tmp_list
-          docker exec acme-srv ls -la /tmp
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log
-
-      - name: "[ * ] Uploading artifacts"
+      - name: "Collect failure logs"
+        if: failure()
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: rpm
+      - name: "Upload failure artifacts"
+        if: failure()
         uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
         with:
           name: mscertsrv_handler_tests_rpm-rh${{ matrix.rhversion }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ---------------------------------------------------------
-  # Test RPMs mscertsrv eab
-  # ---------------------------------------------------------
   mscertsrv-eabprofile-test-rpm:
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
     needs: [guard, instance_start, mscertsrv-test-rpm]
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
-      max-parallel: 1
       fail-fast: false
+      max-parallel: 1
       matrix:
         rhversion: [9]
         mode: ['wsgi', 'django']
-
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
+      - name: "Parse MSCA_CFG secrets"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.MSCA_CFG }}
+
+      - name: "Parse GH_CFG secrets"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.GH_CFG }}
+
+      - name: "Prepare Alma environment"
+        uses: ./.github/actions/rpm_prep
+        with:
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          RH_VERSION: 9
+          RPM_BUILD: "false"
+          NAME_SPACE: local
+
+      - name: "Download RPM artifact by name from build run"
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
+          DESTINATION_PATH: data/
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
+
+      - name: "Get runner ip"
+        run: |
+          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
+
+      - name: "Setup tunnel"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
+        with:
+          SSH_USER: ${{ env.SSH_USER }}
+          SSH_HOST: ${{ env.SSH_HOST }}
+          SSH_PORT: ${{ env.SSH_PORT }}
+          MSCA_IP: ${{ env.MSCA_IP }}
+          MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
+          MSCA_FQDN: ${{ env.MSCA_FQDN }}
+          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
+          SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
+          NAME_SPACE: local
+
+      - name: "EAB headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
+
+      - name: "Stage kid profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "Install a2c RPM"
+        run: |
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m ${{ matrix.mode }}
+          docker exec acme-srv yum install -y krb5-libs
+
+      - name: "EAB headerinfo - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab
+        with:
+          NAME_SPACE: local
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "EAB ACME Profiling keytab - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            krb5_principal: ${{ env.KRB5_PRINCIPAL }}
+            krb5_keytab: /opt/acme2certifier/volume/acme_ca/krb5.keytab
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
+            enrollment_config_log: True
+
+      - name: "Stage kid profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "EAB ACME Profiling keytab - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: rpm
+          TAIL_NUMBER: 1900
+
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: rpm
+
+      - name: "EAB ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
+            enrollment_config_log: True
+
+      - name: "Stage kid profiles"
+        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+        with:
+          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
+          DEST: data/volume/acme_ca/kid_profiles.json
+
+      - name: "EAB ACME Profiling - Enrollment"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
+        with:
+          NAME_SPACE: local
+          DEPLOYMENT_TYPE: rpm
+          TAIL_NUMBER: 1900
+
+      - name: "Collect failure logs"
+        if: failure()
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: rpm
+      - name: "Upload failure artifacts"
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mscertsrv-eabprofile-test-rpm-rh${{ matrix.rhversion }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+
+  mswcce-tests-rpm:
+    needs: [guard, instance_start]
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        rhversion: [8]
+        mode: ['wsgi', 'django']
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -1610,268 +1695,8 @@ jobs:
           GH_USER: ${{ env.GH_USER }}
           GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
           RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-          NAME_SPACE: "local"
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
-        with:
-          RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
-          TOKEN: ${{ secrets.GH_WF_TOKEN }}
-          REPO: ${{ github.repository }}
-
-      - name: "Get runner ip"
-        run: |
-          echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-
-      - run: echo "runner IP is $RUNNER_IP"
-
-      - name: "Setup tunnel"
-        uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
-        with:
-          SSH_USER: ${{ env.SSH_USER }}
-          SSH_HOST: ${{ env.SSH_HOST }}
-          SSH_PORT: ${{ env.SSH_PORT }}
-          MSCA_IP: ${{ env.MSCA_IP }}
-          MSCA_FQDN_WOTLD: ${{ env.MSCA_FQDN_WOTLD }}
-          MSCA_FQDN: ${{ env.MSCA_FQDN }}
-          SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
-          SSH_KEY: ${{ env.SSH_KEY }}
-          NAME_SPACE: local
-
-      - name: "EAB with headerinfo - Setup a2c with mscertsrv_ca_handler using kerberos"
-        uses: ./.github/actions/setup_cahandler_cfg
-        with:
-          VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
-          OPTIONS: |
-            host: ${{ env.MSCA_FQDN }}
-            user: ${{ env.MSCA_USER }}
-            password: ${{ env.MSCA_PASSWORD }}
-            auth_method: gssapi
-            template: ${{ env.MSCA_TEMPLATE }}
-            ca_bundle: volume/acme_ca/ca_certs.pem
-            krb5_config: volume/acme_ca/krb5.conf
-            verify: False
-            request_timeout: 30
-          EXTRA_SECTIONS: |
-            [EABhandler]
-            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
-            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
-            eab_profiling: True
-
-      - name: "Stage kid_profiles"
-        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
-        with:
-          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
-          DEST: data/volume/acme_ca/kid_profiles.json
-      - name: "EAB with headerinfo - Setup a2c with mscertsrv_ca_handler using kerberos (post-cfg)"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-
-          sudo touch data/volume/acme_ca/krb5.conf
-          sudo chmod 777 data/volume/acme_ca/krb5.conf
-          cat <<EOF > data/volume/acme_ca/krb5.conf
-          $KRB5_CONF
-          EOF
-
-      - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
-          docker exec acme-srv yum install -y krb5-libs
-        env:
-          MODE: ${{ matrix.mode }}
-
-      - name: "EAB with headerinfo - enrollment"
-        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab
-        with:
-          NAME_SPACE: local
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
-        with:
-          DEPLOYMENT_TYPE: rpm
-
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab)"
-        uses: ./.github/actions/setup_cahandler_cfg
-        with:
-          VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
-          OPTIONS: |
-            host: ${{ env.MSCA_FQDN }}
-            krb5_principal: ${{ env.KRB5_PRINCIPAL }}
-            krb5_keytab: /opt/acme2certifier/volume/acme_ca/krb5.keytab
-            auth_method: gssapi
-            template: ${{ env.MSCA_TEMPLATE }}
-            ca_bundle: volume/acme_ca/ca_certs.pem
-            krb5_config: volume/acme_ca/krb5.conf
-            verify: False
-            request_timeout: 30
-            enrollment_config_log: True
-          EXTRA_SECTIONS: |
-            [EABhandler]
-            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
-            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
-            eab_profiling: True
-
-      - name: "Stage kid_profiles"
-        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
-        with:
-          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
-          DEST: data/volume/acme_ca/kid_profiles.json
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab) (post-cfg)"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-
-          sudo touch data/volume/acme_ca/krb5.conf
-          sudo chmod 777 data/volume/acme_ca/krb5.conf
-          cat <<EOF > data/volume/acme_ca/krb5.conf
-          $KRB5_CONF
-          EOF
-          sudo touch data/volume/acme_ca/krb5.keytab
-          sudo chmod 777 data/volume/acme_ca/krb5.keytab
-          sudo echo $KRB5_KEYTAB | base64 -d > data/volume/acme_ca/krb5.keytab
-
-      - name: "Reconfigure a2c"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
-        env:
-          MODE: ${{ matrix.mode }}
-
-      - name: "EAB ACME Profiling - Enrollment with ms_wcce_ca_handler and keytab"
-        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
-        with:
-          NAME_SPACE: local
-          DEPLOYMENT_TYPE: rpm
-          TAIL_NUMBER: 1900
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
-        with:
-          DEPLOYMENT_TYPE: rpm
-
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab)"
-        uses: ./.github/actions/setup_cahandler_cfg
-        with:
-          VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
-          OPTIONS: |
-            host: ${{ env.MSCA_FQDN }}
-            user: ${{ env.MSCA_USER }}
-            password: ${{ env.MSCA_PASSWORD }}
-            auth_method: gssapi
-            template: ${{ env.MSCA_TEMPLATE }}
-            ca_bundle: volume/acme_ca/ca_certs.pem
-            krb5_config: volume/acme_ca/krb5.conf
-            verify: False
-            request_timeout: 30
-            enrollment_config_log: True
-          EXTRA_SECTIONS: |
-            [EABhandler]
-            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
-            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
-            eab_profiling: True
-
-      - name: "Stage kid_profiles"
-        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
-        with:
-          SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca.json
-          DEST: data/volume/acme_ca/kid_profiles.json
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab) (post-cfg)"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-
-          sudo touch data/volume/acme_ca/krb5.conf
-          sudo chmod 777 data/volume/acme_ca/krb5.conf
-          cat <<EOF > data/volume/acme_ca/krb5.conf
-          $KRB5_CONF
-          EOF
-
-      - name: "Reconfigure a2c"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
-        env:
-          MODE: ${{ matrix.mode }}
-
-      - name: "EAB ACME Profiling - Enrollment"
-        uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
-        with:
-          NAME_SPACE: local
-          DEPLOYMENT_TYPE: rpm
-          TAIL_NUMBER: 1900
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          sudo rm -rf data/*.rpm
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          docker exec acme-srv ls -la /tmp > ${{ github.workspace }}/artifact/data/tmp_list
-          docker exec acme-srv ls -la /tmp
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: mscertsrv-eabprofile-test-rpm-rh${{ matrix.rhversion }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-
-  # ---------------------------------------------------------
-  # Test RPMs mswcce
-  # ---------------------------------------------------------
-  mswcce-tests-rpm:
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
-    needs: [guard, instance_start]
-    strategy:
-      max-parallel: 1
-      fail-fast: false
-      matrix:
-        rhversion: [8]
-        mode: ['wsgi', 'django']
-
-    steps:
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse MSCA_CFG secrets"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.MSCA_CFG }}
-
-      - name: "Parse JSON secret - GH_CFG"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.GH_CFG }}
-
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: "false"
           DJANGO_DB: psql
-          RPM_BUILD: false
 
       - name: "Download RPM artifact by name from build run"
         uses: ./.github/actions/download_artifact
@@ -1885,38 +1710,19 @@ jobs:
       - name: "Get runner ip"
         run: |
           echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
+      - name: "Setup dnsmasq"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/dnsmasq_setup
+        with:
           RUNNER_IP: ${{ env.RUNNER_IP }}
+          MSCA_FQDN: ${{ env.MSCA_FQDN }}
+          MSCA_ADS_DOMAIN: ${{ env.MSCA_ADS_DOMAIN }}
+          WES_HOST: ${{ env.WES_HOST }}
 
-      - name: "Install dnsmasq"
+      - name: "Allow dnsmasq non-local queries"
         run: |
-          sudo apt-get update
-          sudo apt-get install -y dnsmasq
-          sudo systemctl disable systemd-resolved
-          sudo systemctl stop systemd-resolved
-          # sudo chmod -R 777 /etc/resolv.conf
-          # sudo echo "nameserver 8.8.8.8" > /etc/resolv.conf
-          sudo mkdir -p dnsmasq
-          sudo cp .github/dnsmasq.conf dnsmasq/
-          sudo chmod -R 777 dnsmasq/dnsmasq.conf
-          sudo sed -i "s/RUNNER_IP/$RUNNER_IP/g" dnsmasq/dnsmasq.conf
-          sudo echo "address=/$MSCA_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          sudo echo "address=/$MSCA_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          sudo echo "address=/$WES_HOST/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          cat dnsmasq/dnsmasq.conf
-          sudo cp dnsmasq/dnsmasq.conf /etc/
-          sudo sed -i "s/ --local-service/ /g" /etc/init.d/dnsmasq
-          sudo systemctl enable dnsmasq
-          sudo systemctl start dnsmasq
-
-      - name: "Test dns resolution"
-        run: |
-          host $MSCA_ADS_DOMAIN ${{ env.RUNNER_IP }}
-          host $MSCA_FQDN ${{ env.RUNNER_IP }}
-          host $WES_HOST 127.0.0.1
+          sudo sed -i 's/--local-service//' /etc/init.d/dnsmasq || true
+          sudo systemctl restart dnsmasq || true
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -1929,12 +1735,24 @@ jobs:
           MSCA_FQDN: ${{ env.MSCA_FQDN }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
 
-      - name: "NTLM - Prepare acme_srv.cfg with ms_wcce_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "NTLM - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
           OPTIONS: |
             host: ${{ env.RUNNER_IP }}
             user: ${{ env.MSCA_USER }}
@@ -1945,22 +1763,11 @@ jobs:
             ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem
             timeout: 20
 
-      - name: "NTLM - Prepare acme_srv.cfg with ms_wcce_ca_handler (post-cfg)"
+      - name: "Install a2c RPM"
         run: |
-          mkdir -p data/volume/acme_ca
-          sudo touch data/volume/acme_ca/ca_certs.pem
-          sudo chmod 777 data/volume/acme_ca/ca_certs.pem
-          sudo echo "$MSCA_CA_BUNDLE" > data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m ${{ matrix.mode }}
 
-      - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
-        env:
-          MODE: ${{ matrix.mode }}
-
-      - name: "NTLM - enrollment mit default profile and headerinfo"
+      - name: "NTLM - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
 
       - name: "Flush logs"
@@ -1968,11 +1775,19 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "KRB - Setup a2c with ms_wcce_ca_handler (Kerberos)"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -1985,21 +1800,7 @@ jobs:
             timeout: 20
             use_kerberos: True
 
-      - name: "KRB - Setup a2c with ms_wcce_ca_handler (Kerberos) (post-cfg)"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo touch data/volume/acme_ca/ca_certs.pem
-          sudo chmod 777 data/volume/acme_ca/ca_certs.pem
-          sudo echo "$MSCA_CA_BUNDLE" > data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-      - name: "Reconfigure a2c"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
-        env:
-          MODE: ${{ matrix.mode }}
-
-      - name: "KRB - enrollment mit default profile and headerinfo"
+      - name: "KRB - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
 
       - name: "Flush logs"
@@ -2007,34 +1808,60 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "KRB - Setup a2c with mswcce_ca_handler with allowed_domainlist configuration"
-        run: |
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
+      - name: "KRB allowed_domainlist - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: rpm
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          DISABLE_CHALLENGE_VALIDATION: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            allowed_domainlist: ["*.acme", "foo1.bar", "*.bar.local"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_name: ${{ env.MSCA_NAME }}
+            target_domain: ${{ env.MSCA_ADS_DOMAIN }}
+            domain_controller: ${{ env.RUNNER_IP }}
+            ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem
+            timeout: 20
+            use_kerberos: True
 
-      - name: "Execute install script"
+      - name: "Install a2c RPM"
         run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
-        env:
-          MODE: ${{ matrix.mode }}
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m ${{ matrix.mode }}
 
-      - name: "KRB - enrollment allowed domainlist"
+      - name: "KRB allowed_domainlist - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
 
       - name: "Verify allowed_domainlist error"
         run: |
-          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
+          docker exec acme-srv grep -E "FQDN/SAN [^ ]+ not allowed by configuration" /var/log/messages
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos)"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -2048,67 +1875,51 @@ jobs:
             use_kerberos: True
             enrollment_config_log: True
 
-      - name: "ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos) (post-cfg)"
-        run: |
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-      - name: "ACME Profiling - Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
-          docker exec acme-srv yum install -y krb5-libs
+      - name: "Install krb5-libs"
+        run: docker exec acme-srv yum install -y krb5-libs
 
       - name: "ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          sudo rm -rf data/*.rpm
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp dnsmasq/ ${{ github.workspace }}/artifact/dnsmasq/
-          # docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-          # docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh dnsmasq
-
-      - name: "[ * ] Uploading artifacts"
+      - name: "Collect failure logs"
+        if: failure()
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: rpm
+      - name: "Upload failure artifacts"
+        if: failure()
         uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
         with:
           name: mswcce-test-rpm-rh${{ matrix.rhversion }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ---------------------------------------------------------
-  # Test RPMs mswcce eabprofile
-  # ---------------------------------------------------------
   mswcce-eab-tests-rpm:
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
     needs: [guard, instance_start, mswcce-tests-rpm]
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
-      max-parallel: 1
       fail-fast: false
+      max-parallel: 1
       matrix:
         rhversion: [9]
         mode: ['wsgi', 'django']
-
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.MSCA_CFG }}
 
-      - name: "Parse JSON secret - GH_CFG"
+      - name: "Parse GH_CFG secrets"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.GH_CFG }}
@@ -2119,8 +1930,8 @@ jobs:
           GH_USER: ${{ env.GH_USER }}
           GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
           RH_VERSION: ${{ matrix.rhversion }}
+          RPM_BUILD: "false"
           DJANGO_DB: psql
-          RPM_BUILD: false
 
       - name: "Download RPM artifact by name from build run"
         uses: ./.github/actions/download_artifact
@@ -2134,38 +1945,19 @@ jobs:
       - name: "Get runner ip"
         run: |
           echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
+      - name: "Setup dnsmasq"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/dnsmasq_setup
+        with:
           RUNNER_IP: ${{ env.RUNNER_IP }}
+          MSCA_FQDN: ${{ env.MSCA_FQDN }}
+          MSCA_ADS_DOMAIN: ${{ env.MSCA_ADS_DOMAIN }}
+          WES_HOST: ${{ env.WES_HOST }}
 
-      - name: "Install dnsmasq"
+      - name: "Allow dnsmasq non-local queries"
         run: |
-          sudo apt-get update
-          sudo apt-get install -y dnsmasq
-          sudo systemctl disable systemd-resolved
-          sudo systemctl stop systemd-resolved
-          # sudo chmod -R 777 /etc/resolv.conf
-          # sudo echo "nameserver 8.8.8.8" > /etc/resolv.conf
-          sudo mkdir -p dnsmasq
-          sudo cp .github/dnsmasq.conf dnsmasq/
-          sudo chmod -R 777 dnsmasq/dnsmasq.conf
-          sudo sed -i "s/RUNNER_IP/$RUNNER_IP/g" dnsmasq/dnsmasq.conf
-          sudo echo "address=/$MSCA_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          sudo echo "address=/$MSCA_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          sudo echo "address=/$WES_HOST/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          cat dnsmasq/dnsmasq.conf
-          sudo cp dnsmasq/dnsmasq.conf /etc/
-          sudo sed -i "s/ --local-service/ /g" /etc/init.d/dnsmasq
-          sudo systemctl enable dnsmasq
-          sudo systemctl start dnsmasq
-
-      - name: "Test dns resolution"
-        run: |
-          host $MSCA_ADS_DOMAIN ${{ env.RUNNER_IP }}
-          host $MSCA_FQDN ${{ env.RUNNER_IP }}
-          host $WES_HOST 127.0.0.1
+          sudo sed -i 's/--local-service//' /etc/init.d/dnsmasq || true
+          sudo systemctl restart dnsmasq || true
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -2178,12 +1970,31 @@ jobs:
           MSCA_FQDN: ${{ env.MSCA_FQDN }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
 
-      - name: "EAB with headerinfo - Setup a2c with ms_wcce_ca_handler (Kerberos)"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "EAB headerinfo - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             krb5_principal: ${{ env.KRB5_PRINCIPAL }}
@@ -2196,43 +2007,18 @@ jobs:
             ca_bundle: /opt/acme2certifier/volume/acme_ca/ca_certs.pem
             timeout: 20
             use_kerberos: True
-          EXTRA_SECTIONS: |
-            [EABhandler]
-            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
-            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
-            eab_profiling: True
 
-      - name: "Stage kid_profiles"
+      - name: "Stage kid profiles"
         uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca_acme.json
           DEST: data/volume/acme_ca/kid_profiles.json
-      - name: "EAB with headerinfo - Setup a2c with ms_wcce_ca_handler (Kerberos) (post-cfg)"
+
+      - name: "Install a2c RPM"
         run: |
-          mkdir -p data/volume/acme_ca
-          sudo touch data/volume/acme_ca/ca_certs.pem
-          sudo chmod 777 data/volume/acme_ca/ca_certs.pem
-          sudo echo "$MSCA_CA_BUNDLE" > data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m ${{ matrix.mode }}
 
-
-          sudo touch data/volume/acme_ca/krb5.conf
-          sudo chmod 777 data/volume/acme_ca/krb5.conf
-          cat <<EOF > data/volume/acme_ca/krb5.conf
-          $KRB5_CONF
-          EOF
-          sudo touch data/volume/acme_ca/krb5.keytab
-          sudo chmod 777 data/volume/acme_ca/krb5.keytab
-          sudo echo $KRB5_KEYTAB | base64 -d > data/volume/acme_ca/krb5.keytab
-
-      - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
-        env:
-          MODE: ${{ matrix.mode }}
-
-      - name: "EAB with headerinfo - enrollment"
+      - name: "EAB headerinfo - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab
 
       - name: "Flush logs"
@@ -2240,11 +2026,26 @@ jobs:
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos)"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "EAB ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: rpm
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
+          EXTRA_SECTIONS: |
+            [EABhandler]
+            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
+            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
+            eab_profiling: True
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             krb5_principal: ${{ env.KRB5_PRINCIPAL }}
@@ -2258,84 +2059,48 @@ jobs:
             timeout: 20
             use_kerberos: True
             enrollment_config_log: True
-          EXTRA_SECTIONS: |
-            [EABhandler]
-            eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler
-            key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
-            eab_profiling: True
 
-      - name: "Stage kid_profiles"
+      - name: "Stage kid profiles"
         uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/msca_acme.json
           DEST: data/volume/acme_ca/kid_profiles.json
-      - name: "EAB ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos) (post-cfg)"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo touch data/volume/acme_ca/ca_certs.pem
-          sudo chmod 777 data/volume/acme_ca/ca_certs.pem
-          sudo echo "$MSCA_CA_BUNDLE" > data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-
-          sudo touch data/volume/acme_ca/krb5.conf
-          sudo chmod 777 data/volume/acme_ca/krb5.conf
-          cat <<EOF > data/volume/acme_ca/krb5.conf
-          $KRB5_CONF
-          EOF
-          sudo touch data/volume/acme_ca/krb5.keytab
-          sudo chmod 777 data/volume/acme_ca/krb5.keytab
-          sudo echo $KRB5_KEYTAB | base64 -d > data/volume/acme_ca/krb5.keytab
-
-      - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
-        env:
-          MODE: ${{ matrix.mode }}
 
       - name: "EAB ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_eab_acmeprofile
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          sudo rm -rf data/*.rpm
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp dnsmasq/ ${{ github.workspace }}/artifact/dnsmasq/
-          # docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
-          # docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log dnsmasq
-
-      - name: "[ * ] Uploading artifacts"
+      - name: "Collect failure logs"
+        if: failure()
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: rpm
+      - name: "Upload failure artifacts"
+        if: failure()
         uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
         with:
           name: mswcce_eabprofiling-tests-rpm-rh${{ matrix.rhversion }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ---------------------------------------------------------
-  # Test DEB mscertsrv
-  # ---------------------------------------------------------
   mscertsrv-test-deb:
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
-        # apache does not work for some reason
         websrv: ['nginx']
         mode: ['wsgi', 'django']
-
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -2374,10 +2139,6 @@ jobs:
       - name: "Get runner ip"
         run: |
           echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
-          RUNNER_IP: ${{ env.RUNNER_IP }}
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -2390,13 +2151,26 @@ jobs:
           MSCA_FQDN: ${{ env.MSCA_FQDN }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
           NAME_SPACE: local
 
-      - name: "KRB - Setup a2c with mscertsrv_ca_handler using kerberos"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: deb
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          WEBSRV: ${{ matrix.websrv }}
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -2408,36 +2182,38 @@ jobs:
             verify: False
             request_timeout: 30
 
-      - name: "KRB - Setup a2c with mscertsrv_ca_handler using kerberos (post-cfg)"
+      - name: "Install a2c DEB"
         run: |
-          mkdir -p data/volume/acme_ca
-          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-          sudo touch data/volume/acme_ca/krb5.conf
-          sudo chmod 777 data/volume/acme_ca/krb5.conf
-          cat <<EOF > data/volume/acme_ca/krb5.conf
-          $KRB5_CONF
-          EOF
-
-      - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
-          # docker exec acme-srv apt-get install -y python3-gssapi
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install ${{ matrix.websrv }} -m ${{ matrix.mode }}
           docker exec acme-srv rm -rf /etc/krb5.conf
           docker exec acme-srv ln -s /var/www/acme2certifier/volume/acme_ca/krb5.conf /etc/krb5.conf
-        env:
-          WEBSRV: ${{ matrix.websrv }}
-          MODE: ${{ matrix.mode }}
 
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
-        env:
+      - name: "KRB - Restart a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
           WEBSRV: ${{ matrix.websrv }}
-          MODE: ${{ matrix.mode }}
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: gssapi
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            krb5_config: volume/acme_ca/krb5.conf
+            verify: False
+            request_timeout: 30
 
-      - name: "KRB - enrollment default profile and headerinfo"
+      - name: "KRB - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
         with:
           NAME_SPACE: local
@@ -2447,11 +2223,19 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "NTLM - Setup a2c with mscertsrv_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "NTLM - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: deb
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -2462,19 +2246,7 @@ jobs:
             verify: False
             request_timeout: 30
 
-      - name: "NTLM - Setup a2c with mscertsrv_ca_handler (post-cfg)"
-        run: |
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
-        env:
-          WEBSRV: ${{ matrix.websrv }}
-          MODE: ${{ matrix.mode }}
-
-      - name: "NTLM - enrollment mit default profile and headerinfo"
+      - name: "NTLM - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
         with:
           NAME_SPACE: local
@@ -2484,19 +2256,31 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "NTLM - Setup a2c with mscertsrv_ca_handler with allowed_domainlist configuration"
-        run: |
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
-        env:
+      - name: "NTLM allowed_domainlist - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
           WEBSRV: ${{ matrix.websrv }}
-          MODE: ${{ matrix.mode }}
+          DISABLE_CHALLENGE_VALIDATION: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            allowed_domainlist: ["*.acme", "foo1.bar", "*.bar.local"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            auth_method: ntlm
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_bundle: volume/acme_ca/ca_certs.pem
+            verify: False
+            request_timeout: 30
 
-      - name: "NTLM - enrollment allowed domainlist"
+      - name: "NTLM allowed_domainlist - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
         with:
           NAME_SPACE: local
@@ -2506,11 +2290,20 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler using kerberos"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB ACME Profiling - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: deb
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          WEBSRV: ${{ matrix.websrv }}
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -2522,26 +2315,6 @@ jobs:
             verify: False
             request_timeout: 30
             enrollment_config_log: True
-
-      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler using kerberos (post-cfg)"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-          sudo touch data/volume/acme_ca/krb5.conf
-          sudo chmod 777 data/volume/acme_ca/krb5.conf
-          cat <<EOF > data/volume/acme_ca/krb5.conf
-          $KRB5_CONF
-          EOF
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
-        env:
-          WEBSRV: ${{ matrix.websrv }}
-          MODE: ${{ matrix.mode }}
 
       - name: "KRB ACME Profiling - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
@@ -2555,11 +2328,21 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler using kerberos and keytab"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB ACME Profiling keytab - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: deb
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mscertsrv_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          WEBSRV: ${{ matrix.websrv }}
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             krb5_principal: ${{ env.KRB5_PRINCIPAL }}
@@ -2573,76 +2356,44 @@ jobs:
             request_timeout: 30
             enrollment_config_log: True
 
-      - name: "KRB ACME Profiling - Setup a2c with mscertsrv_ca_handler using kerberos and keytab (post-cfg)"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-          sudo touch data/volume/acme_ca/krb5.conf
-          sudo chmod 777 data/volume/acme_ca/krb5.conf
-          cat <<EOF > data/volume/acme_ca/krb5.conf
-          $KRB5_CONF
-          EOF
-
-          sudo touch data/volume/acme_ca/krb5.keytab
-          sudo chmod 777 data/volume/acme_ca/krb5.keytab
-          sudo echo $KRB5_KEYTAB | base64 -d > data/volume/acme_ca/krb5.keytab
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
-        env:
-          WEBSRV: ${{ matrix.websrv }}
-          MODE: ${{ matrix.mode }}
-
-      - name: "KRB ACME Profiling - Enrollment"
+      - name: "KRB ACME Profiling keytab - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
         with:
           NAME_SPACE: local
           DEPLOYMENT_TYPE: deb
           TAIL_NUMBER: 1900
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.deb
-          if [ ${{ matrix.websrv }} == "apache2" ]; then
-            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          else
-            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          fi
-          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
-
-      - name: "[ * ] Uploading artifacts"
+      - name: "Collect failure logs"
+        if: failure()
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: ${{ matrix.websrv }}
+      - name: "Upload failure artifacts"
+        if: failure()
         uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
         with:
           name: mscertsrv-test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ---------------------------------------------------------
-  # Test DEB mswcce
-  # ---------------------------------------------------------
   mswcce-test-deb:
-    # needs: [guard, instance_start, mscertsrv-test-deb]
     needs: [guard, instance_start]
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         websrv: ['nginx']
         mode: ['wsgi', 'django']
-
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse MSCA_CFG secrets"
         uses: ./.github/actions/parse-json-secret
@@ -2679,38 +2430,19 @@ jobs:
       - name: "Get runner ip"
         run: |
           echo RUNNER_IP=$(ip addr show eth0 | grep -i "inet " | cut -d ' ' -f 6 | cut -d '/' -f 1) >> $GITHUB_ENV
-          echo RUNNER_PATH=$(pwd | sed 's_/_\\/_g') >> $GITHUB_ENV
 
-      - run: echo "runner IP is $RUNNER_IP"
-        env:
+      - name: "Setup dnsmasq"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/dnsmasq_setup
+        with:
           RUNNER_IP: ${{ env.RUNNER_IP }}
+          MSCA_FQDN: ${{ env.MSCA_FQDN }}
+          MSCA_ADS_DOMAIN: ${{ env.MSCA_ADS_DOMAIN }}
+          WES_HOST: ${{ env.WES_HOST }}
 
-      - name: "Install dnsmasq"
+      - name: "Allow dnsmasq non-local queries"
         run: |
-          sudo apt-get update
-          sudo apt-get install -y dnsmasq
-          sudo systemctl disable systemd-resolved
-          sudo systemctl stop systemd-resolved
-          # sudo chmod -R 777 /etc/resolv.conf
-          # sudo echo "nameserver 8.8.8.8" > /etc/resolv.conf
-          sudo mkdir -p dnsmasq
-          sudo cp .github/dnsmasq.conf dnsmasq/
-          sudo chmod -R 777 dnsmasq/dnsmasq.conf
-          sudo sed -i "s/RUNNER_IP/$RUNNER_IP/g" dnsmasq/dnsmasq.conf
-          sudo echo "address=/$MSCA_FQDN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          sudo echo "address=/$MSCA_ADS_DOMAIN/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          sudo echo "address=/$WES_HOST/$RUNNER_IP" >> dnsmasq/dnsmasq.conf
-          cat dnsmasq/dnsmasq.conf
-          sudo cp dnsmasq/dnsmasq.conf /etc/
-          sudo sed -i "s/ --local-service/ /g" /etc/init.d/dnsmasq
-          sudo systemctl enable dnsmasq
-          sudo systemctl start dnsmasq
-
-      - name: "Test dns resolution"
-        run: |
-          host $MSCA_ADS_DOMAIN ${{ env.RUNNER_IP }}
-          host $MSCA_FQDN ${{ env.RUNNER_IP }}
-          host $WES_HOST 127.0.0.1
+          sudo sed -i 's/--local-service//' /etc/init.d/dnsmasq || true
+          sudo systemctl restart dnsmasq || true
 
       - name: "Setup tunnel"
         uses: ./.github/actions/wf_specific/ms_ca_handler/tunnel_setup
@@ -2723,12 +2455,25 @@ jobs:
           MSCA_FQDN: ${{ env.MSCA_FQDN }}
           SSH_KNOWN_HOSTS: ${{ env.SSH_KNOWN_HOSTS }}
           SSH_KEY: ${{ env.SSH_KEY }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
 
-      - name: "NTLM - Prepare acme_srv.cfg with ms_wcce_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "NTLM - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: deb
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "false"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
           OPTIONS: |
             host: ${{ env.RUNNER_IP }}
             user: ${{ env.MSCA_USER }}
@@ -2739,24 +2484,12 @@ jobs:
             ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_certs.pem
             timeout: 20
 
-      - name: "NTLM - Prepare acme_srv.cfg with ms_wcce_ca_handler (post-cfg)"
+      - name: "Install a2c DEB"
         run: |
-          mkdir -p data/volume/acme_ca
-          sudo touch data/volume/acme_ca/ca_certs.pem
-          sudo chmod 777 data/volume/acme_ca/ca_certs.pem
-          sudo echo "$MSCA_CA_BUNDLE" > data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-      - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install ${{ matrix.websrv }} -m ${{ matrix.mode }}
           docker exec acme-srv apt-get install -y python3-impacket
-        env:
-          WEBSRV: ${{ matrix.websrv }}
-          MODE: ${{ matrix.mode }}
 
-      - name: "NTLM - enrollment mit default profile and headerinfo"
+      - name: "NTLM - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
 
       - name: "Flush logs"
@@ -2764,11 +2497,20 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "KRB - Setup a2c with ms_wcce_ca_handler (Kerberos)"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "KRB - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: deb
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "true"
+          CA_CERTS_CONTENT: ${{ env.MSCA_CA_BUNDLE }}
+          WEBSRV: ${{ matrix.websrv }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            header_info_list: ["HTTP_USER_AGENT"]
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             user: ${{ env.MSCA_USER }}
@@ -2781,23 +2523,7 @@ jobs:
             timeout: 20
             use_kerberos: True
 
-      - name: "KRB - Setup a2c with ms_wcce_ca_handler (Kerberos) (post-cfg)"
-        run: |
-          mkdir -p data/volume/acme_ca
-          sudo touch data/volume/acme_ca/ca_certs.pem
-          sudo chmod 777 data/volume/acme_ca/ca_certs.pem
-          sudo echo "$MSCA_CA_BUNDLE" > data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
-        env:
-          WEBSRV: ${{ matrix.websrv }}
-          MODE: ${{ matrix.mode }}
-
-      - name: "KRB - enrollment mit default profile and headerinfo"
+      - name: "KRB - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_default_headerinfo
 
       - name: "Flush logs"
@@ -2805,19 +2531,33 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "KRB - Setup a2c with mswcce_ca_handler with allowed_domainlist configuration"
-        run: |
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo echo "allowed_domainlist: [\"*.acme\", \"foo1.bar\", \"*.bar.local\"]" >> data/volume/acme_srv.cfg
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
-        env:
+      - name: "KRB allowed_domainlist - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
+        with:
+          DEPLOYMENT_TYPE: deb
+          VOLUME_DIR: "data/volume"
+          HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
           WEBSRV: ${{ matrix.websrv }}
-          MODE: ${{ matrix.mode }}
+          DISABLE_CHALLENGE_VALIDATION: "true"
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            allowed_domainlist: ["*.acme", "foo1.bar", "*.bar.local"]
+          OPTIONS: |
+            host: ${{ env.MSCA_FQDN }}
+            user: ${{ env.MSCA_USER }}
+            password: ${{ env.MSCA_PASSWORD }}
+            template: ${{ env.MSCA_TEMPLATE }}
+            ca_name: ${{ env.MSCA_NAME }}
+            target_domain: ${{ env.MSCA_ADS_DOMAIN }}
+            domain_controller: ${{ env.RUNNER_IP }}
+            ca_bundle: /var/www/acme2certifier/volume/acme_ca/ca_certs.pem
+            timeout: 20
+            use_kerberos: True
 
-      - name: "KRB - enrollment allowed domainlist"
+      - name: "KRB allowed_domainlist - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
 
       - name: "Flush logs"
@@ -2825,11 +2565,21 @@ jobs:
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab)"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - name: "ACME Profiling keytab - Setup a2c"
+        uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
         with:
+          DEPLOYMENT_TYPE: deb
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.mswcce_ca_handler
+          RESTART: "true"
+          COPY_CA_CERTS: "false"
+          WEBSRV: ${{ matrix.websrv }}
+          KRB5_CONF: ${{ env.KRB5_CONF }}
+          KRB5_KEYTAB_B64: ${{ env.KRB5_KEYTAB }}
+          CERTIFICATE_OPTIONS: |
+            enrollment_timeout: 40
+          ORDER_OPTIONS: |
+            profiles={"WebServer-07-C": "http://foo.bar/acmeca1", "WebServer-07-S": "http://foo.bar/acmeca2", "profile3": "http://foo.bar/profile3"}
           OPTIONS: |
             host: ${{ env.MSCA_FQDN }}
             krb5_principal: ${{ env.KRB5_PRINCIPAL }}
@@ -2845,61 +2595,28 @@ jobs:
             use_kerberos: True
             enrollment_config_log: True
 
-      - name: "ACME Profiling - Setup a2c with ms_wcce_ca_handler (Kerberos and keytab) (post-cfg)"
-        run: |
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"WebServer-07-C\": \"http:\/\/foo.bar\/acmeca1\", \"WebServer-07-S\": \"http:\/\/foo.bar\/acmeca2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 40/g" data/volume/acme_srv.cfg
-
-          sudo touch data/volume/acme_ca/krb5.conf
-          sudo chmod 777 data/volume/acme_ca/krb5.conf
-          cat <<EOF > data/volume/acme_ca/krb5.conf
-          $KRB5_CONF
-          EOF
-          sudo touch data/volume/acme_ca/krb5.keytab
-          sudo chmod 777 data/volume/acme_ca/krb5.keytab
-          sudo echo $KRB5_KEYTAB | base64 -d > data/volume/acme_ca/krb5.keytab
-
-      - name: "Reconfigure a2c "
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh restart $WEBSRV
-        env:
-          WEBSRV: ${{ matrix.websrv }}
-          MODE: ${{ matrix.mode }}
-
-      - name: "ACME Profiling - Enrollment"
+      - name: "ACME Profiling keytab - Enrollment"
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_acmeprofile
         with:
           DEPLOYMENT_TYPE: deb
 
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.deb
-          if [ ${{ matrix.websrv }} == "apache2" ]; then
-            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          else
-            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          fi
-          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
-
-      - name: "[ * ] Uploading artifacts"
+      - name: "Collect failure logs"
+        if: failure()
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: ${{ matrix.websrv }}
+      - name: "Upload failure artifacts"
+        if: failure()
         uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
         with:
           name: mswcce-test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
-  # ---------------------------------------------------------
-  # stop instance
-  # ---------------------------------------------------------
   instance_stop:
     needs: [guard, instance_start, mscertserv-test-containers, mscertsrv-eabprov-container-tests, mswcce-test-containers, mswcce-eab-container-tests, mscertsrv-without-impacket_tests, mscertsrv-test-rpm, mscertsrv-eabprofile-test-rpm, mswcce-tests-rpm, mswcce-eab-tests-rpm, mscertsrv-test-deb, mswcce-test-deb]
     runs-on: ubuntu-latest
-    if: ${{ always() && github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'master' || inputs.branch == 'devel' || contains(inputs.branch, 'msca')) }}
+    if: ${{ always() && needs.instance_start.result != 'skipped' && github.repository == 'grindsa/acme2certifier' }}
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
@@ -2918,3 +2635,4 @@ jobs:
           AWS_INSTANCE_ID: ${{ env.AWS_WINDOWS-01_INSTANCE_ID }}
           ACTION: "stop"
           IGNORE_CURRENT_STATUS: "false"
+

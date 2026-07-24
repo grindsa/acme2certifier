@@ -1,0 +1,57 @@
+name: "dnsmasq_setup"
+description: "Install dnsmasq and map MSCA FQDNs to the runner IP for WCCE tests"
+inputs:
+  RUNNER_IP:
+    description: "Runner public/private IP used as dnsmasq answer"
+    required: true
+  MSCA_FQDN:
+    description: "MSCA FQDN"
+    required: true
+  MSCA_ADS_DOMAIN:
+    description: "AD domain name"
+    required: true
+  WES_HOST:
+    description: "WES host name"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Install and configure dnsmasq"
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        sudo apt-get install -y dnsmasq
+        sudo systemctl disable systemd-resolved || true
+        sudo systemctl stop systemd-resolved || true
+        sudo mkdir -p dnsmasq
+        sudo cp .github/dnsmasq.conf dnsmasq/
+        sudo chmod -R 777 dnsmasq/dnsmasq.conf
+        sudo sed -i "s/RUNNER_IP/${RUNNER_IP}/g" dnsmasq/dnsmasq.conf
+        {
+          echo "address=/${MSCA_FQDN}/${RUNNER_IP}"
+          echo "address=/${MSCA_ADS_DOMAIN}/${RUNNER_IP}"
+          echo "address=/${WES_HOST}/${RUNNER_IP}"
+        } | sudo tee -a dnsmasq/dnsmasq.conf >/dev/null
+        cat dnsmasq/dnsmasq.conf
+        sudo cp dnsmasq/dnsmasq.conf /etc/
+        sudo systemctl enable dnsmasq
+        sudo systemctl start dnsmasq
+      shell: bash
+      env:
+        RUNNER_IP: ${{ inputs.RUNNER_IP }}
+        MSCA_FQDN: ${{ inputs.MSCA_FQDN }}
+        MSCA_ADS_DOMAIN: ${{ inputs.MSCA_ADS_DOMAIN }}
+        WES_HOST: ${{ inputs.WES_HOST }}
+
+    - name: "Test DNS resolution"
+      run: |
+        set -euo pipefail
+        host "${MSCA_ADS_DOMAIN}" 127.0.0.1
+        host "${MSCA_FQDN}" 127.0.0.1
+        host "${WES_HOST}" 127.0.0.1
+      shell: bash
+      env:
+        MSCA_FQDN: ${{ inputs.MSCA_FQDN }}
+        MSCA_ADS_DOMAIN: ${{ inputs.MSCA_ADS_DOMAIN }}
+        WES_HOST: ${{ inputs.WES_HOST }}

@@ -78,12 +78,27 @@ runs:
         aws configure set aws_access_key_id "${AWS_ACCESS_KEY_ID}"
         aws configure set aws_secret_access_key "${AWS_SECRET_ACCESS_KEY}"
         aws configure set default.region "${AWS_REGION}"
-
-        PUBLIC_IP="$(aws ec2 describe-instances --region "${AWS_REGION}" --instance-ids "${AWS_INSTANCE_ID}" \
-          --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)"
-        echo "EC2 public IP for ${AWS_INSTANCE_ID}: ${PUBLIC_IP}"
+        export AWS_MAX_ATTEMPTS=1
+        PUBLIC_IP=""
+        for attempt in 1 2 3 4 5; do
+          # Cap connect wait; without this, runner→AWS timeouts burn ~3m per attempt.
+          if PUBLIC_IP="$(aws ec2 describe-instances \
+            --region "${AWS_REGION}" \
+            --instance-ids "${AWS_INSTANCE_ID}" \
+            --cli-connect-timeout 10 \
+            --cli-read-timeout 30 \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' \
+            --output text 2>/tmp/aws_ec2_err.txt)"; then
+            break
+          fi
+          echo "WARNING: aws ec2 describe-instances attempt ${attempt}/5 failed:"
+          cat /tmp/aws_ec2_err.txt >&2 || true
+          PUBLIC_IP=""
+          sleep $((attempt * 2))
+        done
 
         if [[ -n "${PUBLIC_IP}" && "${PUBLIC_IP}" != "None" ]]; then
+          echo "EC2 public IP for ${AWS_INSTANCE_ID}: ${PUBLIC_IP}"
           if [[ -z "${DNS_IP}" || "${DNS_IP}" != "${PUBLIC_IP}" ]]; then
             echo "WARNING: DNS ${DNS_IP:-unresolved} != EC2 public IP ${PUBLIC_IP}; using EC2 IP for tunnel"
             CONNECT_HOST="${PUBLIC_IP}"
@@ -91,7 +106,7 @@ runs:
             echo "DNS matches EC2 public IP; using ${SSH_HOST}"
           fi
         else
-          echo "WARNING: no EC2 public IP; falling back to SSH_HOST=${SSH_HOST}"
+          echo "WARNING: EC2 public IP lookup failed or empty; falling back to SSH_HOST=${SSH_HOST}"
         fi
       else
         echo "AWS inputs not fully set; using SSH_HOST=${SSH_HOST}"
