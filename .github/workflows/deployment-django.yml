@@ -108,12 +108,9 @@ jobs:
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
         continue-on-error: true
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          cd examples/Docker
-          docker compose logs > ${{ github.workspace }}/artifact/docker-compose.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz docker-compose.log data
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
@@ -180,18 +177,19 @@ jobs:
       - name: "Test enrollment"
         uses: ./.github/actions/acme_clients
 
-      - name: "[ * ] Collecting test logs"
+      - name: "[ * ] Collecting extra failure logs"
         if: ${{ failure() }}
         continue-on-error: true
         run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
+          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
           docker exec acme-srv tar cvfz /tmp/acme2certifier/nginx.tgz /etc/nginx
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log acme-sh
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        continue-on-error: true
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
@@ -258,18 +256,10 @@ jobs:
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.deb
-          if [ ${{ matrix.websrv }} == "apache2" ]; then
-            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          else
-            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          fi
-          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: ${{ matrix.websrv }}
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7

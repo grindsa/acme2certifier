@@ -340,21 +340,20 @@ jobs:
           DEPLOYMENT_TYPE: "container"
           # REVOCATION: "false"
 
-      - name: "[ * ] Collecting test logs"
+      - name: "[ * ] Collecting extra failure logs"
         if: ${{ failure() }}
         run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
-          cd examples/Docker
+          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
           docker ps -a
-          docker compose logs > ${{ github.workspace }}/artifact/a2c.log
           docker exec  OpenXPKI_Server cat /var/log/openxpki-server/catchall.log >> ${{ github.workspace }}/artifact/openxpki_server.log
           docker exec  OpenXPKI_Client cat /var/log/openxpki-client/est.log >> ${{ github.workspace }}/artifact/openxpki_client_est.log
           docker exec  OpenXPKI_Client cat /var/log/openxpki-client/rpc.log >> ${{ github.workspace }}/artifact/openxpki_client_rpc.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz openxpki_server.log openxpki_client_est.log openxpki_client_rpc.log a2c.log data # acme-sh certbot lego
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
@@ -659,21 +658,17 @@ jobs:
           sudo rm -rf  lego/*
           sudo rm -rf  acme-sh/*
 
-      - name: "[ * ] Collecting test logs"
+      - name: "[ * ] Collecting extra failure logs"
         if: ${{ failure() }}
         run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier
-          # docker logs openxpki-docker_openxpki-server_1 > ${{ github.workspace }}/artifact/openxpki_server.log
-          # docker logs openxpki-docker_openxpki-client_1 > ${{ github.workspace }}/artifact/openxpki_client.log
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo rm ${{ github.workspace }}/artifact/data/*.rpm
-          docker exec acme-srv cat /etc/nginx/nginx.conf.orig > ${{ github.workspace }}/artifact/data/nginx.conf.orig
+          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
           docker exec acme-srv rpm -qa > ${{ github.workspace }}/artifact/data/packages.txt
-          docker exec acme-srv cat /etc/nginx/nginx.conf > ${{ github.workspace }}/artifact/data/nginx.conf
-          docker exec acme-srv cat /var/log/messages > ${{ github.workspace }}/artifact/acme-srv.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data openxpki_server.log openxpki_client.log acme-srv.log acme-sh
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
@@ -991,18 +986,10 @@ jobs:
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier
-          sudo cp -rp data/ ${{ github.workspace }}/artifact/data/
-          sudo rm ${{ github.workspace }}/artifact/data/*.deb
-          if [ ${{ matrix.websrv }} == "apache2" ]; then
-            docker exec acme-srv cat /var/log/apache2/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          else
-            docker exec acme-srv cat /var/log/nginx/error.log > ${{ github.workspace }}/artifact/acme-srv.log
-          fi
-          docker exec acme-srv cat /var/log/syslog > ${{ github.workspace }}/artifact/syslog
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz data acme-srv.log syslog
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: deb
+          WEBSRV: ${{ matrix.websrv }}
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7

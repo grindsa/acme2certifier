@@ -147,18 +147,17 @@ jobs:
         with:
           REVOCATION: "false"
 
-      - name: "[ * ] Collecting test logs"
+      - name: "[ * ] Collecting extra failure logs"
         if: ${{ failure() }}
         run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
-          cd examples/Docker
-          docker compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log
-          docker compose logs > ${{ github.workspace }}/artifact/a2c.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz a2c.log data soap-srv.log acme-sh certbot lego
+          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
+          (cd examples/Docker && docker compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log) || true
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
@@ -273,18 +272,17 @@ jobs:
         with:
           REVOCATION: "false"
 
-      - name: "[ * ] Collecting test logs"
+      - name: "[ * ] Collecting extra failure logs"
         if: ${{ failure() }}
         run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          sudo cp -rp certbot/ ${{ github.workspace }}/artifact/certbot/
-          sudo cp -rp lego/ ${{ github.workspace }}/artifact/lego/
-          cd examples/Docker
-          docker compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log
-          docker compose logs > ${{ github.workspace }}/artifact/a2c.log
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz a2c.log data soap-srv.log acme-sh certbot lego
+          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
+          (cd examples/Docker && docker compose -f soap_srv.yml logs > ${{ github.workspace }}/artifact/soap-srv.log) || true
+
+      - name: "[ * ] Collecting test logs"
+        if: ${{ failure() }}
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7

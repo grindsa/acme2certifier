@@ -563,15 +563,17 @@ jobs:
           docker stop acme-srv
           docker rmi $(docker images grindsa/acme2certifier -q) --no-prune --force
 
-      - name: "[ * ] collecting test data"
+      - name: "[ * ] Collecting extra failure logs"
         if: ${{ failure() }}
         run: |
-          mkdir -p ${{ github.workspace }}/artifact/upload
-          sudo cp -rp examples/Docker/data/ ${{ github.workspace }}/artifact/data/
-          # sudo cp -rp acme-sh/ ${{ github.workspace }}/artifact/acme-sh/
-          cd examples/Docker
+          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
           docker logs acme-srv > ${{ github.workspace }}/artifact/acme-srv.log 2>&1
-          sudo tar -C ${{ github.workspace }}/artifact/ -cvzf ${{ github.workspace }}/artifact/upload/artifact.tar.gz acme-srv.log data # acme-sh
+
+      - name: "[ * ] collecting test data"
+        if: ${{ failure() }}
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
