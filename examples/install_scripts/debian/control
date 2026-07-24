@@ -29,6 +29,7 @@ Depends:
  python3-tz,
  python3-dateutil,
  python3-requests,
+ python3-requests-ntlm,
  python3-socks,
  python3-josepy,
  python3-acme,

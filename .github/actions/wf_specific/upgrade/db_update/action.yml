@@ -1,0 +1,26 @@
+name: "upgrade db update"
+description: "Run a2c DB update inside acme-srv (modern path with legacy fallbacks)"
+inputs:
+  APP_ROOT:
+    description: "Application root inside container"
+    required: false
+    default: "/opt/acme2certifier"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Run DB update"
+      shell: bash
+      env:
+        APP_ROOT: ${{ inputs.APP_ROOT }}
+      run: |
+        set -euo pipefail
+        docker exec -w "${APP_ROOT}" acme-srv bash -c '
+          set +e
+          if python3 -m acme2certifier.tools.a2c_db_update; then exit 0; fi
+          if command -v a2c-db-update >/dev/null 2>&1 && a2c-db-update; then exit 0; fi
+          if [[ -f tools/db_update.py ]]; then python3 tools/db_update.py; exit $?; fi
+          if [[ -f acme_srv/db_update.py ]]; then python3 acme_srv/db_update.py; exit $?; fi
+          echo "WARNING: no db update entrypoint found; continuing" >&2
+          exit 0
+        '

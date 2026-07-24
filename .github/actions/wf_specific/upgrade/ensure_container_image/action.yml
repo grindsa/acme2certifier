@@ -1,0 +1,39 @@
+name: "ensure container image"
+description: "Pull grindsa/acme2certifier:TAG-websrv-dbhandler or build from that git tag"
+inputs:
+  VERSION:
+    description: "Release tag / image version"
+    required: true
+  WEB_SRV:
+    description: "Web server"
+    required: true
+    default: "nginx"
+  DB_HANDLER:
+    description: "wsgi or django"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Pull or build ${{ inputs.VERSION }}-${{ inputs.WEB_SRV }}-${{ inputs.DB_HANDLER }}"
+      shell: bash
+      env:
+        VERSION: ${{ inputs.VERSION }}
+        WEB_SRV: ${{ inputs.WEB_SRV }}
+        DB_HANDLER: ${{ inputs.DB_HANDLER }}
+      run: |
+        set -euo pipefail
+        IMAGE="grindsa/acme2certifier:${VERSION}-${WEB_SRV}-${DB_HANDLER}"
+        if docker pull "${IMAGE}"; then
+          echo "Pulled ${IMAGE}"
+          exit 0
+        fi
+        echo "Hub miss for ${IMAGE}; building from tag ${VERSION}"
+        rm -rf "/tmp/a2c-build-${VERSION}"
+        git clone --branch "${VERSION}" --depth 1 \
+          https://github.com/grindsa/acme2certifier.git "/tmp/a2c-build-${VERSION}"
+        docker build \
+          -f "/tmp/a2c-build-${VERSION}/examples/Docker/${WEB_SRV}/${DB_HANDLER}/Dockerfile" \
+          -t "${IMAGE}" \
+          "/tmp/a2c-build-${VERSION}"
+        echo "Built ${IMAGE}"

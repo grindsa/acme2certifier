@@ -1,0 +1,72 @@
+name: "upgrade install or upgrade rpm"
+description: "Install/upgrade an RPM inside acme-srv and restart services"
+inputs:
+  RPM_PATH:
+    description: "Path on host (mounted under /tmp/acme2certifier or absolute in container)"
+    required: true
+  MODE:
+    description: "wsgi | django"
+    required: true
+  MODERN:
+    description: "If true, use a2c-rpm.sh; else localinstall + restart"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Install/upgrade RPM (${{ inputs.MODERN }})"
+      shell: bash
+      env:
+        RPM_PATH: ${{ inputs.RPM_PATH }}
+        MODE: ${{ inputs.MODE }}
+        MODERN: ${{ inputs.MODERN }}
+      run: |
+        set -euo pipefail
+        base="$(basename "${RPM_PATH}")"
+        # Ensure package is visible under the container mount.
+        if [[ "${RPM_PATH}" != data/* && "${RPM_PATH}" != /tmp/* ]]; then
+          sudo cp "${RPM_PATH}" "data/${base}"
+          cont_rpm="/tmp/acme2certifier/${base}"
+        elif [[ "${RPM_PATH}" == data/* ]]; then
+          cont_rpm="/tmp/acme2certifier/$(basename "${RPM_PATH}")"
+        else
+          docker cp "${RPM_PATH}" "acme-srv:/tmp/${base}"
+          cont_rpm="/tmp/${base}"
+        fi
+
+        if [[ "${MODERN}" == "true" ]]; then
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh \
+            --rpm "${cont_rpm}" install -m "${MODE}"
+        else
+          docker exec acme-srv bash -c "
+            set -euo pipefail
+            if command -v dnf >/dev/null 2>&1; then
+              dnf localinstall -y '${cont_rpm}'
+            else
+              yum localinstall -y '${cont_rpm}'
+            fi
+            mkdir -p /opt/acme2certifier/volume
+            if [[ -d /tmp/acme2certifier/volume ]]; then
+              cp -a /tmp/acme2certifier/volume/. /opt/acme2certifier/volume/ || true
+            fi
+            if [[ -f /opt/acme2certifier/volume/acme_srv.cfg ]]; then
+              mkdir -p /opt/acme2certifier/acme_srv
+              ln -sfn /opt/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv/acme_srv.cfg || true
+              cp -f /opt/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv/acme_srv.cfg || true
+            fi
+            # Nginx vhosts from package examples when missing
+            if [[ ! -f /etc/nginx/conf.d/nginx_acme_srv.conf ]]; then
+              if [[ -f /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf ]]; then
+                cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d/
+                cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d/ || true
+                sed -i 's|/var/www/acme2certifier|/opt/acme2certifier|g' /etc/nginx/conf.d/nginx_acme_srv*.conf || true
+              elif [[ -d /tmp/acme2certifier/nginx ]]; then
+                cp -a /tmp/acme2certifier/nginx/. /etc/nginx/ || true
+              fi
+            fi
+            systemctl enable acme2certifier.service nginx.service || true
+            systemctl restart acme2certifier.service || systemctl restart uwsgi.service || true
+            systemctl restart nginx.service || true
+          "
+        fi

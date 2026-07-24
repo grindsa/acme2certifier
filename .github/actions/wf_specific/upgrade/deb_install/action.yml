@@ -1,0 +1,67 @@
+name: "upgrade install or upgrade deb"
+description: "Install/upgrade a DEB inside acme-srv (nginx) and restart services"
+inputs:
+  DEB_PATH:
+    description: "Path on host under data/ or absolute"
+    required: true
+  MODE:
+    description: "wsgi | django"
+    required: true
+  MODERN:
+    description: "If true, use a2c-deb.sh; else apt install + nginx restart"
+    required: false
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Install/upgrade DEB (${{ inputs.MODERN }})"
+      shell: bash
+      env:
+        DEB_PATH: ${{ inputs.DEB_PATH }}
+        MODE: ${{ inputs.MODE }}
+        MODERN: ${{ inputs.MODERN }}
+      run: |
+        set -euo pipefail
+        base="$(basename "${DEB_PATH}")"
+        if [[ "${DEB_PATH}" == data/* ]]; then
+          cont_deb="/tmp/acme2certifier/${base}"
+        else
+          sudo cp "${DEB_PATH}" "data/${base}"
+          cont_deb="/tmp/acme2certifier/${base}"
+        fi
+
+        if [[ "${MODERN}" == "true" ]]; then
+          docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh \
+            --deb "${cont_deb}" install nginx -m "${MODE}"
+        else
+          docker exec acme-srv bash -c "
+            set -euo pipefail
+            apt-get update
+            apt-get install -y nginx uwsgi uwsgi-plugin-python3 curl openssl || true
+            apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' '${cont_deb}'
+            mkdir -p /var/www/acme2certifier/volume
+            if [[ -d /tmp/acme2certifier/volume ]]; then
+              cp -a /tmp/acme2certifier/volume/. /var/www/acme2certifier/volume/ || true
+            fi
+            if [[ -f /var/www/acme2certifier/volume/acme_srv.cfg ]]; then
+              ln -sfn /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg || true
+              cp -f /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg || true
+            fi
+            # Prefer package nginx share when present
+            if [[ -d /var/www/acme2certifier/share/nginx ]]; then
+              cp /var/www/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme2certifier.conf || true
+              cp /var/www/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme2certifier_ssl.conf || true
+            elif [[ -d /var/www/acme2certifier/examples/nginx ]]; then
+              cp /var/www/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme2certifier.conf || true
+              cp /var/www/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme2certifier_ssl.conf || true
+            fi
+            ln -sfn /etc/nginx/sites-available/acme2certifier.conf /etc/nginx/sites-enabled/acme2certifier.conf || true
+            ln -sfn /etc/nginx/sites-available/acme2certifier_ssl.conf /etc/nginx/sites-enabled/acme2certifier_ssl.conf || true
+            rm -f /etc/nginx/sites-enabled/default || true
+            chown -R www-data:www-data /var/www/acme2certifier/volume || true
+            systemctl enable nginx || true
+            systemctl restart nginx || true
+            systemctl restart uwsgi || systemctl restart acme2certifier || true
+          "
+        fi
