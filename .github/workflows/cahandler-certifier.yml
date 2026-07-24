@@ -72,25 +72,78 @@ jobs:
           sudo mkdir -p /tmp/rd
           sudo mount -t tmpfs -o size=5M none /tmp/rd || true
           printf '%s\n' "$SSH_KEY" | sudo tee /tmp/rd/ak.tmp >/dev/null
+          printf '%s\n' "$SSH_KNOWN_HOSTS" | sudo tee /tmp/rd/known_hosts >/dev/null
           sudo chmod 600 /tmp/rd/ak.tmp
+          # Allow runner user to read the key (avoid sudo ssh).
+          sudo chown "$(id -u):$(id -g)" /tmp/rd/ak.tmp /tmp/rd/known_hosts
 
-      - name: "Wait for SSH"
+      - name: "Wait for instance public IP + SSH"
         run: |
           set -euo pipefail
+          # Prefer the live EC2 public IP: DNS (SSH_HOST) can lag after stop/start.
+          INSTANCE_ID="${{ env.AWS_X64-UB-01_INSTANCE_ID }}"
+          REGION="${{ env.AWS_REGION }}"
+          DNS_HOST="${{ env.SSH_HOST }}"
+          DNS_IP="$(getent ahostsv4 "$DNS_HOST" | awk '{print $1; exit}' || true)"
+          echo "SSH_HOST DNS ${DNS_HOST} -> ${DNS_IP:-unresolved}"
+
+          PUBLIC_IP=""
+          for i in $(seq 1 40); do
+            STATE="$(aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" \
+              --query 'Reservations[0].Instances[0].State.Name' --output text)"
+            PUBLIC_IP="$(aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" \
+              --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)"
+            echo "attempt ${i}/40 state=${STATE} public_ip=${PUBLIC_IP}"
+            if [[ "$STATE" == "running" && -n "$PUBLIC_IP" && "$PUBLIC_IP" != "None" ]]; then
+              break
+            fi
+            sleep 5
+            PUBLIC_IP=""
+          done
+          if [[ -z "$PUBLIC_IP" || "$PUBLIC_IP" == "None" ]]; then
+            echo "ERROR: instance has no public IP yet" >&2
+            exit 1
+          fi
+          if [[ -n "$DNS_IP" && "$DNS_IP" != "$PUBLIC_IP" ]]; then
+            echo "WARNING: DNS ${DNS_IP} != EC2 public IP ${PUBLIC_IP}; using EC2 IP for SSH"
+          fi
+          echo "SSH_CONNECT_HOST=${PUBLIC_IP}" >> "$GITHUB_ENV"
+
+          # System status checks (sshd typically up once these pass).
+          aws ec2 wait instance-status-ok --region "$REGION" --instance-ids "$INSTANCE_ID" || true
+
+          ssh_cmd() {
+            ssh -i /tmp/rd/ak.tmp -p "${{ env.SSH_PORT }}" \
+              -o BatchMode=yes \
+              -o ConnectTimeout=10 \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/tmp/rd/known_hosts \
+              "${{ env.SSH_USER }}@${PUBLIC_IP}" "$@"
+          }
           for i in $(seq 1 30); do
-            if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -i /tmp/rd/ak.tmp \
-              -p ${{ env.SSH_PORT }} ${{ env.SSH_USER }}@${{ env.SSH_HOST }} true; then
-              echo "SSH ready after ${i} attempt(s)"
+            if ssh_cmd true; then
+              echo "SSH ready after ${i} attempt(s) via ${PUBLIC_IP}"
               exit 0
             fi
-            sleep 2
+            echo "SSH attempt ${i}/30 to ${PUBLIC_IP} failed; retrying..."
+            sleep 3
           done
-          echo "ERROR: SSH not ready" >&2
+          echo "ERROR: SSH not ready on ${PUBLIC_IP} (DNS was ${DNS_IP:-unknown})" >&2
+          ssh -v -i /tmp/rd/ak.tmp -p "${{ env.SSH_PORT }}" \
+            -o BatchMode=yes -o ConnectTimeout=10 \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/tmp/rd/known_hosts \
+            "${{ env.SSH_USER }}@${PUBLIC_IP}" true || true
           exit 1
 
       - name: "start ncm on remote instance"
         run: |
-          ssh -o "StrictHostKeyChecking=no" -i /tmp/rd/ak.tmp ${{ env.SSH_USER }}@${{ env.SSH_HOST }} -p ${{ env.SSH_PORT }} "/usr/local/bin/ncm_mgr.sh start"
+          ssh -i /tmp/rd/ak.tmp -p ${{ env.SSH_PORT }} \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/tmp/rd/known_hosts \
+            ${{ env.SSH_USER }}@${{ env.SSH_CONNECT_HOST }} \
+            "/usr/local/bin/ncm_mgr.sh start"
 
 
   # max-parallel: 1 — single shared NCM AWS instance via SSH tunnel
@@ -107,6 +160,11 @@ jobs:
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
 
       - name: "Parse NCM configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
@@ -140,6 +198,10 @@ jobs:
           NCM_API_HOST: ${{ env.NCM_API_HOST }}
           NCM_API_USER: ${{ env.NCM_API_USER }}
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
       - name: "No profile - Setup a2c"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
@@ -485,6 +547,11 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
       - name: "Parse NCM configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
@@ -508,6 +575,10 @@ jobs:
           NCM_API_HOST: ${{ env.NCM_API_HOST }}
           NCM_API_USER: ${{ env.NCM_API_USER }}
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
       - name: "No profile - Setup a2c"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
@@ -846,6 +917,11 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
       - name: "Parse NCM configuration from JSON secret"
         uses: ./.github/actions/parse-json-secret
         with:
@@ -884,6 +960,10 @@ jobs:
           NCM_API_HOST: ${{ env.NCM_API_HOST }}
           NCM_API_USER: ${{ env.NCM_API_USER }}
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
       - name: "No profile - Setup a2c"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
@@ -1093,6 +1173,11 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
       - name: "Parse NCM configuration"
         uses: ./.github/actions/parse-json-secret
         with:
@@ -1130,6 +1215,10 @@ jobs:
           NCM_API_HOST: ${{ env.NCM_API_HOST }}
           NCM_API_USER: ${{ env.NCM_API_USER }}
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
       - name: "Setup a2c with cmp_ca_handler (key-cert)"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
@@ -1303,6 +1392,11 @@ jobs:
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
       - name: "Parse NCM configuration"
         uses: ./.github/actions/parse-json-secret
         with:
@@ -1337,6 +1431,10 @@ jobs:
           NCM_API_HOST: ${{ env.NCM_API_HOST }}
           NCM_API_USER: ${{ env.NCM_API_USER }}
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
       - name: "Setup a2c with cmp_ca_handler (key-cert)"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
@@ -1493,6 +1591,11 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
+      - name: "Parse AWS_CFG JSON secret"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.AWS_CFG }}
+
       - name: "Parse NCM configuration"
         uses: ./.github/actions/parse-json-secret
         with:
@@ -1532,6 +1635,10 @@ jobs:
           NCM_API_HOST: ${{ env.NCM_API_HOST }}
           NCM_API_USER: ${{ env.NCM_API_USER }}
           NCM_API_PASSWORD: ${{ env.NCM_API_PASSWORD }}
+          AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ env.AWS_REGION }}
+          AWS_INSTANCE_ID: ${{ env.AWS_X64-UB-01_INSTANCE_ID }}
 
       - name: "Setup a2c with cmp_ca_handler (key-cert)"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
@@ -1709,11 +1816,35 @@ jobs:
           sudo mkdir -p /tmp/rd
           sudo mount -t tmpfs -o size=5M none /tmp/rd || true
           printf '%s\n' "$SSH_KEY" | sudo tee /tmp/rd/ak.tmp >/dev/null
+          printf '%s\n' "$SSH_KNOWN_HOSTS" | sudo tee /tmp/rd/known_hosts >/dev/null
           sudo chmod 600 /tmp/rd/ak.tmp
+          sudo chown "$(id -u):$(id -g)" /tmp/rd/ak.tmp /tmp/rd/known_hosts
+
+      - name: "Resolve instance public IP"
+        run: |
+          set -euo pipefail
+          aws configure set aws_access_key_id "${{ env.AWS_ACCESS_KEY_ID }}"
+          aws configure set aws_secret_access_key "${{ env.AWS_SECRET_ACCESS_KEY }}"
+          aws configure set default.region "${{ env.AWS_REGION }}"
+          INSTANCE_ID="${{ env.AWS_X64-UB-01_INSTANCE_ID }}"
+          REGION="${{ env.AWS_REGION }}"
+          PUBLIC_IP="$(aws ec2 describe-instances --region "$REGION" --instance-ids "$INSTANCE_ID" \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' --output text)"
+          if [[ -z "$PUBLIC_IP" || "$PUBLIC_IP" == "None" ]]; then
+            echo "ERROR: instance has no public IP" >&2
+            exit 1
+          fi
+          echo "SSH_CONNECT_HOST=${PUBLIC_IP}" >> "$GITHUB_ENV"
+          echo "Using EC2 public IP ${PUBLIC_IP}"
 
       - name: "Stop ncm on remote instance"
         run: |
-          ssh -o "StrictHostKeyChecking=no" -i /tmp/rd/ak.tmp ${{ env.SSH_USER }}@${{ env.SSH_HOST }} -p ${{ env.SSH_PORT }} "/usr/local/bin/ncm_mgr.sh stop"
+          ssh -i /tmp/rd/ak.tmp -p ${{ env.SSH_PORT }} \
+            -o BatchMode=yes \
+            -o StrictHostKeyChecking=no \
+            -o UserKnownHostsFile=/tmp/rd/known_hosts \
+            ${{ env.SSH_USER }}@${{ env.SSH_CONNECT_HOST }} \
+            "/usr/local/bin/ncm_mgr.sh stop"
 
       - name: "Stop AWS instance for testing"
         uses: ./.github/actions/aws_instance_manage
