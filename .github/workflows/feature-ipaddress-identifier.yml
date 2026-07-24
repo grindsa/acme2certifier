@@ -322,10 +322,6 @@ jobs:
       - name: "Prepare acme_srv.cfg with openssl_ca_handler"
         uses: ./.github/actions/setup_openssl_cahandler
 
-      - name: "Prepare acme_srv.cfg with openssl_ca_handler (config)"
-        run: |
-          sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_module: acme2certifier.cahandlers.openssl_ca_handler/g" data/volume/acme_srv.cfg
-
       - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh install $WEBSRV -m $MODE

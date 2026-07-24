@@ -287,7 +287,6 @@ jobs:
         run: |
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: False\ndns_server_list: [\"DNS-IP\"]/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_module: acme2certifier.cahandlers.openssl_ca_handler/g" data/volume/acme_srv.cfg
 
       - name: "Prepare acme.sh container and set DNS server in acme_srv.cfg"
         uses: ./.github/actions/wf_specific/dns/acmesh_prep
@@ -509,7 +508,6 @@ jobs:
         run: |
           sudo chmod 777 data/volume/acme_srv.cfg
           sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: False\ndns_server_list: [\"DNS-IP\"]/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_module: acme2certifier.cahandlers.openssl_ca_handler/g" data/volume/acme_srv.cfg
 
       - name: "Prepare acme.sh container and set DNS server in acme_srv.cfg"
         uses: ./.github/actions/wf_specific/dns/acmesh_prep

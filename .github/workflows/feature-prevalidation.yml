@@ -413,7 +413,6 @@ jobs:
           sudo echo -e "\n\n[Authorization]" >> data/volume/acme_srv.cfg
           sudo echo "prevalidated_domainlist: [\"foo-01.bar.local\", \"*.foo.local\", \"*.acme-new\"]" >> data/volume/acme_srv.cfg
           sudo echo "prevalidated_iplist: [\"10.0.0.0/8\", \"172.0.0.1/32\", \"192.168.0.0/16\"]" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_module: acme2certifier.cahandlers.openssl_ca_handler/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -491,7 +490,6 @@ jobs:
           sudo echo "eab_handler_module: acme2certifier.eabhandlers.kid_profile_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: volume/acme_ca/kid_profiles.json" >> data/volume/acme_srv.cfg
           sudo echo "eab_profiling: True" >> data/volume/acme_srv.cfg
-          sudo sed -i "s/\[CAhandler\]/\[CAhandler\]\nhandler_module: acme2certifier.cahandlers.openssl_ca_handler/g" data/volume/acme_srv.cfg
           sudo sed -i "s/volume/\/var\/www\/acme2certifier\/volume/g" data/volume/acme_srv.cfg
 
           sudo cp acme2certifier/share/skeletons/eab_handler/kid_profiles.json data/volume/acme_ca/kid_profiles.json
