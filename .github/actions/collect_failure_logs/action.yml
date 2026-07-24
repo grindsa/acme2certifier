@@ -23,10 +23,6 @@ runs:
             sudo cp -rp certbot/ "${GITHUB_WORKSPACE}/artifact/certbot/" 2>/dev/null || true
             sudo cp -rp lego/ "${GITHUB_WORKSPACE}/artifact/lego/" 2>/dev/null || true
             (cd examples/Docker && docker compose logs > "${GITHUB_WORKSPACE}/artifact/docker-compose.log") || true
-            sudo tar -C "${GITHUB_WORKSPACE}/artifact/" -cvzf "${GITHUB_WORKSPACE}/artifact/upload/artifact.tar.gz" \
-              docker-compose.log data acme-sh certbot lego 2>/dev/null || \
-              sudo tar -C "${GITHUB_WORKSPACE}/artifact/" -cvzf "${GITHUB_WORKSPACE}/artifact/upload/artifact.tar.gz" \
-                docker-compose.log data
             ;;
           rpm)
             docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier || true
@@ -36,10 +32,6 @@ runs:
             docker exec acme-srv cat /etc/nginx/nginx.conf.orig > "${GITHUB_WORKSPACE}/artifact/data/nginx.conf.orig" 2>/dev/null || true
             docker exec acme-srv cat /etc/nginx/nginx.conf > "${GITHUB_WORKSPACE}/artifact/data/nginx.conf" 2>/dev/null || true
             docker exec acme-srv cat /var/log/messages > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" || true
-            sudo tar -C "${GITHUB_WORKSPACE}/artifact/" -cvzf "${GITHUB_WORKSPACE}/artifact/upload/artifact.tar.gz" \
-              data acme-srv.log acme-sh 2>/dev/null || \
-              sudo tar -C "${GITHUB_WORKSPACE}/artifact/" -cvzf "${GITHUB_WORKSPACE}/artifact/upload/artifact.tar.gz" \
-                data acme-srv.log
             ;;
           deb)
             docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /var/www/acme2certifier/ || true
@@ -51,14 +43,16 @@ runs:
               docker exec acme-srv cat /var/log/nginx/error.log > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" || true
             fi
             docker exec acme-srv cat /var/log/syslog > "${GITHUB_WORKSPACE}/artifact/syslog" || true
-            sudo tar -C "${GITHUB_WORKSPACE}/artifact/" -cvzf "${GITHUB_WORKSPACE}/artifact/upload/artifact.tar.gz" \
-              data acme-srv.log syslog
             ;;
           *)
             echo "ERROR: unknown DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2
             exit 1
             ;;
         esac
+        # Include any pre-collected extras under artifact/ (exclude upload/)
+        sudo tar -C "${GITHUB_WORKSPACE}/artifact/" -cvzf "${GITHUB_WORKSPACE}/artifact/upload/artifact.tar.gz" \
+          --exclude=upload \
+          .
       shell: bash
       env:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
