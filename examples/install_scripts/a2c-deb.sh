@@ -259,9 +259,10 @@ do_restart() {
   # otherwise fall back to default wsgi (empty SQLite) after restart.
   local prev_mode
   prev_mode="$(get_dbhandler_mode "${CFG}")"
-  # Legacy parity: refresh cfg + acme_ca, then full volume tree.
+  # Prefer volume cfg via symlink — do not overwrite the packaged path (conffile).
   if [[ -f "${VOLUME_DIR}/acme_srv.cfg" ]]; then
-    ${SUDO} cp -f "${VOLUME_DIR}/acme_srv.cfg" "${CFG}"
+    ${SUDO} rm -f "${CFG}"
+    ${SUDO} ln -sfn "${APP_ROOT}/volume/acme_srv.cfg" "${CFG}"
   fi
   if [[ -d "${VOLUME_DIR}/acme_ca" ]]; then
     ${SUDO} mkdir -p "${APP_ROOT}/volume/acme_ca"
@@ -390,7 +391,12 @@ if [[ "${MODE}" == "django" ]]; then
 fi
 
 echo "==> Installing ${DEB_FILE}"
-${SUDO} apt-get install -y "${DEB_FILE}"
+# Keep existing conffiles (N/O): CI/lab volume overlay must not be replaced by
+# the package sample at /var/www/acme2certifier/acme_srv.cfg.
+DEBIAN_FRONTEND=noninteractive ${SUDO} apt-get install -y \
+  -o Dpkg::Options::='--force-confdef' \
+  -o Dpkg::Options::='--force-confold' \
+  "${DEB_FILE}"
 
 echo "==> Verifying Python package"
 python3 -c "import acme2certifier.acme_srv; from acme2certifier.acme_srv.version import __version__; print('acme2certifier', __version__)"
