@@ -37,6 +37,29 @@ runs:
         if [[ "${MODERN}" == "true" ]]; then
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh \
             --rpm "${cont_rpm}" install -m "${MODE}"
+          # a2c-rpm.sh retargets dbfile to ${APP_ROOT}/acme_srv.db; ≤0.44 wsgi
+          # stored SQLite under acme_srv/acme_srv.db — copy so renew/ARI keep data.
+          if [[ "${MODE}" == "wsgi" ]]; then
+            docker exec acme-srv bash -c '
+              set -euo pipefail
+              APP_ROOT=/opt/acme2certifier
+              legacy="${APP_ROOT}/acme_srv/acme_srv.db"
+              modern="${APP_ROOT}/acme_srv.db"
+              if [[ -f "${legacy}" && ! -L "${legacy}" ]]; then
+                echo "==> Moving WSGI SQLite ${legacy} -> ${modern} (symlink old path)"
+                systemctl stop acme2certifier.service || true
+                rm -f "${modern}"
+                mv "${legacy}" "${modern}"
+                ln -sfn "${modern}" "${legacy}"
+              fi
+              if [[ -f "${modern}" ]]; then
+                chown nginx:nginx "${modern}"
+                chmod 660 "${modern}"
+              fi
+              [[ -L "${legacy}" ]] && chown -h nginx:nginx "${legacy}" || true
+              systemctl restart acme2certifier.service
+            '
+          fi
           exit 0
         fi
 

@@ -47,15 +47,20 @@ runs:
         HTTP_PORT: ${{ inputs.HTTP_PORT }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
 
+    # Omit default :443/:80 from -s URL. nginx/uwsgi often pass Host without
+    # port; legacy a2c strips authz names via server_name+path replace, so
+    # https://acme-srv:443 vs https://acme-srv → "authorizations lookup failed".
     - name: "HTTPS - Enroll lego"
       run: |
-        echo "##### HTTP - Enroll lego #####"
+        set -euo pipefail
+        if [ "${HTTPS_PORT}" = "443" ]; then ACME_URL="https://${ACME_SERVER}"; else ACME_URL="https://${ACME_SERVER}:${HTTPS_PORT}"; fi
+        echo "##### HTTPS - Enroll lego (${ACME_URL}) #####"
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run --tls-skip-verify -s "${ACME_URL}" -a --email "lego@example.com" -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls
         else
           echo "use RSA"
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run --tls-skip-verify -s https://$ACME_SERVER:$HTTPS_PORT -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls
+          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem -v $PWD/lego:/.lego/ --name lego$HOSTNAME_SUFFIX --network $NAME_SPACE goacme/lego run --tls-skip-verify -s "${ACME_URL}" -a --email "lego@example.com" --key-type=rsa2048 -d lego$HOSTNAME_SUFFIX.$NAME_SPACE --tls
         fi
       shell: bash
       env:
@@ -68,14 +73,16 @@ runs:
 
     - name: "HTTPS - Enroll acme.sh"
       run: |
-        echo "##### HTTPS - Enroll acme.sh #####"
+        set -euo pipefail
+        if [ "${HTTPS_PORT}" = "443" ]; then ACME_URL="https://${ACME_SERVER}"; else ACME_URL="https://${ACME_SERVER}:${HTTPS_PORT}"; fi
+        echo "##### HTTPS - Enroll acme.sh (${ACME_URL}) #####"
         if [ "$USE_RSA" == "false" ]; then
           echo "use ECC"
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE --name acme-sh$HOSTNAME_SUFFIX neilpang/acme.sh:latest --issue --server https://$ACME_SERVER:$HTTPS_PORT --accountemail 'acme-sh@example.com' -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --alpn --standalone --debug 1 --output-insecure --insecure
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE --name acme-sh$HOSTNAME_SUFFIX neilpang/acme.sh:latest --issue --server "${ACME_URL}" --accountemail 'acme-sh@example.com' -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --alpn --standalone --debug 1 --output-insecure --insecure
           ECC="_ecc"
         else
           echo "use RSA"
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE --name acme-sh$HOSTNAME_SUFFIX neilpang/acme.sh:latest --issue --server https://$ACME_SERVER:$HTTPS_PORT --accountemail 'acme-sh@example.com' -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --alpn --standalone --keylength 2048 --debug 1 --output-insecure --insecure
+          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network $NAME_SPACE --name acme-sh$HOSTNAME_SUFFIX neilpang/acme.sh:latest --issue --server "${ACME_URL}" --accountemail 'acme-sh@example.com' -d acme-sh$HOSTNAME_SUFFIX.$NAME_SPACE --alpn --standalone --keylength 2048 --debug 1 --output-insecure --insecure
         fi
       shell: bash
       env:
@@ -88,11 +95,13 @@ runs:
 
     - name: "HTTPS - Enroll certbot"
       run: |
-        echo "##### HTTPS - Enroll certbot #####"
+        set -euo pipefail
+        if [ "${HTTPS_PORT}" = "443" ]; then ACME_URL="https://${ACME_SERVER}"; else ACME_URL="https://${ACME_SERVER}:${HTTPS_PORT}"; fi
+        echo "##### HTTPS - Enroll certbot (${ACME_URL}) #####"
         if [ "$USE_RSA" == "false" ]; then
-          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout 120
+          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server "${ACME_URL}" --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout 120
         else
-          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server https://$ACME_SERVER:$HTTPS_PORT --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout 120
+          docker run -i --rm --name certbot$HOSTNAME_SUFFIX --network $NAME_SPACE -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server "${ACME_URL}" --standalone --preferred-challenges http --no-verify-ssl --agree-tos -m 'certbot@example.com' --key-type rsa -d certbot$HOSTNAME_SUFFIX.$NAME_SPACE --cert-name certbot --issuance-timeout 120
         fi
       shell: bash
       env:
