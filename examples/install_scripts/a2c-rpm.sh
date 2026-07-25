@@ -502,10 +502,20 @@ fi
 maybe_overlay_nginx_from_data
 
 # CI marker from rpm_prep: trim stock Alma nginx.conf server blocks.
+# Idempotent: legacy rpm_install may already have closed http{} after conf.d;
+# re-running `head -n 37` + `}` then injects a stray "}" (nginx: unexpected "}").
 if [[ -n "${DATA_DIR}" && -f "${DATA_DIR}/.a2c_ci" && -f /etc/nginx/nginx.conf ]]; then
-  echo "==> CI: trimming /etc/nginx/nginx.conf (Alma systemd image)"
-  ${SUDO} cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig
-  ${SUDO} sh -c 'head -n 37 /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf; echo "}" >> /etc/nginx/nginx.conf'
+  if grep -qE 'include[[:space:]]+/etc/nginx/conf\.d/\*\.conf;' /etc/nginx/nginx.conf \
+    && grep -qE '^[[:space:]]*server[[:space:]]*\{' /etc/nginx/nginx.conf; then
+    echo "==> CI: trimming /etc/nginx/nginx.conf (Alma systemd image)"
+    ${SUDO} cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.orig
+    ${SUDO} awk '
+      { print }
+      /include[[:space:]]+\/etc\/nginx\/conf\.d\/\*\.conf;/ { print "}"; exit }
+    ' /etc/nginx/nginx.conf.orig | ${SUDO} tee /etc/nginx/nginx.conf >/dev/null
+  else
+    echo "==> CI: /etc/nginx/nginx.conf already trimmed; skipping"
+  fi
 fi
 
 if [[ ! -f "${UWSGI_INI}" ]]; then
