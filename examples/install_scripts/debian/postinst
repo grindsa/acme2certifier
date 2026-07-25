@@ -21,6 +21,11 @@ case "$1" in
 	if command -v python3 >/dev/null 2>&1; then
 		A2C_PKG=$(python3 -c "import acme2certifier, pathlib; print(pathlib.Path(acme2certifier.__file__).parent)" 2>/dev/null || true)
 		if [ -n "$A2C_PKG" ] && [ -d "$A2C_PKG" ]; then
+			# Replace a real directory left by ≤0.44 django layout; ln -sfn alone
+			# would nest the symlink inside the old tree.
+			if [ -e /var/www/acme2certifier/acme2certifier ] && [ ! -L /var/www/acme2certifier/acme2certifier ]; then
+				rm -rf /var/www/acme2certifier/acme2certifier
+			fi
 			ln -sfn "$A2C_PKG" /var/www/acme2certifier/acme2certifier
 		fi
 	fi
