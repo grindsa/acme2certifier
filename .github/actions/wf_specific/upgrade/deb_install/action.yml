@@ -34,6 +34,110 @@ runs:
         if [[ "${MODERN}" == "true" ]]; then
           docker exec acme-srv bash /tmp/acme2certifier/a2c-deb.sh \
             --deb "${cont_deb}" install nginx -m "${MODE}"
+          exit 0
+        fi
+
+        # Dedicated legacy install (≤0.44): no a2c-deb.sh.
+        # Stock LSB uwsgi does not load acme2certifier.ini — without a dedicated
+        # unit nginx returns 502 (missing /run/uwsgi/acme.sock).
+        docker exec -i -e MODE="${MODE}" -e CONT_DEB="${cont_deb}" acme-srv bash <<'EOS'
+        set -euo pipefail
+        APP_ROOT=/var/www/acme2certifier
+        NGINX_SRC="${APP_ROOT}/examples/nginx"
+
+        apt-get update
+        apt-get install -y nginx uwsgi uwsgi-plugin-python3 curl openssl || true
+        if [[ "${MODE}" == "django" ]]; then
+          apt-get install -y python3-django python3-mysqldb python3-pymysql python3-yaml || true
+        fi
+        apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' "${CONT_DEB}"
+
+        mkdir -p "${APP_ROOT}/volume" /run/uwsgi
+        chown www-data:www-data /run/uwsgi
+
+        if [[ -d /tmp/acme2certifier/volume ]]; then
+          cp -a /tmp/acme2certifier/volume/. "${APP_ROOT}/volume/" || true
+        fi
+        # Symlink into volume — do not overwrite packaged acme_srv.cfg (conffile).
+        if [[ -f "${APP_ROOT}/volume/acme_srv.cfg" ]]; then
+          mkdir -p "${APP_ROOT}/acme_srv"
+          rm -f "${APP_ROOT}/acme_srv.cfg"
+          ln -sfn "${APP_ROOT}/volume/acme_srv.cfg" "${APP_ROOT}/acme_srv.cfg"
+          ln -sfn "${APP_ROOT}/volume/acme_srv.cfg" "${APP_ROOT}/acme_srv/acme_srv.cfg" || true
+        fi
+
+        # Legacy django (≤0.44): project lives at APP_ROOT/acme2certifier (not
+        # examples.django...). Same layout as ubuntu-systemd/django_tester.sh.
+        if [[ "${MODE}" == "django" ]]; then
+          if [[ ! -d "${APP_ROOT}/examples/django/acme2certifier" ]]; then
+            echo "ERROR: legacy package missing examples/django" >&2
+            exit 1
+          fi
+          cp -a "${APP_ROOT}/examples/django/." "${APP_ROOT}/"
+          cp -f "${APP_ROOT}/examples/db_handler/django_handler.py" \
+            "${APP_ROOT}/acme_srv/db_handler.py"
+          rm -f "${APP_ROOT}/acme2certifier/settings.py"
+          if [[ -f "${APP_ROOT}/volume/acme2certifier/settings.py" ]]; then
+            ln -sfn "${APP_ROOT}/volume/acme2certifier/settings.py" \
+              "${APP_ROOT}/acme2certifier/settings.py"
+          elif [[ -f "${APP_ROOT}/volume/settings.py" ]]; then
+            ln -sfn "${APP_ROOT}/volume/settings.py" \
+              "${APP_ROOT}/acme2certifier/settings.py"
+          else
+            echo "ERROR: django settings.py missing under volume/" >&2
+            exit 1
+          fi
+          if [[ ! -d "${APP_ROOT}/volume/migrations" && -d "${APP_ROOT}/acme_srv/migrations" ]]; then
+            cp -a "${APP_ROOT}/acme_srv/migrations" "${APP_ROOT}/volume/migrations"
+          fi
+          if [[ -d "${APP_ROOT}/volume/migrations" ]]; then
+            rm -rf "${APP_ROOT}/acme_srv/migrations"
+            ln -sfn "${APP_ROOT}/volume/migrations" "${APP_ROOT}/acme_srv/migrations"
+            touch "${APP_ROOT}/acme_srv/migrations/__init__.py" || true
+          fi
+          (
+            cd "${APP_ROOT}"
+            export DJANGO_SETTINGS_MODULE=acme2certifier.settings
+            python3 tools/django_update.py
+            python3 manage.py loaddata acme_srv/fixture/status.yaml || true
+          )
+        fi
+
+        if [[ ! -d "${NGINX_SRC}" ]]; then
+          echo "ERROR: legacy package missing ${NGINX_SRC}" >&2
+          exit 1
+        fi
+
+        cp "${NGINX_SRC}/nginx_acme_srv.conf" /etc/nginx/sites-available/acme2certifier.conf
+        ln -sfn /etc/nginx/sites-available/acme2certifier.conf /etc/nginx/sites-enabled/acme2certifier.conf
+        if [[ -f "${NGINX_SRC}/nginx_acme_srv_ssl.conf" ]]; then
+          cp "${NGINX_SRC}/nginx_acme_srv_ssl.conf" /etc/nginx/sites-available/acme2certifier_ssl.conf
+          ln -sfn /etc/nginx/sites-available/acme2certifier_ssl.conf /etc/nginx/sites-enabled/acme2certifier_ssl.conf
+          # ≤0.44 ssl conf hardcodes /etc/nginx/acme2certifier_{cert,key}.pem
+          # (modern share uses volume/). Stage CI certs where legacy nginx looks.
+          if [[ -f "${APP_ROOT}/volume/acme2certifier_cert.pem" ]]; then
+            cp -f "${APP_ROOT}/volume/acme2certifier_cert.pem" /etc/nginx/acme2certifier_cert.pem
+            cp -f "${APP_ROOT}/volume/acme2certifier_key.pem" /etc/nginx/acme2certifier_key.pem
+          fi
+          # Prefer volume paths when present (matches current a2c-deb.sh layout).
+          sed -i \
+            -e "s|/etc/nginx/acme2certifier_cert.pem|${APP_ROOT}/volume/acme2certifier_cert.pem|g" \
+            -e "s|/etc/nginx/acme2certifier_key.pem|${APP_ROOT}/volume/acme2certifier_key.pem|g" \
+            /etc/nginx/sites-available/acme2certifier_ssl.conf
+        fi
+        rm -f /etc/nginx/sites-enabled/default
+        nginx -t
+
+        cp "${NGINX_SRC}/acme2certifier.ini" "${APP_ROOT}/acme2certifier.ini"
+        sed -i 's/nginx/www-data/g' "${APP_ROOT}/acme2certifier.ini"
+        grep -q '^plugins=python3$' "${APP_ROOT}/acme2certifier.ini" \
+          || echo 'plugins=python3' >> "${APP_ROOT}/acme2certifier.ini"
+        if [[ "${MODE}" == "django" ]]; then
+          sed -i 's/acme2certifier_wsgi/acme2certifier.wsgi/g' \
+            "${APP_ROOT}/acme2certifier.ini" || true
+        fi
+        if ! grep -q '^python-path' "${APP_ROOT}/acme2certifier.ini"; then
+          echo "python-path = ${APP_ROOT}" >> "${APP_ROOT}/acme2certifier.ini"
         else
           docker exec acme-srv bash -c "
             set -euo pipefail

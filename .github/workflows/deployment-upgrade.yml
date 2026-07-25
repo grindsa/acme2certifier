@@ -82,11 +82,39 @@ jobs:
           PY
           }
 
-          asset_exists() {
-            local url="$1"
-            local code
-            code=$(curl -sI -o /dev/null -w '%{http_code}' "$url" || echo 000)
-            [[ "${code}" == "200" ]]
+          # Prefer GitHub Releases API (token already set). Avoid curl HEAD on
+          # release-asset URLs (302→CDN) and jq test("\\.rpm$") (\r / invalid escapes).
+          release_asset_names() {
+            local tag="$1"
+            gh api "repos/${GITHUB_REPOSITORY}/releases/tags/${tag}" \
+              --jq '.assets[].name' 2>/dev/null || true
+          }
+
+          tag_has_docker() {
+            local tag="$1"
+            local code websrv
+            for websrv in nginx apache2; do
+              code=$(curl -sL -o /dev/null -w '%{http_code}' \
+                "https://hub.docker.com/v2/repositories/grindsa/acme2certifier/tags/${tag}-${websrv}-wsgi" \
+                || echo 000)
+              if [[ "${code}" == "200" ]]; then
+                return 0
+              fi
+              code=$(curl -sL -o /dev/null -w '%{http_code}' \
+                "https://hub.docker.com/v2/repositories/grindsa/acme2certifier/tags/${tag}-${websrv}-django" \
+                || echo 000)
+              if [[ "${code}" == "200" ]]; then
+                return 0
+              fi
+              # Hub miss: still OK if Dockerfiles exist on the tag (ensure_container_image builds).
+              code=$(curl -sL -o /dev/null -w '%{http_code}' \
+                "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${tag}/examples/Docker/${websrv}/wsgi/Dockerfile" \
+                || echo 000)
+              if [[ "${code}" == "200" ]]; then
+                return 0
+              fi
+            done
+            return 1
           }
 
           docker_tag_exists() {
@@ -198,7 +226,7 @@ jobs:
           echo "migrate: second=${MIGRATE_AT_SECOND} latest=${MIGRATE_AT_LATEST} build=${MIGRATE_AT_BUILD}"
 
   # ---------------------------------------------------------
-  # Containers (nginx × wsgi|django/mariadb)
+  # Containers (nginx|apache2 × wsgi|django) × hop → build
   # ---------------------------------------------------------
   test-containers:
     needs: [guard, resolve-versions]
@@ -207,6 +235,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        websrv: ['nginx', 'apache2']
         dbhandler: ['wsgi', 'django']
     steps:
       - name: "checkout GIT"
@@ -221,7 +250,7 @@ jobs:
         uses: ./.github/actions/container_prep
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: nginx
+          WEB_SRV: ${{ matrix.websrv }}
           CONTAINER_BUILD: false
           DJANGO_DB: ${{ matrix.dbhandler == 'django' && 'mariadb' || '' }}
           NAME_SPACE: acme
@@ -237,16 +266,16 @@ jobs:
       - name: "Ensure start image ${{ needs.resolve-versions.outputs.start_tag }}"
         uses: ./.github/actions/wf_specific/upgrade/ensure_container_image
         with:
-          VERSION: ${{ needs.resolve-versions.outputs.start_tag }}
-          WEB_SRV: nginx
+          VERSION: ${{ matrix.hop.from_tag }}
+          WEB_SRV: ${{ matrix.websrv }}
           DB_HANDLER: ${{ matrix.dbhandler }}
 
       - name: "Spin-up ${{ needs.resolve-versions.outputs.start_tag }}"
         uses: ./.github/actions/container_run
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: nginx
-          VERSION: ${{ needs.resolve-versions.outputs.start_tag }}
+          WEB_SRV: ${{ matrix.websrv }}
+          VERSION: ${{ matrix.hop.from_tag }}
 
       - name: "Enroll + renew (start)"
         uses: ./.github/actions/wf_specific/upgrade/enroll
@@ -341,7 +370,7 @@ jobs:
         uses: ./.github/actions/container_load
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.nginx.${{ matrix.dbhandler }}.tar
+          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
           DESTINATION_PATH: /tmp
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
@@ -350,7 +379,7 @@ jobs:
         uses: ./.github/actions/container_up
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: nginx
+          WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Renew after build"
         uses: ./.github/actions/wf_specific/upgrade/renew
@@ -388,13 +417,13 @@ jobs:
         uses: ./.github/actions/container_down
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: nginx
+          WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Bring up for EAB"
         uses: ./.github/actions/container_up
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: nginx
+          WEB_SRV: ${{ matrix.websrv }}
 
       - name: "EAB enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab
@@ -403,13 +432,13 @@ jobs:
         uses: ./.github/actions/container_check
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: nginx
+          WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Stop a2c instance"
         uses: ./.github/actions/container_down
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: nginx
+          WEB_SRV: ${{ matrix.websrv }}
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -421,7 +450,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-containers-nginx-${{ matrix.dbhandler }}-upgrade.tar.gz
+          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ matrix.hop.id }}-upgrade.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------
