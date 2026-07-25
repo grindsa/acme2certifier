@@ -149,8 +149,8 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-  build_and_push:
-    name: Build and push images
+  build_and_push_n1:
+    name: Build and push N-1 images
     runs-on: ubuntu-latest
     timeout-minutes: 120
     needs: [create_release, resolve_versions]
@@ -160,99 +160,66 @@ jobs:
       matrix:
         websrv: [apache2, nginx]
         dbhandler: [wsgi, django]
-        tag: ${{ fromJSON(needs.resolve_versions.outputs.tags_json) }}
     steps:
-      # Keep workflow SHA at repo root so local composite actions remain available.
       - name: Checkout workflow sources
         uses: actions/checkout@v6
-
-      # Docker build context must match the release tag being packaged.
-      - name: Checkout image tag sources
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ matrix.tag }}
-          path: image-src
 
       - name: Parse software repository secrets
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.SWREPO_CFG }}
 
-      - name: Download release .deb into build context
-        uses: ./.github/actions/download_release_deb
+      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n1 }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+        uses: ./.github/actions/image_build_push
         with:
-          tag: ${{ matrix.tag }}
-          destination: image-src
+          tag: ${{ needs.resolve_versions.outputs.tag_n1 }}
+          websrv: ${{ matrix.websrv }}
+          dbhandler: ${{ matrix.dbhandler }}
+          tag_n: ${{ needs.resolve_versions.outputs.tag_n }}
+          dockerhub_user: ${{ env.DOCKERHUB_USER }}
+          dockerhub_token: ${{ env.DOCKERHUB_TOKEN }}
+          ghcr_user: ${{ env.GHCR_USER }}
+          ghcr_token: ${{ env.GHCR_TOKEN }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+  build_and_push_n:
+    name: Build and push N images
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    needs: [resolve_versions, build_and_push_n1]
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: [apache2, nginx]
+        dbhandler: [wsgi, django]
+    steps:
+      - name: Checkout workflow sources
+        uses: actions/checkout@v6
+
+      - name: Parse software repository secrets
+        uses: ./.github/actions/parse-json-secret
         with:
-          platforms: linux/amd64,linux/arm64
+          json_secret: ${{ secrets.SWREPO_CFG }}
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v4
+      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+        uses: ./.github/actions/image_build_push
         with:
-          username: ${{ env.DOCKERHUB_USER }}
-          password: ${{ env.DOCKERHUB_TOKEN }}
-
-      - name: Login to GHCR
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ env.GHCR_USER }}
-          password: ${{ env.GHCR_TOKEN }}
-
-      - name: Compute image tags
-        id: tags
-        run: |
-          set -euo pipefail
-          BUILD_NAME="${WEBSRV}-${DBHANDLER}"
-          DH="grindsa/acme2certifier"
-          GH="ghcr.io/grindsa/acme2certifier"
-          TAG_LIST=(
-            "${DH}:${TAG}-${BUILD_NAME}"
-            "${GH}:${TAG}-${BUILD_NAME}"
-          )
-
-          if [[ "${TAG}" == "${TAG_N}" ]]; then
-            TAG_LIST+=("${DH}:${BUILD_NAME}" "${GH}:${BUILD_NAME}")
-            if [[ "${BUILD_NAME}" == "apache2-wsgi" ]]; then
-              TAG_LIST+=("${DH}:latest" "${GH}:latest")
-            fi
-          fi
-
-          {
-            echo "tags<<EOF"
-            printf "%s\n" "${TAG_LIST[@]}"
-            echo "EOF"
-          } >> "${GITHUB_OUTPUT}"
-
-          echo "Building ${BUILD_NAME} for tag ${TAG}"
-          printf "%s\n" "${TAG_LIST[@]}"
-        env:
-          WEBSRV: ${{ matrix.websrv }}
-          DBHANDLER: ${{ matrix.dbhandler }}
-          TAG: ${{ matrix.tag }}
-          TAG_N: ${{ needs.resolve_versions.outputs.tag_n }}
-
-      - name: Build and push multi-arch image
-        uses: docker/build-push-action@v7
-        with:
-          context: image-src
-          file: image-src/examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.tags.outputs.tags }}
+          tag: ${{ needs.resolve_versions.outputs.tag_n }}
+          websrv: ${{ matrix.websrv }}
+          dbhandler: ${{ matrix.dbhandler }}
+          tag_n: ${{ needs.resolve_versions.outputs.tag_n }}
+          dockerhub_user: ${{ env.DOCKERHUB_USER }}
+          dockerhub_token: ${{ env.DOCKERHUB_TOKEN }}
+          ghcr_user: ${{ env.GHCR_USER }}
+          ghcr_token: ${{ env.GHCR_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
   test_amd64:
     name: Test amd64 images
     runs-on: ubuntu-latest
     timeout-minutes: 45
-    needs: [resolve_versions, build_and_push]
+    needs: [resolve_versions, build_and_push_n]
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -295,7 +262,7 @@ jobs:
     name: Test arm64 images
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 45
-    needs: [resolve_versions, build_and_push]
+    needs: [resolve_versions, build_and_push_n]
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
