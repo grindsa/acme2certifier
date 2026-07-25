@@ -1,345 +1,144 @@
 name: Deployment Tests - arm64
+
 on:
   workflow_dispatch:
     inputs:
       branch:
-        description: 'Branch to run the workflow on'
+        description: "Branch to run the workflow on"
         required: true
-        default: 'main'
+        default: "main"
       run_id:
-        description: 'Run ID of the producing workflow'
+        description: "Run ID of the producing workflow"
         required: true
-        default: '0'
+        default: "0"
       sha:
-        description: 'SHA of the commit to run the workflow on'
+        description: "SHA of the commit to run the workflow on"
         required: true
-        default: ''
+        default: ""
       called_by_workflow:
-        description: 'Name of the producing workflow'
+        description: "Name of the producing workflow"
         required: true
-        default: 'manual-trigger'
+        default: "manual-trigger"
       full_ref:
-        description: 'Full git ref of the commit to run the workflow on'
+        description: "Full git ref of the commit to run the workflow on"
         required: false
-        default: ''
+        default: ""
+
+concurrency:
+  group: deployment-arm-${{ github.repository }}-${{ inputs.run_id }}-${{ inputs.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  instance_start:
-    name: instance_start
+  guard:
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'devel' || contains(inputs.branch, 'arm')) }}
+    if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
     steps:
+      - run: |
+          echo "Triggered by SHA:    ${SHA}"
+          echo "From branch:         ${BRANCH}"
+          echo "Producer run_id:     ${RUN_ID}"
+          echo "Called by:           ${CALLED_BY}"
+        env:
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          RUN_ID: ${{ inputs.run_id }}
+          CALLED_BY: ${{ inputs.called_by_workflow }}
 
-    - name: "checkout GIT"
-      uses: actions/checkout@v6
-
-    - name: "Parse AWS_CFG JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.AWS_CFG }}
-
-    - name: "Parse ARM64_CFG secrets"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.ARM64_CFG }}
-
-    - name: "Start AWS instance for testing"
-      uses: ./.github/actions/aws_instance_manage
-      with:
-        AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ env.AWS_REGION }}
-        AWS_INSTANCE_ID: ${{ env.AWS_ARM64-UB-01_INSTANCE_ID }}
-        ACTION: "start"
-        IGNORE_CURRENT_STATUS: "false"
-
-    - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.4
-      with:
-        time: 10s
-
+  # Build natively on arm64 and run enrollment tests (no AWS / SSH).
   build_test:
-    name: build_test
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: ${{ github.repository == 'grindsa/acme2certifier' && (inputs.branch == 'devel' || contains(inputs.branch, 'arm')) }}
-    needs: instance_start
+    name: build_test (${{ matrix.websrv }}-${{ matrix.dbhandler }})
+    needs: guard
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['apache2', 'nginx']
-        dbhandler: ['wsgi', 'django']
+        websrv: [apache2, nginx]
+        dbhandler: [wsgi, django]
+
     steps:
+      - name: Checkout
+        uses: actions/checkout@v6
 
-    - name: "checkout GIT"
-      uses: actions/checkout@v6
+      - name: Download DEB artifact from producer run
+        uses: ./.github/actions/download_artifact
+        with:
+          RUN_ID: ${{ inputs.run_id }}
+          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
+          DESTINATION_PATH: ./
+          TOKEN: ${{ secrets.GH_WF_TOKEN }}
+          REPO: ${{ github.repository }}
 
-    - name: "Parse AWS_CFG JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.AWS_CFG }}
+      - name: Prepare container environment
+        uses: ./.github/actions/container_prep
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          CONTAINER_BUILD: "false"
+          NAME_SPACE: acme
 
-    - name: "Parse ARM64_CFG secrets"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.ARM64_CFG }}
+      - name: Setup openssl ca_handler
+        uses: ./.github/actions/setup_openssl_cahandler
+        with:
+          VOLUME_DIR: examples/Docker/data
 
-    - name: "Retrieve Version from version.py"
-      run: |
-        echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-        echo UUID=$(uuidgen) >> $GITHUB_ENV
+      - name: Build container (native arm64)
+        uses: ./.github/actions/container_build
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
 
-    - run: echo "Repo is at version ${{ steps.acme2certifier_ver.outputs.tag }}"
-    - run: echo "UUID ${{ env.UUID }}"
+      - name: Bring up container
+        uses: ./.github/actions/container_up
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          NAME_SPACE: acme
 
-    - name: "Download DEB artifact by name from build run"
-      uses: ./.github/actions/download_artifact
-      with:
-        RUN_ID: ${{ inputs.run_id }}
-        ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}-1_all.deb
-        DESTINATION_PATH: ./
-        TOKEN: ${{ secrets.GH_WF_TOKEN }}
-        REPO: ${{ github.repository }}
+      - name: Wait for ACME directory
+        uses: ./.github/actions/wait_for_directory
+        with:
+          ACME_SERVER: acme-srv
+          NAME_SPACE: acme
+          HTTP_PORT: "80"
 
-    - name: "Prepare ssh environment in ramdisk"
-      run: |
-        sudo mkdir -p /tmp/rd
-        sudo mount -t tmpfs -o size=5M none /tmp/rd
-        sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
-        sudo chmod 600 /tmp/rd/ak.tmp
-        sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
-      env:
-        SSH_KEY: ${{ env.AWS_ARM_SSH_KEY }}
-        KNOWN_HOSTS: ${{ env.AWS_ARM_SSH_KNOWN_HOSTS }}
+      - name: Enrollment tests (acme.sh / certbot / lego)
+        uses: ./.github/actions/acme_clients
+        with:
+          ACME_SERVER: acme-srv
+          NAME_SPACE: acme
+          HOSTNAME_SUFFIX: -${{ matrix.websrv }}-${{ matrix.dbhandler }}-arm64
+          REVOCATION: "true"
+          RENEWAL: "false"
+          VERIFY_CERT: "true"
+          USE_CERTBOT: "true"
+          USE_LEGO: "true"
+          USE_RSA: "false"
+          HTTP_PORT: "80"
+          HTTPS_PORT: "443"
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
-      with:
-        platforms: 'arm64'
+      - name: Collect failure logs
+        if: failure()
+        uses: ./.github/actions/collect_failure_logs
+        with:
+          DEPLOYMENT_TYPE: container
 
-    - uses: docker/setup-buildx-action@v3
-      with:
-        version: latest
-        buildkitd-flags: --debug
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: arm64-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          path: ${{ github.workspace }}/artifact/upload/
+          if-no-files-found: ignore
 
-    - name: Build
-      uses: docker/build-push-action@v5
-      with:
-        load: true
-        context: .
-        tags: grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ env.UUID }}
-        file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
-        platforms: linux/arm64
-
-    - name: "Check if image is built"
-      run: |
-        docker image save -o /tmp/a2c-image-$WEB_SRV-$DB_HANDLER.tar grindsa/acme2certifier:$WEB_SRV-$DB_HANDLER-$UUID
-        ls -la /tmp/a2c-image-$WEB_SRV-$DB_HANDLER.tar
-      env:
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        UUID: ${{ env.UUID }}
-
-    - name: "Compress image"
-      run: |
-        gzip /tmp/a2c-image-$WEB_SRV-$DB_HANDLER.tar
-        ls -la /tmp/a2c-image-$WEB_SRV-$DB_HANDLER.tar.gz
-      env:
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
-
-    - name: "Create working directory on remote host"
-      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts  mkdir -p /tmp/a2c/$UUID
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        UUID: ${{ env.UUID }}
-
-    - name: "Copy image to remote host"
-      run: sudo scp -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts /tmp/a2c-image-$WEB_SRV-$DB_HANDLER.tar.gz $SSH_USER@$SSH_HOST:/tmp/a2c/$UUID/
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        UUID: ${{ env.UUID }}
-
-    - name: "Unpack image on remote host"
-      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts  gunzip /tmp/a2c/$UUID/a2c-image-$WEB_SRV-$DB_HANDLER.tar.gz
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        UUID: ${{ env.UUID }}
-
-    - name: "Load image on remote host"
-      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts  "docker load < /tmp/a2c/$UUID/a2c-image-$WEB_SRV-$DB_HANDLER.tar"
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        UUID: ${{ env.UUID }}
-
-    - name: "Generate keys and certificates"
-      uses: ./.github/actions/cert_gen
-
-    - name: "Setup openssl ca_handler"
-      uses: ./.github/actions/setup_openssl_cahandler
-      with:
-        VOLUME_DIR: /tmp/data
-
-    - name: "Prepare and data package"
-      run: |
-        sudo cp .github/acme2certifier.pem /tmp/data/acme2certifier.pem
-        sudo cp .github/django_settings.py /tmp/data/settings.py
-        sudo cp .github/acme2certifier_cert.pem /tmp/data/acme2certifier_cert.pem
-        sudo cp .github/acme2certifier_key.pem /tmp/data/acme2certifier_key.pem
-
-    - name: "Copy data package to remote host"
-      run: sudo scp -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts -r /tmp/data $SSH_USER@$SSH_HOST:/tmp/a2c/$UUID/
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        UUID: ${{ env.UUID }}
-
-    - run: echo "Image name - grindsa/acme2certifier:$WEB_SRV-$DB_HANDLER-$UUID"
-      env:
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        UUID: ${{ env.UUID }}
-
-    - name: "Start container on remote host"
-      run: |
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker network create $UUID"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -d --rm -id --platform linux/arm64 --network $UUID --name=acme-srv-$UUID -v /tmp/a2c/$UUID/data:/var/www/acme2certifier/volume/ grindsa/acme2certifier:$WEB_SRV-$DB_HANDLER-$UUID"
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        UUID: ${{ env.UUID }}
-
-    - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.4
-      with:
-        time: 5s
-
-    - name: "Test http://acme-srv/directory internally"
-      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --network $UUID curlimages/curl -f http://acme-srv-$UUID/directory"
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        UUID: ${{ env.UUID }}
-
-    - name: "Test if https://acme-srv/directory internally"
-      run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --network $UUID curlimages/curl --insecure -f https://acme-srv-$UUID/directory"
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        UUID: ${{ env.UUID }}
-
-    - name: "acme.sh enroll"
-      run: |
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker pull neilpang/acme.sh:latest"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "mkdir -p /tmp/a2c/$UUID/acme-sh"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run --rm -id -v /tmp/a2c/$UUID/acme-sh:/acme.sh --network $UUID --name=acme-sh-$UUID neilpang/acme.sh:latest daemon"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker exec -i acme-sh-$UUID acme.sh --server http://acme-srv-$UUID  --accountemail 'acme-sh@example.com' --issue -d acme-sh-$UUID --standalone --debug 3 --output-insecure --force"
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        UUID: ${{ env.UUID }}
-
-    - name: "acme.sh revoke"
-      run: |
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker exec -i acme-sh-$UUID acme.sh --server http://acme-srv-$UUID --revoke -d acme-sh-$UUID --standalone --debug 3 --output-insecure"
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        UUID: ${{ env.UUID }}
-
-    - name: "Certbot enroll"
-      run: |
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker pull certbot/certbot"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "mkdir -p /tmp/a2c/$UUID/certbot"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --name certbot-$UUID --network $UUID -v /tmp/a2c/$UUID/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv-$UUID --no-eff-email"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --name certbot-$UUID --network $UUID -v /tmp/a2c/$UUID/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv-$UUID --standalone --preferred-challenges http -d certbot-$UUID --cert-name certbot-$UUID"
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        UUID: ${{ env.UUID }}
-
-    - name: "Certbot revoke"
-      run: |
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --name certbot-$UUID --network $UUID -v /tmp/a2c/$UUID/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv-$UUID -d certbot-$UUID --cert-name certbot-$UUID"
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        UUID: ${{ env.UUID }}
-
-    - name: "Lego enroll"
-      run: |
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker pull goacme/lego"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "mkdir -p /tmp/a2c/$UUID/lego"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID --network $UUID goacme/lego run -s https://acme-srv-$UUID/directory --tls-skip-verify -a --email lego@example.com -d lego-$UUID --http"
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        UUID: ${{ env.UUID }}
-
-    - name: "lego certificates revoke"
-      run: |
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID  --network $UUID goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv-$UUID --email "lego@example.com" --cert.name lego-$UUID"
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        UUID: ${{ env.UUID }}
-
-    - name: "Cleanup on remote host"
-      run: |
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker stop acme-sh-$UUID"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker stop acme-srv-$UUID"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker network rm $UUID"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker image rm grindsa/acme2certifier:$WEB_SRV-$DB_HANDLER-$UUID"
-        sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "sudo rm -rf /tmp/a2c/$UUID"
-      env:
-        SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-        SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-        WEB_SRV: ${{ matrix.websrv }}
-        DB_HANDLER: ${{ matrix.dbhandler }}
-        UUID: ${{ env.UUID }}
-
-  instance_stop:
-    name: instance_stop
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: ${{ always() && github.repository == 'grindsa/acme2certifier' && inputs.branch == 'devel' }}
-    needs: build_test
-    steps:
-
-    - name: "checkout GIT"
-      uses: actions/checkout@v6
-
-    - name: "Parse AWS_CFG JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.AWS_CFG }}
-
-    - name: "Parse AWS_CFG JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.AWS_CFG }}
-
-    - name: "Stop AWS instance for testing"
-      uses: ./.github/actions/aws_instance_manage
-      with:
-        AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ env.AWS_REGION }}
-        AWS_INSTANCE_ID: ${{ env.AWS_ARM64-UB-01_INSTANCE_ID }}
-        ACTION: "stop"
-        IGNORE_CURRENT_STATUS: "false"
+      - name: Tear down container
+        if: always()
+        uses: ./.github/actions/container_down
+        with:
+          DB_HANDLER: ${{ matrix.dbhandler }}
+          WEB_SRV: ${{ matrix.websrv }}
+          NAME_SPACE: acme
