@@ -1,0 +1,20 @@
+[package]
+name = "a2c-eab-profile-editor"
+version = "0.1.0"
+description = "Desktop editor for acme2certifier EAB kid_profiles YAML"
+authors = ["grindsa"]
+edition = "2021"
+
+[lib]
+name = "a2c_eab_profile_editor_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"

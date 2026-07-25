@@ -1,0 +1,107 @@
+version: 1
+format: kid_profiles
+description: >
+  Default UI/data template for acme2certifier kid_profiles YAML/JSON.
+  Derived from docs/eab_profiling.md and CI eab_profiling fixtures.
+  cahandler.additionalProperties remains true — handlers differ and CI uses unknown_key.
+
+entry:
+  key_pattern: "^[A-Za-z0-9._-]+$"
+  required:
+    - hmac
+
+sections:
+  - id: hmac
+    label: HMAC
+    path: ""
+    fields:
+      - name: hmac
+        type: secret
+        required: true
+        encoding: base64url
+        help: MAC key used for externalAccountBinding (Base64url).
+
+  - id: cahandler
+    label: CA handler
+    path: cahandler
+    additionalProperties: true
+    fields:
+      - name: profile_id
+        type: string_or_list
+        help: Single profile or allowed list (first used as default when list).
+      - name: profile
+        type: string_or_list
+        help: ACME/CA profile name(s); used by some handlers instead of profile_id.
+      - name: profile_name
+        type: string_or_list
+      - name: template_name
+        type: string_or_list
+      - name: allowed_domainlist
+        type: list
+        item: hostname_pattern
+      - name: ca_name
+        type: string
+      - name: api_user
+        type: string
+      - name: api_password
+        type: secret
+      - name: issuing_ca_name
+        type: string
+      - name: issuing_ca_key
+        type: string
+      - name: subject
+        type: map
+        help: CSR subject DN whitelist (RFC3039 attribute names).
+        additionalProperties:
+          type: string_or_list
+
+  - id: challenge
+    label: Challenge
+    path: challenge
+    additionalProperties: true
+    fields:
+      - name: challenge_validation_disable
+        type: boolish
+        help: Severe security impact — disable only with tight domain/IP allowlists.
+      - name: forward_address_check
+        type: boolish
+      - name: reverse_address_check
+        type: boolish
+      # Fixtures sometimes misspell forward as foward_address_check — preserve via Extra.
+
+  - id: authorization
+    label: Authorization
+    path: authorization
+    additionalProperties: true
+    fields:
+      - name: prevalidated_domainlist
+        type: list
+        item: hostname_pattern
+      - name: prevalidated_iplist
+        type: list
+        item: cidr_or_ip
+      - name: prevalidated_emaillist
+        type: list
+        item: email
+
+  - id: order
+    label: Order
+    path: order
+    additionalProperties: true
+    fields:
+      - name: allowed_domainlist
+        type: list
+        item: hostname_pattern
+      - name: allowed_iplist
+        type: list
+        item: cidr_or_ip
+      - name: wildcard_certificate_disable
+        type: boolish
+
+field_types:
+  string: { json_type: string }
+  secret: { json_type: string, ui: secret }
+  boolish: { json_type: [boolean, string], values: [true, false, "True", "False"] }
+  list: { json_type: array, items: string }
+  string_or_list: { json_type: [string, array] }
+  map: { json_type: object }

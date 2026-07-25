@@ -1,0 +1,38 @@
+{
+  "name": "a2c-eab-profile-editor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop editor for acme2certifier EAB kid_profiles YAML",
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "devDependencies": {
+    "@sveltejs/adapter-static": "^3.0.8",
+    "@sveltejs/kit": "^2.20.0",
+    "@sveltejs/vite-plugin-svelte": "^5.0.3",
+    "@tauri-apps/cli": "^2.4.0",
+    "@types/node": "^22.13.10",
+    "svelte": "^5.23.0",
+    "svelte-check": "^4.1.5",
+    "typescript": "^5.8.2",
+    "vite": "^6.2.2",
+    "vitest": "^3.0.9",
+    "tailwindcss": "^4.0.14"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.4.0",
+    "@tauri-apps/plugin-dialog": "^2.2.0",
+    "@tauri-apps/plugin-fs": "^2.2.0",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.2"
+  }
+}

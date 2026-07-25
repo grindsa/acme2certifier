@@ -1,0 +1,9 @@
+extends: kid_profiles.template.yaml
+description: Overlay hints for generic ACME CA handler profile field naming.
+
+sections:
+  - id: cahandler
+    fields_add:
+      - name: profile
+        type: string_or_list
+        help: Allowed ACME profile value(s) for this EAB account.

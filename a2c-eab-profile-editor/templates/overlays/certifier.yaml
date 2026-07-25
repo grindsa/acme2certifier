@@ -1,0 +1,16 @@
+extends: kid_profiles.template.yaml
+description: Overlay hints for Insta Certifier / NetGuard CM style cahandler fields.
+
+sections:
+  - id: cahandler
+    fields_add:
+      - name: profile_id
+        type: string_or_list
+        help: Numeric or named certifier profile id(s).
+      - name: ca_name
+        type: string
+        help: Target CA name when not using the default from acme_srv.cfg.
+      - name: api_user
+        type: string
+      - name: api_password
+        type: secret

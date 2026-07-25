@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/grindsa/a2c-eab-profile-editor/templates/template.meta.schema.json",
+  "title": "kid_profiles UI template meta-schema",
+  "type": "object",
+  "required": ["version", "format", "entry", "sections"],
+  "additionalProperties": true,
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "format": { "const": "kid_profiles" },
+    "description": { "type": "string" },
+    "extends": { "type": "string" },
+    "entry": {
+      "type": "object",
+      "required": ["required"],
+      "properties": {
+        "key_pattern": { "type": "string" },
+        "required": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "sections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "fields"],
+        "properties": {
+          "id": { "type": "string" },
+          "label": { "type": "string" },
+          "path": { "type": "string" },
+          "additionalProperties": { "type": "boolean" },
+          "fields": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["name", "type"],
+              "properties": {
+                "name": { "type": "string" },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "string",
+                    "secret",
+                    "boolish",
+                    "list",
+                    "string_or_list",
+                    "map"
+                  ]
+                },
+                "required": { "type": "boolean" },
+                "help": { "type": "string" },
+                "encoding": { "type": "string" },
+                "item": { "type": "string" },
+                "additionalProperties": { "type": "object" }
+              }
+            }
+          },
+          "fields_add": { "type": "array" }
+        }
+      }
+    },
+    "field_types": { "type": "object" }
+  }
+}

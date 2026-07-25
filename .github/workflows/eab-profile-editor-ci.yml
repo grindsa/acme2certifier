@@ -1,0 +1,29 @@
+name: eab-profile-editor-ci
+
+on:
+  push:
+    paths:
+      - 'a2c-eab-profile-editor/**'
+      - '.github/workflows/eab-profile-editor-ci.yml'
+  pull_request:
+    paths:
+      - 'a2c-eab-profile-editor/**'
+      - '.github/workflows/eab-profile-editor-ci.yml'
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: a2c-eab-profile-editor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: a2c-eab-profile-editor/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Unit tests
+        run: npm test

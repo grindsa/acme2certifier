@@ -1,0 +1,25 @@
+:root {
+	--bg: #e8eef1;
+	--surface: #f7fafb;
+	--ink: #1a242b;
+	--muted: #5a6b75;
+	--accent: #0f766e;
+	--line: #cfd8dd;
+	font-family: 'Segoe UI', 'IBM Plex Sans', 'Source Sans 3', sans-serif;
+	color: var(--ink);
+	background: linear-gradient(160deg, #dfe8ec 0%, #e7f3f1 45%, #e8eef1 100%);
+	min-height: 100%;
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	min-height: 100vh;
+}
+
+a {
+	color: var(--accent);
+}

@@ -1,0 +1,16 @@
+extends: kid_profiles.template.yaml
+description: Overlay hints for XCA-style cahandler fields including subject profiling.
+
+sections:
+  - id: cahandler
+    fields_add:
+      - name: template_name
+        type: string_or_list
+      - name: issuing_ca_name
+        type: string
+      - name: issuing_ca_key
+        type: string
+      - name: subject
+        type: map
+        additionalProperties:
+          type: string_or_list
