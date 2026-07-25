@@ -87,6 +87,13 @@ runs:
             echo "ERROR: django settings.py missing under volume/" >&2
             exit 1
           fi
+          # Ensure CI MariaDB password + non-empty SECRET_KEY (legacy tag settings omit both).
+          for sf in "${APP_ROOT}/volume/settings.py" "${APP_ROOT}/volume/acme2certifier/settings.py"; do
+            [[ -f "${sf}" ]] || continue
+            sed -i 's/"XXX": "XXX"/"PASSWORD": "1mmSvDFl"/g' "${sf}"
+            sed -i '/^SECRET_KEY[[:space:]]*=/d' "${sf}"
+            printf '\nSECRET_KEY = "ci-upgrade-django-secret-key-not-for-production"\n' >> "${sf}"
+          done
           if [[ ! -d "${APP_ROOT}/volume/migrations" && -d "${APP_ROOT}/acme_srv/migrations" ]]; then
             cp -a "${APP_ROOT}/acme_srv/migrations" "${APP_ROOT}/volume/migrations"
           fi
@@ -139,33 +146,42 @@ runs:
         if ! grep -q '^python-path' "${APP_ROOT}/acme2certifier.ini"; then
           echo "python-path = ${APP_ROOT}" >> "${APP_ROOT}/acme2certifier.ini"
         else
-          docker exec acme-srv bash -c "
-            set -euo pipefail
-            apt-get update
-            apt-get install -y nginx uwsgi uwsgi-plugin-python3 curl openssl || true
-            apt-get install -y -o Dpkg::Options::='--force-confdef' -o Dpkg::Options::='--force-confold' '${cont_deb}'
-            mkdir -p /var/www/acme2certifier/volume
-            if [[ -d /tmp/acme2certifier/volume ]]; then
-              cp -a /tmp/acme2certifier/volume/. /var/www/acme2certifier/volume/ || true
-            fi
-            if [[ -f /var/www/acme2certifier/volume/acme_srv.cfg ]]; then
-              ln -sfn /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg || true
-              cp -f /var/www/acme2certifier/volume/acme_srv.cfg /var/www/acme2certifier/acme_srv.cfg || true
-            fi
-            # Prefer package nginx share when present
-            if [[ -d /var/www/acme2certifier/share/nginx ]]; then
-              cp /var/www/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme2certifier.conf || true
-              cp /var/www/acme2certifier/share/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme2certifier_ssl.conf || true
-            elif [[ -d /var/www/acme2certifier/examples/nginx ]]; then
-              cp /var/www/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme2certifier.conf || true
-              cp /var/www/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/sites-available/acme2certifier_ssl.conf || true
-            fi
-            ln -sfn /etc/nginx/sites-available/acme2certifier.conf /etc/nginx/sites-enabled/acme2certifier.conf || true
-            ln -sfn /etc/nginx/sites-available/acme2certifier_ssl.conf /etc/nginx/sites-enabled/acme2certifier_ssl.conf || true
-            rm -f /etc/nginx/sites-enabled/default || true
-            chown -R www-data:www-data /var/www/acme2certifier/volume || true
-            systemctl enable nginx || true
-            systemctl restart nginx || true
-            systemctl restart uwsgi || systemctl restart acme2certifier || true
-          "
+          sed -i "s|^python-path = .*|python-path = ${APP_ROOT}|" "${APP_ROOT}/acme2certifier.ini"
         fi
+        if ! grep -q 'ACME_SRV_CONFIGFILE' "${APP_ROOT}/acme2certifier.ini"; then
+          {
+            echo "env = ACME_SRV_CONFIGFILE=${APP_ROOT}/acme_srv.cfg"
+            echo "env = ACME2CERTIFIER_BASE_DIR=${APP_ROOT}"
+          } >> "${APP_ROOT}/acme2certifier.ini"
+        fi
+
+        printf '%s\n' \
+          '[Unit]' \
+          'Description=uWSGI instance to serve acme2certifier' \
+          'After=network.target' \
+          '' \
+          '[Service]' \
+          'User=www-data' \
+          'Group=www-data' \
+          "WorkingDirectory=${APP_ROOT}" \
+          'RuntimeDirectory=uwsgi' \
+          "Environment=ACME_SRV_CONFIGFILE=${APP_ROOT}/acme_srv.cfg" \
+          "Environment=ACME2CERTIFIER_BASE_DIR=${APP_ROOT}" \
+          "ExecStart=/usr/bin/uwsgi --ini ${APP_ROOT}/acme2certifier.ini" \
+          'Restart=on-failure' \
+          '' \
+          '[Install]' \
+          'WantedBy=multi-user.target' \
+          > /etc/systemd/system/acme2certifier.service
+
+        chown -R www-data:www-data "${APP_ROOT}"
+        systemctl daemon-reload
+        systemctl stop uwsgi 2>/dev/null || true
+        systemctl disable uwsgi 2>/dev/null || true
+        systemctl enable acme2certifier nginx
+        systemctl restart acme2certifier
+        systemctl restart nginx
+        systemctl --no-pager --full status acme2certifier || true
+        test -S /run/uwsgi/acme.sock \
+          || { echo "ERROR: /run/uwsgi/acme.sock missing after restart" >&2; journalctl -u acme2certifier -n 80 --no-pager || true; exit 1; }
+        EOS

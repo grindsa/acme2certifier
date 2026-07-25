@@ -503,8 +503,13 @@ if [[ "${WEBSRV}" == "apache2" ]]; then
   fi
 else
   echo "==> Configuring Nginx + uWSGI (${MODE})"
+  # Drop ≤0.44 site names (acme2certifier*.conf) — they also define
+  # limit_req_zone zone=ip and collide with modern acme_srv*.conf.
+  ${SUDO} rm -f \
+    /etc/nginx/sites-enabled/acme2certifier.conf \
+    /etc/nginx/sites-enabled/acme2certifier_ssl.conf \
+    /etc/nginx/sites-enabled/default
   ${SUDO} cp "${SHARE}/nginx/nginx_acme_srv.conf" /etc/nginx/sites-available/acme_srv.conf
-  ${SUDO} rm -f /etc/nginx/sites-enabled/default
   ${SUDO} ln -sfn /etc/nginx/sites-available/acme_srv.conf /etc/nginx/sites-enabled/acme_srv.conf
 
   if [[ "${ENABLE_SSL}" -eq 1 ]]; then
@@ -520,6 +525,8 @@ else
         -days 365 \
         -subj "/CN=localhost"
     fi
+  else
+    ${SUDO} rm -f /etc/nginx/sites-enabled/acme_srv_ssl.conf
   fi
 
   ${SUDO} cp "${SHARE}/nginx/acme2certifier.ini" "${APP_ROOT}/acme2certifier.ini"
@@ -589,8 +596,17 @@ fi
 
 echo "==> Ownership and start ${WEBSRV}"
 ${SUDO} chown -R www-data:www-data "${APP_ROOT}"
+if [[ "${WEBSRV}" == "nginx" ]]; then
+  if ! ${SUDO} nginx -t; then
+    echo "ERROR: nginx -t failed" >&2
+    ${SUDO} ls -la /etc/nginx/sites-enabled/ || true
+    ${SUDO} journalctl -u nginx -n 40 --no-pager || true
+    exit 1
+  fi
+fi
 ${SUDO} systemctl enable "${WEBSRV}"
-${SUDO} systemctl restart "${WEBSRV}"
+${SUDO} systemctl restart "${WEBSRV}" \
+  || { ${SUDO} journalctl -u "${WEBSRV}" -n 80 --no-pager || true; exit 1; }
 
 echo
 echo "Done. mode=${MODE} webserver=${WEBSRV}"
