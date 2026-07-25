@@ -22,7 +22,9 @@ runs:
             sudo cp -rp acme-sh/ "${GITHUB_WORKSPACE}/artifact/acme-sh/" 2>/dev/null || true
             sudo cp -rp certbot/ "${GITHUB_WORKSPACE}/artifact/certbot/" 2>/dev/null || true
             sudo cp -rp lego/ "${GITHUB_WORKSPACE}/artifact/lego/" 2>/dev/null || true
-            (cd examples/Docker && docker compose logs > "${GITHUB_WORKSPACE}/artifact/docker-compose.log") || true
+            # upgrade/container_run uses plain `docker run`, not compose
+            docker logs acme-srv > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" 2>&1 || true
+            (cd examples/Docker && docker compose logs > "${GITHUB_WORKSPACE}/artifact/docker-compose.log") 2>/dev/null || true
             ;;
           rpm)
             docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier || true

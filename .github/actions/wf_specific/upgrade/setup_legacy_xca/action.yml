@@ -94,6 +94,7 @@ runs:
           curl -fsSL \
             "https://raw.githubusercontent.com/grindsa/acme2certifier/${DJANGO_SETTINGS_TAG}/.github/django_settings_mariadb.py" \
             -o /tmp/django_settings_mariadb.py
+          bash .github/actions/wf_specific/upgrade/patch_django_ci_settings.sh /tmp/django_settings_mariadb.py
           case "${DEPLOYMENT_TYPE}" in
             container)
               sudo cp /tmp/django_settings_mariadb.py "${VOLUME_DIR}/settings.py"
