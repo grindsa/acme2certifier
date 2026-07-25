@@ -1,0 +1,117 @@
+name: "download_release_deb"
+description: "Download the .deb asset for a GitHub release tag into the workspace"
+inputs:
+  tag:
+    description: "Release tag to download the .deb from"
+    required: true
+  destination:
+    description: "Directory to place the .deb into"
+    required: false
+    default: "."
+  github_token:
+    description: "Optional GitHub token (helps with rate limits / private assets)"
+    required: false
+    default: ""
+  retries:
+    description: "Download attempts before failing"
+    required: false
+    default: "10"
+  retry_sleep_seconds:
+    description: "Seconds between download attempts"
+    required: false
+    default: "6"
+outputs:
+  deb_path:
+    description: "Path to the downloaded .deb file"
+    value: ${{ steps.download.outputs.deb_path }}
+  deb_name:
+    description: "Filename of the downloaded .deb"
+    value: ${{ steps.download.outputs.deb_name }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Download release .deb
+      id: download
+      shell: bash
+      env:
+        TAG: ${{ inputs.tag }}
+        DESTINATION: ${{ inputs.destination }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        RETRIES: ${{ inputs.retries }}
+        RETRY_SLEEP_SECONDS: ${{ inputs.retry_sleep_seconds }}
+      run: |
+        set -euo pipefail
+
+        mkdir -p "${DESTINATION}"
+        AUTH_HEADER=()
+        if [[ -n "${GITHUB_TOKEN}" ]]; then
+          AUTH_HEADER=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+        fi
+
+        fetch_release() {
+          local tag="$1"
+          curl -fsSL \
+            -H "Accept: application/vnd.github+json" \
+            "${AUTH_HEADER[@]}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/tags/${tag}"
+        }
+
+        RELEASE_JSON=""
+        for attempt in $(seq 1 "${RETRIES}"); do
+          if RELEASE_JSON=$(fetch_release "${TAG}" 2>/dev/null); then
+            break
+          fi
+          if RELEASE_JSON=$(fetch_release "v${TAG}" 2>/dev/null); then
+            break
+          fi
+          echo "Release ${TAG} not visible yet (attempt ${attempt}/${RETRIES})"
+          RELEASE_JSON=""
+          sleep "${RETRY_SLEEP_SECONDS}"
+        done
+
+        if [[ -z "${RELEASE_JSON}" ]]; then
+          echo "No GitHub release found for tag ${TAG} or v${TAG}" >&2
+          exit 1
+        fi
+
+        DEB_NAME=""
+        ASSET_ID=""
+        DEB_URL=""
+        for attempt in $(seq 1 "${RETRIES}"); do
+          DEB_NAME=$(echo "${RELEASE_JSON}" | jq -r '.assets[] | select(.name | endswith(".deb")) | .name' | head -n 1)
+          ASSET_ID=$(echo "${RELEASE_JSON}" | jq -r '.assets[] | select(.name | endswith(".deb")) | .id' | head -n 1)
+          DEB_URL=$(echo "${RELEASE_JSON}" | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
+
+          if [[ -n "${DEB_NAME}" && "${DEB_NAME}" != "null" && -n "${ASSET_ID}" && "${ASSET_ID}" != "null" ]]; then
+            break
+          fi
+
+          echo ".deb asset not visible yet for ${TAG} (attempt ${attempt}/${RETRIES})"
+          if ! RELEASE_JSON=$(fetch_release "${TAG}" 2>/dev/null); then
+            RELEASE_JSON=$(fetch_release "v${TAG}")
+          fi
+          sleep "${RETRY_SLEEP_SECONDS}"
+        done
+
+        if [[ -z "${DEB_NAME}" || "${DEB_NAME}" == "null" ]]; then
+          echo "No .deb asset found for release tag ${TAG}" >&2
+          exit 1
+        fi
+
+        DEB_PATH="${DESTINATION%/}/${DEB_NAME}"
+
+        if [[ -n "${GITHUB_TOKEN}" && -n "${ASSET_ID}" && "${ASSET_ID}" != "null" ]]; then
+          curl -fL \
+            -H "Accept: application/octet-stream" \
+            "${AUTH_HEADER[@]}" \
+            -o "${DEB_PATH}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/assets/${ASSET_ID}"
+        else
+          curl -fL -o "${DEB_PATH}" "${DEB_URL}"
+        fi
+
+        ls -la "${DEB_PATH}"
+        echo "deb_path=${DEB_PATH}" >> "${GITHUB_OUTPUT}"
+        echo "deb_name=${DEB_NAME}" >> "${GITHUB_OUTPUT}"
