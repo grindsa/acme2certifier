@@ -162,21 +162,27 @@ jobs:
         dbhandler: [wsgi, django]
         tag: ${{ fromJSON(needs.resolve_versions.outputs.tags_json) }}
     steps:
-      - name: Checkout tag
+      # Keep workflow SHA at repo root so local composite actions remain available.
+      - name: Checkout workflow sources
+        uses: actions/checkout@v6
+
+      # Docker build context must match the release tag being packaged.
+      - name: Checkout image tag sources
         uses: actions/checkout@v6
         with:
           ref: ${{ matrix.tag }}
+          path: image-src
 
       - name: Parse software repository secrets
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.SWREPO_CFG }}
 
-      - name: Download release .deb
+      - name: Download release .deb into build context
         uses: ./.github/actions/download_release_deb
         with:
           tag: ${{ matrix.tag }}
-          destination: .
+          destination: image-src
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up QEMU
@@ -236,8 +242,8 @@ jobs:
       - name: Build and push multi-arch image
         uses: docker/build-push-action@v7
         with:
-          context: .
-          file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
+          context: image-src
+          file: image-src/examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
           platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.tags.outputs.tags }}
