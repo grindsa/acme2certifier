@@ -1,0 +1,75 @@
+name: "resolve_supported_tags"
+description: "Resolve supported image tags N (version.py) and N-1 (previous minor release)"
+inputs:
+  github_token:
+    description: "GitHub token for API access"
+    required: true
+outputs:
+  tag_n:
+    description: "Current version from version.py"
+    value: ${{ steps.resolve.outputs.tag_n }}
+  tag_n1:
+    description: "Previous supported release tag"
+    value: ${{ steps.resolve.outputs.tag_n1 }}
+  tags_json:
+    description: "JSON array of [tag_n, tag_n1] for matrix expansion"
+    value: ${{ steps.resolve.outputs.tags_json }}
+  app_name:
+    description: "Application name derived from repository"
+    value: ${{ steps.resolve.outputs.app_name }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Resolve supported tags
+      id: resolve
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+
+        APP_NAME=$(echo "${GITHUB_REPOSITORY}" | awk -F / '{print $2}')
+        TAG_N=$(grep -i '__version__' acme_srv/version.py | head -n 1 | sed 's/__version__ = //g' | sed 's/"//g' | tr -d "[:space:]")
+
+        if [[ -z "${TAG_N}" ]]; then
+          echo "Could not read __version__ from acme_srv/version.py" >&2
+          exit 1
+        fi
+
+        MINOR=$(echo "${TAG_N}" | awk -F. '{print $2}')
+        if [[ -z "${MINOR}" || ! "${MINOR}" =~ ^[0-9]+$ ]]; then
+          echo "Could not parse minor version from TAG_N=${TAG_N}" >&2
+          exit 1
+        fi
+        PRE_MINOR=$((MINOR - 1))
+
+        RESP=$(curl -fsSL \
+          -H "Accept: application/vnd.github+json" \
+          -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+          "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases?per_page=100")
+
+        echo "${RESP}" | jq -e 'type=="array"' >/dev/null || {
+          echo "Unexpected GitHub API response while listing releases:" >&2
+          echo "${RESP}" | jq . >&2
+          exit 1
+        }
+
+        TAG_N1=$(echo "${RESP}" | jq -r '.[].tag_name' \
+          | grep -E "(^|[^0-9])${PRE_MINOR}(\.|$)" \
+          | head -n 1 || true)
+
+        if [[ -z "${TAG_N1}" ]]; then
+          echo "Could not determine tag_n1 for previous minor version ${PRE_MINOR}" >&2
+          exit 1
+        fi
+
+        TAGS_JSON=$(jq -cn --arg n "${TAG_N}" --arg n1 "${TAG_N1}" '[$n, $n1]')
+
+        echo "tag_n=${TAG_N}" >> "${GITHUB_OUTPUT}"
+        echo "tag_n1=${TAG_N1}" >> "${GITHUB_OUTPUT}"
+        echo "tags_json=${TAGS_JSON}" >> "${GITHUB_OUTPUT}"
+        echo "app_name=${APP_NAME}" >> "${GITHUB_OUTPUT}"
+
+        echo "Resolved tag_n=${TAG_N} tag_n1=${TAG_N1} tags_json=${TAGS_JSON} app_name=${APP_NAME}"

@@ -1,832 +1,373 @@
-name: Deployment Tests - Update images to dockerhub and ghcr.io
+name: Release and push images to Docker Hub / GHCR
+
 on:
   push:
-    branches: [ "master", "wf_push" ]       # Execute on master only
+    branches: ["master", "wf_push"]
   workflow_dispatch: {}
   schedule:
-    - cron: '0 01 * * 6'  # Every Saturday morning
+    - cron: "0 01 * * 6"
+
+concurrency:
+  group: release-push-images-${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
 
 jobs:
-
-  build:
+  create_release:
     name: Create Release
     runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
-
+    outputs:
+      tag_n: ${{ steps.versions.outputs.tag_n }}
+      app_name: ${{ steps.versions.outputs.app_name }}
+      created_release: ${{ steps.versions.outputs.created_release }}
     steps:
-
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: "Get current version"
+      - name: Get latest published release tag
+        id: latest_release
         uses: oprypin/find-latest-tag@v1
         with:
-          repository: ${{ github.repository }}  # The repository to scan.
-          releases-only: true  # We know that all relevant tags have a GitHub release for them.
-        id: acme2certifier_ver  # The step ID to refer to later.
+          repository: ${{ github.repository }}
+          releases-only: true
 
-      - name: "Parse EMAIL configuration from JSON secret"
+      - name: Parse EMAIL configuration from JSON secret
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
 
+      - name: Resolve version from version.py
+        id: versions
+        run: |
+          set -euo pipefail
+          APP_NAME=$(echo "${GITHUB_REPOSITORY}" | awk -F / '{print $2}')
+          TAG_N=$(grep -i '__version__' acme_srv/version.py | head -n 1 | sed 's/__version__ = //g' | sed 's/"//g' | tr -d "[:space:]")
+          DB_VERSION=$(grep -i '__dbversion__' acme_srv/version.py | head -n 1 | sed "s/__dbversion__ = //g" | sed "s/'//g" | tr -d "[:space:]")
+          FIXTURE_VERSION=$(awk '/name: dbversion/{getline; print $2}' examples/django/acme_srv/fixture/status.yaml | tr -d "'")
+
+          echo "app_name=${APP_NAME}" >> "${GITHUB_OUTPUT}"
+          echo "tag_n=${TAG_N}" >> "${GITHUB_OUTPUT}"
+          echo "db_version=${DB_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "fixture_version=${FIXTURE_VERSION}" >> "${GITHUB_OUTPUT}"
+
+          if [[ "${TAG_N}" != "${LATEST_RELEASE}" ]]; then
+            echo "created_release=true" >> "${GITHUB_OUTPUT}"
+          else
+            echo "created_release=false" >> "${GITHUB_OUTPUT}"
+          fi
+
+          echo "version.py=${TAG_N} latest_release=${LATEST_RELEASE} db=${DB_VERSION} fixture=${FIXTURE_VERSION}"
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          LATEST_RELEASE: ${{ steps.latest_release.outputs.tag }}
+
+      - name: Check fixture version
+        if: steps.versions.outputs.db_version != steps.versions.outputs.fixture_version
+        run: |
+          echo "Fixture version (${{ steps.versions.outputs.fixture_version }}) != db version (${{ steps.versions.outputs.db_version }})"
+          exit 1
+
+      - name: Prepare RPM packaging inputs
+        if: steps.versions.outputs.created_release == 'true'
+        run: |
+          set -euo pipefail
+          sudo sed -i "s/__version__/${TAG_N}/g" examples/install_scripts/rpm/acme2certifier.spec
+          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
+          git config --global user.email "${EMAIL}"
+          git config --global user.name "rpm update"
+          git add examples/nginx examples/install_scripts/rpm/acme2certifier.spec
+          git commit -a -m "rpm update" || true
+        env:
+          TAG_N: ${{ steps.versions.outputs.tag_n }}
+          EMAIL: ${{ env.EMAIL }}
+
+      - name: Build RPM package
+        id: rpm_build
+        if: steps.versions.outputs.created_release == 'true'
+        uses: grindsa/rpmbuild@alma9
+        with:
+          spec_file: examples/install_scripts/rpm/acme2certifier.spec
+
+      - name: Prepare and build Debian package
+        if: steps.versions.outputs.created_release == 'true'
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
+          rm -f setup.py
+          cp -R examples/install_scripts/debian ./
+          sudo sed -i "s/__version__/${TAG_N}/g" debian/changelog
+          REPO_DIR="$(pwd)"
+          cd ..
+          tar cvfz "../acme2certifier_${TAG_N}.orig.tar.gz" ./
+          cd "${REPO_DIR}"
+          dpkg-buildpackage -uc -us
+          cp "../acme2certifier_${TAG_N}-1_all.deb" "${REPO_DIR}/acme2certifier_${TAG_N}-1_all.deb"
+          ls -la "${REPO_DIR}/acme2certifier_${TAG_N}-1_all.deb"
+        env:
+          TAG_N: ${{ steps.versions.outputs.tag_n }}
+
+      - name: Create GitHub release and upload packages
+        if: steps.versions.outputs.created_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.versions.outputs.tag_n }}
+          name: ${{ steps.versions.outputs.app_name }} ${{ steps.versions.outputs.tag_n }}
+          body: |
+            [Changelog](https://github.com/grindsa/acme2certifier/blob/master/CHANGES.md)
+          files: |
+            acme2certifier_${{ steps.versions.outputs.tag_n }}-1_all.deb
+            ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ steps.versions.outputs.tag_n }}-1.0.noarch.rpm
+            ${{ steps.rpm_build.outputs.source_rpm_path }}
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  resolve_versions:
+    name: Resolve supported tags
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: create_release
+    if: github.repository == 'grindsa/acme2certifier'
+    outputs:
+      tag_n: ${{ steps.resolve.outputs.tag_n }}
+      tag_n1: ${{ steps.resolve.outputs.tag_n1 }}
+      tags_json: ${{ steps.resolve.outputs.tags_json }}
+      app_name: ${{ steps.resolve.outputs.app_name }}
+    steps:
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Retrieve Version from version.py
-        run: |
-          echo APP_NAME=$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $2}') >> $GITHUB_ENV
-          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-
-      - name: "Display version information"
-        run: |
-          echo "Repo is at version $ACME2CERTIFIER_VERSION"
-          echo "APP tag is $APP_NAME"
-          echo "Latest tag is $TAG_NAME"
-        env:
-          ACME2CERTIFIER_VERSION: ${{ steps.acme2certifier_ver.outputs.tag }}
-          APP_NAME: ${{ env.APP_NAME }}
-          TAG_NAME: ${{ env.TAG_NAME }}
-
-      - name: Retrieve dbversion numbers from version.py and fixture.xml
-        run: |
-          echo DB_VERSION=$(cat acme2certifier/acme_srv/version.py | grep -i __dbversion__ | head -n 1 | sed 's/__dbversion__ = //g' | sed s/\'//g) >> $GITHUB_ENV
-          echo FIXTURE_VERSION=$(awk '/name: dbversion/{getline; print $2}' acme2certifier/django_app/fixture/status.yaml | tr -d "'") >> $GITHUB_ENV
-
-      - run: echo "db verion is ${{ env.DB_VERSION }}"
-      - run: echo "fixture version is ${{ env.FIXTURE_VERSION }}"
-
-      - name: Check fixture version
-        if: env.DB_VERSION != env.FIXTURE_VERSION
-        run: |
-          echo "Fixture version is not equal to db version"
-          exit 1
-
-      - name: Create Release
-        id: create_release
-        if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+      - name: Resolve N and N-1 tags
+        id: resolve
+        uses: ./.github/actions/resolve_supported_tags
         with:
-          tag_name: ${{ env.TAG_NAME }}
-          release_name: ${{ env.APP_NAME }} ${{ env.TAG_NAME }}
-          body: |
-            [Changelog](https://github.com/grindsa/acme2certifier/blob/master/CHANGES.md)
-          draft: false
-          prerelease: false
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: update version number in spec file
-        if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
-        run: |
-          sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" examples/install_scripts/rpm/acme2certifier.spec
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" acme2certifier/share/nginx/nginx_acme_srv_ssl.conf
-          git config --global user.email "$EMAIL"
-          git config --global user.name "rpm update"
-          git add acme2certifier/share/nginx
-          git commit -a -m "rpm update"
-
-      - name: build RPM package
-        id: rpm_build
-        if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
-        uses: grindsa/rpmbuild@alma9
-        with:
-          spec_file: "examples/install_scripts/rpm/acme2certifier.spec"
-
-      - name: Upload Release Source-RPM
-        id: upload-srpm
-        if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
-        uses: actions/upload-release-asset@v1
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-            upload_url: ${{ steps.create_release.outputs.upload_url }}
-            asset_path: ${{ steps.rpm_build.outputs.source_rpm_path }}
-            asset_name: ${{ steps.rpm_build.outputs.source_rpm_name }}
-            asset_content_type: ${{ steps.rpm_build.outputs.rpm_content_type }}
-
-      - name: Upload Release RPM
-        id: upload-rpm
-        if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
-        uses: actions/upload-release-asset@v1
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-            upload_url: ${{ steps.create_release.outputs.upload_url }}
-            asset_path: ${{ steps.rpm_build.outputs.rpm_dir_path }}noarch/acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
-            asset_name: acme2certifier-${{ env.TAG_NAME }}-1.0.noarch.rpm
-            asset_content_type: ${{ steps.rpm_build.outputs.rpm_content_type }}
-
-      - name: Prepare deb packaging environment
-        if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install --allow-downgrades \
-            build-essential fakeroot dpkg-dev debhelper \
-            dh-python pybuild-plugin-pyproject \
-            python3-all python3-setuptools python3-build
-          cp -R examples/install_scripts/debian ./
-          sudo sed -i "s/__version__/${{ env.TAG_NAME }}/g" debian/changelog
-          chmod +x debian/rules debian/patch_apache_for_deb.py
-          cd ../
-          tar cvfz ../acme2certifier_${{ env.TAG_NAME }}.orig.tar.gz ./
-
-      - name: "[ BUILD ] build debian package"
-        if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
-        run: |
-          dpkg-buildpackage -uc -us
-          # dpkg -c ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb
-          cp ../acme2certifier_${{ env.TAG_NAME }}-1_all.deb "$(pwd)/acme2certifier_${{ env.TAG_NAME }}-1_all.deb"
-          ls -la
-
-      - name: Upload Release deb
-        id: upload-deb
-        if: steps.acme2certifier_ver.outputs.tag != env.TAG_NAME
-        uses: actions/upload-release-asset@v1
-        env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-            upload_url: ${{ steps.create_release.outputs.upload_url }}
-            asset_path: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
-            asset_name: acme2certifier_${{ env.TAG_NAME }}-1_all.deb
-            asset_content_type: application/vnd.debian.binary-package
-
-
-  instance_start:
-    name: instance_start
+  build_and_push_n1:
+    name: Build and push N-1 images
     runs-on: ubuntu-latest
-    needs: build
-    # Prevent workflows from running in forks
-    if: ${{ github.repository == 'grindsa/acme2certifier' && (github.ref_name == 'master' || contains(github.ref_name, 'push')) }}
-    steps:
-
-    - name: "checkout GIT"
-      uses: actions/checkout@v6
-
-    - name: "Parse AWS_CFG JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.AWS_CFG }}
-
-    - name: "Parse ARM64_CFG secrets"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.ARM64_CFG }}
-
-    - name: "Start AWS instance for testing"
-      uses: ./.github/actions/aws_instance_manage
-      with:
-        AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ env.AWS_REGION }}
-        AWS_INSTANCE_ID: ${{ env.AWS_ARM64-UB-01_INSTANCE_ID }}
-        ACTION: "start"
-        IGNORE_CURRENT_STATUS: "true"
-
-    - name: "[ WAIT ] Sleep for 10s"
-      uses: juliangruber/sleep-action@v2.0.4
-      with:
-        time: 10s
-
-  build_and_upload_images_to_hub:
-    name: Push images to dockerhub and github
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
+    timeout-minutes: 120
+    needs: [create_release, resolve_versions]
     if: github.repository == 'grindsa/acme2certifier'
-    needs: instance_start
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['apache2', 'nginx']
-        dbhandler: ['wsgi', 'django']
+        websrv: [apache2, nginx]
+        dbhandler: [wsgi, django]
     steps:
-      - name: "Get current version"
-        uses: oprypin/find-latest-tag@v1
-        with:
-          repository: ${{ github.repository }}  # The repository to scan.
-          releases-only: true  # We know that all relevant tags have a GitHub release for them.
-        id: acme2certifier_ver  # The step ID to refer to later.
-
-      - name: Checkout code
+      - name: Checkout workflow sources
         uses: actions/checkout@v6
 
-      - name: Parse software repository secrets from JSON
+      - name: Parse software repository secrets
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.SWREPO_CFG }}
 
-      - name: "Retrieve version from version.py"
-        run: |
-          echo APP_NAME=$(echo "$GITHUB_REPOSITORY" | awk -F / '{print $2}') >> $GITHUB_ENV
-          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-          echo BUILD_NAME=${{ matrix.websrv }}-${{ matrix.dbhandler }} >> $GITHUB_ENV
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
+      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n1 }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+        uses: ./.github/actions/image_build_push
+        with:
+          tag: ${{ needs.resolve_versions.outputs.tag_n1 }}
+          websrv: ${{ matrix.websrv }}
+          dbhandler: ${{ matrix.dbhandler }}
+          tag_n: ${{ needs.resolve_versions.outputs.tag_n }}
+          dockerhub_user: ${{ env.DOCKERHUB_USER }}
+          dockerhub_token: ${{ env.DOCKERHUB_TOKEN }}
+          ghcr_user: ${{ env.GHCR_USER }}
+          ghcr_token: ${{ env.GHCR_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: "Retrieve 2nd last release tag"
-        run: |
-          set -euo pipefail
-
-          VERSION=$(echo "${TAG_NAME}" | awk -F. '{print $2}')
-          PRE_VERSION=$((VERSION - 1))
-          echo "Expected previous minor version: ${PRE_VERSION}"
-
-          RESP=$(curl -fsSL \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-            "https://api.github.com/repos/${GITHUB_REPOSITORY}/tags")
-
-          echo "$RESP" | jq -e 'type=="array"' >/dev/null || {
-            echo "Unexpected GitHub API response while listing tags:" >&2
-            echo "$RESP" | jq . >&2
-            exit 1
-          }
-
-          OLD_TAG_NAME=$(echo "$RESP" | jq -r '.[].name' | grep -E "(^|[^0-9])${PRE_VERSION}(\.|$)" | head -n 1 || true)
-          if [[ -z "$OLD_TAG_NAME" ]]; then
-            echo "Could not determine OLD_TAG_NAME for previous minor version ${PRE_VERSION}" >&2
-            exit 1
-          fi
-
-          echo "OLD_TAG_NAME=$OLD_TAG_NAME" >> "$GITHUB_ENV"
-          echo "Selected OLD_TAG_NAME=$OLD_TAG_NAME"
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG_NAME: ${{ env.TAG_NAME }}
-
-      - name: "Display version information"
-        run: |
-          echo "Repo is at version $ACME2CERTIFIER_VERSION"
-          echo "APP tag is $APP_NAME"
-          echo "Latest tag is $TAG_NAME"
-          echo "Old tag is $OLD_TAG_NAME"
-          echo "BUILD_NAME is $BUILD_NAME"
-        env:
-          ACME2CERTIFIER_VERSION: ${{ steps.acme2certifier_ver.outputs.tag }}
-          APP_NAME: ${{ env.APP_NAME }}
-          TAG_NAME: ${{ env.TAG_NAME }}
-          OLD_TAG_NAME: ${{ env.OLD_TAG_NAME }}
-          BUILD_NAME: ${{ env.BUILD_NAME }}
-
-      - name: Checkout code for 2nd last release
+  build_and_push_n:
+    name: Build and push N images
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    needs: [resolve_versions, build_and_push_n1]
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: [apache2, nginx]
+        dbhandler: [wsgi, django]
+    steps:
+      - name: Checkout workflow sources
         uses: actions/checkout@v6
+
+      - name: Parse software repository secrets
+        uses: ./.github/actions/parse-json-secret
         with:
-          ref: ${{ env.OLD_TAG_NAME }}
+          json_secret: ${{ secrets.SWREPO_CFG }}
 
-      - name: "show version from version.py"
-        run: |
-          cat acme2certifier/acme_srv/version.py
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+      - name: Build and push ${{ needs.resolve_versions.outputs.tag_n }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+        uses: ./.github/actions/image_build_push
         with:
-          platforms: all
+          tag: ${{ needs.resolve_versions.outputs.tag_n }}
+          websrv: ${{ matrix.websrv }}
+          dbhandler: ${{ matrix.dbhandler }}
+          tag_n: ${{ needs.resolve_versions.outputs.tag_n }}
+          dockerhub_user: ${{ env.DOCKERHUB_USER }}
+          dockerhub_token: ${{ env.DOCKERHUB_TOKEN }}
+          ghcr_user: ${{ env.GHCR_USER }}
+          ghcr_token: ${{ env.GHCR_TOKEN }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - uses: docker/setup-buildx-action@v4
+  test_amd64:
+    name: Test amd64 images
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    needs: [resolve_versions, build_and_push_n]
+    if: github.repository == 'grindsa/acme2certifier'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: [apache2, nginx]
+        dbhandler: [wsgi, django]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Parse software repository secrets
+        uses: ./.github/actions/parse-json-secret
         with:
-          version: latest
-          buildkitd-flags: --debug
+          json_secret: ${{ secrets.SWREPO_CFG }}
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: ${{ env.DOCKERHUB_USER }}
-          password: ${{ env.DOCKERHUB_TOKEN }}
-
-      - name: Login to GitHub Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ env.GHCR_USER }}
           password: ${{ env.GHCR_TOKEN }}
 
-      - name: Build with 2nd latest release tag
-        uses: docker/build-push-action@v7
+      - name: Enrollment test
+        uses: ./.github/actions/image_enrollment_test
         with:
-          context: .
-          push: true
-          tags: grindsa/acme2certifier:${{ env.OLD_TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
-          file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
-          platforms: linux/arm64, linux/amd64
+          image: ghcr.io/grindsa/acme2certifier:${{ needs.resolve_versions.outputs.tag_n }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+          hostname_suffix: -${{ matrix.websrv }}-${{ matrix.dbhandler }}-amd64
+          name_space: acme-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+          container_name: acme-srv
 
-      - name: Push image to GHCR
-        run: |
-          docker buildx imagetools create \
-            --tag ghcr.io/grindsa/acme2certifier:${{ env.OLD_TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }} \
-            grindsa/acme2certifier:${{ env.OLD_TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
-
-      - name: Delete image from registry
-        run: |
-          docker images
-
-      - name: Checkout code for latest release
-        uses: actions/checkout@v6
-
-      - name: "Download Debian package for release tag"
-        run: |
-          set -euo pipefail
-
-          REPO="${GITHUB_REPOSITORY}"
-          TAG="${TAG_NAME}"
-          API_URL="https://api.github.com/repos/${REPO}/releases/tags/${TAG}"
-
-          if ! RELEASE_JSON=$(curl -fsSL "$API_URL"); then
-            API_URL="https://api.github.com/repos/${REPO}/releases/tags/v${TAG}"
-            RELEASE_JSON=$(curl -fsSL "$API_URL")
-          fi
-
-          DEB_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
-
-          if [[ -z "${DEB_URL}" || "${DEB_URL}" == "null" ]]; then
-            echo "No .deb asset found for release tag ${TAG}" >&2
-            exit 1
-          fi
-          DEB_NAME=$(basename "$DEB_URL")
-          curl -fL "$DEB_URL" -o "$DEB_NAME"
-          ls -la "$DEB_NAME"
-          ls -la
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          TAG_NAME: ${{ env.TAG_NAME }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
         with:
-          platforms: all
+          name: amd64-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+          path: ${{ github.workspace }}/artifact/upload/
+          if-no-files-found: ignore
 
-      - uses: docker/setup-buildx-action@v4
-        with:
-          version: latest
-          buildkitd-flags: --debug
-
-      - name: Build with latest tag
-        uses: docker/build-push-action@v7
-        if: ${{ env.BUILD_NAME == 'apache2-wsgi'}}
-        with:
-          context: .
-          push: true
-          tags: grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }}, grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}, grindsa/acme2certifier:latest
-          file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
-          platforms: linux/arm64, linux/amd64
-
-      - name: Build without latest tag
-        uses: docker/build-push-action@v7
-        if: ${{ env.BUILD_NAME != 'apache2-wsgi'}}
-        with:
-          context: .
-          push: true
-          tags: grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }}, grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
-          file: examples/Docker/${{ matrix.websrv }}/${{ matrix.dbhandler }}/Dockerfile
-          platforms: linux/arm64, linux/amd64
-
-      - name: Push image with latest tag to GHCR
-        if: ${{ env.BUILD_NAME == 'apache2-wsgi'}}
-        run: |
-          docker buildx imagetools create \
-            --tag ghcr.io/grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }} \
-            --tag ghcr.io/grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }} \
-            --tag ghcr.io/grindsa/acme2certifier:latest \
-            grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
-
-      - name: Push image without latest tag to GHCR
-        if: ${{ env.BUILD_NAME != 'apache2-wsgi'}}
-        run: |
-          docker buildx imagetools create \
-            --tag ghcr.io/grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }} \
-            --tag ghcr.io/grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }} \
-            grindsa/acme2certifier:${{ env.TAG_NAME }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
-
-  amd64_pull_and_test:
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
+  test_arm64:
+    name: Test arm64 images
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    needs: [resolve_versions, build_and_push_n]
     if: github.repository == 'grindsa/acme2certifier'
-    needs: build_and_upload_images_to_hub
     strategy:
       fail-fast: false
       matrix:
-        websrv: ['apache2', 'nginx']
-        dbhandler: ['wsgi', 'django']
-
+        websrv: [apache2, nginx]
+        dbhandler: [wsgi, django]
     steps:
-      - name: "Get current version"
-        uses: oprypin/find-latest-tag@v1
-        with:
-          repository: ${{ github.repository }}  # The repository to scan.
-          releases-only: true  # We know that all relevant tags have a GitHub release for them.
-        id: acme2certifier_ver  # The step ID to refer to later.
-
       - name: Checkout code
         uses: actions/checkout@v6
 
-      - name: Parse software repository secrets from JSON
+      - name: Parse software repository secrets
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.SWREPO_CFG }}
 
-      - name: "Retrieve Version from version.py"
-        run: |
-          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-
-      - name: "Display version information"
-        run: |
-          echo "Repo is at version $ACME2CERTIFIER_VERSION"
-          echo "Latest tag is $TAG_NAME"
-        env:
-          ACME2CERTIFIER_VERSION: ${{ steps.acme2certifier_ver.outputs.tag }}
-          TAG_NAME: ${{ env.TAG_NAME }}
-
-      - name: "Prepare environment"
-        run: |
-          docker network create acme
-          sudo mkdir -p acme-sh
-          sudo mkdir -p certbot
-          sudo mkdir -p lego
-
-      - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
-
-      - name: "Setup openssl ca_handler"
-        uses: ./.github/actions/setup_openssl_cahandler
-        with:
-          VOLUME_DIR: examples/Docker/data
-
-      - name: "Stage container TLS/settings"
-        run: |
-          sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
-          sudo cp .github/django_settings.py examples/Docker/data/settings.py
-          sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
-          sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
-
-      - name: Login to Docker Hub
+      - name: Login to GHCR
         uses: docker/login-action@v4
         with:
-          username: ${{ env.DOCKERHUB_USER }}
-          password: ${{ env.DOCKERHUB_TOKEN }}
+          registry: ghcr.io
+          username: ${{ env.GHCR_USER }}
+          password: ${{ env.GHCR_TOKEN }}
 
-      - name: "Pull images from dockerhub and setup container"
-        run: |
-          docker run -d -p 80:80 --rm -id --network acme --name=acme-srv -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:$TAG_NAME-$WEB_SRV-$DB_HANDLER
-        env:
-          WEB_SRV: ${{ matrix.websrv }}
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          TAG_NAME: ${{ env.TAG_NAME }}
+      - name: Enrollment test
+        uses: ./.github/actions/image_enrollment_test
+        with:
+          image: ghcr.io/grindsa/acme2certifier:${{ needs.resolve_versions.outputs.tag_n }}-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+          hostname_suffix: -${{ matrix.websrv }}-${{ matrix.dbhandler }}-arm64
+          name_space: acme-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+          container_name: acme-srv
 
-      - name: "Wait for ACME directory"
-        uses: ./.github/actions/wait_for_directory
+      - name: Upload failure artifacts
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: arm64-${{ matrix.websrv }}-${{ matrix.dbhandler }}
+          path: ${{ github.workspace }}/artifact/upload/
+          if-no-files-found: ignore
 
-      - name: "Prepare acme.sh container"
-        run: |
-          docker run --rm -id -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest daemon
+  sbom_update:
+    name: Update SBOMs
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [resolve_versions, test_amd64]
+    if: github.repository == 'grindsa/acme2certifier' && needs.test_amd64.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        websrv: [apache2, nginx]
+        dbhandler: [wsgi, django]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
 
-      - name: "Enroll via acme.sh"
-        run: |
-          docker exec -i acme-sh acme.sh --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-sh.acme --alpn --standalone --debug 3 --output-insecure --force
-          awk 'BEGIN {c=0;} /BEGIN CERT/{c++} { print > "cert-" c ".pem"}' < acme-sh/acme-sh.acme_ecc/ca.cer
-          ls -la *.pem
-          openssl verify -CAfile cert-2.pem -untrusted cert-1.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-
-      - name: "Revoke via acme.sh"
-        run: |
-          docker exec -i acme-sh acme.sh --server http://acme-srv --revoke -d acme-sh.acme --standalone --debug 3 --output-insecure
-
-      - name: "Register certbot"
-        run: |
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv --no-eff-email
-
-      - name: "Enroll certbot"
-        run: |
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv --standalone --preferred-challenges http -d certbot.acme --cert-name certbot
-          sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem certbot/live/certbot/cert.pem
-
-      - name: "Revoke via certbot"
-        run: |
-          docker run -i --rm --name certbot --network acme -v $PWD/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv  -d certbot.acme --cert-name certbot
-
-      - name: "Enroll lego"
-        run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego run --tls-skip-verify -s https://acme-srv -a --email "lego@example.com" -d lego.acme --http
-          sudo openssl verify -CAfile cert-2.pem -untrusted cert-1.pem lego/certificates/lego.acme.crt
-
-      - name: "Revoke via lego"
-        run: |
-          docker run -i -v $PWD/lego:/.lego/ --rm --name lego --network acme goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv --email "lego@example.com" --cert.name lego.acme
-
-      - name: "Install syft"
-        run: |
-          sudo curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
-
-      - name: Parse GitHub secrets from JSON
+      - name: Parse GitHub secrets
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: "Parse EMAIL configuration from JSON secret"
+      - name: Parse EMAIL configuration
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
 
-      - name: Parse software repository secrets from JSON
+      - name: Parse software repository secrets
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.SWREPO_CFG }}
 
-      - name: "Retrieve SBOM repo"
-        run: |
-          git clone https://$GH_USER:$GH_SBOM_REPO_TOKEN@github.com/$GH_USER/sbom /tmp/sbom
+      - name: Login to GHCR
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ env.GHCR_USER }}
+          password: ${{ env.GHCR_TOKEN }}
+
+      - name: Install syft
+        run: curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sudo sh -s -- -b /usr/local/bin
+
+      - name: Retrieve SBOM repo
+        run: git clone "https://${GH_USER}:${GH_SBOM_REPO_TOKEN}@github.com/${GH_USER}/sbom" /tmp/sbom
         env:
           GH_USER: ${{ env.GH_USER }}
           GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
-      - name: "Generate SBOMs for acme2certifier-${{ matrix.websrv }}-${{ matrix.dbhandler }}"
-        run: |
-          mkdir -p /tmp/sbom/sbom/acme2certifier
-          syft grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }} > /tmp/sbom/sbom/acme2certifier/acme2certifier-${{ matrix.websrv }}-${{ matrix.dbhandler }}_sbom.txt
-          syft grindsa/acme2certifier:${{ matrix.websrv }}-${{ matrix.dbhandler }} -o json > /tmp/sbom/sbom/acme2certifier/acme2certifier-${{ matrix.websrv }}-${{ matrix.dbhandler }}_sbom.json
-          ls -la /tmp/sbom/sbom/acme2certifier
-
-      - name: "Upload Changes"
-        continue-on-error: true
-        run: |
-          cd /tmp/sbom
-          git config --global user.email "$EMAIL"
-          git config --global user.name "SBOM Generator"
-          git add sbom/acme2certifier/
-          git commit -a -m "SBOM update"
-          git push
-
-      - name: "Delete images from local repository"
-        run: |
-          docker stop acme-srv
-          docker rmi $(docker images grindsa/acme2certifier -q) --no-prune --force
-
-      - name: "[ * ] Collecting extra failure logs"
-        if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
-          docker logs acme-srv > ${{ github.workspace }}/artifact/acme-srv.log 2>&1
-
-      - name: "[ * ] collecting test data"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
-        with:
-          DEPLOYMENT_TYPE: container
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: amd64_pull_and_test-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
-
-  arm64_pull_and_test:
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    if: github.repository == 'grindsa/acme2certifier'
-    needs: build_and_upload_images_to_hub
-    strategy:
-      fail-fast: false
-      matrix:
-        websrv: ['apache2', 'nginx']
-        dbhandler: ['wsgi', 'django']
-
-    steps:
-      - name: "Get current version"
-        uses: oprypin/find-latest-tag@v1
-        with:
-          repository: ${{ github.repository }}  # The repository to scan.
-          releases-only: true  # We know that all relevant tags have a GitHub release for them.
-        id: acme2certifier_ver  # The step ID to refer to later.
-
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Parse AWS secrets from JSON
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.AWS_CFG }}
-
-      - name: "Parse ARM64_CFG secrets"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.ARM64_CFG }}
-
-      - name: "Retrieve Version from version.py"
-        run: |
-          echo TAG_NAME=$(cat acme2certifier/acme_srv/version.py | grep -i __version__ | head -n 1 | sed 's/__version__ = //g' | sed s/\"//g) >> $GITHUB_ENV
-          echo UUID=$(uuidgen) >> $GITHUB_ENV
-
-      - name: "Display version information"
-        run: |
-          echo "Repo is at version $ACME2CERTIFIER_VERSION"
-          echo "UUID $UUID"
-        env:
-          ACME2CERTIFIER_VERSION: ${{ steps.acme2certifier_ver.outputs.tag }}
-          UUID: ${{ env.UUID }}
-
-      - name: "Download Debian package for release tag"
+      - name: Generate SBOM
         run: |
           set -euo pipefail
-
-          REPO="${GITHUB_REPOSITORY}"
-          TAG="${TAG_NAME}"
-          API_URL="https://api.github.com/repos/${REPO}/releases/tags/${TAG}"
-
-          if ! RELEASE_JSON=$(curl -fsSL "$API_URL"); then
-            API_URL="https://api.github.com/repos/${REPO}/releases/tags/v${TAG}"
-            RELEASE_JSON=$(curl -fsSL "$API_URL")
-          fi
-
-          DEB_URL=$(echo "$RELEASE_JSON" | jq -r '.assets[] | select(.name | endswith(".deb")) | .browser_download_url' | head -n 1)
-
-          if [[ -z "${DEB_URL}" || "${DEB_URL}" == "null" ]]; then
-            echo "No .deb asset found for release tag ${TAG}" >&2
-            exit 1
-          fi
-
-          DEB_NAME=$(basename "$DEB_URL")
-          curl -fL "$DEB_URL" -o "$DEB_NAME"
-          ls -la "$DEB_NAME"
+          IMAGE="ghcr.io/grindsa/acme2certifier:${WEBSRV}-${DBHANDLER}"
+          mkdir -p /tmp/sbom/sbom/acme2certifier
+          syft "${IMAGE}" > "/tmp/sbom/sbom/acme2certifier/acme2certifier-${WEBSRV}-${DBHANDLER}_sbom.txt"
+          syft "${IMAGE}" -o json > "/tmp/sbom/sbom/acme2certifier/acme2certifier-${WEBSRV}-${DBHANDLER}_sbom.json"
         env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          TAG_NAME: ${{ env.TAG_NAME }}
+          WEBSRV: ${{ matrix.websrv }}
+          DBHANDLER: ${{ matrix.dbhandler }}
 
-      - name: "Prepare ssh environment in ramdisk"
+      - name: Upload SBOM changes
+        continue-on-error: true
         run: |
-          sudo mkdir -p /tmp/rd
-          sudo mount -t tmpfs -o size=5M none /tmp/rd
-          sudo echo "$SSH_KEY" > /tmp/rd/ak.tmp
-          sudo chmod 600 /tmp/rd/ak.tmp
-          sudo echo "$KNOWN_HOSTS" > /tmp/rd/known_hosts
+          set -euo pipefail
+          cd /tmp/sbom
+          git config user.email "${EMAIL}"
+          git config user.name "SBOM Generator"
+          git add sbom/acme2certifier/
+          git diff --cached --quiet && echo "No SBOM changes" && exit 0
+          git commit -m "SBOM update"
+          git push
         env:
-          SSH_KEY: ${{ env.AWS_ARM_SSH_KEY }}
-          KNOWN_HOSTS: ${{ env.AWS_ARM_SSH_KNOWN_HOSTS }}
-
-      - name: "Create working directory on remote host"
-        run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts  mkdir -p /tmp/a2c/$UUID
-        env:
-          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-          UUID: ${{ env.UUID }}
-
-      - name: "Generate keys and certificates"
-        uses: ./.github/actions/cert_gen
-
-      - name: "Setup openssl ca_handler"
-        uses: ./.github/actions/setup_openssl_cahandler
-        with:
-          VOLUME_DIR: /tmp/data
-
-      - name: "Prepare and data package"
-        run: |
-          sudo cp .github/acme2certifier.pem /tmp/data/acme2certifier.pem
-          sudo cp .github/django_settings.py /tmp/data/settings.py
-          sudo cp .github/acme2certifier_cert.pem /tmp/data/acme2certifier_cert.pem
-          sudo cp .github/acme2certifier_key.pem /tmp/data/acme2certifier_key.pem
-
-      - name: "Copy data package to remote host"
-        run: sudo scp -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts -r /tmp/data $SSH_USER@$SSH_HOST:/tmp/a2c/$UUID/
-        env:
-          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-          WEB_SRV: ${{ matrix.websrv }}
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          UUID: ${{ env.UUID }}
-
-      - run: echo "Image name - grindsa/acme2certifier:$TAG_NAME-$WEB_SRV-$DB_HANDLER"
-        env:
-          WEB_SRV: ${{ matrix.websrv }}
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          TAG_NAME: ${{ env.TAG_NAME }}
-
-      - name: "Pull images from dockerhub and setup container"
-        run: |
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker network create $UUID"
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -d --rm -id --network $UUID --name=acme-srv-$UUID -v "/tmp/a2c/$UUID/data":/var/www/acme2certifier/volume/ grindsa/acme2certifier:$TAG_NAME-$WEB_SRV-$DB_HANDLER"
-        env:
-          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-          WEB_SRV: ${{ matrix.websrv }}
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          TAG_NAME: ${{ env.TAG_NAME }}
-          UUID: ${{ env.UUID }}
-
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 5s
-
-      - name: "Test http://acme-srv/directory internally"
-        run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --network $UUID curlimages/curl -f http://acme-srv-$UUID/directory"
-        env:
-          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-          UUID: ${{ env.UUID }}
-
-      - name: "Test if https://acme-srv/directory internally"
-        run: sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --network $UUID curlimages/curl --insecure -f https://acme-srv-$UUID/directory"
-        env:
-          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-          UUID: ${{ env.UUID }}
-
-      - name: "acme.sh enroll"
-        run: |
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "mkdir -p /tmp/a2c/$UUID/acme-sh"
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run --rm -id -v /tmp/a2c/$UUID/acme-sh:/acme.sh --network $UUID --name=acme-sh-$UUID neilpang/acme.sh:latest daemon"
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker exec -i acme-sh-$UUID acme.sh --server http://acme-srv-$UUID  --accountemail 'acme-sh@example.com' --issue -d acme-sh-$UUID --standalone --debug 3 --output-insecure --force"
-        env:
-          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-          UUID: ${{ env.UUID }}
-
-      - name: "acme.sh revoke"
-        run: |
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker exec -i acme-sh-$UUID acme.sh --server http://acme-srv-$UUID --revoke -d acme-sh-$UUID --standalone --debug 3 --output-insecure"
-        env:
-          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-          UUID: ${{ env.UUID }}
-
-      - name: "Certbot enroll"
-        run: |
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "mkdir -p /tmp/a2c/$UUID/certbot"
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --name certbot-$UUID --network $UUID -v /tmp/a2c/$UUID/certbot:/etc/letsencrypt/ certbot/certbot register --agree-tos -m 'certbot@example.com' --server http://acme-srv-$UUID --no-eff-email"
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --name certbot-$UUID --network $UUID -v /tmp/a2c/$UUID/certbot:/etc/letsencrypt/ certbot/certbot certonly --server http://acme-srv-$UUID --standalone --preferred-challenges http -d certbot-$UUID --cert-name certbot-$UUID"
-        env:
-          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-          UUID: ${{ env.UUID }}
-
-      - name: "Certbot revoke"
-        run: |
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i --rm --name certbot-$UUID --network $UUID -v /tmp/a2c/$UUID/certbot:/etc/letsencrypt/ certbot/certbot revoke --delete-after-revoke --server http://acme-srv-$UUID -d certbot-$UUID --cert-name certbot-$UUID"
-        env:
-          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-          UUID: ${{ env.UUID }}
-
-      - name: "Lego enroll"
-        run: |
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "mkdir -p /tmp/a2c/$UUID/lego"
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID --network $UUID goacme/lego run --tls-skip-verify -s https://acme-srv-$UUID/directory -a --email lego@example.com -d lego-$UUID --http"
-        env:
-          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-          UUID: ${{ env.UUID }}
-
-      - name: "lego certificates revoke"
-        run: |
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker run -i -v /tmp/a2c/$UUID/lego:/.lego/ --rm --name lego-$UUID  --network $UUID goacme/lego certificates revoke --tls-skip-verify -s https://acme-srv-$UUID --email "lego@example.com" --cert.name lego-$UUID"
-        env:
-          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-          UUID: ${{ env.UUID }}
-
-      - name: "Cleanup on remote host"
-        run: |
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker stop acme-sh-$UUID"
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker stop acme-srv-$UUID"
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker network rm $UUID"
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "docker image rm grindsa/acme2certifier:$TAG_NAME-$WEB_SRV-$DB_HANDLER"
-          sudo ssh $SSH_USER@$SSH_HOST -i /tmp/rd/ak.tmp -o UserKnownHostsFile=/tmp/rd/known_hosts "sudo rm -rf /tmp/a2c/$UUID"
-        env:
-          SSH_USER: ${{ env.AWS_ARM_SSH_USER }}
-          SSH_HOST: ${{ env.AWS_ARM_SSH_HOST }}
-          WEB_SRV: ${{ matrix.websrv }}
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          UUID: ${{ env.UUID }}
-
-  instance_stop:
-    name: instance_stop
-    runs-on: ubuntu-latest
-    # Prevent workflows from running in forks
-    needs: arm64_pull_and_test
-    if: ${{ github.repository == 'grindsa/acme2certifier' && (github.ref_name == 'master' || contains(github.ref_name, 'push')) }}
-    steps:
-
-    - name: "checkout GIT"
-      uses: actions/checkout@v6
-
-    - name: "Parse AWS_CFG JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.AWS_CFG }}
-
-    - name: "Parse AWS_CFG JSON secret"
-      uses: ./.github/actions/parse-json-secret
-      with:
-        json_secret: ${{ secrets.AWS_CFG }}
-
-    - name: "Stop AWS instance for testing"
-      uses: ./.github/actions/aws_instance_manage
-      with:
-        AWS_ACCESS_KEY_ID: ${{ env.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ env.AWS_SECRET_ACCESS_KEY }}
-        AWS_REGION: ${{ env.AWS_REGION }}
-        AWS_INSTANCE_ID: ${{ env.AWS_ARM64-UB-01_INSTANCE_ID }}
-        ACTION: "stop"
-        IGNORE_CURRENT_STATUS: "false"
+          EMAIL: ${{ env.EMAIL }}

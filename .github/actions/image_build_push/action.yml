@@ -1,0 +1,110 @@
+name: "image_build_push"
+description: "Checkout a release tag, download its .deb, build multi-arch image, push to Docker Hub and GHCR"
+inputs:
+  tag:
+    description: "Release tag to build"
+    required: true
+  websrv:
+    description: "Web server variant (apache2|nginx)"
+    required: true
+  dbhandler:
+    description: "DB handler variant (wsgi|django)"
+    required: true
+  tag_n:
+    description: "Current supported tag N (enables floating tags when tag == tag_n)"
+    required: true
+  dockerhub_user:
+    description: "Docker Hub username"
+    required: true
+  dockerhub_token:
+    description: "Docker Hub token"
+    required: true
+  ghcr_user:
+    description: "GHCR username"
+    required: true
+  ghcr_token:
+    description: "GHCR token"
+    required: true
+  github_token:
+    description: "GitHub token for downloading release assets"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Checkout image tag sources
+      uses: actions/checkout@v6
+      with:
+        ref: ${{ inputs.tag }}
+        path: image-src
+
+    - name: Download release .deb into build context
+      uses: ./.github/actions/download_release_deb
+      with:
+        tag: ${{ inputs.tag }}
+        destination: image-src
+        github_token: ${{ inputs.github_token }}
+
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v4
+      with:
+        platforms: linux/amd64,linux/arm64
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    - name: Login to Docker Hub
+      uses: docker/login-action@v4
+      with:
+        username: ${{ inputs.dockerhub_user }}
+        password: ${{ inputs.dockerhub_token }}
+
+    - name: Login to GHCR
+      uses: docker/login-action@v4
+      with:
+        registry: ghcr.io
+        username: ${{ inputs.ghcr_user }}
+        password: ${{ inputs.ghcr_token }}
+
+    - name: Compute image tags
+      id: tags
+      shell: bash
+      env:
+        WEBSRV: ${{ inputs.websrv }}
+        DBHANDLER: ${{ inputs.dbhandler }}
+        TAG: ${{ inputs.tag }}
+        TAG_N: ${{ inputs.tag_n }}
+      run: |
+        set -euo pipefail
+        BUILD_NAME="${WEBSRV}-${DBHANDLER}"
+        DH="grindsa/acme2certifier"
+        GH="ghcr.io/grindsa/acme2certifier"
+        TAG_LIST=(
+          "${DH}:${TAG}-${BUILD_NAME}"
+          "${GH}:${TAG}-${BUILD_NAME}"
+        )
+
+        if [[ "${TAG}" == "${TAG_N}" ]]; then
+          TAG_LIST+=("${DH}:${BUILD_NAME}" "${GH}:${BUILD_NAME}")
+          if [[ "${BUILD_NAME}" == "apache2-wsgi" ]]; then
+            TAG_LIST+=("${DH}:latest" "${GH}:latest")
+          fi
+        fi
+
+        {
+          echo "tags<<EOF"
+          printf "%s\n" "${TAG_LIST[@]}"
+          echo "EOF"
+        } >> "${GITHUB_OUTPUT}"
+
+        echo "Building ${BUILD_NAME} for tag ${TAG}"
+        printf "%s\n" "${TAG_LIST[@]}"
+
+    - name: Build and push multi-arch image
+      uses: docker/build-push-action@v7
+      with:
+        context: image-src
+        file: image-src/examples/Docker/${{ inputs.websrv }}/${{ inputs.dbhandler }}/Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: ${{ steps.tags.outputs.tags }}

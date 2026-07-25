@@ -1,0 +1,133 @@
+name: "image_enrollment_test"
+description: "Pull an acme2certifier image, start it with openssl CA handler, run enrollment tests"
+inputs:
+  image:
+    description: "Full image reference to pull and run (e.g. ghcr.io/grindsa/acme2certifier:0.44-apache2-wsgi)"
+    required: true
+  hostname_suffix:
+    description: "Suffix for client hostnames (avoids collisions across matrix cells)"
+    required: true
+  name_space:
+    description: "Docker network name"
+    required: false
+    default: "acme"
+  container_name:
+    description: "Name for the acme2certifier container"
+    required: false
+    default: "acme-srv"
+  ready_retries:
+    description: "How many times to poll /directory before failing"
+    required: false
+    default: "30"
+  ready_sleep_seconds:
+    description: "Seconds between /directory polls"
+    required: false
+    default: "2"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Prepare environment
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.name_space }}
+      run: |
+        set -euo pipefail
+        docker network inspect "${NAME_SPACE}" >/dev/null 2>&1 || docker network create "${NAME_SPACE}"
+        mkdir -p acme-sh certbot lego
+        sudo mkdir -p examples/Docker/data/acme_ca/certs
+
+    - name: Generate keys and certificates
+      uses: ./.github/actions/cert_gen
+
+    - name: Setup openssl ca_handler volume
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo cp test/ca/sub-ca-key.pem test/ca/sub-ca-crl.pem test/ca/sub-ca-cert.pem test/ca/root-ca-cert.pem examples/Docker/data/acme_ca/
+        sudo cp .github/openssl_ca_handler.py_acme_srv_choosen_handler.cfg examples/Docker/data/acme_srv.cfg
+        sudo cp .github/acme2certifier.pem examples/Docker/data/acme2certifier.pem
+        sudo cp .github/django_settings.py examples/Docker/data/settings.py
+        sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
+        sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
+
+    - name: Pull and start container
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        NAME_SPACE: ${{ inputs.name_space }}
+        CONTAINER_NAME: ${{ inputs.container_name }}
+      run: |
+        set -euo pipefail
+        docker pull "${IMAGE}"
+        docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
+        docker run -d --rm \
+          --network "${NAME_SPACE}" \
+          --name "${CONTAINER_NAME}" \
+          -v "$(pwd)/examples/Docker/data":/var/www/acme2certifier/volume/ \
+          "${IMAGE}"
+
+    - name: Wait for ACME directory
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.name_space }}
+        CONTAINER_NAME: ${{ inputs.container_name }}
+        READY_RETRIES: ${{ inputs.ready_retries }}
+        READY_SLEEP_SECONDS: ${{ inputs.ready_sleep_seconds }}
+      run: |
+        set -euo pipefail
+        for i in $(seq 1 "${READY_RETRIES}"); do
+          if docker run --rm --network "${NAME_SPACE}" curlimages/curl -fsS "http://${CONTAINER_NAME}/directory" >/dev/null; then
+            echo "Directory ready after ${i} attempt(s)"
+            exit 0
+          fi
+          echo "Attempt ${i}/${READY_RETRIES}: directory not ready yet"
+          sleep "${READY_SLEEP_SECONDS}"
+        done
+        echo "ACME directory did not become ready in time" >&2
+        docker logs "${CONTAINER_NAME}" >&2 || true
+        exit 1
+
+    - name: Enrollment tests (acme.sh / certbot / lego)
+      uses: ./.github/actions/acme_clients
+      with:
+        ACME_SERVER: ${{ inputs.container_name }}
+        NAME_SPACE: ${{ inputs.name_space }}
+        HOSTNAME_SUFFIX: ${{ inputs.hostname_suffix }}
+        REVOCATION: "true"
+        RENEWAL: "false"
+        VERIFY_CERT: "true"
+        USE_CERTBOT: "true"
+        USE_LEGO: "true"
+        USE_RSA: "false"
+
+    - name: Collect failure logs
+      if: ${{ failure() }}
+      shell: bash
+      env:
+        CONTAINER_NAME: ${{ inputs.container_name }}
+      run: |
+        set -euo pipefail
+        mkdir -p "${{ github.workspace }}/artifact/upload"
+        sudo mkdir -p "${{ github.workspace }}/artifact/data"
+        sudo cp -rp examples/Docker/data/ "${{ github.workspace }}/artifact/data/" || true
+        docker logs "${CONTAINER_NAME}" > "${{ github.workspace }}/artifact/acme-srv.log" 2>&1 || true
+        sudo tar -C "${{ github.workspace }}/artifact/" -cvzf "${{ github.workspace }}/artifact/upload/artifact.tar.gz" acme-srv.log data || true
+
+    - name: Cleanup containers and images
+      if: ${{ always() }}
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.image }}
+        NAME_SPACE: ${{ inputs.name_space }}
+        CONTAINER_NAME: ${{ inputs.container_name }}
+      run: |
+        set +e
+        docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1
+        # best-effort cleanup of client containers left on the shared network
+        for c in $(docker ps -aq --filter "network=${NAME_SPACE}"); do
+          docker rm -f "${c}" >/dev/null 2>&1
+        done
+        docker network rm "${NAME_SPACE}" >/dev/null 2>&1
+        docker rmi "${IMAGE}" >/dev/null 2>&1
+        exit 0
