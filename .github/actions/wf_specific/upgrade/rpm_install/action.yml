@@ -8,7 +8,7 @@ inputs:
     description: "wsgi | django"
     required: true
   MODERN:
-    description: "If true, use a2c-rpm.sh; else localinstall + restart"
+    description: "If true, use a2c-rpm.sh (post-0.44). If false, dedicated legacy yum/dnf + nginx/uwsgi bring-up"
     required: false
     default: "false"
 
@@ -24,7 +24,6 @@ runs:
       run: |
         set -euo pipefail
         base="$(basename "${RPM_PATH}")"
-        # Ensure package is visible under the container mount.
         if [[ "${RPM_PATH}" != data/* && "${RPM_PATH}" != /tmp/* ]]; then
           sudo cp "${RPM_PATH}" "data/${base}"
           cont_rpm="/tmp/acme2certifier/${base}"
@@ -38,6 +37,18 @@ runs:
         if [[ "${MODERN}" == "true" ]]; then
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh \
             --rpm "${cont_rpm}" install -m "${MODE}"
+          exit 0
+        fi
+
+        # Dedicated legacy install (≤0.44): no a2c-rpm.sh.
+        docker exec -i -e MODE="${MODE}" -e CONT_RPM="${cont_rpm}" acme-srv bash <<'EOS'
+        set -euo pipefail
+        APP_ROOT=/opt/acme2certifier
+        NGINX_SRC="${APP_ROOT}/examples/nginx"
+        NGINX_USER=nginx
+
+        if command -v dnf >/dev/null 2>&1; then
+          dnf localinstall -y "${CONT_RPM}"
         else
           yum localinstall -y "${CONT_RPM}"
         fi
@@ -90,6 +101,13 @@ runs:
             echo "ERROR: django settings.py missing under volume/" >&2
             exit 1
           fi
+          # Ensure CI MariaDB password + non-empty SECRET_KEY (legacy tag settings omit both).
+          for sf in "${APP_ROOT}/volume/settings.py" "${APP_ROOT}/volume/acme2certifier/settings.py"; do
+            [[ -f "${sf}" ]] || continue
+            sed -i 's/"XXX": "XXX"/"PASSWORD": "1mmSvDFl"/g' "${sf}"
+            sed -i '/^SECRET_KEY[[:space:]]*=/d' "${sf}"
+            printf '\nSECRET_KEY = "ci-upgrade-django-secret-key-not-for-production"\n' >> "${sf}"
+          done
           (
             cd "${APP_ROOT}"
             export DJANGO_SETTINGS_MODULE=acme2certifier.settings
@@ -111,20 +129,31 @@ runs:
           ' /etc/nginx/nginx.conf.orig > /etc/nginx/nginx.conf
         fi
 
+        # SSL material: prefer volume paths; fall back to rpm_prep overlay.
+        mkdir -p "${APP_ROOT}/volume"
+        if [[ -d /tmp/acme2certifier/nginx ]]; then
+          cp -n /tmp/acme2certifier/nginx/acme2certifier_cert.pem "${APP_ROOT}/volume/" 2>/dev/null || true
+          cp -n /tmp/acme2certifier/nginx/acme2certifier_key.pem "${APP_ROOT}/volume/" 2>/dev/null || true
+        fi
+
         if [[ -d "${NGINX_SRC}" ]]; then
           cp "${NGINX_SRC}/nginx_acme_srv.conf" /etc/nginx/conf.d/nginx_acme_srv.conf
-          cp "${NGINX_SRC}/nginx_acme_srv_ssl.conf" /etc/nginx/conf.d/nginx_acme_srv_ssl.conf || true
-          sed -i "s|/var/www/acme2certifier|${APP_ROOT}|g" /etc/nginx/conf.d/nginx_acme_srv*.conf || true
+          if [[ -f "${NGINX_SRC}/nginx_acme_srv_ssl.conf" ]]; then
+            cp "${NGINX_SRC}/nginx_acme_srv_ssl.conf" /etc/nginx/conf.d/nginx_acme_srv_ssl.conf
+            # ≤0.44 ssl conf hardcodes /etc/nginx/acme2certifier_{cert,key}.pem
+            # (and some tags use /var/www/...). Stage CI certs + rewrite to volume/.
+            if [[ -f "${APP_ROOT}/volume/acme2certifier_cert.pem" ]]; then
+              cp -f "${APP_ROOT}/volume/acme2certifier_cert.pem" /etc/nginx/acme2certifier_cert.pem
+              cp -f "${APP_ROOT}/volume/acme2certifier_key.pem" /etc/nginx/acme2certifier_key.pem
+            fi
+          fi
+          sed -i \
+            -e "s|/var/www/acme2certifier|${APP_ROOT}|g" \
+            -e "s|/etc/nginx/acme2certifier_|${APP_ROOT}/volume/acme2certifier_|g" \
+            /etc/nginx/conf.d/nginx_acme_srv*.conf || true
           rm -f /etc/nginx/conf.d/default.conf || true
         elif [[ -d /tmp/acme2certifier/nginx ]]; then
           cp -a /tmp/acme2certifier/nginx/. /etc/nginx/ || true
-        fi
-
-        # SSL material: prefer volume paths from conf, fall back to rpm_prep overlay.
-        if [[ -d /tmp/acme2certifier/nginx ]]; then
-          mkdir -p "${APP_ROOT}/volume"
-          cp -n /tmp/acme2certifier/nginx/acme2certifier_cert.pem "${APP_ROOT}/volume/" 2>/dev/null || true
-          cp -n /tmp/acme2certifier/nginx/acme2certifier_key.pem "${APP_ROOT}/volume/" 2>/dev/null || true
         fi
 
         if [[ -f "${NGINX_SRC}/acme2certifier.ini" ]]; then
@@ -176,27 +205,23 @@ runs:
             if [[ ! -x /usr/sbin/uwsgi && -x /usr/bin/uwsgi ]]; then
               sed -i 's|/usr/sbin/uwsgi|/usr/bin/uwsgi|' /etc/systemd/system/acme2certifier.service
             fi
-            mkdir -p /opt/acme2certifier/volume
-            if [[ -d /tmp/acme2certifier/volume ]]; then
-              cp -a /tmp/acme2certifier/volume/. /opt/acme2certifier/volume/ || true
-            fi
-            if [[ -f /opt/acme2certifier/volume/acme_srv.cfg ]]; then
-              mkdir -p /opt/acme2certifier/acme_srv
-              ln -sfn /opt/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv/acme_srv.cfg || true
-              cp -f /opt/acme2certifier/volume/acme_srv.cfg /opt/acme2certifier/acme_srv/acme_srv.cfg || true
-            fi
-            # Nginx vhosts from package examples when missing
-            if [[ ! -f /etc/nginx/conf.d/nginx_acme_srv.conf ]]; then
-              if [[ -f /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf ]]; then
-                cp /opt/acme2certifier/examples/nginx/nginx_acme_srv.conf /etc/nginx/conf.d/
-                cp /opt/acme2certifier/examples/nginx/nginx_acme_srv_ssl.conf /etc/nginx/conf.d/ || true
-                sed -i 's|/var/www/acme2certifier|/opt/acme2certifier|g' /etc/nginx/conf.d/nginx_acme_srv*.conf || true
-              elif [[ -d /tmp/acme2certifier/nginx ]]; then
-                cp -a /tmp/acme2certifier/nginx/. /etc/nginx/ || true
-              fi
-            fi
-            systemctl enable acme2certifier.service nginx.service || true
-            systemctl restart acme2certifier.service || systemctl restart uwsgi.service || true
-            systemctl restart nginx.service || true
-          "
+          fi
         fi
+
+        chown -R "${NGINX_USER}:${NGINX_USER}" "${APP_ROOT}" || true
+        if ! nginx -t; then
+          echo "ERROR: nginx -t failed" >&2
+          ls -la /etc/nginx/conf.d/ || true
+          cat /etc/nginx/conf.d/nginx_acme_srv_ssl.conf 2>/dev/null || true
+          ls -la "${APP_ROOT}/volume"/acme2certifier_*.pem /etc/nginx/acme2certifier_*.pem 2>/dev/null || true
+          exit 1
+        fi
+        systemctl daemon-reload
+        systemctl enable acme2certifier.service nginx.service || true
+        systemctl restart acme2certifier.service
+        systemctl restart nginx.service \
+          || { journalctl -u nginx -n 80 --no-pager || true; cat /var/log/nginx/error.log 2>/dev/null || true; exit 1; }
+        systemctl --no-pager --full status acme2certifier.service || true
+        test -S /run/uwsgi/acme.sock || test -S "${APP_ROOT}/acme.sock" \
+          || { echo "ERROR: uWSGI socket missing after restart" >&2; journalctl -u acme2certifier -n 80 --no-pager || true; exit 1; }
+        EOS

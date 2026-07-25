@@ -454,6 +454,13 @@ if [[ ! -e "${APP_ROOT}/acme_srv/acme_srv.cfg" ]]; then
 fi
 
 A2C_PKG="$(python3 -c "import acme2certifier, pathlib; print(pathlib.Path(acme2certifier.__file__).parent)")"
+# Legacy ≤0.44 django copied examples/django into APP_ROOT/acme2certifier (a real
+# dir). ln -sfn into an existing directory nests the link and leaves a package
+# without django_project on python-path → ModuleNotFoundError.
+if [[ -e "${APP_ROOT}/acme2certifier" && ! -L "${APP_ROOT}/acme2certifier" ]]; then
+  echo "==> Replacing legacy ${APP_ROOT}/acme2certifier directory with package symlink"
+  ${SUDO} rm -rf "${APP_ROOT}/acme2certifier"
+fi
 ${SUDO} ln -sfn "${A2C_PKG}" "${APP_ROOT}/acme2certifier"
 
 if [[ "${WEBSRV}" == "apache2" ]]; then
@@ -532,6 +539,12 @@ else
   fi
 
   ${SUDO} cp "${SHARE}/nginx/acme2certifier.ini" "${APP_ROOT}/acme2certifier.ini"
+  # Share samples may use relative acme.sock / nginx uid (RPM). Force DEB paths.
+  ${SUDO} sed -i \
+    -e 's|^socket = .*|socket = /run/uwsgi/acme.sock|' \
+    -e 's|^uid = .*|uid = www-data|' \
+    -e 's|^chown-socket = .*|chown-socket = www-data|' \
+    "${APP_ROOT}/acme2certifier.ini"
   if [[ "${MODE}" == "django" ]]; then
     ${SUDO} sed -i 's/acme2certifier_wsgi:application/acme2certifier.django_project.wsgi:application/g' \
       "${APP_ROOT}/acme2certifier.ini"
@@ -560,6 +573,7 @@ After=network.target
 User=www-data
 Group=www-data
 WorkingDirectory=${APP_ROOT}
+RuntimeDirectory=uwsgi
 Environment="PATH=${APP_ROOT}"
 Environment="ACME_SRV_CONFIGFILE=${CFG}"
 ExecStart=uwsgi --ini ${APP_ROOT}/acme2certifier.ini
@@ -567,6 +581,12 @@ ExecStart=uwsgi --ini ${APP_ROOT}/acme2certifier.ini
 [Install]
 WantedBy=multi-user.target
 EOF
+  fi
+  # Ensure RuntimeDirectory even when copying a share unit (socket under /run/uwsgi).
+  if [[ -f /etc/systemd/system/acme2certifier.service ]] \
+    && ! grep -q '^RuntimeDirectory=' /etc/systemd/system/acme2certifier.service; then
+    ${SUDO} sed -i '/^\[Service\]/a RuntimeDirectory=uwsgi' \
+      /etc/systemd/system/acme2certifier.service
   fi
   ${SUDO} systemctl daemon-reload
   ${SUDO} systemctl enable acme2certifier
