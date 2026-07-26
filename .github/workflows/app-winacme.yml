@@ -50,11 +50,34 @@ jobs:
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.sha }}
+
+      - name: "Set up Python"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
       - name: "Parse JSON secret - CF_CFG"
         uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.CF_CFG }}
+
+      - name: "Resolve ACME hostnames"
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $win1 = $env:CF_WINACME1_NAME
+          $win2 = $env:CF_WINACME2_NAME
+          if (-not $win1 -or -not $win2) {
+            throw "CF_WINACME1_NAME and CF_WINACME2_NAME must be set in CF_CFG"
+          }
+          $simple1 = if ($env:CF_SIMPLEACME1_NAME) { $env:CF_SIMPLEACME1_NAME } else { $win1 }
+          $simple2 = if ($env:CF_SIMPLEACME2_NAME) { $env:CF_SIMPLEACME2_NAME } else { $win2 }
+          "CF_SIMPLEACME1_NAME=$simple1" >> $env:GITHUB_ENV
+          "CF_SIMPLEACME2_NAME=$simple2" >> $env:GITHUB_ENV
+          Write-Host "win-acme hosts: $win1, $win2"
+          Write-Host "simple-acme hosts: $simple1, $simple2"
 
       - name: "Get RunnerIP"
         run: |
@@ -109,7 +132,15 @@ jobs:
       - name: "Echo RunnerIP"
         run:  echo $env:RUNNER_IP
 
-      - name: "[ PREPARE ] Create DNS entries "
+      - name: "[ PREPARE ] Create DNS entries"
+        shell: pwsh
+        env:
+          CF_DYNAMOP_URL: ${{ env.CF_DYNAMOP_URL }}
+          CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
+          CF_WINACME2_NAME: ${{ env.CF_WINACME2_NAME }}
+          CF_SIMPLEACME1_NAME: ${{ env.CF_SIMPLEACME1_NAME }}
+          CF_SIMPLEACME2_NAME: ${{ env.CF_SIMPLEACME2_NAME }}
         run: |
           $ErrorActionPreference = "Stop"
 
@@ -117,29 +148,32 @@ jobs:
             throw "CF_DYNAMOP_URL is not a valid absolute URI: $env:CF_DYNAMOP_URL"
           }
 
-          $payload = @{
-            type = "A"
-            name = "$env:CF_WINACME1_NAME"
-            content = "$env:RUNNER_IP"
-            ttl = 120
-            proxied = $false
-          } | ConvertTo-Json -Compress
+          $names = @(
+            $env:CF_WINACME1_NAME,
+            $env:CF_WINACME2_NAME,
+            $env:CF_SIMPLEACME1_NAME,
+            $env:CF_SIMPLEACME2_NAME
+          ) | Where-Object { $_ } | Select-Object -Unique
 
-          $request = @{
-            ContentType = "application/json"
-            Method = "PUT"
-            Uri = "$env:CF_DYNAMOP_URL"
-            Headers = @{ Authorization = "Bearer $env:CF_TOKEN" }
-            Body = $payload
+          foreach ($name in $names) {
+            Write-Host "Upserting A record for $name -> $env:RUNNER_IP"
+            $payload = @{
+              type = "A"
+              name = "$name"
+              content = "$env:RUNNER_IP"
+              ttl = 120
+              proxied = $false
+            } | ConvertTo-Json -Compress
+
+            $request = @{
+              ContentType = "application/json"
+              Method = "PUT"
+              Uri = "$env:CF_DYNAMOP_URL"
+              Headers = @{ Authorization = "Bearer $env:CF_TOKEN" }
+              Body = $payload
+            }
+            Invoke-RestMethod @request
           }
-
-          Invoke-RestMethod @request
-        shell: pwsh
-        env:
-          CF_DYNAMOP_URL: ${{ env.CF_DYNAMOP_URL }}
-          CF_TOKEN: ${{ env.CF_TOKEN }}
-          CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
-          CF_WINACME2_NAME: ${{ env.CF_WINACME2_NAME }}
 
       - name: "Generate keys and certificates"
         uses: ./.github/actions/cert_gen
@@ -147,141 +181,316 @@ jobs:
           OS: "Windows"
 
       - name: "Build local acme2certifier environment"
+        shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           python -m pip install --upgrade pip
-          pip install ".[django,test]"
+          pip install ".[django]"
           pip install django-sslserver-v2
-          pip install pyyaml
-          sed -i 's/^# handler: django$/handler: django/' acme_srv/acme_srv.cfg || true
-          grep -qE '^handler:' acme_srv/acme_srv.cfg || sed -i '/\[DBhandler\]/a handler: django' acme_srv/acme_srv.cfg
-          (Get-Content .github/django_settings.py) -replace '/var/www/acme2certifier/volume/db.sqlite3', 'volume/db.sqlite3' | Set-Content acme2certifier/django_project/settings.py
-          (Get-Content acme2certifier/django_project/settings.py) -replace 'django.contrib.staticfiles', 'sslserver' | Set-Content acme2certifier/django_project/settings.py
-          cp acme2certifier/cahandlers/openssl_ca_handler.py acme2certifier/ca_handler.py
-          cp .github/acme_srv.openssl.cfg acme_srv/acme_srv.cfg
-          (Get-Content acme_srv/acme_srv.cfg) -replace 'challenge_validation_disable: False', 'challenge_validation_disable: True' | Set-Content acme_srv/acme_srv.cfg
-          cp .github/acme2certifier_cert.pem acme2certifier/acme2certifier_cert.pem
-          cp .github/acme2certifier_key.pem acme2certifier/acme2certifier_key.pem
-          mkdir .\volume/acme_ca/certs
-          cp test/ca/*.pem volume/acme_ca/
-          certutil  -addstore -enterprise -f -v root volume\acme_ca\root-ca-cert.pem
-          certutil  -addstore -enterprise -f -v root volume\acme_ca\sub-ca-cert.pem
+
+          New-Item -ItemType Directory -Force -Path volume\acme_ca\certs | Out-Null
+          Copy-Item .github\acme_srv.openssl.cfg volume\acme_srv.cfg
+          Add-Content -Path volume\acme_srv.cfg -Value "`n[DBhandler]`nhandler: django"
+          (Get-Content volume\acme_srv.cfg) `
+            -replace 'challenge_validation_disable: False', 'challenge_validation_disable: True' `
+            | Set-Content volume\acme_srv.cfg
+
+          # Override settings module (adds sslserver; keeps staticfiles).
+          @'
+          from acme2certifier.django_project.settings import *  # noqa: F403
+
+          INSTALLED_APPS = list(INSTALLED_APPS) + ["sslserver"]  # noqa: F405
+          '@ | Set-Content -Encoding utf8 volume\winacme_django_settings.py
+
+          Copy-Item .github\acme2certifier_cert.pem acme2certifier\acme2certifier_cert.pem
+          Copy-Item .github\acme2certifier_key.pem acme2certifier\acme2certifier_key.pem
+          Copy-Item test\ca\*.pem volume\acme_ca\
+          certutil -addstore -enterprise -f -v root volume\acme_ca\root-ca-cert.pem
+          certutil -addstore -enterprise -f -v root volume\acme_ca\sub-ca-cert.pem
+
+          "ACME_SRV_CONFIGFILE=$pwd\volume\acme_srv.cfg" >> $env:GITHUB_ENV
+          "ACME2CERTIFIER_BASE_DIR=$pwd" >> $env:GITHUB_ENV
+          "PYTHONPATH=$pwd\volume" >> $env:GITHUB_ENV
+          "DJANGO_SETTINGS_MODULE=winacme_django_settings" >> $env:GITHUB_ENV
 
       - name: "Configure server"
+        shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           python -m acme2certifier.tools.a2c_manage migrate
           python -m acme2certifier.tools.a2c_manage loaddata status
 
-      - name: "Try to get up the server"
+      - name: "Start HTTP server"
+        shell: pwsh
         run: |
-          Start-Process powershell {python -m acme2certifier.tools.a2c_manage runserver 0.0.0.0:8080 3>&1 2>&1 > volume\redirection.log}
+          $ErrorActionPreference = "Stop"
+          $proc = Start-Process -FilePath python `
+            -WorkingDirectory $PWD `
+            -ArgumentList @('-m', 'acme2certifier.tools.a2c_manage', 'runserver', '0.0.0.0:8080') `
+            -RedirectStandardOutput 'volume\redirection.log' `
+            -RedirectStandardError 'volume\redirection_err.log' `
+            -WindowStyle Hidden `
+            -PassThru
+          "HTTP_SERVER_PID=$($proc.Id)" >> $env:GITHUB_ENV
+          Write-Host "Started HTTP server pid=$($proc.Id)"
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 5s
+      - name: "Wait for HTTP /directory"
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $deadline = (Get-Date).AddSeconds(60)
+          while ($true) {
+            try {
+              Invoke-RestMethod -Uri http://127.0.0.1:8080/directory -NoProxy -TimeoutSec 3 | Out-Null
+              Write-Host "HTTP directory ready"
+              break
+            } catch {
+              if ((Get-Date) -gt $deadline) {
+                Get-Content volume\redirection.log -ErrorAction SilentlyContinue
+                Get-Content volume\redirection_err.log -ErrorAction SilentlyContinue
+                throw "HTTP server not ready within 60s: $_"
+              }
+              Start-Sleep -Seconds 2
+            }
+          }
 
       - name: "Test if directory ressource is accessible"
+        shell: pwsh
         run: |
-          get-Process python
+          Get-Process -Id $env:HTTP_SERVER_PID
           Invoke-RestMethod -Uri http://127.0.0.1:8080/directory -NoProxy -TimeoutSec 5
           [System.Net.Dns]::GetHostByName('localhost').HostName
           ([System.Net.Dns]::GetHostByName(($env:computerName))).Hostname
 
       - name: "Download win-acme"
+        shell: pwsh
         run: |
-          Invoke-RestMethod -Uri https://github.com/win-acme/win-acme/releases/download/v2.2.9.1701/win-acme.v2.2.9.1701.x64.trimmed.zip -OutFile win-acme.zip
-          Expand-Archive .\win-acme.zip
-          mkdir win-acme\certs
-          dir win-acme\*
+          $ErrorActionPreference = "Stop"
+          $release = Invoke-RestMethod -Uri https://api.github.com/repos/win-acme/win-acme/releases/latest
+          $asset = $release.assets |
+            Where-Object { $_.name -match '^win-acme\.v.*\.x64\.trimmed\.zip$' } |
+            Select-Object -First 1
+          if (-not $asset) {
+            throw "No win-acme x64 trimmed zip found in release $($release.tag_name)"
+          }
+          Write-Host "Downloading $($asset.name) ($($release.tag_name))"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile win-acme.zip
+          Expand-Archive .\win-acme.zip -DestinationPath win-acme -Force
+          New-Item -ItemType Directory -Force -Path win-acme\certs | Out-Null
+          Get-ChildItem win-acme\*
 
       - name: "Enroll certificate via win-acme"
-        run: |
-          .\win-acme\wacs.exe --baseuri http://127.0.0.1:8080 --emailaddress=grindsa@bar.local --pemfilespath win-acme\certs --source manual --host "%CF_WINACME1_NAME%","%CF_WINACME2_NAME%" --store pemfiles --force
         shell: cmd
         env:
           CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
           CF_WINACME2_NAME: ${{ env.CF_WINACME2_NAME }}
+        run: |
+          .\win-acme\wacs.exe --baseuri http://127.0.0.1:8080 --emailaddress=grindsa@bar.local --pemfilespath win-acme\certs --source manual --host "%CF_WINACME1_NAME%","%CF_WINACME2_NAME%" --store pemfiles --force
+
+      - name: "Assert win-acme enrollment"
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $certs = Get-ChildItem -Path win-acme\certs -Filter *.pem -ErrorAction SilentlyContinue
+          if (-not $certs -or $certs.Count -lt 1) {
+            throw "win-acme enrollment produced no PEM files under win-acme\certs"
+          }
+          $certs | ForEach-Object { Write-Host "win-acme cert: $($_.FullName) ($($_.Length) bytes)" }
 
       - name: "Download simple-acme"
+        shell: pwsh
         run: |
-          Invoke-RestMethod -Uri https://github.com/simple-acme/simple-acme/releases/download/v2.3.6/simple-acme.v2.3.6.2257.win-x64.pluggable.zip -OutFile simple-acme.zip
-          Expand-Archive .\simple-acme.zip
-          mkdir simple-acme\certs
-          dir simple-acme\*
+          $ErrorActionPreference = "Stop"
+          $release = Invoke-RestMethod -Uri https://api.github.com/repos/simple-acme/simple-acme/releases/latest
+          $asset = $release.assets |
+            Where-Object { $_.name -match '^simple-acme\.v.*\.win-x64\.pluggable\.zip$' } |
+            Select-Object -First 1
+          if (-not $asset) {
+            throw "No simple-acme win-x64 pluggable zip found in release $($release.tag_name)"
+          }
+          Write-Host "Downloading $($asset.name) ($($release.tag_name))"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile simple-acme.zip
+          Expand-Archive .\simple-acme.zip -DestinationPath simple-acme -Force
+          New-Item -ItemType Directory -Force -Path simple-acme\certs | Out-Null
+          Get-ChildItem simple-acme\*
 
       - name: "Enroll certificate via simple-acme"
-        run: |
-          .\simple-acme\wacs.exe --baseuri http://127.0.0.1:8080 --emailaddress=grindsa@bar.local --pemfilespath simple-acme\certs --source manual --host "%CF_SIMPLEACME1_NAME%","%CF_SIMPLEACME2_NAME%" --store pemfiles --force
         shell: cmd
         env:
-          CF_SIMPLEACME1_NAME: ${{ env.CF_WINACME1_NAME }}
-          CF_SIMPLEACME2_NAME: ${{ env.CF_WINACME2_NAME }}
-
-      - name: "Try to get up the sslserver"
+          CF_SIMPLEACME1_NAME: ${{ env.CF_SIMPLEACME1_NAME }}
+          CF_SIMPLEACME2_NAME: ${{ env.CF_SIMPLEACME2_NAME }}
         run: |
-          Start-Process powershell {python -m acme2certifier.tools.a2c_manage runsslserver 0.0.0.0:443 --certificate acme2certifier/acme2certifier_cert.pem --key acme2certifier/acme2certifier_key.pem 3>&1 2>&1 > volume\redirection_ssl.log}
+          .\simple-acme\wacs.exe --baseuri http://127.0.0.1:8080 --emailaddress=grindsa@bar.local --pemfilespath simple-acme\certs --source manual --host "%CF_SIMPLEACME1_NAME%","%CF_SIMPLEACME2_NAME%" --store pemfiles --force
 
-      - name: "Sleep for 5s"
-        uses: juliangruber/sleep-action@v2.0.4
-        with:
-          time: 5s
-
-      - name: "Test if directory ressource is accessible"
+      - name: "Assert simple-acme enrollment"
+        shell: pwsh
         run: |
-          get-Process python
-          Invoke-RestMethod -SkipCertificateCheck -Uri https://localhost -NoProxy -TimeoutSec 5
+          $ErrorActionPreference = "Stop"
+          $certs = Get-ChildItem -Path simple-acme\certs -Filter *.pem -ErrorAction SilentlyContinue
+          if (-not $certs -or $certs.Count -lt 1) {
+            throw "simple-acme enrollment produced no PEM files under simple-acme\certs"
+          }
+          $certs | ForEach-Object { Write-Host "simple-acme cert: $($_.FullName) ($($_.Length) bytes)" }
+
+      - name: "Start HTTPS sslserver"
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $proc = Start-Process -FilePath python `
+            -WorkingDirectory $PWD `
+            -ArgumentList @(
+              '-m', 'acme2certifier.tools.a2c_manage', 'runsslserver', '0.0.0.0:443',
+              '--certificate', 'acme2certifier/acme2certifier_cert.pem',
+              '--key', 'acme2certifier/acme2certifier_key.pem'
+            ) `
+            -RedirectStandardOutput 'volume\redirection_ssl.log' `
+            -RedirectStandardError 'volume\redirection_ssl_err.log' `
+            -WindowStyle Hidden `
+            -PassThru
+          "HTTPS_SERVER_PID=$($proc.Id)" >> $env:GITHUB_ENV
+          Write-Host "Started HTTPS server pid=$($proc.Id)"
+
+      - name: "Wait for HTTPS /directory"
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $deadline = (Get-Date).AddSeconds(60)
+          while ($true) {
+            try {
+              Invoke-RestMethod -SkipCertificateCheck -Uri https://localhost/directory -NoProxy -TimeoutSec 3 | Out-Null
+              Write-Host "HTTPS directory ready"
+              break
+            } catch {
+              if ((Get-Date) -gt $deadline) {
+                Get-Content volume\redirection_ssl.log -ErrorAction SilentlyContinue
+                Get-Content volume\redirection_ssl_err.log -ErrorAction SilentlyContinue
+                throw "HTTPS server not ready within 60s: $_"
+              }
+              Start-Sleep -Seconds 2
+            }
+          }
+
+      - name: "Test if HTTPS directory ressource is accessible"
+        shell: pwsh
+        run: |
+          Get-Process -Id $env:HTTPS_SERVER_PID
+          Invoke-RestMethod -SkipCertificateCheck -Uri https://localhost/directory -NoProxy -TimeoutSec 5
           [System.Net.Dns]::GetHostByName('localhost').HostName
           ([System.Net.Dns]::GetHostByName(($env:computerName))).Hostname
 
       - name: "Install and configure Posh-ACME"
+        shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           Install-Module -Name Posh-ACME -Scope CurrentUser -Force
 
       - name: "Create account via Posh-ACME"
+        shell: pwsh
         run: |
-          set-PAServer -DirectoryUrl https://localhost/directory -SkipCertificateCheck
+          $ErrorActionPreference = "Stop"
+          Set-PAServer -DirectoryUrl https://localhost/directory -SkipCertificateCheck
           $DebugPreference = 'Continue'
           New-PAAccount -Contact 'foo@bar.local'
-          $ACC_1 = (Get-PAAccount | Out-String -Stream | Select-String -Pattern "valid")
-          echo ACC1=$ACC_1 >> $env:GITHUB_ENV
-          Export-PAAccountKEy -OutputFile foo.key
+          $acc1 = Get-PAAccount
+          if ($acc1.status -ne 'valid') {
+            throw "Expected valid PA account after create, got status=$($acc1.status)"
+          }
+          "ACC1_STATUS=$($acc1.status)" >> $env:GITHUB_ENV
+          Export-PAAccountKey -OutputFile foo.key
 
       - name: "Recreate account via Posh-ACME"
+        shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           $DebugPreference = 'Continue'
           Get-PAAccount | Remove-PAAccount -Force
-          Get-PAAccount
-          New-PAAccount -Contact 'win4@bar.local' -AcceptTOS -OnlyReturnExisting  -KeyFile foo.key
+          New-PAAccount -Contact 'win4@bar.local' -AcceptTOS -OnlyReturnExisting -KeyFile foo.key
           Get-PAAccount -Refresh
-          $ACC_2 = (Get-PAAccount | Out-String -Stream | Select-String -Pattern "valid")
-          echo ACC2=$ACC_2 >> $env:GITHUB_ENV
-          echo $env:ACC_2
+          $acc2 = Get-PAAccount
+          if ($acc2.status -ne 'valid') {
+            throw "Expected valid PA account after recreate, got status=$($acc2.status)"
+          }
+          "ACC2_STATUS=$($acc2.status)" >> $env:GITHUB_ENV
+          Write-Host "ACC1_STATUS=$env:ACC1_STATUS ACC2_STATUS=$($acc2.status)"
 
       - name: "Rollover account key"
+        shell: pwsh
         run: |
+          $ErrorActionPreference = "Stop"
           $DebugPreference = 'Continue'
           Set-PAAccount -KeyRollover
 
       - name: "Enroll Certificate via Posh-ACME"
-        # if: $env:ACC_1 == env.ACC_2
-        run: |
-          $DebugPreference = 'Continue'
-          New-PACertificate ${{ env.CF_WINACME1_NAME }} -Plugin WebSelfHost -PluginArgs @{}  -Force
         shell: pwsh
         env:
           CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
-
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ($env:ACC1_STATUS -ne $env:ACC2_STATUS) {
+            throw "Account status mismatch before enroll: ACC1=$env:ACC1_STATUS ACC2=$env:ACC2_STATUS"
+          }
+          $DebugPreference = 'Continue'
+          New-PACertificate $env:CF_WINACME1_NAME -Plugin WebSelfHost -PluginArgs @{} -Force
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
+        shell: pwsh
         run: |
-          mkdir ${{ github.workspace }}\artifact\upload
-          cp volume ${{ github.workspace }}\artifact\upload/ -Recurse -Force
-          cp acme_srv\acme_srv.cfg ${{ github.workspace }}\artifact\upload
+          New-Item -ItemType Directory -Force -Path "${{ github.workspace }}\artifact\upload" | Out-Null
+          Copy-Item volume "${{ github.workspace }}\artifact\upload\" -Recurse -Force
+          if (Test-Path win-acme\certs) {
+            Copy-Item win-acme\certs "${{ github.workspace }}\artifact\upload\win-acme-certs" -Recurse -Force
+          }
+          if (Test-Path simple-acme\certs) {
+            Copy-Item simple-acme\certs "${{ github.workspace }}\artifact\upload\simple-acme-certs" -Recurse -Force
+          }
 
       - name: "[ * ] Uploading artifacts"
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: win-acme.tar.gz
+          name: win-acme-logs
           path: ${{ github.workspace }}/artifact/upload/
+
+      - name: "[ CLEANUP ] Remove DNS entries"
+        if: ${{ always() }}
+        shell: pwsh
+        env:
+          CF_DYNAMOP_URL: ${{ env.CF_DYNAMOP_URL }}
+          CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
+          CF_WINACME2_NAME: ${{ env.CF_WINACME2_NAME }}
+          CF_SIMPLEACME1_NAME: ${{ env.CF_SIMPLEACME1_NAME }}
+          CF_SIMPLEACME2_NAME: ${{ env.CF_SIMPLEACME2_NAME }}
+        run: |
+          if (-not $env:CF_DYNAMOP_URL -or -not $env:CF_TOKEN) {
+            Write-Warning "Skipping DNS cleanup: CF_DYNAMOP_URL/CF_TOKEN not set"
+            exit 0
+          }
+
+          $names = @(
+            $env:CF_WINACME1_NAME,
+            $env:CF_WINACME2_NAME,
+            $env:CF_SIMPLEACME1_NAME,
+            $env:CF_SIMPLEACME2_NAME
+          ) | Where-Object { $_ } | Select-Object -Unique
+
+          foreach ($name in $names) {
+            Write-Host "Deleting DNS record for $name"
+            $payload = @{
+              type = "A"
+              name = "$name"
+            } | ConvertTo-Json -Compress
+            try {
+              $request = @{
+                ContentType = "application/json"
+                Method = "DELETE"
+                Uri = "$env:CF_DYNAMOP_URL"
+                Headers = @{ Authorization = "Bearer $env:CF_TOKEN" }
+                Body = $payload
+              }
+              Invoke-RestMethod @request
+            } catch {
+              Write-Warning "DNS cleanup failed for ${name}: $_"
+            }
+          }
