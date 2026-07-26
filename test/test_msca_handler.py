@@ -543,7 +543,7 @@ class TestACMEHandler(unittest.TestCase):
         )
 
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
-    @patch("certsrv.Certsrv")
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_040_enroll(self, mock_certserver, mock_credchk):
         """enroll credential check failed"""
         self.cahandler.host = "host"
@@ -857,7 +857,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.enrollment_config_log")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
-    @patch("certsrv.Certsrv")
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_049_enroll(self, mock_certserver, mock_credchk, mock_ecl):
         """enroll credential check failed"""
         self.cahandler.host = "host"
@@ -874,7 +874,7 @@ class TestACMEHandler(unittest.TestCase):
 
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.enrollment_config_log")
     @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.CAhandler._check_credentials")
-    @patch("certsrv.Certsrv")
+    @patch("acme2certifier.cahandlers.mscertsrv_ca_handler.Certsrv")
     def test_050_enroll(self, mock_certserver, mock_credchk, mock_ecl):
         """enroll credential check failed"""
         self.cahandler.host = "host"
