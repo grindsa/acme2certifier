@@ -50,8 +50,6 @@ jobs:
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
-        with:
-          ref: ${{ inputs.sha }}
 
       - name: "Set up Python"
         uses: actions/setup-python@v5
@@ -198,7 +196,7 @@ jobs:
             Write-Host "Deleting $Type record id=$Id for $Name"
             $resp = Invoke-CfApi -Method Delete -Uri "$base/$Id"
             if (-not $resp.success) {
-              throw "Cloudflare delete failed for ${Name}/$Type: $($resp.errors | ConvertTo-Json -Compress)"
+              throw "Cloudflare delete failed for ${Name}/${Type}: $($resp.errors | ConvertTo-Json -Compress)"
             }
           }
 
@@ -261,32 +259,45 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
           python -m pip install --upgrade pip
-          pip install ".[django]"
-          pip install django-sslserver-v2
+          if ($LASTEXITCODE -ne 0) { throw "pip upgrade failed with exit code $LASTEXITCODE" }
 
-          New-Item -ItemType Directory -Force -Path volume\acme_ca\certs | Out-Null
-          Copy-Item .github\acme_srv.openssl.cfg volume\acme_srv.cfg
-          Add-Content -Path volume\acme_srv.cfg -Value "`n[DBhandler]`nhandler: django"
-          (Get-Content volume\acme_srv.cfg) `
+          # Runtime deps only; use the git checkout via PYTHONPATH (no pip install of the package).
+          $deps = Get-Content requirements.txt |
+            ForEach-Object { ($_ -split '#', 2)[0].Trim() } |
+            Where-Object { $_ -and ($_ -notmatch 'gssapi') }
+          pip install @deps Django django-sslserver-v2
+          if ($LASTEXITCODE -ne 0) { throw "dependency install failed with exit code $LASTEXITCODE" }
+
+          $repoRoot = if ($env:GITHUB_WORKSPACE) { $env:GITHUB_WORKSPACE } else { (Get-Location).Path }
+          $env:PYTHONPATH = "$repoRoot;$repoRoot\volume"
+          Write-Host "PYTHONPATH=$env:PYTHONPATH"
+          python -c "import sys; sys.path.insert(0, r'$repoRoot'); from acme2certifier.acme_srv.version import __version__; print(f'Using checkout acme2certifier {__version__}')"
+          if ($LASTEXITCODE -ne 0) { throw "Could not import acme2certifier from checkout (PYTHONPATH=$env:PYTHONPATH)" }
+
+          $cfgSrc = Join-Path $repoRoot ".github\acme_srv.openssl.cfg"
+          New-Item -ItemType Directory -Force -Path (Join-Path $repoRoot "volume\acme_ca\certs") | Out-Null
+          Copy-Item $cfgSrc (Join-Path $repoRoot "volume\acme_srv.cfg")
+          Add-Content -Path (Join-Path $repoRoot "volume\acme_srv.cfg") -Value "`n[DBhandler]`nhandler: django"
+          (Get-Content (Join-Path $repoRoot "volume\acme_srv.cfg")) `
             -replace 'challenge_validation_disable: False', 'challenge_validation_disable: True' `
-            | Set-Content volume\acme_srv.cfg
+            | Set-Content (Join-Path $repoRoot "volume\acme_srv.cfg")
 
           # Override settings module (adds sslserver; keeps staticfiles).
           @'
           from acme2certifier.django_project.settings import *  # noqa: F403
 
           INSTALLED_APPS = list(INSTALLED_APPS) + ["sslserver"]  # noqa: F405
-          '@ | Set-Content -Encoding utf8 volume\winacme_django_settings.py
+          '@ | Set-Content -Encoding utf8 (Join-Path $repoRoot "volume\winacme_django_settings.py")
 
-          Copy-Item .github\acme2certifier_cert.pem acme2certifier\acme2certifier_cert.pem
-          Copy-Item .github\acme2certifier_key.pem acme2certifier\acme2certifier_key.pem
-          Copy-Item test\ca\*.pem volume\acme_ca\
-          certutil -addstore -enterprise -f -v root volume\acme_ca\root-ca-cert.pem
-          certutil -addstore -enterprise -f -v root volume\acme_ca\sub-ca-cert.pem
+          Copy-Item (Join-Path $repoRoot ".github\acme2certifier_cert.pem") (Join-Path $repoRoot "acme2certifier\acme2certifier_cert.pem")
+          Copy-Item (Join-Path $repoRoot ".github\acme2certifier_key.pem") (Join-Path $repoRoot "acme2certifier\acme2certifier_key.pem")
+          Copy-Item (Join-Path $repoRoot "test\ca\*.pem") (Join-Path $repoRoot "volume\acme_ca\")
+          certutil -addstore -enterprise -f -v root (Join-Path $repoRoot "volume\acme_ca\root-ca-cert.pem")
+          certutil -addstore -enterprise -f -v root (Join-Path $repoRoot "volume\acme_ca\sub-ca-cert.pem")
 
-          "ACME_SRV_CONFIGFILE=$pwd\volume\acme_srv.cfg" >> $env:GITHUB_ENV
-          "ACME2CERTIFIER_BASE_DIR=$pwd" >> $env:GITHUB_ENV
-          "PYTHONPATH=$pwd\volume" >> $env:GITHUB_ENV
+          "ACME_SRV_CONFIGFILE=$repoRoot\volume\acme_srv.cfg" >> $env:GITHUB_ENV
+          "ACME2CERTIFIER_BASE_DIR=$repoRoot" >> $env:GITHUB_ENV
+          "PYTHONPATH=$repoRoot;$repoRoot\volume" >> $env:GITHUB_ENV
           "DJANGO_SETTINGS_MODULE=winacme_django_settings" >> $env:GITHUB_ENV
 
       - name: "Configure server"
@@ -300,15 +311,32 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $proc = Start-Process -FilePath python `
-            -WorkingDirectory $PWD `
-            -ArgumentList @('-m', 'acme2certifier.tools.a2c_manage', 'runserver', '0.0.0.0:8080') `
-            -RedirectStandardOutput 'volume\redirection.log' `
-            -RedirectStandardError 'volume\redirection_err.log' `
-            -WindowStyle Hidden `
-            -PassThru
+          $repoRoot = (Get-Location).Path
+          $python = (Get-Command python).Source
+          $log = Join-Path $repoRoot "volume\redirection.log"
+          $err = Join-Path $repoRoot "volume\redirection_err.log"
+          $launcher = Join-Path $repoRoot "volume\start_http.cmd"
+          @(
+            '@echo off'
+            "cd /d `"$repoRoot`""
+            "set PYTHONPATH=$($env:PYTHONPATH)"
+            "set DJANGO_SETTINGS_MODULE=$($env:DJANGO_SETTINGS_MODULE)"
+            "set ACME_SRV_CONFIGFILE=$($env:ACME_SRV_CONFIGFILE)"
+            "set ACME2CERTIFIER_BASE_DIR=$($env:ACME2CERTIFIER_BASE_DIR)"
+            "`"$python`" -u -m acme2certifier.tools.a2c_manage runserver 127.0.0.1:8080 --noreload > `"$log`" 2> `"$err`""
+          ) | Set-Content -Encoding ascii -Path $launcher
+
+          $proc = Start-Process -FilePath $launcher -WorkingDirectory $repoRoot -PassThru -WindowStyle Hidden
           "HTTP_SERVER_PID=$($proc.Id)" >> $env:GITHUB_ENV
-          Write-Host "Started HTTP server pid=$($proc.Id)"
+          Write-Host "Started HTTP server pid=$($proc.Id) via $launcher"
+          Start-Sleep -Seconds 3
+          if ($proc.HasExited) {
+            Write-Host "=== redirection.log ==="
+            Get-Content $log -ErrorAction SilentlyContinue
+            Write-Host "=== redirection_err.log ==="
+            Get-Content $err -ErrorAction SilentlyContinue
+            throw "HTTP server exited early with code $($proc.ExitCode)"
+          }
 
       - name: "Wait for HTTP /directory"
         shell: pwsh
@@ -316,13 +344,23 @@ jobs:
           $ErrorActionPreference = "Stop"
           $deadline = (Get-Date).AddSeconds(60)
           while ($true) {
+            $alive = Get-Process -Id $env:HTTP_SERVER_PID -ErrorAction SilentlyContinue
+            if (-not $alive) {
+              Write-Host "=== redirection.log ==="
+              Get-Content volume\redirection.log -ErrorAction SilentlyContinue
+              Write-Host "=== redirection_err.log ==="
+              Get-Content volume\redirection_err.log -ErrorAction SilentlyContinue
+              throw "HTTP server process $($env:HTTP_SERVER_PID) exited before becoming ready"
+            }
             try {
               Invoke-RestMethod -Uri http://127.0.0.1:8080/directory -NoProxy -TimeoutSec 3 | Out-Null
               Write-Host "HTTP directory ready"
               break
             } catch {
               if ((Get-Date) -gt $deadline) {
+                Write-Host "=== redirection.log ==="
                 Get-Content volume\redirection.log -ErrorAction SilentlyContinue
+                Write-Host "=== redirection_err.log ==="
                 Get-Content volume\redirection_err.log -ErrorAction SilentlyContinue
                 throw "HTTP server not ready within 60s: $_"
               }
@@ -412,19 +450,32 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = "Stop"
-          $proc = Start-Process -FilePath python `
-            -WorkingDirectory $PWD `
-            -ArgumentList @(
-              '-m', 'acme2certifier.tools.a2c_manage', 'runsslserver', '0.0.0.0:443',
-              '--certificate', 'acme2certifier/acme2certifier_cert.pem',
-              '--key', 'acme2certifier/acme2certifier_key.pem'
-            ) `
-            -RedirectStandardOutput 'volume\redirection_ssl.log' `
-            -RedirectStandardError 'volume\redirection_ssl_err.log' `
-            -WindowStyle Hidden `
-            -PassThru
+          $repoRoot = (Get-Location).Path
+          $python = (Get-Command python).Source
+          $log = Join-Path $repoRoot "volume\redirection_ssl.log"
+          $err = Join-Path $repoRoot "volume\redirection_ssl_err.log"
+          $launcher = Join-Path $repoRoot "volume\start_https.cmd"
+          @(
+            '@echo off'
+            "cd /d `"$repoRoot`""
+            "set PYTHONPATH=$($env:PYTHONPATH)"
+            "set DJANGO_SETTINGS_MODULE=$($env:DJANGO_SETTINGS_MODULE)"
+            "set ACME_SRV_CONFIGFILE=$($env:ACME_SRV_CONFIGFILE)"
+            "set ACME2CERTIFIER_BASE_DIR=$($env:ACME2CERTIFIER_BASE_DIR)"
+            "`"$python`" -u -m acme2certifier.tools.a2c_manage runsslserver 127.0.0.1:443 --noreload --certificate acme2certifier/acme2certifier_cert.pem --key acme2certifier/acme2certifier_key.pem > `"$log`" 2> `"$err`""
+          ) | Set-Content -Encoding ascii -Path $launcher
+
+          $proc = Start-Process -FilePath $launcher -WorkingDirectory $repoRoot -PassThru -WindowStyle Hidden
           "HTTPS_SERVER_PID=$($proc.Id)" >> $env:GITHUB_ENV
-          Write-Host "Started HTTPS server pid=$($proc.Id)"
+          Write-Host "Started HTTPS server pid=$($proc.Id) via $launcher"
+          Start-Sleep -Seconds 3
+          if ($proc.HasExited) {
+            Write-Host "=== redirection_ssl.log ==="
+            Get-Content $log -ErrorAction SilentlyContinue
+            Write-Host "=== redirection_ssl_err.log ==="
+            Get-Content $err -ErrorAction SilentlyContinue
+            throw "HTTPS server exited early with code $($proc.ExitCode)"
+          }
 
       - name: "Wait for HTTPS /directory"
         shell: pwsh
@@ -432,13 +483,23 @@ jobs:
           $ErrorActionPreference = "Stop"
           $deadline = (Get-Date).AddSeconds(60)
           while ($true) {
+            $alive = Get-Process -Id $env:HTTPS_SERVER_PID -ErrorAction SilentlyContinue
+            if (-not $alive) {
+              Write-Host "=== redirection_ssl.log ==="
+              Get-Content volume\redirection_ssl.log -ErrorAction SilentlyContinue
+              Write-Host "=== redirection_ssl_err.log ==="
+              Get-Content volume\redirection_ssl_err.log -ErrorAction SilentlyContinue
+              throw "HTTPS server process $($env:HTTPS_SERVER_PID) exited before becoming ready"
+            }
             try {
-              Invoke-RestMethod -SkipCertificateCheck -Uri https://localhost/directory -NoProxy -TimeoutSec 3 | Out-Null
+              Invoke-RestMethod -SkipCertificateCheck -Uri https://127.0.0.1/directory -NoProxy -TimeoutSec 3 | Out-Null
               Write-Host "HTTPS directory ready"
               break
             } catch {
               if ((Get-Date) -gt $deadline) {
+                Write-Host "=== redirection_ssl.log ==="
                 Get-Content volume\redirection_ssl.log -ErrorAction SilentlyContinue
+                Write-Host "=== redirection_ssl_err.log ==="
                 Get-Content volume\redirection_ssl_err.log -ErrorAction SilentlyContinue
                 throw "HTTPS server not ready within 60s: $_"
               }
