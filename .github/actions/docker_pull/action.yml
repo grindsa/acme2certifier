@@ -1,17 +1,21 @@
 name: "docker_pull"
-description: "Pull a Docker image with retries for transient registry failures"
+description: "Pull a Docker image with retries; fall back to ghcr.io on failure"
 inputs:
   IMAGE:
     description: "Image to pull (name:tag)"
     required: true
   MAX_ATTEMPTS:
-    description: "Maximum pull attempts"
+    description: "Maximum pull attempts per registry"
     required: false
     default: "5"
   RETRY_DELAY_SECONDS:
     description: "Initial delay between retries in seconds (doubles each attempt)"
     required: false
     default: "10"
+  GHCR_FALLBACK:
+    description: "After Docker Hub retries fail, try ghcr.io/<image> (skipped if IMAGE is already registry-qualified)"
+    required: false
+    default: "true"
 
 runs:
   using: "composite"
@@ -22,23 +26,68 @@ runs:
         IMAGE: ${{ inputs.IMAGE }}
         MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
         RETRY_DELAY_SECONDS: ${{ inputs.RETRY_DELAY_SECONDS }}
+        GHCR_FALLBACK: ${{ inputs.GHCR_FALLBACK }}
       run: |
         set -euo pipefail
-        attempt=1
-        delay="${RETRY_DELAY_SECONDS}"
-        while [ "${attempt}" -le "${MAX_ATTEMPTS}" ]; do
-          echo "Pulling ${IMAGE} (attempt ${attempt}/${MAX_ATTEMPTS})"
-          if docker pull "${IMAGE}"; then
-            echo "Pulled ${IMAGE}"
-            exit 0
+
+        # True when IMAGE already includes a registry host (ghcr.io, mcr.microsoft.com, ...).
+        has_registry() {
+          case "${1}" in
+            */*)
+              first="${1%%/*}"
+              case "${first}" in
+                *.*|*:*|localhost) return 0 ;;
+              esac
+              ;;
+          esac
+          return 1
+        }
+
+        pull_with_retries() {
+          local image="${1}"
+          local attempt=1
+          local delay="${RETRY_DELAY_SECONDS}"
+          while [ "${attempt}" -le "${MAX_ATTEMPTS}" ]; do
+            echo "Pulling ${image} (attempt ${attempt}/${MAX_ATTEMPTS})"
+            if docker pull "${image}"; then
+              echo "Pulled ${image}"
+              return 0
+            fi
+            if [ "${attempt}" -ge "${MAX_ATTEMPTS}" ]; then
+              break
+            fi
+            echo "Pull failed; retrying in ${delay}s..."
+            sleep "${delay}"
+            delay=$((delay * 2))
+            attempt=$((attempt + 1))
+          done
+          return 1
+        }
+
+        if pull_with_retries "${IMAGE}"; then
+          exit 0
+        fi
+
+        if [ "${GHCR_FALLBACK}" != "true" ]; then
+          echo "Failed to pull ${IMAGE} after ${MAX_ATTEMPTS} attempts" >&2
+          exit 1
+        fi
+
+        if has_registry "${IMAGE}"; then
+          echo "Failed to pull ${IMAGE} after ${MAX_ATTEMPTS} attempts (no ghcr fallback for registry-qualified image)" >&2
+          exit 1
+        fi
+
+        GHCR_IMAGE="ghcr.io/${IMAGE}"
+        echo "Primary pull failed; falling back to ${GHCR_IMAGE}"
+        if pull_with_retries "${GHCR_IMAGE}"; then
+          # Keep the caller's expected local name (docker run ${IMAGE} still works).
+          if [ "${GHCR_IMAGE}" != "${IMAGE}" ]; then
+            docker tag "${GHCR_IMAGE}" "${IMAGE}"
+            echo "Tagged ${GHCR_IMAGE} as ${IMAGE}"
           fi
-          if [ "${attempt}" -ge "${MAX_ATTEMPTS}" ]; then
-            break
-          fi
-          echo "Pull failed; retrying in ${delay}s..."
-          sleep "${delay}"
-          delay=$((delay * 2))
-          attempt=$((attempt + 1))
-        done
-        echo "Failed to pull ${IMAGE} after ${MAX_ATTEMPTS} attempts" >&2
+          exit 0
+        fi
+
+        echo "Failed to pull ${IMAGE} and fallback ${GHCR_IMAGE}" >&2
         exit 1
