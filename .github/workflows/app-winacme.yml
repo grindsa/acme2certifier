@@ -148,6 +148,47 @@ jobs:
             throw "CF_DYNAMOP_URL is not a valid absolute URI: $env:CF_DYNAMOP_URL"
           }
 
+          $headers = @{ Authorization = "Bearer $env:CF_TOKEN" }
+
+          function Invoke-CfDns {
+            param(
+              [Parameter(Mandatory = $true)][ValidateSet("PUT", "DELETE")][string]$Method,
+              [Parameter(Mandatory = $true)][string]$Name,
+              [Parameter(Mandatory = $true)][ValidateSet("A", "CNAME")][string]$Type,
+              [string]$Content
+            )
+            $payload = @{
+              type = $Type
+              name = $Name
+            }
+            if ($Method -eq "PUT") {
+              $payload.content = $Content
+              $payload.ttl = 120
+              $payload.proxied = $false
+            }
+            $request = @{
+              ContentType = "application/json"
+              Method = $Method
+              Uri = "$env:CF_DYNAMOP_URL"
+              Headers = $headers
+              Body = ($payload | ConvertTo-Json -Compress)
+            }
+            Invoke-RestMethod @request
+          }
+
+          function Remove-CfDnsRecord {
+            param(
+              [Parameter(Mandatory = $true)][string]$Name,
+              [Parameter(Mandatory = $true)][ValidateSet("A", "CNAME")][string]$Type
+            )
+            try {
+              Write-Host "Deleting $Type record for $Name (if present)"
+              Invoke-CfDns -Method DELETE -Name $Name -Type $Type | Out-Null
+            } catch {
+              Write-Host "No $Type record to delete for ${Name}: $($_.Exception.Message)"
+            }
+          }
+
           $names = @(
             $env:CF_WINACME1_NAME,
             $env:CF_WINACME2_NAME,
@@ -156,23 +197,24 @@ jobs:
           ) | Where-Object { $_ } | Select-Object -Unique
 
           foreach ($name in $names) {
-            Write-Host "Upserting A record for $name -> $env:RUNNER_IP"
-            $payload = @{
-              type = "A"
-              name = "$name"
-              content = "$env:RUNNER_IP"
-              ttl = 120
-              proxied = $false
-            } | ConvertTo-Json -Compress
+            # Cloudflare error 81054: cannot create A while a same-name CNAME exists.
+            Remove-CfDnsRecord -Name $name -Type CNAME
+            Remove-CfDnsRecord -Name $name -Type A
 
-            $request = @{
-              ContentType = "application/json"
-              Method = "PUT"
-              Uri = "$env:CF_DYNAMOP_URL"
-              Headers = @{ Authorization = "Bearer $env:CF_TOKEN" }
-              Body = $payload
+            Write-Host "Upserting A record for $name -> $env:RUNNER_IP"
+            try {
+              Invoke-CfDns -Method PUT -Name $name -Type A -Content $env:RUNNER_IP | Out-Null
+            } catch {
+              $errText = $_.ErrorDetails.Message
+              if (-not $errText) { $errText = $_.Exception.Message }
+              if ($errText -match '81054|CNAME record with that host already exists') {
+                Write-Warning "A upsert hit conflicting CNAME for $name; deleting CNAME and retrying"
+                Remove-CfDnsRecord -Name $name -Type CNAME
+                Invoke-CfDns -Method PUT -Name $name -Type A -Content $env:RUNNER_IP | Out-Null
+              } else {
+                throw
+              }
             }
-            Invoke-RestMethod @request
           }
 
       - name: "Generate keys and certificates"
@@ -476,21 +518,23 @@ jobs:
           ) | Where-Object { $_ } | Select-Object -Unique
 
           foreach ($name in $names) {
-            Write-Host "Deleting DNS record for $name"
-            $payload = @{
-              type = "A"
-              name = "$name"
-            } | ConvertTo-Json -Compress
-            try {
-              $request = @{
-                ContentType = "application/json"
-                Method = "DELETE"
-                Uri = "$env:CF_DYNAMOP_URL"
-                Headers = @{ Authorization = "Bearer $env:CF_TOKEN" }
-                Body = $payload
+            foreach ($type in @("A", "CNAME")) {
+              Write-Host "Deleting $type record for $name"
+              $payload = @{
+                type = $type
+                name = "$name"
+              } | ConvertTo-Json -Compress
+              try {
+                $request = @{
+                  ContentType = "application/json"
+                  Method = "DELETE"
+                  Uri = "$env:CF_DYNAMOP_URL"
+                  Headers = @{ Authorization = "Bearer $env:CF_TOKEN" }
+                  Body = $payload
+                }
+                Invoke-RestMethod @request
+              } catch {
+                Write-Warning "DNS cleanup failed for ${name} ($type): $_"
               }
-              Invoke-RestMethod @request
-            } catch {
-              Write-Warning "DNS cleanup failed for ${name}: $_"
             }
           }
