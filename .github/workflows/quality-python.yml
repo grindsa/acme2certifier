@@ -73,7 +73,7 @@ jobs:
 
     - name: cp
       run: |
-          cp examples/acme_srv.cfg acme_srv/
+          cp examples/acme_srv.cfg acme2certifier/acme_srv/
     - name: Python test
       run: |
         pytest
@@ -110,17 +110,9 @@ jobs:
           pip install pylint pylint-exit
           pip install ".[gssapi]"
 
-      - name: cp
-        run: |
-          cp examples/acme_srv.cfg acme_srv/
-
       - name: "Pylint folder: acme2certifier package"
         run: |
           pylint --rcfile=".github/pylintrc" acme2certifier/ || pylint-exit $?
-
-      - name: "Pylint folder: acme_srv (Django app)"
-        run: |
-          pylint --rcfile=".github/pylintrc" acme_srv/ || pylint-exit $?
 
       - name: "Pylint folder: acme2certifier/dbhandlers"
         run: |
@@ -136,4 +128,3 @@ jobs:
           cp .github/pycodestyle ~/.config/pycodestyle
           pycodestyle --show-source acme2certifier/.
           pycodestyle --show-source examples/.
-          pycodestyle --show-source acme_srv/.
