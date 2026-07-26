@@ -53,19 +53,22 @@ runs:
       if: inputs.INSTANCIATE == 'true'
       run: |
         set -euo pipefail
-        # MariaDB 11+ images ship mariadb-admin; older tags may still have
-        # mariadbadmin/mysqladmin. Unpinned :latest recently dropped the old name.
-        ping_mariadb() {
-          docker exec mariadbsrv mariadb-admin ping -uroot -pfoobar --silent 2>/dev/null \
-            || docker exec mariadbsrv mariadbadmin ping -uroot -pfoobar --silent 2>/dev/null \
-            || docker exec mariadbsrv mysqladmin ping -uroot -pfoobar --silent 2>/dev/null
+        # Do not use socket-only "admin ping": it returns success during the
+        # entrypoint's temporary --skip-networking server, before root auth is
+        # ready (leads to ERROR 1045 on the next step). Prefer healthcheck.sh
+        # TCP+InnoDB checks; fall back to admin ping over TCP for older images.
+        ready() {
+          docker exec mariadbsrv healthcheck.sh --connect --innodb_initialized 2>/dev/null \
+            || docker exec mariadbsrv mariadb-admin ping -h127.0.0.1 -uroot -pfoobar --protocol=tcp --silent 2>/dev/null \
+            || docker exec mariadbsrv mariadbadmin ping -h127.0.0.1 -uroot -pfoobar --protocol=tcp --silent 2>/dev/null \
+            || docker exec mariadbsrv mysqladmin ping -h127.0.0.1 -uroot -pfoobar --protocol=tcp --silent 2>/dev/null
         }
-        for i in $(seq 1 60); do
-          if ping_mariadb; then
+        for i in $(seq 1 90); do
+          if ready; then
             echo "mariadb ready after ${i}s"
             exit 0
           fi
-          echo "mariadb not ready (${i}/60), retrying..."
+          echo "mariadb not ready (${i}/90), retrying..."
           sleep 1
         done
         echo "mariadb did not become ready in time" >&2
@@ -76,8 +79,9 @@ runs:
     - name: "Configure mariadb"
       working-directory: examples/Docker/
       run: |
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"DROP DATABASE IF EXISTS acme2certifier;"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
-        docker exec mariadbsrv mariadb -u root --password=foobar -e"FLUSH PRIVILEGES;"
+        set -euo pipefail
+        docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"DROP DATABASE IF EXISTS acme2certifier;"
+        docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"CREATE DATABASE acme2certifier CHARACTER SET UTF8;"
+        docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
+        docker exec mariadbsrv mariadb -h127.0.0.1 -uroot -pfoobar --protocol=tcp -e"FLUSH PRIVILEGES;"
       shell: bash
