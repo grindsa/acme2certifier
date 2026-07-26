@@ -70,9 +70,10 @@ runs:
     - name: "Configure smallstep"
       run: |
         set -euo pipefail
-        docker exec -i step-ca step ca provisioner add acme --type ACME
-        docker exec -i step-ca step ca provisioner update acme --remove-challenge=tls-alpn-01
-        docker exec -i step-ca step ca provisioner update acme --remove-challenge=dns-01
+        CA_CONFIG=/home/step/config/ca.json
+        docker exec -i step-ca step ca provisioner add acme --type ACME --ca-config "$CA_CONFIG"
+        docker exec -i step-ca step ca provisioner update acme --ca-config "$CA_CONFIG" --remove-challenge=tls-alpn-01
+        docker exec -i step-ca step ca provisioner update acme --ca-config "$CA_CONFIG" --remove-challenge=dns-01
         docker restart step-ca
       shell: bash
 

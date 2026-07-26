@@ -2,6 +2,7 @@ FROM ubuntu:26.04
 LABEL maintainer="grindelsack@gmail.com"
 
 ENV ACME_SRV_DB_HANDLER=wsgi
+ENV ACME2CERTIFIER_BASE_DIR=/var/www/acme2certifier
 
 COPY ./*.deb /tmp/
 COPY ./examples/Docker/nginx/wsgi/docker-entrypoint.sh /docker-entrypoint.sh

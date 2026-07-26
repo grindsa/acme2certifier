@@ -5,6 +5,7 @@ ENV APACHE_RUN_USER=www-data
 ENV APACHE_RUN_GROUP=www-data
 ENV APACHE_LOG_DIR=/var/log/apache2
 ENV ACME_SRV_DB_HANDLER=django
+ENV ACME2CERTIFIER_BASE_DIR=/var/www/acme2certifier
 
 COPY ./*.deb /tmp/
 COPY ./examples/Docker/apache2/django/docker-entrypoint.sh /docker-entrypoint.sh

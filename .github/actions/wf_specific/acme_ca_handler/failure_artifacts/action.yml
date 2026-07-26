@@ -19,8 +19,10 @@ inputs:
 runs:
   using: "composite"
   steps:
+    # Do not gate on failure() here: when this composite is invoked under
+    # `if: failure()` in the caller, inner failure() is false (no prior step
+    # inside the composite failed) and all steps would be skipped.
     - name: "Collect sidecar logs and dirs"
-      if: ${{ failure() }}
       run: |
         set -euo pipefail
         mkdir -p "${GITHUB_WORKSPACE}/artifact/data"
@@ -47,14 +49,13 @@ runs:
         COPY_DIRS: ${{ inputs.COPY_DIRS }}
 
     - name: "Collect failure logs"
-      if: ${{ failure() }}
       uses: ./.github/actions/collect_failure_logs
       with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
     - name: "Upload artifacts"
-      if: ${{ failure() }}
       uses: actions/upload-artifact@v7
       with:
         name: ${{ inputs.ARTIFACT_NAME }}
         path: ${{ github.workspace }}/artifact/upload/
+        if-no-files-found: warn

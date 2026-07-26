@@ -57,6 +57,7 @@ runs:
         sudo cp test/ca/acme2certifier-clean.xdb "${LESIM_NAME}/xca/${XCA_DB_NAME}"
         sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" "${LESIM_NAME}/acme_srv.cfg"
         docker run -d --rm --network "${NAME_SPACE}" --name="${LESIM_NAME}" \
+          -e ACME2CERTIFIER_BASE_DIR=/var/www/acme2certifier \
           -v "$(pwd)/${LESIM_NAME}":/var/www/acme2certifier/volume/ \
           "${IMAGE}"
       shell: bash
