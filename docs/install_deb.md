@@ -129,7 +129,7 @@ sudo apt-get install -y nginx uwsgi uwsgi-plugin-python3
 sudo apt-get install -y ../acme2certifier_<version>-1_all.deb
 ```
 
-3. Activate the Nginx configuration (DEB package already adjusts socket paths for Ubuntu):
+3. Activate the Nginx configuration (uWSGI socket is `/run/uwsgi/acme.sock`):
 
 ```bash
 sudo cp /var/www/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf
@@ -145,7 +145,7 @@ sudo cp /var/www/acme2certifier/share/nginx/acme2certifier.ini /var/www/acme2cer
 
 For Django, set `module = acme2certifier.django_project.wsgi:application` in that ini (the install script does this when `--mode django`).
 
-5. Install the systemd unit shipped with the package (or create one):
+5. Install the systemd unit shipped with the package (or create one). The unit uses `RuntimeDirectory=uwsgi` so `/run/uwsgi` exists for the socket:
 
 ```bash
 sudo cp /var/www/acme2certifier/share/nginx/acme2certifier.service /etc/systemd/system/acme2certifier.service
@@ -163,6 +163,7 @@ After=network.target
 User=www-data
 Group=www-data
 WorkingDirectory=/var/www/acme2certifier
+RuntimeDirectory=uwsgi
 Environment="PATH=/var/www/acme2certifier"
 Environment="ACME_SRV_CONFIGFILE=/var/www/acme2certifier/acme_srv.cfg"
 ExecStart=uwsgi --ini /var/www/acme2certifier/acme2certifier.ini
