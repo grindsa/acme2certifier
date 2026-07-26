@@ -2,7 +2,7 @@ name: Release and push images to Docker Hub / GHCR
 
 on:
   push:
-    branches: ["master", "wf_push"]
+    branches: ["master"]
   workflow_dispatch: {}
   schedule:
     - cron: "0 01 * * 6"
