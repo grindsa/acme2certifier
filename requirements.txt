@@ -7,7 +7,6 @@ cryptography
 pyOpenssl==26.1.0
 dnspython
 pytz
-configparser
 python-dateutil
 requests
 pysocks

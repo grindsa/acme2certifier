@@ -1,0 +1,4 @@
+# Stdlib on Python 3 — do not emit a Depends.
+configparser -
+# Not in Debian/Ubuntu archives; a2c-deb.sh installs via pip for EST/EJBCA/Vault.
+requests_pkcs12 -

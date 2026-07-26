@@ -51,3 +51,6 @@ Description: ACME protocol proxy / server
  .
  After installation install either Apache2 or Nginx (and a WSGI stack) and
  follow the examples under /var/www/acme2certifier/share/.
+ .
+ Optional CA handlers (EST, EJBCA, Vault) need requests-pkcs12; there is no
+ Debian package — install via pip (a2c-deb.sh does this unless --skip-pkcs12).

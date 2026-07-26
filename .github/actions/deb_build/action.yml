@@ -33,22 +33,39 @@ runs:
       run: |
         set -euo pipefail
         dpkg-buildpackage -uc -us
-        DEB="../acme2certifier_${{ env.TAG_NAME }}-1_all.deb"
+        echo "DEB_FILE=${PWD}/../acme2certifier_${{ env.TAG_NAME }}-1_all.deb" >> "$GITHUB_ENV"
+      shell: bash
+
+    - name: "Smoke-check debian package layout"
+      run: |
+        set -euo pipefail
+        DEB="${DEB_FILE:-../acme2certifier_${{ env.TAG_NAME }}-1_all.deb}"
+        [[ -f "${DEB}" ]] || { echo "ERROR: missing ${DEB}" >&2; exit 1; }
         CHECK="$(mktemp -d)"
         trap 'rm -rf "${CHECK}"' EXIT
         dpkg-deb -x "$DEB" "${CHECK}"
         echo "Smoke-check package contents for dist-packages + deploy tree"
-        DIST="$(find "${CHECK}/usr/lib" -type d -path '*/dist-packages/acme2certifier' | head -n 1)"
-        test -n "${DIST}"
-        test -f "${CHECK}/var/www/acme2certifier/acme2certifier_wsgi.py"
-        test -f "${CHECK}/var/www/acme2certifier/acme_srv.cfg"
-        test -d "${CHECK}/var/www/acme2certifier/share/apache2"
-        test -d "${CHECK}/var/www/acme2certifier/share/nginx"
-        test -f "${CHECK}/var/www/acme2certifier/share/nginx/acme2certifier.service"
+        fail() { echo "ERROR: $1" >&2; exit 1; }
+        # Avoid pipefail+head SIGPIPE when collecting dist-packages paths.
+        mapfile -t DIST_DIRS < <(
+          find "${CHECK}/usr/lib" -type d -path '*/dist-packages/acme2certifier' 2>/dev/null || true
+        )
+        [[ ${#DIST_DIRS[@]} -ge 1 ]] || fail "no dist-packages/acme2certifier under usr/lib"
+        WWW="${CHECK}/var/www/acme2certifier"
+        [[ -f "${WWW}/acme2certifier_wsgi.py" ]] || fail "missing acme2certifier_wsgi.py"
+        [[ -d "${WWW}/acme_srv" ]] || fail "missing acme_srv/ deploy dir (debian/dirs)"
+        # Sample cfg only under share/ + examples/ (not as a dpkg conffile at WWW root).
+        [[ -f "${WWW}/share/acme_srv.cfg" ]] || fail "missing share/acme_srv.cfg sample"
+        [[ -f "${WWW}/examples/acme_srv.cfg" ]] || fail "missing examples/acme_srv.cfg sample"
+        [[ ! -e "${WWW}/acme_srv.cfg" ]] || fail "acme_srv.cfg must not be packaged at WWW root (conffile)"
+        [[ -d "${WWW}/share/apache2" ]] || fail "missing share/apache2"
+        [[ -d "${WWW}/share/nginx" ]] || fail "missing share/nginx"
+        [[ -f "${WWW}/share/nginx/acme2certifier.service" ]] || fail "missing nginx unit"
+        [[ -f "${WWW}/share/apache2/apache_wsgi.conf" ]] || fail "missing apache_wsgi.conf"
         echo "Apache vhosts in .deb must not reference pip venv"
         if grep -R 'python-home=/var/www/acme2certifier/venv' \
-          "${CHECK}/var/www/acme2certifier/share/apache2/"; then
-          echo "ERROR: python-home=venv still present in packaged Apache configs" >&2
-          exit 1
+          "${WWW}/share/apache2/"; then
+          fail "python-home=venv still present in packaged Apache configs"
         fi
+        echo "Smoke-check OK (dist-packages=${DIST_DIRS[0]#"${CHECK}"})"
       shell: bash
