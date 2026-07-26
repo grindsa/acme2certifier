@@ -135,8 +135,8 @@ jobs:
       - name: "[ PREPARE ] Create DNS entries"
         shell: pwsh
         env:
-          CF_DYNAMOP_URL: ${{ env.CF_DYNAMOP_URL }}
           CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
           CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
           CF_WINACME2_NAME: ${{ env.CF_WINACME2_NAME }}
           CF_SIMPLEACME1_NAME: ${{ env.CF_SIMPLEACME1_NAME }}
@@ -144,55 +144,61 @@ jobs:
         run: |
           $ErrorActionPreference = "Stop"
 
-          if (-not [System.Uri]::IsWellFormedUriString($env:CF_DYNAMOP_URL, [System.UriKind]::Absolute)) {
-            throw "CF_DYNAMOP_URL is not a valid absolute URI: $env:CF_DYNAMOP_URL"
+          if (-not $env:CF_TOKEN -or -not $env:CF_ZONE_ID) {
+            throw "CF_TOKEN and CF_ZONE_ID must be set in CF_CFG"
           }
 
-          $headers = @{ Authorization = "Bearer $env:CF_TOKEN" }
-
-          function Get-CfErrorText {
-            param($ErrorRecord)
-            $text = $ErrorRecord.ErrorDetails.Message
-            if (-not $text) { $text = $ErrorRecord.Exception.Message }
-            return $text
+          $base = "https://api.cloudflare.com/client/v4/zones/$($env:CF_ZONE_ID)/dns_records"
+          $headers = @{
+            Authorization = "Bearer $($env:CF_TOKEN)"
+            "Content-Type" = "application/json"
           }
 
-          function Invoke-CfDns {
+          function Invoke-CfApi {
             param(
-              [Parameter(Mandatory = $true)][ValidateSet("PUT", "POST", "DELETE")][string]$Method,
-              [Parameter(Mandatory = $true)][string]$Name,
-              [Parameter(Mandatory = $true)][ValidateSet("A", "CNAME")][string]$Type,
-              [string]$Content
+              [Parameter(Mandatory = $true)][Microsoft.PowerShell.Commands.WebRequestMethod]$Method,
+              [Parameter(Mandatory = $true)][string]$Uri,
+              [string]$Body
             )
-            $payload = @{
-              type = $Type
-              name = $Name
-            }
-            if ($Method -in @("PUT", "POST")) {
-              $payload.content = $Content
-              $payload.ttl = 120
-              $payload.proxied = $false
-            }
-            $request = @{
-              ContentType = "application/json"
+            $params = @{
               Method = $Method
-              Uri = "$env:CF_DYNAMOP_URL"
+              Uri = $Uri
               Headers = $headers
-              Body = ($payload | ConvertTo-Json -Compress)
             }
-            Invoke-RestMethod @request
+            if ($Body) { $params.Body = $Body }
+            try {
+              return Invoke-RestMethod @params
+            } catch {
+              $detail = $_.ErrorDetails.Message
+              if ($detail) { Write-Error $detail }
+              throw
+            }
           }
 
-          function Remove-CfDnsRecord {
+          function Get-CfDnsRecords {
             param(
               [Parameter(Mandatory = $true)][string]$Name,
-              [Parameter(Mandatory = $true)][ValidateSet("A", "CNAME")][string]$Type
+              [ValidateSet("A", "CNAME", "")][string]$Type = ""
             )
-            try {
-              Write-Host "Deleting $Type record for $Name (if present)"
-              Invoke-CfDns -Method DELETE -Name $Name -Type $Type | Out-Null
-            } catch {
-              Write-Host "No $Type record to delete for ${Name}: $($_.Exception.Message)"
+            $uri = "$base`?name=$([uri]::EscapeDataString($Name))&per_page=100"
+            if ($Type) { $uri += "&type=$Type" }
+            $resp = Invoke-CfApi -Method Get -Uri $uri
+            if (-not $resp.success) {
+              throw "Cloudflare list failed for ${Name}: $($resp.errors | ConvertTo-Json -Compress)"
+            }
+            return @($resp.result)
+          }
+
+          function Remove-CfDnsRecordId {
+            param(
+              [Parameter(Mandatory = $true)][string]$Id,
+              [Parameter(Mandatory = $true)][string]$Name,
+              [Parameter(Mandatory = $true)][string]$Type
+            )
+            Write-Host "Deleting $Type record id=$Id for $Name"
+            $resp = Invoke-CfApi -Method Delete -Uri "$base/$Id"
+            if (-not $resp.success) {
+              throw "Cloudflare delete failed for ${Name}/$Type: $($resp.errors | ConvertTo-Json -Compress)"
             }
           }
 
@@ -201,32 +207,35 @@ jobs:
               [Parameter(Mandatory = $true)][string]$Name,
               [Parameter(Mandatory = $true)][string]$Ip
             )
-            # PUT updates an existing A; POST creates when none exists (81044).
-            try {
-              Write-Host "Updating A record for $Name -> $Ip (PUT)"
-              Invoke-CfDns -Method PUT -Name $Name -Type A -Content $Ip | Out-Null
-              return
-            } catch {
-              $errText = Get-CfErrorText $_
-              if ($errText -match '81054|CNAME record with that host already exists') {
-                Write-Warning "Conflicting CNAME for $Name; deleting and retrying"
-                Remove-CfDnsRecord -Name $Name -Type CNAME
-              } elseif ($errText -notmatch '81044|Record does not exist') {
-                throw
-              }
+            # Cloudflare forbids A+CNAME on the same name (81054).
+            foreach ($rec in (Get-CfDnsRecords -Name $Name -Type CNAME)) {
+              Remove-CfDnsRecordId -Id $rec.id -Name $Name -Type CNAME
             }
 
-            Write-Host "Creating A record for $Name -> $Ip (POST)"
-            try {
-              Invoke-CfDns -Method POST -Name $Name -Type A -Content $Ip | Out-Null
-            } catch {
-              $errText = Get-CfErrorText $_
-              if ($errText -match '81054|CNAME record with that host already exists') {
-                Write-Warning "POST hit conflicting CNAME for $Name; deleting and retrying POST"
-                Remove-CfDnsRecord -Name $Name -Type CNAME
-                Invoke-CfDns -Method POST -Name $Name -Type A -Content $Ip | Out-Null
-              } else {
-                throw
+            $payload = @{
+              type = "A"
+              name = $Name
+              content = $Ip
+              ttl = 120
+              proxied = $false
+            } | ConvertTo-Json -Compress
+
+            $existing = @(Get-CfDnsRecords -Name $Name -Type A)
+            if ($existing.Count -gt 0) {
+              $id = $existing[0].id
+              Write-Host "Updating A record for $Name -> $Ip (id=$id)"
+              $resp = Invoke-CfApi -Method Put -Uri "$base/$id" -Body $payload
+              if (-not $resp.success) {
+                throw "Cloudflare update failed for ${Name}: $($resp.errors | ConvertTo-Json -Compress)"
+              }
+              for ($i = 1; $i -lt $existing.Count; $i++) {
+                Remove-CfDnsRecordId -Id $existing[$i].id -Name $Name -Type A
+              }
+            } else {
+              Write-Host "Creating A record for $Name -> $Ip"
+              $resp = Invoke-CfApi -Method Post -Uri $base -Body $payload
+              if (-not $resp.success) {
+                throw "Cloudflare create failed for ${Name}: $($resp.errors | ConvertTo-Json -Compress)"
               }
             }
           }
@@ -239,8 +248,6 @@ jobs:
           ) | Where-Object { $_ } | Select-Object -Unique
 
           foreach ($name in $names) {
-            # Only remove CNAME conflicts; keep/replace existing A via PUT.
-            Remove-CfDnsRecord -Name $name -Type CNAME
             Set-CfARecord -Name $name -Ip $env:RUNNER_IP
           }
 
@@ -525,16 +532,22 @@ jobs:
         if: ${{ always() }}
         shell: pwsh
         env:
-          CF_DYNAMOP_URL: ${{ env.CF_DYNAMOP_URL }}
           CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
           CF_WINACME1_NAME: ${{ env.CF_WINACME1_NAME }}
           CF_WINACME2_NAME: ${{ env.CF_WINACME2_NAME }}
           CF_SIMPLEACME1_NAME: ${{ env.CF_SIMPLEACME1_NAME }}
           CF_SIMPLEACME2_NAME: ${{ env.CF_SIMPLEACME2_NAME }}
         run: |
-          if (-not $env:CF_DYNAMOP_URL -or -not $env:CF_TOKEN) {
-            Write-Warning "Skipping DNS cleanup: CF_DYNAMOP_URL/CF_TOKEN not set"
+          if (-not $env:CF_TOKEN -or -not $env:CF_ZONE_ID) {
+            Write-Warning "Skipping DNS cleanup: CF_TOKEN/CF_ZONE_ID not set"
             exit 0
+          }
+
+          $base = "https://api.cloudflare.com/client/v4/zones/$($env:CF_ZONE_ID)/dns_records"
+          $headers = @{
+            Authorization = "Bearer $($env:CF_TOKEN)"
+            "Content-Type" = "application/json"
           }
 
           $names = @(
@@ -546,20 +559,13 @@ jobs:
 
           foreach ($name in $names) {
             foreach ($type in @("A", "CNAME")) {
-              Write-Host "Deleting $type record for $name"
-              $payload = @{
-                type = $type
-                name = "$name"
-              } | ConvertTo-Json -Compress
               try {
-                $request = @{
-                  ContentType = "application/json"
-                  Method = "DELETE"
-                  Uri = "$env:CF_DYNAMOP_URL"
-                  Headers = @{ Authorization = "Bearer $env:CF_TOKEN" }
-                  Body = $payload
+                $uri = "$base`?name=$([uri]::EscapeDataString($name))&type=$type&per_page=100"
+                $resp = Invoke-RestMethod -Method Get -Uri $uri -Headers $headers
+                foreach ($rec in @($resp.result)) {
+                  Write-Host "Deleting $type record id=$($rec.id) for $name"
+                  Invoke-RestMethod -Method Delete -Uri "$base/$($rec.id)" -Headers $headers | Out-Null
                 }
-                Invoke-RestMethod @request
               } catch {
                 Write-Warning "DNS cleanup failed for ${name} ($type): $_"
               }
