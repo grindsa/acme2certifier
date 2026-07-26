@@ -21,13 +21,13 @@ runs:
       if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION != '8'
       uses: ./.github/actions/docker_pull
       with:
-        IMAGE: mariadb
+        IMAGE: mariadb:lts
 
     - name: "Instanciate Mariadb"
       if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION != '8'
       run: |
         echo "Instanciate mariadb for RH_VERSION $RH_VERSION"
-        docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb
+        docker run --name mariadbsrv --network acme -e MARIADB_ROOT_PASSWORD=foobar -d mariadb:lts
       shell: bash
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
@@ -53,8 +53,15 @@ runs:
       if: inputs.INSTANCIATE == 'true'
       run: |
         set -euo pipefail
+        # MariaDB 11+ images ship mariadb-admin; older tags may still have
+        # mariadbadmin/mysqladmin. Unpinned :latest recently dropped the old name.
+        ping_mariadb() {
+          docker exec mariadbsrv mariadb-admin ping -uroot -pfoobar --silent 2>/dev/null \
+            || docker exec mariadbsrv mariadbadmin ping -uroot -pfoobar --silent 2>/dev/null \
+            || docker exec mariadbsrv mysqladmin ping -uroot -pfoobar --silent 2>/dev/null
+        }
         for i in $(seq 1 60); do
-          if docker exec mariadbsrv mariadbadmin ping -uroot -pfoobar --silent; then
+          if ping_mariadb; then
             echo "mariadb ready after ${i}s"
             exit 0
           fi
