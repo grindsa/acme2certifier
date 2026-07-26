@@ -1,0 +1,57 @@
+name: "enroll_smallstep"
+description: "Two acme.sh enrollments via a2c backed by step-ca (keyfile reuse check)"
+inputs:
+  NAME_SPACE:
+    description: "Docker network"
+    required: false
+    default: "acme"
+  ACME_SERVER:
+    description: "a2c ACME server hostname"
+    required: false
+    default: "acme-srv"
+  DOMAIN:
+    description: "Domain to enroll"
+    required: false
+    default: "acme-srv.acme"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Pull acme.sh image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: neilpang/acme.sh:latest
+
+    - name: "Wait for ACME directory"
+      uses: ./.github/actions/wait_for_directory
+      with:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        CHECK_HTTPS: "false"
+
+    - name: "Enroll via acme_ca_handler 1st attempt"
+      run: |
+        set -euo pipefail
+        mkdir -p acme-sh
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network "${NAME_SPACE}" --name=acme-sh \
+          neilpang/acme.sh:latest --issue --server "http://${ACME_SERVER}" \
+          --accountemail 'acme-sh@example.com' -d "${DOMAIN}" --standalone \
+          --debug 3 --output-insecure --force
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        DOMAIN: ${{ inputs.DOMAIN }}
+
+    - name: "Enroll via acme_ca_handler 2nd attempt"
+      run: |
+        set -euo pipefail
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network "${NAME_SPACE}" --name=acme-sh \
+          neilpang/acme.sh:latest --issue --server "http://${ACME_SERVER}" \
+          --accountemail 'acme-sh@example.com' -d "${DOMAIN}" --standalone \
+          --debug 3 --output-insecure --force
+      shell: bash
+      env:
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        DOMAIN: ${{ inputs.DOMAIN }}

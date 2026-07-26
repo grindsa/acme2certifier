@@ -25,9 +25,6 @@ on:
 
 jobs:
 
-  # ---------------------------------------------------------
-  # Quick guard to validate incoming payload
-  # ---------------------------------------------------------
   guard:
     runs-on: ubuntu-latest
     if: ${{ inputs.sha != '' && inputs.run_id != '' && inputs.branch != '' && github.repository == 'grindsa/acme2certifier' }}
@@ -42,11 +39,12 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
   # ---------------------------------------------------------
-  # Test container images against le-sim (matrix from payload)
+  # Containers — le-sim
   # ---------------------------------------------------------
   test-containers-lesim:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -54,36 +52,23 @@ jobs:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
+      - uses: actions/checkout@v6
 
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/container_bootstrap
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
 
-      - name: "Setup acme-le-sim"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
-
-      - name: "Setup acme ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/setup_cahandler_cfg
         with:
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
@@ -93,20 +78,18 @@ jobs:
             acme_account_email: grindsa@foo.bar
             allowed_domainlist: ["bar.local", "*.acme"]
 
-      - name: "Setup acme ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p examples/Docker/data/acme
-          sudo chmod -R 777 examples/Docker/data/acme
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "examples/Docker/data"
 
-      - name: "Bring up a2c container"
-        uses: ./.github/actions/container_up
+      - uses: ./.github/actions/container_up
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+      - uses: ./.github/actions/wait_for_directory
+
+      - uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
 
@@ -120,14 +103,12 @@ jobs:
           cd examples/Docker
           docker compose logs | grep -i "found in keyfile"
 
-      - name: "Check container configuration"
-        uses: ./.github/actions/container_check
+      - uses: ./.github/actions/container_check
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "ACME Profile - Setup acme ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/setup_cahandler_cfg
         with:
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
@@ -138,45 +119,36 @@ jobs:
             allowed_domainlist: ["bar.local", "*.acme"]
             enrollment_config_log: True
 
-      - name: "ACME Profile - Setup acme ca_handler (post-cfg)"
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          EXTRA_SED: 's/tnauthlist_support: False/tnauthlist_support: False\nprofiles={"profile1": "http:\/\/foo.bar\/profile1", "profile2": "http:\/\/foo.bar\/profile2", "profile3": "http:\/\/foo.bar\/profile3"}/g'
+
+      - name: "Restart a2c"
         run: |
-          sudo mkdir -p examples/Docker/data/acme
-          sudo chmod -R 777 examples/Docker/data/acme
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile1\": \"http:\/\/foo.bar\/profile1\", \"profile2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
-      - name: "ACME Profile - enrollment"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_acmeprofile
+      - uses: ./.github/actions/wait_for_directory
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_acmeprofile
         with:
           DEPLOYMENT_TYPE: "container"
 
-      - name: "[ * ] Collecting extra failure logs"
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
-          docker logs acme-le-sim > ${{ github.workspace }}/artifact/acme-le-sim.log
-
-      - name: "[ * ] collecting test data"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
         with:
           DEPLOYMENT_TYPE: container
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-container-lesim-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          ARTIFACT_NAME: test-container-lesim-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SIDECAR_LOGS: acme-le-sim
 
   # ---------------------------------------------------------
-  # Test container images for sectigo challenge
+  # Containers — sectigo sim
   # ---------------------------------------------------------
   test-containers-sectigo:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -184,38 +156,25 @@ jobs:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
+      - uses: actions/checkout@v6
 
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/container_bootstrap
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
-
-      - name: "Setup le-sim"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
         with:
           SECTIGO_SIM: true
 
-      - name: "Setup openssl ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/setup_cahandler_cfg
         with:
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
@@ -224,51 +183,38 @@ jobs:
             acme_url: http://acme-le-sim
             acme_account_email: grindsa@foo.bar
 
-      - name: "Setup openssl ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p examples/Docker/data/acme
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "examples/Docker/data"
 
-      - name: "Bring up a2c container"
-        uses: ./.github/actions/container_up
+      - uses: ./.github/actions/container_up
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+      - uses: ./.github/actions/wait_for_directory
 
-      - name: "Check container configuration"
-        uses: ./.github/actions/container_check
+      - uses: ./.github/actions/acme_clients
+
+      - uses: ./.github/actions/container_check
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "[ * ] Collecting extra failure logs"
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
-          docker logs acme-le-sim > ${{ github.workspace }}/artifact/acme-le-sim.log
-
-      - name: "[ * ] collecting test data"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
         with:
           DEPLOYMENT_TYPE: container
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-containers-sectigo-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          ARTIFACT_NAME: test-containers-sectigo-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SIDECAR_LOGS: acme-le-sim
 
   # ---------------------------------------------------------
-  # Test container images against acme-le-sim with profiling
+  # Containers — EAB profiling
   # ---------------------------------------------------------
   test-containers-profiling:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -276,89 +222,35 @@ jobs:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
+      - uses: actions/checkout@v6
 
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/container_bootstrap
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
-
-      - name: "Setup acme-le-sim-1"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
         with:
           LESIM_NAME: acme-le-sim-1
 
-      - name: "Setup acme-le-sim-2"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
         with:
           LESIM_NAME: acme-le-sim-2
 
-      - name: "Reconfigure acme-le-sim-2"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/dual_sim_xca_prep
         with:
-          VOLUME_DIR: "acme-le-sim-2"
-          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
-          OPTIONS: |
-            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
-            issuing_ca_name: root-ca
-            issuing_ca_key: root-ca
-            passphrase: ${{ env.XCA_PASSPHRASE }}
-            template_name: ${{ env.XCA_TEMPLATE }}
-        env:
-          XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
-          XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
-          XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
           XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
-
-      - name: "Reconfigure acme-le-sim-2 (post-cfg)"
-        run: |
-          docker stop acme-le-sim-2
-          sudo mkdir acme-le-sim-2/xca
-          sudo chmod -R 777 acme-le-sim-2/xca
-          sudo cp test/ca/acme2certifier-clean.xdb acme-le-sim-2/xca/$XCA_DB_NAME
-          # sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> acme-le-sim-2/acme_srv.cfg
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" acme-le-sim-2/acme_srv.cfg
-          docker run -d --rm -id --network acme --name=acme-le-sim-2 -v "$(pwd)/acme-le-sim-2":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
-        env:
           XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
-          XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
           XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
-          XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
 
-      - name: "Wait for ACME directory (http)"
-        uses: ./.github/actions/wait_for_directory
-        with:
-          ACME_SERVER: "acme-le-sim-2"
-          CHECK_HTTPS: "false"
-
-      - name: "Enroll from acme-le-sim-2"
-        run: |
-          sudo rm -rf acme-sh/*
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue  --server http://acme-le-sim-2 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-          openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-          openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i root-ca
-          sudo rm -rf acme-sh/*
-
-      - name: "EAB Profiling - Setup acme ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/setup_cahandler_cfg
         with:
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
@@ -373,40 +265,35 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
-      - name: "Stage kid_profiles"
-        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+      - uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme.json
           DEST: examples/Docker/data/kid_profiles.json
-      - name: "EAB Profiling - Setup acme ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p examples/Docker/data/acme
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
 
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          EXTRA_SED: 's/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: ["HTTP_USER_AGENT"]/g'
 
-      - name: "EAB Profiling - Bring up a2c container"
-        uses: ./.github/actions/container_up
+      - uses: ./.github/actions/container_up
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "EAB Profiling - enrollment"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
+      - uses: ./.github/actions/wait_for_directory
 
-      - name: "Check container configuration"
-        uses: ./.github/actions/container_check
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
+
+      - uses: ./.github/actions/container_check
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+      - uses: ./.github/actions/logs_flush
         with:
           DEPLOYMENT_TYPE: container
 
-      - name: "EAB ACME Profiling - Setup acme ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/setup_cahandler_cfg
         with:
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
@@ -423,54 +310,42 @@ jobs:
             key_file: volume/kid_profiles.json
             eab_profiling: True
 
-      - name: "Stage kid_profiles"
-        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+      - uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme_profiles.json
           DEST: examples/Docker/data/kid_profiles.json
-      - name: "EAB ACME Profiling - Setup acme ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p examples/Docker/data/acme
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile_1\": \"http:\/\/foo.bar\/profile_1\", \"profile_2\": \"http:\/\/foo.bar\/profile_2\", \"profile_3\": \"http:\/\/foo.bar\/profile_3\"}/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
 
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "examples/Docker/data"
+          EXTRA_SED: 's/tnauthlist_support: False/tnauthlist_support: False\nprofiles={"profile_1": "http:\/\/foo.bar\/profile_1", "profile_2": "http:\/\/foo.bar\/profile_2", "profile_3": "http:\/\/foo.bar\/profile_3"}/g'
+
+      - name: "Restart a2c"
+        run: |
           cd examples/Docker/
           docker compose restart
 
-      - name: "EAB ACME Profiling - enrollment"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_eab_acmeprofile
+      - uses: ./.github/actions/wait_for_directory
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_eab_acmeprofile
         with:
           DEPLOYMENT_TYPE: "container"
 
-      - name: "[ * ] Collecting extra failure logs"
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
-          sudo cp -rp acme-le-sim-1/ ${{ github.workspace }}/artifact/data/acme-le-sim-1/
-          sudo cp -rp acme-le-sim-2/ ${{ github.workspace }}/artifact/data/acme-le-sim-2/
-          docker logs acme-le-sim-1 > ${{ github.workspace }}/artifact/acme-le-sim-1.log
-          docker logs acme-le-sim-2 > ${{ github.workspace }}/artifact/acme-le-sim-2.log
-
-      - name: "[ * ] collecting test data"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
         with:
           DEPLOYMENT_TYPE: container
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-containers-profiling-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          ARTIFACT_NAME: test-containers-profiling-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SIDECAR_LOGS: acme-le-sim-1,acme-le-sim-2
+          COPY_DIRS: acme-le-sim-1,acme-le-sim-2
 
   # ---------------------------------------------------------
-  # Test container images against smallstep challenge
+  # Containers — smallstep
   # ---------------------------------------------------------
   test-containers-smallstep:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -478,36 +353,23 @@ jobs:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
     steps:
+      - uses: actions/checkout@v6
 
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/container_bootstrap
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
 
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/smallstep_prep
 
-      - name: "Instanciate smallstep"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/smallstep_prep
-
-      - name: "Setup acme ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/setup_cahandler_cfg
         with:
           VOLUME_DIR: "examples/Docker/data"
           HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
@@ -518,170 +380,133 @@ jobs:
             account_path: /
             ssl_verify: False
 
-      - name: "Setup acme ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p examples/Docker/data/acme
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "examples/Docker/data"
 
-      - name: "Bring up a2c container"
-        uses: ./.github/actions/container_up
+      - uses: ./.github/actions/container_up
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Enroll via acme_ca_handler 1st attempt"
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force
-
-      - name: "Enroll via acme_ca_handler 2nd attempt"
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_smallstep
 
       - name: "Check acme account found in keyfile"
         run: |
           cd examples/Docker
           docker compose logs | grep -i "found in keyfile"
 
-      - name: "Check container configuration"
-        uses: ./.github/actions/container_check
+      - uses: ./.github/actions/container_check
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "[ * ] Collecting extra failure logs"
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
-          docker logs step-ca > ${{ github.workspace }}/artifact/step-ca.log
-
-      - name: "[ * ] collecting test data"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
         with:
           DEPLOYMENT_TYPE: container
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-containers-smallstep-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          ARTIFACT_NAME: test-containers-smallstep-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
+          SIDECAR_LOGS: step-ca
 
   # ---------------------------------------------------------
-  # Test container images against Letsencrypt staging
-  # including profile sync and renewal info checking
+  # Containers — live Let's Encrypt staging
   # ---------------------------------------------------------
   test-containers-letsencrypt:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
+        dns_provider: ['cloudflare', 'acmedns']
     steps:
+      - uses: actions/checkout@v6
 
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Resolve DNS API script"
+        run: |
+          if [ "${DNS_PROVIDER}" = "cloudflare" ]; then
+            echo "DNS_API=dns_cf.sh" >> "$GITHUB_ENV"
+          else
+            echo "DNS_API=dns_acmedns.sh" >> "$GITHUB_ENV"
+          fi
+        env:
+          DNS_PROVIDER: ${{ matrix.dns_provider }}
 
-      - name: "Parse JSON secret - ACMEDNS_CFG"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.ACMEDNS_CFG }}
 
-      - name: "Parse JSON secret - CF_CFG"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.CF_CFG }}
 
-      - name: "Parse EMAIL configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
 
-      - name: "Download and import container"
-        uses: ./.github/actions/container_load
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/container_bootstrap
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: a2c-${{ inputs.run_id }}.${{ matrix.websrv }}.${{ matrix.dbhandler }}.tar
-          DESTINATION_PATH: /tmp
+          WEB_SRV: ${{ matrix.websrv }}
+          DB_HANDLER: ${{ matrix.dbhandler }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
-
-      - name: "Prepare container environment"
-        uses: ./.github/actions/container_prep
-        with:
-          DB_HANDLER: ${{ matrix.dbhandler }}
-          WEB_SRV: ${{ matrix.websrv }}
-          CONTAINER_BUILD: false
           NAME_SPACE: acme.dynamop.de
 
-      - name: "CloudFlare - Setup acme ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/letsencrypt_prep
         with:
           VOLUME_DIR: "examples/Docker/data"
-          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
-          OPTIONS: |
-            acme_keyfile: volume/acme/le_staging_private_key.json
-            acme_url: https://acme-staging-v02.api.letsencrypt.org
-            acme_account_email: ${{ env.EMAIL }}
-            acme_sh_script: volume/acme/acme.sh
-            dns_update_script: volume/acme/dns_cf.sh
-            dns_update_script_variables: {"CF_Token": "${{ env.CF_TOKEN }}", "CF_Zone_ID": "${{ env.CF_ZONE_ID }}"}
-            acme_sh_shell: /bin/bash
-            dns_validation_timeout: 20
-            enrollment_config_log: True
-            profiles_sync: True
-            renewalinfo_lookup: True
-            allowed_domainlist: ["bar.local", "*.acme.dynamop.de"]
-        env:
+          DNS_PROVIDER: ${{ matrix.dns_provider }}
+          ACME_KEYFILE: volume/acme/le_staging_private_key.json
+          ACME_SH_SCRIPT: volume/acme/acme.sh
+          DNS_UPDATE_SCRIPT: volume/acme/${{ env.DNS_API }}
+          ACME_ACCOUNT_EMAIL: ${{ env.EMAIL }}
+          DEST_DIR: examples/Docker/data/acme
           CF_TOKEN: ${{ env.CF_TOKEN }}
           CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
+          ACMEDNS_USERNAME: ${{ env.ACMEDNS_USERNAME }}
+          ACMEDNS_PASSWORD: ${{ env.ACMEDNS_PASSWORD }}
+          ACMEDNS_SUBDOMAIN: ${{ env.ACMEDNS_SUBDOMAIN }}
 
-      - name: "CloudFlare - Setup acme ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p examples/Docker/data/acme
-          sudo chmod -R 777 examples/Docker/data/acme
-          sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/acme.sh --output examples/Docker/data/acme/acme.sh
-          sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/dnsapi/dns_cf.sh --output examples/Docker/data/acme/dns_cf.sh
-          sudo chmod a+x examples/Docker/data/acme/*.sh
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          # sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 15/g" examples/Docker/data/acme_srv.cfg
-        env:
-          CF_TOKEN: ${{ env.CF_TOKEN }}
-          CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
-
-      - name: "CloudFlare - Bring up a2c container"
-        uses: ./.github/actions/container_up
+      - uses: ./.github/actions/container_up
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
+          NAME_SPACE: acme.dynamop.de
+
+      - uses: ./.github/actions/wait_for_directory
+        with:
           NAME_SPACE: acme.dynamop.de
 
       - name: "Compare profile information"
+        if: matrix.dns_provider == 'cloudflare'
         uses: ./.github/actions/wf_specific/acme_ca_handler/compare_profile_info
         with:
           NAME_SPACE: acme.dynamop.de
 
       - name: "Generate UUID"
-        run: |
-          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
-      - run: echo "UUID ${{ env.UUID }}"
+        if: matrix.dns_provider == 'cloudflare'
+        run: echo "UUID=$(uuidgen | cut -d '-' -f1)" >> "$GITHUB_ENV"
 
       - name: "Compare renewal information between A2C and LE"
+        if: matrix.dns_provider == 'cloudflare'
         uses: ./.github/actions/wf_specific/acme_ca_handler/compare_renewal_info
         with:
           NAME_SPACE: acme.dynamop.de
           HOSTNAME_SUFFIX: -${{ env.UUID }}
           CERTIFICATE_FILE: "lego/certificates/lego-${{ env.UUID }}.acme.dynamop.de.crt"
+          CERT_TIMEOUT: "360"
 
-      - name: "Generate new UUID"
-        run: |
-          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
-      - run: echo "UUID ${{ env.UUID }}"
+      - name: "Generate UUID for enrollment"
+        if: matrix.dns_provider == 'cloudflare'
+        run: echo "UUID=$(uuidgen | cut -d '-' -f1)" >> "$GITHUB_ENV"
 
       - name: "Enrollment"
+        if: matrix.dns_provider == 'cloudflare'
         uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns
         with:
           HOSTNAME_SUFFIX: -${{ env.UUID }}
@@ -689,83 +514,36 @@ jobs:
           CERT_TIMEOUT: "360"
           VERIFY_CERT: false
 
-      - name: "ACMEDNS - Setup acme ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
-        with:
-          VOLUME_DIR: "examples/Docker/data"
-          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
-          OPTIONS: |
-            acme_keyfile: volume/acme/le_staging_private_key.json
-            acme_url: https://acme-staging-v02.api.letsencrypt.org
-            acme_account_email: ${{ env.EMAIL }}
-            acme_sh_script: volume/acme/acme.sh
-            dns_update_script: volume/acme/dns_acmedns.sh
-            dns_update_script_variables: {"ACMEDNS_USERNAME": "${{ env.ACMEDNS_USERNAME }}", "ACMEDNS_PASSWORD": "${{ env.ACMEDNS_PASSWORD }}", "ACMEDNS_BASE_URL": "https://auth.acme-dns.io", "ACMEDNS_SUBDOMAIN": "${{ env.ACMEDNS_SUBDOMAIN }}"}
-            acme_sh_shell: /bin/bash
-            dns_validation_timeout: 30
-            enrollment_config_log: True
-            allowed_domainlist: ["bar.local", "*.acme.dynamop.de"]
-            profiles_sync: True
-            renewalinfo_lookup: True
-        env:
-          ACMEDNS_USERNAME: ${{ env.ACMEDNS_USERNAME }}
-          ACMEDNS_PASSWORD: ${{ env.ACMEDNS_PASSWORD }}
-          ACMEDNS_SUBDOMAIN: ${{ env.ACMEDNS_SUBDOMAIN }}
-
-      - name: "ACMEDNS - Setup acme ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p examples/Docker/data/acme
-          sudo chmod -R 777 examples/Docker/data/acme
-          sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/acme.sh --output examples/Docker/data/acme/acme.sh
-          sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/dnsapi/dns_acmedns.sh --output examples/Docker/data/acme/dns_acmedns.sh
-          sudo chmod a+x examples/Docker/data/acme/*.sh
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" examples/Docker/data/acme_srv.cfg
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout: 15/g" examples/Docker/data/acme_srv.cfg
-
-          cd examples/Docker/
-          docker compose restart
-        env:
-          ACMEDNS_USERNAME: ${{ env.ACMEDNS_USERNAME }}
-          ACMEDNS_PASSWORD: ${{ env.ACMEDNS_PASSWORD }}
-          ACMEDNS_SUBDOMAIN: ${{ env.ACMEDNS_SUBDOMAIN }}
-
-      - name: "ACMEDNS - WC - Enrollment"
+      - name: "ACMEDNS wildcard enrollment"
+        if: matrix.dns_provider == 'acmedns'
         uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns_wc
         with:
           NAME_SPACE: acme.dynamop.de
-          CERT_TIMEOUT: 360
-          VERIFY_CERT: false
+          CERT_TIMEOUT: "360"
 
       - name: "Check acme account found in keyfile"
         run: |
           cd examples/Docker
           docker compose logs | grep -i "found in keyfile"
 
-      - name: "Check container configuration"
-        uses: ./.github/actions/container_check
+      - uses: ./.github/actions/container_check
         with:
           DB_HANDLER: ${{ matrix.dbhandler }}
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "[ * ] collecting test data"
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
         if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
         with:
           DEPLOYMENT_TYPE: container
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-containers-letsencrypt-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          ARTIFACT_NAME: test-containers-letsencrypt-${{ matrix.websrv }}-${{ matrix.dbhandler }}-${{ matrix.dns_provider }}.tar.gz
 
   # ---------------------------------------------------------
-  # Test RPM against le-sim
+  # RPM — le-sim
   # ---------------------------------------------------------
   test-rpm-lesim:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -773,37 +551,24 @@ jobs:
         rhversion: [8, 9]
         mode: ['wsgi', 'django']
     steps:
+      - uses: actions/checkout@v6
 
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/rpm_bootstrap
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
+          RH_VERSION: ${{ matrix.rhversion }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
-      - name: "Setup le-sim"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
 
-      - name: "Prepare setup acme_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/setup_cahandler_cfg
         with:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
@@ -813,38 +578,33 @@ jobs:
             acme_account_email: grindsa@foo.bar
             allowed_domainlist: ["bar.local", "*.acme"]
 
-      - name: "Prepare setup acme_ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p data/acme
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "data/volume"
+          ACME_SUBDIR: ""
 
       - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m "$MODE"
         env:
           MODE: ${{ matrix.mode }}
 
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+      - uses: ./.github/actions/wait_for_directory
+
+      - uses: ./.github/actions/acme_clients
         with:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
+        run: docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
 
       - name: "Check acme account found in keyfile"
-        run: |
-          # docker exec acme-srv grep -i "found in keyfile" /var/log/messages
-          docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
+        run: docker exec acme-srv bash -c 'grep -i "found in keyfile" /var/log/messages'
 
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+      - uses: ./.github/actions/logs_flush
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "ACME Profile - Setup acme ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/setup_cahandler_cfg
         with:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
@@ -855,48 +615,37 @@ jobs:
             allowed_domainlist: ["bar.local", "*.acme"]
             enrollment_config_log: True
 
-      - name: "ACME Profile - Setup acme ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p data/acme
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile1\": \"http:\/\/foo.bar\/profile1\", \"profile2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "data/volume"
+          ACME_SUBDIR: ""
+          EXTRA_SED: 's/tnauthlist_support: False/tnauthlist_support: False\nprofiles={"profile1": "http:\/\/foo.bar\/profile1", "profile2": "http:\/\/foo.bar\/profile2", "profile3": "http:\/\/foo.bar\/profile3"}/g'
 
-      - name: "ACME Profile - Reconfigure a2c"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
+      - name: "Reconfigure a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
         env:
           MODE: ${{ matrix.mode }}
 
-      - name: "ACME Profile - enrollment"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_acmeprofile
+      - uses: ./.github/actions/wait_for_directory
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_acmeprofile
         with:
           DEPLOYMENT_TYPE: "rpm"
 
-      - name: "[ * ] Collecting extra failure logs"
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
-          docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
         with:
           DEPLOYMENT_TYPE: rpm
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-rpm-lesim-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          ARTIFACT_NAME: test-rpm-lesim-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
+          SIDECAR_LOGS: acme-le-sim
 
   # ---------------------------------------------------------
-  # Test RPM or sectigo challenge
+  # RPM — sectigo sim
   # ---------------------------------------------------------
   test-rpm-sectigo:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -904,39 +653,26 @@ jobs:
         rhversion: [8, 9]
         mode: ['wsgi', 'django']
     steps:
+      - uses: actions/checkout@v6
 
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/rpm_bootstrap
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
+          RH_VERSION: ${{ matrix.rhversion }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
-      - name: "Setup le-sim"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
         with:
           SECTIGO_SIM: true
 
-      - name: "Prepare setup acme_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/setup_cahandler_cfg
         with:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
@@ -945,49 +681,37 @@ jobs:
             acme_url: http://acme-le-sim
             acme_account_email: grindsa@foo.bar
 
-      - name: "Prepare setup acme_ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p data/acme
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "data/volume"
+          ACME_SUBDIR: ""
 
       - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m "$MODE"
         env:
           MODE: ${{ matrix.mode }}
 
-      - name: "Test enrollment"
-        uses: ./.github/actions/acme_clients
+      - uses: ./.github/actions/wait_for_directory
+
+      - uses: ./.github/actions/acme_clients
 
       - name: "Check acme account found in keyfile"
-        run: |
-          docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
+        run: docker exec acme-srv bash -c 'grep -i "found in keyfile" /var/log/messages'
 
-      - name: "[ * ] Collecting extra failure logs"
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
-          docker logs acme-le-sim > ${{ github.workspace }}/artifact/le-sim.log
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
         with:
           DEPLOYMENT_TYPE: rpm
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-rpm-sectigo-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          ARTIFACT_NAME: test-rpm-sectigo-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
+          SIDECAR_LOGS: acme-le-sim
 
   # ---------------------------------------------------------
-  # Test RPM for profiling
+  # RPM — EAB profiling
   # ---------------------------------------------------------
   test-rpm-profiling:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -995,94 +719,40 @@ jobs:
         rhversion: [8, 9]
         mode: ['wsgi', 'django']
     steps:
+      - uses: actions/checkout@v6
 
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.XCA_CFG }}
 
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/rpm_bootstrap
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
+          RH_VERSION: ${{ matrix.rhversion }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
-      - name: "Setup acme-le-sim-1"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
         with:
           LESIM_NAME: acme-le-sim-1
 
-      - name: "Setup acme-le-sim-2"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/le-sim_prep
         with:
           LESIM_NAME: acme-le-sim-2
 
-      - name: "Reconfigure acme-le-sim-2"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/dual_sim_xca_prep
         with:
-          VOLUME_DIR: "acme-le-sim-2"
-          HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
-          OPTIONS: |
-            xdb_file: volume/xca/${{ env.XCA_DB_NAME }}
-            issuing_ca_name: root-ca
-            issuing_ca_key: root-ca
-            passphrase: ${{ env.XCA_PASSPHRASE }}
-            template_name: ${{ env.XCA_TEMPLATE }}
-        env:
-          XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
-          XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
-          XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
           XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
-
-      - name: "Reconfigure acme-le-sim-2 (post-cfg)"
-        run: |
-          docker stop acme-le-sim-2
-          sudo mkdir acme-le-sim-2/xca
-          sudo chmod -R 777 acme-le-sim-2/xca
-          sudo cp test/ca/acme2certifier-clean.xdb acme-le-sim-2/xca/$XCA_DB_NAME
-          # sudo echo "ca_cert_chain_list: [\"root-ca\"]" >> acme-le-sim-2/acme_srv.cfg
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" acme-le-sim-2/acme_srv.cfg
-          docker run -d --rm -id --network acme --name=acme-le-sim-2 -v "$(pwd)/acme-le-sim-2":/var/www/acme2certifier/volume/ grindsa/acme2certifier:apache2-wsgi
-        env:
           XCA_PASSPHRASE: ${{ env.XCA_PASSPHRASE }}
-          XCA_ISSUING_CA: ${{ env.XCA_ISSUING_CA }}
           XCA_TEMPLATE: ${{ env.XCA_TEMPLATE }}
-          XCA_DB_NAME: ${{ env.XCA_DB_NAME }}
 
-      - name: "Wait for ACME directory (http)"
-        uses: ./.github/actions/wait_for_directory
-        with:
-          ACME_SERVER: "acme-le-sim-2"
-          CHECK_HTTPS: "false"
-
-      - name: "Enroll from acme-le-sim-2"
-        run: |
-          sudo rm -rf acme-sh/*
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue  --server http://acme-le-sim-2 --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone --debug 3 --output-insecure --force
-          openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
-          openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i root-ca
-
-      - name: "EAB Profiling - Setup acme_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/setup_cahandler_cfg
         with:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
@@ -1097,44 +767,36 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
-      - name: "Stage kid_profiles"
-        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+      - uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme.json
           DEST: data/volume/acme_ca/kid_profiles.json
-      - name: "EAB Profiling - Setup acme_ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p data/volume/acme_ca
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "data/volume"
+          ACME_SUBDIR: "acme_ca"
+          EXTRA_SED: 's/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: ["HTTP_USER_AGENT"]/g'
 
       - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m "$MODE"
         env:
           MODE: ${{ matrix.mode }}
 
-      - name: "Wait for ACME directory (http)"
-        uses: ./.github/actions/wait_for_directory
-        with:
-          CHECK_HTTPS: "false"
+      - uses: ./.github/actions/wait_for_directory
 
-      - name: "EAB Profiling - Enrollment"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enrollment_profiling
 
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+      - uses: ./.github/actions/logs_flush
         with:
           DEPLOYMENT_TYPE: rpm
 
-      - name: "EAB ACME Profiling - Setup acme_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/setup_cahandler_cfg
         with:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
           OPTIONS: |
-            acme_keyfile: /opt/acme2certifier/volume/acme_ca/le_staging_private_key.json
+            acme_keyfile: /opt/acme2certifier/volume/acme_ca/le_staging_private_key_prof.json
             acme_keypath: /opt/acme2certifier/volume/acme_ca/
             acme_url: http://acme-le-sim-1
             acme_account_email: grindsa@foo.bar
@@ -1146,55 +808,41 @@ jobs:
             key_file: /opt/acme2certifier/volume/acme_ca/kid_profiles.json
             eab_profiling: True
 
-      - name: "Stage kid_profiles"
-        uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
+      - uses: ./.github/actions/wf_specific/eab_profiling/stage_kid_profiles
         with:
           SOURCE: .github/actions/wf_specific/eab_profiling/fixtures/acme_profiles.json
           DEST: data/volume/acme_ca/kid_profiles.json
-      - name: "EAB ACME Profiling - Setup acme_ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p data/acme_ca
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-          sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"profile_1\": \"http:\/\/foo.bar\/profile_1\", \"profile_2\": \"http:\/\/foo.bar\/profile_2\", \"profile_3\": \"http:\/\/foo.bar\/profile_3\"}/g" data/volume/acme_srv.cfg
 
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "data/volume"
+          ACME_SUBDIR: "acme_ca"
+          EXTRA_SED: 's/tnauthlist_support: False/tnauthlist_support: False\nprofiles={"profile_1": "http:\/\/foo.bar\/profile_1", "profile_2": "http:\/\/foo.bar\/profile_2", "profile_3": "http:\/\/foo.bar\/profile_3"}/g'
 
-      - name: "EAB ACME Profiling - Run Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
-        env:
-          MODE: ${{ matrix.mode }}
+      - name: "Reconfigure a2c"
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh restart
 
-      - name: "EAB ACME Profiling - enrollment"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_eab_acmeprofile
+      - uses: ./.github/actions/wait_for_directory
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_eab_acmeprofile
         with:
           DEPLOYMENT_TYPE: "rpm"
 
-      - name: "[ * ] Collecting extra failure logs"
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
         if: ${{ failure() }}
-        run: |
-          mkdir -p ${{ github.workspace }}/artifact ${{ github.workspace }}/artifact/data
-          sudo cp -rp acme-le-sim-1/ ${{ github.workspace }}/artifact/data/acme-le-sim-1/
-          sudo cp -rp acme-le-sim-2/ ${{ github.workspace }}/artifact/data/acme-le-sim-2/
-
-      - name: "[ * ] Collecting test logs"
-        if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
         with:
           DEPLOYMENT_TYPE: rpm
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-rpm-profiling-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          ARTIFACT_NAME: test-rpm-profiling-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
+          SIDECAR_LOGS: acme-le-sim-1,acme-le-sim-2
+          COPY_DIRS: acme-le-sim-1,acme-le-sim-2
 
   # ---------------------------------------------------------
-  # Test RPM against smallstep
+  # RPM — smallstep
   # ---------------------------------------------------------
   test-rpm-smallstep:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
@@ -1202,37 +850,24 @@ jobs:
         rhversion: [8, 9]
         mode: ['wsgi', 'django']
     steps:
+      - uses: actions/checkout@v6
 
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
-
-      - name: "Parse JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/rpm_bootstrap
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
+          RH_VERSION: ${{ matrix.rhversion }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
 
-      - name: "Instanciate smallstep"
-        uses: ./.github/actions/wf_specific/acme_ca_handler/smallstep_prep
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/smallstep_prep
 
-      - name: "Prepare setup acme_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/setup_cahandler_cfg
         with:
           VOLUME_DIR: "data/volume"
           HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
@@ -1243,167 +878,133 @@ jobs:
             account_path: /
             ssl_verify: False
 
-      - name: "Prepare setup acme_ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p data/acme
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/post_cfg_common
+        with:
+          VOLUME_DIR: "data/volume"
+          ACME_SUBDIR: ""
 
       - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m "$MODE"
         env:
           MODE: ${{ matrix.mode }}
 
-      - name: "Wait for ACME directory (http)"
-        uses: ./.github/actions/wait_for_directory
-        with:
-          CHECK_HTTPS: "false"
+      - uses: ./.github/actions/wait_for_directory
 
-      - name: "Enroll via acme_ca_handler 1st attempt"
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force
-
-      - name: "Enroll via acme_ca_handler 2nd attempt"
-        run: |
-          docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network acme --name=acme-sh neilpang/acme.sh:latest --issue --server http://acme-srv --accountemail 'acme-sh@example.com' --issue -d acme-srv.acme --standalone --debug 3 --output-insecure --force
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_smallstep
 
       - name: "Check acme account found in keyfile"
-        run: |
-          # docker exec acme-srv grep -i "found in keyfile" /var/log/messages
-          docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
+        run: docker exec acme-srv bash -c 'grep -i "found in keyfile" /var/log/messages'
 
-      - name: "[ * ] Collecting test logs"
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
         if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
         with:
           DEPLOYMENT_TYPE: rpm
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-rpm-smallstep-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          ARTIFACT_NAME: test-rpm-smallstep-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
+          SIDECAR_LOGS: step-ca
 
   # ---------------------------------------------------------
-  # Test RPM against Letsencrypt staging
-  # including profile sync and renewal info checking
+  # RPM — live Let's Encrypt staging
   # ---------------------------------------------------------
   test-rpm-letsencrypt:
     needs: guard
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         rhversion: [8, 9]
         mode: ['wsgi', 'django']
+        dns_provider: ['cloudflare', 'acmedns']
     steps:
+      - uses: actions/checkout@v6
 
-      - name: "checkout GIT"
-        uses: actions/checkout@v6
+      - name: "Resolve DNS API script"
+        run: |
+          if [ "${DNS_PROVIDER}" = "cloudflare" ]; then
+            echo "DNS_API=dns_cf.sh" >> "$GITHUB_ENV"
+          else
+            echo "DNS_API=dns_acmedns.sh" >> "$GITHUB_ENV"
+          fi
+        env:
+          DNS_PROVIDER: ${{ matrix.dns_provider }}
 
-      - name: "Parse JSON secret - GH_CFG"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.GH_CFG }}
 
-      - name: "Parse JSON secret - ACMEDNS_CFG"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.ACMEDNS_CFG }}
 
-      - name: "Parse JSON secret - CF_CFG"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.CF_CFG }}
 
-      - name: "Parse EMAIL configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
+      - uses: ./.github/actions/parse-json-secret
         with:
           json_secret: ${{ secrets.EMAILADDRESSES_CFG }}
 
-      - name: "Prepare Alma environment"
-        uses: ./.github/actions/rpm_prep
-        with:
-          GH_USER: ${{ env.GH_USER }}
-          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
-          RH_VERSION: ${{ matrix.rhversion }}
-          RPM_BUILD: false
-          NAME_SPACE: acme.dynamop.de
-
-      - name: "Download RPM artifact by name from build run"
-        uses: ./.github/actions/download_artifact
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/rpm_bootstrap
         with:
           RUN_ID: ${{ inputs.run_id }}
-          ARTIFACT_NAME: acme2certifier-${{ inputs.run_id }}.noarch.rpm
-          DESTINATION_PATH: data/
+          RH_VERSION: ${{ matrix.rhversion }}
           TOKEN: ${{ secrets.GH_WF_TOKEN }}
           REPO: ${{ github.repository }}
+          GH_USER: ${{ env.GH_USER }}
+          GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
+          NAME_SPACE: acme.dynamop.de
 
-      - name: "Prepare setup acme_ca_handler"
-        uses: ./.github/actions/setup_cahandler_cfg
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/letsencrypt_prep
         with:
           VOLUME_DIR: "data/volume"
-          HANDLER_MODULE: acme2certifier.cahandlers.acme_ca_handler
-          OPTIONS: |
-            acme_keyfile: /opt/acme2certifier/volume/le_staging_private_key.json
-            acme_url: https://acme-staging-v02.api.letsencrypt.org
-            acme_account_email: ${{ env.EMAIL }}
-            acme_sh_script: /opt/acme2certifier/volume/acme_ca/acme.sh
-            dns_update_script: /opt/acme2certifier/volume/acme_ca/dns_cf.sh
-            dns_update_script_variables: {"CF_Token": "${{ env.CF_TOKEN }}", "CF_Zone_ID": "${{ env.CF_ZONE_ID }}"}
-            acme_sh_shell: /bin/bash
-            dns_validation_timeout: 30
-            enrollment_config_log: True
-            profiles_sync: True
-            renewalinfo_lookup: True
-            allowed_domainlist: ["bar.local", "*.acme.dynamop.de"]
-        env:
+          DNS_PROVIDER: ${{ matrix.dns_provider }}
+          ACME_KEYFILE: /opt/acme2certifier/volume/le_staging_private_key.json
+          ACME_SH_SCRIPT: /opt/acme2certifier/volume/acme_ca/acme.sh
+          DNS_UPDATE_SCRIPT: /opt/acme2certifier/volume/acme_ca/${{ env.DNS_API }}
+          ACME_ACCOUNT_EMAIL: ${{ env.EMAIL }}
+          DEST_DIR: data/volume/acme_ca
           CF_TOKEN: ${{ env.CF_TOKEN }}
           CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
-
-      - name: "Prepare setup acme_ca_handler (post-cfg)"
-        run: |
-          sudo mkdir -p data/volume/acme_ca
-          sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/acme.sh --output data/volume/acme_ca/acme.sh
-          sudo curl https://raw.githubusercontent.com/acmesh-official/acme.sh/refs/heads/master/dnsapi/dns_cf.sh --output data/volume/acme_ca/dns_cf.sh
-          sudo chmod a+x data/volume/acme_ca/*.sh
-
-          sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" data/volume/acme_srv.cfg
-        env:
-          CF_TOKEN: ${{ env.CF_TOKEN }}
-          CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
+          ACMEDNS_USERNAME: ${{ env.ACMEDNS_USERNAME }}
+          ACMEDNS_PASSWORD: ${{ env.ACMEDNS_PASSWORD }}
+          ACMEDNS_SUBDOMAIN: ${{ env.ACMEDNS_SUBDOMAIN }}
 
       - name: "Execute install script"
-        run: |
-          docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
+        run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m "$MODE"
         env:
           MODE: ${{ matrix.mode }}
 
+      - uses: ./.github/actions/wait_for_directory
+        with:
+          NAME_SPACE: acme.dynamop.de
+
       - name: "Compare profile information"
+        if: matrix.dns_provider == 'cloudflare'
         uses: ./.github/actions/wf_specific/acme_ca_handler/compare_profile_info
         with:
           NAME_SPACE: acme.dynamop.de
 
       - name: "Generate UUID"
-        run: |
-          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
-      - run: echo "UUID ${{ env.UUID }}"
+        if: matrix.dns_provider == 'cloudflare'
+        run: echo "UUID=$(uuidgen | cut -d '-' -f1)" >> "$GITHUB_ENV"
 
       - name: "Compare renewal information between A2C and LE"
+        if: matrix.dns_provider == 'cloudflare'
         uses: ./.github/actions/wf_specific/acme_ca_handler/compare_renewal_info
         with:
           NAME_SPACE: acme.dynamop.de
           HOSTNAME_SUFFIX: -${{ env.UUID }}
           CERTIFICATE_FILE: "lego/certificates/lego-${{ env.UUID }}.acme.dynamop.de.crt"
+          CERT_TIMEOUT: "360"
 
-      - name: "Generate new UUID"
-        run: |
-          echo UUID=$(uuidgen | cut -d "-" -f1) >> $GITHUB_ENV
-      - run: echo "UUID ${{ env.UUID }}"
+      - name: "Generate UUID for enrollment"
+        if: matrix.dns_provider == 'cloudflare'
+        run: echo "UUID=$(uuidgen | cut -d '-' -f1)" >> "$GITHUB_ENV"
 
       - name: "Enrollment"
+        if: matrix.dns_provider == 'cloudflare'
         uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns
         with:
           HOSTNAME_SUFFIX: -${{ env.UUID }}
@@ -1411,20 +1012,18 @@ jobs:
           CERT_TIMEOUT: "360"
           VERIFY_CERT: false
 
-      - name: "Check acme account found in keyfile"
-        run: |
-          # docker exec acme-srv grep -i "found in keyfile" /var/log/messages
-          docker exec acme-srv bash -c "grep -i \"found in keyfile\" /var/log/messages"
+      - name: "ACMEDNS wildcard enrollment"
+        if: matrix.dns_provider == 'acmedns'
+        uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns_wc
+        with:
+          NAME_SPACE: acme.dynamop.de
+          CERT_TIMEOUT: "360"
 
-      - name: "[ * ] Collecting test logs"
+      - name: "Check acme account found in keyfile"
+        run: docker exec acme-srv bash -c 'grep -i "found in keyfile" /var/log/messages'
+
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
         if: ${{ failure() }}
-        uses: ./.github/actions/collect_failure_logs
         with:
           DEPLOYMENT_TYPE: rpm
-
-      - name: "[ * ] Uploading artifacts"
-        uses: actions/upload-artifact@v7
-        if: ${{ failure() }}
-        with:
-          name: test-rpm-letsencrypt-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
-          path: ${{ github.workspace }}/artifact/upload/
+          ARTIFACT_NAME: test-rpm-letsencrypt-rh${{ matrix.rhversion }}-${{ matrix.mode }}-${{ matrix.dns_provider }}.tar.gz

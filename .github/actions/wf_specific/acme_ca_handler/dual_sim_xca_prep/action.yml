@@ -1,0 +1,91 @@
+name: "dual_sim_xca_prep"
+description: "Reconfigure acme-le-sim-2 as xca backend and verify enrollment"
+inputs:
+  XCA_DB_NAME:
+    description: "XCA database filename"
+    required: true
+  XCA_PASSPHRASE:
+    description: "XCA passphrase"
+    required: true
+  XCA_TEMPLATE:
+    description: "XCA template name"
+    required: true
+  LESIM_NAME:
+    description: "le-sim container/volume name"
+    required: false
+    default: "acme-le-sim-2"
+  NAME_SPACE:
+    description: "Docker network"
+    required: false
+    default: "acme"
+  IMAGE:
+    description: "Image to run for le-sim-2"
+    required: false
+    default: "grindsa/acme2certifier:apache2-wsgi"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Reconfigure ${{ inputs.LESIM_NAME }} as xca"
+      uses: ./.github/actions/setup_cahandler_cfg
+      with:
+        VOLUME_DIR: ${{ inputs.LESIM_NAME }}
+        HANDLER_MODULE: acme2certifier.cahandlers.xca_ca_handler
+        OPTIONS: |
+          xdb_file: volume/xca/${{ inputs.XCA_DB_NAME }}
+          issuing_ca_name: root-ca
+          issuing_ca_key: root-ca
+          passphrase: ${{ inputs.XCA_PASSPHRASE }}
+          template_name: ${{ inputs.XCA_TEMPLATE }}
+
+    - name: "Pull le-sim image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: ${{ inputs.IMAGE }}
+
+    - name: "Pull acme.sh image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: neilpang/acme.sh:latest
+
+    - name: "Restart ${{ inputs.LESIM_NAME }} with xca volume"
+      run: |
+        set -euo pipefail
+        docker stop "${LESIM_NAME}" || true
+        sudo mkdir -p "${LESIM_NAME}/xca"
+        sudo chmod -R 777 "${LESIM_NAME}/xca"
+        sudo cp test/ca/acme2certifier-clean.xdb "${LESIM_NAME}/xca/${XCA_DB_NAME}"
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" "${LESIM_NAME}/acme_srv.cfg"
+        docker run -d --rm --network "${NAME_SPACE}" --name="${LESIM_NAME}" \
+          -v "$(pwd)/${LESIM_NAME}":/var/www/acme2certifier/volume/ \
+          "${IMAGE}"
+      shell: bash
+      env:
+        LESIM_NAME: ${{ inputs.LESIM_NAME }}
+        XCA_DB_NAME: ${{ inputs.XCA_DB_NAME }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        IMAGE: ${{ inputs.IMAGE }}
+
+    - name: "Wait for ${{ inputs.LESIM_NAME }} directory"
+      uses: ./.github/actions/wait_for_directory
+      with:
+        ACME_SERVER: ${{ inputs.LESIM_NAME }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+        CHECK_HTTPS: "false"
+
+    - name: "Smoke enroll from ${{ inputs.LESIM_NAME }}"
+      run: |
+        set -euo pipefail
+        sudo rm -rf acme-sh/*
+        mkdir -p acme-sh
+        docker run --rm -i -v "$(pwd)/acme-sh":/acme.sh --network "${NAME_SPACE}" --name=acme-sh \
+          neilpang/acme.sh:latest --issue --server "http://${LESIM_NAME}" \
+          --accountemail 'acme-sh@example.com' -d acme-sh.acme --standalone \
+          --debug 3 --output-insecure --force
+        openssl verify -CAfile acme-sh/acme-sh.acme_ecc/ca.cer acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
+        openssl x509 -in acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer -issuer --noout | grep -i root-ca
+        sudo rm -rf acme-sh/*
+      shell: bash
+      env:
+        LESIM_NAME: ${{ inputs.LESIM_NAME }}
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}

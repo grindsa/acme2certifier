@@ -1,0 +1,50 @@
+name: "acme_ca_handler rpm bootstrap"
+description: "Prepare Alma RPM environment and download RPM artifact"
+inputs:
+  RUN_ID:
+    description: "Producer workflow run id"
+    required: true
+  RH_VERSION:
+    description: "Alma/RHEL major version"
+    required: true
+  TOKEN:
+    description: "GitHub token for artifact download"
+    required: true
+  REPO:
+    description: "Repository (owner/name)"
+    required: true
+  GH_USER:
+    description: "GitHub user for SBOM repo"
+    required: true
+  GH_SBOM_REPO_TOKEN:
+    description: "Token for SBOM repo"
+    required: true
+  NAME_SPACE:
+    description: "Docker network namespace"
+    required: false
+    default: "acme"
+  DESTINATION_PATH:
+    description: "Where to place the RPM"
+    required: false
+    default: "data/"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Prepare Alma environment"
+      uses: ./.github/actions/rpm_prep
+      with:
+        GH_USER: ${{ inputs.GH_USER }}
+        GH_SBOM_REPO_TOKEN: ${{ inputs.GH_SBOM_REPO_TOKEN }}
+        RH_VERSION: ${{ inputs.RH_VERSION }}
+        RPM_BUILD: false
+        NAME_SPACE: ${{ inputs.NAME_SPACE }}
+
+    - name: "Download RPM artifact"
+      uses: ./.github/actions/download_artifact
+      with:
+        RUN_ID: ${{ inputs.RUN_ID }}
+        ARTIFACT_NAME: acme2certifier-${{ inputs.RUN_ID }}.noarch.rpm
+        DESTINATION_PATH: ${{ inputs.DESTINATION_PATH }}
+        TOKEN: ${{ inputs.TOKEN }}
+        REPO: ${{ inputs.REPO }}
