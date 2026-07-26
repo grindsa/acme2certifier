@@ -150,9 +150,16 @@ jobs:
 
           $headers = @{ Authorization = "Bearer $env:CF_TOKEN" }
 
+          function Get-CfErrorText {
+            param($ErrorRecord)
+            $text = $ErrorRecord.ErrorDetails.Message
+            if (-not $text) { $text = $ErrorRecord.Exception.Message }
+            return $text
+          }
+
           function Invoke-CfDns {
             param(
-              [Parameter(Mandatory = $true)][ValidateSet("PUT", "DELETE")][string]$Method,
+              [Parameter(Mandatory = $true)][ValidateSet("PUT", "POST", "DELETE")][string]$Method,
               [Parameter(Mandatory = $true)][string]$Name,
               [Parameter(Mandatory = $true)][ValidateSet("A", "CNAME")][string]$Type,
               [string]$Content
@@ -161,7 +168,7 @@ jobs:
               type = $Type
               name = $Name
             }
-            if ($Method -eq "PUT") {
+            if ($Method -in @("PUT", "POST")) {
               $payload.content = $Content
               $payload.ttl = 120
               $payload.proxied = $false
@@ -189,6 +196,41 @@ jobs:
             }
           }
 
+          function Set-CfARecord {
+            param(
+              [Parameter(Mandatory = $true)][string]$Name,
+              [Parameter(Mandatory = $true)][string]$Ip
+            )
+            # PUT updates an existing A; POST creates when none exists (81044).
+            try {
+              Write-Host "Updating A record for $Name -> $Ip (PUT)"
+              Invoke-CfDns -Method PUT -Name $Name -Type A -Content $Ip | Out-Null
+              return
+            } catch {
+              $errText = Get-CfErrorText $_
+              if ($errText -match '81054|CNAME record with that host already exists') {
+                Write-Warning "Conflicting CNAME for $Name; deleting and retrying"
+                Remove-CfDnsRecord -Name $Name -Type CNAME
+              } elseif ($errText -notmatch '81044|Record does not exist') {
+                throw
+              }
+            }
+
+            Write-Host "Creating A record for $Name -> $Ip (POST)"
+            try {
+              Invoke-CfDns -Method POST -Name $Name -Type A -Content $Ip | Out-Null
+            } catch {
+              $errText = Get-CfErrorText $_
+              if ($errText -match '81054|CNAME record with that host already exists') {
+                Write-Warning "POST hit conflicting CNAME for $Name; deleting and retrying POST"
+                Remove-CfDnsRecord -Name $Name -Type CNAME
+                Invoke-CfDns -Method POST -Name $Name -Type A -Content $Ip | Out-Null
+              } else {
+                throw
+              }
+            }
+          }
+
           $names = @(
             $env:CF_WINACME1_NAME,
             $env:CF_WINACME2_NAME,
@@ -197,24 +239,9 @@ jobs:
           ) | Where-Object { $_ } | Select-Object -Unique
 
           foreach ($name in $names) {
-            # Cloudflare error 81054: cannot create A while a same-name CNAME exists.
+            # Only remove CNAME conflicts; keep/replace existing A via PUT.
             Remove-CfDnsRecord -Name $name -Type CNAME
-            Remove-CfDnsRecord -Name $name -Type A
-
-            Write-Host "Upserting A record for $name -> $env:RUNNER_IP"
-            try {
-              Invoke-CfDns -Method PUT -Name $name -Type A -Content $env:RUNNER_IP | Out-Null
-            } catch {
-              $errText = $_.ErrorDetails.Message
-              if (-not $errText) { $errText = $_.Exception.Message }
-              if ($errText -match '81054|CNAME record with that host already exists') {
-                Write-Warning "A upsert hit conflicting CNAME for $name; deleting CNAME and retrying"
-                Remove-CfDnsRecord -Name $name -Type CNAME
-                Invoke-CfDns -Method PUT -Name $name -Type A -Content $env:RUNNER_IP | Out-Null
-              } else {
-                throw
-              }
-            }
+            Set-CfARecord -Name $name -Ip $env:RUNNER_IP
           }
 
       - name: "Generate keys and certificates"
