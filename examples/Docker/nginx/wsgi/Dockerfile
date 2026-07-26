@@ -36,6 +36,7 @@ RUN apt-get update  && \
     mkdir -p /var/www/acme2certifier/volume && \
     mkdir -p /var/www/acme2certifier/examples /var/www/acme2certifier/examples/ && \
     mkdir -p /run/uwsgi && \
+    chown www-data:www-data /run/uwsgi && \
     cp /var/www/acme2certifier/share/nginx/acme2certifier.ini /var/www/acme2certifier && \
     cp /var/www/acme2certifier/share/nginx/nginx_acme_srv.conf /etc/nginx/sites-available/acme_srv.conf && \
     rm -f /var/www/acme2certifier/acme_srv.cfg /var/www/acme2certifier/acme_srv/acme_srv.cfg && \

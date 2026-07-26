@@ -3,6 +3,10 @@
 # shellcheck source=/resolve_db_handler.sh
 . /resolve_db_handler.sh
 
+# /run is often tmpfs; ensure uWSGI socket dir exists (DEB uses /run/uwsgi/acme.sock).
+mkdir -p /run/uwsgi
+chown www-data:www-data /run/uwsgi
+
 # create acme-srv.cfg if not existing
 if [[ ! -f /var/www/acme2certifier/volume/acme_srv.cfg ]]
 then

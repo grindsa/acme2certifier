@@ -123,6 +123,8 @@ keyid_03:
     - "*.acme"
 ```
 
+An optional desktop helper to create and edit `kid_profiles` YAML is available in the [a2c-eab-profile-editor](https://github.com/grindsa/a2c-eab-profile-editor) repository.
+
 ## Subject Profiling
 
 Starting from v0.36 the eab-profiling feature can be used to check and white-list the certificate subject DN.

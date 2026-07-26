@@ -539,7 +539,7 @@ else
   fi
 
   ${SUDO} cp "${SHARE}/nginx/acme2certifier.ini" "${APP_ROOT}/acme2certifier.ini"
-  # Share samples may use relative acme.sock / nginx uid (RPM). Force DEB paths.
+  # Packaged share uses /run/uwsgi + www-data; force in case of older DEBs.
   ${SUDO} sed -i \
     -e 's|^socket = .*|socket = /run/uwsgi/acme.sock|' \
     -e 's|^uid = .*|uid = www-data|' \
