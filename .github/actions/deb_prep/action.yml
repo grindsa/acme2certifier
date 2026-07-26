@@ -114,6 +114,11 @@ runs:
       with:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
+    - name: "Pull Ubuntu image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: ${{ inputs.UBUNTU_IMAGE }}
+
     - name: "Instanciate Ubuntu"
       run: |
         echo "Using image ${{ inputs.UBUNTU_IMAGE }}"

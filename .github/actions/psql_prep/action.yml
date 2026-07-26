@@ -23,6 +23,12 @@ runs:
         sudo chmod 600 /tmp/data/pgsql/pgpass
       shell: bash
 
+    - name: "Pull postgres image"
+      if: inputs.INSTANCIATE == 'true'
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: postgres
+
     - name: "Install postgres"
       if: inputs.INSTANCIATE == 'true'
       working-directory: /tmp

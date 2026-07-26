@@ -50,6 +50,11 @@ runs:
     with:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
+  - name: "Pull Ubuntu image"
+    uses: ./.github/actions/docker_pull
+    with:
+      IMAGE: grindsa/systemd-ubuntu:24.04
+
   - name: "Start Ubuntu systemd container"
     run: |
       set -euo pipefail

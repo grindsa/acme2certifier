@@ -51,7 +51,17 @@ runs:
         sudo cp .github/acme2certifier_cert.pem examples/Docker/data/acme2certifier_cert.pem
         sudo cp .github/acme2certifier_key.pem examples/Docker/data/acme2certifier_key.pem
 
-    - name: Pull and start container
+    - name: Pull container image
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: ${{ inputs.image }}
+
+    - name: Pull curl image
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: curlimages/curl
+
+    - name: Start container
       shell: bash
       env:
         IMAGE: ${{ inputs.image }}
@@ -59,7 +69,6 @@ runs:
         CONTAINER_NAME: ${{ inputs.container_name }}
       run: |
         set -euo pipefail
-        docker pull "${IMAGE}"
         docker rm -f "${CONTAINER_NAME}" >/dev/null 2>&1 || true
         docker run -d --rm \
           --network "${NAME_SPACE}" \

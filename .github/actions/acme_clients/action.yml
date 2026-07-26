@@ -71,6 +71,23 @@ runs:
         fi
       shell: bash
 
+    - name: "Pull acme.sh image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: neilpang/acme.sh:latest
+
+    - name: "Pull lego image"
+      if: ${{ inputs.USE_LEGO == 'true' }}
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: goacme/lego
+
+    - name: "Pull certbot image"
+      if: ${{ inputs.USE_CERTBOT == 'true' }}
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: certbot/certbot
+
     - name: "Wait for ACME directory"
       uses: ./.github/actions/wait_for_directory
       with:

@@ -29,6 +29,11 @@ runs:
       EJBCA_IP: ${{ inputs.RUNNER_IP }}
     shell: bash
 
+  - name: "Pull ejbca image"
+    uses: ./.github/actions/docker_pull
+    with:
+      IMAGE: keyfactor/ejbca-ce
+
   - name: "Instanciate ejbca server"
     run: |
       docker run -id --rm -p 80:8080 -p 443:8443 -e TLS_SETUP_ENABLED=true -v $(pwd)/examples/ejbca:/tmp/data  -v "$WORKING_DIR/data":/tmp/store --name "ejbca" -h ejbca keyfactor/ejbca-ce

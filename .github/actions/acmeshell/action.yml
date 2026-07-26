@@ -74,6 +74,12 @@ runs:
         echo "finalize -order=0" >> commands.shell
       shell: bash
 
+    - name: "Pull AlmaLinux image"
+      if: ${{ inputs.ALMA_START == 'true' }}
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: almalinux/9-minimal
+
     - name: "Run alma container"
       if: ${{ inputs.ALMA_START == 'true' }}
       run: |

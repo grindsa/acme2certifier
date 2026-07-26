@@ -5,6 +5,21 @@ runs:
   using: "composite"
   steps:
 
+  - name: "Pull smallstep image"
+    uses: ./.github/actions/docker_pull
+    with:
+      IMAGE: smallstep/step-ca
+
+  - name: "Pull curl image"
+    uses: ./.github/actions/docker_pull
+    with:
+      IMAGE: curlimages/curl
+
+  - name: "Pull acme.sh image"
+    uses: ./.github/actions/docker_pull
+    with:
+      IMAGE: neilpang/acme.sh:latest
+
   - name: "Setup smallstep"
     run: |
       sudo mkdir -p step
