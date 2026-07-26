@@ -99,6 +99,7 @@ jobs:
           # download legacy handler
           curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/tags/0.31 -o /tmp/a2c.tgz
           tar -xvzf /tmp/a2c.tgz -C /tmp/ --strip-components=3 acme2certifier-0.31/examples/ca_handler/xca_ca_handler.py
+          sed -i 's/from acme_srv\.helper/from acme2certifier.acme_srv.helper/g' /tmp/xca_ca_handler.py
           sudo cp /tmp/xca_ca_handler.py examples/Docker/data/xca_ca_handler.py
           sudo chmod 777 examples/Docker/data/xca_ca_handler.py
         shell: bash
@@ -183,6 +184,7 @@ jobs:
           # download legacy handler
           curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/tags/0.31 -o /tmp/a2c.tgz
           tar -xvzf /tmp/a2c.tgz -C /tmp/ --strip-components=3 acme2certifier-0.31/examples/ca_handler/xca_ca_handler.py
+          sed -i 's/from acme_srv\.helper/from acme2certifier.acme_srv.helper/g' /tmp/xca_ca_handler.py
           sudo cp /tmp/xca_ca_handler.py data/volume/acme_ca/xca_ca_handler.py
           sudo chmod 777 data/volume/acme_ca/xca_ca_handler.py
 
@@ -262,6 +264,7 @@ jobs:
           # download legacy handler
           curl https://codeload.github.com/grindsa/acme2certifier/tar.gz/refs/tags/0.31 -o /tmp/a2c.tgz
           tar -xvzf /tmp/a2c.tgz -C /tmp/ --strip-components=3 acme2certifier-0.31/examples/ca_handler/openssl_ca_handler.py
+          sed -i 's/from acme_srv\.helper/from acme2certifier.acme_srv.helper/g' /tmp/openssl_ca_handler.py
           sudo cp /tmp/openssl_ca_handler.py data/volume/acme_ca/openssl_ca_handler.py
           sudo chmod 777 data/volume/acme_ca/openssl_ca_handler.py
 
