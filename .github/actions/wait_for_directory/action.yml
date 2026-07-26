@@ -45,6 +45,11 @@ outputs:
 runs:
   using: "composite"
   steps:
+    - name: "Pull curl image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: curlimages/curl
+
     - name: "Wait for ACME directory"
       id: wait
       run: |

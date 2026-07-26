@@ -15,7 +15,15 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: "Pull or build ${{ inputs.VERSION }}-${{ inputs.WEB_SRV }}-${{ inputs.DB_HANDLER }}"
+    - name: "Pull ${{ inputs.VERSION }}-${{ inputs.WEB_SRV }}-${{ inputs.DB_HANDLER }}"
+      id: pull
+      continue-on-error: true
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: grindsa/acme2certifier:${{ inputs.VERSION }}-${{ inputs.WEB_SRV }}-${{ inputs.DB_HANDLER }}
+
+    - name: "Build ${{ inputs.VERSION }}-${{ inputs.WEB_SRV }}-${{ inputs.DB_HANDLER }} from tag"
+      if: steps.pull.outcome == 'failure'
       shell: bash
       env:
         VERSION: ${{ inputs.VERSION }}
@@ -24,11 +32,7 @@ runs:
       run: |
         set -euo pipefail
         IMAGE="grindsa/acme2certifier:${VERSION}-${WEB_SRV}-${DB_HANDLER}"
-        if docker pull "${IMAGE}"; then
-          echo "Pulled ${IMAGE}"
-          exit 0
-        fi
-        echo "Hub miss for ${IMAGE}; building from tag ${VERSION}"
+        echo "Hub miss/timeout for ${IMAGE}; building from tag ${VERSION}"
         rm -rf "/tmp/a2c-build-${VERSION}"
         git clone --branch "${VERSION}" --depth 1 \
           https://github.com/grindsa/acme2certifier.git "/tmp/a2c-build-${VERSION}"

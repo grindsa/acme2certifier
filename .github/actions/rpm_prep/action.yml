@@ -94,6 +94,11 @@ runs:
         RH_VERSION: ${{ inputs.RH_VERSION }}
       shell: bash
 
+    - name: "Pull AlmaLinux image"
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: almalinux/${{ inputs.RH_VERSION }}-init
+
     - name: "Spin-up alma instance"
       run: |
         docker run -d -id --privileged --network $NAME_SPACE -p 22280:80 --name=acme-srv -v "$(pwd)/data":/tmp/acme2certifier almalinux/$RH_VERSION-init

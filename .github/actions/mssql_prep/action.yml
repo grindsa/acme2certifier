@@ -21,10 +21,15 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: "Pull MSSQL image"
+      if: inputs.INSTANCIATE == 'true'
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: mcr.microsoft.com/mssql/server:2022-latest
+
     - name: "Instanciate MSSQL"
       if: inputs.INSTANCIATE == 'true'
       run: |
-        docker pull mcr.microsoft.com/mssql/server:2022-latest
         docker run --rm -d --network ${NAME_SPACE} -e "ACCEPT_EULA=Y" -e "MSSQL_SA_PASSWORD=$ROOT_PWD"   -p 1433:1433 --name ms-sql --hostname ms-sql mcr.microsoft.com/mssql/server:2022-latest
       shell: bash
       env:

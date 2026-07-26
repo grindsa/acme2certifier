@@ -1,0 +1,44 @@
+name: "docker_pull"
+description: "Pull a Docker image with retries for transient registry failures"
+inputs:
+  IMAGE:
+    description: "Image to pull (name:tag)"
+    required: true
+  MAX_ATTEMPTS:
+    description: "Maximum pull attempts"
+    required: false
+    default: "5"
+  RETRY_DELAY_SECONDS:
+    description: "Initial delay between retries in seconds (doubles each attempt)"
+    required: false
+    default: "10"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Pull ${{ inputs.IMAGE }}"
+      shell: bash
+      env:
+        IMAGE: ${{ inputs.IMAGE }}
+        MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
+        RETRY_DELAY_SECONDS: ${{ inputs.RETRY_DELAY_SECONDS }}
+      run: |
+        set -euo pipefail
+        attempt=1
+        delay="${RETRY_DELAY_SECONDS}"
+        while [ "${attempt}" -le "${MAX_ATTEMPTS}" ]; do
+          echo "Pulling ${IMAGE} (attempt ${attempt}/${MAX_ATTEMPTS})"
+          if docker pull "${IMAGE}"; then
+            echo "Pulled ${IMAGE}"
+            exit 0
+          fi
+          if [ "${attempt}" -ge "${MAX_ATTEMPTS}" ]; then
+            break
+          fi
+          echo "Pull failed; retrying in ${delay}s..."
+          sleep "${delay}"
+          delay=$((delay * 2))
+          attempt=$((attempt + 1))
+        done
+        echo "Failed to pull ${IMAGE} after ${MAX_ATTEMPTS} attempts" >&2
+        exit 1

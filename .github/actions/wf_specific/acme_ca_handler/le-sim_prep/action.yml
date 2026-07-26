@@ -18,6 +18,16 @@ runs:
   using: "composite"
   steps:
 
+  - name: "Pull le-sim image"
+    uses: ./.github/actions/docker_pull
+    with:
+      IMAGE: grindsa/acme2certifier:apache2-wsgi
+
+  - name: "Pull acme.sh image"
+    uses: ./.github/actions/docker_pull
+    with:
+      IMAGE: neilpang/acme.sh:latest
+
   - name: "Setup le-sim"
     run: |
       sudo mkdir -p "$LESIM_NAME/acme_ca/certs"

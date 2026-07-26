@@ -31,6 +31,12 @@ runs:
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
+    - name: "Pull Ubuntu image"
+      if: inputs.DISTRO == 'ubuntu'
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: jrei/systemd-ubuntu:${{ inputs.VERSION }}
+
     - name: "Start Ubuntu systemd container"
       if: inputs.DISTRO == 'ubuntu'
       run: |
@@ -59,6 +65,12 @@ runs:
         VERSION: ${{ inputs.VERSION }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         CONTAINER_NAME: ${{ inputs.CONTAINER_NAME }}
+
+    - name: "Pull AlmaLinux image"
+      if: inputs.DISTRO == 'alma'
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: almalinux/${{ inputs.VERSION }}-init
 
     - name: "Start AlmaLinux systemd container"
       if: inputs.DISTRO == 'alma'

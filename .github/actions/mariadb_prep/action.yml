@@ -17,6 +17,12 @@ inputs:
 runs:
   using: "composite"
   steps:
+    - name: "Pull Mariadb image"
+      if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION != '8'
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: mariadb
+
     - name: "Instanciate Mariadb"
       if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION != '8'
       run: |
@@ -26,6 +32,12 @@ runs:
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         RH_VERSION: ${{ inputs.RH_VERSION }}
+
+    - name: "Pull Mariadb image (RHEL8)"
+      if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION == '8'
+      uses: ./.github/actions/docker_pull
+      with:
+        IMAGE: mariadb:10.6-ubi9
 
     - name: "Instanciate Mariadb for RHEL8"
       if: inputs.INSTANCIATE == 'true' && inputs.RH_VERSION == '8'
