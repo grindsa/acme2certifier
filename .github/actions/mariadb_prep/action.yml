@@ -49,11 +49,22 @@ runs:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         RH_VERSION: ${{ inputs.RH_VERSION }}
 
-    - name: "Sleep for 10s"
+    - name: "Wait for mariadb readiness"
       if: inputs.INSTANCIATE == 'true'
-      uses: juliangruber/sleep-action@v2.0.4
-      with:
-        time: 10s
+      run: |
+        set -euo pipefail
+        for i in $(seq 1 60); do
+          if docker exec mariadbsrv mariadbadmin ping -uroot -pfoobar --silent; then
+            echo "mariadb ready after ${i}s"
+            exit 0
+          fi
+          echo "mariadb not ready (${i}/60), retrying..."
+          sleep 1
+        done
+        echo "mariadb did not become ready in time" >&2
+        docker logs mariadbsrv || true
+        exit 1
+      shell: bash
 
     - name: "Configure mariadb"
       working-directory: examples/Docker/
@@ -63,8 +74,3 @@ runs:
         docker exec mariadbsrv mariadb -u root --password=foobar -e"GRANT ALL PRIVILEGES ON acme2certifier.* TO 'acme2certifier'@'%' IDENTIFIED BY '1mmSvDFl';"
         docker exec mariadbsrv mariadb -u root --password=foobar -e"FLUSH PRIVILEGES;"
       shell: bash
-
-    - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.4
-      with:
-        time: 5s

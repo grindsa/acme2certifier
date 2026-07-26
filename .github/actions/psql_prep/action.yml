@@ -38,11 +38,22 @@ runs:
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
-    - name: "Sleep for 10s"
+    - name: "Wait for postgres readiness"
       if: inputs.INSTANCIATE == 'true'
-      uses: juliangruber/sleep-action@v2.0.4
-      with:
-        time: 10s
+      run: |
+        set -euo pipefail
+        for i in $(seq 1 60); do
+          if docker exec postgresdbsrv pg_isready -U postgres >/dev/null 2>&1; then
+            echo "postgres ready after ${i}s"
+            exit 0
+          fi
+          echo "postgres not ready (${i}/60), retrying..."
+          sleep 1
+        done
+        echo "postgres did not become ready in time" >&2
+        docker logs postgresdbsrv || true
+        exit 1
+      shell: bash
 
     - name: "Configure postgres"
       if: inputs.INSTANCIATE == 'true'
@@ -62,8 +73,3 @@ runs:
       shell: bash
       env:
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
-
-    - name: "Sleep for 5s"
-      uses: juliangruber/sleep-action@v2.0.4
-      with:
-        time: 5s
