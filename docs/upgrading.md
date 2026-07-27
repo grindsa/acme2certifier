@@ -19,7 +19,42 @@ Install guides: [pip/Apache](install_apache2_ubuntu.md) · [pip/Nginx Ubuntu](in
 | Tools | `python tools/<name>.py` | `python3 -m acme2certifier.tools.<name>` |
 | Plugin config | `*_file` paths | `*_module` (preferred); `*_file` until **1.0** |
 
-There are no compatibility shims between old and new structure. You need to switch config and Django settings before or **immediately** after upgrade.
+### All changes required together
+
+There are no compatibility shims. After upgrade, the running process must use:
+
+- `*_module` keys in `acme_srv.cfg` (not legacy `*_file` alone)
+- updated imports in any custom handler / hook / EAB code
+- updated Django settings (`INSTALLED_APPS`, `ROOT_URLCONF`, `WSGI_APPLICATION`) on Django installs
+
+Apply these **before or immediately after** upgrade. Updating only `acme_srv.cfg` while leaving old imports or Django settings in place will not work. Typical failure modes:
+
+| Symptom | Likely cause |
+| --- | --- |
+| `ModuleNotFoundError: No module named 'acme_srv'` | custom handler still imports old paths |
+| Django fails at startup / migration errors | old `INSTALLED_APPS` or URLconf |
+| `/directory` works, issuance fails | CA handler loads but breaks on first cert request |
+
+Use the [checklist](#checklist) below as a single pass — config, code imports, Django (if applicable), then restart.
+
+### Deploy root
+
+Application code lives in the pip package (`acme2certifier.*`). Only runtime data — config, SQLite DB, CA keys, volume — sit under a **deploy root**. That path is not hardcoded; it depends on how you installed:
+
+| Channel | Typical deploy root |
+| --- | --- |
+| DEB / pip | `/var/www/acme2certifier` |
+| RPM | `/opt/acme2certifier` |
+| Docker | volume mount (see [Docker](#docker-wsgi)) |
+
+OS packages use familiar FHS paths so systemd, nginx, and Apache configs stay predictable. pip and Docker installs can use any root you choose.
+
+Override defaults with environment variables:
+
+- `ACME2CERTIFIER_BASE_DIR` — deploy root for DB, volume paths, and relative cfg entries
+- `ACME_SRV_CONFIGFILE` — absolute path to `acme_srv.cfg`
+
+See also [Install roots](architecture/package-layout.md#install-roots) in the package layout doc.
 
 ## Config (all install types)
 
@@ -54,6 +89,9 @@ from acme_srv.helper import ...
 # new
 from acme2certifier.acme_srv.helper import ...
 ```
+
+If you keep `handler_file:` as a temporary bridge until **0.48**, the file must still use
+`from acme2certifier.acme_srv…` imports on v0.45 — old `acme_srv.*` imports will fail.
 
 ## Django settings (Django installs only)
 
@@ -114,6 +152,33 @@ docker compose exec <service> a2c-manage loaddata status
 ```
 
 5. Verify: `curl -sS http://127.0.0.1:<host-port>/directory`
+
+### Docker: WSGI vs Django (and rollback)
+
+Image tags encode the web stack (`*-wsgi` vs `*-django`, plus apache2/nginx).
+`[DBhandler] handler:` in `acme_srv.cfg` selects the DB backend but does **not** retarget the baked-in web entry — keep both aligned for now. Background: [Image tag vs handler](install_docker.md#image-tag-vs-dbhandler-handler).
+
+| You run | Image tag must be | Volume must include |
+| --- | --- | --- |
+| WSGI | `*-wsgi` | `acme_srv.cfg`, DB, CA material |
+| Django | `*-django` | above + `settings.py`, `migrations/` |
+
+**Wrong tag pulled (e.g. `*-django` on a WSGI volume):**
+
+1. Do **not** run `docker compose down -v` (destroys the volume).
+2. Revert `docker-compose.yml` (or `.env`) to the previous image tag.
+3. If you already edited `volume/acme_srv.cfg` or `volume/settings.py`, restore from backup — or set `[DBhandler] handler:` back to match the image you roll back to.
+4. Recreate the container:
+
+```bash
+docker compose pull
+docker compose up -d --force-recreate
+curl -sS http://127.0.0.1:<host-port>/directory
+```
+
+5. Check logs: `docker compose logs --tail=50 <service>`.
+
+**Intentional WSGI → Django (or reverse):** treat as a migration, not a tag swap. Follow the full [Docker (Django)](#docker-django) or [Docker (WSGI)](#docker-wsgi) section including settings, `handler:`, and migrations — do not change only the tag.
 
 ---
 
@@ -278,8 +343,8 @@ Full CA list and import renames: see git history of this file or `acme2certifier
 1. Backup cfg + DB (+ volume / settings).
 2. Install new package / image / wheel.
 3. Switch `acme_srv.cfg` to `*_module`.
-4. Django: update `INSTALLED_APPS` / URLconf / WSGI; run `a2c-manage migrate`.
-5. Fix custom handler imports.
+4. Fix custom handler / hook / EAB imports.
+5. Django: update `INSTALLED_APPS` / URLconf / WSGI; run `a2c-manage migrate`.
 6. Restart services; hit `/directory`.
 7. Clear deprecation warnings before **1.0** (`*_file` and default `acme_srv.ca_handler` fall away).
 

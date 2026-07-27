@@ -79,6 +79,12 @@
 | `Renewalinfo`   | `retry_after_timeout`                 | Number of seconds a client should wait before retrying a pending certificate renewal                                                                                                                                  | Integer                                                                                                                 | 600                                         |
 | `Renewalinfo`   | `renewal_force`                       | Forces certificate renewal regardless of the usual renewal threshold or timing conditions                                                                                                                             | True/False                                                                                                              | False                                       |
 
+### DBhandler
+
+`handler` selects the database backend at runtime (`wsgi` = SQLite via the WSGI handler, `django` = Django ORM). It takes precedence over the `ACME_SRV_DB_HANDLER` environment variable. Use `handler_module` only when pointing at a custom backend module.
+
+On pip, DEB, and RPM installs, `handler:` is the normal way to choose the backend. In Docker, the image tag also selects the web stack — tag and `handler:` must agree for now. See [Containerized installation — Image tag vs handler](install_docker.md#image-tag-vs-dbhandler-handler).
+
 The options for the `CAhandler` section depend on the CA handler.
 
 Further options for the `Hooks` section depend on the concrete hooks class.
