@@ -77,15 +77,7 @@ runs:
 
   - name: "Check logs for JIT authorization message"
     if: ${{ inputs.CHECK_JIT == 'true' }}
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        echo "container deployment"
-        docker compose logs | grep "JIT dns-persist-01 validation succeeded"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n 700 /var/log/messages | grep "JIT dns-persist-01 validation succeeded"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "JIT dns-persist-01 validation succeeded"

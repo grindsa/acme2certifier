@@ -34,11 +34,11 @@ runs:
     - name: "Create lego folder"
       run: |
         mkdir -p lego
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-        fi
       shell: bash
-      env:
+
+    - name: "Flush logs"
+      uses: ./.github/actions/logs_flush
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
     - name: "Wait for ACME directory"
@@ -63,23 +63,21 @@ runs:
       with:
         time: 20s
 
-    - name: "Check logs "
+    - name: "Check logs domain preauth"
       if: ${{ inputs.PREVALIDATED == 'both' }}
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          echo "container deployment"
-          docker compose logs | grep "Domain lego-01.foo.local is preauthorized, setting authorization status to 'valid'"
-          docker compose logs | grep "IP 10.0.0.1 is preauthorized, setting authorization status to 'valid'"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 1500 /var/log/messages
-          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "Domain lego-01.foo.local is preauthorized, setting authorization status to 'valid'"
-          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "IP 10.0.0.1 is preauthorized, setting authorization status to 'valid'"
-        fi
-      shell: bash
-      env:
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "Domain lego-01.foo.local is preauthorized, setting authorization status to 'valid'"
+        FLUSH: "false"
+
+    - name: "Check logs IP preauth"
+      if: ${{ inputs.PREVALIDATED == 'both' }}
+      uses: ./.github/actions/logs_assert
+      with:
+        DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "IP 10.0.0.1 is preauthorized, setting authorization status to 'valid'"
+        FLUSH: "true"
 
     - name: "Enroll lego with both ip and domain prevalidation (to fail)"
       if: ${{ inputs.PREVALIDATED == 'both' }}
@@ -124,20 +122,12 @@ runs:
       with:
         time: 10s
 
-    - name: "Check logs "
+    - name: "Check logs"
       if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          echo "container deployment"
-          docker compose logs | grep "Domain lego-02.foo.local is preauthorized, setting authorization status to 'valid'"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "Domain lego-02.foo.local is preauthorized, setting authorization status to 'valid'"
-        fi
-      shell: bash
-      env:
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "Domain lego-02.foo.local is preauthorized, setting authorization status to 'valid'"
 
     - name: "Enroll lego with only domain prevalidation"
       if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
@@ -156,20 +146,12 @@ runs:
       with:
         time: 10s
 
-    - name: "Check logs "
+    - name: "Check logs"
       if: ${{ inputs.PREVALIDATED == 'domain' || inputs.PREVALIDATED == 'both' }}
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          echo "container deployment"
-          docker compose logs | grep "Domain lego-03.foo.local is preauthorized, setting authorization status to 'valid'"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "Domain lego-03.foo.local is preauthorized, setting authorization status to 'valid'"
-        fi
-      shell: bash
-      env:
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "Domain lego-03.foo.local is preauthorized, setting authorization status to 'valid'"
 
     - name: "Enroll lego with both ip and domain prevalidation (to fail)"
       if: ${{ inputs.PREVALIDATED == 'both' || inputs.PREVALIDATED == 'domain' }}
@@ -207,20 +189,12 @@ runs:
       with:
         time: 10s
 
-    - name: "Check logs "
+    - name: "Check logs"
       if: ${{ inputs.PREVALIDATED == 'both'  || inputs.PREVALIDATED == 'ip' }}
-      working-directory: examples/Docker/
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          echo "container deployment"
-          docker compose logs | grep "IP 10.0.0.2 is preauthorized, setting authorization status to 'valid'"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i acme-srv tail -n 2000 /var/log/messages | grep "IP 10.0.0.2 is preauthorized, setting authorization status to 'valid'"
-        fi
-      shell: bash
-      env:
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+        PATTERN: "IP 10.0.0.2 is preauthorized, setting authorization status to 'valid'"
 
     - name: "Enroll lego with both ip and domain prevalidation (to fail)"
       if: ${{ inputs.PREVALIDATED == 'both' || inputs.PREVALIDATED == 'ip' }}

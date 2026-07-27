@@ -1,5 +1,10 @@
 name: "enroll_acmeprofile"
 description: "enroll_acmeprofile"
+inputs:
+  DEPLOYMENT_TYPE:
+    description: "Deployment type"
+    required: true
+    default: "rpm"
 
 runs:
   using: "composite"
@@ -27,17 +32,10 @@ runs:
       UUID: ${{ env.UUID }}
 
   - name: "Check logs for profile usage"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "CAhandler._enroll(): Adding profile_id caIPAserviceCert to RPC payload for enrollment"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec acme-srv grep "CAhandler._enroll(): Adding profile_id caIPAserviceCert to RPC payload for enrollment" /var/log/messages
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
+      PATTERN: "CAhandler._enroll(): Adding profile_id caIPAserviceCert to RPC payload for enrollment"
 
   - name: "Generate UUID"
     run: |
@@ -56,18 +54,10 @@ runs:
       UUID: ${{ env.UUID }}
 
   - name: "Check logs for profile usage"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "CAhandler._enroll(): Adding profile_id IECUserRoles to RPC payload for enrollment"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec acme-srv grep "CAhandler._enroll(): Adding profile_id IECUserRoles to RPC payload for enrollment" /var/log/messages
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-
+      PATTERN: "CAhandler._enroll(): Adding profile_id IECUserRoles to RPC payload for enrollment"
 
   - name: "ACME Profile - 03 - enrollment with unknown profile (to fail)"
     id: legofail02
