@@ -6,7 +6,7 @@
 
 Agent brief for completing the package-layout migration in **acme2certifier 1.0**: remove deprecated `*_file` config keys and the default `acme_srv.ca_handler` fallback.
 
-Related: [Package layout migration](../migration_package_layout.md).
+Related: [Upgrading](../upgrading.md).
 
 ## Role
 
@@ -105,7 +105,7 @@ Update anything that still relies on `handler_file` or default `acme_srv/ca_hand
 
 ## Docs to update
 
-- `docs/migration_package_layout.md` — Phase 10 complete; remove “still supported” for `*_file` / default fallback; migration = `*_module` only
+- `docs/upgrading.md` — Phase 10 complete; remove “still supported” for `*_file` / default fallback; migration = `*_module` only
 - `docs/acme_srv.md`, `docs/ca_handler.md`, `docs/eab.md`, `docs/hooks.md`, `docs/upgrading.md`
 - Per-handler docs that still list `handler_file` as deprecated
 - Install guides that say `handler_file` / copy-to-`acme_srv/ca_handler.py` remain supported
@@ -122,7 +122,7 @@ Update anything that still relies on `handler_file` or default `acme_srv/ca_hand
 
 ## Suggested work order
 
-1. Read `plugin_loader.py` + `compat.py` + `docs/migration_package_layout.md`
+1. Read `plugin_loader.py` + `compat.py` + `docs/upgrading.md`
 2. Change loader to module-only; remove fallback
 3. Fix unit tests
 4. Fix CI / Docker entrypoints

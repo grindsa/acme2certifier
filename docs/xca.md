@@ -28,7 +28,7 @@ Set `handler_module` in `acme_srv.cfg` (do not copy handler files into `acme_srv
 handler_module: acme2certifier.cahandlers.xca_ca_handler
 ```
 
-See [Package layout migration](migration_package_layout.md).
+See [Upgrading](upgrading.md).
 
 ### 2. Ensure Database Accessibility
 

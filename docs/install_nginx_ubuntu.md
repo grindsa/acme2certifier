@@ -176,4 +176,4 @@ curl -sS http://127.0.0.1/directory
 - [Nginx on Alma / RHEL](install_nginx_alma.md)
 - [Support for External Databases (Django)](external_database_support.md)
 - [acme_srv.cfg options](acme_srv.md)
-- [Package layout migration](migration_package_layout.md)
+- [Upgrading](upgrading.md)
