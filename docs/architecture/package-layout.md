@@ -77,6 +77,7 @@ If both `*_module` and `*_file` are set, `*_module` wins.
 | DEB | `/var/www/acme2certifier` | `/var/www/acme2certifier/acme_srv.cfg` |
 | RPM | `/opt/acme2certifier` | `/opt/acme2certifier/acme_srv.cfg` |
 | Docker | image + volume | `/var/www/acme2certifier/volume/acme_srv.cfg` |
+| Local checkout | repo root | `<repo>/acme_srv.cfg` (preferred over `<repo>/acme_srv/acme_srv.cfg`) |
 
 ## Related
 

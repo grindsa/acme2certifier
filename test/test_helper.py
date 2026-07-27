@@ -2864,6 +2864,63 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         self.assertFalse(mock_util.spec_from_file_location.called)
         self.assertTrue(any("ignoring handler_file" in line for line in lcm.output))
 
+    @patch("importlib.import_module")
+    def test_261g_ca_handler_load_info_once(self, mock_imp):
+        """routine Loaded CA handler INFO is emitted once per process"""
+        from acme2certifier.acme_srv.helpers import plugin_loader
+
+        plugin_loader._HANDLER_LOAD_LOGGED.clear()
+        config_dic = {"CAhandler": {"handler_module": "pkg.ca_handler"}}
+        mock_imp.return_value = "mod"
+        with self.assertLogs("test_a2c", level="INFO") as lcm1:
+            self.assertEqual("mod", self.ca_handler_load(self.logger, config_dic))
+        self.assertEqual(
+            1, sum(1 for line in lcm1.output if "Loaded CA handler" in line)
+        )
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm2:
+            self.assertEqual("mod", self.ca_handler_load(self.logger, config_dic))
+        self.assertFalse(any("INFO:test_a2c:Loaded CA handler" in line for line in lcm2.output))
+        self.assertTrue(
+            any("DEBUG:test_a2c:Loaded CA handler" in line for line in lcm2.output)
+        )
+        plugin_loader._HANDLER_LOAD_LOGGED.clear()
+
+    @patch("importlib.import_module")
+    def test_261h_eab_handler_load_info_once(self, mock_imp):
+        """routine Loaded EAB handler INFO is emitted once per process"""
+        from acme2certifier.acme_srv.helpers import plugin_loader
+
+        plugin_loader._HANDLER_LOAD_LOGGED.clear()
+        config_dic = {"EABhandler": {"eab_handler_module": "pkg.eab_handler"}}
+        mock_imp.return_value = "mod"
+        with self.assertLogs("test_a2c", level="INFO") as lcm1:
+            self.assertEqual("mod", self.eab_handler_load(self.logger, config_dic))
+        self.assertEqual(
+            1, sum(1 for line in lcm1.output if "Loaded EAB handler" in line)
+        )
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm2:
+            self.assertEqual("mod", self.eab_handler_load(self.logger, config_dic))
+        self.assertFalse(
+            any("INFO:test_a2c:Loaded EAB handler" in line for line in lcm2.output)
+        )
+        plugin_loader._HANDLER_LOAD_LOGGED.clear()
+
+    @patch("importlib.import_module")
+    def test_261i_hooks_load_info_once(self, mock_imp):
+        """routine Loaded hooks INFO is emitted once per process"""
+        from acme2certifier.acme_srv.helpers import plugin_loader
+
+        plugin_loader._HANDLER_LOAD_LOGGED.clear()
+        config_dic = {"Hooks": {"hooks_module": "pkg.hooks"}}
+        mock_imp.return_value = "mod"
+        with self.assertLogs("test_a2c", level="INFO") as lcm1:
+            self.assertEqual("mod", self.hooks_load(self.logger, config_dic))
+        self.assertEqual(1, sum(1 for line in lcm1.output if "Loaded hooks" in line))
+        with self.assertLogs("test_a2c", level="DEBUG") as lcm2:
+            self.assertEqual("mod", self.hooks_load(self.logger, config_dic))
+        self.assertFalse(any("INFO:test_a2c:Loaded hooks" in line for line in lcm2.output))
+        plugin_loader._HANDLER_LOAD_LOGGED.clear()
+
     def test_262_error_dic_get(self):
         """test error_dic_get"""
         result = {
