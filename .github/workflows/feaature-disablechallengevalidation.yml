@@ -139,14 +139,26 @@ jobs:
         with:
           TO_FAIL: "true"
 
-      - name: "Check logs for forward check errors"
-        working-directory: examples/Docker
-        run: |
-          # check no ip-match
-          docker compose logs 2>&1 | grep "Forward check failed for www.dynamop.de"
-          docker compose logs 2>&1 | grep "SourceAddressValidator._perform_forward_check(): Source address not found in resolved IPs"
-          # check dns resolution fail
-          docker compose logs 2>&1 | grep "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist"
+      - name: "Check logs for forward check errors (ip-match)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Forward check failed for www.dynamop.de"
+          FLUSH: "false"
+
+      - name: "Check logs for forward check errors (source address)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "SourceAddressValidator._perform_forward_check(): Source address not found in resolved IPs"
+          FLUSH: "false"
+
+      - name: "Check logs for forward check errors (dns resolution)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist"
+          FLUSH: "false"
 
       - name: "Enable reverse address check"
         run: |
@@ -159,12 +171,19 @@ jobs:
         with:
           TO_FAIL: "true"
 
-      - name: "Check logs for reverse check errors"
-        working-directory: examples/Docker
-        run: |
-          docker compose logs 2>&1 | grep "Reverse address check failed"
-          docker compose logs 2>&1 | grep "Reverse check passed for lego.acme"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      - name: "Check logs for reverse check errors (failed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Reverse address check failed"
+          FLUSH: "false"
+
+      - name: "Check logs for reverse check errors (passed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Reverse check passed for lego.acme"
+          FLUSH: "true"
 
       - name: "EAB - Setup a2c with xca_ca_handler - profiling"
         uses: ./.github/actions/setup_cahandler_cfg
@@ -208,10 +227,11 @@ jobs:
           EAB_HMAC_KEY: "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw"
 
       - name: "Check logs for forward check errors"
-        working-directory: examples/Docker
-        run: |
-          docker compose logs 2>&1 | grep "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist"
+          FLUSH: "true"
 
       - name: "EAB - reverse address check enabled"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
@@ -220,12 +240,19 @@ jobs:
           EAB_KID: "keyid_01"
           EAB_HMAC_KEY: "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg"
 
-      - name: "Check logs for reverse check errors"
-        working-directory: examples/Docker
-        run: |
-          docker compose logs 2>&1 | grep "Reverse address check failed"
-          docker compose logs 2>&1 | grep "Reverse check passed for lego.acme"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
+      - name: "Check logs for reverse check errors (failed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Reverse address check failed"
+          FLUSH: "false"
+
+      - name: "Check logs for reverse check errors (passed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Reverse check passed for lego.acme"
+          FLUSH: "true"
 
       - name: "EAB - Chellenge validation disabled"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
@@ -235,9 +262,10 @@ jobs:
           EAB_HMAC_KEY: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
 
       - name: "Check logs for challenge validation disabled message"
-        working-directory: examples/Docker
-        run: |
-          docker compose logs 2>&1 | grep "Source address checks are disabled. Setting challenge status to valid."
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "Source address checks are disabled. Setting challenge status to valid."
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -361,11 +389,26 @@ jobs:
         with:
           time: 15s
 
-      - name: "Check logs for forward check errors"
-        run: |
-          docker exec acme-srv grep "Forward check failed for www.dynamop.de" /var/log/messages
-          docker exec acme-srv grep "SourceAddressValidator._perform_forward_check(): Source address not found in resolved IPs" /var/log/messages
-          docker exec acme-srv grep "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist" /var/log/messages
+      - name: "Check logs for forward check errors (ip-match)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Forward check failed for www.dynamop.de"
+          FLUSH: "false"
+
+      - name: "Check logs for forward check errors (source address)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "SourceAddressValidator._perform_forward_check(): Source address not found in resolved IPs"
+          FLUSH: "false"
+
+      - name: "Check logs for forward check errors (dns resolution)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist"
+          FLUSH: "false"
 
       - name: "Enable reverse address check"
         run: |
@@ -387,10 +430,19 @@ jobs:
         with:
           time: 15s
 
-      - name: "Check logs for reverse check errors"
-        run: |
-          docker exec acme-srv grep "Reverse address check failed" /var/log/messages
-          docker exec acme-srv grep "Reverse check passed for lego.acme" /var/log/messages
+      - name: "Check logs for reverse check errors (failed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Reverse address check failed"
+          FLUSH: "false"
+
+      - name: "Check logs for reverse check errors (passed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Reverse check passed for lego.acme"
+          FLUSH: "true"
 
       - name: "Setup acme_srv.cfg with xca_ca_handler"
         uses: ./.github/actions/setup_cahandler_cfg
@@ -436,8 +488,11 @@ jobs:
           EAB_HMAC_KEY: "V2VfbmVlZF9hbm90aGVyX3ZlcnkfX2xvbmdfaG1hY190b19jaGVja19lYWJfZm9yX2tleWlkXzAwX2FzX2xlZ29fZW5mb3JjZXNfYW5faG1hY19sb25nZXJfdGhhbl8yNTZfYml0cw"
 
       - name: "Check logs for forward check errors"
-        run: |
-          docker exec acme-srv grep "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist" /var/log/messages
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Forward address check DNS resolution failed: A: NXDOMAIN: lego-unknown.acme does not exist"
+          FLUSH: "true"
 
       - name: "EAB - reverse address check enabled"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
@@ -446,10 +501,19 @@ jobs:
           EAB_KID: "keyid_01"
           EAB_HMAC_KEY: "YW5vdXRoZXJfdmVyeV9sb25nX2htYWNfZm9yX2tleWlkXzAxX3doaWNoIHdpbGxfYmUgdXNlZF9kdXJpbmcgcmVncmVzc2lvbg"
 
-      - name: "Check logs for reverse check errors"
-        run: |
-          docker exec acme-srv grep "Reverse address check failed" /var/log/messages
-          docker exec acme-srv grep "Reverse check passed for lego.acme" /var/log/messages
+      - name: "Check logs for reverse check errors (failed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Reverse address check failed"
+          FLUSH: "false"
+
+      - name: "Check logs for reverse check errors (passed)"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Reverse check passed for lego.acme"
+          FLUSH: "true"
 
       - name: "EAB - Chellenge validation disabled"
         uses: ./.github/actions/wf_specific/disable_challengevalidation/enroll_eabprofile
@@ -459,9 +523,10 @@ jobs:
           EAB_HMAC_KEY: "dGhpc19pc19hX3ZlcnlfbG9uZ19obWFjX3RvX21ha2Vfc3VyZV90aGF0X2l0c19tb3JlX3RoYW5fMjU2X2JpdHM"
 
       - name: "Check logs for challenge validation disabled message"
-        working-directory: examples/Docker
-        run: |
-          docker exec acme-srv grep "Source address checks are disabled. Setting challenge status to valid." /var/log/messages
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "Source address checks are disabled. Setting challenge status to valid."
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}

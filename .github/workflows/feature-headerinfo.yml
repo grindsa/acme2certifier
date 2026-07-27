@@ -136,9 +136,11 @@ jobs:
           time: 15s
 
       - name: "check header info"
-        run: |
-          cd examples/Docker/
-          docker compose logs | grep foo-bar-doo | grep customized
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "foo-bar-doo.*customized|customized.*foo-bar-doo"
+          REGEX: "true"
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}
@@ -248,8 +250,11 @@ jobs:
           time: 15s
 
       - name: "check header info"
-        run: |
-          docker exec acme-srv grep foo-bar-doo /var/log/messages | grep customized
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "foo-bar-doo.*customized|customized.*foo-bar-doo"
+          REGEX: "true"
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}

@@ -198,9 +198,13 @@ jobs:
           # REVOCATION: "false"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
+          FLUSH: "false"
 
       - name: "Delete acme-sh, letsencypt and lego folders"
         run: |
@@ -230,10 +234,14 @@ jobs:
         env:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure a2c (pkcs12 support) (post-cfg)"
         run: |
           docker ps -a
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
@@ -247,14 +255,12 @@ jobs:
           # REVOCATION: "false"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+        uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "ACME Profiling - setup a2c with openxpki_ca_handler"
         uses: ./.github/actions/setup_cahandler_cfg
@@ -274,9 +280,13 @@ jobs:
         env:
           OPENXPKI_IP: ${{ env.RUNNER_IP }}
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "ACME Profiling - setup a2c with openxpki_ca_handler (post-cfg)"
         run: |
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           # sudo echo "host: https://$OPENXPKI_IP:8443" >> examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"tls-client\": \"http:\/\/foo.bar\/profile1\", \"tls-server\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/

@@ -94,14 +94,21 @@ jobs:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
+          FLUSH: "false"
 
       - name: "Check acme account found in keyfile"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -i "found in keyfile"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "found in keyfile"
+          IGNORE_CASE: "true"
+          FLUSH: "false"
 
       - uses: ./.github/actions/container_check
         with:
@@ -392,9 +399,12 @@ jobs:
       - uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_smallstep
 
       - name: "Check acme account found in keyfile"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -i "found in keyfile"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "found in keyfile"
+          IGNORE_CASE: "true"
+          FLUSH: "false"
 
       - uses: ./.github/actions/container_check
         with:
@@ -522,9 +532,12 @@ jobs:
           CERT_TIMEOUT: "360"
 
       - name: "Check acme account found in keyfile"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -i "found in keyfile"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "found in keyfile"
+          IGNORE_CASE: "true"
+          FLUSH: "false"
 
       - uses: ./.github/actions/container_check
         with:
@@ -595,14 +608,20 @@ jobs:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
-
-      - name: "Check acme account found in keyfile"
-        run: docker exec acme-srv bash -c 'grep -i "found in keyfile" /var/log/messages'
-
-      - uses: ./.github/actions/logs_flush
+        uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: rpm
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
+          FLUSH: "false"
+
+      - name: "Check acme account found in keyfile"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "found in keyfile"
+          IGNORE_CASE: "true"
 
       - uses: ./.github/actions/setup_cahandler_cfg
         with:
@@ -696,7 +715,12 @@ jobs:
       - uses: ./.github/actions/acme_clients
 
       - name: "Check acme account found in keyfile"
-        run: docker exec acme-srv bash -c 'grep -i "found in keyfile" /var/log/messages'
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "found in keyfile"
+          IGNORE_CASE: "true"
+          FLUSH: "false"
 
       - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
         if: ${{ failure() }}
@@ -893,7 +917,12 @@ jobs:
       - uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_smallstep
 
       - name: "Check acme account found in keyfile"
-        run: docker exec acme-srv bash -c 'grep -i "found in keyfile" /var/log/messages'
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "found in keyfile"
+          IGNORE_CASE: "true"
+          FLUSH: "false"
 
       - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
         if: ${{ failure() }}
@@ -1020,7 +1049,12 @@ jobs:
           CERT_TIMEOUT: "360"
 
       - name: "Check acme account found in keyfile"
-        run: docker exec acme-srv bash -c 'grep -i "found in keyfile" /var/log/messages'
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "found in keyfile"
+          IGNORE_CASE: "true"
+          FLUSH: "false"
 
       - uses: ./.github/actions/wf_specific/acme_ca_handler/failure_artifacts
         if: ${{ failure() }}

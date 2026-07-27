@@ -133,9 +133,12 @@ jobs:
           HOSTNAME_SUFFIX: -${{ env.UUID }}
 
       - name: "Check acme account found in keyfile"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -i "found in keyfile"
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "found in keyfile"
+          IGNORE_CASE: "true"
+          FLUSH: "false"
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check

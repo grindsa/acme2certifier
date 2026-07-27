@@ -336,13 +336,11 @@ jobs:
           NAME_SPACE: local
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          (cd examples/Docker && docker compose logs) | grep -E "FQDN/SAN [^ ]+ not allowed by configuration"
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+        uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
 
       - name: "NTLM ACME Profiling - Setup a2c"
         uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
@@ -783,13 +781,11 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          (cd examples/Docker && docker compose logs) | grep -E "FQDN/SAN [^ ]+ not allowed by configuration"
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+        uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
 
       - name: "KRB ACME Profile - Setup a2c"
         uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
@@ -1348,13 +1344,11 @@ jobs:
           NAME_SPACE: local
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          docker exec acme-srv grep -E "FQDN/SAN [^ ]+ not allowed by configuration" /var/log/messages
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+        uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: rpm
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
 
       - name: "KRB ACME Profiling - Setup a2c"
         uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure
@@ -1842,13 +1836,11 @@ jobs:
         uses: ./.github/actions/wf_specific/ms_ca_handler/enroll_allowed_domain_list
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          docker exec acme-srv grep -E "FQDN/SAN [^ ]+ not allowed by configuration" /var/log/messages
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+        uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: rpm
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
 
       - name: "ACME Profiling - Setup a2c"
         uses: ./.github/actions/wf_specific/ms_ca_handler/reconfigure

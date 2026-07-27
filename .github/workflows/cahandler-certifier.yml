@@ -1284,9 +1284,12 @@ jobs:
           exit 1
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "Setup a2c with cmp_ca_handler (PSK)"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
@@ -1350,9 +1353,12 @@ jobs:
           exit 1
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
@@ -1501,7 +1507,12 @@ jobs:
           exit 1
 
       - name: "Verify allowed_domainlist error"
-        run: docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "Setup a2c with cmp_ca_handler (PSK)"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure
@@ -1707,12 +1718,12 @@ jobs:
           exit 1
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          if [ "${{ matrix.websrv }}" = "apache2" ]; then
-            docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/apache2/error.log /var/log/syslog
-          else
-            docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/nginx/error.log /var/log/syslog
-          fi
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: deb
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "Setup a2c with cmp_ca_handler (PSK)"
         uses: ./.github/actions/wf_specific/certifier_ca_handler/reconfigure

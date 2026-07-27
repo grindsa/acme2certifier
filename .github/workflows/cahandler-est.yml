@@ -112,9 +112,12 @@ jobs:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "Check container configuration"
         uses: ./.github/actions/container_check
@@ -206,8 +209,12 @@ jobs:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
+        uses: ./.github/actions/logs_assert
+        with:
+          DEPLOYMENT_TYPE: rpm
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "[ * ] Collecting test logs"
         if: ${{ failure() }}

@@ -162,9 +162,13 @@ jobs:
             realm: SERVER.ACME
             enrollment_config_log: True
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "ACME Profiling - Setup a2c with freeca_ca_handler (post-cfg)"
         run: |
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           sudo mkdir -p examples/Docker/data/acme
           sudo chmod -R 777 examples/Docker/data/acme
           # disable challenge validation to avoid issues with profile tests
@@ -175,6 +179,8 @@ jobs:
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: container
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -352,6 +358,8 @@ jobs:
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: rpm
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -538,6 +546,8 @@ jobs:
 
       - name: "ACME Profiling - Test enrollment"
         uses: ./.github/actions/wf_specific/freeipa_ca_handler/enroll_acmeprofile
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush

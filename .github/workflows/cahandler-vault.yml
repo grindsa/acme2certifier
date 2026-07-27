@@ -123,14 +123,12 @@ jobs:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+        uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "ACME Profiling - setup a2c with vault_ca_handler"
         run: |

@@ -9,10 +9,6 @@ inputs:
     description: "Deployment type"
     required: true
     default: "rpm"
-  TAIL_NUMBER:
-    description: "Number of lines to tail"
-    required: false
-    default: "500"
 
 runs:
   using: "composite"
@@ -23,13 +19,8 @@ runs:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "ACME Profile - Clear logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_flush
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
 
   - name: "ACME Profile - 01 Enroll lego with template in acme_srv.cfg (WebServer-07-S)"
@@ -43,18 +34,10 @@ runs:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "ACME Profile - 01 - Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "template: WebServer-07-S"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer-07-S"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
+      PATTERN: "template: WebServer-07-S"
 
   - name: "ACME Profile - 02 - Enroll lego with a unknown template_name"
     id: legofail01
@@ -73,24 +56,11 @@ runs:
       exit 1
     shell: bash
 
-  - name: "Sleep for 5s"
-    uses: juliangruber/sleep-action@v2.0.4
-    with:
-      time: 5s
-
   - name: "ACME Profile - 02 - Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "unknown"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep unknown
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
+      PATTERN: "unknown"
 
   - name: "ACME Profile - 03 - Enroll lego with template submitted in command line (WebServer-07-C)"
     run: |
@@ -103,15 +73,7 @@ runs:
       NAME_SPACE: ${{ inputs.NAME_SPACE }}
 
   - name: "ACME Profile - 03 - Check logs"
-    working-directory: examples/Docker/
-    run: |
-      if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-        docker compose logs | grep "template: WebServer-07-C"
-        sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
-      elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-        docker exec -i acme-srv tail -n "$TAIL_NUMBER" /var/log/messages | grep "template: WebServer-07-C"
-      fi
-    shell: bash
-    env:
+    uses: ./.github/actions/logs_assert
+    with:
       DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
-      TAIL_NUMBER: ${{ inputs.TAIL_NUMBER }}
+      PATTERN: "template: WebServer-07-C"

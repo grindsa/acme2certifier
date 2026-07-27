@@ -49,31 +49,19 @@ runs:
       shell: bash
 
     - name: "Check a2c logs"
-      working-directory: examples/Docker/
       if: ${{ inputs.CA_ERROR_FORWARDING == 'false'}}
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "enrollment failed"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "enrollment failed"
-        fi
-      shell: bash
-      env:
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: acme2certifier-${{ inputs.ACME_SERVER }}-1
+        PATTERN: "enrollment failed"
 
     - name: "Check a2c logs"
-      working-directory: examples/Docker/
       if: ${{ inputs.CA_ERROR_FORWARDING == 'true'}}
-      run: |
-        if [ "$DEPLOYMENT_TYPE" == "container" ]; then
-          docker compose logs | grep "ca lookup failed"
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-$ACME_SERVER-1)
-        elif [ "$DEPLOYMENT_TYPE" == "rpm" ]; then
-          docker exec -i $ACME_SERVER tail -n 500 /var/log/messages | grep "ca lookup failed"
-        fi
-      shell: bash
-      env:
+      uses: ./.github/actions/logs_assert
+      with:
         DEPLOYMENT_TYPE: ${{ inputs.DEPLOYMENT_TYPE }}
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
+        COMPOSE_SERVICE: acme2certifier-${{ inputs.ACME_SERVER }}-1
+        PATTERN: "ca lookup failed"

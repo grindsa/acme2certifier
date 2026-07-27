@@ -313,13 +313,12 @@ jobs:
           HOSTNAME_SUFFIX: -${{ env.UUID }}
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+        uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: rpm
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "ACME Profiling - Setup a2c with dogtag_ca_handler"
         run: |

@@ -121,14 +121,12 @@ jobs:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          cd examples/Docker
-          docker compose logs | grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration'
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+        uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: container
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
         uses: ./.github/actions/setup_cahandler_cfg
@@ -409,13 +407,12 @@ jobs:
           TEST_ADL: "true"
 
       - name: "Verify allowed_domainlist error"
-        run: |
-          docker exec acme-srv grep -iE 'FQDN/SAN [^ ]+ not allowed by configuration' /var/log/messages
-
-      - name: "Flush logs"
-        uses: ./.github/actions/logs_flush
+        uses: ./.github/actions/logs_assert
         with:
           DEPLOYMENT_TYPE: rpm
+          PATTERN: "FQDN/SAN [^ ]+ not allowed by configuration"
+          REGEX: "true"
+          IGNORE_CASE: "true"
 
       - name: "EAB without headerinfo - setup a2c with ejbca_ca_handler"
         uses: ./.github/actions/setup_cahandler_cfg

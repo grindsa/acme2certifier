@@ -228,11 +228,15 @@ jobs:
           docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --debug 3 --output-insecure
           openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure hook handler to trigger pre hook exception "
         run: |
           sudo sed -i "s/raise_pre_hook_exception: False/raise_pre_hook_exception: True/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           docker compose restart
 
       - name: "acme.sh enrollment fails due to pre-hook exception (default behaviour)"
@@ -247,11 +251,15 @@ jobs:
           echo "prehookfailure outcome is ${{steps.prehookfailure.outcome }}"
           exit 1
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure a2c to ignore pre-hook failures "
         run: |
           sudo echo "ignore_pre_hook_failure: True" >> examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           docker compose restart
 
       - name: "Enroll acme.sh - ignore pre_hook_failures "
@@ -259,12 +267,16 @@ jobs:
           docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
           openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure hook handler to trigger success hook exception "
         run: |
           sudo sed -i "s/raise_pre_hook_exception: True/raise_pre_hook_exception: False/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/raise_success_hook_exception: False/raise_success_hook_exception: True/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           docker compose restart
 
       - name: "acme.sh enrollment fails due to success-hook exception (default behaviour) "
@@ -279,11 +291,15 @@ jobs:
           echo "successhookfailure outcome is ${{steps.successhookfailure.outcome }}"
           exit 1
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure a2c to ignore success-hook failures "
         run: |
           sudo sed -i "s/ignore_pre_hook_failure: True/ignore_success_hook_failure: True/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           docker compose restart
 
       - name: "Enroll acme.sh - ignore sucess_hook_failures "
@@ -291,12 +307,16 @@ jobs:
           docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
           openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure hook handler to trigger post hook exception "
         run: |
           sudo sed -i "s/raise_success_hook_exception: True/raise_success_hook_exception: False/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/raise_post_hook_exception: False/raise_post_hook_exception: True/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           docker compose restart
 
       - name: "Enroll acme.sh - ignore post_hook_failures (default behaviour) "
@@ -304,11 +324,15 @@ jobs:
           docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
           openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
 
+      - name: "Flush logs"
+        uses: ./.github/actions/logs_flush
+        with:
+          DEPLOYMENT_TYPE: container
+
       - name: "Reconfigure a2c to detect success-hook failures "
         run: |
           sudo sed -i "s/ignore_success_hook_failure: True/ignore_post_hook_failure: False/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
-          sudo truncate -s 0 $(docker inspect --format='{{.LogPath}}' acme2certifier-acme-srv-1)
           docker compose restart
 
       - name: "acme.sh enrollment fails due to post-hook exception "
