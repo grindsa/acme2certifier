@@ -18,15 +18,38 @@ inputs:
     description: "Docker network"
     required: false
     default: "acme"
-  IMAGE:
-    description: "Image to run for le-sim-2"
+  MODERN:
+    description: "If true, latest apache2-wsgi + handler_module cfg. If false, 0.44-apache2-wsgi + handler_file cfg (≤0.44 layout)"
     required: false
-    default: "grindsa/acme2certifier:apache2-wsgi"
+    default: "false"
 
 runs:
   using: "composite"
   steps:
-    - name: "Reconfigure ${{ inputs.LESIM_NAME }} as xca"
+    - name: "Resolve le-sim image"
+      id: resolve
+      run: |
+        set -euo pipefail
+        case "${MODERN}" in
+          true|false) ;;
+          *)
+            echo "ERROR: MODERN must be true|false (got: ${MODERN})" >&2
+            exit 1
+            ;;
+        esac
+        if [[ "${MODERN}" == "true" ]]; then
+          resolved="grindsa/acme2certifier:apache2-wsgi"
+        else
+          resolved="grindsa/acme2certifier:0.44-apache2-wsgi"
+        fi
+        echo "image=${resolved}" >> "${GITHUB_OUTPUT}"
+        echo "Resolved le-sim image: ${resolved} (MODERN=${MODERN})"
+      shell: bash
+      env:
+        MODERN: ${{ inputs.MODERN }}
+
+    - name: "Reconfigure ${{ inputs.LESIM_NAME }} as xca (modern)"
+      if: inputs.MODERN == 'true'
       uses: ./.github/actions/setup_cahandler_cfg
       with:
         VOLUME_DIR: ${{ inputs.LESIM_NAME }}
@@ -38,10 +61,23 @@ runs:
           passphrase: ${{ inputs.XCA_PASSPHRASE }}
           template_name: ${{ inputs.XCA_TEMPLATE }}
 
+    - name: "Reconfigure ${{ inputs.LESIM_NAME }} as xca (legacy)"
+      if: inputs.MODERN != 'true'
+      uses: ./.github/actions/setup_cahandler_cfg
+      with:
+        VOLUME_DIR: ${{ inputs.LESIM_NAME }}
+        OPTIONS: |
+          handler_file: examples/ca_handler/xca_ca_handler.py
+          xdb_file: volume/xca/${{ inputs.XCA_DB_NAME }}
+          issuing_ca_name: root-ca
+          issuing_ca_key: root-ca
+          passphrase: ${{ inputs.XCA_PASSPHRASE }}
+          template_name: ${{ inputs.XCA_TEMPLATE }}
+
     - name: "Pull le-sim image"
       uses: ./.github/actions/docker_pull
       with:
-        IMAGE: ${{ inputs.IMAGE }}
+        IMAGE: ${{ steps.resolve.outputs.image }}
 
     - name: "Pull acme.sh image"
       uses: ./.github/actions/docker_pull
@@ -55,16 +91,26 @@ runs:
         sudo mkdir -p "${LESIM_NAME}/xca"
         sudo chmod -R 777 "${LESIM_NAME}/xca"
         sudo cp test/ca/acme2certifier-clean.xdb "${LESIM_NAME}/xca/${XCA_DB_NAME}"
-        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" "${LESIM_NAME}/acme_srv.cfg"
-        docker run -d --rm --network "${NAME_SPACE}" --name="${LESIM_NAME}" \
-          -v "$(pwd)/${LESIM_NAME}":/var/www/acme2certifier/volume/ \
-          "${IMAGE}"
+        sudo sed -i "s/challenge_validation_disable: False/challenge_validation_disable: True/g" \
+          "${LESIM_NAME}/acme_srv.cfg"
+        docker_args=(
+          -d --rm
+          --network "${NAME_SPACE}"
+          --name "${LESIM_NAME}"
+          -v "$(pwd)/${LESIM_NAME}":/var/www/acme2certifier/volume/
+        )
+        if [[ "${MODERN}" == "true" ]]; then
+          docker_args+=(-e ACME2CERTIFIER_BASE_DIR=/var/www/acme2certifier)
+        fi
+        docker run "${docker_args[@]}" "${IMAGE}"
+        cat "${LESIM_NAME}/acme_srv.cfg"
       shell: bash
       env:
         LESIM_NAME: ${{ inputs.LESIM_NAME }}
         XCA_DB_NAME: ${{ inputs.XCA_DB_NAME }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
-        IMAGE: ${{ inputs.IMAGE }}
+        MODERN: ${{ inputs.MODERN }}
+        IMAGE: ${{ steps.resolve.outputs.image }}
 
     - name: "Wait for ${{ inputs.LESIM_NAME }} directory"
       uses: ./.github/actions/wait_for_directory

@@ -42,7 +42,7 @@ runs:
             --network "${NAME_SPACE}" \
             --name step-ca \
             -e "DOCKER_STEPCA_INIT_NAME=Smallstep" \
-            -e "DOCKER_STEPCA_INIT_DNS_NAMES=localhost,$(hostname -f)" \
+            -e "DOCKER_STEPCA_INIT_DNS_NAMES=localhost,step-ca,127.0.0.1,$(hostname -f)" \
             smallstep/step-ca
       shell: bash
       env:
@@ -51,8 +51,14 @@ runs:
     - name: "Wait for step-ca container ready"
       run: |
         set -euo pipefail
+        # step version works during `step ca init`; wait for PKI files + health.
+        # Use https://localhost (matches cert SAN); https://127.0.0.1 fails TLS name check.
         for i in $(seq 1 "${MAX_ATTEMPTS}"); do
-          if docker exec step-ca step version >/dev/null 2>&1; then
+          if docker exec step-ca test -f /home/step/certs/root_ca.crt \
+            && docker exec step-ca test -f /home/step/config/ca.json \
+            && docker exec -u step step-ca step ca health \
+                 --ca-url https://localhost:9000 \
+                 --root /home/step/certs/root_ca.crt >/dev/null 2>&1; then
             echo "step-ca ready after ${i} attempts"
             exit 0
           fi
@@ -61,6 +67,7 @@ runs:
         done
         echo "step-ca did not become ready" >&2
         docker logs step-ca || true
+        docker exec step-ca ls -la /home/step /home/step/certs /home/step/config || true
         exit 1
       shell: bash
       env:
@@ -70,9 +77,22 @@ runs:
     - name: "Configure smallstep"
       run: |
         set -euo pipefail
-        docker exec -i step-ca step ca provisioner add acme --type ACME
-        docker exec -i step-ca step ca provisioner update acme --remove-challenge=tls-alpn-01
-        docker exec -i step-ca step ca provisioner update acme --remove-challenge=dns-01
+        # Newer step probes the admin API first and needs --ca-url/--root;
+        # without admin API it then falls back to editing ca.json.
+        # Run as step so STEPPATH is /home/step (root would use /root/.step).
+        docker exec -u step -i step-ca sh -ec '
+          CA_URL=https://localhost:9000
+          CA_ROOT="$(step path)/certs/root_ca.crt"
+          CA_CONFIG="$(step path)/config/ca.json"
+          step ca provisioner add acme --type ACME \
+            --ca-url "$CA_URL" --root "$CA_ROOT" --ca-config "$CA_CONFIG"
+          step ca provisioner update acme \
+            --ca-url "$CA_URL" --root "$CA_ROOT" --ca-config "$CA_CONFIG" \
+            --remove-challenge=tls-alpn-01
+          step ca provisioner update acme \
+            --ca-url "$CA_URL" --root "$CA_ROOT" --ca-config "$CA_CONFIG" \
+            --remove-challenge=dns-01
+        '
         docker restart step-ca
       shell: bash
 

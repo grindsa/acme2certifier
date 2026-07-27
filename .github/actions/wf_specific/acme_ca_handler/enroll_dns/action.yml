@@ -29,9 +29,17 @@ inputs:
     required: true
     default: "acme"
   CERT_TIMEOUT:
-    description: "lego cert.timeout seconds"
+    description: "lego cert.timeout and http-timeout seconds"
     required: false
     default: "360"
+  MAX_ATTEMPTS:
+    description: "Enrollment retry attempts (fresh order each attempt)"
+    required: false
+    default: "3"
+  RETRY_SLEEP_SECONDS:
+    description: "Base sleep between retries (multiplied by attempt)"
+    required: false
+    default: "15"
 
 runs:
   using: "composite"
@@ -59,20 +67,41 @@ runs:
     - name: "HTTPS - Enroll lego"
       run: |
         set -euo pipefail
-        if [ "${USE_RSA}" = "false" ]; then
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem \
-            -v "$PWD/lego:/.lego/" --name "lego${HOSTNAME_SUFFIX}" --network "${NAME_SPACE}" \
-            goacme/lego run -s "https://${ACME_SERVER}:${HTTPS_PORT}" --tls-skip-verify -a \
-            --email "lego@example.com" -d "lego${HOSTNAME_SUFFIX}.${NAME_SPACE}" \
-            --cert.timeout "${CERT_TIMEOUT}" --tls
-        else
-          docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem \
-            -v "$PWD/lego:/.lego/" --name "lego${HOSTNAME_SUFFIX}" --network "${NAME_SPACE}" \
-            goacme/lego run -s "https://${ACME_SERVER}:${HTTPS_PORT}" --tls-skip-verify -a \
-            --email "lego@example.com" --key-type=rsa2048 \
-            -d "lego${HOSTNAME_SUFFIX}.${NAME_SPACE}" \
-            --cert.timeout "${CERT_TIMEOUT}" --tls
-        fi
+        attempt=1
+        while [ "${attempt}" -le "${MAX_ATTEMPTS}" ]; do
+          echo "Enrollment attempt ${attempt}/${MAX_ATTEMPTS}"
+          sudo rm -rf lego/certificates lego/accounts 2>/dev/null || true
+          set +e
+          if [ "${USE_RSA}" = "false" ]; then
+            docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem \
+              -v "$PWD/lego:/.lego/" --name "lego${HOSTNAME_SUFFIX}" --network "${NAME_SPACE}" \
+              goacme/lego run -s "https://${ACME_SERVER}:${HTTPS_PORT}" --tls-skip-verify -a \
+              --email "lego@example.com" -d "lego${HOSTNAME_SUFFIX}.${NAME_SPACE}" \
+              --cert.timeout "${CERT_TIMEOUT}" --http-timeout "${CERT_TIMEOUT}" --tls
+          else
+            docker run -i --rm -e LEGO_CA_CERTIFICATES=.lego/acme2certifier_cabundle.pem \
+              -v "$PWD/lego:/.lego/" --name "lego${HOSTNAME_SUFFIX}" --network "${NAME_SPACE}" \
+              goacme/lego run -s "https://${ACME_SERVER}:${HTTPS_PORT}" --tls-skip-verify -a \
+              --email "lego@example.com" --key-type=rsa2048 \
+              -d "lego${HOSTNAME_SUFFIX}.${NAME_SPACE}" \
+              --cert.timeout "${CERT_TIMEOUT}" --http-timeout "${CERT_TIMEOUT}" --tls
+          fi
+          rc=$?
+          set -e
+          if [ "${rc}" -eq 0 ]; then
+            exit 0
+          fi
+          echo "Enrollment failed (attempt ${attempt}/${MAX_ATTEMPTS}, rc=${rc})" >&2
+          if [ "${attempt}" -ge "${MAX_ATTEMPTS}" ]; then
+            break
+          fi
+          sleep_secs=$((attempt * RETRY_SLEEP_SECONDS))
+          echo "Retrying in ${sleep_secs}s..."
+          sleep "${sleep_secs}"
+          attempt=$((attempt + 1))
+        done
+        echo "Enrollment failed after ${MAX_ATTEMPTS} attempts" >&2
+        exit 1
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -81,6 +110,8 @@ runs:
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
+        MAX_ATTEMPTS: ${{ inputs.MAX_ATTEMPTS }}
+        RETRY_SLEEP_SECONDS: ${{ inputs.RETRY_SLEEP_SECONDS }}
 
     - name: "HTTPS - Revoke lego"
       if: ${{ inputs.REVOCATION == 'true' }}

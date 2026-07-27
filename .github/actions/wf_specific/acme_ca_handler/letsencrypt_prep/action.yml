@@ -49,11 +49,11 @@ inputs:
   DNS_VALIDATION_TIMEOUT:
     description: "Handler dns_validation_timeout seconds"
     required: false
-    default: "60"
+    default: "120"
   ENROLLMENT_TIMEOUT:
     description: "Certificate enrollment_timeout seconds"
     required: false
-    default: "300"
+    default: "600"
   ALLOWED_DOMAINLIST:
     description: "allowed_domainlist JSON array string"
     required: false
