@@ -67,8 +67,7 @@ jobs:
           pip install lxml beautifulsoup4 html5lib
           pip install ".[test,gssapi]"
           pip install pytest-cov impacket
-          cp acme2certifier/cahandlers/skeleton_ca_handler.py acme_srv/ca_handler.py
-          cp examples/acme_srv.cfg acme_srv/
+          cp examples/acme_srv.cfg acme2certifier/acme_srv/
           pytest --cov=./ --cov-report=xml
 
       - name: Upload coverage to Codecov
@@ -105,8 +104,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install ".[test,gssapi]"
           pip install coverage impacket
-          cp acme2certifier/cahandlers/skeleton_ca_handler.py acme_srv/ca_handler.py
-          cp examples/acme_srv.cfg acme_srv/
+          cp examples/acme_srv.cfg acme2certifier/acme_srv/
 
       - name: run coverage
         run: |
