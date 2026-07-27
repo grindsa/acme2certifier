@@ -35,9 +35,14 @@ runs:
             copy_dir_contents_if_present "acme-sh" "${GITHUB_WORKSPACE}/artifact/acme-sh"
             copy_dir_contents_if_present "certbot" "${GITHUB_WORKSPACE}/artifact/certbot"
             copy_dir_contents_if_present "lego" "${GITHUB_WORKSPACE}/artifact/lego"
-            # upgrade/container_run uses plain `docker run`, not compose
-            docker logs acme-srv > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" 2>&1 || true
-            (cd examples/Docker && docker compose logs > "${GITHUB_WORKSPACE}/artifact/docker-compose.log") 2>/dev/null || true
+            # Prefer compose logs/container id; fall back to bare container name
+            (cd examples/Docker && docker compose logs --no-color > "${GITHUB_WORKSPACE}/artifact/docker-compose.log") 2>/dev/null || true
+            cid="$(cd examples/Docker && docker compose ps -q 2>/dev/null | head -n 1 || true)"
+            if [[ -n "${cid}" ]]; then
+              docker logs "${cid}" > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" 2>&1 || true
+            else
+              docker logs acme-srv > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" 2>&1 || true
+            fi
             ;;
           rpm)
             docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c.tgz /opt/acme2certifier || true

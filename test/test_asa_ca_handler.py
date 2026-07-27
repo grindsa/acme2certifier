@@ -488,6 +488,7 @@ class TestACMEHandler(unittest.TestCase):
         """test _api_post(="""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.request_retries = 1
         mock_req.side_effect = Exception("exc_api_post")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual(
@@ -531,6 +532,7 @@ class TestACMEHandler(unittest.TestCase):
         """test _api_get()"""
         self.cahandler.api_host = "api_host"
         self.cahandler.auth = "auth"
+        self.cahandler.request_retries = 1
         mock_req.side_effect = Exception("exc_api_get")
         with self.assertLogs("test_a2c", level="INFO") as lcm:
             self.assertEqual((500, "exc_api_get"), self.cahandler._api_get("url"))
@@ -670,6 +672,55 @@ class TestACMEHandler(unittest.TestCase):
             'ERROR:test_a2c:Malformed response. "profiles" key not found',
             lcm.output,
         )
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._issuers_list")
+    def test_037a_issuer_verify_api_error_string(self, mock_list):
+        """_issuer_verify() must not TypeError when API returns error string containing 'issuers'"""
+        self.cahandler.ca_name = "ca_name"
+        mock_list.return_value = (
+            "HTTPSConnectionPool(host='x'): Max retries exceeded with url: "
+            "/asa_acme/v5/list_issuers (ConnectTimeoutError)"
+        )
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            error = self.cahandler._issuer_verify()
+        self.assertTrue(error.startswith("ASA API error:"))
+        self.assertIn("list_issuers", error)
+        self.assertTrue(any("ASA API error:" in line for line in lcm.output))
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._profiles_list")
+    def test_037b_profile_verify_api_error_string(self, mock_list):
+        """_profile_verify() must not TypeError when API returns error string containing 'profiles'"""
+        self.cahandler.profile_name = "profile_name"
+        mock_list.return_value = (
+            "HTTPSConnectionPool(host='x'): Max retries exceeded with url: "
+            "/asa_acme/v5/list_profiles?issuerName=ca (ConnectTimeoutError)"
+        )
+        with self.assertLogs("test_a2c", level="INFO") as lcm:
+            error = self.cahandler._profile_verify()
+        self.assertTrue(error.startswith("ASA API error:"))
+        self.assertIn("list_profiles", error)
+        self.assertTrue(any("ASA API error:" in line for line in lcm.output))
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.CAhandler._api_get")
+    def test_037c_issuers_list_cache(self, mock_get):
+        """_issuers_list() caches successful responses"""
+        mock_get.return_value = (200, {"issuers": ["ca_name"]})
+        self.assertEqual({"issuers": ["ca_name"]}, self.cahandler._issuers_list())
+        self.assertEqual({"issuers": ["ca_name"]}, self.cahandler._issuers_list())
+        self.assertEqual(1, mock_get.call_count)
+
+    @patch("acme2certifier.cahandlers.asa_ca_handler.time.sleep")
+    @patch("requests.get")
+    def test_037d_api_get_retries(self, mock_req, mock_sleep):
+        """_api_get() retries transport failures then succeeds"""
+        self.cahandler.request_retries = 3
+        mockresponse = Mock()
+        mockresponse.status_code = 200
+        mockresponse.json = lambda: {"issuers": ["ca"]}
+        mock_req.side_effect = [Exception("timeout"), Exception("timeout"), mockresponse]
+        self.assertEqual((200, {"issuers": ["ca"]}), self.cahandler._api_get("url"))
+        self.assertEqual(3, mock_req.call_count)
+        self.assertEqual(2, mock_sleep.call_count)
 
     @patch("acme2certifier.cahandlers.asa_ca_handler.uts_to_date_utc")
     @patch("acme2certifier.cahandlers.asa_ca_handler.uts_now")
