@@ -1,5 +1,5 @@
-name: "enroll_w_headerinfo"
-description: "enroll_w_headerinfo"
+name: "enroll_eab_acmeprofile"
+description: "ASA EAB ACME profile enrollment test"
 inputs:
   ASA_CA_NAME1:
     description: "ASA CA 1"
