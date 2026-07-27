@@ -2,8 +2,9 @@
 """Insta Active Security API  handler"""
 
 from __future__ import print_function
-from typing import Tuple, Dict
+from typing import Any, Dict, Optional, Tuple, Union
 import os
+import time
 import requests
 from requests.auth import HTTPBasicAuth
 
@@ -30,6 +31,8 @@ from acme2certifier.acme_srv.helper import (
     handler_config_check,
 )
 
+ApiContent = Union[Dict[str, Any], str, None]
+
 
 class CAhandler(object):
     """EST CA  handler"""
@@ -43,6 +46,7 @@ class CAhandler(object):
         self.ca_bundle = None
         self.proxy = None
         self.request_timeout = 10
+        self.request_retries = 3
         self.ca_name = None
         self.auth = None
         self.profile_name = None
@@ -54,6 +58,9 @@ class CAhandler(object):
         self.enrollment_config_log_skip_list = []
         self.profiles = {}
         self.profile_mapping_field = "profile_name"
+        self._issuers_cache: Optional[Dict[str, Any]] = None
+        self._profiles_cache: Dict[str, Dict[str, Any]] = {}
+        self._issuer_chain_cache: Dict[str, str] = {}
 
     def __enter__(self):
         """Makes CAhandler a Context Manager"""
@@ -64,69 +71,103 @@ class CAhandler(object):
     def __exit__(self, *args):
         """cose the connection at the end of the context"""
 
-    def _api_get(self, url: str) -> Tuple[int, Dict[str, str]]:
-        """post data to API"""
+    def _api_response_error(self, api_response: ApiContent, expected_key: str) -> str:
+        """Build an error string for a missing/invalid API response payload."""
+        if not isinstance(api_response, dict):
+            error = f"ASA API error: {api_response}"
+            self.logger.error("%s", error)
+            return error
+        error = "Malformed response"
+        self.logger.error('Malformed response. "%s" key not found', expected_key)
+        return error
+
+    def _api_get(self, url: str) -> Tuple[int, ApiContent]:
+        """GET data from API with retries on transport errors"""
         self.logger.debug("CAhandler._api_get()")
         headers = {"x-api-key": self.api_key}
+        attempts = max(1, int(self.request_retries))
+        last_error: Optional[Exception] = None
 
-        try:
-            api_response = requests.get(
-                url=url,
-                headers=headers,
-                auth=self.auth,
-                verify=self.ca_bundle,
-                proxies=self.proxy,
-                timeout=self.request_timeout,
-            )
-            code = api_response.status_code
+        for attempt in range(1, attempts + 1):
             try:
-                content = api_response.json()
-            except Exception as err_:
-                self.logger.error(
-                    "Could not parse the response for an API get() request: %s", err_
+                api_response = requests.get(
+                    url=url,
+                    headers=headers,
+                    auth=self.auth,
+                    verify=self.ca_bundle,
+                    proxies=self.proxy,
+                    timeout=self.request_timeout,
                 )
-                content = str(err_)
-        except Exception as err_:
-            self.logger.error("API get() request returned error: %s", err_)
-            code = 500
-            content = str(err_)
-
-        return code, content
-
-    def _api_post(self, url: str, data: Dict[str, str]) -> Tuple[int, Dict[str, str]]:
-        """post data to API"""
-        self.logger.debug("CAhandler._api_post()")
-        headers = {"x-api-key": self.api_key}
-
-        try:
-            api_response = requests.post(
-                url=url,
-                headers=headers,
-                json=data,
-                auth=self.auth,
-                verify=self.ca_bundle,
-                proxies=self.proxy,
-                timeout=self.request_timeout,
-            )
-            code = api_response.status_code
-            if api_response.text:
+                code = api_response.status_code
                 try:
-                    content = api_response.json()
+                    content: ApiContent = api_response.json()
                 except Exception as err_:
                     self.logger.error(
-                        "Could not parse the response for an API post() request: %s",
+                        "Could not parse the response for an API get() request: %s",
                         err_,
                     )
                     content = str(err_)
-            else:
-                content = None
-        except Exception as err_:
-            self.logger.error("API post() request returned an error: %s", err_)
-            code = 500
-            content = str(err_)
+                return code, content
+            except Exception as err_:
+                last_error = err_
+                self.logger.error("API get() request returned error: %s", err_)
+                if attempt < attempts:
+                    sleep_s = min(2 ** (attempt - 1), 8)
+                    self.logger.info(
+                        "Retrying API get() attempt %s/%s after %ss",
+                        attempt + 1,
+                        attempts,
+                        sleep_s,
+                    )
+                    time.sleep(sleep_s)
 
-        return code, content
+        return 500, str(last_error)
 
+    def _api_post(self, url: str, data: Dict[str, str]) -> Tuple[int, ApiContent]:
+        """POST data to API with retries on transport errors"""
+        self.logger.debug("CAhandler._api_post()")
+        headers = {"x-api-key": self.api_key}
+        attempts = max(1, int(self.request_retries))
+        last_error: Optional[Exception] = None
+
+        for attempt in range(1, attempts + 1):
+            try:
+                api_response = requests.post(
+                    url=url,
+                    headers=headers,
+                    json=data,
+                    auth=self.auth,
+                    verify=self.ca_bundle,
+                    proxies=self.proxy,
+                    timeout=self.request_timeout,
+                )
+                code = api_response.status_code
+                if api_response.text:
+                    try:
+                        content: ApiContent = api_response.json()
+                    except Exception as err_:
+                        self.logger.error(
+                            "Could not parse the response for an API post() request: %s",
+                            err_,
+                        )
+                        content = str(err_)
+                else:
+                    content = None
+                return code, content
+            except Exception as err_:
+                last_error = err_
+                self.logger.error("API post() request returned an error: %s", err_)
+                if attempt < attempts:
+                    sleep_s = min(2 ** (attempt - 1), 8)
+                    self.logger.info(
+                        "Retrying API post() attempt %s/%s after %ss",
+                        attempt + 1,
+                        attempts,
+                        sleep_s,
+                    )
+                    time.sleep(sleep_s)
+
+        return 500, str(last_error)
     def _auth_set(self):
         """set basic authentication header"""
         self.logger.debug("CAhandler._auth_set()")
@@ -254,6 +295,15 @@ class CAhandler(object):
                 )
 
             try:
+                self.request_retries = int(
+                    config_dic["CAhandler"].get("request_retries", 3)
+                )
+            except Exception as err:
+                self.logger.error(
+                    "request_retries parameter is not an integer. Error: %s", err
+                )
+
+            try:
                 self.cert_validity_days = int(
                     config_dic["CAhandler"].get("cert_validity_days", 30)
                 )
@@ -315,59 +365,71 @@ class CAhandler(object):
         self.logger.debug("CAhandler._csr_cn_get() ended with: %s", cn)
         return cn
 
-    def _issuer_verify(self) -> str:
+    def _issuer_verify(self) -> Optional[str]:
         """verify issuer"""
         self.logger.debug("CAhandler._issuer_verify()")
 
         api_response = self._issuers_list()
 
-        if "issuers" in api_response:
+        if isinstance(api_response, dict) and "issuers" in api_response:
             if self.ca_name in api_response["issuers"]:
                 error = None
             else:
                 error = f"CA {self.ca_name} not found"
                 self.logger.error("CAhandler.enroll(): CA %s not found", self.ca_name)
         else:
-            error = "Malformed response"
-            self.logger.error('Malformed response. "issuers" key not found')
+            error = self._api_response_error(api_response, "issuers")
 
         self.logger.debug("CAhandler._issuer_verify() ended with: %s", error)
         return error
 
-    def _issuers_list(self) -> Dict[str, str]:
+    def _issuers_list(self) -> ApiContent:
         """list issuers"""
         self.logger.debug("CAhandler._list_issuers()")
 
+        if isinstance(self._issuers_cache, dict) and "issuers" in self._issuers_cache:
+            self.logger.debug("CAhandler._list_issuers(): cache hit")
+            return self._issuers_cache
+
         url = f"{self.api_host}/list_issuers"
         _code, api_response = self._api_get(url)
+        if isinstance(api_response, dict) and "issuers" in api_response:
+            self._issuers_cache = api_response
 
         self.logger.debug("CAhandler._list_issuers() ended")
         return api_response
 
-    def _profiles_list(self) -> Dict[str, str]:
+    def _profiles_list(self) -> ApiContent:
         """list profiles"""
         self.logger.debug("CAhandler._profiles_list()")
 
+        cache_key = self.ca_name or ""
+        cached = self._profiles_cache.get(cache_key)
+        if isinstance(cached, dict) and "profiles" in cached:
+            self.logger.debug("CAhandler._profiles_list(): cache hit")
+            return cached
+
         url = f"{self.api_host}/list_profiles?issuerName={encode_url(self.logger, self.ca_name)}"
         _code, api_response = self._api_get(url)
+        if isinstance(api_response, dict) and "profiles" in api_response:
+            self._profiles_cache[cache_key] = api_response
 
         self.logger.debug("CAhandler._profiles_list() ended")
         return api_response
 
-    def _profile_verify(self) -> str:
+    def _profile_verify(self) -> Optional[str]:
         """verify profile"""
         self.logger.debug("CAhandler._profile_verify(%s)", self.profile_name)
         api_response = self._profiles_list()
 
-        if "profiles" in api_response:
+        if isinstance(api_response, dict) and "profiles" in api_response:
             if self.profile_name in api_response["profiles"]:
                 error = None
             else:
                 error = f"Profile {self.profile_name} not found"
                 self.logger.error("Profile %s not found", self.profile_name)
         else:
-            error = "Malformed response"
-            self.logger.error('Malformed response. "profiles" key not found')
+            error = self._api_response_error(api_response, "profiles")
 
         self.logger.debug("CAhandler._profile_verify() ended with: %s", error)
         return error
@@ -399,22 +461,32 @@ class CAhandler(object):
         self.logger.debug("CAhandler._pem_cert_chain_generate() ended")
         return pem_chain
 
-    def _issuer_chain_get(self) -> str:
+    def _issuer_chain_get(self) -> Optional[str]:
         """get issuer chain"""
         self.logger.debug("CAhandler._issuer_chain_get()")
 
+        cache_key = self.ca_name or ""
+        if cache_key in self._issuer_chain_cache:
+            self.logger.debug("CAhandler._issuer_chain_get(): cache hit")
+            return self._issuer_chain_cache[cache_key]
+
         url = f"{self.api_host}/get_issuer_chain?issuerName={encode_url(self.logger, self.ca_name)}"
         _code, api_response = self._api_get(url)
-        if "certs" in api_response:
+        if isinstance(api_response, dict) and "certs" in api_response:
             pem_chain = self._pem_cert_chain_generate(api_response["certs"])
+            if pem_chain:
+                self._issuer_chain_cache[cache_key] = pem_chain
         else:
-            self.logger.error('"certs" key in issuer chain not found')
+            if isinstance(api_response, dict):
+                self.logger.error('"certs" key in issuer chain not found')
+            else:
+                self.logger.error("ASA API error fetching issuer chain: %s", api_response)
             pem_chain = None
 
         self.logger.debug("CAhandler._issuer_chain_get() ended")
         return pem_chain
 
-    def _cert_get(self, data_dic: Dict[str, str]) -> str:
+    def _cert_get(self, data_dic: Dict[str, str]) -> Optional[str]:
         """get certificate"""
         self.logger.debug("CAhandler._cert_get()")
 
@@ -430,16 +502,17 @@ class CAhandler(object):
         self.logger.debug("CAhandler._cert_get() ended")
         return cert
 
-    def _cert_status_get(self, certificate: str) -> str:
+    def _cert_status_get(self, certificate: str) -> Dict[str, Any]:
         """get certificate status"""
         self.logger.debug("CAhandler._cert_status_get()")
 
         data_dic = {"certificateFile": certificate}
         url = f"{self.api_host}/verify_certificate?issuerName={encode_url(self.logger, self.ca_name)}"
         code, api_response = self._api_post(url, data_dic)
-        api_response["code"] = code
-
-        return api_response
+        if isinstance(api_response, dict):
+            api_response["code"] = code
+            return api_response
+        return {"code": code, "error": api_response}
 
     def _enrollment_dic_create(self, csr: str) -> Dict[str, str]:
         """create enrollment dic"""
@@ -579,7 +652,7 @@ class CAhandler(object):
         url = f"{self.api_host}/revoke_certificate?issuerName={encode_url(self.logger, self.ca_name)}&certificateId={cert_ski}"
         data_dic = {}
         code, content_dic = self._api_post(url, data_dic)
-        if content_dic:
+        if isinstance(content_dic, dict) and content_dic:
             message = "urn:ietf:params:acme:error:serverInternal"
             if "Message" in content_dic:
                 detail = content_dic.get("Message")
@@ -587,6 +660,9 @@ class CAhandler(object):
                 detail = content_dic.get("message")
             else:
                 detail = "Unknown error"
+        elif content_dic:
+            message = "urn:ietf:params:acme:error:serverInternal"
+            detail = str(content_dic)
 
         self.logger.debug(
             "Certificate.revoke() ended with code: %s, message: %s, detail: %s",

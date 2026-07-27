@@ -42,11 +42,36 @@ jobs:
           RUN_ID: ${{ inputs.run_id }}
 
   # ---------------------------------------------------------
+  # Fail fast if the shared Insta ASA endpoint is unreachable
+  # ---------------------------------------------------------
+  asa-preflight:
+    needs: guard
+    runs-on: ubuntu-latest
+    if: github.repository == 'grindsa/acme2certifier'
+    steps:
+      - name: "checkout GIT"
+        uses: actions/checkout@v6
+
+      - name: "Parse ASA configuration"
+        uses: ./.github/actions/parse-json-secret
+        with:
+          json_secret: ${{ secrets.ASA_CFG }}
+          uppercase: 'true'
+
+      - name: "ASA API preflight"
+        uses: ./.github/actions/wf_specific/asa_ca_handler/asa_preflight
+        with:
+          ASA_API_HOST: ${{ env.ASA_API_HOST }}
+          ASA_API_USER: ${{ env.ASA_API_USER }}
+          ASA_API_PASSWORD: ${{ env.ASA_API_PASSWORD }}
+          ASA_API_KEY: ${{ env.ASA_API_KEY }}
+
+  # ---------------------------------------------------------
   # test headerinfo feature for asa handler the first request
   # might fail for unknown reasons
   # ---------------------------------------------------------
   test-containers-useragent:
-    needs: guard
+    needs: [guard, asa-preflight]
     runs-on: ubuntu-latest
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
@@ -93,12 +118,14 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
 
       - name: "a2c configuration with standard profile (post-cfg)"
         run: |
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
 
       - name: "Bring up a2c container"
@@ -171,7 +198,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         dbhandler: ['wsgi', 'django']
@@ -214,13 +241,15 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
             allowed_domainlist: ["bar.local", "*.acme"]
 
       - name: "Profile $ASA_PROFILE1 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1 (post-cfg)"
         run: |
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
@@ -251,20 +280,20 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE2 }}
             allowed_domainlist: ["bar.local", "*.acme"]
 
       - name: "Profile $ASA_PROFILE2 - Reconfiguration of a2c with a new profile (post-cfg)"
         run: |
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
 
       - name: "$ASA_PROFILE2 - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_2
-        with:
-          PROFILE: ${{ env.ASA_PROFILE1 }}
 
       - name: "Header-info - Setup asa_ca_handler with headerinfo"
         uses: ./.github/actions/setup_cahandler_cfg
@@ -278,13 +307,15 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
             allowed_domainlist: ["bar.local", "*.acme"]
 
       - name: "Header-info - Setup asa_ca_handler with headerinfo (post-cfg)"
         run: |
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
@@ -307,6 +338,8 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
           EXTRA_SECTIONS: |
             [EABhandler]
@@ -323,7 +356,7 @@ jobs:
       - name: "EAB without headerinfo - Setup asa_ca_handler (post-cfg)"
         run: |
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
 
           cd examples/Docker/
           docker compose restart
@@ -346,6 +379,8 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
           EXTRA_SECTIONS: |
             [EABhandler]
@@ -362,7 +397,7 @@ jobs:
       - name: "EAB with headerinfo - Setup asa_ca_handler (post-cfg)"
         run: |
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" examples/Docker/data/acme_srv.cfg
 
           cd examples/Docker/
@@ -386,13 +421,15 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
             allowed_domainlist: ["bar.local", "*.acme"]
 
       - name: "ACME Profile - Setup asa_ca_handler (post-cfg)"
         run: |
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
           cd examples/Docker/
           docker compose restart
@@ -415,6 +452,8 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
           EXTRA_SECTIONS: |
             [EABhandler]
@@ -431,7 +470,7 @@ jobs:
       - name: "EAB ACME Profiling - Setup asa_ca_handler (post-cfg)"
         run: |
           sudo cp test/ca/certsrv_ca_certs.pem examples/Docker/data/ca_certs.pem
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" examples/Docker/data/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" examples/Docker/data/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" examples/Docker/data/acme_srv.cfg
 
           cd examples/Docker/
@@ -472,7 +511,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 1
       matrix:
         rhversion: [8, 9]
         mode: ['wsgi', 'django']
@@ -522,6 +561,8 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
             allowed_domainlist: ["bar.local", "*.acme"]
 
@@ -529,7 +570,7 @@ jobs:
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -545,8 +586,6 @@ jobs:
 
       - name: "$ASA_PROFILE1 - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_1
-        with:
-          PROFILE: ${{ env.ASA_PROFILE1 }}
 
       - name: "Profile $ASA_PROFILE2 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1"
         uses: ./.github/actions/setup_cahandler_cfg
@@ -560,12 +599,14 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE2 }}
             allowed_domainlist: ["bar.local", "*.acme"]
 
       - name: "Profile $ASA_PROFILE2 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1 (post-cfg)"
         run: |
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
 
       - name: "Profile $ASA_PROFILE2 - reconfigure a2c "
         run: |
@@ -575,8 +616,6 @@ jobs:
 
       - name: "$ASA_PROFILE2 - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_2
-        with:
-          PROFILE: ${{ env.ASA_PROFILE1 }}
 
       - name: "Header-info - Setup asa_ca_handler with headerinfo"
         uses: ./.github/actions/setup_cahandler_cfg
@@ -590,12 +629,14 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
             allowed_domainlist: ["bar.local", "*.acme"]
 
       - name: "Header-info - Setup asa_ca_handler with headerinfo (post-cfg)"
         run: |
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
       - name: "Profile $ASA_PROFILE2 - reconfigure a2c "
@@ -622,6 +663,8 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
           EXTRA_SECTIONS: |
             [EABhandler]
@@ -637,7 +680,7 @@ jobs:
           ENVSUBST: "true"
       - name: "EAB without headerinfo - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
 
 
       - name: "EAB without headerinfo - Reconfigure a2c "
@@ -664,6 +707,8 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
           EXTRA_SECTIONS: |
             [EABhandler]
@@ -679,7 +724,7 @@ jobs:
           ENVSUBST: "true"
       - name: "EAB with headerinfo - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
 
@@ -707,12 +752,14 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
             allowed_domainlist: ["bar.local", "*.acme"]
 
       - name: "ACME Profile - Setup asa_ca_handler with headerinfo (post-cfg)"
         run: |
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
       - name: "ACME Profile - reconfigure a2c "
@@ -739,6 +786,8 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
           EXTRA_SECTIONS: |
             [EABhandler]
@@ -754,7 +803,7 @@ jobs:
           ENVSUBST: "true"
       - name: "EAB ACME Profiling - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
 
@@ -793,7 +842,7 @@ jobs:
     if: github.repository == 'grindsa/acme2certifier'
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 1
       matrix:
         websrv: ['apache2', 'nginx']
         mode: ['wsgi', 'django']
@@ -842,6 +891,8 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
             allowed_domainlist: ["bar.local", "*.acme"]
 
@@ -849,7 +900,7 @@ jobs:
         run: |
           mkdir -p data/volume/acme_ca
           sudo cp test/ca/certsrv_ca_certs.pem data/volume/acme_ca/ca_certs.pem
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
 
       - name: "Execute install script"
         run: |
@@ -866,8 +917,6 @@ jobs:
 
       - name: "$ASA_PROFILE1 - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_1
-        with:
-          PROFILE: ${{ env.ASA_PROFILE1 }}
 
       - name: "Profile $ASA_PROFILE2 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1"
         uses: ./.github/actions/setup_cahandler_cfg
@@ -881,12 +930,14 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE2 }}
             allowed_domainlist: ["bar.local", "*.acme"]
 
       - name: "Profile $ASA_PROFILE2 - Setup a2c with asa_ca_handler with profile $ASA_PROFILE1 (post-cfg)"
         run: |
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c"
         run: |
@@ -897,8 +948,6 @@ jobs:
 
       - name: "$ASA_PROFILE2 - enrollment"
         uses: ./.github/actions/wf_specific/asa_ca_handler/enroll_profile_2
-        with:
-          PROFILE: ${{ env.ASA_PROFILE1 }}
 
       - name: "Header-info - Setup asa_ca_handler with headerinfo"
         uses: ./.github/actions/setup_cahandler_cfg
@@ -912,12 +961,14 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
             allowed_domainlist: ["bar.local", "*.acme"]
 
       - name: "Header-info - Setup asa_ca_handler with headerinfo (post-cfg)"
         run: |
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c"
@@ -945,6 +996,8 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
           EXTRA_SECTIONS: |
             [EABhandler]
@@ -960,7 +1013,7 @@ jobs:
           ENVSUBST: "true"
       - name: "EAB without headerinfo - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
 
 
       - name: "Reconfigure a2c"
@@ -988,6 +1041,8 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
           EXTRA_SECTIONS: |
             [EABhandler]
@@ -1003,7 +1058,7 @@ jobs:
           ENVSUBST: "true"
       - name: "EAB with headerinfo - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nheader_info_list: [\"HTTP_USER_AGENT\"]/g" data/volume/acme_srv.cfg
 
 
@@ -1032,12 +1087,14 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
             allowed_domainlist: ["bar.local", "*.acme"]
 
       - name: "ACME Profile - Setup asa_ca_handler with headerinfo (post-cfg)"
         run: |
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
       - name: "Reconfigure a2c"
@@ -1065,6 +1122,8 @@ jobs:
             api_key: ${{ env.ASA_API_KEY }}
             ca_name: ${{ env.ASA_CA_NAME }}
             ca_bundle: ${{ env.ASA_CA_BUNDLE }}
+            request_timeout: 30
+            request_retries: 3
             profile_name: ${{ env.ASA_PROFILE1 }}
           EXTRA_SECTIONS: |
             [EABhandler]
@@ -1080,7 +1139,7 @@ jobs:
           ENVSUBST: "true"
       - name: "EAB ACME Profiling - Setup asa_ca_handler (post-cfg)"
         run: |
-          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:15/g" data/volume/acme_srv.cfg
+          sudo sed -i "s/revocation_reason_check_disable: False/revocation_reason_check_disable: False\nenrollment_timeout:120/g" data/volume/acme_srv.cfg
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nprofiles={\"$ASA_PROFILE1\": \"http:\/\/foo.bar\/profile1\", \"$ASA_PROFILE2\": \"http:\/\/foo.bar\/profile2\", \"profile3\": \"http:\/\/foo.bar\/profile3\"}/g" data/volume/acme_srv.cfg
 
 

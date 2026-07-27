@@ -25,6 +25,8 @@ ca_bundle: <value>
 ca_name: <ca_name>
 profile_name: <value>
 cert_validity_days: <days>
+request_timeout: 30
+request_retries: 3
 ```
 
 ### Parameter Descriptions
@@ -39,20 +41,21 @@ cert_validity_days: <days>
 - `ca_bundle` - Certificate bundle needed to validate the server certificate. Can be `True`/`False` or a filename (default: `None`).
 - `ca_name` - Name of the CA used to enroll certificates.
 - `profile_name` - Profile name.
-- `cert_validity_days` - *Optional* - Polling timeout (default: `60s`).
+- `cert_validity_days` - *Optional* - Certificate validity in days (default: `30`).
+- `request_timeout` - *Optional* - Per-request HTTP timeout in seconds (default: `10`).
+- `request_retries` - *Optional* - Number of attempts for ASA API calls on transport errors (default: `3`).
 - `enrollment_config_log` - *Optional* - Log enrollment parameters (default: `False`).
 - `enrollment_config_log_skip_list` - *Optional* - List of enrollment parameters not to be logged, in JSON format. Example: `["parameter1", "parameter2"]` (default: `[]`).
 - `allowed_domainlist` - *Optional* - List of domain names allowed for enrollment, in JSON format. Example: `["bar.local$", "bar.foo.local"]` (default: `[]`).
 
 ### Increase Enrollment Timeout
 
-It is recommended to increase the enrollment timeout to prevent `acme2certifier` from closing the connection too early.
+It is recommended to increase the enrollment timeout to prevent `acme2certifier` from closing the connection too early. Size it to cover multiple ASA round-trips (`request_timeout × request_retries × ~4` API calls).
 
 ```config
 [Certificate]
-enrollment_timeout: 15
+enrollment_timeout: 120
 ```
-
 ### Retrieving CA and Profile Information
 
 You can retrieve the list of certificate authorities by running the following REST call against ASA:
