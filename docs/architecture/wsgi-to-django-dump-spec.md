@@ -102,6 +102,7 @@ Required PK ↔ name map:
 | `NULL` int → Django `IntegerField` | `NULL` → `0` (`expires`, etc.) |
 | `NULL` string → blankable Char/Text | `NULL` → `""` when `blank=True` |
 | INT / `bolean` → `BooleanField` | `0`/`1`/`NULL` → `False`/`True`/`False` |
+| Char/Text length checks | Prefer live `django_app.models` `max_length`; fallback constants if Django unavailable |
 
 ### Per-entity columns (dump → Django)
 
@@ -121,7 +122,7 @@ Required PK ↔ name map:
 
 **cahandler** — `id`, `name`(WSGI 15 → Django 50), `value1`/`value2`(TEXT→CharField **250**), `created_at`.
 
-**housekeeping** — `id`, `name`(30), `value`(TEXT→CharField **30**), `modified_at`. For `name=dbversion`: keep Django post-migrate / `a2c-django-update` value unless dump equals target `__dbversion__`; never downgrade silently.
+**housekeeping** — `id`, `name`(30), `value`(TEXT→Django `Housekeeping.value` **max_length from model**), `modified_at`. For `name=dbversion`: keep Django post-migrate / `a2c-django-update` value unless dump equals target `__dbversion__`; never downgrade silently.
 
 **nonce** (optional) — `id`, `nonce`(WSGI 30 → Django 50), `created_at`.
 
@@ -133,12 +134,8 @@ Required PK ↔ name map:
 | Source `dbversion` ≠ tool `__dbversion__` | fail (warn-only flag later) | Refuse export/import by default |
 | Django Status PK missing or name mismatch (1–8) | fail | Refuse import (no Status writes) |
 | Dump `status` present but PK/name ≠ expected map | fail | Refuse import/`check` |
-| `Account.contact` or `Cliaccount.contact` len > 255 | fail | No truncate |
-| `Account.eab_kid` len > 255 | fail | No truncate |
-| `Challenge.keyauthorization` or `Challenge.source` len > 128 | fail | No truncate |
-| `Housekeeping.value` len > 30 | fail | No truncate |
-| `Cahandler.value1`/`value2` len > 250 | fail | No truncate |
-| Dangling FK (`account_id`, `order_id`, …) | fail | Validate before write |
+| String field exceeds Django model `max_length` | fail | No truncate. Export reads limits from `django_app.models` when Django is importable; else uses frozen fallbacks in `a2c_wsgi2django.FALLBACK_LENGTH_LIMITS`. Unlimited `TextField` (no `max_length`) is not length-checked. |
+| Dangling / NULL FK (`account_id`, `order_id`, …) | warn | Export skips orphan rows (and dependent children) with a stderr warning; does not fail |
 | Target ACME tables non-empty without `--wipe` | fail | Refuse import |
 | `--wipe` without `--yes` (CLI wipe subcommand) | fail | Require confirmation |
 | Duplicate `name` / PK collision after wipe skip | fail | Abort transaction |
