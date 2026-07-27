@@ -6,7 +6,7 @@
 
 `acme2certifier` allows for the specification of pre- and post-enrollment hooks. Hooks are disabled by default and must be activated in `acme_srv.cfg` by specifying a module (preferred) or file containing the required `Hooks` class and methods.
 
-Prefer `hooks_module`. The older `hooks_file` option is **deprecated** but still supported; see [Package layout migration](migration_package_layout.md).
+Prefer `hooks_module`. The older `hooks_file` option is **deprecated** but still supported; see [Upgrading](upgrading.md).
 
 ```config
 [Hooks]

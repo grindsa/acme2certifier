@@ -115,7 +115,7 @@ Modify options per [acme_srv.cfg](acme_srv.md).
 
 ## 7. Configure the CA Handler
 
-Set up the CA handler via `handler_module` in `acme_srv.cfg` (preferred). [Example for Insta Certifier](certifier.md). See [Package layout migration](migration_package_layout.md).
+Set up the CA handler via `handler_module` in `acme_srv.cfg` (preferred). [Example for Insta Certifier](certifier.md). See [Upgrading](upgrading.md).
 
 ## 8. Enable and Start the Acme2Certifier Service
 

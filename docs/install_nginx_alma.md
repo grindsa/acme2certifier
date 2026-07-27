@@ -201,5 +201,5 @@ curl -sS http://127.0.0.1/directory
 - [Nginx + uWSGI (Ubuntu)](install_nginx_ubuntu.md)
 - [Support for External Databases (Django)](external_database_support.md)
 - [acme_srv.cfg options](acme_srv.md)
-- [Package layout migration](migration_package_layout.md)
+- [Upgrading](upgrading.md)
 - Example CA: [Insta Certifier](certifier.md)

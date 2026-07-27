@@ -132,7 +132,7 @@ handler: wsgi
 dbfile: /var/www/acme2certifier/acme_srv.db
 ```
 
-- CA handlers: [acme_srv.cfg](acme_srv.md), [Package layout migration](migration_package_layout.md).
+- CA handlers: [acme_srv.cfg](acme_srv.md), [Upgrading](upgrading.md).
 - Prefer `handler:` in cfg (cfg wins over `ACME_SRV_DB_HANDLER`). Do not put the DB handler in `/etc/apache2/envvars`.
 
 ## 6. Point Apache at the venv and config
@@ -234,6 +234,6 @@ sudo systemctl restart apache2
 - [Nginx + uWSGI (Ubuntu)](install_nginx_ubuntu.md)
 - [Nginx + uWSGI (Alma / RHEL)](install_nginx_alma.md)
 - [acme_srv.cfg options](acme_srv.md)
-- [Package layout migration](migration_package_layout.md)
+- [Upgrading](upgrading.md)
 - [Support for External Databases (Django)](external_database_support.md)
 - [DEB installation](install_deb.md)
