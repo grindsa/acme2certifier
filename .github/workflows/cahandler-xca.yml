@@ -936,7 +936,7 @@ jobs:
       - name: "EAB subject profiling - enrollment"
         uses: ./.github/actions/wf_specific/xca_ca_handler/enroll_eab_sp
         with:
-          DEPLOYMENT_TYPE: "rpm"
+          DEPLOYMENT_TYPE: "deb"
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush

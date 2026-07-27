@@ -1,0 +1,112 @@
+name: "letsencrypt_preflight"
+description: "Fail fast if LE staging or DNS provider endpoints are unreachable"
+inputs:
+  DNS_PROVIDER:
+    description: "cloudflare | acmedns"
+    required: true
+  LE_DIRECTORY_URL:
+    description: "LE staging directory URL"
+    required: false
+    default: "https://acme-staging-v02.api.letsencrypt.org/directory"
+  CF_TOKEN:
+    description: "Cloudflare API token"
+    required: false
+    default: ""
+  CF_ZONE_ID:
+    description: "Cloudflare zone id"
+    required: false
+    default: ""
+  ACMEDNS_BASE_URL:
+    description: "acme-dns base URL"
+    required: false
+    default: "https://auth.acme-dns.io"
+  CONNECT_TIMEOUT:
+    description: "curl connect timeout seconds"
+    required: false
+    default: "10"
+  MAX_TIME:
+    description: "curl max-time seconds"
+    required: false
+    default: "20"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Validate DNS_PROVIDER"
+      run: |
+        set -euo pipefail
+        case "${DNS_PROVIDER}" in
+          cloudflare|acmedns) ;;
+          *) echo "Unsupported DNS_PROVIDER=${DNS_PROVIDER}" >&2; exit 1 ;;
+        esac
+      shell: bash
+      env:
+        DNS_PROVIDER: ${{ inputs.DNS_PROVIDER }}
+
+    - name: "Check LE staging directory"
+      run: |
+        set -euo pipefail
+        echo "Checking LE staging: ${LE_DIRECTORY_URL}"
+        body=$(curl -fsS --connect-timeout "${CONNECT_TIMEOUT}" --max-time "${MAX_TIME}" \
+          "${LE_DIRECTORY_URL}")
+        echo "${body}" | jq -e '.newNonce and .newAccount and .newOrder' >/dev/null
+        echo "LE staging directory OK"
+      shell: bash
+      env:
+        LE_DIRECTORY_URL: ${{ inputs.LE_DIRECTORY_URL }}
+        CONNECT_TIMEOUT: ${{ inputs.CONNECT_TIMEOUT }}
+        MAX_TIME: ${{ inputs.MAX_TIME }}
+
+    - name: "Check Cloudflare API"
+      if: inputs.DNS_PROVIDER == 'cloudflare'
+      run: |
+        set -euo pipefail
+        if [ -z "${CF_TOKEN}" ] || [ -z "${CF_ZONE_ID}" ]; then
+          echo "CF_TOKEN and CF_ZONE_ID are required for cloudflare preflight" >&2
+          exit 1
+        fi
+        echo "Checking Cloudflare token and zone ${CF_ZONE_ID}"
+        curl -fsS --connect-timeout "${CONNECT_TIMEOUT}" --max-time "${MAX_TIME}" \
+          -H "Authorization: Bearer ${CF_TOKEN}" \
+          -H "Content-Type: application/json" \
+          "https://api.cloudflare.com/client/v4/user/tokens/verify" \
+          | jq -e '.success == true' >/dev/null
+        curl -fsS --connect-timeout "${CONNECT_TIMEOUT}" --max-time "${MAX_TIME}" \
+          -H "Authorization: Bearer ${CF_TOKEN}" \
+          -H "Content-Type: application/json" \
+          "https://api.cloudflare.com/client/v4/zones/${CF_ZONE_ID}" \
+          | jq -e '.success == true' >/dev/null
+        echo "Cloudflare API OK"
+      shell: bash
+      env:
+        CF_TOKEN: ${{ inputs.CF_TOKEN }}
+        CF_ZONE_ID: ${{ inputs.CF_ZONE_ID }}
+        CONNECT_TIMEOUT: ${{ inputs.CONNECT_TIMEOUT }}
+        MAX_TIME: ${{ inputs.MAX_TIME }}
+
+    - name: "Check acme-dns endpoint"
+      if: inputs.DNS_PROVIDER == 'acmedns'
+      run: |
+        set -euo pipefail
+        base="${ACMEDNS_BASE_URL:-https://auth.acme-dns.io}"
+        base="${base%/}"
+        echo "Checking acme-dns: ${base}/health"
+        # Prefer /health when available; fall back to base URL reachability.
+        if ! curl -fsS --connect-timeout "${CONNECT_TIMEOUT}" --max-time "${MAX_TIME}" \
+          "${base}/health" >/dev/null 2>&1; then
+          http_code=$(curl -sS --connect-timeout "${CONNECT_TIMEOUT}" --max-time "${MAX_TIME}" \
+            -o /dev/null -w "%{http_code}" "${base}/" || true)
+          case "${http_code}" in
+            2*|3*) ;;
+            *)
+              echo "acme-dns unreachable at ${base} (http=${http_code})" >&2
+              exit 1
+              ;;
+          esac
+        fi
+        echo "acme-dns endpoint OK"
+      shell: bash
+      env:
+        ACMEDNS_BASE_URL: ${{ inputs.ACMEDNS_BASE_URL }}
+        CONNECT_TIMEOUT: ${{ inputs.CONNECT_TIMEOUT }}
+        MAX_TIME: ${{ inputs.MAX_TIME }}

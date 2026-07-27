@@ -22,7 +22,7 @@ inputs:
     required: false
     default: "acme-srv"
   CERT_TIMEOUT:
-    description: "lego certificate timeout seconds"
+    description: "lego cert.timeout and http-timeout seconds"
     required: false
     default: "360"
   REVOCATION:
@@ -41,6 +41,14 @@ inputs:
     description: "Seconds between ARI retries"
     required: false
     default: "3"
+  ENROLL_MAX_ATTEMPTS:
+    description: "Enrollment retry attempts (fresh order each attempt)"
+    required: false
+    default: "3"
+  ENROLL_RETRY_SLEEP_SECONDS:
+    description: "Base sleep between enrollment retries (multiplied by attempt)"
+    required: false
+    default: "15"
 
 runs:
   using: "composite"
@@ -66,11 +74,32 @@ runs:
       run: |
         set -euo pipefail
         mkdir -p lego
-        docker run -i --rm -v "$PWD/lego:/.lego/" --name "lego${HOSTNAME_SUFFIX}" \
-          --network "${NAME_SPACE}" goacme/lego run \
-          -s "https://${ACME_SERVER}:${HTTPS_PORT}" --tls-skip-verify -a \
-          --email "lego@example.com" -d "lego${HOSTNAME_SUFFIX}.${NAME_SPACE}" \
-          --cert.timeout "${CERT_TIMEOUT}" --tls
+        attempt=1
+        while [ "${attempt}" -le "${ENROLL_MAX_ATTEMPTS}" ]; do
+          echo "Enrollment attempt ${attempt}/${ENROLL_MAX_ATTEMPTS}"
+          sudo rm -rf lego/certificates lego/accounts 2>/dev/null || true
+          set +e
+          docker run -i --rm -v "$PWD/lego:/.lego/" --name "lego${HOSTNAME_SUFFIX}" \
+            --network "${NAME_SPACE}" goacme/lego run \
+            -s "https://${ACME_SERVER}:${HTTPS_PORT}" --tls-skip-verify -a \
+            --email "lego@example.com" -d "lego${HOSTNAME_SUFFIX}.${NAME_SPACE}" \
+            --cert.timeout "${CERT_TIMEOUT}" --http-timeout "${CERT_TIMEOUT}" --tls
+          rc=$?
+          set -e
+          if [ "${rc}" -eq 0 ]; then
+            exit 0
+          fi
+          echo "Enrollment failed (attempt ${attempt}/${ENROLL_MAX_ATTEMPTS}, rc=${rc})" >&2
+          if [ "${attempt}" -ge "${ENROLL_MAX_ATTEMPTS}" ]; then
+            break
+          fi
+          sleep_secs=$((attempt * ENROLL_RETRY_SLEEP_SECONDS))
+          echo "Retrying in ${sleep_secs}s..."
+          sleep "${sleep_secs}"
+          attempt=$((attempt + 1))
+        done
+        echo "Enrollment failed after ${ENROLL_MAX_ATTEMPTS} attempts" >&2
+        exit 1
       shell: bash
       env:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
@@ -78,6 +107,8 @@ runs:
         HOSTNAME_SUFFIX: ${{ inputs.HOSTNAME_SUFFIX }}
         NAME_SPACE: ${{ inputs.NAME_SPACE }}
         CERT_TIMEOUT: ${{ inputs.CERT_TIMEOUT }}
+        ENROLL_MAX_ATTEMPTS: ${{ inputs.ENROLL_MAX_ATTEMPTS }}
+        ENROLL_RETRY_SLEEP_SECONDS: ${{ inputs.ENROLL_RETRY_SLEEP_SECONDS }}
 
     - name: "Construct renewal info string"
       id: construct_renewal_info

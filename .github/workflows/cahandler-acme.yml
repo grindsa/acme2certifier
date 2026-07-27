@@ -467,6 +467,13 @@ jobs:
           REPO: ${{ github.repository }}
           NAME_SPACE: acme.dynamop.de
 
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/letsencrypt_preflight
+        with:
+          DNS_PROVIDER: ${{ matrix.dns_provider }}
+          CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
+          ACMEDNS_BASE_URL: ${{ env.ACMEDNS_BASE_URL }}
+
       - uses: ./.github/actions/wf_specific/acme_ca_handler/letsencrypt_prep
         with:
           VOLUME_DIR: "examples/Docker/data"
@@ -481,6 +488,8 @@ jobs:
           ACMEDNS_USERNAME: ${{ env.ACMEDNS_USERNAME }}
           ACMEDNS_PASSWORD: ${{ env.ACMEDNS_PASSWORD }}
           ACMEDNS_SUBDOMAIN: ${{ env.ACMEDNS_SUBDOMAIN }}
+          DNS_VALIDATION_TIMEOUT: "120"
+          ENROLLMENT_TIMEOUT: "600"
 
       - uses: ./.github/actions/container_up
         with:
@@ -510,19 +519,6 @@ jobs:
           HOSTNAME_SUFFIX: -${{ env.UUID }}
           CERTIFICATE_FILE: "lego/certificates/lego-${{ env.UUID }}.acme.dynamop.de.crt"
           CERT_TIMEOUT: "360"
-
-      - name: "Generate UUID for enrollment"
-        if: matrix.dns_provider == 'cloudflare'
-        run: echo "UUID=$(uuidgen | cut -d '-' -f1)" >> "$GITHUB_ENV"
-
-      - name: "Enrollment"
-        if: matrix.dns_provider == 'cloudflare'
-        uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns
-        with:
-          HOSTNAME_SUFFIX: -${{ env.UUID }}
-          NAME_SPACE: acme.dynamop.de
-          CERT_TIMEOUT: "360"
-          VERIFY_CERT: false
 
       - name: "ACMEDNS wildcard enrollment"
         if: matrix.dns_provider == 'acmedns'
@@ -985,6 +981,13 @@ jobs:
           GH_SBOM_REPO_TOKEN: ${{ env.GH_SBOM_REPO_TOKEN }}
           NAME_SPACE: acme.dynamop.de
 
+      - uses: ./.github/actions/wf_specific/acme_ca_handler/letsencrypt_preflight
+        with:
+          DNS_PROVIDER: ${{ matrix.dns_provider }}
+          CF_TOKEN: ${{ env.CF_TOKEN }}
+          CF_ZONE_ID: ${{ env.CF_ZONE_ID }}
+          ACMEDNS_BASE_URL: ${{ env.ACMEDNS_BASE_URL }}
+
       - uses: ./.github/actions/wf_specific/acme_ca_handler/letsencrypt_prep
         with:
           VOLUME_DIR: "data/volume"
@@ -999,6 +1002,8 @@ jobs:
           ACMEDNS_USERNAME: ${{ env.ACMEDNS_USERNAME }}
           ACMEDNS_PASSWORD: ${{ env.ACMEDNS_PASSWORD }}
           ACMEDNS_SUBDOMAIN: ${{ env.ACMEDNS_SUBDOMAIN }}
+          DNS_VALIDATION_TIMEOUT: "120"
+          ENROLLMENT_TIMEOUT: "600"
 
       - name: "Execute install script"
         run: docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m "$MODE"
@@ -1027,19 +1032,6 @@ jobs:
           HOSTNAME_SUFFIX: -${{ env.UUID }}
           CERTIFICATE_FILE: "lego/certificates/lego-${{ env.UUID }}.acme.dynamop.de.crt"
           CERT_TIMEOUT: "360"
-
-      - name: "Generate UUID for enrollment"
-        if: matrix.dns_provider == 'cloudflare'
-        run: echo "UUID=$(uuidgen | cut -d '-' -f1)" >> "$GITHUB_ENV"
-
-      - name: "Enrollment"
-        if: matrix.dns_provider == 'cloudflare'
-        uses: ./.github/actions/wf_specific/acme_ca_handler/enroll_dns
-        with:
-          HOSTNAME_SUFFIX: -${{ env.UUID }}
-          NAME_SPACE: acme.dynamop.de
-          CERT_TIMEOUT: "360"
-          VERIFY_CERT: false
 
       - name: "ACMEDNS wildcard enrollment"
         if: matrix.dns_provider == 'acmedns'
