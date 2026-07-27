@@ -2140,6 +2140,102 @@ klGUNHG98CtsmlhrivhSTJWqSIOfyKGF
         """load config"""
         self.assertTrue(self.load_config(None, None, None))
 
+    def test_196b_load_config_logs_path_and_source_once(self):
+        """successful load emits Loaded acme_srv.cfg INFO once per path"""
+        import tempfile
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        config_mod._ACME_SRV_CFG_LOADED.clear()
+        config_mod._LAST_LOADED_CFG = None
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".cfg", delete=False, encoding="utf8"
+        ) as handle:
+            handle.write("[DEFAULT]\ndebug: False\n")
+            cfg_path = handle.name
+        try:
+            abs_path = os.path.abspath(cfg_path)
+            with self.assertLogs("test_a2c", level="INFO") as lcm1:
+                self.load_config(self.logger, None, cfg_path)
+            self.assertIn(
+                f"INFO:test_a2c:Loaded acme_srv.cfg {abs_path} (explicit)",
+                lcm1.output,
+            )
+            with self.assertLogs("test_a2c", level="DEBUG") as lcm2:
+                self.load_config(self.logger, None, cfg_path)
+            self.assertFalse(
+                any(
+                    line.startswith("INFO:test_a2c:Loaded acme_srv.cfg")
+                    for line in lcm2.output
+                )
+            )
+            self.assertTrue(
+                any(
+                    f"DEBUG:test_a2c:Loaded acme_srv.cfg {abs_path} (explicit)"
+                    in line
+                    for line in lcm2.output
+                )
+            )
+        finally:
+            os.unlink(cfg_path)
+            config_mod._ACME_SRV_CFG_LOADED.clear()
+            config_mod._LAST_LOADED_CFG = None
+
+    def test_196c_load_config_logs_env_source(self):
+        """ACME_SRV_CONFIGFILE source is reflected in the once-INFO line"""
+        import tempfile
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        config_mod._ACME_SRV_CFG_LOADED.clear()
+        config_mod._LAST_LOADED_CFG = None
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".cfg", delete=False, encoding="utf8"
+        ) as handle:
+            handle.write("[DEFAULT]\ndebug: False\n")
+            cfg_path = handle.name
+        try:
+            abs_path = os.path.abspath(cfg_path)
+            with patch.dict("os.environ", {"ACME_SRV_CONFIGFILE": cfg_path}):
+                with self.assertLogs("test_a2c", level="INFO") as lcm:
+                    self.load_config(self.logger, None, None)
+            self.assertIn(
+                f"INFO:test_a2c:Loaded acme_srv.cfg {abs_path} (ACME_SRV_CONFIGFILE)",
+                lcm.output,
+            )
+        finally:
+            os.unlink(cfg_path)
+            config_mod._ACME_SRV_CFG_LOADED.clear()
+            config_mod._LAST_LOADED_CFG = None
+
+    def test_196d_log_loaded_acme_srv_cfg_after_deferred_load(self):
+        """load_config() without logger defers INFO until log_loaded_acme_srv_cfg"""
+        import tempfile
+        from acme2certifier.acme_srv.helpers import config as config_mod
+
+        config_mod._ACME_SRV_CFG_LOADED.clear()
+        config_mod._LAST_LOADED_CFG = None
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".cfg", delete=False, encoding="utf8"
+        ) as handle:
+            handle.write("[DEFAULT]\ndebug: False\n")
+            cfg_path = handle.name
+        try:
+            abs_path = os.path.abspath(cfg_path)
+            # Early load without configured logger must not consume the once-slot
+            # on the app logger.
+            self.load_config(None, None, cfg_path)
+            self.assertEqual(config_mod._LAST_LOADED_CFG, (abs_path, "explicit"))
+            self.assertNotIn(abs_path, config_mod._ACME_SRV_CFG_LOADED)
+            with self.assertLogs("test_a2c", level="INFO") as lcm:
+                config_mod.log_loaded_acme_srv_cfg(self.logger)
+            self.assertIn(
+                f"INFO:test_a2c:Loaded acme_srv.cfg {abs_path} (explicit)",
+                lcm.output,
+            )
+        finally:
+            os.unlink(cfg_path)
+            config_mod._ACME_SRV_CFG_LOADED.clear()
+            config_mod._LAST_LOADED_CFG = None
+
     def test_197_logger_info(self):
         """logger info"""
         addr = "addr"

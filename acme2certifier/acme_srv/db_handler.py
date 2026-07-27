@@ -30,6 +30,17 @@ _MODULE_TO_SHORT = {module: name for name, module in _SHORT_NAMES.items()}
 
 ConfigLike = Union[Mapping[str, Any], Any]
 
+# Emit [DBhandler] handler missing/invalid warning at most once per process.
+_DBHANDLER_CFG_WARNED = False
+
+
+def _env_selection_hint() -> str:
+    """Suffix for warnings when handler falls back to env or default."""
+    env_value = os.environ.get(_ENV_NAME, "").strip()
+    if env_value:
+        return f" (currently selected via {_ENV_NAME}={env_value})"
+    return " (default: wsgi)"
+
 
 def _normalize_handler(value: str) -> str:
     """Map short names to dotted modules; pass through other module paths."""
@@ -129,8 +140,56 @@ def active_db_handler_label() -> str:
     return _MODULE_TO_SHORT.get(module_name, module_name or "unknown")
 
 
-def log_active_db_handler(logger: logging.Logger) -> None:
+def warn_dbhandler_cfg_missing(
+    logger: logging.Logger, config_dic: Optional[ConfigLike] = None
+) -> None:
+    """Warn when ``[DBhandler] handler`` is unset or not ``wsgi``/``django``.
+
+    ``handler_module`` alone suppresses the warning. Called once per process.
+    """
+    global _DBHANDLER_CFG_WARNED  # pylint: disable=global-statement
+
+    if _DBHANDLER_CFG_WARNED or config_dic is None:
+        return
+
+    if "DBhandler" not in config_dic:
+        _DBHANDLER_CFG_WARNED = True
+        logger.warning(
+            "[DBhandler] section missing in acme_srv.cfg; "
+            "set handler: wsgi or handler: django%s",
+            _env_selection_hint(),
+        )
+        return
+
+    section = config_dic["DBhandler"]
+    handler_module = _section_get(section, "handler_module")
+    if handler_module:
+        return
+
+    handler = _section_get(section, "handler")
+    if handler:
+        if handler.lower() in _SHORT_NAMES:
+            return
+        _DBHANDLER_CFG_WARNED = True
+        logger.warning(
+            "[DBhandler] handler=%r is not wsgi or django",
+            handler,
+        )
+        return
+
+    _DBHANDLER_CFG_WARNED = True
+    logger.warning(
+        "[DBhandler] handler not set in acme_srv.cfg; "
+        "set handler: wsgi or handler: django%s",
+        _env_selection_hint(),
+    )
+
+
+def log_active_db_handler(
+    logger: logging.Logger, config_dic: Optional[ConfigLike] = None
+) -> None:
     """Log which DB handler is active (call after ``logger_setup``)."""
+    warn_dbhandler_cfg_missing(logger, config_dic)
     module_name = getattr(_handler_module, "__name__", "unknown")
     module_file = getattr(_handler_module, "__file__", None)
     short = _MODULE_TO_SHORT.get(module_name, module_name)

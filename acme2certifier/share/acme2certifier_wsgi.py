@@ -22,6 +22,7 @@ from acme2certifier.acme_srv.trigger import Trigger
 from acme2certifier.acme_srv.helper import (
     get_url,
     load_config,
+    log_loaded_acme_srv_cfg,
     logger_setup,
     logger_info,
     config_check,
@@ -80,7 +81,8 @@ def handle_exception(exc_type, exc_value, exc_traceback):
 
 # initialize logger
 LOGGER = logger_setup(DEBUG)
-log_active_db_handler(LOGGER)
+log_loaded_acme_srv_cfg(LOGGER)
+log_active_db_handler(LOGGER, CONFIG)
 
 with Housekeeping(DEBUG, LOGGER) as housekeeping:
     housekeeping.dbversion_check(__dbversion__)

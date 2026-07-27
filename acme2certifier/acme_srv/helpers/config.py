@@ -14,6 +14,8 @@ from .global_variables import PARSING_ERR_MSG
 _ACME_SRV_CFG_PATH_WARNED: Set[str] = set()
 # Emit successful load INFO at most once per absolute path per process.
 _ACME_SRV_CFG_LOADED: Set[str] = set()
+# Last successful load (path, source); used after logger_setup.
+_LAST_LOADED_CFG: Optional[Tuple[str, str]] = None
 
 
 def _log_cfg_loaded_once(
@@ -27,6 +29,17 @@ def _log_cfg_loaded_once(
         logger.info(message, abs_path, source)
     else:
         logger.debug(message, abs_path, source)
+
+
+def log_loaded_acme_srv_cfg(logger: logging.Logger) -> None:
+    """Emit Loaded acme_srv.cfg once. Call after ``logger_setup``.
+
+    Early ``load_config()`` calls (no logger) happen before logging is
+    configured; this flushes the pending path/source to the app logger.
+    """
+    if _LAST_LOADED_CFG:
+        path, source = _LAST_LOADED_CFG
+        _log_cfg_loaded_once(logger, path, source)
 
 
 def config_check(logger: logging.Logger, config_dic: Dict):
@@ -461,6 +474,8 @@ def load_config(
     logger: logging.Logger = None, mfilter: str = None, cfg_file: str = None
 ) -> configparser.ConfigParser:
     """small configparser wrappter to load a config file"""
+    global _LAST_LOADED_CFG  # pylint: disable=global-statement
+
     log = logger or logging.getLogger(__name__)
     log.debug(
         "Helper.load_config() start mfilter=%r cfg_file=%r",
@@ -468,23 +483,35 @@ def load_config(
         cfg_file,
     )
 
-    if not cfg_file:
-        if "ACME_SRV_CONFIGFILE" in os.environ:
-            cfg_file = os.environ["ACME_SRV_CONFIGFILE"]
-            log.debug(
-                "Helper.load_config(): using ACME_SRV_CONFIGFILE=%s",
-                cfg_file,
-            )
-        else:
-            cfg_file = _default_acme_srv_cfg_file(log)
-    else:
+    if cfg_file:
+        source = "explicit"
         log.debug("Helper.load_config(): using explicit cfg_file=%s", cfg_file)
+    elif "ACME_SRV_CONFIGFILE" in os.environ:
+        cfg_file = os.environ["ACME_SRV_CONFIGFILE"]
+        source = "ACME_SRV_CONFIGFILE"
+        log.debug(
+            "Helper.load_config(): using ACME_SRV_CONFIGFILE=%s",
+            cfg_file,
+        )
+    else:
+        cfg_file = _default_acme_srv_cfg_file(log)
+        source = "default"
 
     log.debug("load_config(%s:%s)", mfilter, cfg_file)
     config = configparser.ConfigParser(interpolation=None)
     config.optionxform = str
     read_ok = config.read(cfg_file, encoding="utf8")
-    if not read_ok:
+    if read_ok:
+        abs_path = os.path.abspath(cfg_file)
+        _LAST_LOADED_CFG = (abs_path, source)
+        # Only emit INFO when a configured app logger was passed. Module-level
+        # load_config() runs before logger_setup(); flush via
+        # log_loaded_acme_srv_cfg() afterwards.
+        if logger is not None:
+            _log_cfg_loaded_once(logger, abs_path, source)
+        else:
+            log.debug("Loaded acme_srv.cfg %s (%s)", abs_path, source)
+    else:
         log.warning(
             "Helper.load_config(): could not read config file %s",
             cfg_file,
