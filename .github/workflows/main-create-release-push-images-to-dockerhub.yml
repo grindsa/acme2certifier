@@ -46,9 +46,9 @@ jobs:
         run: |
           set -euo pipefail
           APP_NAME=$(echo "${GITHUB_REPOSITORY}" | awk -F / '{print $2}')
-          TAG_N=$(grep -i '__version__' acme_srv/version.py | head -n 1 | sed 's/__version__ = //g' | sed 's/"//g' | tr -d "[:space:]")
-          DB_VERSION=$(grep -i '__dbversion__' acme_srv/version.py | head -n 1 | sed "s/__dbversion__ = //g" | sed "s/'//g" | tr -d "[:space:]")
-          FIXTURE_VERSION=$(awk '/name: dbversion/{getline; print $2}' examples/django/acme_srv/fixture/status.yaml | tr -d "'")
+          TAG_N=$(grep -i '__version__' acme2certifier/acme_srv/version.py | head -n 1 | sed 's/__version__ = //g' | sed 's/"//g' | tr -d "[:space:]")
+          DB_VERSION=$(grep -i '__dbversion__' acme2certifier/acme_srv/version.py | head -n 1 | sed "s/__dbversion__ = //g" | sed "s/'//g" | tr -d "[:space:]")
+          FIXTURE_VERSION=$(awk '/name: dbversion/{getline; print $2}' acme2certifier/django_app/fixture/status.yaml | tr -d "'")
 
           echo "app_name=${APP_NAME}" >> "${GITHUB_OUTPUT}"
           echo "tag_n=${TAG_N}" >> "${GITHUB_OUTPUT}"
@@ -77,10 +77,10 @@ jobs:
         run: |
           set -euo pipefail
           sudo sed -i "s/__version__/${TAG_N}/g" examples/install_scripts/rpm/acme2certifier.spec
-          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" examples/nginx/nginx_acme_srv_ssl.conf
+          sudo sed -i "s/\/var\/www\/acme2certifier\/volume/\/etc\/nginx/g" acme2certifier/share/nginx/nginx_acme_srv_ssl.conf
           git config --global user.email "${EMAIL}"
           git config --global user.name "rpm update"
-          git add examples/nginx examples/install_scripts/rpm/acme2certifier.spec
+          git add acme2certifier/share/nginx examples/install_scripts/rpm/acme2certifier.spec
           git commit -a -m "rpm update" || true
         env:
           TAG_N: ${{ steps.versions.outputs.tag_n }}
@@ -97,15 +97,17 @@ jobs:
         if: steps.versions.outputs.created_release == 'true'
         run: |
           set -euo pipefail
+          export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update
-          sudo apt-get -y install build-essential fakeroot dpkg-dev devscripts debhelper
-          rm -f setup.py
+          # Match debian/control Build-Depends (+ dpkg tooling); keep in sync with .github/actions/deb_build.
+          sudo apt-get -y install --no-install-recommends \
+            build-essential dpkg-dev fakeroot debhelper \
+            dh-python pybuild-plugin-pyproject \
+            python3-all python3-setuptools python3-build
           cp -R examples/install_scripts/debian ./
           sudo sed -i "s/__version__/${TAG_N}/g" debian/changelog
+          chmod +x debian/rules debian/patch_apache_for_deb.py
           REPO_DIR="$(pwd)"
-          cd ..
-          tar cvfz "../acme2certifier_${TAG_N}.orig.tar.gz" ./
-          cd "${REPO_DIR}"
           dpkg-buildpackage -uc -us
           cp "../acme2certifier_${TAG_N}-1_all.deb" "${REPO_DIR}/acme2certifier_${TAG_N}-1_all.deb"
           ls -la "${REPO_DIR}/acme2certifier_${TAG_N}-1_all.deb"
