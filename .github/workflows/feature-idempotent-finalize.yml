@@ -1,4 +1,4 @@
-name: Feature Tests - Idempotent_finalize option tests
+name: Feature Tests - Idempotent finalize option tests
 on:
   workflow_dispatch:
     inputs:
@@ -246,11 +246,6 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.XCA_CFG }}
-
       - name: "Prepare Ubuntu environment"
         if: matrix.mode == 'wsgi'
         uses: ./.github/actions/deb_prep
@@ -321,5 +316,5 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpm-rh${{ matrix.rhversion }}.tar.gz
+          name: test-deb-${{ matrix.websrv }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/

@@ -302,7 +302,7 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
-      - name: "Enroll acme.sh - ignore sucess_hook_failures "
+      - name: "Enroll acme.sh - ignore success_hook_failures"
         run: |
           docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
           openssl verify -CAfile examples/Docker/data/acme_ca/root-ca-cert.pem -untrusted examples/Docker/data/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
@@ -521,7 +521,7 @@ jobs:
         env:
           HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
@@ -637,7 +637,7 @@ jobs:
         env:
           HOOKS_CHECKSUM: ${{ secrets.HOOKS_CHECKSUM }}
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
@@ -731,7 +731,7 @@ jobs:
         env:
           MODE: ${{ matrix.mode }}
 
-      - name: "Enroll acme.sh - ignore sucess_hook_failures "
+      - name: "Enroll acme.sh - ignore success_hook_failures"
         run: |
           docker exec -i acme-sh acme.sh --server http://acme-srv --issue -d acme-sh.acme --standalone --force --debug 3 --output-insecure
           openssl verify -CAfile data/volume/acme_ca/root-ca-cert.pem -untrusted data/volume/acme_ca/sub-ca-cert.pem acme-sh/acme-sh.acme_ecc/acme-sh.acme.cer
@@ -876,5 +876,5 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpm-email-hooks-rh${{ matrix.rhversion }}-{{ matrix.mode }}.tar.gz
+          name: test-rpm-email-hooks-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/

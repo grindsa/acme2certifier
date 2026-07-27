@@ -336,7 +336,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpms-rh${{ matrix.rhversion }}-${{ matrix.mode}}.tar.gz
+          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------

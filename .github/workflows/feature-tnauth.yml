@@ -179,7 +179,7 @@ jobs:
         run: |
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: True/g" data/volume/acme_srv.cfg
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:

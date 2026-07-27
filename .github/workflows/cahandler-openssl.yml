@@ -119,7 +119,7 @@ jobs:
           cd examples/Docker/
           docker compose restart
 
-      - name: "With Tempßlate -  enrollment"
+      - name: "With Template - enrollment"
         uses: ./.github/actions/wf_specific/openssl_ca_handler/enroll_w_teamplate
 
       - name: "Flush logs"
@@ -172,7 +172,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz.tar.gz
+          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------

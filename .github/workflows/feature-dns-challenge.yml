@@ -288,7 +288,7 @@ jobs:
       - name: "Prepare acme.sh container and set DNS server in acme_srv.cfg"
         uses: ./.github/actions/wf_specific/dns/acmesh_prep
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
@@ -464,11 +464,6 @@ jobs:
       - name: "checkout GIT"
         uses: actions/checkout@v6
 
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.XCA_CFG }}
-
       - name: "Prepare Ubuntu environment"
         if: matrix.mode == 'wsgi'
         uses: ./.github/actions/deb_prep
@@ -501,6 +496,8 @@ jobs:
 
       - name: "Prepare acme.sh container and set DNS server in acme_srv.cfg"
         uses: ./.github/actions/wf_specific/dns/acmesh_prep
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Execute install script"
         run: |
@@ -511,6 +508,8 @@ jobs:
 
       - name: "Enroll by using dns-01 challenges"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -558,6 +557,7 @@ jobs:
       - name: "Enroll by using dns-01 challenges with wildcard disabled (wildcard expected to fail)"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
         with:
+          DEPLOYMENT_TYPE: deb
           WILDCARD_EXPECT_FAIL: 'true'
 
       - name: "Flush logs"
@@ -578,6 +578,8 @@ jobs:
 
       - name: "Enroll by using dns-01 challenges with wildcard enabled (wildcard expected to succeed)"
         uses: ./.github/actions/wf_specific/dns/enroll_dns01
+        with:
+          DEPLOYMENT_TYPE: deb
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush
@@ -600,13 +602,13 @@ jobs:
       - name: "Register lego container and create dns records for persistent-01 challenges"
         uses: ./.github/actions/wf_specific/dns/persistent_prep
         with:
-          DEPLOYMENT_TYPE: container
+          DEPLOYMENT_TYPE: deb
 
       - name: "Enroll by using persistent-01 dns challenges (to fail)"
         uses: ./.github/actions/wf_specific/dns/enroll_persistent01
         with:
           CA_PATH: data/volume/acme_ca/
-          DEPLOYMENT_TYPE: container
+          DEPLOYMENT_TYPE: deb
           TO_FAIL: 'true'
 
       - name: "Flush logs"
@@ -629,7 +631,7 @@ jobs:
         uses: ./.github/actions/wf_specific/dns/enroll_persistent01
         with:
           CA_PATH: data/volume/acme_ca/
-          DEPLOYMENT_TYPE: container
+          DEPLOYMENT_TYPE: deb
 
       - name: "Flush logs"
         uses: ./.github/actions/logs_flush

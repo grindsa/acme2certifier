@@ -369,7 +369,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz.tar.gz
+          name: test-containers-${{ matrix.websrv }}-${{ matrix.dbhandler }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------

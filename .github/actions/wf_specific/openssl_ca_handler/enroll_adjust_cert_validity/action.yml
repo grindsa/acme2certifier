@@ -1,12 +1,5 @@
-name: "enroll_w_headerinfo"
-description: "enroll_w_headerinfo"
-inputs:
-  ASA_CA_NAME1:
-    description: "ASA CA 1"
-    required: true
-  ASA_CA_NAME2:
-    description: "ASA CA 2"
-    required: true
+name: "enroll_adjust_cert_validity"
+description: "Enroll and verify adjusted certificate validity period"
 
 runs:
   using: "composite"

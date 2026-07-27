@@ -1,4 +1,4 @@
-name: Feature Tests - custom db-file and url_prefix
+name: Deployment Tests - custom db-file and url_prefix
 on:
   workflow_dispatch:
     inputs:

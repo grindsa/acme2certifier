@@ -194,7 +194,7 @@ jobs:
       - name: "Prepare acme_srv.cfg with openssl_ca_handler"
         uses: ./.github/actions/setup_openssl_cahandler
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
@@ -280,11 +280,6 @@ jobs:
       - run: echo "runner IP is $RUNNER_IP"
         env:
           RUNNER_IP: ${{ env.RUNNER_IP }}
-
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.XCA_CFG }}
 
       - name: "Prepare Ubuntu environment"
         if: matrix.mode == 'wsgi'

@@ -1,4 +1,4 @@
-name: "enroll_dns01 "
+name: "enroll_dns01"
 description: "enroll_dns01"
 
 inputs:

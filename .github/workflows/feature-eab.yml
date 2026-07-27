@@ -378,7 +378,7 @@ jobs:
           sudo echo "eab_handler_module: acme2certifier.eabhandlers.json_handler" >> data/volume/acme_srv.cfg
           sudo echo "key_file: /opt/acme2certifier/volume/acme_ca/key_file.json" >> data/volume/acme_srv.cfg
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
         env:
@@ -518,11 +518,6 @@ jobs:
     steps:
       - name: "checkout GIT"
         uses: actions/checkout@v6
-
-      - name: "Parse XCA configuration from JSON secret"
-        uses: ./.github/actions/parse-json-secret
-        with:
-          json_secret: ${{ secrets.XCA_CFG }}
 
       - name: "Prepare Ubuntu environment"
         if: matrix.mode == 'wsgi'

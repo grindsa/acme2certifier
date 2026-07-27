@@ -258,7 +258,7 @@ jobs:
         env:
           VAULT_TOKEN: ${{ env.VAULT_TOKEN }}
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
           docker ps -a
@@ -328,7 +328,7 @@ jobs:
         uses: actions/upload-artifact@v7
         if: ${{ failure() }}
         with:
-          name: test-rpm-rh${{ matrix.rhversion }}-{{ matrix.mode }}.tar.gz
+          name: test-rpm-rh${{ matrix.rhversion }}-${{ matrix.mode }}.tar.gz
           path: ${{ github.workspace }}/artifact/upload/
 
   # ---------------------------------------------------------

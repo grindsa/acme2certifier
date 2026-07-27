@@ -261,7 +261,7 @@ jobs:
           sudo sed -i "s/tnauthlist_support: False/tnauthlist_support: False\nemail_identifier_support: True\nemail_identifier_rewrite: True\ndns_validation_pause_timer: 5/g" data/volume/acme_srv.cfg
           sudo sed -i "s/debug: True/debug: True\nimap_server: mailserver.acme\nimap_port: 993\nimap_use_ssl: True\nsmtp_port: 587\nsmtp_use_tls: True\nusername: $A2C_ADDR\npassword: $A2C_PASSWORD\nemail_address: $A2C_ADDR/g" data/volume/acme_srv.cfg
 
-      - name: "Execute install scipt"
+      - name: "Execute install script"
         run: |
           docker exec acme-srv bash /tmp/acme2certifier/a2c-rpm.sh install -m $MODE
           docker ps -a
