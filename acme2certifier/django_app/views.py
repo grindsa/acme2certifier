@@ -13,6 +13,7 @@ from acme2certifier.acme_srv.directory import Directory
 from acme2certifier.acme_srv.helper import (
     get_url,
     load_config,
+    log_loaded_acme_srv_cfg,
     logger_setup,
     logger_info,
     config_check,
@@ -33,7 +34,8 @@ DEBUG = CONFIG.getboolean("DEFAULT", "debug", fallback=False)
 # initialize logger
 LOGGER = logger_setup(DEBUG)
 LOGGER.info("starting acme2certifier version %s", __version__)
-log_active_db_handler(LOGGER)
+log_loaded_acme_srv_cfg(LOGGER)
+log_active_db_handler(LOGGER, CONFIG)
 
 METHOD_NOT_ALLOWED = "Method Not Allowed"
 ERR_DATA_POST = {

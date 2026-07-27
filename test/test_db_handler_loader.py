@@ -88,9 +88,68 @@ def test_log_active_db_handler(
     db_handler_mod: object, caplog: pytest.LogCaptureFixture
 ) -> None:
     logger = logging.getLogger("test.db_handler_startup")
+    config: Dict[str, Dict[str, str]] = {"DBhandler": {"handler": "wsgi"}}
     with caplog.at_level(logging.INFO, logger="test.db_handler_startup"):
-        db_handler_mod.log_active_db_handler(logger)
+        db_handler_mod.log_active_db_handler(logger, config)
     assert any("Using DB handler" in rec.message for rec in caplog.records)
+
+
+def test_warn_dbhandler_missing_handler(
+    db_handler_mod: object, caplog: pytest.LogCaptureFixture
+) -> None:
+    db_handler_mod._DBHANDLER_CFG_WARNED = False
+    logger = logging.getLogger("test.db_handler_warn")
+    config: Dict[str, Dict[str, str]] = {"DBhandler": {"dbfile": "/tmp/x.db"}}
+    with caplog.at_level(logging.WARNING, logger="test.db_handler_warn"):
+        db_handler_mod.warn_dbhandler_cfg_missing(logger, config)
+        db_handler_mod.warn_dbhandler_cfg_missing(logger, config)
+    matches = [rec for rec in caplog.records if "[DBhandler]" in rec.message]
+    assert len(matches) == 1
+    assert "handler not set" in matches[0].message
+    assert "default: wsgi" in matches[0].message
+
+
+def test_warn_dbhandler_missing_section_with_env(
+    db_handler_mod: object,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    db_handler_mod._DBHANDLER_CFG_WARNED = False
+    monkeypatch.setenv("ACME_SRV_DB_HANDLER", "django")
+    logger = logging.getLogger("test.db_handler_warn_env")
+    with caplog.at_level(logging.WARNING, logger="test.db_handler_warn_env"):
+        db_handler_mod.warn_dbhandler_cfg_missing(logger, {"DEFAULT": {}})
+    assert any(
+        "section missing" in rec.message
+        and "ACME_SRV_DB_HANDLER=django" in rec.message
+        for rec in caplog.records
+    )
+
+
+def test_warn_dbhandler_handler_module_suppresses(
+    db_handler_mod: object, caplog: pytest.LogCaptureFixture
+) -> None:
+    db_handler_mod._DBHANDLER_CFG_WARNED = False
+    logger = logging.getLogger("test.db_handler_no_warn")
+    config: Dict[str, Dict[str, str]] = {
+        "DBhandler": {
+            "handler_module": "acme2certifier.dbhandlers.django_handler",
+        }
+    }
+    with caplog.at_level(logging.WARNING, logger="test.db_handler_no_warn"):
+        db_handler_mod.warn_dbhandler_cfg_missing(logger, config)
+    assert not caplog.records
+
+
+def test_warn_dbhandler_invalid_handler(
+    db_handler_mod: object, caplog: pytest.LogCaptureFixture
+) -> None:
+    db_handler_mod._DBHANDLER_CFG_WARNED = False
+    logger = logging.getLogger("test.db_handler_invalid")
+    config: Dict[str, Dict[str, str]] = {"DBhandler": {"handler": "mysql"}}
+    with caplog.at_level(logging.WARNING, logger="test.db_handler_invalid"):
+        db_handler_mod.warn_dbhandler_cfg_missing(logger, config)
+    assert any("handler='mysql'" in rec.message for rec in caplog.records)
 
 
 def test_package_db_handler_reexports_dbstore(db_handler_mod: object) -> None:

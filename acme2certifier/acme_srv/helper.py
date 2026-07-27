@@ -129,6 +129,7 @@ from .helpers.config import (
     default_wsgi_dbfile,
     resolve_config_path,
     load_config,
+    log_loaded_acme_srv_cfg,
     header_info_jsonify,
     header_info_lookup,
     client_parameter_validate,
