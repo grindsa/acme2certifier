@@ -5,12 +5,26 @@ import importlib
 import importlib.util
 import logging
 import sys
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Set
 
 from acme2certifier.compat import (
     warn_default_ca_handler,
     warn_file_config_deprecated,
 )
+
+# Emit routine handler-load INFO at most once per key per process.
+_HANDLER_LOAD_LOGGED: Set[str] = set()
+
+
+def _log_once_info(
+    logger: logging.Logger, key: str, msg: str, *args: Any
+) -> None:
+    """Log *msg* at INFO once per *key*; subsequent calls use DEBUG."""
+    if key not in _HANDLER_LOAD_LOGGED:
+        _HANDLER_LOAD_LOGGED.add(key)
+        logger.info(msg, *args)
+    else:
+        logger.debug(msg, *args)
 
 
 def _load_from_file(
@@ -98,7 +112,7 @@ def ca_handler_load(
     section = config_dic["CAhandler"]
     handler_module = _section_option(section, "handler_module")
     handler_file = _section_option(section, "handler_file")
-    logger.info(
+    logger.debug(
         "CA handler configuration: handler_module=%r handler_file=%r",
         handler_module,
         handler_file,
@@ -111,14 +125,16 @@ def ca_handler_load(
         )
 
     if handler_module:
-        logger.info("Loading CA handler via handler_module=%s", handler_module)
+        logger.debug("Loading CA handler via handler_module=%s", handler_module)
         loaded = _load_from_module(
             logger,
             handler_module,
             "Loading CAhandler via handler_module",
         )
         if loaded is not None:
-            logger.info("Loaded CA handler %s", _loaded_identity(loaded))
+            _log_once_info(
+                logger, "ca_handler", "Loaded CA handler %s", _loaded_identity(loaded)
+            )
             return loaded
         logger.warning(
             "CA handler_module load failed; falling back to default CAhandler"
@@ -137,19 +153,26 @@ def ca_handler_load(
             "Loading CAhandler configured in cfg",
         )
         if loaded is not None:
-            logger.info("Loaded CA handler %s", _loaded_identity(loaded))
+            _log_once_info(
+                logger, "ca_handler", "Loaded CA handler %s", _loaded_identity(loaded)
+            )
             return loaded
         logger.warning("CA handler_file load failed; falling back to default CAhandler")
     else:
-        logger.info(
+        logger.debug(
             "Neither handler_module nor handler_file set; using default CAhandler"
         )
 
-    logger.info("Attempting default CA handler acme_srv.ca_handler")
+    logger.debug("Attempting default CA handler acme_srv.ca_handler")
     warn_default_ca_handler(logger)
     try:
         loaded = importlib.import_module("acme_srv.ca_handler")
-        logger.info("Loaded default CA handler %s", _loaded_identity(loaded))
+        _log_once_info(
+            logger,
+            "ca_handler",
+            "Loaded default CA handler %s",
+            _loaded_identity(loaded),
+        )
         return loaded
     except Exception as err_:
         logger.critical("Loading default CAhandler failed with err: %s", err_)
@@ -169,7 +192,7 @@ def eab_handler_load(
     section = config_dic["EABhandler"]
     eab_module = _section_option(section, "eab_handler_module")
     eab_file = _section_option(section, "eab_handler_file")
-    logger.info(
+    logger.debug(
         "EAB handler configuration: eab_handler_module=%r eab_handler_file=%r",
         eab_module,
         eab_file,
@@ -182,14 +205,16 @@ def eab_handler_load(
         )
 
     if eab_module:
-        logger.info("Loading EAB handler via eab_handler_module=%s", eab_module)
+        logger.debug("Loading EAB handler via eab_handler_module=%s", eab_module)
         loaded = _load_from_module(
             logger,
             eab_module,
             "Loading EABhandler via eab_handler_module",
         )
         if loaded is not None:
-            logger.info("Loaded EAB handler %s", _loaded_identity(loaded))
+            _log_once_info(
+                logger, "eab_handler", "Loaded EAB handler %s", _loaded_identity(loaded)
+            )
             return loaded
         logger.debug("Helper.plugin_loader.eab_handler_load() ended with None")
         return None
@@ -208,7 +233,9 @@ def eab_handler_load(
             "Loading EABhandler configured in cfg",
         )
         if loaded is not None:
-            logger.info("Loaded EAB handler %s", _loaded_identity(loaded))
+            _log_once_info(
+                logger, "eab_handler", "Loaded EAB handler %s", _loaded_identity(loaded)
+            )
             return loaded
         logger.warning("EAB handler_file load failed")
         return None
@@ -242,7 +269,9 @@ def db_handler_load(
 
     _ = config_dic
     loaded = load_db_handler_module()
-    logger.info("Loaded DB handler %s", _loaded_identity(loaded))
+    _log_once_info(
+        logger, "db_handler", "Loaded DB handler %s", _loaded_identity(loaded)
+    )
     logger.debug("Helper.plugin_loader.db_handler_load() ended")
     return loaded
 
@@ -258,7 +287,7 @@ def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_mod
     section = config_dic["Hooks"]
     hooks_module_name = _section_option(section, "hooks_module")
     hooks_file = _section_option(section, "hooks_file")
-    logger.info(
+    logger.debug(
         "Hooks configuration: hooks_module=%r hooks_file=%r",
         hooks_module_name,
         hooks_file,
@@ -271,14 +300,16 @@ def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_mod
         )
 
     if hooks_module_name:
-        logger.info("Loading hooks via hooks_module=%s", hooks_module_name)
+        logger.debug("Loading hooks via hooks_module=%s", hooks_module_name)
         loaded = _load_from_module(
             logger,
             hooks_module_name,
             "Loading Hooks via hooks_module",
         )
         if loaded is not None:
-            logger.info("Loaded hooks %s", _loaded_identity(loaded))
+            _log_once_info(
+                logger, "hooks", "Loaded hooks %s", _loaded_identity(loaded)
+            )
             return loaded
         logger.warning("Hooks module load failed")
         return None
@@ -297,12 +328,14 @@ def hooks_load(logger: logging.Logger, config_dic: Dict) -> importlib.import_mod
             "Loading Hooks configured in cfg",
         )
         if loaded is not None:
-            logger.info("Loaded hooks %s", _loaded_identity(loaded))
+            _log_once_info(
+                logger, "hooks", "Loaded hooks %s", _loaded_identity(loaded)
+            )
             logger.debug("Helper.plugin_loader.hooks_load() ended with module")
             return loaded
         logger.warning("Hooks file load failed")
         return None
 
-    logger.info("Neither hooks_module nor hooks_file set; hooks disabled")
+    logger.debug("Neither hooks_module nor hooks_file set; hooks disabled")
     logger.debug("Helper.plugin_loader.hooks_load() ended with None")
     return None
