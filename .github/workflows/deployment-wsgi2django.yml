@@ -128,9 +128,22 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Migrate DB schema to Django"
-        uses: ./.github/actions/wf_specific/upgrade/db_update
-        with:
-          APP_ROOT: /var/www/acme2certifier
+        run: |
+          set -euo pipefail
+          docker exec acme-srv bash -lc '
+            set -euo pipefail
+            APP_ROOT=/var/www/acme2certifier
+            export DJANGO_SETTINGS_MODULE=acme2certifier.django_project.settings
+            if [[ -f "${APP_ROOT}/volume/acme2certifier/settings.py" ]]; then
+              pkg_settings="$(python3 -c "import acme2certifier.django_project, pathlib; print(pathlib.Path(acme2certifier.django_project.__file__).parent / \"settings.py\")")"
+              ln -sfn "${APP_ROOT}/volume/acme2certifier/settings.py" "${pkg_settings}"
+            elif [[ -f "${APP_ROOT}/volume/settings.py" ]]; then
+              pkg_settings="$(python3 -c "import acme2certifier.django_project, pathlib; print(pathlib.Path(acme2certifier.django_project.__file__).parent / \"settings.py\")")"
+              ln -sfn "${APP_ROOT}/volume/settings.py" "${pkg_settings}"
+            fi
+            a2c-manage migrate
+            a2c-manage loaddata status
+          '
 
       - name: "Import and check migration dump"
         run: |

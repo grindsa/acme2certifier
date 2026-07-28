@@ -1426,7 +1426,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="version",
         version=f"a2c-wsgi2django {TOOL_VERSION} (a2c {__version__})",
     )
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(dest="command")
 
     export_p = sub.add_parser(
         "export",
@@ -1512,6 +1512,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     """CLI entry point."""
     parser = build_parser()
     args = parser.parse_args(list(argv) if argv is not None else None)
+    if not getattr(args, "command", None):
+        parser.error("command required (export, wipe, import, check)")
     return int(args.func(args))
 
 

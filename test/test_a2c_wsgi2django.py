@@ -75,6 +75,12 @@ def test_parse_iso_datetime_python36_compatible() -> None:
     assert migrator._parse_iso_datetime("2024-01-15T10:20:30+00:00").utcoffset() is not None
 
 
+def test_main_requires_subcommand_python36_compatible() -> None:
+    """argparse subparsers(required=...) needs Python 3.7+; enforce manually."""
+    with pytest.raises(SystemExit):
+        migrator.main([])
+
+
 def _create_wsgi_schema(conn: sqlite3.Connection) -> None:
     """Create a minimal current-schema WSGI SQLite DB."""
     cur = conn.cursor()
