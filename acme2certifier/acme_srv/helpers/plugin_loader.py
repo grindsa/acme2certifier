@@ -15,6 +15,9 @@ from acme2certifier.compat import (
 
 # Emit routine handler-load INFO at most once per key per process.
 _HANDLER_LOAD_LOGGED: Set[str] = set()
+_EAB_HANDLER_LOAD_ENDED_NONE = (
+    "Helper.plugin_loader.eab_handler_load() ended with None"
+)
 
 
 def _log_once_info(
@@ -60,8 +63,11 @@ def _load_from_file(
     )
     try:
         spec = importlib.util.spec_from_file_location(module_name, file_path)
+        if spec is None or spec.loader is None:
+            raise ImportError(
+                f"Cannot load module {module_name!r} from {file_path!r}"
+            )
         module = importlib.util.module_from_spec(spec)
-        assert spec.loader is not None
         # Register before exec so compatibility shims can replace this entry.
         sys.modules[module_name] = module
         spec.loader.exec_module(module)
@@ -221,7 +227,7 @@ def eab_handler_load(
     logger.debug("Helper.plugin_loader.eab_handler_load() start")
     # pylint: disable=w0621
     if "EABhandler" not in config_dic:
-        logger.debug("Helper.plugin_loader.eab_handler_load() ended with None")
+        logger.debug(_EAB_HANDLER_LOAD_ENDED_NONE)
         return None
 
     section = config_dic["EABhandler"]
@@ -252,7 +258,7 @@ def eab_handler_load(
                 logger, "eab_handler", "Loaded EAB handler %s", _loaded_identity(loaded)
             )
             return loaded
-        logger.debug("Helper.plugin_loader.eab_handler_load() ended with None")
+        logger.debug(_EAB_HANDLER_LOAD_ENDED_NONE)
         return None
 
     if eab_file:
@@ -280,7 +286,7 @@ def eab_handler_load(
         "EABhandler section present but neither eab_handler_module nor "
         "eab_handler_file is set"
     )
-    logger.debug("Helper.plugin_loader.eab_handler_load() ended with None")
+    logger.debug(_EAB_HANDLER_LOAD_ENDED_NONE)
     return None
 
 

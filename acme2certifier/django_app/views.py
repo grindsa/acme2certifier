@@ -4,6 +4,7 @@
 from __future__ import unicode_literals, print_function
 from django.http import HttpResponse, HttpResponseNotFound
 from django.utils.html import escape
+from django.views.decorators.http import require_http_methods
 from acme2certifier.django_app.a2c_response import JsonResponse
 from acme2certifier.acme_srv.authorization import Authorization
 from acme2certifier.acme_srv.account import Account
@@ -87,6 +88,7 @@ def pretty_request(request):
     )
 
 
+@require_http_methods(["GET"])
 def directory(request):
     """get directory"""
     with Directory(DEBUG, get_url(request.META), LOGGER) as cfg_dir:
@@ -159,12 +161,14 @@ def newnonce(request):
         return ERR_RESPONSE_HEAD_GET
 
 
+@require_http_methods(["GET"])
 def servername_get(request):
     """get server name"""
     with Directory(DEBUG, get_url(request.META), LOGGER) as cfg_dir:
         return JsonResponse({"server_name": escape(cfg_dir.servername_get())})
 
 
+@require_http_methods(["POST"])
 def acct(request):
     """xxxx command"""
     with Account(DEBUG, get_url(request.META), LOGGER) as account:
@@ -463,6 +467,7 @@ def housekeeping(request):
         return JsonResponse(status=405, data=ERR_DATA_POST, safe=False)
 
 
+@require_http_methods(["GET"])
 def acmechallenge_serve(request):
     """serving acme challenges"""
     with Acmechallenge(DEBUG, get_url(request.META), LOGGER) as acmechallenge:
