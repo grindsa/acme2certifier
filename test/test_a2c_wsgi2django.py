@@ -1053,3 +1053,55 @@ def test_038_check_source_db_certificate_extra_id_has_diagnostic(
         "dump-vs-source-db detail: certificate.id=77 excluded from dump: dangling order_id=0"
         in err
     )
+
+
+def test_039_orphan_reason_null_and_dangling() -> None:
+    """_orphan_reason reports NULL and dangling FK cases."""
+    specs = [("order_id", "orders"), ("status_id", "status")]
+    id_sets = {"orders": {1}, "status": {2}}
+    assert (
+        migrator._orphan_reason({"order_id": None, "status_id": 2}, specs, id_sets)
+        == "NULL order_id (required FK to orders)"
+    )
+    assert (
+        migrator._orphan_reason({"order_id": 99, "status_id": 2}, specs, id_sets)
+        == "dangling order_id=99 (missing orders.id)"
+    )
+    assert (
+        migrator._orphan_reason({"order_id": 1, "status_id": 2}, specs, id_sets) is None
+    )
+
+
+def test_040_fk_child_order_unique() -> None:
+    """FK child order lists each child table once in FK_SPECS order."""
+    order = migrator._fk_child_order()
+    assert order == ["account", "orders", "authorization", "challenge", "certificate"]
+    assert len(order) == len(set(order))
+
+
+def test_041_parse_datetime_none_blank_and_fallback() -> None:
+    """_parse_datetime handles empty values and space-separated timestamps."""
+    from datetime import datetime
+
+    assert migrator._parse_datetime(None) is None
+    assert migrator._parse_datetime("") is None
+    dt = migrator._parse_datetime("2024-01-15 10:20:30")
+    assert dt is not None
+    assert dt.replace(tzinfo=None) == datetime(2024, 1, 15, 10, 20, 30)
+    with pytest.raises(migrator.MigrationError, match="unparseable timestamp"):
+        migrator._parse_datetime("not-a-timestamp")
+
+
+def test_042_imported_counts_init_and_dry_run_skips_nonce() -> None:
+    """Import counters zero-init; dry-run skips nonce unless included."""
+    counts = migrator._imported_counts_init()
+    assert counts["status"] == 0
+    assert counts["account"] == 0
+    assert set(migrator.IMPORT_TABLE_ORDER).issubset(counts)
+
+    tables = {"account": [{"id": 1}], "nonce": [{"id": 1}, {"id": 2}]}
+    dry = migrator._dry_run_import_counts(tables, include_nonces=False)
+    assert dry["account"] == 1
+    assert dry["nonce"] == 0
+    dry_with = migrator._dry_run_import_counts(tables, include_nonces=True)
+    assert dry_with["nonce"] == 2

@@ -436,6 +436,53 @@ def _ids(rows: Iterable[Mapping[str, Any]]) -> set:
     return {int(row["id"]) for row in rows if row.get("id") is not None}
 
 
+def _fk_child_order() -> List[str]:
+    """Return unique child table names in FK_SPECS order."""
+    child_order: List[str] = []
+    seen = set()
+    for child, _fk_col, _parent in FK_SPECS:
+        if child not in seen:
+            child_order.append(child)
+            seen.add(child)
+    return child_order
+
+
+def _orphan_reason(
+    row: Mapping[str, Any],
+    specs: Sequence[Tuple[str, str]],
+    id_sets: Mapping[str, set],
+) -> Optional[str]:
+    """Return a human-readable orphan reason, or None when FKs are valid."""
+    for fk_col, parent in specs:
+        fk_val = row.get(fk_col)
+        if fk_val is None:
+            return f"NULL {fk_col} (required FK to {parent})"
+        if int(fk_val) not in id_sets.get(parent, set()):
+            return f"dangling {fk_col}={fk_val} (missing {parent}.id)"
+    return None
+
+
+def _filter_child_rows(
+    child: str,
+    rows: Sequence[Dict[str, Any]],
+    specs: Sequence[Tuple[str, str]],
+    id_sets: Mapping[str, set],
+    stream: Any,
+) -> List[Dict[str, Any]]:
+    """Keep rows with valid FKs; warn and drop orphans."""
+    kept: List[Dict[str, Any]] = []
+    for row in rows:
+        reason = _orphan_reason(row, specs, id_sets)
+        if reason is not None:
+            print(
+                f"warning: skipping orphan {child}.id={row.get('id')}: {reason}",
+                file=stream,
+            )
+            continue
+        kept.append(row)
+    return kept
+
+
 def _drop_orphan_rows(
     tables: Dict[str, List[Dict[str, Any]]],
     stream: Any = None,
@@ -448,37 +495,12 @@ def _drop_orphan_rows(
     if stream is None:
         stream = sys.stderr
 
-    child_order: List[str] = []
-    seen = set()
-    for child, _fk_col, _parent in FK_SPECS:
-        if child not in seen:
-            child_order.append(child)
-            seen.add(child)
-
-    for child in child_order:
+    for child in _fk_child_order():
         specs = [(fk, parent) for c, fk, parent in FK_SPECS if c == child]
         id_sets = {name: _ids(rows) for name, rows in tables.items()}
-        kept: List[Dict[str, Any]] = []
-        for row in tables.get(child, []):
-            reason: Optional[str] = None
-            for fk_col, parent in specs:
-                fk_val = row.get(fk_col)
-                if fk_val is None:
-                    reason = f"NULL {fk_col} (required FK to {parent})"
-                    break
-                if int(fk_val) not in id_sets.get(parent, set()):
-                    reason = (
-                        f"dangling {fk_col}={fk_val} (missing {parent}.id)"
-                    )
-                    break
-            if reason is not None:
-                print(
-                    f"warning: skipping orphan {child}.id={row.get('id')}: {reason}",
-                    file=stream,
-                )
-                continue
-            kept.append(row)
-        tables[child] = kept
+        tables[child] = _filter_child_rows(
+            child, tables.get(child, []), specs, id_sets, stream
+        )
 
 
 def _validate_required(tables: Mapping[str, Sequence[Mapping[str, Any]]]) -> None:
@@ -841,6 +863,30 @@ def _parse_iso_datetime(text: str) -> datetime:
     raise ValueError("unparseable timestamp: {!r}".format(normalized))
 
 
+def _parse_datetime_fallback(text: str, original: Any) -> datetime:
+    """Parse non-ISO dump timestamps; raise MigrationError on failure."""
+    try:
+        return _parse_iso_datetime(text)
+    except ValueError:
+        pass
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
+        try:
+            return datetime.strptime(text, fmt)
+        except ValueError:
+            continue
+    raise MigrationError("unparseable timestamp: {!r}".format(original))
+
+
+def _maybe_make_aware(dt: datetime) -> datetime:
+    """Make *dt* timezone-aware when Django USE_TZ is enabled."""
+    from django.conf import settings
+    from django.utils import timezone as dj_tz
+
+    if getattr(settings, "USE_TZ", False) and dj_tz.is_naive(dt):
+        return dj_tz.make_aware(dt, dj_tz.get_default_timezone())
+    return dt
+
+
 def _parse_datetime(value: Any) -> Optional[datetime]:
     """Parse dump timestamp into a datetime; make aware when USE_TZ=True."""
     if value is None or value == "":
@@ -848,26 +894,8 @@ def _parse_datetime(value: Any) -> Optional[datetime]:
     if isinstance(value, datetime):
         dt = value
     else:
-        text = str(value).strip()
-        try:
-            dt = _parse_iso_datetime(text)
-        except ValueError:
-            for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
-                try:
-                    dt = datetime.strptime(text, fmt)
-                    break
-                except ValueError:
-                    continue
-            else:
-                raise MigrationError("unparseable timestamp: {!r}".format(value))
-
-    from django.conf import settings
-    from django.utils import timezone as dj_tz
-
-    if getattr(settings, "USE_TZ", False):
-        if dj_tz.is_naive(dt):
-            dt = dj_tz.make_aware(dt, dj_tz.get_default_timezone())
-    return dt
+        dt = _parse_datetime_fallback(str(value).strip(), value)
+    return _maybe_make_aware(dt)
 
 
 def _save_with_timestamps(
@@ -1090,6 +1118,59 @@ _IMPORT_HANDLERS = {
 }
 
 
+def _imported_counts_init() -> Dict[str, int]:
+    """Zeroed import counters for every dump key (status never imported)."""
+    imported: Dict[str, int] = dict.fromkeys(IMPORT_TABLE_ORDER, 0)
+    imported["status"] = 0
+    return imported
+
+
+def _ensure_import_target(*, wipe: bool, dry_run: bool) -> None:
+    """Wipe non-empty target when allowed; otherwise refuse import."""
+    if not target_is_nonempty():
+        return
+    if not wipe:
+        raise MigrationError(
+            "target ACME tables are not empty; re-run with --wipe or wipe first"
+        )
+    _vlog("import: wiping non-empty target ACME tables")
+    wipe_acme_data(dry_run=dry_run)
+
+
+def _dry_run_import_counts(
+    tables: Mapping[str, Sequence[Mapping[str, Any]]],
+    include_nonces: bool,
+) -> Dict[str, int]:
+    """Compute would-be import counts without writing."""
+    imported = _imported_counts_init()
+    for key in IMPORT_TABLE_ORDER:
+        if key == "nonce" and not include_nonces:
+            imported[key] = 0
+            continue
+        imported[key] = len(tables.get(key, []))
+        _vlog(f"import dry-run: would import {key}: {imported[key]} row(s)")
+    return imported
+
+
+def _write_import_tables(
+    tables: Mapping[str, Sequence[Mapping[str, Any]]],
+    include_nonces: bool,
+    models: Any,
+) -> Dict[str, int]:
+    """Write dump rows via ORM handlers; return imported counts."""
+    imported = _imported_counts_init()
+    for key in IMPORT_TABLE_ORDER:
+        if key == "nonce" and not include_nonces:
+            continue
+        handler = _IMPORT_HANDLERS[key]
+        rows = tables.get(key, [])
+        _vlog(f"import: writing {key}: {len(rows)} row(s)")
+        for row in rows:
+            handler(row, models)
+            imported[key] += 1
+    return imported
+
+
 def import_dump(
     dump: Mapping[str, Any],
     *,
@@ -1111,46 +1192,19 @@ def import_dump(
 
     tables = dump["tables"]
     include_nonces = bool(dump.get("meta", {}).get("include_nonces"))
-
-    if target_is_nonempty():
-        if not wipe:
-            raise MigrationError(
-                "target ACME tables are not empty; re-run with --wipe or wipe first"
-            )
-        _vlog("import: wiping non-empty target ACME tables")
-        wipe_acme_data(dry_run=dry_run)
-
-    imported: Dict[str, int] = {key: 0 for key in IMPORT_TABLE_ORDER}
-    # status is never imported
-    imported["status"] = 0
+    _ensure_import_target(wipe=wipe, dry_run=dry_run)
 
     if dry_run:
-        for key in IMPORT_TABLE_ORDER:
-            if key == "nonce" and not include_nonces:
-                imported[key] = 0
-                continue
-            imported[key] = len(tables.get(key, []))
-            _vlog(f"import dry-run: would import {key}: {imported[key]} row(s)")
-        return imported
+        return _dry_run_import_counts(tables, include_nonces)
 
     models = _django_models()
     try:
         with transaction.atomic():
-            for key in IMPORT_TABLE_ORDER:
-                if key == "nonce" and not include_nonces:
-                    continue
-                handler = _IMPORT_HANDLERS[key]
-                rows = tables.get(key, [])
-                _vlog(f"import: writing {key}: {len(rows)} row(s)")
-                for row in rows:
-                    handler(row, models)
-                    imported[key] += 1
+            return _write_import_tables(tables, include_nonces, models)
     except MigrationError:
         raise
     except Exception as exc:  # noqa: BLE001 — map ORM/integrity errors
         raise MigrationError(f"import failed: {exc}") from exc
-
-    return imported
 
 
 def cmd_export(args: argparse.Namespace) -> int:
