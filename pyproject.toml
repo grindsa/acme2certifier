@@ -72,6 +72,7 @@ a2c-cliuser-mgmt = "acme2certifier.tools.a2c_cliuser_mgmt:main"
 a2c-invalidator = "acme2certifier.tools.a2c_invalidator:main"
 a2c-report-generator = "acme2certifier.tools.a2c_report_generator:main"
 a2c-mswcce-connection-test = "acme2certifier.tools.a2c_mswcce_connection_test:main"
+a2c-wsgi2django = "acme2certifier.tools.a2c_wsgi2django:main"
 
 [project.urls]
 Homepage = "https://github.com/grindsa/acme2certifier"

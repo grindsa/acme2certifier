@@ -7,7 +7,7 @@
 Step-by-step upgrade from **acme2certifier v0.44** to the package-first layout (`acme2certifier.*`).
 
 Target architecture: [Package layout](architecture/package-layout.md).
-Install guides: [pip/Apache](install_apache2_ubuntu.md) · [pip/Nginx Ubuntu](install_nginx_ubuntu.md) · [pip/Nginx Alma](install_nginx_alma.md) · [DEB](install_deb.md) · [RPM](install_rpm.md) · [Docker](install_docker.md).
+Install guides: [pip/Apache](install_apache2_ubuntu.md) · [pip/Nginx Ubuntu](install_nginx_ubuntu.md) · [pip/Nginx Alma](install_nginx_alma.md) · [DEB](install_deb.md) · [RPM](install_rpm.md) · [Docker](install_docker.md) · [WSGI to Django migration](migrate_wsgi_to_django.md).
 
 ## What changed
 
@@ -184,7 +184,7 @@ curl -sS http://127.0.0.1:<host-port>/directory
 
 5. Check logs: `docker compose logs --tail=50 <service>`.
 
-**Intentional WSGI → Django (or reverse):** treat as a migration, not a tag swap. Follow the full [Docker (Django)](#docker-django) or [Docker (WSGI)](#docker-wsgi) section including settings, `handler:`, and migrations — do not change only the tag.
+**Intentional WSGI → Django (or reverse):** treat as a migration, not a tag swap. Follow [Migrate WSGI to Django](migrate_wsgi_to_django.md) for the full export/import/check flow, then apply Docker-specific stack alignment from [Docker (Django)](#docker-django) and [Docker (WSGI)](#docker-wsgi).
 
 ---
 

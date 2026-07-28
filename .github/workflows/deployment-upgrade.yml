@@ -381,7 +381,7 @@ jobs:
           WEB_SRV: ${{ matrix.websrv }}
 
       - name: "Renew after build"
-        uses: ./.github/actions/wf_specific/upgrade/renew
+        uses: ./.github/actions/acme_clients_renew
         with:
           CLEANUP: true
           HOSTNAME_SUFFIX: ""
@@ -553,7 +553,7 @@ jobs:
         uses: ./.github/actions/wf_specific/upgrade/db_update
 
       - name: "Renew after build"
-        uses: ./.github/actions/wf_specific/upgrade/renew
+        uses: ./.github/actions/acme_clients_renew
         with:
           CLEANUP: true
           HOSTNAME_SUFFIX: ""
@@ -697,7 +697,7 @@ jobs:
           APP_ROOT: /var/www/acme2certifier
 
       - name: "Renew after build"
-        uses: ./.github/actions/wf_specific/upgrade/renew
+        uses: ./.github/actions/acme_clients_renew
         with:
           CLEANUP: true
           HOSTNAME_SUFFIX: ""

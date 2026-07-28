@@ -13,9 +13,9 @@ inputs:
     required: false
     default: "acme-srv"
   COMPOSE_SERVICE:
-    description: "docker compose service container name for container deployments"
+    description: "Container name for docker inspect log flush (container deployments)"
     required: false
-    default: "acme2certifier-acme-srv-1"
+    default: "acme-srv"
   REGEX:
     description: "If true, use grep -E; otherwise grep -F"
     required: false

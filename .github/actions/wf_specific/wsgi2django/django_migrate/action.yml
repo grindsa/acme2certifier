@@ -1,0 +1,46 @@
+name: "wsgi2django django migrate"
+description: "Apply Django schema migrations and load status fixture for WSGI→Django migration tests (fail on error)"
+inputs:
+  APP_ROOT:
+    description: "Application root inside container"
+    required: false
+    default: "/var/www/acme2certifier"
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Django migrate + status fixture"
+      shell: bash
+      env:
+        APP_ROOT: ${{ inputs.APP_ROOT }}
+      run: |
+        set -euo pipefail
+        docker exec -e APP_ROOT="${APP_ROOT}" -w "${APP_ROOT}" acme-srv bash -c '
+          set -euo pipefail
+          if [[ -x "${APP_ROOT}/venv/bin/a2c-django-update" ]]; then
+            export PATH="${APP_ROOT}/venv/bin:${PATH}"
+          fi
+          export DJANGO_SETTINGS_MODULE="${DJANGO_SETTINGS_MODULE:-acme2certifier.django_project.settings}"
+          export ACME2CERTIFIER_BASE_DIR="${APP_ROOT}"
+          if [[ -f "${APP_ROOT}/acme_srv.cfg" ]]; then
+            export ACME_SRV_CONFIGFILE="${APP_ROOT}/acme_srv.cfg"
+          elif [[ -f "${APP_ROOT}/volume/acme_srv.cfg" ]]; then
+            export ACME_SRV_CONFIGFILE="${APP_ROOT}/volume/acme_srv.cfg"
+          fi
+          if [[ "${APP_ROOT}" == /opt/* ]]; then
+            export PYTHONPATH="${APP_ROOT}${PYTHONPATH:+:${PYTHONPATH}}"
+          fi
+          if [[ -f "${APP_ROOT}/volume/acme2certifier/settings.py" ]]; then
+            pkg_settings="$(python3 -c "import acme2certifier.django_project, pathlib; print(pathlib.Path(acme2certifier.django_project.__file__).parent / \"settings.py\")")"
+            ln -sfn "${APP_ROOT}/volume/acme2certifier/settings.py" "${pkg_settings}"
+          elif [[ -f "${APP_ROOT}/volume/settings.py" ]]; then
+            pkg_settings="$(python3 -c "import acme2certifier.django_project, pathlib; print(pathlib.Path(acme2certifier.django_project.__file__).parent / \"settings.py\")")"
+            ln -sfn "${APP_ROOT}/volume/settings.py" "${pkg_settings}"
+          fi
+          if command -v a2c-django-update >/dev/null 2>&1; then
+            a2c-django-update
+          else
+            python3 -m acme2certifier.tools.a2c_django_update
+          fi
+          a2c-manage loaddata status
+        '

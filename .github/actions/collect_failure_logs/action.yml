@@ -2,7 +2,7 @@ name: "collect_failure_logs"
 description: "Collect deployment logs into artifact/upload/artifact.tar.gz on failure"
 inputs:
   DEPLOYMENT_TYPE:
-    description: "container | rpm | deb"
+    description: "container | rpm | deb | pip"
     required: true
   WEBSRV:
     description: "Web server (deb only: apache2|nginx)"
@@ -63,6 +63,24 @@ runs:
               docker exec acme-srv cat /var/log/nginx/error.log > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" || true
             fi
             docker exec acme-srv cat /var/log/syslog > "${GITHUB_WORKSPACE}/artifact/syslog" || true
+            ;;
+          pip)
+            # Pip/from-source jobs run in systemd containers and may use /var/www (Ubuntu)
+            # or /opt (Alma). Collect both when present.
+            docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c-var-www.tgz /var/www/acme2certifier/ || true
+            docker exec acme-srv tar cvfz /tmp/acme2certifier/a2c-opt.tgz /opt/acme2certifier/ || true
+            copy_dir_contents_if_present "data" "${GITHUB_WORKSPACE}/artifact/data"
+            copy_dir_contents_if_present "acme-sh" "${GITHUB_WORKSPACE}/artifact/acme-sh"
+            copy_dir_contents_if_present "certbot" "${GITHUB_WORKSPACE}/artifact/certbot"
+            copy_dir_contents_if_present "lego" "${GITHUB_WORKSPACE}/artifact/lego"
+            if [[ "${WEBSRV}" == "apache2" ]]; then
+              docker exec acme-srv cat /var/log/apache2/error.log > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" || true
+            else
+              docker exec acme-srv cat /var/log/nginx/error.log > "${GITHUB_WORKSPACE}/artifact/acme-srv.log" || true
+            fi
+            docker exec acme-srv journalctl -u apache2 -u nginx -u acme2certifier --no-pager > "${GITHUB_WORKSPACE}/artifact/journal.log" 2>/dev/null || true
+            docker exec acme-srv cat /var/log/messages > "${GITHUB_WORKSPACE}/artifact/messages.log" 2>/dev/null || true
+            docker exec acme-srv cat /var/log/syslog > "${GITHUB_WORKSPACE}/artifact/syslog" 2>/dev/null || true
             ;;
           *)
             echo "ERROR: unknown DEPLOYMENT_TYPE=${DEPLOYMENT_TYPE}" >&2
