@@ -110,7 +110,7 @@ jobs:
       - name: "Switch compose env to Django image"
         run: |
           set -euo pipefail
-          sed -i 's/^DB_HANDLER=wsgi/DB_HANDLER=django/' examples/Docker/.env
+          sed -i 's/^CONTEXT=wsgi/CONTEXT=django/' examples/Docker/.env
 
       - name: "Load Django build image"
         uses: ./.github/actions/container_load
@@ -127,23 +127,9 @@ jobs:
           DB_HANDLER: django
           WEB_SRV: ${{ matrix.websrv }}
 
-      - name: "Migrate DB schema to Django"
-        run: |
-          set -euo pipefail
-          docker exec acme-srv bash -lc '
-            set -euo pipefail
-            APP_ROOT=/var/www/acme2certifier
-            export DJANGO_SETTINGS_MODULE=acme2certifier.django_project.settings
-            if [[ -f "${APP_ROOT}/volume/acme2certifier/settings.py" ]]; then
-              pkg_settings="$(python3 -c "import acme2certifier.django_project, pathlib; print(pathlib.Path(acme2certifier.django_project.__file__).parent / \"settings.py\")")"
-              ln -sfn "${APP_ROOT}/volume/acme2certifier/settings.py" "${pkg_settings}"
-            elif [[ -f "${APP_ROOT}/volume/settings.py" ]]; then
-              pkg_settings="$(python3 -c "import acme2certifier.django_project, pathlib; print(pathlib.Path(acme2certifier.django_project.__file__).parent / \"settings.py\")")"
-              ln -sfn "${APP_ROOT}/volume/settings.py" "${pkg_settings}"
-            fi
-            a2c-manage migrate
-            a2c-manage loaddata status
-          '
+      # Entrypoint already runs a2c-django-update; do not re-run (races with up -d).
+      - name: "Wait for Django ACME directory"
+        uses: ./.github/actions/wait_for_directory
 
       - name: "Import and check migration dump"
         run: |
@@ -257,7 +243,7 @@ jobs:
           MODERN: "true"
 
       - name: "Migrate DB schema to Django"
-        uses: ./.github/actions/wf_specific/upgrade/db_update
+        uses: ./.github/actions/wf_specific/wsgi2django/django_migrate
         with:
           APP_ROOT: /var/www/acme2certifier
 
@@ -368,7 +354,9 @@ jobs:
           MODERN: "true"
 
       - name: "Migrate DB schema to Django"
-        uses: ./.github/actions/wf_specific/upgrade/db_update
+        uses: ./.github/actions/wf_specific/wsgi2django/django_migrate
+        with:
+          APP_ROOT: /opt/acme2certifier
 
       - name: "Import and check migration dump"
         run: |
@@ -472,7 +460,7 @@ jobs:
           WEBSRV: ${{ matrix.websrv }}
 
       - name: Migrate DB schema to Django
-        uses: ./.github/actions/wf_specific/upgrade/db_update
+        uses: ./.github/actions/wf_specific/wsgi2django/django_migrate
         with:
           APP_ROOT: /var/www/acme2certifier
 
