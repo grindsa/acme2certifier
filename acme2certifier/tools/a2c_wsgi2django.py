@@ -1,11 +1,10 @@
 #!/usr/bin/python3
 """Migrate ACME data from WSGI SQLite to Django ORM via a portable JSON dump."""
 
-from __future__ import annotations
-
 import argparse
 import json
 import os
+import re
 import sqlite3
 import sys
 from datetime import datetime, timezone
@@ -796,6 +795,31 @@ def _as_str(value: Any, default: str = "") -> str:
     return str(value)
 
 
+def _parse_iso_datetime(text: str) -> datetime:
+    """Parse ISO-like timestamps without datetime.fromisoformat (Python 3.6)."""
+    normalized = str(text).strip()
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+0000"
+    tz_match = re.match(r"^(.*)([+-]\d{2}):(\d{2})$", normalized)
+    if tz_match:
+        normalized = tz_match.group(1) + tz_match.group(2) + tz_match.group(3)
+
+    formats = (
+        "%Y-%m-%dT%H:%M:%S.%f%z",
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%d %H:%M:%S.%f",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%dT%H:%M:%S.%f",
+        "%Y-%m-%dT%H:%M:%S",
+    )
+    for fmt in formats:
+        try:
+            return datetime.strptime(normalized, fmt)
+        except ValueError:
+            continue
+    raise ValueError("unparseable timestamp: {!r}".format(normalized))
+
+
 def _parse_datetime(value: Any) -> Optional[datetime]:
     """Parse dump timestamp into a datetime; make aware when USE_TZ=True."""
     if value is None or value == "":
@@ -804,19 +828,17 @@ def _parse_datetime(value: Any) -> Optional[datetime]:
         dt = value
     else:
         text = str(value).strip()
-        if text.endswith("Z"):
-            text = text[:-1] + "+00:00"
         try:
-            dt = datetime.fromisoformat(text)
+            dt = _parse_iso_datetime(text)
         except ValueError:
             for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M:%S.%f"):
                 try:
-                    dt = datetime.strptime(str(value).strip(), fmt)
+                    dt = datetime.strptime(text, fmt)
                     break
                 except ValueError:
                     continue
             else:
-                raise MigrationError(f"unparseable timestamp: {value!r}") from None
+                raise MigrationError("unparseable timestamp: {!r}".format(value))
 
     from django.conf import settings
     from django.utils import timezone as dj_tz

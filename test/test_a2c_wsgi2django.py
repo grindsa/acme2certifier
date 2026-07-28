@@ -61,6 +61,20 @@ STATUS_ROWS: List[Tuple[int, str]] = [
 ]
 
 
+def test_parse_iso_datetime_python36_compatible() -> None:
+    """ISO parsing must not rely on datetime.fromisoformat (added in 3.7)."""
+    from datetime import datetime
+
+    assert migrator._parse_iso_datetime("2024-01-15T10:20:30") == datetime(
+        2024, 1, 15, 10, 20, 30
+    )
+    assert migrator._parse_iso_datetime("2024-01-15T10:20:30.123456") == datetime(
+        2024, 1, 15, 10, 20, 30, 123456
+    )
+    assert migrator._parse_iso_datetime("2024-01-15T10:20:30Z").utcoffset() is not None
+    assert migrator._parse_iso_datetime("2024-01-15T10:20:30+00:00").utcoffset() is not None
+
+
 def _create_wsgi_schema(conn: sqlite3.Connection) -> None:
     """Create a minimal current-schema WSGI SQLite DB."""
     cur = conn.cursor()

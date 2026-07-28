@@ -89,12 +89,13 @@ jobs:
           set -euo pipefail
           docker exec acme-srv bash -lc '
             set -euo pipefail
+            DUMP="/var/www/acme2certifier/volume/wsgi-dump.json"
             DB_MAIN="/var/www/acme2certifier/acme_srv.db"
             DB_LEGACY="/var/www/acme2certifier/acme_srv/acme_srv.db"
             if [ -f "${DB_MAIN}" ]; then
-              a2c-wsgi2django export --db "${DB_MAIN}" --out /tmp/wsgi-dump.json
+              a2c-wsgi2django export --db "${DB_MAIN}" --out "${DUMP}"
             else
-              a2c-wsgi2django export --db "${DB_LEGACY}" --out /tmp/wsgi-dump.json
+              a2c-wsgi2django export --db "${DB_LEGACY}" --out "${DUMP}"
             fi
           '
 
@@ -136,8 +137,9 @@ jobs:
           set -euo pipefail
           docker exec acme-srv bash -lc '
             set -euo pipefail
-            a2c-wsgi2django import --dump /tmp/wsgi-dump.json --wipe
-            a2c-wsgi2django check --dump /tmp/wsgi-dump.json
+            DUMP="/var/www/acme2certifier/volume/wsgi-dump.json"
+            a2c-wsgi2django import --dump "${DUMP}" --wipe
+            a2c-wsgi2django check --dump "${DUMP}"
           '
 
       - name: "Renew on Django"
