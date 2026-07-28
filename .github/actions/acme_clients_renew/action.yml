@@ -1,5 +1,5 @@
-name: "acme_clients - renew certificates"
-description: "Test if acme.sh, certbot and lego can renew certificates across upgrades"
+name: "acme_clients_renew"
+description: "Test if acme.sh, certbot and lego can renew certificates"
 inputs:
   ACME_SERVER:
     description: "ACME server URL"
@@ -37,7 +37,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-
     - name: "HTTPS - Renew lego"
       run: |
         set -euo pipefail

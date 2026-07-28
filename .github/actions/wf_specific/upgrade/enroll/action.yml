@@ -118,7 +118,7 @@ runs:
 
     - name: "Renewal"
       if: ${{ inputs.RENEWAL == 'true' }}
-      uses: ./.github/actions/wf_specific/upgrade/renew
+      uses: ./.github/actions/acme_clients_renew
       with:
         ACME_SERVER: ${{ inputs.ACME_SERVER }}
         HTTPS_PORT: ${{ inputs.HTTPS_PORT }}
